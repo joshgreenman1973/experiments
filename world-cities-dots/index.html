@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100 Cities in Dots</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #fff;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 24px 20px 4px;
+  }
+  header h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 8px;
+    font-weight: 300;
+    text-align: center;
+  }
+  #counter {
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 200;
+    letter-spacing: 1px;
+    color: #fff;
+    padding: 4px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  #counter span {
+    background: linear-gradient(135deg, #48dbfb, #ff9ff3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 400;
+  }
+  #metric-switcher {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 20px 6px;
+  }
+  #metric-switcher button {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #aaa;
+    padding: 5px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+  }
+  #metric-switcher button:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+  #metric-switcher button.active {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+    font-weight: 500;
+  }
+  #canvas-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+  }
+  canvas { border-radius: 12px; max-width: 100%; }
+  #controls {
+    text-align: center;
+    padding: 8px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  #controls button {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 5px 13px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+  }
+  #controls button:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+  }
+  #controls button.active {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.45);
+  }
+  .controls-label {
+    color: #666;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+  }
+  .controls-divider {
+    width: 1px; height: 24px;
+    background: rgba(255,255,255,0.1);
+    margin: 0 6px; align-self: center;
+  }
+  #search-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 6px 20px 10px;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #search-wrap input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.3s;
+    font-family: inherit;
+  }
+  #search-wrap input:focus { border-color: rgba(255,255,255,0.4); }
+  #search-wrap input::placeholder { color: #555; }
+  #search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(15,15,35,0.97);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+  }
+  #search-results.open { display: block; }
+  .search-result {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    transition: background 0.15s;
+  }
+  .search-result:hover { background: rgba(255,255,255,0.08); }
+  .search-result .sr-val { color: #888; font-size: 0.8rem; }
+  .search-input-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  #highlight-info {
+    font-size: 0.9rem;
+    color: #ccc;
+    min-height: 1.2em;
+    text-align: center;
+  }
+  #highlight-info .hi-name { font-weight: 600; }
+  #highlight-info .hi-pct {
+    background: linear-gradient(135deg, #48dbfb, #ff9ff3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  #highlight-info .hi-clear {
+    display: inline-block;
+    margin-left: 14px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #ddd;
+    padding: 6px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: all 0.2s;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+  }
+  #highlight-info .hi-clear:hover {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.45);
+    color: #fff;
+    transform: scale(1.05);
+  }
+  #legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 12px;
+    padding: 20px 30px 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    color: #ccc;
+    opacity: 0;
+    transition: opacity 0.5s;
+    cursor: pointer;
+  }
+  .legend-item.visible { opacity: 1; }
+  .legend-item:hover { color: #fff; }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #tooltip {
+    position: fixed;
+    background: rgba(15,15,35,0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    max-width: 300px;
+  }
+  #tooltip .tt-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+  #tooltip .tt-val { color: #aaa; }
+  #tooltip .tt-pct { color: #999; font-size: 0.8rem; margin-top: 2px; }
+  #tooltip .tt-region { color: #777; font-size: 0.8rem; margin-top: 2px; }
+  #region-labels {
+    position: absolute;
+    pointer-events: none;
+    top: 0; left: 0;
+  }
+  .region-label {
+    position: absolute;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: #555;
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>100 Cities in Dots</h1>
+</header>
+<p id="subtitle">Each dot &asymp; 500K people &middot; every city gets at least one</p>
+<div id="counter">Combined Population: <span>0</span></div>
+<div id="metric-switcher">
+  <button data-metric="pop" class="active">Population</button>
+  <button data-metric="gdp">GDP</button>
+  <button data-metric="gdppc">GDP per Capita</button>
+  <button data-metric="area">Land Area</button>
+</div>
+<div id="controls">
+  <span class="controls-label">Sort</span>
+  <button data-sort="default" class="active">Largest First</button>
+  <button data-sort="smallest">Smallest First</button>
+  <button data-sort="alpha">A &rarr; Z</button>
+  <div class="controls-divider"></div>
+  <span class="controls-label">Group</span>
+  <button data-sort="continent">By Region</button>
+  <div class="controls-divider"></div>
+  <button id="replayBtn">Replay</button>
+</div>
+<div id="search-wrap">
+  <div class="search-input-wrap">
+    <input type="text" id="search" placeholder="Search for a city..." autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+  <div id="highlight-info"></div>
+</div>
+<div id="canvas-wrap" style="position:relative">
+  <canvas id="c"></canvas>
+  <div id="region-labels"></div>
+</div>
+<div id="legend"></div>
+<div id="tooltip"><div class="tt-name"></div><div class="tt-val"></div><div class="tt-pct"></div><div class="tt-region"></div></div>
+<footer>
+  Population: UN World Urbanization Prospects / Demographia 2025 &middot; GDP: Brookings / Oxford Economics est. &middot; Area: Demographia World Urban Areas<br>
+  All figures are metro-area estimates and approximate. GDP per capita derived from GDP &divide; population.
+</footer>
+
+<script>
+// ══════════════════════════════════════════
+// DATA — 100 largest metro areas
+// pop: millions, gdp: billions USD, area: km²
+// ══════════════════════════════════════════
+const cities = [
+  { name:"Tokyo", country:"Japan", region:"Asia", pop:37.1, gdp:2100, area:8231 },
+  { name:"Delhi", country:"India", region:"Asia", pop:34.7, gdp:294, area:2232 },
+  { name:"Shanghai", country:"China", region:"Asia", pop:30.5, gdp:757, area:4064 },
+  { name:"Dhaka", country:"Bangladesh", region:"Asia", pop:24.7, gdp:180, area:1347 },
+  { name:"Cairo", country:"Egypt", region:"Africa", pop:23.1, gdp:190, area:1917 },
+  { name:"São Paulo", country:"Brazil", region:"Americas", pop:23.0, gdp:780, area:3043 },
+  { name:"Mexico City", country:"Mexico", region:"Americas", pop:22.8, gdp:411, area:2386 },
+  { name:"Beijing", country:"China", region:"Asia", pop:22.6, gdp:700, area:4144 },
+  { name:"Mumbai", country:"India", region:"Asia", pop:22.2, gdp:310, area:944 },
+  { name:"Osaka", country:"Japan", region:"Asia", pop:18.9, gdp:699, area:3213 },
+  { name:"Chongqing", country:"China", region:"Asia", pop:18.4, gdp:430, area:2920 },
+  { name:"Karachi", country:"Pakistan", region:"Asia", pop:17.6, gdp:115, area:1450 },
+  { name:"Istanbul", country:"Turkey", region:"Asia", pop:16.4, gdp:370, area:2576 },
+  { name:"Kinshasa", country:"DR Congo", region:"Africa", pop:16.3, gdp:28, area:1117 },
+  { name:"Lagos", country:"Nigeria", region:"Africa", pop:16.2, gdp:130, area:1171 },
+  { name:"Kolkata", country:"India", region:"Asia", pop:15.6, gdp:185, area:1351 },
+  { name:"Buenos Aires", country:"Argentina", region:"Americas", pop:15.5, gdp:315, area:2766 },
+  { name:"Manila", country:"Philippines", region:"Asia", pop:14.9, gdp:210, area:1873 },
+  { name:"Guangzhou", country:"China", region:"Asia", pop:14.8, gdp:565, area:3820 },
+  { name:"Tianjin", country:"China", region:"Asia", pop:14.4, gdp:340, area:2771 },
+  { name:"Lahore", country:"Pakistan", region:"Asia", pop:14.3, gdp:84, area:1172 },
+  { name:"Bangalore", country:"India", region:"Asia", pop:14.1, gdp:205, area:1166 },
+  { name:"Rio de Janeiro", country:"Brazil", region:"Americas", pop:13.9, gdp:245, area:2020 },
+  { name:"New York", country:"United States", region:"Americas", pop:13.9, gdp:2300, area:11875 },
+  { name:"Shenzhen", country:"China", region:"Asia", pop:13.6, gdp:505, area:1748 },
+  { name:"Moscow", country:"Russia", region:"Europe", pop:13.2, gdp:520, area:5698 },
+  { name:"Chennai", country:"India", region:"Asia", pop:12.1, gdp:145, area:1049 },
+  { name:"Jakarta", country:"Indonesia", region:"Asia", pop:11.9, gdp:298, area:1360 },
+  { name:"Lima", country:"Peru", region:"Americas", pop:11.5, gdp:180, area:950 },
+  { name:"Paris", country:"France", region:"Europe", pop:11.3, gdp:1270, area:2845 },
+  { name:"Bangkok", country:"Thailand", region:"Asia", pop:11.2, gdp:360, area:3043 },
+  { name:"Hyderabad", country:"India", region:"Asia", pop:11.1, gdp:195, area:1268 },
+  { name:"Seoul", country:"South Korea", region:"Asia", pop:10.9, gdp:878, area:2768 },
+  { name:"Nagoya", country:"Japan", region:"Asia", pop:10.6, gdp:390, area:3885 },
+  { name:"London", country:"United Kingdom", region:"Europe", pop:10.3, gdp:1170, area:1738 },
+  { name:"Luanda", country:"Angola", region:"Africa", pop:9.8, gdp:80, area:1051 },
+  { name:"Chengdu", country:"China", region:"Asia", pop:9.6, gdp:320, area:2098 },
+  { name:"Tehran", country:"Iran", region:"Asia", pop:9.5, gdp:210, area:1274 },
+  { name:"Ho Chi Minh City", country:"Vietnam", region:"Asia", pop:9.4, gdp:175, area:1362 },
+  { name:"Bogotá", country:"Colombia", region:"Americas", pop:9.3, gdp:170, area:564 },
+  { name:"Wuhan", country:"China", region:"Asia", pop:9.3, gdp:295, area:1428 },
+  { name:"Ahmedabad", country:"India", region:"Asia", pop:9.0, gdp:110, area:569 },
+  { name:"Chicago", country:"United States", region:"Americas", pop:8.9, gdp:895, area:6856 },
+  { name:"Kuala Lumpur", country:"Malaysia", region:"Asia", pop:8.8, gdp:290, area:2243 },
+  { name:"Hangzhou", country:"China", region:"Asia", pop:8.7, gdp:280, area:1460 },
+  { name:"Dar es Salaam", country:"Tanzania", region:"Africa", pop:8.5, gdp:30, area:747 },
+  { name:"Riyadh", country:"Saudi Arabia", region:"Asia", pop:8.4, gdp:260, area:2435 },
+  { name:"Suzhou", country:"China", region:"Asia", pop:8.3, gdp:350, area:1232 },
+  { name:"Santiago", country:"Chile", region:"Americas", pop:8.1, gdp:195, area:1140 },
+  { name:"Nanjing", country:"China", region:"Asia", pop:8.1, gdp:280, area:1128 },
+  { name:"Toronto", country:"Canada", region:"Americas", pop:7.9, gdp:460, area:2300 },
+  { name:"Pune", country:"India", region:"Asia", pop:7.8, gdp:100, area:741 },
+  { name:"Khartoum", country:"Sudan", region:"Africa", pop:7.7, gdp:35, area:948 },
+  { name:"Nairobi", country:"Kenya", region:"Africa", pop:7.6, gdp:75, area:696 },
+  { name:"Houston", country:"United States", region:"Americas", pop:7.5, gdp:620, area:4841 },
+  { name:"Dongguan", country:"China", region:"Asia", pop:7.4, gdp:185, area:862 },
+  { name:"Surat", country:"India", region:"Asia", pop:7.3, gdp:75, area:474 },
+  { name:"Johannesburg", country:"South Africa", region:"Africa", pop:7.2, gdp:155, area:2590 },
+  { name:"Dallas", country:"United States", region:"Americas", pop:7.1, gdp:640, area:5175 },
+  { name:"Foshan", country:"China", region:"Asia", pop:7.1, gdp:190, area:1068 },
+  { name:"Zhengzhou", country:"China", region:"Asia", pop:7.0, gdp:210, area:2015 },
+  { name:"Abidjan", country:"Ivory Coast", region:"Africa", pop:6.9, gdp:55, area:737 },
+  { name:"Yangon", country:"Myanmar", region:"Asia", pop:6.9, gdp:32, area:795 },
+  { name:"Hanoi", country:"Vietnam", region:"Asia", pop:6.8, gdp:110, area:942 },
+  { name:"Alexandria", country:"Egypt", region:"Africa", pop:6.7, gdp:50, area:364 },
+  { name:"Xi'an", country:"China", region:"Asia", pop:6.6, gdp:195, area:956 },
+  { name:"Ankara", country:"Turkey", region:"Asia", pop:6.5, gdp:120, area:1410 },
+  { name:"Philadelphia", country:"United States", region:"Americas", pop:6.4, gdp:530, area:5131 },
+  { name:"Addis Ababa", country:"Ethiopia", region:"Africa", pop:6.3, gdp:35, area:527 },
+  { name:"Washington DC", country:"United States", region:"Americas", pop:6.3, gdp:640, area:4616 },
+  { name:"Miami", country:"United States", region:"Americas", pop:6.3, gdp:450, area:2891 },
+  { name:"Belo Horizonte", country:"Brazil", region:"Americas", pop:6.2, gdp:105, area:1590 },
+  { name:"Qingdao", country:"China", region:"Asia", pop:6.2, gdp:215, area:1148 },
+  { name:"Atlanta", country:"United States", region:"Americas", pop:6.2, gdp:490, area:7296 },
+  { name:"Saint Petersburg", country:"Russia", region:"Europe", pop:6.1, gdp:120, area:1347 },
+  { name:"Barcelona", country:"Spain", region:"Europe", pop:5.8, gdp:310, area:803 },
+  { name:"Changsha", country:"China", region:"Asia", pop:5.7, gdp:210, area:980 },
+  { name:"Singapore", country:"Singapore", region:"Asia", pop:5.7, gdp:515, area:734 },
+  { name:"Los Angeles", country:"United States", region:"Americas", pop:5.6, gdp:1290, area:6299 },
+  { name:"Jinan", country:"China", region:"Asia", pop:5.6, gdp:175, area:890 },
+  { name:"Madrid", country:"Spain", region:"Europe", pop:5.5, gdp:355, area:1321 },
+  { name:"Dalian", country:"China", region:"Asia", pop:5.4, gdp:140, area:837 },
+  { name:"Harbin", country:"China", region:"Asia", pop:5.3, gdp:85, area:744 },
+  { name:"Jeddah", country:"Saudi Arabia", region:"Asia", pop:5.2, gdp:155, area:1230 },
+  { name:"Milan", country:"Italy", region:"Europe", pop:5.2, gdp:365, area:1891 },
+  { name:"Kunming", country:"China", region:"Asia", pop:5.2, gdp:120, area:788 },
+  { name:"Accra", country:"Ghana", region:"Africa", pop:5.1, gdp:45, area:604 },
+  { name:"Sydney", country:"Australia", region:"Oceania", pop:5.1, gdp:380, area:2037 },
+  { name:"Melbourne", country:"Australia", region:"Oceania", pop:5.0, gdp:310, area:2543 },
+  { name:"Shenyang", country:"China", region:"Asia", pop:5.0, gdp:120, area:1098 },
+  { name:"Chittagong", country:"Bangladesh", region:"Asia", pop:5.0, gdp:35, area:474 },
+  { name:"Casablanca", country:"Morocco", region:"Africa", pop:4.9, gdp:55, area:486 },
+  { name:"Guadalajara", country:"Mexico", region:"Americas", pop:4.8, gdp:90, area:1043 },
+  { name:"Berlin", country:"Germany", region:"Europe", pop:4.7, gdp:265, area:1347 },
+  { name:"Monterrey", country:"Mexico", region:"Americas", pop:4.6, gdp:125, area:1025 },
+  { name:"Xiamen", country:"China", region:"Asia", pop:4.6, gdp:115, area:414 },
+  { name:"Ningbo", country:"China", region:"Asia", pop:4.5, gdp:230, area:784 },
+];
+
+// ══════════════════════════════════════════
+// METRIC DEFINITIONS
+// ══════════════════════════════════════════
+const metricDefs = {
+  pop: {
+    key: 'pop', dotUnit: 0.5, label: 'Population',
+    subtitle: n => `Each dot ≈ ${n * 1000}K people · every city gets at least one`,
+    counterLabel: 'Combined Population',
+    formatVal: v => v.toFixed(1) + 'M',
+    formatTotal: t => Math.round(t * 1_000_000).toLocaleString(),
+    formatDots: (c,n) => `${c.pop.toFixed(1)}M people (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of these 100 cities',
+  },
+  gdp: {
+    key: 'gdp', dotUnit: 10, label: 'GDP',
+    subtitle: n => `Each dot ≈ $${n}B GDP · every city gets at least one`,
+    counterLabel: 'Combined GDP',
+    formatVal: v => '$' + v.toLocaleString() + 'B',
+    formatTotal: t => '$' + (t / 1000).toFixed(1) + ' trillion',
+    formatDots: (c,n) => `$${c.gdp.toLocaleString()}B GDP (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of combined GDP',
+  },
+  area: {
+    key: 'area', dotUnit: 100, label: 'Land Area',
+    subtitle: n => `Each dot ≈ ${n} km² · every city gets at least one`,
+    counterLabel: 'Combined Area',
+    formatVal: v => v.toLocaleString() + ' km²',
+    formatTotal: t => Math.round(t).toLocaleString() + ' km²',
+    formatDots: (c,n) => `${c.area.toLocaleString()} km² (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of combined area',
+  },
+  gdppc: {
+    key: 'gdppc', dotUnit: 2, label: 'GDP per Capita',
+    subtitle: n => `Each dot ≈ $${n},000 per person · every city gets at least one`,
+    counterLabel: 'Weighted Avg. GDP/Capita',
+    formatVal: v => '$' + Math.round(v * 1000).toLocaleString(),
+    formatTotal: t => '$' + Math.round(t * 1000).toLocaleString(),
+    formatDots: (c,n) => `$${Math.round(c.gdppc * 1000).toLocaleString()}/person (${n} dot${n>1?'s':''})`,
+    pctLabel: 'relative GDP per capita',
+    isPerCapita: true,
+  },
+};
+
+// Derive GDP per capita (thousands USD)
+cities.forEach(c => {
+  c.gdppc = Math.round((c.gdp / c.pop) * 10) / 10;
+});
+
+// ══════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════
+const goldenAngle = 137.508;
+const palette = [], rgbColors = [];
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+}
+
+// Assign by pop rank for max distinction among biggest cities
+const popRank = cities.map((_, i) => i);
+popRank.sort((a, b) => cities[b].pop - cities[a].pop);
+const colorSlot = new Array(cities.length);
+popRank.forEach((ci, rank) => { colorSlot[ci] = rank; });
+
+for (let i = 0; i < cities.length; i++) {
+  const rank = colorSlot[i];
+  const hue = (rank * goldenAngle) % 360;
+  const sat = 62 + (rank % 3) * 12;
+  const lit = 50 + (rank % 5) * 5;
+  palette.push(`hsl(${hue}, ${sat}%, ${lit}%)`);
+  rgbColors.push(hslToRgb(hue, sat, lit));
+}
+
+const regionColors = {
+  "Asia": "hsl(200, 70%, 60%)",
+  "Africa": "hsl(35, 80%, 55%)",
+  "Europe": "hsl(260, 60%, 65%)",
+  "Americas": "hsl(140, 60%, 50%)",
+  "Oceania": "hsl(330, 60%, 60%)",
+};
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let currentMetric = 'pop';
+let currentSort = 'default';
+let highlightCI = -1;
+let isInitialAnimation = true;
+let isTransitioning = false;
+let transitionStart = 0;
+let startTime = 0;
+const TRANSITION_DUR = 800;
+let animDuration = 6000;
+
+let dots = [];
+let totalDots = 0;
+let metricTotal = 0;
+
+function rebuildDots(metricKey) {
+  const def = metricDefs[metricKey];
+  const key = def.key;
+  const unit = def.dotUnit;
+
+  let newTotalDots = 0;
+  metricTotal = 0;
+  cities.forEach(c => {
+    const val = c[key] || 0;
+    const n = Math.max(1, Math.round(val / unit));
+    c.dotCount = n;
+    c.dotStart = newTotalDots;
+    c.valPerDot = val / n;
+    metricTotal += val;
+    newTotalDots += n;
+  });
+
+  if (newTotalDots > dots.length) {
+    for (let i = dots.length; i < newTotalDots; i++) {
+      dots.push({ ci: 0, x: 0, y: 0, tx: 0, ty: 0, ox: 0, oy: 0, born: 0, scale: 0, dying: false });
+    }
+  }
+  for (let i = newTotalDots; i < dots.length; i++) {
+    dots[i].scale = 0;
+    dots[i].dying = true;
+  }
+  totalDots = newTotalDots;
+
+  cities.forEach((c, ci) => {
+    for (let j = 0; j < c.dotCount; j++) {
+      const d = dots[c.dotStart + j];
+      d.ci = ci;
+      d.dying = false;
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+let W, H, COLS, DOT_R, GAP;
+let displayOrder = [];
+
+function resize() {
+  const maxW = Math.min(window.innerWidth - 40, 1100);
+  DOT_R = window.innerWidth < 600 ? 2.2 : 3.2;
+  GAP = DOT_R * 2.4;
+  COLS = Math.floor(maxW / GAP);
+  applySort(currentSort, false);
+}
+
+function getSortedCityIndices(sortType) {
+  const key = metricDefs[currentMetric].key;
+  const indices = cities.map((_, i) => i);
+  switch (sortType) {
+    case 'default':
+    case 'largest': indices.sort((a, b) => (cities[b][key]||0) - (cities[a][key]||0)); break;
+    case 'smallest': indices.sort((a, b) => (cities[a][key]||0) - (cities[b][key]||0)); break;
+    case 'alpha': indices.sort((a, b) => cities[a].name.localeCompare(cities[b].name)); break;
+    case 'continent':
+      const ro = ["Asia", "Africa", "Europe", "Americas", "Oceania"];
+      indices.sort((a, b) => {
+        const d = ro.indexOf(cities[a].region) - ro.indexOf(cities[b].region);
+        return d !== 0 ? d : (cities[b][key]||0) - (cities[a][key]||0);
+      });
+      break;
+  }
+  return indices;
+}
+
+function posForSlotAt(slot) {
+  return { x: (slot % COLS) * GAP + GAP / 2, y: Math.floor(slot / COLS) * GAP + GAP / 2 };
+}
+
+function applySort(sortType, animate = true) {
+  currentSort = sortType;
+  const sorted = getSortedCityIndices(sortType);
+
+  displayOrder = [];
+  sorted.forEach(ci => {
+    for (let j = 0; j < cities[ci].dotCount; j++) displayOrder.push(cities[ci].dotStart + j);
+  });
+
+  let totalSlots = totalDots;
+  if (sortType === 'continent') {
+    let slot = 0, lastR = null;
+    sorted.forEach(ci => {
+      const c = cities[ci];
+      if (lastR !== null && c.region !== lastR) {
+        const nr = (Math.floor(slot / COLS) + (slot % COLS === 0 ? 0 : 1)) * COLS;
+        slot = nr + COLS;
+      }
+      slot += c.dotCount;
+      lastR = c.region;
+    });
+    totalSlots = slot;
+  }
+
+  const ROWS = Math.ceil(totalSlots / COLS);
+  W = COLS * GAP;
+  H = ROWS * GAP + GAP;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (sortType === 'continent') {
+    let slot = 0, lastR = null;
+    const labels = [];
+    sorted.forEach(ci => {
+      const c = cities[ci];
+      if (lastR !== null && c.region !== lastR) {
+        const nr = (Math.floor(slot / COLS) + (slot % COLS === 0 ? 0 : 1)) * COLS;
+        slot = nr + COLS;
+      }
+      if (c.region !== lastR) {
+        const p = posForSlotAt(slot);
+        labels.push({ region: c.region, x: p.x - GAP/2, y: p.y - GAP * 1.2 });
+      }
+      for (let j = 0; j < c.dotCount; j++) {
+        const d = dots[c.dotStart + j], p = posForSlotAt(slot);
+        if (animate) { d.ox = d.x || p.x; d.oy = d.y || p.y; }
+        d.tx = p.x; d.ty = p.y;
+        slot++;
+      }
+      lastR = c.region;
+    });
+    showRegionLabels(labels);
+  } else {
+    hideRegionLabels();
+    for (let v = 0; v < displayOrder.length; v++) {
+      const d = dots[displayOrder[v]], p = posForSlotAt(v);
+      if (animate) { d.ox = d.x || p.x; d.oy = d.y || p.y; }
+      d.tx = p.x; d.ty = p.y;
+    }
+  }
+
+  if (animate) { transitionStart = performance.now(); isTransitioning = true; }
+  else dots.forEach((d, i) => { if (i < totalDots) { d.x = d.tx; d.y = d.ty; d.ox = d.tx; d.oy = d.ty; } });
+
+  document.querySelectorAll('#controls button[data-sort]').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === sortType);
+  });
+}
+
+const regionLabelsEl = document.getElementById('region-labels');
+function showRegionLabels(labels) {
+  regionLabelsEl.innerHTML = '';
+  labels.forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'region-label';
+    el.textContent = l.region;
+    el.style.color = regionColors[l.region] || '#888';
+    el.style.left = l.x + 'px';
+    el.style.top = l.y + 'px';
+    regionLabelsEl.appendChild(el);
+  });
+}
+function hideRegionLabels() { regionLabelsEl.innerHTML = ''; }
+
+// ══════════════════════════════════════════
+// LEGEND
+// ══════════════════════════════════════════
+const legendEl = document.getElementById('legend');
+
+function buildLegend() {
+  legendEl.innerHTML = '';
+  const def = metricDefs[currentMetric];
+  cities.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    if (!isInitialAnimation) el.classList.add('visible');
+    el.dataset.ci = i;
+    el.innerHTML = `<div class="legend-dot" style="background:${palette[i]}"></div>${c.name} <span style="color:#666">${def.formatVal(c[def.key])}</span>`;
+    el.addEventListener('click', () => highlightCity(i));
+    legendEl.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════
+// METRIC SWITCHING
+// ══════════════════════════════════════════
+const subtitleEl = document.getElementById('subtitle');
+const counterEl = document.getElementById('counter');
+const counterSpan = counterEl.querySelector('span');
+
+function switchMetric(metricKey) {
+  currentMetric = metricKey;
+  const def = metricDefs[metricKey];
+
+  subtitleEl.innerHTML = def.subtitle(def.dotUnit);
+  counterEl.childNodes[0].textContent = def.counterLabel + ': ';
+
+  rebuildDots(metricKey);
+
+  isInitialAnimation = false;
+  dots.forEach((d, i) => { if (i < totalDots) { d.scale = 1; d.born = -Infinity; } });
+  applySort(currentSort, true);
+  buildLegend();
+  document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+
+  if (highlightCI >= 0) highlightCity(highlightCI);
+
+  document.querySelectorAll('#metric-switcher button').forEach(b => {
+    b.classList.toggle('active', b.dataset.metric === metricKey);
+  });
+}
+
+// ══════════════════════════════════════════
+// SEARCH & HIGHLIGHT
+// ══════════════════════════════════════════
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+const highlightInfo = document.getElementById('highlight-info');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length === 0) { searchResults.classList.remove('open'); return; }
+  const def = metricDefs[currentMetric];
+  const matches = cities
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (matches.length === 0) { searchResults.classList.remove('open'); return; }
+  searchResults.innerHTML = matches.map(({ c, i }) =>
+    `<div class="search-result" data-ci="${i}"><span><span style="color:${palette[i]}; font-weight:600">${c.name}</span> · ${c.country}</span><span class="sr-val">${def.formatVal(c[def.key])}</span></div>`
+  ).join('');
+  searchResults.classList.add('open');
+});
+
+searchResults.addEventListener('click', e => {
+  const el = e.target.closest('.search-result');
+  if (!el) return;
+  highlightCity(parseInt(el.dataset.ci));
+  searchInput.value = '';
+  searchResults.classList.remove('open');
+});
+
+searchInput.addEventListener('blur', () => {
+  setTimeout(() => searchResults.classList.remove('open'), 200);
+});
+
+highlightInfo.addEventListener('click', e => {
+  if (e.target.closest('.hi-clear')) clearHighlight();
+});
+
+function highlightCity(ci) {
+  highlightCI = ci;
+  const c = cities[ci];
+  const def = metricDefs[currentMetric];
+  const val = c[def.key];
+  const pct = (val / metricTotal * 100).toFixed(2);
+  highlightInfo.innerHTML = `<span class="hi-name" style="color:${palette[ci]}">${c.name}</span> <span style="color:#777">(${c.country})</span> — ${def.formatVal(val)} — <span class="hi-pct">${pct}%</span> ${def.pctLabel} <button class="hi-clear">↩ Show All Cities</button>`;
+}
+
+function clearHighlight() {
+  highlightCI = -1;
+  highlightInfo.innerHTML = '';
+  searchInput.value = '';
+}
+
+// ══════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let found = -1;
+  for (let i = totalDots - 1; i >= 0; i--) {
+    const d = dots[i];
+    if (d.scale < 0.1) continue;
+    const dx = d.x - mx, dy = d.y - my;
+    if (dx*dx + dy*dy < (DOT_R+2)*(DOT_R+2)) { found = d.ci; break; }
+  }
+  if (found >= 0) {
+    const c = cities[found];
+    const def = metricDefs[currentMetric];
+    const pct = (c[def.key] / metricTotal * 100).toFixed(2);
+    tooltip.querySelector('.tt-name').textContent = c.name;
+    tooltip.querySelector('.tt-name').style.color = palette[found];
+    tooltip.querySelector('.tt-val').textContent = def.formatDots(c, c.dotCount);
+    tooltip.querySelector('.tt-pct').textContent = `${pct}% ${def.pctLabel}`;
+    tooltip.querySelector('.tt-region').textContent = `${c.country} · ${c.region}`;
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  } else {
+    tooltip.style.opacity = 0;
+  }
+});
+canvas.addEventListener('mouseleave', () => tooltip.style.opacity = 0);
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let found = -1;
+  for (let i = totalDots - 1; i >= 0; i--) {
+    const d = dots[i];
+    if (d.scale < 0.1) continue;
+    const dx = d.x - mx, dy = d.y - my;
+    if (dx*dx + dy*dy < (DOT_R+3)*(DOT_R+3)) { found = d.ci; break; }
+  }
+  if (found >= 0) highlightCity(found);
+  else clearHighlight();
+});
+
+// ══════════════════════════════════════════
+// ANIMATION
+// ══════════════════════════════════════════
+function easeOutBack(t) { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+
+function startAnimation() {
+  currentMetric = 'pop';
+  currentSort = 'default';
+  isInitialAnimation = true;
+  isTransitioning = false;
+  clearHighlight();
+
+  rebuildDots('pop');
+  dots.forEach(d => { d.scale = 0; d.born = 0; });
+
+  document.querySelectorAll('#metric-switcher button').forEach(b => b.classList.toggle('active', b.dataset.metric === 'pop'));
+  document.querySelectorAll('#controls button[data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === 'default'));
+  subtitleEl.innerHTML = metricDefs.pop.subtitle(metricDefs.pop.dotUnit);
+  counterEl.childNodes[0].textContent = metricDefs.pop.counterLabel + ': ';
+  hideRegionLabels();
+
+  buildLegend();
+
+  displayOrder = [];
+  // Default sort = largest first
+  const sorted = getSortedCityIndices('default');
+  sorted.forEach(ci => {
+    for (let j = 0; j < cities[ci].dotCount; j++) displayOrder.push(cities[ci].dotStart + j);
+  });
+
+  const maxW = Math.min(window.innerWidth - 40, 1100);
+  DOT_R = window.innerWidth < 600 ? 2.2 : 3.2;
+  GAP = DOT_R * 2.4;
+  COLS = Math.floor(maxW / GAP);
+
+  const ROWS = Math.ceil(totalDots / COLS);
+  W = COLS * GAP;
+  H = ROWS * GAP + GAP;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  for (let v = 0; v < displayOrder.length; v++) {
+    const p = posForSlotAt(v);
+    const d = dots[displayOrder[v]];
+    d.tx = p.x; d.ty = p.y; d.ox = p.x; d.oy = p.y;
+  }
+
+  startTime = performance.now();
+  let elapsed = 0;
+  const dur = animDuration * 0.85;
+  // Stagger by sorted order
+  const sortedCities = sorted.map(ci => cities[ci]);
+  sorted.forEach((ci, idx) => {
+    const c = cities[ci];
+    const frac = c.dotCount / totalDots;
+    const start = elapsed;
+    const d = dur * frac;
+    for (let j = 0; j < c.dotCount; j++) {
+      dots[c.dotStart + j].born = start + (j / Math.max(1, c.dotCount - 1)) * d * 0.6;
+    }
+    elapsed += d;
+  });
+}
+
+function render(now) {
+  const t = now - startTime;
+  ctx.clearRect(0, 0, W, H);
+
+  let tLerp = 1;
+  if (isTransitioning) {
+    tLerp = easeInOutCubic(Math.min(1, (now - transitionStart) / TRANSITION_DUR));
+    if (tLerp >= 1) isTransitioning = false;
+  }
+
+  const def = metricDefs[currentMetric];
+  let currentVal = 0, lastRevealed = -1;
+  const dimmed = highlightCI >= 0;
+
+  for (let i = 0; i < totalDots; i++) {
+    const d = dots[i];
+    if (isInitialAnimation && t < d.born) continue;
+
+    d.scale = isInitialAnimation ? Math.min(1, easeOutBack(Math.min(1, (t - d.born) / 400))) : 1;
+
+    if (isTransitioning) {
+      d.x = d.ox + (d.tx - d.ox) * tLerp;
+      d.y = d.oy + (d.ty - d.oy) * tLerp;
+    } else {
+      d.x = d.tx; d.y = d.ty; d.ox = d.tx; d.oy = d.ty;
+    }
+
+    const [r, g, b] = rgbColors[d.ci];
+    const radius = DOT_R * d.scale;
+    const isHighlighted = d.ci === highlightCI;
+    const alpha = dimmed ? (isHighlighted ? 1 : 0.12) : 1;
+
+    if (isHighlighted && dimmed) {
+      ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, radius * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (isInitialAnimation && !dimmed) {
+      const age = (t - d.born) / 400;
+      if (age < 1) {
+        ctx.fillStyle = `rgba(${r},${g},${b},${(1 - age) * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, radius * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    currentVal += cities[d.ci].valPerDot;
+    lastRevealed = d.ci;
+  }
+
+  if (isInitialAnimation && t > animDuration + 1000) isInitialAnimation = false;
+
+  if (def.isPerCapita) {
+    const wavg = cities.reduce((s, c) => s + c.gdp, 0) / cities.reduce((s, c) => s + c.pop, 0);
+    counterSpan.textContent = '$' + Math.round(wavg * 1000).toLocaleString();
+  } else {
+    counterSpan.textContent = def.formatTotal(currentVal);
+  }
+
+  if (isInitialAnimation) {
+    for (let i = 0; i <= lastRevealed; i++) {
+      const el = legendEl.children[i];
+      if (el && !el.classList.contains('visible')) el.classList.add('visible');
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+// ══════════════════════════════════════════
+// INIT & EVENTS
+// ══════════════════════════════════════════
+startAnimation();
+requestAnimationFrame(render);
+
+window.addEventListener('resize', () => resize());
+
+document.querySelectorAll('#metric-switcher button').forEach(btn => {
+  btn.addEventListener('click', () => switchMetric(btn.dataset.metric));
+});
+
+document.querySelectorAll('#controls button[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    isInitialAnimation = false;
+    for (let i = 0; i < totalDots; i++) { dots[i].scale = 1; dots[i].born = -Infinity; }
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+    applySort(btn.dataset.sort, true);
+  });
+});
+
+document.getElementById('replayBtn').addEventListener('click', () => startAnimation());
+</script>
+</body>
+</html>
