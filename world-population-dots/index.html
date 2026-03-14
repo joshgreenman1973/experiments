@@ -36,11 +36,11 @@
   }
   #counter {
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.15rem;
     font-weight: 200;
     letter-spacing: 1px;
     color: #fff;
-    padding: 6px 0 6px;
+    padding: 4px 0 4px;
     font-variant-numeric: tabular-nums;
   }
   #counter span {
@@ -62,10 +62,10 @@
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.12);
     color: #aaa;
-    padding: 8px 16px;
-    border-radius: 22px;
+    padding: 5px 12px;
+    border-radius: 16px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-family: inherit;
     letter-spacing: 0.5px;
     transition: all 0.3s;
@@ -98,10 +98,10 @@
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15);
     color: #fff;
-    padding: 7px 18px;
-    border-radius: 20px;
+    padding: 5px 13px;
+    border-radius: 16px;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-family: inherit;
     letter-spacing: 0.5px;
     transition: all 0.3s;
@@ -288,7 +288,7 @@
 <header>
   <h1>The World in Dots</h1>
 </header>
-<p id="subtitle">Each dot &asymp; 5 million people &middot; every country gets at least one</p>
+<p id="subtitle">Each dot &asymp; 2 million people &middot; every country gets at least one</p>
 <div id="counter">Population: <span>0</span></div>
 <div id="metric-switcher">
   <button data-metric="pop" class="active">Population</button>
@@ -514,7 +514,7 @@ const countries = [
 // ══════════════════════════════════════════
 const metricDefs = {
   pop: {
-    key: 'pop', dotUnit: 5, label: 'Population',
+    key: 'pop', dotUnit: 2, label: 'Population',
     subtitle: n => `Each dot ≈ ${n}M people · every country gets at least one`,
     counterLabel: 'Population',
     formatVal: v => v.toLocaleString() + 'M',
@@ -523,7 +523,7 @@ const metricDefs = {
     pctLabel: 'of world population',
   },
   gdp: {
-    key: 'gdp', dotUnit: 50, label: 'GDP',
+    key: 'gdp', dotUnit: 20, label: 'GDP',
     subtitle: n => `Each dot ≈ $${n}B GDP (nominal) · every country gets at least one`,
     counterLabel: 'World GDP',
     formatVal: v => '$' + v.toLocaleString() + 'B',
@@ -532,7 +532,7 @@ const metricDefs = {
     pctLabel: 'of world GDP',
   },
   area: {
-    key: 'area', dotUnit: 50, label: 'Land Area',
+    key: 'area', dotUnit: 20, label: 'Land Area',
     subtitle: n => `Each dot ≈ ${n},000 km² · every country gets at least one`,
     counterLabel: 'Total Land Area',
     formatVal: v => v.toLocaleString() + 'K km²',
@@ -550,7 +550,7 @@ const metricDefs = {
     pctLabel: 'of global CO₂ emissions',
   },
   gdppc: {
-    key: 'gdppc', dotUnit: 5, label: 'GDP per Capita',
+    key: 'gdppc', dotUnit: 2, label: 'GDP per Capita',
     subtitle: n => `Each dot ≈ $${n},000 per person · every country gets at least one`,
     counterLabel: 'Weighted Avg. GDP/Capita',
     formatVal: v => '$' + Math.round(v * 1000).toLocaleString(),
@@ -589,10 +589,18 @@ function hslToRgb(h, s, l) {
   return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
 }
 
+// Assign colors by population rank so the biggest countries
+// get the most visually distinct hues from each other
+const popRank = countries.map((_, i) => i);
+popRank.sort((a, b) => countries[b].pop - countries[a].pop);
+const colorSlot = new Array(countries.length);
+popRank.forEach((ci, rank) => { colorSlot[ci] = rank; });
+
 for (let i = 0; i < countries.length; i++) {
-  const hue = (i * goldenAngle) % 360;
-  const sat = 60 + (i % 3) * 13;
-  const lit = 48 + (i % 5) * 6;
+  const rank = colorSlot[i];
+  const hue = (rank * goldenAngle) % 360;
+  const sat = 60 + (rank % 3) * 13;
+  const lit = 48 + (rank % 5) * 6;
   palette.push(`hsl(${hue}, ${sat}%, ${lit}%)`);
   rgbColors.push(hslToRgb(hue, sat, lit));
 }
@@ -679,8 +687,8 @@ let displayOrder = [];
 
 function resize() {
   const maxW = Math.min(window.innerWidth - 40, 1100);
-  DOT_R = window.innerWidth < 600 ? 3.5 : 5;
-  GAP = DOT_R * 2.3;
+  DOT_R = window.innerWidth < 600 ? 2.2 : 3.2;
+  GAP = DOT_R * 2.4;
   COLS = Math.floor(maxW / GAP);
   applySort(currentSort, false);
 }
@@ -974,8 +982,8 @@ function startAnimation() {
   displayOrder = [];
   for (let i = 0; i < totalDots; i++) displayOrder.push(i);
   const maxW = Math.min(window.innerWidth - 40, 1100);
-  DOT_R = window.innerWidth < 600 ? 3.5 : 5;
-  GAP = DOT_R * 2.3;
+  DOT_R = window.innerWidth < 600 ? 2.2 : 3.2;
+  GAP = DOT_R * 2.4;
   COLS = Math.floor(maxW / GAP);
 
   const ROWS = Math.ceil(totalDots / COLS);
