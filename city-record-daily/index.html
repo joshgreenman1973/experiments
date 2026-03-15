@@ -373,7 +373,8 @@
       font-size: 12px;
     }
 
-    .search-filters select {
+    .search-filters select,
+    .search-filters input[type="date"] {
       padding: 6px 10px;
       font-family: 'Inter', sans-serif;
       font-size: 12px;
@@ -383,6 +384,14 @@
       color: #434343;
       outline: none;
     }
+
+    .agency-link {
+      color: #5b8db8;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .agency-link:hover { text-decoration: underline; }
 
     .search-result-count {
       font-size: 12px;
@@ -461,6 +470,8 @@
     <div class="search-filters" id="search-filters" style="display:none;">
       <select id="filter-section"><option value="">All sections</option></select>
       <select id="filter-type"><option value="">All types</option></select>
+      <input type="date" id="filter-from" title="From date">
+      <input type="date" id="filter-to" title="To date">
     </div>
   </div>
 
@@ -629,6 +640,12 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function agencyHtml(name) {
+  if (!name) return '';
+  const safe = escHtml(name).replace(/'/g, "\\'");
+  return `<a class="agency-link" onclick="searchByAgency('${safe}')">${escHtml(name)}</a>`;
+}
+
 // ── Render daily digest ─────────────────────────────────────
 
 async function renderDaily() {
@@ -689,13 +706,13 @@ async function renderDaily() {
   for (const [secName, notices] of Object.entries(sections).sort()) {
     html += `<div class="section-group"><h3>${escHtml(secName)} (${notices.length})</h3><ul>`;
     notices.forEach(n => {
-      const meta = [n.agency_name];
-      if (n.contract_amount) meta.push(fmtMoney(n.contract_amount));
-      if (n.event_date) meta.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
-      if (n.due_date) meta.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+      const metaParts = [];
+      if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+      if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+      if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
       html += `<li>
         <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
-        <span class="li-meta"> — ${escHtml(meta.join(' | '))}</span>
+        <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
       </li>`;
     });
     html += '</ul></div>';
@@ -714,7 +731,7 @@ function renderNoticeCard(item, isMedium) {
 
   return `<div class="${cls}">
     <h3><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h3>
-    <div class="notice-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)} | ${escHtml(item.type_of_notice_description)}</div>
+    <div class="notice-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)} | ${escHtml(item.type_of_notice_description)}</div>
     <p>${escHtml(item.summary || '')}</p>
     ${details ? '<p style="font-size:13px;color:#666;margin-top:6px;">' + details + '</p>' : ''}
   </div>`;
@@ -777,7 +794,7 @@ async function renderWeekly() {
     withAmount.forEach(n => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
   }
@@ -796,7 +813,7 @@ async function renderWeekly() {
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
         ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
       </div>`;
     });
@@ -881,7 +898,7 @@ async function renderMonthly() {
     topContracts.forEach(n => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
   }
@@ -899,7 +916,7 @@ async function renderMonthly() {
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
         ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
       </div>`;
     });
@@ -1026,7 +1043,7 @@ async function renderYearly() {
     topContracts.forEach(n => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
   }
@@ -1046,7 +1063,7 @@ async function renderYearly() {
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
-        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
         ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
       </div>`;
     });
@@ -1112,13 +1129,38 @@ async function loadAllNotices() {
   searchReady = true;
 }
 
+function activateSearch() {
+  const input = document.getElementById('search-input');
+  const filtersEl = document.getElementById('search-filters');
+  const resultsEl = document.getElementById('search-results');
+  const tabContent = document.getElementById('tab-content');
+  filtersEl.style.display = 'flex';
+  resultsEl.style.display = 'block';
+  tabContent.style.display = 'none';
+  input.focus();
+}
+
+function deactivateSearch() {
+  document.getElementById('search-filters').style.display = 'none';
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('tab-content').style.display = 'block';
+}
+
+function searchByAgency(agencyName) {
+  const input = document.getElementById('search-input');
+  input.value = agencyName;
+  loadAllNotices().then(() => {
+    activateSearch();
+    doSearch();
+  });
+}
+
 function setupSearch() {
   const input = document.getElementById('search-input');
   const secFilter = document.getElementById('filter-section');
   const typeFilter = document.getElementById('filter-type');
-  const filtersEl = document.getElementById('search-filters');
-  const resultsEl = document.getElementById('search-results');
-  const tabContent = document.getElementById('tab-content');
+  const fromDate = document.getElementById('filter-from');
+  const toDate = document.getElementById('filter-to');
 
   let debounceTimer;
   const runSearch = () => {
@@ -1128,10 +1170,8 @@ function setupSearch() {
 
   input.addEventListener('input', async () => {
     await loadAllNotices();
-    const hasQuery = input.value.trim() || secFilter.value || typeFilter.value;
-    filtersEl.style.display = hasQuery ? 'flex' : 'none';
-    resultsEl.style.display = hasQuery ? 'block' : 'none';
-    tabContent.style.display = hasQuery ? 'none' : 'block';
+    const hasQuery = input.value.trim() || secFilter.value || typeFilter.value || fromDate.value || toDate.value;
+    if (hasQuery) activateSearch(); else deactivateSearch();
     runSearch();
   });
 
@@ -1141,31 +1181,33 @@ function setupSearch() {
 
   secFilter.addEventListener('change', runSearch);
   typeFilter.addEventListener('change', runSearch);
+  fromDate.addEventListener('change', runSearch);
+  toDate.addEventListener('change', runSearch);
 }
 
 function doSearch() {
   const query = document.getElementById('search-input').value.trim().toLowerCase();
   const secFilter = document.getElementById('filter-section').value;
   const typeFilter = document.getElementById('filter-type').value;
+  const fromDate = document.getElementById('filter-from').value;
+  const toDate = document.getElementById('filter-to').value;
   const container = document.getElementById('search-results');
-  const tabContent = document.getElementById('tab-content');
 
-  if (!query && !secFilter && !typeFilter) {
-    container.style.display = 'none';
-    tabContent.style.display = 'block';
-    document.getElementById('search-filters').style.display = 'none';
+  if (!query && !secFilter && !typeFilter && !fromDate && !toDate) {
+    deactivateSearch();
     return;
   }
 
-  container.style.display = 'block';
-  tabContent.style.display = 'none';
-  document.getElementById('search-filters').style.display = 'flex';
+  activateSearch();
 
   const terms = query.split(/\s+/).filter(Boolean);
 
   let results = allSearchableNotices.filter(n => {
     if (secFilter && n.section_name !== secFilter) return false;
     if (typeFilter && n.type_of_notice_description !== typeFilter) return false;
+    const nDate = (n.start_date || '').slice(0, 10);
+    if (fromDate && nDate < fromDate) return false;
+    if (toDate && nDate > toDate) return false;
     if (terms.length === 0) return true;
     return terms.every(t => n._searchText.includes(t));
   });
@@ -1199,13 +1241,13 @@ function doSearch() {
       });
     }
 
-    const meta = [n.agency_name, n.section_name, n.type_of_notice_description, fmtShortDate(n.start_date.slice(0, 10))].filter(Boolean);
-    if (n.contract_amount) meta.push(fmtMoney(n.contract_amount));
-    if (n.vendor_name) meta.push(n.vendor_name);
+    const metaParts = [n.section_name, n.type_of_notice_description, fmtShortDate(n.start_date.slice(0, 10))].filter(Boolean);
+    if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+    if (n.vendor_name) metaParts.push(n.vendor_name);
 
     html += `<div class="search-result">
       <h4><a href="${RECORD_BASE}${n.request_id}">${title}</a></h4>
-      <div class="result-meta">${escHtml(meta.join(' | '))}</div>
+      <div class="result-meta">${agencyHtml(n.agency_name)} | ${escHtml(metaParts.join(' | '))}</div>
       ${summary ? '<div class="result-summary">' + summary + '</div>' : ''}
     </div>`;
   });
