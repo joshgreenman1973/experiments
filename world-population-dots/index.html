@@ -316,6 +316,8 @@
     font-size: 0.75rem;
     line-height: 1.6;
   }
+  footer a { color: #777; text-decoration: underline; }
+  footer a:hover { color: #aaa; }
 </style>
 </head>
 <body>
@@ -361,8 +363,10 @@
 <div id="legend"></div>
 <div id="tooltip"><div class="tt-name"></div><div class="tt-val"></div><div class="tt-pct"></div><div class="tt-region"></div></div>
 <footer>
-  Population: UN/Worldometer 2025 &middot; GDP: IMF 2024 est. &middot; Area: CIA World Factbook &middot; CO₂: Global Carbon Project 2023 &middot; Internet: ITU/World Bank 2024<br>
-  All figures approximate. GDP per capita derived from GDP ÷ population.
+  Population: <a href="https://www.worldometers.info/world-population/population-by-country/" target="_blank">UN/Worldometer 2025</a> &middot;
+  GDP: <a href="https://www.imf.org/en/Publications/WEO" target="_blank">IMF 2024 est.</a> &middot;
+  Area: <a href="https://www.cia.gov/the-world-factbook/" target="_blank">CIA World Factbook</a><br>
+  All figures approximate. GDP per capita derived from GDP &divide; population.
 </footer>
 
 <script>
@@ -849,7 +853,9 @@ const legendEl = document.getElementById('legend');
 function buildLegend() {
   legendEl.innerHTML = '';
   const def = metricDefs[currentMetric];
-  countries.forEach((c, i) => {
+  const order = getSortedCountryIndices(currentSort);
+  order.forEach(i => {
+    const c = countries[i];
     const el = document.createElement('div');
     el.className = 'legend-item';
     if (!isInitialAnimation) el.classList.add('visible');
@@ -990,6 +996,12 @@ canvas.addEventListener('click', e => {
   }
   if (found >= 0) highlightCountry(found);
   else clearHighlight();
+});
+
+document.body.addEventListener('click', e => {
+  if (!e.target.closest('canvas, #legend, #controls, #metric-switcher, #view-switcher, input, #highlight-info')) {
+    clearHighlight();
+  }
 });
 
 // ══════════════════════════════════════════
@@ -1154,6 +1166,8 @@ document.querySelectorAll('#controls button[data-sort]').forEach(btn => {
     for (let i = 0; i < totalDots; i++) { dots[i].scale = 1; dots[i].born = -Infinity; }
     document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
     applySort(btn.dataset.sort, true);
+    buildLegend();
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
   });
 });
 
