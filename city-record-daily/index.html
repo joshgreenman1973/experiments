@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Record Daily Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: #1a1a1a;
+      background: #f5f5f5;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      color: #777;
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid #e8e8e8;
+      margin-bottom: 24px;
+      margin-top: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #888;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab:hover { color: #434343; }
+
+    .tab.active {
+      color: #c0392b;
+      border-bottom-color: #c0392b;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+
+    .date-nav button {
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+    }
+
+    .date-nav button:hover { background: #434343; }
+    .date-nav button:disabled { background: #ccc; cursor: default; }
+
+    .date-nav .current-date {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0;
+      margin-bottom: 28px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .stats-bar > div {
+      padding: 14px 18px;
+      border-right: 1px solid #f0f0f0;
+    }
+
+    .stats-bar > div:last-child { border-right: none; }
+
+    .stats-bar .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      color: #999;
+      margin-bottom: 2px;
+    }
+
+    .stats-bar .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      display: block;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 36px;
+      margin-bottom: 16px;
+      color: #434343;
+    }
+
+    h2.notable { color: #c0392b; }
+
+    .notice-card {
+      margin-bottom: 12px;
+      padding: 14px 16px;
+      background: #fff;
+      border-left: 3px solid #c0392b;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .notice-card.medium {
+      border-left-color: #5b8db8;
+    }
+
+    .notice-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .notice-card h3 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .notice-card h3 a:hover {
+      text-decoration: underline;
+    }
+
+    .notice-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .notice-card p {
+      font-size: 13.5px;
+      color: #434343;
+      line-height: 1.55;
+    }
+
+    .amount {
+      font-weight: 700;
+    }
+
+    .section-group {
+      margin-top: 24px;
+    }
+
+    .section-group h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    .section-group ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .section-group li {
+      font-size: 13.5px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .section-group li:last-child { border-bottom: none; }
+
+    .section-group li a {
+      color: #5b8db8;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .section-group li a:hover { text-decoration: underline; }
+
+    .section-group .li-meta {
+      color: #888;
+      font-size: 12px;
+    }
+
+    /* Weekly/Monthly summaries */
+    .summary-period {
+      margin-bottom: 32px;
+    }
+
+    .summary-period h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #434343;
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .summary-stat {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .summary-stat .label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 600;
+    }
+
+    .summary-stat .value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .top-item {
+      padding: 10px 14px;
+      background: #fff;
+      border-left: 3px solid #c0392b;
+      margin-bottom: 8px;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .top-item h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .top-item h4 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .top-item h4 a:hover { text-decoration: underline; }
+
+    .top-item .item-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+    }
+
+    .top-item p {
+      font-size: 13px;
+      color: #434343;
+      line-height: 1.5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #e8e8e8;
+      font-size: 11px;
+      color: #999;
+    }
+
+    footer a { color: #888; }
+
+    @media (max-width: 600px) {
+      .container { padding: 16px 14px 40px; }
+      header h1 { font-size: 18px; }
+      .tabs { overflow-x: auto; }
+      .tab { padding: 8px 14px; font-size: 11px; white-space: nowrap; }
+      .stats-bar { gap: 14px; }
+      .summary-stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>City Record Daily Digest</h1>
+    <p>Notable NYC government notices — procurement, hearings, rules, and more</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="daily">Today's Digest</button>
+    <button class="tab" data-tab="weekly">This Week</button>
+    <button class="tab" data-tab="monthly">This Month</button>
+  </div>
+
+  <!-- DAILY TAB -->
+  <div id="tab-daily" class="tab-panel active">
+    <div class="date-nav">
+      <button id="prev-day">&larr; Prev</button>
+      <span class="current-date" id="current-date-label"></span>
+      <button id="next-day">Next &rarr;</button>
+    </div>
+    <div id="daily-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- WEEKLY TAB -->
+  <div id="tab-weekly" class="tab-panel">
+    <div id="weekly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- MONTHLY TAB -->
+  <div id="tab-monthly" class="tab-panel">
+    <div id="monthly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <footer>
+    Data source: <a href="https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx">NYC Open Data (dg92-zbpx)</a> |
+    Full City Record: <a href="https://a856-cityrecord.nyc.gov/">a856-cityrecord.nyc.gov</a>
+  </footer>
+</div>
+
+<script>
+const DATA_DIR = 'data/';
+const RECORD_BASE = 'https://a856-cityrecord.nyc.gov/RequestDetail/';
+
+// Cache for loaded day data
+const dayCache = {};
+
+// Available data files (populated from manifest)
+let availableDates = [];
+let currentDateIdx = 0;
+
+// ── Initialization ──────────────────────────────────────────
+
+async function init() {
+  try {
+    const resp = await fetch(DATA_DIR + 'manifest.json');
+    if (!resp.ok) throw new Error('No manifest');
+    availableDates = await resp.json();
+    availableDates.sort((a, b) => b.localeCompare(a)); // newest first
+  } catch {
+    document.getElementById('daily-content').innerHTML =
+      '<div class="empty-state">No digest data available yet. Check back after the first scheduled run.</div>';
+    document.getElementById('weekly-content').innerHTML =
+      '<div class="empty-state">No data available yet.</div>';
+    document.getElementById('monthly-content').innerHTML =
+      '<div class="empty-state">No data available yet.</div>';
+    return;
+  }
+
+  if (availableDates.length === 0) {
+    document.getElementById('daily-content').innerHTML =
+      '<div class="empty-state">No digest data available yet.</div>';
+    return;
+  }
+
+  currentDateIdx = 0;
+  await renderDaily();
+  await renderWeekly();
+  await renderMonthly();
+  setupTabs();
+  setupDateNav();
+}
+
+// ── Data loading ────────────────────────────────────────────
+
+async function loadDay(dateStr) {
+  if (dayCache[dateStr]) return dayCache[dateStr];
+  try {
+    const resp = await fetch(DATA_DIR + dateStr + '.json');
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    dayCache[dateStr] = data;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Tab switching ───────────────────────────────────────────
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+// ── Date navigation ─────────────────────────────────────────
+
+function setupDateNav() {
+  document.getElementById('prev-day').addEventListener('click', async () => {
+    if (currentDateIdx < availableDates.length - 1) {
+      currentDateIdx++;
+      await renderDaily();
+    }
+  });
+  document.getElementById('next-day').addEventListener('click', async () => {
+    if (currentDateIdx > 0) {
+      currentDateIdx--;
+      await renderDaily();
+    }
+  });
+  updateNavButtons();
+}
+
+function updateNavButtons() {
+  document.getElementById('prev-day').disabled = currentDateIdx >= availableDates.length - 1;
+  document.getElementById('next-day').disabled = currentDateIdx <= 0;
+}
+
+// ── Format helpers ──────────────────────────────────────────
+
+function fmtDate(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function fmtShortDate(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fmtMoney(n) {
+  if (!n) return '';
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(num)) return '';
+  if (num >= 1e6) return '$' + (num / 1e6).toFixed(1) + 'M';
+  if (num >= 1e3) return '$' + (num / 1e3).toFixed(0) + 'K';
+  return '$' + num.toLocaleString();
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Render daily digest ─────────────────────────────────────
+
+async function renderDaily() {
+  const dateStr = availableDates[currentDateIdx];
+  document.getElementById('current-date-label').textContent = fmtDate(dateStr);
+  updateNavButtons();
+
+  const data = await loadDay(dateStr);
+  const container = document.getElementById('daily-content');
+
+  if (!data) {
+    container.innerHTML = '<div class="empty-state">No data available for this date.</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Stats bar
+  const totalValue = (data.notices || []).reduce((sum, n) => sum + (parseFloat(n.contract_amount) || 0), 0);
+  const soleSources = (data.notices || []).filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source')
+  );
+  const notableCount = (data.notable || []).length;
+  html += `<div class="stats-bar">
+    <div><div class="stat-label">Notices</div><span class="stat-value">${data.notices ? data.notices.length : 0}</span></div>
+    <div><div class="stat-label">Contract Value</div><span class="stat-value">${fmtMoney(totalValue) || '$0'}</span></div>
+    <div><div class="stat-label">Flagged</div><span class="stat-value">${notableCount}</span></div>
+    <div><div class="stat-label">Sole Source</div><span class="stat-value">${soleSources.length}</span></div>
+  </div>`;
+
+  // Notable developments
+  const notable = (data.notable || []);
+  if (notable.length > 0) {
+    html += '<h2 class="notable">Notable Developments</h2>';
+    notable.forEach(item => {
+      html += renderNoticeCard(item, false);
+    });
+  }
+
+  // Worth watching
+  const watching = (data.watching || []);
+  if (watching.length > 0) {
+    html += '<h2>Worth Watching</h2>';
+    watching.forEach(item => {
+      html += renderNoticeCard(item, true);
+    });
+  }
+
+  // All notices by section
+  const sections = {};
+  (data.notices || []).forEach(n => {
+    const sec = n.section_name || 'Other';
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push(n);
+  });
+
+  html += '<h2>All Notices by Section</h2>';
+  for (const [secName, notices] of Object.entries(sections).sort()) {
+    html += `<div class="section-group"><h3>${escHtml(secName)} (${notices.length})</h3><ul>`;
+    notices.forEach(n => {
+      const meta = [n.agency_name];
+      if (n.contract_amount) meta.push(fmtMoney(n.contract_amount));
+      if (n.event_date) meta.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+      if (n.due_date) meta.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+      html += `<li>
+        <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+        <span class="li-meta"> — ${escHtml(meta.join(' | '))}</span>
+      </li>`;
+    });
+    html += '</ul></div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function renderNoticeCard(item, isMedium) {
+  const cls = isMedium ? 'notice-card medium' : 'notice-card';
+  let details = '';
+  if (item.contract_amount) details += `<strong>${fmtMoney(item.contract_amount)}</strong> `;
+  if (item.event_date) details += `Hearing: ${fmtShortDate(item.event_date.slice(0, 10))} `;
+  if (item.due_date) details += `Due: ${fmtShortDate(item.due_date.slice(0, 10))} `;
+  if (item.vendor_name) details += `Vendor: ${escHtml(item.vendor_name)} `;
+
+  return `<div class="${cls}">
+    <h3><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h3>
+    <div class="notice-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)} | ${escHtml(item.type_of_notice_description)}</div>
+    <p>${escHtml(item.summary || '')}</p>
+    ${details ? '<p style="font-size:13px;color:#666;margin-top:6px;">' + details + '</p>' : ''}
+  </div>`;
+}
+
+// ── Render weekly summary ───────────────────────────────────
+
+async function renderWeekly() {
+  const container = document.getElementById('weekly-content');
+  // Load last 5 business days
+  const recentDates = availableDates.slice(0, 5);
+  const allData = await Promise.all(recentDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length === 0) {
+    container.innerHTML = '<div class="empty-state">No weekly data available yet.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Count by section
+  const sectionCounts = {};
+  allNotices.forEach(n => {
+    const s = n.section_name || 'Other';
+    sectionCounts[s] = (sectionCounts[s] || 0) + 1;
+  });
+
+  // Top contracts
+  const withAmount = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 10);
+
+  const dateRange = recentDates.length > 1
+    ? fmtShortDate(recentDates[recentDates.length - 1]) + ' — ' + fmtShortDate(recentDates[0])
+    : fmtShortDate(recentDates[0]);
+
+  let html = `<div class="summary-period">
+    <h3>Week in Review: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Flagged Items</span><span class="value">${allNotable.length}</span></div>
+    </div>`;
+
+  // Section breakdown
+  html += '<h3>Notices by Section</h3><div class="stats-bar" style="flex-wrap:wrap;">';
+  for (const [sec, count] of Object.entries(sectionCounts).sort((a, b) => b[1] - a[1])) {
+    html += `<div><span class="stat-value">${count}</span>${escHtml(sec)}</div>`;
+  }
+  html += '</div>';
+
+  // Biggest contracts this week
+  if (withAmount.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts This Week</h3>';
+    withAmount.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged items
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Developments This Week</h3>';
+    // Deduplicate by request_id and take top 10
+    const seen = new Set();
+    const uniqueNotable = allNotable.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 10);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Render monthly summary ──────────────────────────────────
+
+async function renderMonthly() {
+  const container = document.getElementById('monthly-content');
+  // Load all available dates (up to ~22 business days)
+  const monthDates = availableDates.slice(0, 22);
+  const allData = await Promise.all(monthDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length < 2) {
+    container.innerHTML = '<div class="empty-state">Monthly summaries will appear after a few days of data collection.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Agency breakdown
+  const agencyCounts = {};
+  const agencyValue = {};
+  allNotices.forEach(n => {
+    const a = n.agency_name || 'Unknown';
+    agencyCounts[a] = (agencyCounts[a] || 0) + 1;
+    agencyValue[a] = (agencyValue[a] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  const topAgenciesByValue = Object.entries(agencyValue)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  // Top contracts
+  const topContracts = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 15);
+
+  const dateRange = monthDates.length > 1
+    ? fmtShortDate(monthDates[monthDates.length - 1]) + ' — ' + fmtShortDate(monthDates[0])
+    : fmtShortDate(monthDates[0]);
+
+  // Sole source tracking
+  const soleSources = allNotices.filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
+    (n.type_of_notice_description || '').toLowerCase().includes('negotiated')
+  );
+  const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  let html = `<div class="summary-period">
+    <h3>Monthly Overview: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Non-Competitive Awards</span><span class="value">${soleSources.length} (${fmtMoney(soleSourceValue)})</span></div>
+    </div>`;
+
+  // Top agencies by contract value
+  if (topAgenciesByValue.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
+    topAgenciesByValue.forEach(([agency, value]) => {
+      html += `<div class="top-item" style="border-left-color:#2a5db0;">
+        <h4>${escHtml(agency)}</h4>
+        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
+      </div>`;
+    });
+  }
+
+  // Largest contracts this month
+  if (topContracts.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts This Month</h3>';
+    topContracts.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged developments
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Biggest Developments This Month</h3>';
+    const seen = new Set();
+    const uniqueNotable = allNotable.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 15);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Start ───────────────────────────────────────────────────
+init();
+</script>
+
+</body>
+</html>
