@@ -336,6 +336,98 @@
 
     footer a { color: #888; }
 
+    /* Search */
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-box input:focus {
+      border-color: #5b8db8;
+    }
+
+    .search-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+
+    .search-filters select {
+      padding: 6px 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      color: #434343;
+      outline: none;
+    }
+
+    .search-result-count {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .search-result {
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .search-result h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .search-result h4 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .search-result h4 a:hover { text-decoration: underline; }
+
+    .search-result .result-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .search-result .result-summary {
+      font-size: 13px;
+      color: #434343;
+      line-height: 1.5;
+    }
+
+    mark {
+      background: #fff3cd;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
     @media (max-width: 600px) {
       .container { padding: 16px 14px 40px; }
       header h1 { font-size: 18px; }
@@ -343,6 +435,7 @@
       .tab { padding: 8px 14px; font-size: 11px; white-space: nowrap; }
       .stats-bar { gap: 14px; }
       .summary-stats { grid-template-columns: 1fr 1fr; }
+      .search-filters { gap: 6px; }
     }
   </style>
 </head>
@@ -358,6 +451,19 @@
     <button class="tab active" data-tab="daily">Today's Digest</button>
     <button class="tab" data-tab="weekly">This Week</button>
     <button class="tab" data-tab="monthly">This Month</button>
+    <button class="tab" data-tab="search">Search</button>
+  </div>
+
+  <!-- SEARCH TAB -->
+  <div id="tab-search" class="tab-panel">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Search notices — try an agency, vendor, topic, or dollar amount...">
+    </div>
+    <div class="search-filters">
+      <select id="filter-section"><option value="">All sections</option></select>
+      <select id="filter-type"><option value="">All types</option></select>
+    </div>
+    <div id="search-results"></div>
   </div>
 
   <!-- DAILY TAB -->
@@ -786,8 +892,151 @@ async function renderMonthly() {
   container.innerHTML = html;
 }
 
+// ── Search ──────────────────────────────────────────────────
+
+let allSearchableNotices = [];
+let searchReady = false;
+
+async function loadAllNotices() {
+  if (searchReady) return;
+  const results = await Promise.all(availableDates.map(d => loadDay(d)));
+  const days = results.filter(Boolean);
+
+  // Build searchable index: flatten all notices with their summaries
+  const notableLookup = {};
+  days.forEach(day => {
+    (day.notable || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
+    (day.watching || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
+  });
+
+  allSearchableNotices = days.flatMap(day =>
+    (day.notices || []).map(n => ({
+      ...n,
+      summary: notableLookup[n.request_id] || '',
+      _searchText: [
+        n.short_title,
+        n.agency_name,
+        n.section_name,
+        n.type_of_notice_description,
+        n.category_description,
+        n.vendor_name,
+        n.contract_amount ? fmtMoney(n.contract_amount) : '',
+        n.selection_method_description,
+        notableLookup[n.request_id] || ''
+      ].filter(Boolean).join(' ').toLowerCase()
+    }))
+  );
+
+  // Populate filter dropdowns
+  const sections = [...new Set(allSearchableNotices.map(n => n.section_name).filter(Boolean))].sort();
+  const types = [...new Set(allSearchableNotices.map(n => n.type_of_notice_description).filter(Boolean))].sort();
+
+  const secSelect = document.getElementById('filter-section');
+  sections.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    secSelect.appendChild(opt);
+  });
+
+  const typeSelect = document.getElementById('filter-type');
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    typeSelect.appendChild(opt);
+  });
+
+  searchReady = true;
+}
+
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const secFilter = document.getElementById('filter-section');
+  const typeFilter = document.getElementById('filter-type');
+
+  let debounceTimer;
+  const runSearch = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => doSearch(), 150);
+  };
+
+  input.addEventListener('input', runSearch);
+  secFilter.addEventListener('change', runSearch);
+  typeFilter.addEventListener('change', runSearch);
+
+  // Load data when search tab is first clicked
+  document.querySelector('[data-tab="search"]').addEventListener('click', async () => {
+    await loadAllNotices();
+    input.focus();
+    if (input.value || secFilter.value || typeFilter.value) doSearch();
+  });
+}
+
+function doSearch() {
+  const query = document.getElementById('search-input').value.trim().toLowerCase();
+  const secFilter = document.getElementById('filter-section').value;
+  const typeFilter = document.getElementById('filter-type').value;
+  const container = document.getElementById('search-results');
+
+  if (!query && !secFilter && !typeFilter) {
+    container.innerHTML = '<div class="empty-state">Type a query or select a filter to search across all recorded notices.</div>';
+    return;
+  }
+
+  const terms = query.split(/\s+/).filter(Boolean);
+
+  let results = allSearchableNotices.filter(n => {
+    if (secFilter && n.section_name !== secFilter) return false;
+    if (typeFilter && n.type_of_notice_description !== typeFilter) return false;
+    if (terms.length === 0) return true;
+    return terms.every(t => n._searchText.includes(t));
+  });
+
+  // Sort: newest first, then by contract amount
+  results.sort((a, b) => {
+    const dateComp = (b.start_date || '').localeCompare(a.start_date || '');
+    if (dateComp !== 0) return dateComp;
+    return (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0);
+  });
+
+  const total = results.length;
+  const shown = results.slice(0, 100);
+
+  let html = `<div class="search-result-count">${total} result${total !== 1 ? 's' : ''}${total > 100 ? ' (showing first 100)' : ''}</div>`;
+
+  if (shown.length === 0) {
+    html += '<div class="empty-state">No notices match your search.</div>';
+  }
+
+  shown.forEach(n => {
+    let title = escHtml(n.short_title);
+    let summary = n.summary ? escHtml(n.summary) : '';
+
+    // Highlight search terms
+    if (terms.length > 0) {
+      terms.forEach(term => {
+        const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        title = title.replace(re, '<mark>$1</mark>');
+        if (summary) summary = summary.replace(re, '<mark>$1</mark>');
+      });
+    }
+
+    const meta = [n.agency_name, n.section_name, n.type_of_notice_description, fmtShortDate(n.start_date.slice(0, 10))].filter(Boolean);
+    if (n.contract_amount) meta.push(fmtMoney(n.contract_amount));
+    if (n.vendor_name) meta.push(n.vendor_name);
+
+    html += `<div class="search-result">
+      <h4><a href="${RECORD_BASE}${n.request_id}">${title}</a></h4>
+      <div class="result-meta">${escHtml(meta.join(' | '))}</div>
+      ${summary ? '<div class="result-summary">' + summary + '</div>' : ''}
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
 // ── Start ───────────────────────────────────────────────────
 init();
+setupSearch();
 </script>
 
 </body>
