@@ -274,6 +274,7 @@
       font-size: 22px;
       font-weight: 700;
       color: #1a1a1a;
+      display: block;
     }
 
     .top-item {
@@ -471,6 +472,7 @@
     <button class="tab active" data-tab="daily">Today's Digest</button>
     <button class="tab" data-tab="weekly">This Week</button>
     <button class="tab" data-tab="monthly">This Month</button>
+    <button class="tab" data-tab="yearly">This Year</button>
   </div>
 
   <!-- DAILY TAB -->
@@ -491,6 +493,11 @@
   <!-- MONTHLY TAB -->
   <div id="tab-monthly" class="tab-panel">
     <div id="monthly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- YEARLY TAB -->
+  <div id="tab-yearly" class="tab-panel">
+    <div id="yearly-content"><div class="loading">Loading...</div></div>
   </div>
 
   </div><!-- /tab-content -->
@@ -537,11 +544,12 @@ async function init() {
   }
 
   currentDateIdx = 0;
-  await renderDaily();
-  await renderWeekly();
-  await renderMonthly();
   setupTabs();
   setupDateNav();
+  await renderDaily();
+  renderWeekly();
+  renderMonthly();
+  renderYearly();
 }
 
 // ── Data loading ────────────────────────────────────────────
@@ -892,6 +900,153 @@ async function renderMonthly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
         <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Render yearly summary ───────────────────────────────────
+
+async function renderYearly() {
+  const container = document.getElementById('yearly-content');
+  // Load all available dates
+  const allData = await Promise.all(availableDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length < 5) {
+    container.innerHTML = '<div class="empty-state">Yearly summaries will appear after more data is collected.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Agency breakdown
+  const agencyCounts = {};
+  const agencyValue = {};
+  allNotices.forEach(n => {
+    const a = n.agency_name || 'Unknown';
+    agencyCounts[a] = (agencyCounts[a] || 0) + 1;
+    agencyValue[a] = (agencyValue[a] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  const topAgenciesByValue = Object.entries(agencyValue)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  // Top contracts
+  const topContracts = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 20);
+
+  // Section breakdown
+  const sectionCounts = {};
+  const sectionValue = {};
+  allNotices.forEach(n => {
+    const s = n.section_name || 'Other';
+    sectionCounts[s] = (sectionCounts[s] || 0) + 1;
+    sectionValue[s] = (sectionValue[s] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  // Sole source tracking
+  const soleSources = allNotices.filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
+    (n.selection_method_description || '').toLowerCase().includes('negotiated')
+  );
+  const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Monthly trends
+  const monthlyData = {};
+  days.forEach(day => {
+    const month = day.date.slice(0, 7); // YYYY-MM
+    if (!monthlyData[month]) monthlyData[month] = { notices: 0, value: 0, days: 0 };
+    monthlyData[month].notices += (day.notices || []).length;
+    monthlyData[month].value += (day.notices || []).reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+    monthlyData[month].days++;
+  });
+
+  const dateRange = availableDates.length > 1
+    ? fmtShortDate(availableDates[availableDates.length - 1]) + ' — ' + fmtShortDate(availableDates[0])
+    : fmtShortDate(availableDates[0]);
+
+  const year = availableDates[0].slice(0, 4);
+
+  let html = `<div class="summary-period">
+    <h3>${year} Year in Review: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length.toLocaleString()}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Non-Competitive Awards</span><span class="value">${soleSources.length} (${fmtMoney(soleSourceValue)})</span></div>
+    </div>`;
+
+  // Monthly trend
+  html += '<h3 style="margin-top:24px;">Monthly Breakdown</h3>';
+  const months = Object.entries(monthlyData).sort();
+  months.forEach(([month, data]) => {
+    const mDate = new Date(month + '-15');
+    const mLabel = mDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    html += `<div class="top-item" style="border-left-color:#5b8db8;">
+      <h4>${mLabel}</h4>
+      <div class="item-meta">${data.notices.toLocaleString()} notices | ${fmtMoney(data.value)} in contracts | ${data.days} days</div>
+    </div>`;
+  });
+
+  // Sections breakdown
+  html += '<h3 style="margin-top:24px;">Notices by Section</h3>';
+  Object.entries(sectionCounts).sort((a, b) => b[1] - a[1]).forEach(([sec, count]) => {
+    const val = sectionValue[sec] || 0;
+    html += `<div class="top-item" style="border-left-color:#e8e8e8;">
+      <h4>${escHtml(sec)}</h4>
+      <div class="item-meta">${count.toLocaleString()} notices${val > 0 ? ' | ' + fmtMoney(val) + ' in contracts' : ''}</div>
+    </div>`;
+  });
+
+  // Top agencies by contract value
+  if (topAgenciesByValue.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
+    topAgenciesByValue.forEach(([agency, value]) => {
+      html += `<div class="top-item" style="border-left-color:#2a5db0;">
+        <h4>${escHtml(agency)}</h4>
+        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
+      </div>`;
+    });
+  }
+
+  // Largest contracts
+  if (topContracts.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts</h3>';
+    topContracts.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged developments
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Biggest Developments</h3>';
+    const seen = new Set();
+    // Sort by contract amount to surface most significant
+    const sorted = [...allNotable].sort((a, b) => (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0));
+    const uniqueNotable = sorted.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 20);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${escHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
         ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
       </div>`;
     });
