@@ -337,10 +337,15 @@
     footer a { color: #888; }
 
     /* Search */
+    .search-bar {
+      margin-top: 16px;
+      margin-bottom: 0;
+    }
+
     .search-box {
       display: flex;
       gap: 8px;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
     }
 
     .search-box input {
@@ -447,23 +452,25 @@
     <p>Notable NYC government notices — procurement, hearings, rules, and more</p>
   </header>
 
+  <!-- Search box (always visible) -->
+  <div class="search-bar">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Search all notices — agency, vendor, topic, dollar amount...">
+    </div>
+    <div class="search-filters" id="search-filters" style="display:none;">
+      <select id="filter-section"><option value="">All sections</option></select>
+      <select id="filter-type"><option value="">All types</option></select>
+    </div>
+  </div>
+
+  <!-- Search results (replaces tab content when active) -->
+  <div id="search-results" style="display:none;"></div>
+
+  <div id="tab-content">
   <div class="tabs">
     <button class="tab active" data-tab="daily">Today's Digest</button>
     <button class="tab" data-tab="weekly">This Week</button>
     <button class="tab" data-tab="monthly">This Month</button>
-    <button class="tab" data-tab="search">Search</button>
-  </div>
-
-  <!-- SEARCH TAB -->
-  <div id="tab-search" class="tab-panel">
-    <div class="search-box">
-      <input type="text" id="search-input" placeholder="Search notices — try an agency, vendor, topic, or dollar amount...">
-    </div>
-    <div class="search-filters">
-      <select id="filter-section"><option value="">All sections</option></select>
-      <select id="filter-type"><option value="">All types</option></select>
-    </div>
-    <div id="search-results"></div>
   </div>
 
   <!-- DAILY TAB -->
@@ -485,6 +492,8 @@
   <div id="tab-monthly" class="tab-panel">
     <div id="monthly-content"><div class="loading">Loading...</div></div>
   </div>
+
+  </div><!-- /tab-content -->
 
   <footer>
     Data source: <a href="https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx">NYC Open Data (dg92-zbpx)</a> |
@@ -952,6 +961,9 @@ function setupSearch() {
   const input = document.getElementById('search-input');
   const secFilter = document.getElementById('filter-section');
   const typeFilter = document.getElementById('filter-type');
+  const filtersEl = document.getElementById('search-filters');
+  const resultsEl = document.getElementById('search-results');
+  const tabContent = document.getElementById('tab-content');
 
   let debounceTimer;
   const runSearch = () => {
@@ -959,16 +971,21 @@ function setupSearch() {
     debounceTimer = setTimeout(() => doSearch(), 150);
   };
 
-  input.addEventListener('input', runSearch);
+  input.addEventListener('input', async () => {
+    await loadAllNotices();
+    const hasQuery = input.value.trim() || secFilter.value || typeFilter.value;
+    filtersEl.style.display = hasQuery ? 'flex' : 'none';
+    resultsEl.style.display = hasQuery ? 'block' : 'none';
+    tabContent.style.display = hasQuery ? 'none' : 'block';
+    runSearch();
+  });
+
+  input.addEventListener('focus', async () => {
+    await loadAllNotices();
+  });
+
   secFilter.addEventListener('change', runSearch);
   typeFilter.addEventListener('change', runSearch);
-
-  // Load data when search tab is first clicked
-  document.querySelector('[data-tab="search"]').addEventListener('click', async () => {
-    await loadAllNotices();
-    input.focus();
-    if (input.value || secFilter.value || typeFilter.value) doSearch();
-  });
 }
 
 function doSearch() {
@@ -976,11 +993,18 @@ function doSearch() {
   const secFilter = document.getElementById('filter-section').value;
   const typeFilter = document.getElementById('filter-type').value;
   const container = document.getElementById('search-results');
+  const tabContent = document.getElementById('tab-content');
 
   if (!query && !secFilter && !typeFilter) {
-    container.innerHTML = '<div class="empty-state">Type a query or select a filter to search across all recorded notices.</div>';
+    container.style.display = 'none';
+    tabContent.style.display = 'block';
+    document.getElementById('search-filters').style.display = 'none';
     return;
   }
+
+  container.style.display = 'block';
+  tabContent.style.display = 'none';
+  document.getElementById('search-filters').style.display = 'flex';
 
   const terms = query.split(/\s+/).filter(Boolean);
 
