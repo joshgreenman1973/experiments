@@ -931,23 +931,20 @@ searchInput.addEventListener('keydown', e => {
   }
 });
 
-searchResults.addEventListener('mousedown', e => {
+let justSearched = false;
+function selectSearchResult(e) {
   const el = e.target.closest('.search-result');
   if (!el) return;
   e.preventDefault();
+  e.stopPropagation();
+  justSearched = true;
+  setTimeout(() => justSearched = false, 400);
   highlightCountry(parseInt(el.dataset.ci));
   searchInput.value = '';
   searchResults.classList.remove('open');
-});
-
-searchResults.addEventListener('touchstart', e => {
-  const el = e.target.closest('.search-result');
-  if (!el) return;
-  e.preventDefault();
-  highlightCountry(parseInt(el.dataset.ci));
-  searchInput.value = '';
-  searchResults.classList.remove('open');
-});
+}
+searchResults.addEventListener('mousedown', selectSearchResult);
+searchResults.addEventListener('touchstart', selectSearchResult);
 
 searchInput.addEventListener('blur', () => {
   setTimeout(() => searchResults.classList.remove('open'), 300);
@@ -1020,7 +1017,8 @@ canvas.addEventListener('click', e => {
 });
 
 document.body.addEventListener('click', e => {
-  if (!e.target.closest('canvas, #legend, #controls, #metric-switcher, #view-switcher, input, #highlight-info')) {
+  if (justSearched) return;
+  if (!e.target.closest('canvas, #legend, #controls, #metric-switcher, #view-switcher, #search-wrap, #highlight-info')) {
     clearHighlight();
   }
 });
