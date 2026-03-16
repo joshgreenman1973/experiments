@@ -276,6 +276,7 @@
   }
   .legend-item.visible { opacity: 1; }
   .legend-item:hover { color: #fff; }
+  .legend-item.active { color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 2px 6px; margin: -2px -6px; background: rgba(255,255,255,0.05); }
   .legend-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
@@ -344,7 +345,7 @@
 </div>
 <div id="controls">
   <span class="controls-label">Sort</span>
-  <button data-sort="default" class="active">Largest First</button>
+  <button data-sort="largest" class="active">Largest First</button>
   <button data-sort="smallest">Smallest First</button>
   <button data-sort="alpha">A &rarr; Z</button>
   <div class="controls-divider"></div>
@@ -567,7 +568,7 @@ const regionColors = {
 // STATE
 // ══════════════════════════════════════════
 let currentMetric = 'pop';
-let currentSort = 'default';
+let currentSort = 'largest';
 let highlightCI = -1;
 let isInitialAnimation = true;
 let isTransitioning = false;
@@ -638,7 +639,6 @@ function getSortedCityIndices(sortType) {
   const key = metricDefs[currentMetric].key;
   const indices = cities.map((_, i) => i);
   switch (sortType) {
-    case 'default':
     case 'largest': indices.sort((a, b) => (cities[b][key]||0) - (cities[a][key]||0)); break;
     case 'smallest': indices.sort((a, b) => (cities[a][key]||0) - (cities[b][key]||0)); break;
     case 'alpha': indices.sort((a, b) => cities[a].name.localeCompare(cities[b].name)); break;
@@ -839,12 +839,14 @@ function highlightCity(ci) {
   const val = c[def.key];
   const pct = (val / metricTotal * 100).toFixed(2);
   highlightInfo.innerHTML = `<span class="hi-name" style="color:${palette[ci]}">${c.name}</span> <span style="color:#777">(${c.country})</span> — ${def.formatVal(val)} — <span class="hi-pct">${pct}%</span> ${def.pctLabel} <button class="hi-clear">↩ Show All Cities</button>`;
+  document.querySelectorAll('.legend-item').forEach(el => el.classList.toggle('active', parseInt(el.dataset.ci) === ci));
 }
 
 function clearHighlight() {
   highlightCI = -1;
   highlightInfo.innerHTML = '';
   searchInput.value = '';
+  document.querySelectorAll('.legend-item.active').forEach(el => el.classList.remove('active'));
 }
 
 // ══════════════════════════════════════════
@@ -906,7 +908,7 @@ function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3
 
 function startAnimation() {
   currentMetric = 'pop';
-  currentSort = 'default';
+  currentSort = 'largest';
   isInitialAnimation = true;
   isTransitioning = false;
   clearHighlight();
@@ -915,7 +917,7 @@ function startAnimation() {
   dots.forEach(d => { d.scale = 0; d.born = 0; });
 
   document.querySelectorAll('#metric-switcher button').forEach(b => b.classList.toggle('active', b.dataset.metric === 'pop'));
-  document.querySelectorAll('#controls button[data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === 'default'));
+  document.querySelectorAll('#controls button[data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === 'largest'));
   subtitleEl.innerHTML = metricDefs.pop.subtitle(metricDefs.pop.dotUnit);
   counterEl.childNodes[0].textContent = metricDefs.pop.counterLabel + ': ';
   hideRegionLabels();
@@ -924,7 +926,7 @@ function startAnimation() {
 
   displayOrder = [];
   // Default sort = largest first
-  const sorted = getSortedCityIndices('default');
+  const sorted = getSortedCityIndices('largest');
   sorted.forEach(ci => {
     for (let j = 0; j < cities[ci].dotCount; j++) displayOrder.push(cities[ci].dotStart + j);
   });
@@ -1024,7 +1026,10 @@ function render(now) {
     lastRevealed = d.ci;
   }
 
-  if (isInitialAnimation && t > animDuration + 1000) isInitialAnimation = false;
+  if (isInitialAnimation && t > animDuration + 1000) {
+    isInitialAnimation = false;
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+  }
 
   if (def.isPerCapita) {
     const wavg = cities.reduce((s, c) => s + c.gdp, 0) / cities.reduce((s, c) => s + c.pop, 0);
