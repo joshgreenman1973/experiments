@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>City Record Digest</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" title="City Record Digest" href="feed.xml">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -443,6 +444,113 @@
       border-radius: 2px;
     }
 
+    /* Subscribe panel */
+    .subscribe-toggle {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5b8db8;
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+      float: right;
+      margin-top: 4px;
+    }
+
+    .subscribe-toggle:hover { text-decoration: underline; }
+
+    .subscribe-toggle svg {
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
+      margin-right: 3px;
+      fill: #5b8db8;
+    }
+
+    .subscribe-panel {
+      display: none;
+      margin-top: 12px;
+      margin-bottom: 16px;
+      padding: 16px 18px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .subscribe-panel.open { display: block; }
+
+    .subscribe-panel h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #434343;
+      margin-bottom: 12px;
+    }
+
+    .feed-group {
+      margin-bottom: 14px;
+    }
+
+    .feed-group h4 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .feed-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .feed-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #434343;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .feed-chip:hover {
+      background: #eef4fa;
+      border-color: #5b8db8;
+      color: #1a1a1a;
+    }
+
+    .feed-chip .feed-count {
+      font-size: 10px;
+      color: #999;
+      font-weight: 400;
+    }
+
+    .feed-chip svg {
+      width: 12px;
+      height: 12px;
+      fill: #5b8db8;
+      flex-shrink: 0;
+    }
+
+    .subscribe-hint {
+      font-size: 11px;
+      color: #999;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .subscribe-hint a { color: #5b8db8; }
+
     @media (max-width: 600px) {
       .container { padding: 16px 14px 40px; }
       header h1 { font-size: 18px; }
@@ -458,9 +566,19 @@
 
 <div class="container">
   <header>
-    <h1>City Record Digest</h1>
+    <h1>City Record Digest
+      <a class="subscribe-toggle" onclick="toggleSubscribe()" title="Subscribe via RSS">
+        <svg viewBox="0 0 24 24"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36zM4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44zm0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83z"/></svg>Subscribe
+      </a>
+    </h1>
     <p>Notable NYC government notices — procurement, hearings, rules, and more</p>
   </header>
+
+  <div class="subscribe-panel" id="subscribe-panel">
+    <h3>Subscribe to RSS Feeds</h3>
+    <div id="feed-lists">Loading feeds...</div>
+    <p class="subscribe-hint">Copy any feed URL into your RSS reader (Feedly, Inoreader, Feedbin, Apple News, Outlook, etc.) to get updates automatically. <a href="feed.xml">Main feed</a></p>
+  </div>
 
   <!-- Search box (always visible) -->
   <div class="search-bar">
@@ -1253,6 +1371,58 @@ function doSearch() {
   });
 
   container.innerHTML = html;
+}
+
+// ── Subscribe panel ─────────────────────────────────────────
+
+function toggleSubscribe() {
+  const panel = document.getElementById('subscribe-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open') && !panel.dataset.loaded) {
+    loadFeedIndex();
+  }
+}
+
+async function loadFeedIndex() {
+  const panel = document.getElementById('subscribe-panel');
+  const container = document.getElementById('feed-lists');
+  try {
+    const resp = await fetch('feed-index.json');
+    if (!resp.ok) throw new Error('No feed index');
+    const idx = await resp.json();
+
+    const rssSvg = '<svg viewBox="0 0 24 24"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36zM4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44zm0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83z"/></svg>';
+
+    let html = '';
+
+    // Main feed
+    html += `<div class="feed-group"><h4>Full Digest</h4><div class="feed-list">`;
+    html += `<a class="feed-chip" href="${idx.main.url}" title="All notable developments">${rssSvg} ${escHtml(idx.main.title)} <span class="feed-count">${idx.main.count}</span></a>`;
+    html += `</div></div>`;
+
+    // Section feeds
+    if (idx.sections && idx.sections.length > 0) {
+      html += `<div class="feed-group"><h4>By Section</h4><div class="feed-list">`;
+      idx.sections.forEach(s => {
+        html += `<a class="feed-chip" href="${s.url}" title="${escHtml(s.name)}">${rssSvg} ${escHtml(s.name)} <span class="feed-count">${s.count}</span></a>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // Agency feeds
+    if (idx.agencies && idx.agencies.length > 0) {
+      html += `<div class="feed-group"><h4>By Agency</h4><div class="feed-list">`;
+      idx.agencies.forEach(a => {
+        html += `<a class="feed-chip" href="${a.url}" title="${escHtml(a.name)}">${rssSvg} ${escHtml(a.name)} <span class="feed-count">${a.count}</span></a>`;
+      });
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+    panel.dataset.loaded = '1';
+  } catch {
+    container.innerHTML = '<p style="color:#888;font-size:13px;">Feed index not available. <a href="feed.xml">Main RSS feed</a></p>';
+  }
 }
 
 // ── Start ───────────────────────────────────────────────────
