@@ -907,7 +907,7 @@ const searchInput = document.getElementById('search');
 const searchResults = document.getElementById('search-results');
 const highlightInfo = document.getElementById('highlight-info');
 
-searchInput.addEventListener('input', () => {
+function doSearch() {
   const q = searchInput.value.trim().toLowerCase();
   if (q.length === 0) { searchResults.classList.remove('open'); return; }
   const def = metricDefs[currentMetric];
@@ -920,6 +920,15 @@ searchInput.addEventListener('input', () => {
     `<div class="search-result" data-ci="${i}"><span><span style="color:${palette[i]}; font-weight:600">${c.name}</span> · ${c.region}</span><span class="sr-val">${def.formatVal(c[def.key])} · ${(c[def.key] / metricTotal * 100).toFixed(2)}%</span></div>`
   ).join('');
   searchResults.classList.add('open');
+}
+searchInput.addEventListener('input', doSearch);
+searchInput.addEventListener('keyup', doSearch);
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const first = searchResults.querySelector('.search-result');
+    if (first) { highlightCountry(parseInt(first.dataset.ci)); searchInput.value = ''; searchResults.classList.remove('open'); }
+  }
 });
 
 searchResults.addEventListener('click', e => {
@@ -930,8 +939,17 @@ searchResults.addEventListener('click', e => {
   searchResults.classList.remove('open');
 });
 
+searchResults.addEventListener('touchend', e => {
+  const el = e.target.closest('.search-result');
+  if (!el) return;
+  e.preventDefault();
+  highlightCountry(parseInt(el.dataset.ci));
+  searchInput.value = '';
+  searchResults.classList.remove('open');
+});
+
 searchInput.addEventListener('blur', () => {
-  setTimeout(() => searchResults.classList.remove('open'), 200);
+  setTimeout(() => searchResults.classList.remove('open'), 300);
 });
 
 highlightInfo.addEventListener('click', e => {
