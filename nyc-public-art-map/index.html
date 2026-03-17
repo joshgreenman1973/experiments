@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>NYC Public Art Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+#map { width: 100%; height: 100vh; height: 100dvh; }
+
+/* Panel */
+.panel {
+  position: absolute; top: 10px; right: 10px; z-index: 1000;
+  background: white; border-radius: 10px; box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+  width: 320px; max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px);
+  display: flex; flex-direction: column; transition: all 0.2s;
+}
+.panel.collapsed { width: auto; max-height: none; }
+.panel.collapsed .panel-body { display: none; }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; cursor: pointer; flex-shrink: 0;
+}
+.panel-header h2 { font-size: 15px; margin: 0; }
+.toggle-btn {
+  background: none; border: none; font-size: 18px; cursor: pointer;
+  color: #666; padding: 0 4px;
+}
+.panel-body { overflow-y: auto; padding: 0 16px 14px; flex: 1; min-height: 0; }
+.panel-body p { font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.4; }
+
+/* Tabs */
+.tabs {
+  display: flex; border-bottom: 1px solid #eee; margin: 0 -16px 10px;
+  padding: 0 16px; flex-shrink: 0;
+}
+.tab {
+  padding: 8px 0; margin-right: 16px; font-size: 12px; font-weight: 600;
+  color: #999; border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all 0.15s;
+}
+.tab.active { color: #333; border-bottom-color: #333; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Search */
+.search-wrap { position: relative; margin-bottom: 6px; }
+#search {
+  width: 100%; padding: 8px 32px 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; -webkit-appearance: none;
+}
+#search:focus { outline: none; border-color: #999; }
+.search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 16px; color: #aaa; cursor: pointer;
+  display: none; padding: 2px 4px;
+}
+.search-clear.visible { display: block; }
+.search-results {
+  max-height: 200px; overflow-y: auto; border: 1px solid #eee;
+  border-radius: 6px; margin-bottom: 8px; display: none;
+}
+.search-results.visible { display: block; }
+.search-result {
+  padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s;
+}
+.search-result:last-child { border-bottom: none; }
+.search-result:hover { background: #f8f8f8; }
+.search-result .sr-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.search-result .sr-sub { font-size: 11px; color: #888; margin-top: 1px; }
+.search-result .sr-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: 4px; vertical-align: middle;
+}
+.search-result .sr-dist { font-size: 10px; color: #aaa; float: right; margin-top: 2px; }
+.search-results-count {
+  font-size: 11px; color: #999; padding: 4px 10px; background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+
+/* Filters */
+.filter-section { margin-bottom: 10px; }
+.filter-section-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: #999; margin-bottom: 6px;
+}
+.filter-group label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; cursor: pointer; padding: 3px 0;
+}
+.filter-group input[type="checkbox"] { accent-color: #333; width: 15px; height: 15px; }
+.legend-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-pdc { background: #e74c3c; }
+.dot-parks { background: #27ae60; }
+.dot-mta { background: #3498db; }
+.dot-temp { background: #f39c12; }
+.dot-pfa { background: #9b59b6; }
+.count { font-size: 11px; color: #999; margin-left: auto; }
+.filter-separator { border: none; border-top: 1px solid #eee; margin: 8px 0; }
+.removed-label { color: #999; }
+
+/* Year range slider */
+.year-range { margin: 8px 0; }
+.year-range-label {
+  font-size: 12px; color: #555; margin-bottom: 6px; display: flex;
+  justify-content: space-between; align-items: center;
+}
+.year-range-label span { font-weight: 600; }
+.year-range-reset {
+  font-size: 11px; color: #3498db; cursor: pointer; border: none;
+  background: none; padding: 0;
+}
+.dual-range {
+  position: relative; height: 28px;
+}
+.dual-range input[type="range"] {
+  position: absolute; width: 100%; height: 4px; top: 12px;
+  -webkit-appearance: none; appearance: none; background: transparent;
+  pointer-events: none; z-index: 2;
+}
+.dual-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: white; border: 2px solid #333; cursor: pointer;
+  pointer-events: auto; position: relative; z-index: 3;
+}
+.dual-range-track {
+  position: absolute; top: 12px; left: 0; right: 0; height: 4px;
+  background: #e0e0e0; border-radius: 2px;
+}
+.dual-range-fill {
+  position: absolute; top: 12px; height: 4px;
+  background: #333; border-radius: 2px;
+}
+
+/* Artwork type filter — broad categories */
+.type-filter-group label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; cursor: pointer; padding: 3px 0;
+}
+.type-filter-group input[type="checkbox"] { width: 14px; height: 14px; accent-color: #333; }
+.type-filter-group .type-count { font-size: 10px; color: #bbb; margin-left: auto; }
+
+/* Nearby panel */
+.nearby-panel { display: none; }
+.nearby-panel.visible { display: block; }
+.nearby-list { max-height: 280px; overflow-y: auto; }
+.nearby-item {
+  padding: 8px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer;
+}
+.nearby-item:hover { background: #fafafa; margin: 0 -16px; padding: 8px 16px; }
+.nearby-item:last-child { border-bottom: none; }
+.nearby-title { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.nearby-sub { font-size: 11px; color: #888; margin-top: 1px; }
+.nearby-dist { font-size: 11px; color: #3498db; font-weight: 600; }
+
+/* Walking tour */
+.tour-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+.tour-btn {
+  width: 100%; padding: 8px; border: 1px solid #333; border-radius: 6px;
+  background: white; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; color: #333;
+}
+.tour-btn:hover { background: #333; color: white; }
+.tour-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tour-options { margin-top: 8px; }
+.tour-options label { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.tour-options select {
+  font-size: 12px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 4px;
+}
+.tour-result { margin-top: 8px; font-size: 12px; }
+.tour-result a {
+  display: inline-block; margin-top: 4px; color: #3498db;
+  font-weight: 600; text-decoration: none;
+}
+.tour-stop { padding: 4px 0; display: flex; gap: 6px; align-items: baseline; }
+.tour-stop-num {
+  width: 18px; height: 18px; border-radius: 50%; background: #333;
+  color: white; font-size: 10px; font-weight: 700; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tour-stop-name { font-size: 12px; }
+
+/* Locate button */
+.locate-btn {
+  position: absolute; bottom: 30px; right: 10px; z-index: 1000;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: white; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; transition: background 0.15s;
+}
+.locate-btn:active { background: #f0f0f0; }
+.locate-btn.tracking { background: #3498db; color: white; }
+
+/* Loading */
+.loading-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(255,255,255,0.92); z-index: 2000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.loading-overlay h1 { font-size: 22px; margin-bottom: 8px; }
+.loading-overlay .progress { font-size: 14px; color: #666; text-align: center; line-height: 1.5; }
+.spinner {
+  width: 40px; height: 40px; border: 4px solid #eee;
+  border-top-color: #333; border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Popup styling */
+.leaflet-popup-content-wrapper { border-radius: 10px; }
+.leaflet-popup-content { margin: 14px 16px; max-width: 280px; min-width: 200px; }
+.popup-title { font-size: 16px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; }
+.popup-removed-tag {
+  display: inline-block; background: #888; color: white; font-size: 9px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 2px 6px; border-radius: 3px; margin-bottom: 4px;
+}
+.popup-artist { font-size: 14px; color: #444; margin-bottom: 8px; font-style: italic; }
+.popup-meta { font-size: 12px; color: #666; line-height: 1.6; }
+.popup-meta strong { color: #333; }
+.popup-source {
+  display: inline-block; margin-top: 8px; padding: 2px 8px;
+  border-radius: 3px; font-size: 10px; font-weight: 600; color: white;
+}
+.source-pdc { background: #e74c3c; }
+.source-parks { background: #27ae60; }
+.source-mta { background: #3498db; }
+.source-temp { background: #f39c12; }
+.source-pfa { background: #9b59b6; }
+.popup-share {
+  display: inline-block; margin-top: 8px; margin-left: 6px; padding: 2px 8px;
+  border-radius: 3px; font-size: 10px; font-weight: 600;
+  color: #666; background: #f0f0f0; border: none; cursor: pointer;
+  transition: all 0.15s;
+}
+.popup-share:hover { background: #ddd; }
+.popup-share.copied { background: #27ae60; color: white; }
+.popup-image {
+  width: 100%; max-height: 220px; object-fit: cover;
+  border-radius: 6px; margin-top: 10px; cursor: pointer;
+}
+.popup-image-link {
+  display: block; text-align: center; margin-top: 10px;
+  color: #3498db; font-size: 12px; text-decoration: none;
+}
+.popup-img-placeholder {
+  width: 100%; height: 100px; background: #f5f5f5; border-radius: 6px;
+  margin-top: 10px; display: flex; align-items: center; justify-content: center;
+  color: #bbb; font-size: 12px;
+}
+
+/* Cluster styling */
+.marker-cluster-pdc { background: rgba(231, 76, 60, 0.25); }
+.marker-cluster-pdc div { background: rgba(231, 76, 60, 0.75); color: white; }
+.marker-cluster-parks { background: rgba(39, 174, 96, 0.25); }
+.marker-cluster-parks div { background: rgba(39, 174, 96, 0.75); color: white; }
+.marker-cluster-mta { background: rgba(52, 152, 219, 0.25); }
+.marker-cluster-mta div { background: rgba(52, 152, 219, 0.75); color: white; }
+.marker-cluster-temp { background: rgba(243, 156, 18, 0.25); }
+.marker-cluster-temp div { background: rgba(243, 156, 18, 0.75); color: white; }
+.marker-cluster-pfa { background: rgba(155, 89, 182, 0.25); }
+.marker-cluster-pfa div { background: rgba(155, 89, 182, 0.75); color: white; }
+
+/* Mobile */
+@media (max-width: 600px) {
+  .panel {
+    top: auto; bottom: 70px; right: 8px; left: 8px;
+    width: auto; max-height: 50vh;
+  }
+  .panel.collapsed { left: auto; width: auto; bottom: 70px; }
+  .locate-btn { bottom: 20px; right: 10px; }
+  .leaflet-popup-content { max-width: 240px; min-width: 180px; }
+  .search-results { max-height: 140px; }
+  .nearby-list { max-height: 180px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading-overlay">
+  <div class="spinner"></div>
+  <h1>NYC Public Art Map</h1>
+  <div class="progress" id="loadingStatus">Loading datasets...</div>
+</div>
+
+<div id="map"></div>
+
+<div class="panel" id="panel">
+  <div class="panel-header" onclick="document.getElementById('panel').classList.toggle('collapsed')">
+    <h2>NYC Public Art Map</h2>
+    <button class="toggle-btn" aria-label="Toggle panel">&#9776;</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="search-tab">Search</button>
+    <button class="tab" data-tab="filter-tab">Filter</button>
+    <button class="tab" data-tab="nearby-tab">Nearby</button>
+  </div>
+
+  <div class="panel-body">
+    <!-- SEARCH TAB -->
+    <div class="tab-content active" id="search-tab">
+      <div class="search-wrap">
+        <input type="text" id="search" placeholder="Search title, artist, or location..." autocomplete="off" />
+        <button class="search-clear" id="searchClear" aria-label="Clear search">&times;</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+      <div class="filter-section">
+        <div class="filter-section-title">Datasets</div>
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" class="source-toggle" data-source="pdc" checked />
+            <span class="legend-dot dot-pdc"></span>
+            Public Design Commission
+            <span class="count" id="count-pdc">&mdash;</span>
+          </label>
+          <label>
+            <input type="checkbox" class="source-toggle" data-source="parks" checked />
+            <span class="legend-dot dot-parks"></span>
+            Parks Monuments
+            <span class="count" id="count-parks">&mdash;</span>
+          </label>
+          <label>
+            <input type="checkbox" class="source-toggle" data-source="mta" checked />
+            <span class="legend-dot dot-mta"></span>
+            MTA Arts &amp; Design
+            <span class="count" id="count-mta">&mdash;</span>
+          </label>
+          <label>
+            <input type="checkbox" class="source-toggle" data-source="temp" checked />
+            <span class="legend-dot dot-temp"></span>
+            Parks Temporary Art
+            <span class="count" id="count-temp">&mdash;</span>
+          </label>
+          <label>
+            <input type="checkbox" class="source-toggle" data-source="pfa" checked />
+            <span class="legend-dot dot-pfa"></span>
+            Percent for Art
+            <span class="count" id="count-pfa">&mdash;</span>
+          </label>
+          <hr class="filter-separator" />
+          <label>
+            <input type="checkbox" id="toggle-removed" checked />
+            <span class="legend-dot" style="background:#888;"></span>
+            <span class="removed-label">Show removed works</span>
+            <span class="count" id="count-removed">&mdash;</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER TAB -->
+    <div class="tab-content" id="filter-tab">
+      <div class="filter-section">
+        <div class="filter-section-title">Year installed</div>
+        <div class="year-range">
+          <div class="year-range-label">
+            <span id="yearMinLabel">1850</span> &ndash; <span id="yearMaxLabel">2025</span>
+            <button class="year-range-reset" id="yearReset">Reset</button>
+          </div>
+          <div class="dual-range">
+            <div class="dual-range-track"></div>
+            <div class="dual-range-fill" id="yearFill"></div>
+            <input type="range" id="yearMin" min="1850" max="2025" value="1850" />
+            <input type="range" id="yearMax" min="1850" max="2025" value="2025" />
+          </div>
+        </div>
+        <label style="font-size:12px;display:flex;align-items:center;gap:6px;margin-top:4px;cursor:pointer;">
+          <input type="checkbox" id="showUndated" checked style="width:14px;height:14px;" />
+          Include works with unknown date
+        </label>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-section-title">Artwork type</div>
+        <div class="type-filter-group" id="typeFilterGroup"></div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button id="applyFilters" style="width:100%;padding:8px;border:none;border-radius:6px;background:#333;color:white;font-size:13px;font-weight:600;cursor:pointer;">Apply filters</button>
+        <div style="font-size:11px;color:#999;text-align:center;margin-top:4px;" id="filterStatus"></div>
+      </div>
+    </div>
+
+    <!-- NEARBY TAB -->
+    <div class="tab-content" id="nearby-tab">
+      <div id="nearbyPrompt">
+        <p>Tap the location button to find art near you.</p>
+      </div>
+      <div class="nearby-panel" id="nearbyPanel">
+        <div class="nearby-list" id="nearbyList"></div>
+        <div class="tour-section">
+          <div class="filter-section-title">Walking tour</div>
+          <div class="tour-options">
+            <label>Stops:
+              <select id="tourStops">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+              </select>
+            </label>
+          </div>
+          <button class="tour-btn" id="tourBtn">Generate walking tour</button>
+          <div class="tour-result" id="tourResult"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="locate-btn" id="locateBtn" title="Find my location">&#9673;</button>
+
+<script>
+proj4.defs('EPSG:2263', '+proj=lcc +lat_1=41.03333333333333 +lat_2=40.66666666666666 +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=us-ft +no_defs');
+
+// Parse URL: #zoom/lat/lng or ?art=id
+const hashMatch = location.hash.match(/^#(\d+\.?\d*)\/(-?\d+\.?\d*)\/(-?\d+\.?\d*)$/);
+const urlParams = new URLSearchParams(location.search);
+const artParam = urlParams.get('art');
+const initView = hashMatch
+  ? { center: [parseFloat(hashMatch[2]), parseFloat(hashMatch[3])], zoom: parseFloat(hashMatch[1]) }
+  : { center: [40.7128, -73.97], zoom: 12 };
+
+const map = L.map('map', { zoomControl: true }).setView(initView.center, initView.zoom);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+}).addTo(map);
+
+map.on('moveend', () => {
+  const c = map.getCenter(), z = map.getZoom();
+  history.replaceState(null, '', `#${z}/${c.lat.toFixed(5)}/${c.lng.toFixed(5)}`);
+});
+
+// Icons
+function makeIcon(color, size = 12) {
+  return L.divIcon({
+    className: '',
+    html: `<svg width="${size+2}" height="${size+2}" viewBox="0 0 ${size+2} ${size+2}"><circle cx="${(size+2)/2}" cy="${(size+2)/2}" r="${size/2}" fill="${color}" stroke="white" stroke-width="1.5" opacity="0.85"/></svg>`,
+    iconSize: [size+2, size+2], iconAnchor: [(size+2)/2, (size+2)/2],
+    popupAnchor: [0, -(size/2 + 2)]
+  });
+}
+function makeRemovedIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#888" stroke-width="2" stroke-dasharray="3,2" opacity="0.8"/></svg>`,
+    iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -10]
+  });
+}
+
+const icons = { pdc: makeIcon('#e74c3c'), parks: makeIcon('#27ae60'), mta: makeIcon('#3498db'), temp: makeIcon('#f39c12'), pfa: makeIcon('#9b59b6'), removed: makeRemovedIcon() };
+const sourceColors = { pdc: '#e74c3c', parks: '#27ae60', mta: '#3498db', temp: '#f39c12', pfa: '#9b59b6' };
+
+function makeClusterGroup(cssClass) {
+  return L.markerClusterGroup({
+    maxClusterRadius: 45, spiderfyOnMaxZoom: true, showCoverageOnHover: false,
+    iconCreateFunction(cluster) {
+      const count = cluster.getChildCount();
+      const size = count < 20 ? 30 : count < 50 ? 36 : 42;
+      return L.divIcon({
+        html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${count}</div>`,
+        className: `marker-cluster ${cssClass}`, iconSize: [size, size]
+      });
+    }
+  });
+}
+
+const layers = { pdc: makeClusterGroup('marker-cluster-pdc'), parks: makeClusterGroup('marker-cluster-parks'), mta: makeClusterGroup('marker-cluster-mta'), temp: makeClusterGroup('marker-cluster-temp'), pfa: makeClusterGroup('marker-cluster-pfa') };
+const allMarkers = { pdc: [], parks: [], mta: [], temp: [], pfa: [] };
+const removedMarkers = [];
+const seenArtworks = new Set(); // For deduplication
+
+// Broad type categories mapping
+const BROAD_TYPES = {
+  'Sculpture': ['Sculpture', 'sculpture', 'Statue', 'statue', 'Statues', 'statues', 'Bust', 'bust', 'Kinetic sculpture', 'Abstract', 'Allegorical'],
+  'Monument & Memorial': ['Monument', 'Monument/Memorial', 'Memorial wall', 'Memorial hall', 'Memorial seat', 'memorial', 'War Memorial', 'Cenotaph', 'Obelisk', 'Stele', 'stele', 'Stone monument', 'Sarcophagus', 'Monolith', '9/11', 'All Wars', 'Civil War', 'Korean War', 'Vietnam War', 'World War I', 'World War II', 'Revolutionary War', 'Spanish-American War', 'War of 1812', 'Soldier', 'honor roll', 'honor roll wall', 'eternal light'],
+  'Relief & Mosaic': ['Bas-relief', 'bas-relief', 'Bas-relief roundel', 'Bas-relief sculpture', 'Relief', 'relief', 'relief plaque', 'Mosaic', 'mosaic', 'Medallions', 'medallion', 'Frieze', 'frieze', 'Decorative panels', 'Tiles'],
+  'Mural & Installation': ['Mural', 'Installation', 'Site-specific installation', 'Landscape installation', 'Light Installation', 'Decorative pavement', 'Decorative paving', 'decorative pavement', 'engraved paving', 'Manhole covers'],
+  'Fountain': ['Fountain', 'fountain', 'Ornamental fountain', 'fountain base', 'Basin', 'Bird bath'],
+  'Marker & Plaque': ['Marker', 'Markers', 'marker', 'Plaque', 'Plaques', 'plaque', 'plaques', 'Tablet', 'tablet', 'Tree marker', 'Tree markers', 'Granite marker', 'Incised boulder', 'natural boulder', 'boulder', 'Artwork/Marker'],
+  'Architectural': ['Arch', 'Column', 'Columns', 'column', 'Corinthian column', 'rostral column', 'Gatehouse', 'Gateposts', 'Ornamental gates', 'Fence', 'fence', 'Railing', 'Pier', 'Pillars', 'Pylon', 'Temple', 'ornamental wall', 'Plaza', 'Plinth', 'plinth', 'pedestal', 'pedestals', 'Planter', 'Exedra', 'exedra', 'Belfry tower'],
+  'Other': ['Artwork', 'Artwork/Memorial', 'Artwork/Monument', 'Other', 'Flagpole', 'Flagstaff', 'Flagstaff base', 'flagstaff', 'Plaza and Flagstaff', 'Clock', 'clock', 'Sundial', 'sundial', 'Lantern', 'lantern', 'Urn', 'urn', 'globe', 'Bench', 'bench', 'benches', 'stone seating', 'Carousel', 'Cross', 'Policeman', 'Fireman']
+};
+// Reverse lookup: raw type -> broad category
+const typeToBroad = {};
+for (const [broad, raws] of Object.entries(BROAD_TYPES)) {
+  for (const raw of raws) typeToBroad[raw] = broad;
+}
+function getBroadType(rawType) {
+  if (!rawType) return 'Other';
+  const types = rawType.split(',').map(t => t.trim());
+  for (const t of types) {
+    if (typeToBroad[t]) return typeToBroad[t];
+  }
+  return 'Other';
+}
+let markerIdCounter = 0;
+const markerById = {};
+
+function setStatus(msg) { document.getElementById('loadingStatus').textContent = msg; }
+
+// Wikimedia image lookup
+async function fetchWikimediaImage(title, artist) {
+  const query = `${title} ${artist || ''} sculpture New York`.trim();
+  try {
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srnamespace=6&srlimit=1&format=json&origin=*`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.query?.search?.length) {
+      const fileTitle = data.query.search[0].title;
+      const imgUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+      const imgResp = await fetch(imgUrl);
+      const imgData = await imgResp.json();
+      const pages = imgData.query?.pages;
+      if (pages) {
+        const page = Object.values(pages)[0];
+        if (page.imageinfo?.[0]) return page.imageinfo[0].thumburl || page.imageinfo[0].url;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function extractYear(dateStr) {
+  if (!dateStr) return null;
+  const m = dateStr.match(/\b(1[5-9]\d{2}|20\d{2})\b/);
+  return m ? parseInt(m[1]) : null;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function popupContent(d, source, markerId) {
+  const sourceLabel = { pdc: 'Public Design Commission', parks: 'Parks Monuments', mta: 'MTA Arts & Design', temp: 'Parks Temporary Art', pfa: 'Percent for Art' }[source];
+  const sourceClass = { pdc: 'source-pdc', parks: 'source-parks', mta: 'source-mta', temp: 'source-temp', pfa: 'source-pfa' }[source];
+  const year = d.yearNum;
+
+  let html = '';
+  if (d.removed) html += `<div class="popup-removed-tag">Removed</div><br>`;
+  html += `<div class="popup-title">${escapeHtml(d.title || 'Untitled')}</div>`;
+  if (d.artist) html += `<div class="popup-artist">${escapeHtml(d.artist)}</div>`;
+  html += `<div class="popup-meta">`;
+  if (year) html += `<strong>Year:</strong> ${year}<br>`;
+  if (d.location) html += `<strong>Location:</strong> ${escapeHtml(d.location)}<br>`;
+  if (d.material) html += `<strong>Material:</strong> ${escapeHtml(d.material)}<br>`;
+  if (d.type) html += `<strong>Type:</strong> ${escapeHtml(d.type)}<br>`;
+  if (d.removed && d.removedNote) html += `<strong>Status:</strong> ${escapeHtml(d.removedNote)}<br>`;
+  if (d.dateRange) html += `<strong>Dates:</strong> ${escapeHtml(d.dateRange)}<br>`;
+  html += `</div>`;
+  html += `<span class="popup-source ${sourceClass}">${sourceLabel}</span>`;
+  html += `<button class="popup-share" onclick="copyArtLink('${markerId}', this)">Share link</button>`;
+
+  const searchId = `img-${Math.random().toString(36).slice(2, 9)}`;
+  if (d.imageLink) {
+    html += `<a href="${escapeHtml(d.imageLink)}" target="_blank" rel="noopener" class="popup-image-link">View artwork on MTA site &rarr;</a>`;
+  }
+  html += `<div class="popup-img-placeholder" id="${searchId}">Loading image...</div>`;
+  return { html, searchId };
+}
+
+window.copyArtLink = function(markerId, btn) {
+  const url = `${location.origin}${location.pathname}?art=${markerId}`;
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Share link'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    // Fallback
+    prompt('Copy this link:', url);
+  });
+};
+
+function attachImageLoader(marker, searchId, title, artist) {
+  marker.on('popupopen', async () => {
+    const el = document.getElementById(searchId);
+    if (!el || el.dataset.loaded) return;
+    el.dataset.loaded = '1';
+    const imgUrl = await fetchWikimediaImage(title, artist);
+    if (imgUrl) {
+      el.outerHTML = `<img src="${imgUrl}" class="popup-image" onclick="window.open(this.src,'_blank')" alt="" />`;
+    } else {
+      el.textContent = 'No image found';
+      el.style.height = '40px';
+    }
+  });
+}
+
+async function fetchSocrata(baseUrl, limit = 1000) {
+  let all = [], offset = 0;
+  while (true) {
+    const sep = baseUrl.includes('?') ? '&' : '?';
+    const url = `${baseUrl}${sep}$limit=${limit}&$offset=${offset}`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) break;
+      const data = await resp.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+      all = all.concat(data);
+      if (data.length < limit) break;
+      offset += limit;
+    } catch (e) { console.warn(`Fetch failed at offset ${offset}:`, e); break; }
+  }
+  return all;
+}
+
+async function loadStationCoords() {
+  const stations = {};
+  try {
+    const data = await fetchSocrata('https://data.ny.gov/resource/i9wp-a4ja.json', 2000);
+    for (const s of data) {
+      const name = (s.stop_name || '').toLowerCase().trim();
+      const lat = parseFloat(s.entrance_latitude);
+      const lng = parseFloat(s.entrance_longitude);
+      if (name && !isNaN(lat) && !isNaN(lng) && !stations[name]) stations[name] = [lat, lng];
+    }
+  } catch (e) { console.warn('Station data failed:', e); }
+  return stations;
+}
+
+function addMarker(d, source, lat, lng) {
+  // Deduplication: skip if same title + similar coordinates already exist
+  const dedupKey = `${(d.title || '').toLowerCase().trim()}|${lat.toFixed(3)}|${lng.toFixed(3)}`;
+  if (seenArtworks.has(dedupKey)) return null;
+  seenArtworks.add(dedupKey);
+
+  const isRemoved = d.removed === true;
+  const icon = isRemoved ? icons.removed : icons[source];
+  const markerId = `${source}-${markerIdCounter++}`;
+  const yearNum = extractYear(d.date);
+  d.yearNum = yearNum;
+
+  const { html, searchId } = popupContent(d, source, markerId);
+  const marker = L.marker([lat, lng], { icon }).bindPopup(html, { maxWidth: 320 });
+  marker._searchText = `${d.title || ''} ${d.artist || ''} ${d.location || ''} ${d.material || ''} ${d.type || ''}`.toLowerCase();
+  marker._artTitle = d.title || 'Untitled';
+  marker._artArtist = d.artist || '';
+  marker._artYear = yearNum;
+  marker._artYearStr = yearNum ? String(yearNum) : '';
+  marker._artType = d.type || '';
+  marker._artBroadType = getBroadType(d.type);
+  marker._artSource = source;
+  marker._isRemoved = isRemoved;
+  marker._markerId = markerId;
+  attachImageLoader(marker, searchId, d.title, d.artist);
+  allMarkers[source].push(marker);
+  layers[source].addLayer(marker);
+  if (isRemoved) removedMarkers.push(marker);
+  markerById[markerId] = marker;
+  return marker;
+}
+
+async function loadAllData() {
+  setStatus('Loading Public Design Commission artworks...');
+  let pdcData = [];
+  try { pdcData = await fetchSocrata('https://data.cityofnewyork.us/resource/2pg3-gcaa.json'); } catch (e) {}
+
+  for (const d of pdcData) {
+    const lat = parseFloat(d.latitude), lng = parseFloat(d.longitude);
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) continue;
+    const clean = v => (v && v !== 'NULL') ? v : null;
+    const artist = [d.primary_artist_first, d.primary_artist_middle, d.primary_artist_last].filter(v => v && v !== 'NULL').join(' ');
+    addMarker({
+      title: clean(d.title) || clean(d.alternate_title) || 'Untitled',
+      artist: artist || null,
+      date: d.date_dedicated || d.date_created || null,
+      material: clean(d.material), location: clean(d.location_name) || clean(d.address),
+      type: [d.artwork_type1, d.artwork_type2].filter(v => v && v !== 'NULL').join(', ') || null,
+      removed: false
+    }, 'pdc', lat, lng);
+  }
+  document.getElementById('count-pdc').textContent = allMarkers.pdc.length;
+  setStatus(`PDC: ${allMarkers.pdc.length}. Loading Parks...`);
+
+  let parksData = [];
+  try { parksData = await fetchSocrata('https://data.cityofnewyork.us/resource/6rrm-vxj9.json', 2000); } catch (e) {}
+
+  for (const d of parksData) {
+    const x = parseFloat(d.x), y = parseFloat(d.y);
+    if (!x || !y || isNaN(x) || isNaN(y)) continue;
+    let coords;
+    try { coords = proj4('EPSG:2263', 'EPSG:4326', [x, y]); } catch (e) { continue; }
+    const [lng, lat] = coords;
+    if (lat < 40.4 || lat > 41 || lng < -74.3 || lng > -73.6) continue;
+
+    const extant = (d.extant || '').toLowerCase();
+    const isRemoved = extant === 'no' || extant === 'n' || extant === 'false' || extant === '0';
+
+    addMarker({
+      title: d.name || 'Untitled', artist: d.sculptor || d.architect || null,
+      date: d.dedicated || d.installation || null, material: d.materials || null,
+      location: [d.parkname, d.location].filter(Boolean).join(' \u2014 ') || null,
+      type: d.categories || null, removed: isRemoved,
+      removedNote: isRemoved ? 'No longer extant' : null
+    }, 'parks', lat, lng);
+  }
+  document.getElementById('count-parks').textContent = allMarkers.parks.length;
+  setStatus(`Parks: ${allMarkers.parks.length}. Loading MTA...`);
+
+  let mtaData = [], stationCoords = {};
+  try {
+    [mtaData, stationCoords] = await Promise.all([
+      fetchSocrata('https://data.ny.gov/resource/4y8j-9pkd.json'), loadStationCoords()
+    ]);
+  } catch (e) {}
+
+  for (const d of mtaData) {
+    const rawName = (d.station_name || '').trim();
+    const nameLower = rawName.toLowerCase();
+    let coord = stationCoords[nameLower];
+    if (!coord) {
+      const normalized = nameLower.replace(/(\d+)(st|nd|rd|th)\b/g, '$1').replace(/\s+/g, ' ');
+      for (const [key, val] of Object.entries(stationCoords)) {
+        const keyNorm = key.replace(/(\d+)(st|nd|rd|th)\b/g, '$1').replace(/\s+/g, ' ');
+        if (keyNorm === normalized || key.includes(nameLower) || nameLower.includes(key)) { coord = val; break; }
+      }
+    }
+    if (!coord) continue;
+
+    let imageLink = d.art_image_link || null;
+    if (imageLink && typeof imageLink === 'object') imageLink = imageLink.url || null;
+
+    addMarker({
+      title: d.art_title || 'Untitled', artist: d.artist || null,
+      date: d.art_date || null, material: d.art_material || null,
+      location: `${rawName} (${d.line || ''})`, type: null,
+      imageLink, removed: false
+    }, 'mta', coord[0], coord[1]);
+  }
+  document.getElementById('count-mta').textContent = allMarkers.mta.length;
+  setStatus(`MTA: ${allMarkers.mta.length}. Loading temporary art...`);
+
+  // 4. Parks Temporary Public Art (direct Parks feed)
+  let tempData = [];
+  try {
+    const tempResp = await fetch('https://www.nycgovparks.org/bigapps/DPR_PublicArt_001.json');
+    if (tempResp.ok) tempData = await tempResp.json();
+  } catch (e) { console.warn('Temp art load failed:', e); }
+
+  for (const d of tempData) {
+    const lat = parseFloat(d.lat);
+    const lng = parseFloat(d.lng);
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) continue;
+
+    const isActive = d.active === '1' || d.active === 1;
+    addMarker({
+      title: d.name || 'Untitled',
+      artist: d.artist || null,
+      date: d.from_date || null,
+      material: null,
+      location: d.location || null,
+      type: 'Installation',
+      removed: !isActive,
+      removedNote: !isActive ? 'Exhibition ended' : null,
+      isTemporary: true,
+      dateRange: [d.from_date, d.to_date].filter(Boolean).join(' \u2013 ') || null
+    }, 'temp', lat, lng);
+  }
+  document.getElementById('count-temp').textContent = allMarkers.temp.length;
+  document.getElementById('count-removed').textContent = removedMarkers.length;
+
+  map.addLayer(layers.pdc);
+  map.addLayer(layers.parks);
+  map.addLayer(layers.mta);
+  map.addLayer(layers.temp);
+  map.addLayer(layers.pfa);
+
+  document.getElementById('loading').style.display = 'none';
+  if (window.innerWidth <= 600) document.getElementById('panel').classList.add('collapsed');
+
+  buildTypeFilter();
+
+  // If URL has ?art= param, fly to that artwork
+  if (artParam && markerById[artParam]) {
+    setTimeout(() => flyToMarker(markerById[artParam]), 500);
+  }
+
+  // 5. Load Percent for Art in background (requires geocoding)
+  loadPercentForArt();
+}
+
+async function geocodeNYC(address) {
+  try {
+    const q = encodeURIComponent(address + ', New York, NY');
+    const resp = await fetch(`https://geosearch.planninglabs.nyc/v2/search?text=${q}&size=1`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.features?.length) {
+      const [lng, lat] = data.features[0].geometry.coordinates;
+      return [lat, lng];
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function loadPercentForArt() {
+  let pfaData = [];
+  try { pfaData = await fetchSocrata('https://data.cityofnewyork.us/resource/gzdv-qiga.json'); } catch (e) { return; }
+
+  document.getElementById('count-pfa').textContent = 'loading...';
+
+  // Geocode in small batches to avoid hammering the API
+  let geocoded = 0;
+  const BATCH = 10;
+
+  for (let i = 0; i < pfaData.length; i += BATCH) {
+    const batch = pfaData.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(async d => {
+      if (!d.address) return null;
+      const coords = await geocodeNYC(d.address);
+      if (!coords) return null;
+
+      // Parse artist name (format: "Last, First")
+      let artist = d.artist || null;
+      if (artist && artist.includes(',')) {
+        const parts = artist.split(',').map(s => s.trim());
+        artist = parts[1] ? `${parts[1]} ${parts[0]}` : parts[0];
+      }
+
+      return { d, artist, coords };
+    }));
+
+    for (const r of results) {
+      if (!r) continue;
+      addMarker({
+        title: r.d.percent_project || 'Untitled',
+        artist: r.artist,
+        date: null,
+        material: null,
+        location: r.d.address || null,
+        type: 'Artwork',
+        removed: false
+      }, 'pfa', r.coords[0], r.coords[1]);
+      geocoded++;
+    }
+
+    document.getElementById('count-pfa').textContent = geocoded;
+  }
+
+  document.getElementById('count-pfa').textContent = allMarkers.pfa.length;
+  buildTypeFilter(); // Refresh counts
+}
+
+// Build broad type filter checkboxes
+function buildTypeFilter() {
+  const container = document.getElementById('typeFilterGroup');
+  // Count markers per broad type
+  const counts = {};
+  for (const broad of Object.keys(BROAD_TYPES)) counts[broad] = 0;
+  for (const markers of Object.values(allMarkers)) {
+    for (const m of markers) counts[m._artBroadType] = (counts[m._artBroadType] || 0) + 1;
+  }
+
+  container.innerHTML = Object.keys(BROAD_TYPES).map(broad =>
+    `<label><input type="checkbox" class="type-broad-toggle" data-broad="${escapeHtml(broad)}" checked />${escapeHtml(broad)}<span class="type-count">${counts[broad] || 0}</span></label>`
+  ).join('');
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Source toggles
+document.querySelectorAll('.source-toggle').forEach(cb => {
+  cb.addEventListener('change', () => applyAllFilters());
+});
+document.getElementById('toggle-removed').addEventListener('change', () => applyAllFilters());
+
+// Year range slider
+const yearMin = document.getElementById('yearMin');
+const yearMax = document.getElementById('yearMax');
+const yearFill = document.getElementById('yearFill');
+
+function updateYearUI() {
+  const min = parseInt(yearMin.value), max = parseInt(yearMax.value);
+  document.getElementById('yearMinLabel').textContent = min;
+  document.getElementById('yearMaxLabel').textContent = max;
+  const pct = v => ((v - 1850) / (2025 - 1850)) * 100;
+  yearFill.style.left = pct(min) + '%';
+  yearFill.style.width = (pct(max) - pct(min)) + '%';
+}
+yearMin.addEventListener('input', () => {
+  if (parseInt(yearMin.value) > parseInt(yearMax.value)) yearMin.value = yearMax.value;
+  updateYearUI();
+});
+yearMax.addEventListener('input', () => {
+  if (parseInt(yearMax.value) < parseInt(yearMin.value)) yearMax.value = yearMin.value;
+  updateYearUI();
+});
+document.getElementById('yearReset').addEventListener('click', () => {
+  yearMin.value = 1850; yearMax.value = 2025; updateYearUI();
+  applyAllFilters();
+});
+updateYearUI();
+
+// Apply filters button
+document.getElementById('applyFilters').addEventListener('click', applyAllFilters);
+
+function applyAllFilters() {
+  const showRemoved = document.getElementById('toggle-removed').checked;
+  const showUndated = document.getElementById('showUndated').checked;
+  const minY = parseInt(yearMin.value), maxY = parseInt(yearMax.value);
+
+  // Active broad types
+  const activeBroads = document.querySelectorAll('.type-broad-toggle:checked');
+  const activeBroadSet = new Set([...activeBroads].map(cb => cb.dataset.broad));
+  const allTypesActive = activeBroadSet.size === Object.keys(BROAD_TYPES).length;
+
+  let totalShown = 0;
+
+  for (const [source, markers] of Object.entries(allMarkers)) {
+    const sourceOn = document.querySelector(`.source-toggle[data-source="${source}"]`).checked;
+    const layer = layers[source];
+
+    if (!sourceOn) {
+      map.removeLayer(layer);
+      document.getElementById(`count-${source}`).textContent = 0;
+      continue;
+    }
+
+    if (!map.hasLayer(layer)) map.addLayer(layer);
+    layer.clearLayers();
+    let count = 0;
+
+    for (const m of markers) {
+      if (m._isRemoved && !showRemoved) continue;
+
+      // Year filter
+      if (m._artYear) {
+        if (m._artYear < minY || m._artYear > maxY) continue;
+      } else {
+        if (!showUndated) continue;
+      }
+
+      // Type filter (broad categories)
+      if (!allTypesActive) {
+        if (!activeBroadSet.has(m._artBroadType)) continue;
+      }
+
+      layer.addLayer(m);
+      count++;
+    }
+    document.getElementById(`count-${source}`).textContent = count;
+    totalShown += count;
+  }
+
+  document.getElementById('filterStatus').textContent = `Showing ${totalShown.toLocaleString()} works`;
+}
+
+// Search
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('searchResults');
+const searchClear = document.getElementById('searchClear');
+let searchTimeout;
+
+function flyToMarker(marker) {
+  map.setView(marker.getLatLng(), 17, { animate: true });
+  setTimeout(() => {
+    for (const layer of Object.values(layers)) {
+      if (layer.hasLayer(marker)) {
+        layer.zoomToShowLayer(marker, () => marker.openPopup());
+        return;
+      }
+    }
+    marker.openPopup();
+  }, 300);
+}
+
+function doSearch(q) {
+  searchClear.classList.toggle('visible', q.length > 0);
+  if (!q) {
+    searchResults.classList.remove('visible');
+    searchResults.innerHTML = '';
+    applyAllFilters();
+    return;
+  }
+
+  const showRemoved = document.getElementById('toggle-removed').checked;
+  const matches = [];
+  for (const [source, markers] of Object.entries(allMarkers)) {
+    const sourceOn = document.querySelector(`.source-toggle[data-source="${source}"]`).checked;
+    if (!sourceOn) continue;
+    for (const m of markers) {
+      if (m._isRemoved && !showRemoved) continue;
+      if (m._searchText.includes(q)) matches.push(m);
+    }
+  }
+
+  // Sort by relevance: title match first, then artist, then other
+  matches.sort((a, b) => {
+    const aTitle = a._artTitle.toLowerCase().includes(q) ? 0 : 1;
+    const bTitle = b._artTitle.toLowerCase().includes(q) ? 0 : 1;
+    return aTitle - bTitle;
+  });
+
+  const limited = matches.slice(0, 50);
+  let html = `<div class="search-results-count">${matches.length} result${matches.length !== 1 ? 's' : ''}${matches.length > 50 ? ' (showing first 50)' : ''}</div>`;
+  for (const m of limited) {
+    const color = m._isRemoved ? '#888' : sourceColors[m._artSource];
+    const sub = [m._artArtist, m._artYearStr].filter(Boolean).join(' \u00b7 ');
+    html += `<div class="search-result"><div class="sr-title"><span class="sr-dot" style="background:${color}"></span>${escapeHtml(m._artTitle)}</div>${sub ? `<div class="sr-sub">${escapeHtml(sub)}</div>` : ''}</div>`;
+  }
+  searchResults.innerHTML = html;
+  searchResults.classList.add('visible');
+
+  searchResults.querySelectorAll('.search-result').forEach((el, i) => {
+    el.addEventListener('click', () => {
+      flyToMarker(limited[i]);
+      if (window.innerWidth <= 600) document.getElementById('panel').classList.add('collapsed');
+    });
+  });
+}
+
+searchInput.addEventListener('input', e => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => doSearch(e.target.value.toLowerCase().trim()), 250);
+});
+searchClear.addEventListener('click', () => { searchInput.value = ''; doSearch(''); searchInput.focus(); });
+document.addEventListener('click', e => { if (!e.target.closest('.panel')) searchResults.classList.remove('visible'); });
+searchInput.addEventListener('focus', () => { if (searchInput.value.trim()) searchResults.classList.add('visible'); });
+
+// Geolocation & Nearby
+let locationMarker = null, locationCircle = null, watchId = null;
+let userLatLng = null;
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDist(m) {
+  if (m < 200) return `${Math.round(m)} m`;
+  if (m < 1609) return `${Math.round(m)} m`;
+  return `${(m / 1609.34).toFixed(1)} mi`;
+}
+
+function updateNearby() {
+  if (!userLatLng) return;
+  const [uLat, uLng] = userLatLng;
+  const showRemoved = document.getElementById('toggle-removed').checked;
+
+  const withDist = [];
+  for (const [source, markers] of Object.entries(allMarkers)) {
+    const sourceOn = document.querySelector(`.source-toggle[data-source="${source}"]`).checked;
+    if (!sourceOn) continue;
+    for (const m of markers) {
+      if (m._isRemoved && !showRemoved) continue;
+      const ll = m.getLatLng();
+      const dist = distanceMeters(uLat, uLng, ll.lat, ll.lng);
+      withDist.push({ marker: m, dist });
+    }
+  }
+
+  withDist.sort((a, b) => a.dist - b.dist);
+  const nearest = withDist.slice(0, 20);
+
+  const list = document.getElementById('nearbyList');
+  list.innerHTML = nearest.map(({ marker: m, dist }) => {
+    const color = m._isRemoved ? '#888' : sourceColors[m._artSource];
+    return `<div class="nearby-item" data-id="${m._markerId}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <div class="nearby-title"><span class="sr-dot" style="background:${color}"></span>${escapeHtml(m._artTitle)}</div>
+        <div class="nearby-dist">${formatDist(dist)}</div>
+      </div>
+      ${m._artArtist ? `<div class="nearby-sub">${escapeHtml(m._artArtist)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.nearby-item').forEach((el, i) => {
+    el.addEventListener('click', () => {
+      flyToMarker(nearest[i].marker);
+      if (window.innerWidth <= 600) document.getElementById('panel').classList.add('collapsed');
+    });
+  });
+
+  document.getElementById('nearbyPrompt').style.display = 'none';
+  document.getElementById('nearbyPanel').classList.add('visible');
+}
+
+document.getElementById('locateBtn').addEventListener('click', () => {
+  const btn = document.getElementById('locateBtn');
+
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null; userLatLng = null;
+    btn.classList.remove('tracking');
+    if (locationMarker) { map.removeLayer(locationMarker); locationMarker = null; }
+    if (locationCircle) { map.removeLayer(locationCircle); locationCircle = null; }
+    document.getElementById('nearbyPanel').classList.remove('visible');
+    document.getElementById('nearbyPrompt').style.display = '';
+    document.getElementById('tourResult').innerHTML = '';
+    return;
+  }
+
+  if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
+  btn.classList.add('tracking');
+
+  watchId = navigator.geolocation.watchPosition(
+    pos => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      userLatLng = [latitude, longitude];
+
+      if (locationMarker) {
+        locationMarker.setLatLng(userLatLng);
+        locationCircle.setLatLng(userLatLng).setRadius(accuracy);
+      } else {
+        locationCircle = L.circle(userLatLng, { radius: accuracy, color: '#3498db', fillColor: '#3498db', fillOpacity: 0.1, weight: 1 }).addTo(map);
+        locationMarker = L.circleMarker(userLatLng, { radius: 8, color: 'white', fillColor: '#3498db', fillOpacity: 1, weight: 3 }).addTo(map);
+        map.setView(userLatLng, 15);
+        // Switch to Nearby tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector('[data-tab="nearby-tab"]').classList.add('active');
+        document.getElementById('nearby-tab').classList.add('active');
+      }
+      updateNearby();
+    },
+    err => {
+      btn.classList.remove('tracking'); watchId = null;
+      if (err.code === 1) alert('Location access was denied.');
+      else alert('Unable to get your location.');
+    },
+    { enableHighAccuracy: true, maximumAge: 10000 }
+  );
+});
+
+// Walking tour generator
+document.getElementById('tourBtn').addEventListener('click', () => {
+  if (!userLatLng) return;
+  const [uLat, uLng] = userLatLng;
+  const numStops = parseInt(document.getElementById('tourStops').value);
+  const showRemoved = document.getElementById('toggle-removed').checked;
+
+  // Get all visible markers with distance
+  const withDist = [];
+  for (const [source, markers] of Object.entries(allMarkers)) {
+    const sourceOn = document.querySelector(`.source-toggle[data-source="${source}"]`).checked;
+    if (!sourceOn) continue;
+    for (const m of markers) {
+      if (m._isRemoved && !showRemoved) continue;
+      const ll = m.getLatLng();
+      withDist.push({ marker: m, dist: distanceMeters(uLat, uLng, ll.lat, ll.lng), lat: ll.lat, lng: ll.lng });
+    }
+  }
+
+  withDist.sort((a, b) => a.dist - b.dist);
+
+  // Simple greedy nearest-neighbor tour from user location
+  const stops = [];
+  const candidates = withDist.slice(0, Math.max(numStops * 3, 30)); // Consider nearby pool
+  let curLat = uLat, curLng = uLng;
+  const used = new Set();
+
+  for (let i = 0; i < numStops && i < candidates.length; i++) {
+    let bestIdx = -1, bestDist = Infinity;
+    for (let j = 0; j < candidates.length; j++) {
+      if (used.has(j)) continue;
+      const d = distanceMeters(curLat, curLng, candidates[j].lat, candidates[j].lng);
+      if (d < bestDist) { bestDist = d; bestIdx = j; }
+    }
+    if (bestIdx === -1) break;
+    used.add(bestIdx);
+    stops.push(candidates[bestIdx]);
+    curLat = candidates[bestIdx].lat;
+    curLng = candidates[bestIdx].lng;
+  }
+
+  if (stops.length === 0) {
+    document.getElementById('tourResult').innerHTML = '<div style="color:#999;">No artworks nearby.</div>';
+    return;
+  }
+
+  // Build Google Maps walking directions URL
+  const origin = `${uLat},${uLng}`;
+  const dest = `${stops[stops.length - 1].lat},${stops[stops.length - 1].lng}`;
+  const waypoints = stops.slice(0, -1).map(s => `${s.lat},${s.lng}`).join('|');
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&waypoints=${encodeURIComponent(waypoints)}&travelmode=walking`;
+
+  let html = '<div style="margin-bottom:6px;">';
+  stops.forEach((s, i) => {
+    html += `<div class="tour-stop"><span class="tour-stop-num">${i + 1}</span><span class="tour-stop-name">${escapeHtml(s.marker._artTitle)} <span style="color:#999;">(${formatDist(s.dist)})</span></span></div>`;
+  });
+  html += '</div>';
+  html += `<a href="${mapsUrl}" target="_blank" rel="noopener">Open in Google Maps &rarr;</a>`;
+
+  document.getElementById('tourResult').innerHTML = html;
+
+  // Draw tour line on map
+  if (window._tourLine) map.removeLayer(window._tourLine);
+  const points = [[uLat, uLng], ...stops.map(s => [s.lat, s.lng])];
+  window._tourLine = L.polyline(points, { color: '#333', weight: 3, dashArray: '8,6', opacity: 0.6 }).addTo(map);
+  map.fitBounds(window._tourLine.getBounds(), { padding: [40, 40] });
+});
+
+loadAllData();
+</script>
+</body>
+</html>
