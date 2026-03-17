@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Injury Hospitalizations | Vital City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  :root {
+    --vc-black: #050507;
+    --vc-white: #ffffff;
+    --vc-cloud: #dddddd;
+    --vc-chartreuse: #dde44c;
+    --vc-orange: #ff7c53;
+    --vc-periwinkle: #9b9fbc;
+    --vc-rose: #cea9be;
+    --vc-magenta: #e7466d;
+    --vc-charcoal: #707175;
+    --vc-indigo: #394882;
+    --vc-cerulean: #217ebe;
+    --vc-chartreuse-80: #e4e871;
+    --vc-chartreuse-50: #edefa8;
+    --vc-chartreuse-20: #f7f8dd;
+    --vc-orange-80: #f69577;
+    --vc-orange-50: #fabcaa;
+    --vc-orange-20: #fde5dd;
+    --vc-magenta-80: #ec6b8a;
+    --vc-cerulean-80: #4e98cb;
+    --font-primary: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    --font-serif: Georgia, 'Times New Roman', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--vc-white);
+    color: var(--vc-black);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideRight {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+  .animate-fade-up {
+    animation: fadeUp .6s cubic-bezier(.16,1,.3,1) both;
+  }
+  .animate-fade-in {
+    animation: fadeIn .5s ease both;
+  }
+  .animate-slide-right {
+    animation: slideRight .5s cubic-bezier(.16,1,.3,1) both;
+  }
+  .animate-scale-in {
+    animation: scaleIn .4s cubic-bezier(.16,1,.3,1) both;
+  }
+  .stagger-1 { animation-delay: .05s; }
+  .stagger-2 { animation-delay: .1s; }
+  .stagger-3 { animation-delay: .15s; }
+  .stagger-4 { animation-delay: .2s; }
+  .stagger-5 { animation-delay: .25s; }
+  .stagger-6 { animation-delay: .3s; }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--vc-black);
+    color: var(--vc-white);
+    padding: 3.5rem 2.5rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--vc-chartreuse);
+  }
+  .header-inner { max-width: 1200px; margin: 0 auto; }
+  .header-category {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--vc-orange);
+    margin-bottom: 1.25rem;
+  }
+  .header h1 {
+    font-size: 2.75rem;
+    font-weight: 900;
+    letter-spacing: -.035em;
+    line-height: 1.08;
+    margin-bottom: .75rem;
+    max-width: 800px;
+  }
+  .header .dek {
+    font-family: var(--font-serif);
+    color: var(--vc-periwinkle);
+    font-size: 1.1rem;
+    font-weight: 300;
+    line-height: 1.55;
+    max-width: 650px;
+  }
+
+  /* ── CAVEAT BAR ── */
+  .caveat-bar {
+    background: var(--vc-chartreuse-20);
+    border-bottom: 1px solid var(--vc-chartreuse-50);
+    padding: .85rem 2.5rem;
+    font-size: .78rem;
+    color: var(--vc-charcoal);
+    line-height: 1.55;
+  }
+  .caveat-bar-inner { max-width: 1200px; margin: 0 auto; }
+  .caveat-bar strong { color: var(--vc-black); font-weight: 700; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 2.5rem; }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--vc-white); z-index: 1000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1.5rem;
+  }
+  .loading-spinner {
+    width: 28px; height: 28px;
+    border: 2.5px solid var(--vc-cloud);
+    border-top-color: var(--vc-orange);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  .loading-overlay h2 {
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .progress-bar {
+    width: min(360px, 80vw);
+    height: 3px;
+    background: var(--vc-cloud);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--vc-orange);
+    transition: width .4s cubic-bezier(.4,0,.2,1);
+    width: 0%;
+  }
+  .progress-text { font-size: .75rem; color: var(--vc-charcoal); }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--vc-cloud);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: .3rem; }
+  .filter-group label {
+    font-size: .6rem;
+    font-weight: 700;
+    color: var(--vc-charcoal);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+  .filter-group select {
+    padding: .5rem .85rem;
+    padding-right: 2.25rem;
+    border: 1.5px solid var(--vc-cloud);
+    border-radius: 6px;
+    font-size: .8rem;
+    font-family: var(--font-primary);
+    font-weight: 600;
+    background: var(--vc-white);
+    color: var(--vc-black);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23707175' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .7rem center;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .filter-group select:hover { border-color: var(--vc-charcoal); }
+  .filter-group select:focus {
+    outline: none;
+    border-color: var(--vc-orange);
+    box-shadow: 0 0 0 3px var(--vc-orange-20);
+  }
+
+  /* ── STATS ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin-bottom: 3rem;
+    border: 1.5px solid var(--vc-cloud);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  @media (max-width: 800px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card {
+    padding: 1.75rem 1.5rem;
+    border-right: 1px solid var(--vc-cloud);
+    transition: background .3s;
+  }
+  .stat-card:last-child { border-right: none; }
+  .stat-card:hover { background: #fafafa; }
+  .stat-card .value {
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: -.04em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-card .label {
+    font-size: .65rem;
+    font-weight: 600;
+    color: var(--vc-charcoal);
+    margin-top: .5rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .stat-card .value.trend-down { color: #57aa4a; }
+  .stat-card .value.trend-up { color: var(--vc-magenta); }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid var(--vc-cloud);
+    overflow-x: auto;
+  }
+  .tab-bar button {
+    padding: .75rem 1.5rem;
+    border: none;
+    background: none;
+    font-size: .8rem;
+    font-family: var(--font-primary);
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--vc-charcoal);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+    white-space: nowrap;
+    letter-spacing: -.01em;
+  }
+  .tab-bar button.active {
+    color: var(--vc-black);
+    border-bottom-color: var(--vc-orange);
+  }
+  .tab-bar button:not(.active):hover {
+    color: var(--vc-black);
+  }
+  .tab-content {
+    display: none;
+    animation: fadeUp .45s cubic-bezier(.16,1,.3,1) both;
+  }
+  .tab-content.active { display: block; }
+
+  /* ── CHARTS ── */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  .chart-grid.two-col { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 900px) { .chart-grid.two-col { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    padding: 0;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+  }
+  .chart-card h3 {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: var(--vc-black);
+    margin-bottom: .3rem;
+    letter-spacing: -.025em;
+    line-height: 1.25;
+  }
+  .chart-card .chart-subtitle {
+    font-size: .78rem;
+    color: var(--vc-charcoal);
+    margin-bottom: 1.5rem;
+    font-weight: 400;
+  }
+  .chart-card .chart-wrap { position: relative; width: 100%; }
+  .chart-card .chart-wrap.tall { height: 400px; }
+  .chart-card .chart-wrap.medium { height: 320px; }
+  .chart-source {
+    font-size: .65rem;
+    color: var(--vc-charcoal);
+    margin-top: .75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .chart-source a { color: var(--vc-charcoal); text-decoration: underline; }
+  .chart-source img { height: 14px; opacity: .4; }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--vc-cloud);
+    margin: 2.5rem 0;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .78rem; }
+  th {
+    padding: .6rem 1rem;
+    text-align: left;
+    font-weight: 700;
+    color: var(--vc-charcoal);
+    font-size: .6rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    border-bottom: 2px solid var(--vc-black);
+    background: var(--vc-white);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  td {
+    padding: .55rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--vc-charcoal);
+  }
+  td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--vc-black);
+  }
+  tbody tr { transition: background .15s; }
+  tbody tr:hover td { background: var(--vc-chartreuse-20); }
+
+  /* ── CAVEATS ── */
+  .caveats {
+    margin-top: 3rem;
+    padding-top: 2.5rem;
+    border-top: 2px solid var(--vc-black);
+  }
+  .caveats h3 {
+    font-size: .95rem;
+    font-weight: 900;
+    letter-spacing: -.02em;
+    margin-bottom: 1.25rem;
+  }
+  .caveats ul { padding-left: 0; list-style: none; }
+  .caveats li {
+    padding: .45rem 0 .45rem 1.25rem;
+    font-size: .8rem;
+    color: var(--vc-charcoal);
+    line-height: 1.65;
+    position: relative;
+  }
+  .caveats li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: .85rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--vc-chartreuse);
+  }
+  .caveats li strong { color: var(--vc-black); font-weight: 700; }
+  .caveats .source-line {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--vc-cloud);
+    font-size: .7rem;
+    color: var(--vc-charcoal);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .caveats .source-line a { color: var(--vc-charcoal); text-decoration: underline; }
+  .caveats .source-line img { height: 16px; opacity: .5; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--vc-orange);
+    padding: 2rem 2.5rem;
+    margin-top: 3rem;
+    text-align: center;
+  }
+  .footer img { height: 20px; filter: brightness(0) invert(1); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .header { padding: 2.5rem 1.5rem 2rem; }
+    .header h1 { font-size: 1.75rem; }
+    .container { padding: 1.5rem; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .stat-card { padding: 1.25rem 1rem; }
+    .stat-card .value { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-category animate-fade-in">Data</div>
+    <h1 class="animate-fade-up">Who gets hospitalized for injuries in New York City?</h1>
+    <div class="dek animate-fade-up stagger-2">Sixteen years of hospital admission records, broken down by injury type, borough, age, and hospital. The patterns reveal which New Yorkers bear the heaviest burden.</div>
+  </div>
+</div>
+
+<div class="caveat-bar">
+  <div class="caveat-bar-inner">
+    <strong>Scope:</strong> Hospital <strong>admissions</strong> only (inpatient discharges). Does not include the far larger number of ER treat-and-release visits. No public dataset with diagnosis-level detail exists for those visits.
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <h2>Loading SPARCS Data</h2>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText">Connecting to Health Data NY...</div>
+</div>
+
+<div class="container" id="mainContent" style="display:none;">
+
+  <div class="controls animate-fade-up">
+    <div class="filter-group">
+      <label>Borough</label>
+      <select id="filterBorough">
+        <option value="all">All Boroughs</option>
+        <option value="Bronx">Bronx</option>
+        <option value="Brooklyn">Brooklyn</option>
+        <option value="Manhattan">Manhattan</option>
+        <option value="Queens">Queens</option>
+        <option value="Staten Island">Staten Island</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Age Group</label>
+      <select id="filterAge">
+        <option value="all">All Ages</option>
+        <option value="0-17">0 to 17</option>
+        <option value="18-29">18 to 29</option>
+        <option value="30-49">30 to 49</option>
+        <option value="50-69">50 to 69</option>
+        <option value="70+">70 or Older</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Injury Category</label>
+      <select id="filterCategory">
+        <option value="all">All Injury Types</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Admission Origin</label>
+      <select id="filterED">
+        <option value="all">All Admissions</option>
+        <option value="Y">Via Emergency Dept.</option>
+        <option value="N">Non-Emergency</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="stats-row animate-scale-in stagger-1" id="statsRow">
+    <div class="stat-card">
+      <div class="value" id="statTotal">—</div>
+      <div class="label">Total Hospitalizations</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="statAvgYear">—</div>
+      <div class="label">Avg. per Year</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="statTopType" style="font-size:1.1rem">—</div>
+      <div class="label">Most Common</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="statTrend">—</div>
+      <div class="label">2009 vs. 2024</div>
+    </div>
+  </div>
+
+  <div class="tab-bar animate-fade-up stagger-2">
+    <button class="active" data-tab="overview">Overview</button>
+    <button data-tab="byType">By Injury Type</button>
+    <button data-tab="byBorough">By Borough</button>
+    <button data-tab="byAge">By Age</button>
+    <button data-tab="byHospital">By Hospital</button>
+    <button data-tab="table">Data Table</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="chart-grid">
+      <div class="chart-card animate-fade-up stagger-3">
+        <h3>Injury hospitalizations jumped in 2018 — but the coding system changed, too</h3>
+        <div class="chart-subtitle">NYC hospital admissions with injury diagnoses, by year. The 2017–18 jump partly reflects a switch from CCS to CCSR diagnosis codes.</div>
+        <div class="chart-wrap tall"><canvas id="chartOverviewLine"></canvas></div>
+        <div class="chart-source">
+          <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS De-Identified Inpatient Discharges</a>, NY State DOH</span>
+          <img src="vc-logo-black.png" alt="Vital City">
+        </div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div class="chart-grid two-col">
+      <div class="chart-card animate-fade-up stagger-4">
+        <h3>Device complications and hip fractures lead the count</h3>
+        <div class="chart-subtitle">Top 10 injury categories, all years combined</div>
+        <div class="chart-wrap medium"><canvas id="chartTopTypes"></canvas></div>
+      </div>
+      <div class="chart-card animate-fade-up stagger-5">
+        <h3>Brooklyn hospitals handle the most injury admissions</h3>
+        <div class="chart-subtitle">Share of admissions by hospital borough, all years</div>
+        <div class="chart-wrap medium"><canvas id="chartBoroughPie"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BY TYPE -->
+  <div class="tab-content" id="tab-byType">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Poisoning hospitalizations have surged since 2018</h3>
+        <div class="chart-subtitle">Top 8 injury categories over time</div>
+        <div class="chart-wrap tall"><canvas id="chartTypeLines"></canvas></div>
+        <div class="chart-source">
+          <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS</a>, NY State DOH</span>
+          <img src="vc-logo-black.png" alt="Vital City">
+        </div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>The full picture: every injury category, stacked</h3>
+        <div class="chart-subtitle">All injury types by year, stacked bar</div>
+        <div class="chart-wrap" style="height:460px"><canvas id="chartTypeHeatmap"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BY BOROUGH -->
+  <div class="tab-content" id="tab-byBorough">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Brooklyn and Manhattan hospitals admit the most injury patients</h3>
+        <div class="chart-subtitle">Admissions by hospital borough over time</div>
+        <div class="chart-wrap tall"><canvas id="chartBoroughLines"></canvas></div>
+        <div class="chart-source">
+          <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS</a>, NY State DOH. Borough = hospital location, not patient residence.</span>
+          <img src="vc-logo-black.png" alt="Vital City">
+        </div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Borough composition has stayed remarkably stable</h3>
+        <div class="chart-subtitle">Stacked by borough, each year</div>
+        <div class="chart-wrap tall"><canvas id="chartBoroughStacked"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BY AGE -->
+  <div class="tab-content" id="tab-byAge">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>New Yorkers 70 and older are hospitalized for injuries at the highest rate</h3>
+        <div class="chart-subtitle">Admissions by age group over time</div>
+        <div class="chart-wrap tall"><canvas id="chartAgeLines"></canvas></div>
+        <div class="chart-source">
+          <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS</a>, NY State DOH</span>
+          <img src="vc-logo-black.png" alt="Vital City">
+        </div>
+      </div>
+    </div>
+    <hr class="section-divider">
+    <div class="chart-grid two-col">
+      <div class="chart-card">
+        <h3>Seniors account for the largest share</h3>
+        <div class="chart-subtitle">Age group distribution, all years</div>
+        <div class="chart-wrap medium"><canvas id="chartAgePie"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>The leading injury shifts dramatically with age</h3>
+        <div class="chart-subtitle">Top injury category per age group</div>
+        <div class="chart-wrap medium"><canvas id="chartAgeTypeBar"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BY HOSPITAL -->
+  <div class="tab-content" id="tab-byHospital">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Which hospitals handle the most injury admissions?</h3>
+        <div class="chart-subtitle">Top 20 facilities, all years combined. Bar color = borough.</div>
+        <div class="chart-wrap" style="height:560px"><canvas id="chartHospitalBar"></canvas></div>
+        <div class="chart-source">
+          <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS</a>, NY State DOH</span>
+          <img src="vc-logo-black.png" alt="Vital City">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="tab-content" id="tab-table">
+    <div class="chart-card">
+      <h3>Year-by-year injury counts</h3>
+      <div class="chart-subtitle">Filtered by current selections</div>
+      <div class="table-wrap" style="max-height:600px; overflow-y:auto;">
+        <table id="dataTable">
+          <thead><tr><th>Year</th><th>Injury Category</th><th>Borough</th><th>Age Group</th><th style="text-align:right">Count</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="caveats">
+    <h3>Definitions &amp; Caveats</h3>
+    <ul>
+      <li><strong>What's included:</strong> Hospital inpatient discharges — patients formally admitted to a hospital bed. Includes patients admitted via the emergency department.</li>
+      <li><strong>What's NOT included:</strong> ER treat-and-release visits, where a patient was seen in the ER but not admitted. The majority of injury-related ER visits fall here. No public NYC dataset with diagnosis-level detail exists for these visits.</li>
+      <li><strong>The 2017–2018 jump:</strong> Data before 2018 uses CCS diagnosis codes (20 injury categories); 2018 onward uses CCSR codes (70+ categories). CCSR captures injuries more broadly, inflating post-2017 totals. Trends within each era are reliable; cross-era comparisons require caution.</li>
+      <li><strong>Borough:</strong> Based on hospital location, not patient residence. A Bronx resident treated at a Manhattan hospital is counted under Manhattan.</li>
+      <li><strong>Age:</strong> Pre-grouped (0–17, 18–29, 30–49, 50–69, 70+) for patient privacy.</li>
+      <li><strong>Complications:</strong> Device/implant and surgical/medical complication categories represent injuries from medical treatment, distinct from traumatic injuries.</li>
+      <li><strong>Counting:</strong> Each record = one discharge, not one person. A patient hospitalized twice counts twice.</li>
+    </ul>
+    <div class="source-line">
+      <span>Source: <a href="https://health.data.ny.gov/browse?tags=sparcs" target="_blank">SPARCS Hospital Inpatient Discharges (De-Identified)</a>, NY State DOH, 2009–2024. All data de-identified per HIPAA.</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <img src="vc-logo-black.png" alt="Vital City">
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+
+const DATASETS = {
+  2009:'q6hk-esrj',2010:'mtfm-rxf4',2011:'pyhr-5eas',2012:'u4ud-w55t',
+  2013:'npsr-cm47',2014:'rmwa-zns4',2015:'82xm-y6g8',2016:'gnzp-ekau',
+  2017:'22g3-z7e7',2018:'yjgt-tq93',2019:'4ny4-j5zv',2020:'nxi5-zj9x',
+  2021:'tg3i-cinn',2022:'5dtw-tffi',2023:'46xm-urtu',2024:'sf4k-39ay'
+};
+const CCS_YEARS = new Set([2009,2010,2011,2012,2013,2014,2015,2016,2017]);
+const CCS_INJURY_CODES = [];
+for (let i=225;i<=244;i++) CCS_INJURY_CODES.push(String(i));
+
+const CCS_TO_CATEGORY = {
+  '225':'Dislocations/Joint Disorders','226':'Hip Fracture','227':'Spinal Cord Injury',
+  '228':'Skull/Face Fractures','229':'Upper Limb Fracture','230':'Lower Limb Fracture',
+  '231':'Other Fractures','232':'Sprains and Strains','233':'Traumatic Brain Injury',
+  '234':'Crushing/Internal Injury','235':'Open Wounds (Head/Neck/Trunk)','236':'Open Wounds (Extremities)',
+  '237':'Device/Implant Complication','238':'Surgical/Medical Complication',
+  '239':'Superficial Injury/Contusion','240':'Burns',
+  '241':'Poisoning (Psychotropic)','242':'Poisoning (Other Drugs)',
+  '243':'Poisoning (Nonmedicinal)','244':'Other Injuries'
+};
+
+function ccsrToCategory(code) {
+  if (!code) return 'Other Injuries';
+  const c = code.toUpperCase();
+  if (['INJ001','INJ038'].includes(c)) return 'Skull/Face Fractures';
+  if (['INJ002','INJ039'].includes(c)) return 'Spine/Back Fracture';
+  if (['INJ003','INJ040'].includes(c)) return 'Torso Fracture';
+  if (['INJ004','INJ041'].includes(c)) return 'Upper Limb Fracture';
+  if (['INJ005','INJ042'].includes(c)) return 'Lower Limb Fracture';
+  if (['INJ006','INJ043'].includes(c)) return 'Hip Fracture';
+  if (['INJ007','INJ044'].includes(c)) return 'Dislocations/Joint Disorders';
+  if (['INJ008','INJ045'].includes(c)) return 'Traumatic Brain Injury';
+  if (['INJ009','INJ046'].includes(c)) return 'Spinal Cord Injury';
+  if (['INJ010','INJ047','INJ018','INJ055'].includes(c)) return 'Crushing/Internal Injury';
+  if (['INJ011','INJ048'].includes(c)) return 'Open Wounds (Head/Neck/Trunk)';
+  if (['INJ012','INJ049'].includes(c)) return 'Open Wounds (Extremities)';
+  if (['INJ013','INJ050'].includes(c)) return 'Open Wounds (Trunk)';
+  if (['INJ014','INJ015','INJ051','INJ052'].includes(c)) return 'Amputation';
+  if (['INJ016','INJ053'].includes(c)) return 'Blood Vessel Injury';
+  if (['INJ017','INJ054'].includes(c)) return 'Superficial Injury/Contusion';
+  if (['INJ019','INJ056'].includes(c)) return 'Burns';
+  if (['INJ020','INJ057'].includes(c)) return 'Foreign Body';
+  if (['INJ021','INJ058'].includes(c)) return 'Other External Causes';
+  if (['INJ022','INJ059'].includes(c)) return 'Poisoning (Drugs)';
+  if (['INJ023','INJ060','INJ030'].includes(c)) return 'Toxic Effects';
+  if (['INJ024','INJ061'].includes(c)) return 'Sprains and Strains';
+  if (['INJ025','INJ062'].includes(c)) return 'Nerve/Muscle/Tendon Injury';
+  if (c==='INJ028') return 'Adverse Drug Effects';
+  if (c==='INJ031') return 'Allergic Reactions';
+  if (c==='INJ032') return 'Maltreatment/Abuse';
+  if (['INJ033','INJ034','INJ035','INJ069','INJ070','INJ071'].includes(c)) return 'Device/Implant Complication';
+  if (c==='INJ036') return 'Transplant Complication';
+  if (['INJ037','INJ072'].includes(c)) return 'Surgical/Medical Complication';
+  return 'Other Injuries';
+}
+
+function normBorough(county) {
+  if (!county) return 'Unknown';
+  const c = county.toLowerCase().trim();
+  if (c==='new york'||c==='manhattan') return 'Manhattan';
+  if (c==='kings') return 'Brooklyn';
+  if (c==='queens') return 'Queens';
+  if (c==='bronx') return 'Bronx';
+  if (c==='richmond') return 'Staten Island';
+  return county;
+}
+function normAge(ag) {
+  if (!ag) return 'Unknown';
+  const a = ag.trim();
+  if (a.includes('0')&&a.includes('17')) return '0-17';
+  if (a.includes('18')&&a.includes('29')) return '18-29';
+  if (a.includes('30')&&a.includes('49')) return '30-49';
+  if (a.includes('50')&&a.includes('69')) return '50-69';
+  if (a.includes('70')) return '70+';
+  return a;
+}
+function normED(val) {
+  if (val===true||val==='Y'||val==='y') return 'Y';
+  if (val===false||val==='N'||val==='n') return 'N';
+  return 'Unknown';
+}
+
+const NYC_CCS = "'New York','Kings','Queens','Bronx','Richmond'";
+const NYC_CCSR = "'New York','Manhattan','Kings','Queens','Bronx','Richmond'";
+
+// ============================================================
+// DATA
+// ============================================================
+
+const BASE = 'https://health.data.ny.gov/resource/';
+let ALL_DATA = [], HOSPITAL_DATA = [];
+
+async function fetchJSON(url, retries=2) {
+  for (let i=0;i<=retries;i++) {
+    try { const r = await fetch(url); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+    catch(e) { if (i===retries) throw e; await new Promise(r=>setTimeout(r,1500*(i+1))); }
+  }
+}
+
+const AGE_FIELD = {2011:'age'};
+function af(year) { return AGE_FIELD[year]||'age_group'; }
+
+function qMainCCS(id,year) {
+  const codes = CCS_INJURY_CODES.map(c=>`'${c}'`).join(',');
+  const a = af(year);
+  const w = `ccs_diagnosis_code in(${codes}) AND hospital_county in(${NYC_CCS})`;
+  const s = `ccs_diagnosis_code,hospital_county,${a},emergency_department_indicator,count(*) as cnt`;
+  const g = `ccs_diagnosis_code,hospital_county,${a},emergency_department_indicator`;
+  return `${BASE}${id}.json?$select=${encodeURIComponent(s)}&$where=${encodeURIComponent(w)}&$group=${encodeURIComponent(g)}&$limit=50000`;
+}
+function qMainCCSR(id) {
+  const w = `ccsr_diagnosis_code like 'INJ%' AND hospital_county in(${NYC_CCSR})`;
+  const s = 'ccsr_diagnosis_code,hospital_county,age_group,emergency_department_indicator,count(*) as cnt';
+  const g = 'ccsr_diagnosis_code,hospital_county,age_group,emergency_department_indicator';
+  return `${BASE}${id}.json?$select=${encodeURIComponent(s)}&$where=${encodeURIComponent(w)}&$group=${encodeURIComponent(g)}&$limit=50000`;
+}
+function qHospCCS(id) {
+  const codes = CCS_INJURY_CODES.map(c=>`'${c}'`).join(',');
+  const w = `ccs_diagnosis_code in(${codes}) AND hospital_county in(${NYC_CCS})`;
+  return `${BASE}${id}.json?$select=${encodeURIComponent('facility_name,hospital_county,count(*) as cnt')}&$where=${encodeURIComponent(w)}&$group=${encodeURIComponent('facility_name,hospital_county')}&$limit=5000`;
+}
+function qHospCCSR(id) {
+  const w = `ccsr_diagnosis_code like 'INJ%' AND hospital_county in(${NYC_CCSR})`;
+  return `${BASE}${id}.json?$select=${encodeURIComponent('facility_name,hospital_county,count(*) as cnt')}&$where=${encodeURIComponent(w)}&$group=${encodeURIComponent('facility_name,hospital_county')}&$limit=5000`;
+}
+
+async function fetchYear(year) {
+  const id = DATASETS[year], isCCS = CCS_YEARS.has(year);
+  const [main, hosp] = await Promise.all([
+    fetchJSON(isCCS ? qMainCCS(id,year) : qMainCCSR(id)),
+    fetchJSON(isCCS ? qHospCCS(id) : qHospCCSR(id))
+  ]);
+  for (const r of main) {
+    const code = isCCS ? r.ccs_diagnosis_code : r.ccsr_diagnosis_code;
+    ALL_DATA.push({
+      year, category: isCCS ? (CCS_TO_CATEGORY[code]||'Other Injuries') : ccsrToCategory(code),
+      borough: normBorough(r.hospital_county), age: normAge(r.age_group||r.age),
+      ed: normED(r.emergency_department_indicator), count: parseInt(r.cnt)||0
+    });
+  }
+  for (const r of hosp) {
+    HOSPITAL_DATA.push({ year, hospital: r.facility_name, borough: normBorough(r.hospital_county), count: parseInt(r.cnt)||0 });
+  }
+}
+
+async function fetchAllData() {
+  const years = Object.keys(DATASETS).map(Number).sort();
+  const pf = document.getElementById('progressFill'), pt = document.getElementById('progressText');
+  let done = 0;
+  for (let i=0;i<years.length;i+=4) {
+    await Promise.all(years.slice(i,i+4).map(async y => {
+      try { await fetchYear(y); } catch(e) { console.error(`Error ${y}:`,e); }
+      done++; pf.style.width=`${done/years.length*100}%`; pt.textContent=`Loaded ${done} of ${years.length} years...`;
+    }));
+  }
+}
+
+// ============================================================
+// AGGREGATION
+// ============================================================
+
+function getFiltered() {
+  const b=document.getElementById('filterBorough').value, a=document.getElementById('filterAge').value;
+  const c=document.getElementById('filterCategory').value, e=document.getElementById('filterED').value;
+  return ALL_DATA.filter(d=>(b==='all'||d.borough===b)&&(a==='all'||d.age===a)&&(c==='all'||d.category===c)&&(e==='all'||d.ed===e));
+}
+function agg(data,key) { const m={}; for(const d of data){const k=typeof key==='function'?key(d):d[key]; m[k]=(m[k]||0)+d.count;} return m; }
+function agg2D(data,k1,k2) { const m={}; for(const d of data){const a=typeof k1==='function'?k1(d):d[k1],b=typeof k2==='function'?k2(d):d[k2]; if(!m[a])m[a]={}; m[a][b]=(m[a][b]||0)+d.count;} return m; }
+
+// ============================================================
+// CHART STYLING (Vital City)
+// ============================================================
+
+// Primary data palette using VC brand colors
+const PALETTE = [
+  '#dde44c','#ff7c53','#394882','#e7466d','#217ebe',
+  '#cea9be','#9b9fbc','#050507','#57aa4a','#4e98cb',
+  '#ec6b8a','#e4e871','#707175','#fb693c','#bdd451',
+  '#f69577','#ed5236','#7cbf4e','#9cc456','#d2232a'
+];
+function getColor(i) { return PALETTE[i % PALETTE.length]; }
+
+const BOROUGH_COLORS = {
+  'Bronx':'#e7466d','Brooklyn':'#394882','Manhattan':'#dde44c','Queens':'#ff7c53','Staten Island':'#217ebe'
+};
+const AGE_COLORS = {
+  '0-17':'#217ebe','18-29':'#394882','30-49':'#dde44c','50-69':'#ff7c53','70+':'#e7466d'
+};
+
+const YEARS = [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+const charts = {};
+function dc(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+function fmt(n) { return n.toLocaleString(); }
+
+// Global Chart.js defaults — Vital City style
+Chart.defaults.font.family = "'Inter','Helvetica Neue',Arial,sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#707175';
+Chart.defaults.plugins.tooltip.backgroundColor = '#050507';
+Chart.defaults.plugins.tooltip.titleFont = {weight:'700',size:12};
+Chart.defaults.plugins.tooltip.bodyFont = {size:11};
+Chart.defaults.plugins.tooltip.padding = {x:12,y:8};
+Chart.defaults.plugins.tooltip.cornerRadius = 4;
+Chart.defaults.plugins.tooltip.displayColors = true;
+Chart.defaults.plugins.tooltip.boxPadding = 4;
+Chart.defaults.elements.line.borderWidth = 2.5;
+Chart.defaults.elements.point.radius = 0;
+Chart.defaults.elements.point.hoverRadius = 5;
+Chart.defaults.elements.point.hoverBorderWidth = 2;
+Chart.defaults.scale.grid.color = 'rgba(0,0,0,.06)';
+Chart.defaults.scale.border = {display:false};
+
+// Annotation line for CCS→CCSR transition
+const codingAnnotation = {
+  annotations: {
+    codingChange: {
+      type: 'line',
+      xMin: 8.5, xMax: 8.5, // Between 2017 and 2018
+      borderColor: '#707175',
+      borderWidth: 1,
+      borderDash: [4,4],
+      label: {
+        display: true,
+        content: 'CCS → CCSR coding change',
+        position: 'start',
+        backgroundColor: 'transparent',
+        color: '#707175',
+        font: {size:9,weight:'500'},
+        rotation: -90,
+        xAdjust: -12,
+        yAdjust: 40
+      }
+    }
+  }
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+
+let _cachedData = null;
+function renderAll() {
+  const data = getFiltered();
+  _cachedData = data;
+  const byYear = agg(data,'year'), byCat = agg(data,'category');
+  const total = Object.values(byYear).reduce((a,b)=>a+b,0);
+  const yrs = Object.keys(byYear).length;
+
+  document.getElementById('statTotal').textContent = fmt(total);
+  document.getElementById('statAvgYear').textContent = yrs ? fmt(Math.round(total/yrs)) : '—';
+
+  const sortedCats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const topEl = document.getElementById('statTopType');
+  topEl.textContent = sortedCats.length ? sortedCats[0][0] : '—';
+  topEl.style.fontSize = sortedCats.length && sortedCats[0][0].length > 20 ? '.95rem' : '1.1rem';
+
+  const y09=byYear[2009]||0, y24=byYear[2024]||0, tEl=document.getElementById('statTrend');
+  if (y09>0) {
+    const pct=((y24-y09)/y09*100).toFixed(1);
+    tEl.textContent=`${pct>=0?'+':''}${pct}%`;
+    tEl.className=`value ${pct>=0?'trend-up':'trend-down'}`;
+  } else { tEl.textContent='—'; tEl.className='value'; }
+
+  renderActiveTab();
+}
+
+function renderActiveTab() {
+  const data = _cachedData; if(!data) return;
+  const byYear = agg(data,'year'), byCat = agg(data,'category');
+  const active = document.querySelector('.tab-content.active')?.id;
+  if(active==='tab-overview') renderOverview(data,byYear,byCat);
+  else if(active==='tab-byType') renderByType(data);
+  else if(active==='tab-byBorough') renderByBorough(data);
+  else if(active==='tab-byAge') renderByAge(data);
+  else if(active==='tab-byHospital') renderByHospital();
+  else if(active==='tab-table') renderTable(data);
+}
+
+function renderOverview(data,byYear,byCat) {
+  dc('overviewLine');
+  charts.overviewLine = new Chart(document.getElementById('chartOverviewLine'), {
+    type:'line',
+    data:{
+      labels:YEARS,
+      datasets:[{
+        label:'Injury Hospitalizations',
+        data:YEARS.map(y=>byYear[y]||0),
+        borderColor:'#ff7c53',
+        backgroundColor:'rgba(221,228,76,.12)',
+        fill:true, tension:.3,
+        pointRadius:4, pointBackgroundColor:'#ff7c53',
+        pointBorderColor:'#fff', pointBorderWidth:2,
+        pointHoverRadius:6
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},annotation:codingAnnotation},
+      scales:{y:{ticks:{callback:v=>fmt(v)}},x:{grid:{display:false}}}
+    }
+  });
+
+  dc('topTypes');
+  const top10=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.topTypes = new Chart(document.getElementById('chartTopTypes'), {
+    type:'bar',
+    data:{
+      labels:top10.map(d=>d[0]),
+      datasets:[{data:top10.map(d=>d[1]),backgroundColor:'#dde44c',hoverBackgroundColor:'#e4e871',borderRadius:3,barPercentage:.72}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{callback:v=>fmt(v)}},y:{grid:{display:false}}}
+    }
+  });
+
+  dc('boroughPie');
+  const bors=['Bronx','Brooklyn','Manhattan','Queens','Staten Island'];
+  const byBor=agg(data,'borough');
+  charts.boroughPie = new Chart(document.getElementById('chartBoroughPie'), {
+    type:'doughnut',
+    data:{
+      labels:bors,
+      datasets:[{data:bors.map(b=>byBor[b]||0),backgroundColor:bors.map(b=>BOROUGH_COLORS[b]),borderWidth:0,hoverOffset:8}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{position:'right',labels:{padding:14,usePointStyle:true,pointStyle:'circle',font:{size:12,weight:'500'}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.raw)} (${(ctx.raw/ctx.dataset.data.reduce((a,b)=>a+b,0)*100).toFixed(1)}%)`}}
+      }
+    }
+  });
+}
+
+function renderByType(data) {
+  dc('typeLines');
+  const catY=agg2D(data,'category','year');
+  const catT={};
+  for(const[cat,ys] of Object.entries(catY)) catT[cat]=Object.values(ys).reduce((a,b)=>a+b,0);
+  const top8=Object.entries(catT).sort((a,b)=>b[1]-a[1]).slice(0,8).map(d=>d[0]);
+
+  charts.typeLines = new Chart(document.getElementById('chartTypeLines'),{
+    type:'line',
+    data:{labels:YEARS,datasets:top8.map((cat,i)=>({
+      label:cat,data:YEARS.map(y=>(catY[cat]||{})[y]||0),
+      borderColor:getColor(i),backgroundColor:'transparent',tension:.35,
+      pointRadius:0,pointHoverRadius:5
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:14,font:{size:11}}},annotation:codingAnnotation},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>fmt(v)}},x:{grid:{display:false}}}
+    }
+  });
+
+  dc('typeHeatmap');
+  const allCats=Object.entries(catT).sort((a,b)=>b[1]-a[1]).map(d=>d[0]);
+  charts.typeHeatmap = new Chart(document.getElementById('chartTypeHeatmap'),{
+    type:'bar',
+    data:{labels:YEARS,datasets:allCats.map((cat,i)=>({
+      label:cat,data:YEARS.map(y=>(catY[cat]||{})[y]||0),backgroundColor:getColor(i),borderRadius:1
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:8,padding:8,font:{size:10}}},annotation:codingAnnotation},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fmt(v)}}}
+    }
+  });
+}
+
+function renderByBorough(data) {
+  const bors=['Bronx','Brooklyn','Manhattan','Queens','Staten Island'];
+  const borY=agg2D(data,'borough','year');
+
+  dc('boroughLines');
+  charts.boroughLines = new Chart(document.getElementById('chartBoroughLines'),{
+    type:'line',
+    data:{labels:YEARS,datasets:bors.map(b=>({
+      label:b,data:YEARS.map(y=>(borY[b]||{})[y]||0),
+      borderColor:BOROUGH_COLORS[b],backgroundColor:'transparent',tension:.35,
+      pointRadius:0,pointHoverRadius:5
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',padding:18}},annotation:codingAnnotation},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>fmt(v)}},x:{grid:{display:false}}}
+    }
+  });
+
+  dc('boroughStacked');
+  charts.boroughStacked = new Chart(document.getElementById('chartBoroughStacked'),{
+    type:'bar',
+    data:{labels:YEARS,datasets:bors.map(b=>({
+      label:b,data:YEARS.map(y=>(borY[b]||{})[y]||0),backgroundColor:BOROUGH_COLORS[b],borderRadius:1
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',padding:18}},annotation:codingAnnotation},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>fmt(v)}}}
+    }
+  });
+}
+
+function renderByAge(data) {
+  const ages=['0-17','18-29','30-49','50-69','70+'];
+  const ageY=agg2D(data,'age','year');
+
+  dc('ageLines');
+  charts.ageLines = new Chart(document.getElementById('chartAgeLines'),{
+    type:'line',
+    data:{labels:YEARS,datasets:ages.map(a=>({
+      label:a,data:YEARS.map(y=>(ageY[a]||{})[y]||0),
+      borderColor:AGE_COLORS[a],backgroundColor:'transparent',tension:.35,
+      pointRadius:0,pointHoverRadius:5
+    }))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',padding:18}},annotation:codingAnnotation},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>fmt(v)}},x:{grid:{display:false}}}
+    }
+  });
+
+  dc('agePie');
+  const byAge=agg(data,'age');
+  charts.agePie = new Chart(document.getElementById('chartAgePie'),{
+    type:'doughnut',
+    data:{labels:ages,datasets:[{data:ages.map(a=>byAge[a]||0),backgroundColor:ages.map(a=>AGE_COLORS[a]),borderWidth:0,hoverOffset:8}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{position:'right',labels:{padding:14,usePointStyle:true,pointStyle:'circle',font:{size:12,weight:'500'}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.raw)}`}}
+      }
+    }
+  });
+
+  dc('ageTypeBar');
+  const ageType=agg2D(data,'age','category');
+  const topByAge=ages.map(a=>{const cats=ageType[a]||{}; const s=Object.entries(cats).sort((x,y)=>y[1]-x[1]); return s.length?s[0]:['None',0];});
+  charts.ageTypeBar = new Chart(document.getElementById('chartAgeTypeBar'),{
+    type:'bar',
+    data:{
+      labels:ages.map((a,i)=>`${a}: ${topByAge[i][0]}`),
+      datasets:[{data:topByAge.map(d=>d[1]),backgroundColor:ages.map(a=>AGE_COLORS[a]),borderRadius:3,barPercentage:.65}]
+    },
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>fmt(v)}},y:{grid:{display:false}}}}
+  });
+}
+
+function renderByHospital() {
+  const bor=document.getElementById('filterBorough').value;
+  let hd=bor!=='all'?HOSPITAL_DATA.filter(d=>d.borough===bor):HOSPITAL_DATA;
+  const hm={},hb={};
+  for(const d of hd){hm[d.hospital]=(hm[d.hospital]||0)+d.count;hb[d.hospital]=d.borough;}
+  const top20=Object.entries(hm).sort((a,b)=>b[1]-a[1]).slice(0,20);
+
+  dc('hospitalBar');
+  charts.hospitalBar = new Chart(document.getElementById('chartHospitalBar'),{
+    type:'bar',
+    data:{
+      labels:top20.map(d=>d[0]),
+      datasets:[{data:top20.map(d=>d[1]),backgroundColor:top20.map(d=>BOROUGH_COLORS[hb[d[0]]]||'#707175'),borderRadius:3,barPercentage:.72}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:ctx=>`Borough: ${hb[top20[ctx.dataIndex][0]]}`}}},
+      scales:{x:{ticks:{callback:v=>fmt(v)}},y:{grid:{display:false}}}
+    }
+  });
+}
+
+function renderTable(data) {
+  const byYC={};
+  for(const d of data){const k=`${d.year}|${d.category}`;if(!byYC[k])byYC[k]={year:d.year,category:d.category,count:0};byYC[k].count+=d.count;}
+  const sorted=Object.values(byYC).sort((a,b)=>a.year-b.year||b.count-a.count);
+  const bv=document.getElementById('filterBorough').value, av=document.getElementById('filterAge').value;
+  document.querySelector('#dataTable tbody').innerHTML=sorted.map(r=>
+    `<tr><td>${r.year}</td><td>${r.category}</td><td>${bv==='all'?'All':bv}</td><td>${av==='all'?'All':av}</td><td class="num">${fmt(r.count)}</td></tr>`
+  ).join('');
+}
+
+// ============================================================
+// TABS & FILTERS
+// ============================================================
+
+document.querySelectorAll('.tab-bar button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = document.getElementById('tab-'+btn.dataset.tab);
+    tab.classList.add('active');
+    // Re-trigger animation
+    tab.style.animation='none';
+    tab.offsetHeight; // reflow
+    tab.style.animation='';
+    // Render charts for newly visible tab (Chart.js needs visible container)
+    renderActiveTab();
+  });
+});
+
+['filterBorough','filterAge','filterCategory','filterED'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',renderAll);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+
+async function init() {
+  try {
+    await fetchAllData();
+    const cats=[...new Set(ALL_DATA.map(d=>d.category))].sort();
+    const sel=document.getElementById('filterCategory');
+    cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+    document.getElementById('loadingOverlay').style.display='none';
+    const mc=document.getElementById('mainContent');
+    mc.style.display='block';
+    mc.style.animation='fadeIn .4s ease both';
+    renderAll();
+  } catch(e) {
+    document.getElementById('progressText').innerHTML=`<span style="color:#e7466d">Error: ${e.message}</span>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
