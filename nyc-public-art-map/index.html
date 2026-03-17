@@ -755,7 +755,8 @@ async function loadAllData() {
     const lng = parseFloat(d.lng);
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) continue;
 
-    const isActive = d.active === '1' || d.active === 1;
+    const today = new Date().toISOString().slice(0, 10);
+    const expired = d.to_date && d.to_date < today;
     addMarker({
       title: d.name || 'Untitled',
       artist: d.artist || null,
@@ -763,8 +764,8 @@ async function loadAllData() {
       material: null,
       location: d.location || null,
       type: 'Installation',
-      removed: !isActive,
-      removedNote: !isActive ? 'Exhibition ended' : null,
+      removed: expired,
+      removedNote: expired ? `Exhibition ended ${d.to_date}` : null,
       isTemporary: true,
       dateRange: [d.from_date, d.to_date].filter(Boolean).join(' \u2013 ') || null
     }, 'temp', lat, lng);
