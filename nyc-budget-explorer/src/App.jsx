@@ -226,7 +226,7 @@ const SPENDING = [
   },
   { id: 'pensions', label: 'Pensions', amount: 10.4, color: C.slate,
     personnel: 0, otps: 10.4,
-    desc: 'Employer contributions covering ~330,000 active employees and ~370,000 retirees. Costs exploded from $1.5B in FY2002 to $10B+ today. The single largest structural cost driver.',
+    desc: 'Employer contributions covering ~330,000 active employees and ~370,000 retirees. Costs grew from $1.5B in FY2002 to $10B+ today. The single largest structural cost driver.',
     subs: [
       { label: 'Teachers\' Retirement System', amount: 3.4 },
       { label: 'NYC Employees\' Retirement', amount: 2.8 },
@@ -827,7 +827,7 @@ function ActCliff() {
           </h2>
         </FadeIn>
         <p className="act-sub">
-          That’s the Mayor’s number. Comptroller Levine projects a combined <strong style={{ color: C.orange }}>$10.4 billion shortfall</strong> across
+          That’s the mayor’s number. Comptroller Levine projects a combined <strong style={{ color: C.orange }}>$10.4 billion shortfall</strong> across
           FY2026–27 — the worst since the Great Recession. CBC’s "False Choice" report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
           But the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
         </p>
@@ -856,7 +856,7 @@ function ActCliff() {
         <FadeIn>
         <h3 className="chart-head" style={{ color: C.white, marginTop: 36 }}>Mamdani’s opening gambit</h3>
         <p className="prose">
-          Mayor Mamdani’s February 2026 preliminary budget was his first major fiscal test — and it landed with a thud.
+          Mamdani’s February 2026 preliminary budget was his first major fiscal test.
           The plan proposes <strong style={{ color: C.chartreuse }}>$3.7 billion in new property taxes</strong> (a 9.5% rate increase),
           a <strong style={{ color: C.chartreuse }}>millionaire income tax surcharge</strong> requiring Albany approval,
           and <strong style={{ color: C.chartreuse }}>$1.77 billion in agency savings</strong> through Executive Order 12,
@@ -963,7 +963,7 @@ function ActProposals() {
           <h2 className="act-headline">Before you try to close the gap, here’s what the experts are proposing</h2>
         </FadeIn>
         <p className="act-sub">
-          The Mayor, the Comptroller, the Citizens Budget Commission, and the City Council all have plans. They overlap in some places, clash in others. Understanding the landscape makes the next section — where you try it yourself — more honest.
+          The mayor, the comptroller, the Citizens Budget Commission, and the City Council all have plans. They overlap in some places, clash in others. Understanding the landscape makes the next section — where you try it yourself — more honest.
         </p>
 
         {/* Labor cost explainer */}
@@ -1027,10 +1027,10 @@ function ActProposals() {
         {/* Mamdani new spending */}
         <FadeIn>
         <h3 className="chart-head">It’s not just about closing the gap — Mamdani wants to spend more, too</h3>
-        <p className="chart-sub">The preliminary budget includes new investments even as it scrambles to close a $5.4B hole</p>
+        <p className="chart-sub">The preliminary budget includes new investments even as the city faces a $5.4B hole</p>
 
         <p className="prose">
-          This is what makes budget politics so difficult: the same mayor asking for a 9.5% property tax increase is also proposing <strong>significant new spending</strong>. Mamdani’s preliminary budget includes:
+          This is what makes budget politics so difficult: Mamdani wants Albany to authorize new taxes on the wealthy and on corporations. The 9.5% property tax hike in his budget is widely seen as a pressure tactic — a deliberately hard-to-swallow fallback designed to push Albany toward his preferred revenue package. Every major political partner, from the City Council speaker to the governor, has called the property tax increase a non-starter. Yet even as the city works to close a $5.4B hole, Mamdani is also proposing <strong>significant new spending</strong>. His preliminary budget includes:
         </p>
 
         <div className="new-spending-list">
@@ -1145,7 +1145,7 @@ function ActProposals() {
             <div className="proposal-title">FY2027 Budget Preview</div>
           </div>
           <p className="prose" style={{ marginBottom: 12 }}>
-            The Comptroller takes a middle path: <strong>modest revenue increases paired with targeted cuts</strong>. He projects a combined <strong>$10.4 billion FY26–27 shortfall</strong> — the worst since the Great Recession — with city-funded spending understated by $3.16 billion in FY26 alone (rental assistance is underbudgeted by $795 million). Flags $559 million in unbudgeted overtime and warns that the Mayor’s savings targets lack specifics.
+            The Comptroller takes a middle path: <strong>modest revenue increases paired with targeted cuts</strong>. He projects a combined <strong>$10.4 billion FY26–27 shortfall</strong> — the worst since the Great Recession — with city-funded spending understated by $3.16 billion in FY26 alone (rental assistance is underbudgeted by $795 million). Flags $559 million in unbudgeted overtime and warns that the mayor’s savings targets lack specifics.
           </p>
           <div className="proposal-items">
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1800)}</span> Modest property tax increase (~4.5%)</div>
@@ -1154,7 +1154,7 @@ function ActProposals() {
             <div className="proposal-item"><span className="proposal-amount">{fmtM(300)}</span> Overtime reform across uniformed agencies</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(600)}</span> Vacancy reduction using existing hiring freeze</div>
           </div>
-          <p className="proposal-note">Also recommends drawing $980M from the Rainy Day Fund — a move the Comptroller’s own office has criticized in past administrations.</p>
+          <p className="proposal-note">Also recommends drawing $980M from the Rainy Day Fund — a move the comptroller’s own office has criticized in past administrations.</p>
         </div>
         </FadeIn>
 
@@ -1296,7 +1296,7 @@ function ActBalancer() {
           <h2 className="act-headline">Close the gap. You have $5.4 billion to find.</h2>
         </FadeIn>
         <p className="balancer-intro">
-          Every option below is drawn from real proposals by the Mayor, the Comptroller, the Citizens Budget Commission,
+          Every option below is drawn from real proposals by the mayor, the comptroller, the Citizens Budget Commission,
           or the City Council. Each comes with tradeoffs. None is painless. Can you balance it?
         </p>
 
@@ -1595,14 +1595,13 @@ export default function App() {
 
       <Bridge>
         Growth this steep creates commitments. Pensions, labor contracts, debt service, and mandates lock in
-        costs that don’t flex when revenue dips. The question isn’t whether a reckoning is coming — it’s
-        how bad it will be.
+        costs that don’t flex when revenue dips — and the risks are mounting.
       </Bridge>
 
       <ActCliff />
 
       <Bridge>
-        So those are the risks. Before you try to close the gap yourself, here’s what the people paid to think about this are proposing — and why almost every plan collides with the same immovable force.
+        So those are the risks. Before you try to close the gap yourself, here’s what the people paid to think about this are proposing — and where the plans converge and diverge.
       </Bridge>
 
       <ActProposals />
