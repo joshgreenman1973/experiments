@@ -458,7 +458,7 @@ function ActScale() {
 
   const perResident = Math.round((totalSpending * 1e9) / 8100000)
   const perHousehold = Math.round(perResident * 2.5)
-  const [countRef, countVal] = useCountUp(totalSpending)
+  const [countRef, countVal] = useCountUp(totalSpending * 1e9)
 
   return (
     <>
@@ -467,13 +467,13 @@ function ActScale() {
         <div className="content-w">
           <div ref={countRef}>
             <FadeIn>
-              <div className="hero-number">${countVal.toFixed(1)}B</div>
+              <div className="hero-number">${Math.round(countVal).toLocaleString('en-US')}</div>
             </FadeIn>
           </div>
           <FadeIn delay={200}>
             <div className="hero-context">
-              That’s New York City’s budget for fiscal year 2026 — <strong>larger than the budgets of 46 states</strong>.
-              It funds 1,800 schools, 11 public hospitals, 218 firehouses, and the salaries of {(totalWorkers / 1000).toFixed(0)}K+ workers.
+              That’s New York City’s <em>expense budget</em> for fiscal year 2026 — the operating spending that pays for daily services, from schools to policing to sanitation. It’s <strong>larger than the budgets of 46 states</strong>.
+              A separate ~$16 billion capital budget funds long-term infrastructure like roads, bridges, and new school buildings, mostly financed through bonds.
             </div>
           </FadeIn>
           <FadeIn delay={400}>
@@ -878,10 +878,10 @@ function ActCliff() {
           <div className="insight-label">Credit watch</div>
           <p>
             In March 2026, <span className="hl" style={{ color: C.chartreuse }}>Moody’s revised NYC’s credit outlook to negative</span>,
-            citing the structural budget gap and reliance on one-time revenues. Fitch and S&P maintain stable outlooks but flagged
-            the same risks. A downgrade would raise borrowing costs on the city’s ~$110 billion in outstanding debt —
-            every basis point costs taxpayers roughly $4.7 million per year. The last time NYC was downgraded was 2021, briefly,
-            during COVID. Before that: the fiscal crisis of the 1970s.
+            citing structural budget gaps and reliance on one-time revenues. Two days later, <span className="hl" style={{ color: C.chartreuse }}>S&P warned it may downgrade</span> the
+            city’s AA rating if the budget is balanced by draining reserves. A downgrade would raise borrowing costs on
+            the city’s ~$110 billion in outstanding debt — every basis point costs taxpayers roughly $4.7 million per year.
+            The last time NYC was downgraded was 2021, briefly, during COVID. Before that: the fiscal crisis of the 1970s.
           </p>
         </div>
         </FadeIn>
@@ -1583,16 +1583,6 @@ export default function App() {
   return (
     <div className="story">
       <ProgressNav />
-
-      <header className="story-header">
-        <div className="header-tag">Data</div>
-        <h1 className="story-title">How New York City<br />Spends $116 Billion</h1>
-        <p className="story-dek">
-          The budget is bigger than most countries’. It funds a government that does more than almost any
-          municipality on Earth. And in twelve months, it faces a $5.4 billion gap. Here’s everything you need to
-          know — and a chance to try closing it yourself.
-        </p>
-      </header>
 
       <ActScale />
 
