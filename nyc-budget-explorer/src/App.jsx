@@ -98,7 +98,7 @@ const REVENUE = [
     ]
   },
   { id: 'state_aid', label: 'State Categorical Grants', amount: 19.0, color: C.chartreuse,
-    desc: 'Education aid dominates (~$10.5B in Foundation Aid plus ~$1.6B in other school aid). NYC contributes 55% of state tax revenue but receives only 40% of state operating expenditures. The state caps NYC\'s local Medicaid share at 2015 levels, saving the city ~$4B/year — a benefit worth protecting.',
+    desc: 'Education aid dominates (~$10.5 billion in Foundation Aid plus ~$1.6 billion in other school aid). NYC contributes 55% of state tax revenue but receives only 40% of state operating expenditures. The state caps NYC\'s local Medicaid share at 2015 levels, saving the city ~$4 billion a year — a benefit worth protecting.',
     subs: [
       { label: 'Foundation Aid (school year 2025-26)', amount: 10.5 },
       { label: 'Other school aid (transport, BOCES, etc.)', amount: 1.6 },
@@ -109,7 +109,7 @@ const REVENUE = [
     ]
   },
   { id: 'federal_aid', label: 'Federal Categorical Grants', amount: 7.4, color: C.green,
-    desc: 'Declining sharply as pandemic-era aid expires. Core ongoing funding supports Medicaid, Section 8 vouchers, and Title I schools. Trump/DOGE cuts pose a major risk.',
+    desc: 'Declining sharply as pandemic-era aid expires. Core ongoing funding supports Medicaid, Section 8 vouchers and Title I schools. Trump/DOGE cuts pose a major risk.',
     subs: [
       { label: 'Medicaid (federal share)', amount: 2.6 },
       { label: 'Section 8 housing vouchers', amount: 1.6 },
@@ -120,7 +120,7 @@ const REVENUE = [
     ]
   },
   { id: 'fees', label: 'Fees, Fines & Miscellaneous', amount: 9.9, color: C.rose,
-    desc: 'Water and sewer charges are the biggest component. Also includes permits, licenses, parking meter revenue, and interest income.',
+    desc: 'Water and sewer charges are the biggest component. Also includes permits, licenses, parking meter revenue and interest income.',
     subs: [
       { label: 'Water & sewer charges', amount: 4.5 },
       { label: 'Charges for services & permits', amount: 1.6 },
@@ -135,7 +135,7 @@ const REVENUE = [
 const SPENDING = [
   { id: 'education', label: 'Education (DOE)', amount: 34.5, color: C.indigo,
     workers: 150000, personnel: 20.5, otps: 14.0,
-    desc: 'The city\'s largest expenditure. Operates ~1,800 schools serving 906,000 students. The DOE expense budget is ~$34.5B; all-in per-pupil spending exceeds $43,000 when centrally allocated fringe benefits are included. The class size mandate requires reducing class sizes over 5 years at an estimated cost of $1.3B annually when fully phased in.',
+    desc: 'The city\'s largest expenditure. Operates ~1,800 schools serving 906,000 students. The DOE expense budget is ~$34.5 billion; all-in per-pupil spending exceeds $43,000 when centrally allocated fringe benefits are included. The class size mandate requires reducing class sizes over 5 years at an estimated cost of $1.3 billion annually when fully phased in.',
     subs: [
       { label: 'Instruction & classroom', amount: 14.5 },
       { label: 'Special education', amount: 6.2 },
@@ -148,7 +148,7 @@ const SPENDING = [
   },
   { id: 'health', label: 'Health & Hospitals', amount: 13.2, color: C.cerulean,
     workers: 40000, personnel: 8.5, otps: 4.7,
-    desc: 'NYC Health + Hospitals runs the largest public health system in the US: 11 acute-care hospitals, 70+ community health centers, 1.4 million patients/year.',
+    desc: 'NYC Health + Hospitals runs the largest public health system in the US: 11 acute-care hospitals, 70+ community health centers, 1.4 million patients a year.',
     subs: [
       { label: 'H+H hospital operations', amount: 7.2 },
       { label: 'DOHMH public health programs', amount: 2.4 },
@@ -159,7 +159,7 @@ const SPENDING = [
   },
   { id: 'social', label: 'Social Services', amount: 12.8, color: C.green,
     workers: 15000, personnel: 3.2, otps: 9.6,
-    desc: 'Administers cash assistance, SNAP, Medicaid enrollment, and homeless services. NYC operates ~200 homeless shelters housing 100K+ people nightly — more than any other city.',
+    desc: 'Administers cash assistance, SNAP, Medicaid enrollment and homeless services. NYC operates ~200 homeless shelters housing 100,000+ people nightly — more than any other city.',
     subs: [
       { label: 'Homeless services (DHS shelters)', amount: 4.4 },
       { label: 'Asylum seeker programs', amount: 1.4 },
@@ -171,7 +171,7 @@ const SPENDING = [
   },
   { id: 'police', label: 'Police (NYPD)', amount: 5.8, color: C.magenta,
     workers: 55000, personnel: 5.0, otps: 0.8,
-    desc: 'The nation\'s largest police force: ~35,000 officers plus ~19,000 civilians. Actual spending consistently exceeds budget by $800M–1B due to overtime.',
+    desc: 'The nation\'s largest police force: ~35,000 officers plus ~19,000 civilians. Actual spending consistently exceeds budget by $800 million to $1 billion due to overtime.',
     subs: [
       { label: 'Patrol services', amount: 2.4 },
       { label: 'Detective & investigative', amount: 0.8 },
@@ -194,7 +194,7 @@ const SPENDING = [
   },
   { id: 'corrections', label: 'Corrections (DOC)', amount: 3.5, color: C.rose,
     workers: 9300, personnel: 2.8, otps: 0.7,
-    desc: 'Runs Rikers Island and borough facilities. Per-detainee cost exceeds $550,000/year — the highest in the nation and 10x the national average. The DOC budget is ~$1.05B, but total criminal justice spending including correctional health, debt service on borough jails, courts, and Board of Correction adds to ~$3.5B.',
+    desc: 'Runs Rikers Island and borough facilities. Per-detainee cost exceeds $550,000/year — the highest in the nation and 10 times the national average. The DOC budget is ~$1.05 billion, but total criminal justice spending including correctional health, debt service on borough jails, courts and Board of Correction adds to ~$3.5 billion.',
     subs: [
       { label: 'DOC operations & uniformed staff', amount: 1.2 },
       { label: 'Correctional health (H+H)', amount: 0.8 },
@@ -205,7 +205,7 @@ const SPENDING = [
   },
   { id: 'sanitation', label: 'Sanitation (DSNY)', amount: 1.9, color: C.chartreuse,
     workers: 9500, personnel: 1.2, otps: 0.7,
-    desc: 'Collects 12,000+ tons of waste daily. Also handles recycling, street sweeping, snow removal, and composting.',
+    desc: 'Collects 12,000+ tons of waste daily. Also handles recycling, street sweeping, snow removal and composting.',
     subs: [
       { label: 'Waste collection', amount: 1.2 },
       { label: 'Street cleaning', amount: 0.4 },
@@ -216,7 +216,7 @@ const SPENDING = [
   },
   { id: 'debt', label: 'Debt Service', amount: 7.2, color: C.charcoal,
     personnel: 0, otps: 7.2,
-    desc: 'Interest and principal on ~$110B in total outstanding debt (GO bonds ~$47B plus TFA ~$63B). Net debt service is ~$3.7B after prepayments; the $7.2B total includes lease-financing, energy adjustments, and judgments & claims. A fixed cost — the city must pay or face default.',
+    desc: 'Interest and principal on ~$110 billion in total outstanding debt (GO bonds ~$47 billion plus TFA ~$63 billion). Net debt service is ~$3.7 billion after prepayments; the $7.2 billion total includes lease-financing, energy adjustments and judgments & claims. A fixed cost — the city must pay or face default.',
     subs: [
       { label: 'GO bond debt service', amount: 3.0 },
       { label: 'TFA Future Tax Secured bonds', amount: 1.6 },
@@ -226,7 +226,7 @@ const SPENDING = [
   },
   { id: 'pensions', label: 'Pensions', amount: 10.4, color: C.slate,
     personnel: 0, otps: 10.4,
-    desc: 'Employer contributions covering ~330,000 active employees and ~370,000 retirees. Costs grew from $1.5B in FY2002 to $10B+ today. The single largest structural cost driver.',
+    desc: 'Employer contributions covering ~330,000 active employees and ~370,000 retirees. Costs grew from $1.5 billion in FY2002 to $10 billion+ today. The single largest structural cost driver.',
     subs: [
       { label: 'Teachers\' Retirement System', amount: 3.4 },
       { label: 'NYC Employees\' Retirement', amount: 2.8 },
@@ -237,7 +237,7 @@ const SPENDING = [
   },
   { id: 'other', label: 'All Other & Citywide', amount: 24.1, color: C.periwinkle,
     workers: 45000, personnel: 12.8, otps: 11.3,
-    desc: 'Includes 50+ agencies (parks, DOT, HPD, DEP, libraries, courts) plus centrally budgeted fringe benefits — health insurance for ~750,000 current and retired workers (~$9B) that is not allocated to individual agency budgets.',
+    desc: 'Includes 50+ agencies (parks, DOT, HPD, DEP, libraries, courts) plus centrally budgeted fringe benefits — health insurance for ~750,000 current and retired workers (~$9 billion) that is not allocated to individual agency budgets.',
     subs: [
       { label: 'Health insurance (active & retirees)', amount: 9.0 },
       { label: 'Parks & Recreation', amount: 2.0 },
@@ -339,12 +339,12 @@ const OUTYEAR_GAPS = [
 ]
 
 const RISKS = [
-  { label: 'Federal funding cuts (OBBBA)', low: 1000, high: 4000, color: C.magenta, desc: 'The "One Big Beautiful Bill Act" threatens $90–150B in Medicaid cuts to NYS over 10 years. New work requirements (effective 2027) could strip coverage from 500K–1.2M New Yorkers. Section 8, Title I, SNAP, and CDBG also at risk.' },
-  { label: 'Labor contract costs', low: 800, high: 2000, color: C.cerulean, desc: 'NYC must negotiate contracts with all major unions. Every 1% raise costs ~$400M/year. Pattern bargaining suggests 3-4% annual increases.' },
-  { label: 'Asylum seeker costs', low: 500, high: 1400, color: C.orange, desc: 'Currently ~$1.4B/year in FY2026, down from the FY2024 peak. Could decline further if arrivals slow, or rebound if federal work permits are revoked.' },
-  { label: 'Unbudgeted overtime', low: 559, high: 800, color: C.indigo, desc: 'Comptroller estimates $559M. Historically, NYPD alone exceeds budget by 60-80%.' },
-  { label: 'Class size mandate', low: 543, high: 1300, color: C.chartreuse, desc: 'State mandate requires hiring ~6,000 teachers over 5 years. Costs up to $1.3B annually when fully phased in.' },
-  { label: 'Economic downturn risk', low: 0, high: 4000, color: C.rose, desc: 'A recession could cost $4-11B over two years. Average recession costs NYC ~$5B in lost revenue.' },
+  { label: 'Federal funding cuts (OBBBA)', low: 1000, high: 4000, color: C.magenta, desc: 'The “One Big Beautiful Bill Act” threatens $90–150B in Medicaid cuts to NYS over 10 years. New work requirements (effective 2027) could strip coverage from 500,000 to 1.2 million New Yorkers. Section 8, Title I, SNAP and CDBG also at risk.' },
+  { label: 'Labor contract costs', low: 800, high: 2000, color: C.cerulean, desc: 'NYC must negotiate contracts with all major unions. Every 1% raise costs ~$400 million/year. Pattern bargaining suggests 3-4% annual increases.' },
+  { label: 'Asylum seeker costs', low: 500, high: 1400, color: C.orange, desc: 'Currently ~$1.4 billion/year in FY2026, down from the FY2024 peak. Could decline further if arrivals slow, or rebound if federal work permits are revoked.' },
+  { label: 'Unbudgeted overtime', low: 559, high: 800, color: C.indigo, desc: 'Comptroller estimates $559 million. Historically, NYPD alone exceeds budget by 60-80%.' },
+  { label: 'Class size mandate', low: 543, high: 1300, color: C.chartreuse, desc: 'State mandate requires hiring ~6,000 teachers over 5 years. Costs up to $1.3 billion annually when fully phased in.' },
+  { label: 'Economic downturn risk', low: 0, high: 4000, color: C.rose, desc: 'A recession could cost $4 billion to $11 billion over two years. Average recession costs NYC ~$5 billion in lost revenue.' },
 ]
 
 // ============================================================
@@ -353,35 +353,35 @@ const RISKS = [
 const BASELINE_GAP = 5400
 
 const REVENUE_OPTIONS = [
-  { id: 'pit_millionaire', label: 'Tax millionaires\' income (+2% on $1M+)', amount: 1800, category: 'tax_increase', difficulty: 'hard', desc: 'Raise PIT by ~2 pts on ~33K filers earning $1M+. Requires Albany. The top 1% already pay 37–48% of city income tax depending on market conditions.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Could push high earners to relocate. CBC warns economically sensitive taxes already generate ~60% of city revenue.', conflicts: [] },
-  { id: 'corporate_tax', label: 'Raise corporate tax on top firms', amount: 1500, category: 'tax_increase', difficulty: 'hard', desc: 'The state Senate\'s one-house budget (March 2026) would authorize NYC to raise corporate taxes: financial sector from 9% to 10.8%, non-finance from 8.85% to 10.62%, plus UBT from 4% to 4.4% on income over $5M. Requires final passage in Albany by April 1.', source: 'NYS Senate one-house budget (March 10, 2026)', sourceUrl: 'https://www.nysenate.gov/newsroom/press-releases/2026/new-york-state-senate-advances-2026-one-house-budget-resolution', risk: 'Manhattan Chamber warns of competitiveness risk. Requires Albany — and the Governor has not endorsed it.', conflicts: [] },
-  { id: 'property_tax', label: '9.5% property tax rate increase', amount: 3700, category: 'tax_increase', difficulty: 'medium', desc: 'The fallback in Mamdani\'s preliminary budget. Does NOT require Albany — the Council can do this on its own.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Council Speaker Menin called this a "non-starter." Hits homeowners hard.', conflicts: ['property_tax_half'] },
+  { id: 'pit_millionaire', label: 'Tax millionaires\' income (+2% on $1M+)', amount: 1800, category: 'tax_increase', difficulty: 'hard', desc: 'Raise PIT by ~2 pts on ~33,000 filers earning $1 million+. Requires Albany. The top 1% already pay 37–48% of city income tax depending on market conditions.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Could push high earners to relocate. CBC warns economically sensitive taxes already generate ~60% of city revenue.', conflicts: [] },
+  { id: 'corporate_tax', label: 'Raise corporate tax on top firms', amount: 1500, category: 'tax_increase', difficulty: 'hard', desc: 'The state Senate\'s one-house budget (March 2026) would authorize NYC to raise corporate taxes: financial sector from 9% to 10.8%, non-finance from 8.85% to 10.62%, plus UBT from 4% to 4.4% on income over $5 million. Requires final passage in Albany by April 1.', source: 'NYS Senate one-house budget (March 10, 2026)', sourceUrl: 'https://www.nysenate.gov/newsroom/press-releases/2026/new-york-state-senate-advances-2026-one-house-budget-resolution', risk: 'Manhattan Chamber warns of competitiveness risk. Requires Albany — and the governor has not endorsed it.', conflicts: [] },
+  { id: 'property_tax', label: '9.5% property tax rate increase', amount: 3700, category: 'tax_increase', difficulty: 'medium', desc: 'The fallback in Mamdani\'s preliminary budget. Does NOT require Albany — the Council can do this on its own.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Council Speaker Menin called this a “non-starter.” Hits homeowners hard.', conflicts: ['property_tax_half'] },
   { id: 'property_tax_half', label: 'Modest property tax increase (~4.5%)', amount: 1800, category: 'tax_increase', difficulty: 'medium', desc: 'Roughly half the proposed rate hike. More politically viable.', source: 'Author estimate', risk: 'Still hits working and middle-class homeowners.', conflicts: ['property_tax'] },
-  { id: 'dof_auditors', label: 'Hire 50 new DOF auditors', amount: 100, category: 'efficiency', difficulty: 'easy', desc: 'Recover revenue from uncollected taxes. Enforcement of existing law, not new taxes.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'The $100M projection is unproven.', conflicts: [] },
-  { id: 'tort_lawyers', label: 'Add 200 lawyers to cut tort liability', amount: 125, category: 'efficiency', difficulty: 'easy', desc: 'Reduce claims and settlements (the city paid $1.9B in FY2024) with more legal staff.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Savings projected, not guaranteed.', conflicts: [] },
-  { id: 'parking_meters', label: 'Meter or auction free curb parking spaces', amount: 1500, category: 'new_revenue', difficulty: 'medium', desc: 'Only ~3% of NYC\'s curb spaces are metered. The Manhattan Institute estimates average revenue of ~$2,000–5,000 per space/year; City Journal modeled auctioning all curb space at $3.7B gross (~$2.9B net new). Mamdani\'s administration has signaled openness to a major expansion. Does not require Albany if structured as a municipal fee.', source: 'Manhattan Institute; CNBC (Mar 14, 2026)', sourceUrl: 'https://manhattan.institute/article/the-right-price-for-curb-parking', risk: 'Free residential parking is a deeply ingrained expectation. Politically explosive in car-dependent outer boroughs — but the subsidy is indefensible on fiscal or urbanist grounds.', conflicts: [] },
-  { id: 'pied_a_terre', label: 'Pied-à-terre tax on luxury second homes', amount: 400, category: 'tax_increase', difficulty: 'hard', desc: 'Annual surcharge on non-primary residences valued above $5M. An estimated 10,000+ luxury units in Manhattan are used as pieds-à-terre, removing them from the housing supply while consuming city services. Was estimated at $390–650M in 2019 proposals before being shelved. Requires Albany.', source: 'State Senate proposals; Fiscal Policy Institute', sourceUrl: 'https://fiscalpolicy.org/', risk: 'Real estate lobby has killed this repeatedly in Albany. Definitional issues (who counts as non-resident?) complicate enforcement.', conflicts: [] },
-  { id: 'mansion_tax', label: 'Expand the mansion tax (+1.4 pts on $5M+ sales)', amount: 320, category: 'tax_increase', difficulty: 'hard', desc: 'Raise transfer tax rates by ~1.4 percentage points on residential sales above $5M. Both the Senate and Assembly included versions in their one-house budgets.', source: 'NYS Senate & Assembly one-house budgets (March 2026)', sourceUrl: 'https://gothamist.com/news/ny-lawmakers-back-mamdani-push-to-tax-the-rich-setting-up-clash-with-hochul', risk: 'Depresses high-end sales volume. Real estate lobby opposition. Requires Albany.', conflicts: [] },
+  { id: 'dof_auditors', label: 'Hire 50 new DOF auditors', amount: 100, category: 'efficiency', difficulty: 'easy', desc: 'Recover revenue from uncollected taxes. Enforcement of existing law, not new taxes.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'The $100 million projection is unproven.', conflicts: [] },
+  { id: 'tort_lawyers', label: 'Add 200 lawyers to cut tort liability', amount: 125, category: 'efficiency', difficulty: 'easy', desc: 'Reduce claims and settlements (the city paid $1.9 billion in FY2024) with more legal staff.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Savings projected, not guaranteed.', conflicts: [] },
+  { id: 'parking_meters', label: 'Meter or auction free curb parking spaces', amount: 1500, category: 'new_revenue', difficulty: 'medium', desc: 'Only ~3% of NYC\'s curb spaces are metered. The Manhattan Institute estimates average revenue of ~$2,000–5,000 per space a year; City Journal modeled auctioning all curb space at $3.7 billion gross (~$2.9 billion net new). Mamdani\'s administration has signaled openness to a major expansion. Does not require Albany if structured as a municipal fee.', source: 'Manhattan Institute; Center for an Urban Future; CNBC (Mar 14, 2026)', sourceUrl: 'https://manhattan.institute/article/the-right-price-for-curb-parking', risk: 'Free residential parking is a deeply ingrained expectation. Politically explosive in car-dependent outer boroughs — but the subsidy is indefensible on fiscal or urbanist grounds.', conflicts: [] },
+  { id: 'pied_a_terre', label: 'Pied-à-terre tax on luxury second homes', amount: 400, category: 'tax_increase', difficulty: 'hard', desc: 'Annual surcharge on non-primary residences valued above $5 million. An estimated 10,000+ luxury units in Manhattan are used as pieds-à-terre, removing them from the housing supply while consuming city services. Was estimated at $390–650M in 2019 proposals before being shelved. Requires Albany.', source: 'State Senate proposals; Fiscal Policy Institute', sourceUrl: 'https://fiscalpolicy.org/', risk: 'Real estate lobby has killed this repeatedly in Albany. Definitional issues (who counts as non-resident?) complicate enforcement.', conflicts: [] },
+  { id: 'mansion_tax', label: 'Expand the mansion tax (+1.4 pts on $5 million+ sales)', amount: 320, category: 'tax_increase', difficulty: 'hard', desc: 'Raise transfer tax rates by ~1.4 percentage points on residential sales above $5 million. Both the Senate and Assembly included versions in their one-house budgets.', source: 'NYS Senate & Assembly one-house budgets (March 2026)', sourceUrl: 'https://gothamist.com/news/ny-lawmakers-back-mamdani-push-to-tax-the-rich-setting-up-clash-with-hochul', risk: 'Depresses high-end sales volume. Real estate lobby opposition. Requires Albany.', conflicts: [] },
   { id: 'gold_tax', label: 'Tax gold bar & precious metals sales', amount: 300, category: 'tax_increase', difficulty: 'hard', desc: 'Scrap the existing sales-tax exemption on gold bars and precious metals. Currently untaxed despite being an investment vehicle overwhelmingly used by the wealthy. Included in the Senate one-house budget.', source: 'NYS Senate one-house budget (March 2026)', sourceUrl: 'https://nysfocus.com/2026/03/10/senate-assembly-mamdani-tax-hikes', risk: 'Gold dealers may relocate transactions out of state. Novel — no precedent for enforcement.', conflicts: [] },
   { id: 'commercial_vacancy', label: 'Commercial vacancy tax', amount: 200, category: 'tax_increase', difficulty: 'hard', desc: 'Tax landlords who keep ground-floor retail space vacant for extended periods. An estimated 12,000+ storefronts sit empty citywide. State bill S6804/A669 would impose 1% of assessed value on spaces vacant 6+ months.', source: 'NYS Senate (S6804)', sourceUrl: 'https://www.nysenate.gov/legislation/bills/2025/S6804', risk: 'Landlords argue vacancy is driven by high property taxes and regulations, not speculation. May accelerate conversions.', conflicts: [] },
-  { id: 'parks_concessions', label: 'Expand parks concessions & sponsorships', amount: 150, category: 'new_revenue', difficulty: 'easy', desc: 'NYC parks generate relatively little commercial revenue compared to peer cities. Expanding naming rights, concession contracts, and event permitting could add significant revenue with dedicated funding for park maintenance.', source: 'Center for an Urban Future (2026)', sourceUrl: 'https://www.nycfuture.org/research/5-revenue-raising-ideas-for-nyc', risk: 'Equity concerns — wealthier parks would benefit more. Risk of over-commercialization.', conflicts: [] },
+  { id: 'parks_concessions', label: 'Expand parks concessions & sponsorships', amount: 150, category: 'new_revenue', difficulty: 'easy', desc: 'NYC parks generate relatively little commercial revenue compared to peer cities. Expanding naming rights, concession contracts and event permitting could add significant revenue with dedicated funding for park maintenance.', source: 'Center for an Urban Future (2026)', sourceUrl: 'https://www.nycfuture.org/research/5-revenue-raising-ideas-for-nyc', risk: 'Equity concerns — wealthier parks would benefit more. Risk of over-commercialization.', conflicts: [] },
 ]
 
 const SPENDING_OPTIONS = [
-  { id: 'class_size', label: 'Seek state relief from class size mandate', amount: 1300, category: 'education', difficulty: 'hard', desc: 'CBC\'s top recommendation. Save up to $1.3B otherwise spent hiring ~6,000 teachers.', source: 'CBC; Chalkbeat', sourceUrl: 'https://www.chalkbeat.org/newyork/2026/02/17/nyc-mamdani-preliminary-budget-class-size-funding-school-program-cuts/', risk: 'Parents and unions support smaller classes. Requires Albany.', conflicts: [] },
-  { id: 'enrollment', label: 'Adjust DOE funding for declining enrollment', amount: 400, category: 'education', difficulty: 'medium', desc: 'NYC public school enrollment has declined by ~120,000 students since pre-pandemic.', source: 'CBC "False Choice" (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Would require closing or consolidating schools.', conflicts: [] },
-  { id: 'cso_savings', label: 'Agency Chief Savings Officers (2.5%)', amount: 1770, category: 'efficiency', difficulty: 'medium', desc: 'Mamdani\'s EO 12 requires every agency to target 2.5% savings. $1.77B total.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'CBC: There\'s much more to be saved. But this is a target, not a plan.', conflicts: ['cso_half'] },
+  { id: 'class_size', label: 'Seek state relief from class size mandate', amount: 1300, category: 'education', difficulty: 'hard', desc: 'CBC\'s top recommendation. Save up to $1.3 billion otherwise spent hiring ~6,000 teachers.', source: 'CBC; Chalkbeat', sourceUrl: 'https://www.chalkbeat.org/newyork/2026/02/17/nyc-mamdani-preliminary-budget-class-size-funding-school-program-cuts/', risk: 'Parents and unions support smaller classes. Requires Albany.', conflicts: [] },
+  { id: 'enrollment', label: 'Adjust DOE funding for declining enrollment', amount: 400, category: 'education', difficulty: 'medium', desc: 'NYC public school enrollment has declined by ~120,000 students since pre-pandemic.', source: 'CBC “False Choice” (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Would require closing or consolidating schools.', conflicts: [] },
+  { id: 'cso_savings', label: 'Agency Chief Savings Officers (2.5%)', amount: 1770, category: 'efficiency', difficulty: 'medium', desc: 'Mamdani\'s EO 12 requires every agency to target 2.5% savings. $1.77 billion total.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'CBC: There\'s much more to be saved. But this is a target, not a plan.', conflicts: ['cso_half'] },
   { id: 'cso_half', label: 'Agency savings (conservative estimate)', amount: 900, category: 'efficiency', difficulty: 'medium', desc: 'Half the administration\'s target — what might actually materialize.', source: 'Author estimate', risk: 'Even this may be optimistic without concrete operational changes.', conflicts: ['cso_savings'] },
-  { id: 'overtime', label: 'Reduce uniformed overtime spending', amount: 300, category: 'uniformed', difficulty: 'hard', desc: 'Comptroller estimates $559M in unbudgeted overtime. NYPD alone exceeds by 60-80%.', source: 'Comptroller FY2027 Budget Preview', sourceUrl: 'https://comptroller.nyc.gov/newsroom/comptroller-levine-projects-2-2-billion-budget-shortfall-in-fiscal-year-2026-and-10-4-billion-in-fiscal-year-2027/', risk: 'Overtime reform has failed repeatedly.', conflicts: [] },
-  { id: 'procurement', label: 'Procurement and contract reform', amount: 400, category: 'efficiency', difficulty: 'medium', desc: 'City registered $32B+ in contracts in FY2024 alone. Documented waste and cost overruns in CBC and Comptroller reports.', source: 'CBC; NYC Comptroller', sourceUrl: 'https://comptroller.nyc.gov/reports/annual-summary-contracts-report-for-the-city-of-new-york-fiscal-year-2024/', risk: 'Reform is slow. Savings may not materialize in a single fiscal year.', conflicts: [] },
+  { id: 'overtime', label: 'Reduce uniformed overtime spending', amount: 300, category: 'uniformed', difficulty: 'hard', desc: 'Comptroller estimates $559 million in unbudgeted overtime. NYPD alone exceeds by 60-80%.', source: 'Comptroller FY2027 Budget Preview', sourceUrl: 'https://comptroller.nyc.gov/newsroom/comptroller-levine-projects-2-2-billion-budget-shortfall-in-fiscal-year-2026-and-10-4-billion-in-fiscal-year-2027/', risk: 'Overtime reform has failed repeatedly.', conflicts: [] },
+  { id: 'procurement', label: 'Procurement and contract reform', amount: 400, category: 'efficiency', difficulty: 'medium', desc: 'City registered $32 billion+ in contracts in FY2024 alone. Documented waste and cost overruns in CBC and Comptroller reports.', source: 'CBC; NYC Comptroller', sourceUrl: 'https://comptroller.nyc.gov/reports/annual-summary-contracts-report-for-the-city-of-new-york-fiscal-year-2024/', risk: 'Reform is slow. Savings may not materialize in a single fiscal year.', conflicts: [] },
   { id: 'vacancies', label: 'Reduce funded vacancies and headcount', amount: 600, category: 'efficiency', difficulty: 'easy', desc: '~5.8% vacancy rate against funded positions. 2-for-1 hiring freeze already in effect.', source: 'Comptroller FY2026 Comments', sourceUrl: 'https://comptroller.nyc.gov/reports/comments-on-new-york-citys-fiscal-year-2025-adopted-budget/', risk: 'Services may degrade. Some vacancies are in hard-to-fill roles.', conflicts: [] },
   { id: 'health_ins', label: 'Self-funded employee health plan', amount: 500, category: 'labor', difficulty: 'hard', desc: 'Replace the City\'s second premium-free plan with a self-funded option.', source: 'Comptroller; CBC', sourceUrl: 'https://cbcny.org/research/what-opeb-and-why-does-it-cost-94-billion', risk: 'Faces legal challenges from municipal unions.', conflicts: [] },
-  { id: 'welfare_funds', label: 'Consolidate union welfare funds', amount: 200, category: 'labor', difficulty: 'hard', desc: 'CBC recommends consolidating fragmented union welfare/benefit funds.', source: 'CBC "False Choice" (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Requires union cooperation. Strong labor opposition.', conflicts: [] },
+  { id: 'welfare_funds', label: 'Consolidate union welfare funds', amount: 200, category: 'labor', difficulty: 'hard', desc: 'CBC recommends consolidating fragmented union welfare/benefit funds.', source: 'CBC “False Choice” (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Requires union cooperation. Strong labor opposition.', conflicts: [] },
 ]
 
 const RESERVE_OPTIONS = [
-  { id: 'rainy_day', label: 'Draw from Rainy Day Fund', amount: 980, category: 'reserves', difficulty: 'medium', desc: 'Fund held ~$2B. CBC says this depletes funds meant for recession.', source: 'Mayor\'s Preliminary Budget; CBC', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Leaves city highly vulnerable to recession.', isOneTime: true, conflicts: [] },
-  { id: 'rhbt', label: 'Draw from Retiree Health Trust', amount: 229, category: 'reserves', difficulty: 'easy', desc: 'Draw $229M from retiree health benefit trust in FY2027.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Pushes retiree health liabilities to the future.', isOneTime: true, conflicts: [] },
+  { id: 'rainy_day', label: 'Draw from Rainy Day Fund', amount: 980, category: 'reserves', difficulty: 'medium', desc: 'Fund held ~$2 billion. The CBC says this depletes funds meant for recession.', source: 'Mayor\'s Preliminary Budget; CBC', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Leaves city highly vulnerable to recession.', isOneTime: true, conflicts: [] },
+  { id: 'rhbt', label: 'Draw from Retiree Health Trust', amount: 229, category: 'reserves', difficulty: 'easy', desc: 'Draw $229 million from retiree health benefit trust in FY2027.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Pushes retiree health liabilities to the future.', isOneTime: true, conflicts: [] },
 ]
 
 const ALL_OPTIONS = [...REVENUE_OPTIONS, ...SPENDING_OPTIONS, ...RESERVE_OPTIONS]
@@ -472,7 +472,7 @@ function ActScale() {
           </div>
           <FadeIn delay={200}>
             <div className="hero-context">
-              That’s New York City’s <em>expense budget</em> for fiscal year 2026 — the operating spending that pays for daily services, from schools to policing to sanitation. It’s <strong>larger than the budgets of 46 states</strong>.
+              That’s New York City’s expense budget for fiscal year 2026 — the operating spending that pays for daily services, from schools to policing to sanitation. It’s <strong>larger than the budgets of 46 states</strong>.
               A separate ~$16 billion capital budget funds long-term infrastructure like roads, bridges, and new school buildings, mostly financed through bonds.
             </div>
           </FadeIn>
@@ -606,9 +606,9 @@ function ActScale() {
           <div className="insight-box">
             <div className="insight-label">Beyond the annual budget</div>
             <p>
-              The city also carries ~$110B in outstanding debt (GO bonds + TFA), $210B+ in unfunded pension and retiree health obligations,
-              and billions in deferred infrastructure maintenance. City-funded spending has grown from $60B to nearly $96B in
-              a decade — <span className="hl">$16B above what inflation alone would explain</span>.
+              The city also carries ~$110 billion in outstanding debt (GO bonds + TFA), $210 billion+ in unfunded pension and retiree health obligations,
+              and billions in deferred infrastructure maintenance. City-funded spending has grown from $60 billion to nearly $96 billion in
+              a decade — <span className="hl">$16 billion above what inflation alone would explain</span>.
             </p>
           </div>
 
@@ -797,7 +797,7 @@ function ActHistory() {
           <p>
             {compView === 'normalized'
               ? 'Once you normalize for all the functions NYC handles — K-12 education, public hospitals, social services, courts — its per-capita spending is still higher than peer cities, but far less dramatically. The gap narrows from 4-to-1 to roughly 1.4-to-1 vs. Chicago.'
-              : 'NYC runs schools, hospitals, social services, and courts that other cities fund through separate county or school district budgets. Comparing NYC\'s $116B to Houston\'s $7B is like comparing a supermarket to a bodega — they\'re selling different things.'}
+              : 'NYC runs schools, hospitals, social services, and courts that other cities fund through separate county or school district budgets. Comparing NYC\'s $116 billion to Houston\'s $7B is like comparing a supermarket to a bodega — they\'re selling different things.'}
           </p>
         </div>
         </FadeIn>
@@ -828,7 +828,7 @@ function ActCliff() {
         </FadeIn>
         <p className="act-sub">
           That’s the mayor’s number. Comptroller Levine projects a combined <strong style={{ color: C.orange }}>$10.4 billion shortfall</strong> across
-          FY2026–27 — the worst since the Great Recession. CBC’s "False Choice" report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
+          FY2026–27 — the worst since the Great Recession. CBC’s “False Choice” report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
           But the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
         </p>
 
@@ -864,8 +864,8 @@ function ActCliff() {
         </p>
         <p className="prose">
           The plan also draws down <strong style={{ color: C.chartreuse }}>$980 million from the Rainy Day Fund</strong> and
-          $229 million from the Retiree Health Benefits Trust — one-time money that won’t be there next year. Council Speaker
-          Menin immediately called the property tax hike a "non-starter" and released the Council’s own fiscal analysis showing
+          $229 million from the Retiree Health Benefits Trust — one-time money that won’t be there next year. City Council Speaker
+          Julie Menin immediately called the property tax hike a “non-starter” and released the Council’s own fiscal analysis showing
           <strong style={{ color: C.chartreuse }}>$1.7 billion in unrecognized resources</strong> — from higher-than-projected
           tax revenue, debt service savings, unfilled vacancies, and unrecognized interest earnings — arguing the Rainy Day Fund
           doesn’t need to be tapped at all. The CBC called the savings targets aspirational, not operational.
@@ -932,14 +932,14 @@ function ActCliff() {
             it would dwarf every other budget risk combined.
           </p>
           <p style={{ marginTop: 10 }}>
-            Meanwhile, the federal "One Big Beautiful Bill Act" threatens <span className="hl" style={{ color: C.chartreuse }}>$90–150 billion in Medicaid cuts to New York State</span> over
+            Meanwhile, the federal “One Big Beautiful Bill Act” threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
             ten years. New work requirements taking effect in 2027 could strip coverage from 500,000 to 1.2 million New Yorkers. The state Senate’s
-            one-house budget (March 10, 2026) would authorize NYC to raise corporate taxes by up to <span className="hl" style={{ color: C.chartreuse }}>$1.75 billion</span> ($1.5B corporate + $250M UBT) — but that requires final passage by the April 1 deadline, and the Governor has not endorsed it.
+            one-house budget (March 10, 2026) would authorize NYC to raise corporate taxes by up to <span className="hl" style={{ color: C.chartreuse }}>$1.75 billion</span> ($1.5 billion corporate + $250 million UBT) — but that requires final passage by the April 1 deadline and the governor has not endorsed it.
           </p>
         </div>
         </FadeIn>
 
-        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
+        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC “False Choice” (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
       </div>
     </div>
   )
@@ -969,7 +969,7 @@ function ActProposals() {
         {/* Labor cost explainer */}
         <FadeIn>
         <h3 className="chart-head">The elephant in the room: labor costs</h3>
-        <p className="chart-sub">Personnel spending, pensions, and health benefits account for the vast majority of city expenditure</p>
+        <p className="chart-sub">Personnel spending, pensions and health benefits account for the vast majority of city expenditure</p>
 
         <div className="labor-bar-wrap">
           <div className="labor-bar">
@@ -1013,10 +1013,10 @@ function ActProposals() {
           <div className="debate-col">
             <div className="debate-header against">The case against</div>
             <ul className="debate-list">
-              <li><strong>The tax base is already dangerously volatile.</strong> CBC estimates ~60% of city revenue comes from economically sensitive sources. A recession or Wall Street downturn could erase $4–5B in a single year.</li>
-              <li><strong>High earners can leave.</strong> Remote work has weakened the geographic lock-in. NYC saw elevated outmigration of high-income tax filers during and after COVID. Every departing millionaire takes ~$55,000/year in city income tax revenue.</li>
+              <li><strong>The tax base is already dangerously volatile.</strong> CBC estimates ~60% of city revenue comes from economically sensitive sources. A recession or Wall Street downturn could erase $4 billion to $5 billion in a single year.</li>
+              <li><strong>High earners can leave.</strong> Remote work has weakened the geographic lock-in. NYC saw elevated outmigration of high-income tax filers during and after COVID. Every departing millionaire takes ~$55,000 a year in city income tax revenue.</li>
               <li><strong>It doesn’t fix the structural problem.</strong> If spending grows 4–5% annually and revenue grows 2–3%, new taxes buy time but don’t close the gap permanently. FY2028's hole ($6.7B) will be even bigger.</li>
-              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The Governor and state Senate have shown little appetite for NYC-specific tax increases in an election year.</li>
+              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The governor and state Senate have shown little appetite for NYC-specific tax increases in an election year.</li>
             </ul>
           </div>
         </div>
@@ -1027,10 +1027,10 @@ function ActProposals() {
         {/* Mamdani new spending */}
         <FadeIn>
         <h3 className="chart-head">It’s not just about closing the gap — Mamdani wants to spend more, too</h3>
-        <p className="chart-sub">The preliminary budget includes new investments even as the city faces a $5.4B hole</p>
+        <p className="chart-sub">The preliminary budget includes new investments even as the city faces a $5.4 billion hole</p>
 
         <p className="prose">
-          This is what makes budget politics so difficult: Mamdani wants Albany to authorize new taxes on the wealthy and on corporations. The 9.5% property tax hike in his budget is widely seen as a pressure tactic — a deliberately hard-to-swallow fallback designed to push Albany toward his preferred revenue package. Every major political partner, from the City Council speaker to the governor, has called the property tax increase a non-starter. Yet even as the city works to close a $5.4B hole, Mamdani is also proposing <strong>significant new spending</strong>. His preliminary budget includes:
+          This is what makes budget politics so difficult: Mamdani wants Albany to authorize new taxes on the wealthy and on corporations. The 9.5% property tax hike in his budget is widely seen as a pressure tactic — a deliberately hard-to-swallow fallback designed to push Albany toward his preferred revenue package. Every major political partner, from the City Council speaker to the governor, has called the property tax increase a non-starter. Yet even as the city works to close a $5.4 billion hole, Mamdani is also proposing <strong>significant new spending</strong>. His preliminary budget includes:
         </p>
 
         <div className="new-spending-list">
@@ -1051,7 +1051,7 @@ function ActProposals() {
           <div className="new-spend-item">
             <span className="new-spend-amount">$300M</span>
             <div className="new-spend-body">
-              <div className="new-spend-label">Mental health & "B-HEARD" crisis response</div>
+              <div className="new-spend-label">Mental health & “B-HEARD” crisis response</div>
               <div className="new-spend-desc">Scaling up non-police mental health emergency response teams citywide. Currently operational in limited precincts.</div>
             </div>
           </div>
@@ -1066,7 +1066,7 @@ function ActProposals() {
             <span className="new-spend-amount">$200M</span>
             <div className="new-spend-body">
               <div className="new-spend-label">NYCHA capital repairs (city share)</div>
-              <div className="new-spend-desc">Additional city contribution to address $78B+ in deferred maintenance at the nation’s largest public housing authority.</div>
+              <div className="new-spend-desc">Additional city contribution to address $78 billion+ in deferred maintenance at the nation’s largest public housing authority.</div>
             </div>
           </div>
           <div className="new-spend-item">
@@ -1089,8 +1089,8 @@ function ActProposals() {
           <div className="insight-label">Not yet funded — but on the horizon</div>
           <p>
             Two of Mamdani’s biggest campaign promises are <em>not</em> in the preliminary budget but loom over the fiscal picture.
-            <strong> Free citywide bus service</strong> would cost an estimated $800M–$1B/year in lost MTA fare revenue — the city and state
-            would jointly reimburse the MTA. Requires state legislation; Governor Hochul has not endorsed it.
+            <strong> Free citywide bus service</strong> would cost an estimated $800 million to $1 billion a year in lost MTA fare revenue — the city and state
+            would jointly reimburse the MTA. Requires state legislation; Gov. Hochul has not endorsed it.
             <strong> A new Department of Community Safety</strong> would consolidate gun violence prevention, hate crime prevention, and
             community mental health into a single agency at an estimated $500M in new funding (plus ~$600M transferred from existing agencies).
             The administration says funding will appear in the executive budget due late April.
@@ -1120,7 +1120,7 @@ function ActProposals() {
         <div className="proposal-card">
           <div className="proposal-header">
             <div className="proposal-source">Citizens Budget Commission</div>
-            <div className="proposal-title">"False Choice" (March 2026)</div>
+            <div className="proposal-title">“False Choice” (March 2026)</div>
           </div>
           <p className="prose" style={{ marginBottom: 12 }}>
             The CBC — the city’s most influential fiscal watchdog — published its most aggressive reform agenda yet. Their core argument: the combined FY26–27 gap is <strong>$9.4 billion</strong>, city-funded spending grew <strong>6.8% annually</strong> from FY21–25 (outpacing tax revenue growth of 5.2%), and <strong>NYC’s spending problem is structural, not cyclical</strong>. No amount of new revenue will fix it without operational reform.
@@ -1130,7 +1130,7 @@ function ActProposals() {
             <div className="proposal-item"><span className="proposal-amount">{fmtM(400)}</span> Adjust school funding for declining enrollment (-120K students)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(500)}</span> Switch to self-funded employee health plan</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(200)}</span> Consolidate fragmented union welfare funds</div>
-            <div className="proposal-item"><span className="proposal-amount">{fmtM(250)}</span> Overhaul $32B+ in city procurement contracts</div>
+            <div className="proposal-item"><span className="proposal-amount">{fmtM(250)}</span> Overhaul $32 billion+ in city procurement contracts</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(600)}</span> Reduce funded vacancies and slow hiring</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(300)}</span> Curb uniformed-service overtime</div>
           </div>
@@ -1174,7 +1174,7 @@ function ActProposals() {
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1770)}</span> Agency savings via EO 12 Chief Savings Officers (2.5%)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(980)}</span> Rainy Day Fund drawdown (one-time)</div>
           </div>
-          <p className="proposal-note">Council Speaker Menin called the property tax hike a "non-starter." CBC warned the savings targets are aspirational, not operational. The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
+          <p className="proposal-note">Council Speaker Menin called the property tax hike a “non-starter.” CBC warned the savings targets are aspirational, not operational. The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
         </div>
         </FadeIn>
 
@@ -1187,7 +1187,7 @@ function ActProposals() {
         </div>
         </FadeIn>
 
-        <Source>CBC "False Choice" (March 2026); Comptroller FY2027 Budget Preview; Mayor’s FY2027 Preliminary Budget (Feb 2026); NYC Office of Labor Relations</Source>
+        <Source>CBC “False Choice” (March 2026); Comptroller FY2027 Budget Preview; Mayor’s FY2027 Preliminary Budget (Feb 2026); NYC Office of Labor Relations</Source>
       </div>
     </div>
   )
@@ -1453,11 +1453,11 @@ const BENCHMARK_PLANS = {
   mayor: {
     label: "Mayor’s Plan",
     desc: 'Mamdani\'s FY2027 Preliminary Budget (Feb 2026)',
-    selections: ['pit_millionaire', 'corporate_tax', 'property_tax', 'dof_auditors', 'tort_lawyers', 'cso_savings', 'rainy_day', 'rhbt'],
+    selections: ['pit_millionaire', 'corporate_tax', 'dof_auditors', 'tort_lawyers', 'cso_savings', 'rainy_day', 'rhbt'],
   },
   cbc: {
     label: 'CBC Blueprint',
-    desc: 'CBC "False Choice" (March 2026)',
+    desc: 'CBC “False Choice” (March 2026)',
     selections: ['class_size', 'enrollment', 'cso_savings', 'overtime', 'procurement', 'vacancies', 'health_ins', 'welfare_funds'],
   },
   comptroller: {
