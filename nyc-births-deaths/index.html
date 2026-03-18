@@ -421,8 +421,8 @@
   /* ---- DARK CHART ERA ANNOTATIONS ---- */
   .era-line { stroke: rgba(255,255,255,0.12); stroke-dasharray: 3,4; }
   .era-label { font-size: 10px; fill: var(--vc-periwinkle); text-anchor: middle; }
-  .gap-marker { fill: rgba(255,255,255,0.03); }
-  .gap-label { font-size: 11px; fill: rgba(255,255,255,0.15); text-anchor: middle; }
+  /* Pre-1966 data is 5-year averages — add subtle shading */
+  .avg-marker { fill: rgba(255,255,255,0.02); }
 
   /* ---- WHITE CHART ERA ANNOTATIONS ---- */
   .era-line-light { stroke: var(--vc-cloud); stroke-dasharray: 3,4; }
@@ -550,8 +550,8 @@
 <div class="data-note-zone">
   <div class="data-note">
     <h3>About this data</h3>
-    <strong>Sources:</strong> NYC Dept. of Records (digitized birth certificates, 1855–1909; death certificates, 1862–1948); NYC DOHMH vital statistics (births 2007–2023, deaths 2007–2021).<br><br>
-    <strong>Data gap, 1910–2006:</strong> No machine-readable annual totals are available on NYC Open Data for this period. The DOHMH publishes annual <em>Summary of Vital Statistics</em> reports back to 1930, but those are in PDF format.<br><br>
+    <strong>Sources:</strong> NYC Dept. of Records (digitized birth certificates, 1855–1909; death certificates, 1862–1948); NYC DOHMH <em>Annual Summary of Vital Statistics</em>, Table PC1, 1898–2023 (annual totals and 5-year averages); NYC DOHMH vital statistics datasets on Open Data (births by race/ethnicity 2007–2023, deaths by cause 2007–2021).<br><br>
+    <strong>Data quality note, pre-1966:</strong> The main chart uses 5-year averages from DOHMH Table PC1 for years prior to 1966, which is why the line appears stepped during those periods. Individual annual figures exist in older PDF summaries but are not yet digitized. Borough-level breakdowns from digitized certificates remain limited to 1855–1909 (births) and 1862–1948 (deaths).<br><br>
     <strong>What this doesn't show:</strong> Migration — both domestic and international — has been at least as important as natural increase in shaping New York's population. The city's population surged from under 1 million in 1860 to nearly 8 million by 1940, driven overwhelmingly by immigration.<br><br>
     <strong>Historical caveats:</strong> Early vital registration was incomplete, especially before New York State mandated universal registration in 1880. Figures before that date undercount actual births and deaths. The historical death certificate data also lacks cause of death — only name, age, county, and date were digitized.<br><br>
     <strong>Not tracked:</strong> Religion, hospital/facility of birth, and occupation are not present in the digitized certificate indices.
@@ -564,6 +564,7 @@
   <div class="links">
     Data from <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-Bi/5gq7-rgmv">NYC Historical Birth Certificates</a>,
     <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">Death Certificates</a>,
+    <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">DOHMH Annual Summaries</a>,
     and <a href="https://data.cityofnewyork.us/Health/New-York-City-Leading-Causes-of-Death/jb7j-dtam">DOHMH Vital Statistics</a>.
   </div>
 </footer>
@@ -625,15 +626,114 @@ async function fetchJSON(url) {
   return r.json();
 }
 
+// ---- SUPPLEMENTAL DATA (DOHMH Annual Summary of Vital Statistics, Table PC1) ----
+// Pre-1966 figures are 5-year averages; 1966+ are individual year totals.
+// Sources: nyc.gov/assets/doh/downloads/pdf/vs/2008sum.pdf, 2020sum.pdf, 2023sum.pdf
+const supplementalData = {
+  // 5-year averages spread across individual years for smooth charting
+  // 1898-1900
+  1898: { births: 119000, deaths: 67503 }, 1899: { births: 119000, deaths: 67503 },
+  1900: { births: 119000, deaths: 67503 },
+  // 1901-1905
+  1901: { births: 129000, deaths: 71689 }, 1902: { births: 129000, deaths: 71689 },
+  1903: { births: 129000, deaths: 71689 }, 1904: { births: 129000, deaths: 71689 },
+  1905: { births: 129000, deaths: 71689 },
+  // 1906-1910
+  1906: { births: 144000, deaths: 75865 }, 1907: { births: 144000, deaths: 75865 },
+  1908: { births: 144000, deaths: 75865 }, 1909: { births: 144000, deaths: 75865 },
+  1910: { births: 144000, deaths: 75865 },
+  // 1911-1915
+  1911: { births: 140581, deaths: 74666 }, 1912: { births: 140581, deaths: 74666 },
+  1913: { births: 140581, deaths: 74666 }, 1914: { births: 140581, deaths: 74666 },
+  1915: { births: 140581, deaths: 74666 },
+  // 1916-1920
+  1916: { births: 136101, deaths: 80435 }, 1917: { births: 136101, deaths: 80435 },
+  1918: { births: 136101, deaths: 80435 }, 1919: { births: 136101, deaths: 80435 },
+  1920: { births: 136101, deaths: 80435 },
+  // 1921-1925
+  1921: { births: 130462, deaths: 69303 }, 1922: { births: 130462, deaths: 69303 },
+  1923: { births: 130462, deaths: 69303 }, 1924: { births: 130462, deaths: 69303 },
+  1925: { births: 130462, deaths: 69303 },
+  // 1926-1930
+  1926: { births: 125590, deaths: 75395 }, 1927: { births: 125590, deaths: 75395 },
+  1928: { births: 125590, deaths: 75395 }, 1929: { births: 125590, deaths: 75395 },
+  1930: { births: 125590, deaths: 75395 },
+  // 1931-1935
+  1931: { births: 106179, deaths: 75561 }, 1932: { births: 106179, deaths: 75561 },
+  1933: { births: 106179, deaths: 75561 }, 1934: { births: 106179, deaths: 75561 },
+  1935: { births: 106179, deaths: 75561 },
+  // 1936-1940
+  1936: { births: 102418, deaths: 76065 }, 1937: { births: 102418, deaths: 76065 },
+  1938: { births: 102418, deaths: 76065 }, 1939: { births: 102418, deaths: 76065 },
+  1940: { births: 102418, deaths: 76065 },
+  // 1941-1945
+  1941: { births: 126495, deaths: 78382 }, 1942: { births: 126495, deaths: 78382 },
+  1943: { births: 126495, deaths: 78382 }, 1944: { births: 126495, deaths: 78382 },
+  1945: { births: 126495, deaths: 78382 },
+  // 1946-1950
+  1946: { births: 158926, deaths: 79708 }, 1947: { births: 158926, deaths: 79708 },
+  1948: { births: 158926, deaths: 79708 }, 1949: { births: 158926, deaths: 79708 },
+  1950: { births: 158926, deaths: 79708 },
+  // 1951-1955
+  1951: { births: 163526, deaths: 80583 }, 1952: { births: 163526, deaths: 80583 },
+  1953: { births: 163526, deaths: 80583 }, 1954: { births: 163526, deaths: 80583 },
+  1955: { births: 163526, deaths: 80583 },
+  // 1956-1960
+  1956: { births: 166949, deaths: 84290 }, 1957: { births: 166949, deaths: 84290 },
+  1958: { births: 166949, deaths: 84290 }, 1959: { births: 166949, deaths: 84290 },
+  1960: { births: 166949, deaths: 84290 },
+  // 1961-1965
+  1961: { births: 165197, deaths: 87597 }, 1962: { births: 165197, deaths: 87597 },
+  1963: { births: 165197, deaths: 87597 }, 1964: { births: 165197, deaths: 87597 },
+  1965: { births: 165197, deaths: 87597 },
+  // Individual years 1966+
+  1966: { births: 153335, deaths: 88418 }, 1967: { births: 145802, deaths: 87610 },
+  1968: { births: 141920, deaths: 91169 }, 1969: { births: 146221, deaths: 88535 },
+  1970: { births: 149192, deaths: 88161 },
+  1971: { births: 131920, deaths: 86724 }, 1972: { births: 117088, deaths: 85363 },
+  1973: { births: 110639, deaths: 82319 }, 1974: { births: 110642, deaths: 79846 },
+  1975: { births: 109418, deaths: 76312 }, 1976: { births: 109995, deaths: 77538 },
+  1977: { births: 110486, deaths: 75011 }, 1978: { births: 106720, deaths: 73081 },
+  1979: { births: 106021, deaths: 72079 }, 1980: { births: 107066, deaths: 76625 },
+  1981: { births: 108547, deaths: 73329 }, 1982: { births: 111487, deaths: 73083 },
+  1983: { births: 112353, deaths: 73544 }, 1984: { births: 113332, deaths: 74278 },
+  1985: { births: 118542, deaths: 74852 }, 1986: { births: 122108, deaths: 75702 },
+  1987: { births: 127386, deaths: 76448 }, 1988: { births: 132226, deaths: 77817 },
+  1989: { births: 137673, deaths: 75957 }, 1990: { births: 139630, deaths: 73875 },
+  1991: { births: 138148, deaths: 72421 }, 1992: { births: 136002, deaths: 71001 },
+  1993: { births: 133583, deaths: 73408 }, 1994: { births: 133662, deaths: 71038 },
+  1995: { births: 131009, deaths: 70769 }, 1996: { births: 126901, deaths: 66784 },
+  1997: { births: 123313, deaths: 62506 }, 1998: { births: 124252, deaths: 61010 },
+  1999: { births: 123739, deaths: 62470 }, 2000: { births: 125563, deaths: 60839 },
+  2001: { births: 124023, deaths: 62964 }, 2002: { births: 122937, deaths: 59651 },
+  2003: { births: 124345, deaths: 59213 }, 2004: { births: 124099, deaths: 57466 },
+  2005: { births: 122725, deaths: 57068 }, 2006: { births: 125506, deaths: 55391 },
+  2007: { births: 128961, deaths: 54073 }, 2008: { births: 127680, deaths: 54193 },
+  2009: { births: 126774, deaths: 52881 }, 2010: { births: 124791, deaths: 52575 },
+  2011: { births: 123029, deaths: 52789 }, 2012: { births: 123231, deaths: 52455 },
+  2013: { births: 120457, deaths: 53409 }, 2014: { births: 122084, deaths: 53034 },
+  2015: { births: 121673, deaths: 54120 }, 2016: { births: 120367, deaths: 54280 },
+  2017: { births: 117013, deaths: 54319 }, 2018: { births: 114296, deaths: 55081 },
+  2019: { births: 110442, deaths: 54559 }, 2020: { births: 100022, deaths: 82143 },
+  2021: { births: 99262, deaths: 63551 }, 2022: { births: 99459, deaths: 60596 },
+  2023: { births: 98389, deaths: 55459 }
+};
+
 // ---- DATA LOADING ----
 async function loadAllData() {
-  const [histBirths, histDeaths, modernBirthRace, modernDeaths, histDeathAge] = await Promise.all([
-    fetchJSON('https://data.cityofnewyork.us/resource/5gq7-rgmv.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
-    fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
-    fetchJSON('https://data.cityofnewyork.us/resource/wffy-3iyg.json?$limit=5000'),
-    fetchJSON('https://data.cityofnewyork.us/resource/jb7j-dtam.json?$limit=50000'),
-    fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,age,count(*)%20as%20total&$group=year,age&$order=year&$limit=50000')
-  ]);
+  // Try to load from APIs; fall back gracefully if they fail
+  let histBirths = [], histDeaths = [], modernBirthRace = [], modernDeaths = [], histDeathAge = [];
+  try {
+    [histBirths, histDeaths, modernBirthRace, modernDeaths, histDeathAge] = await Promise.all([
+      fetchJSON('https://data.cityofnewyork.us/resource/5gq7-rgmv.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/wffy-3iyg.json?$limit=5000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/jb7j-dtam.json?$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,age,count(*)%20as%20total&$group=year,age&$order=year&$limit=50000')
+    ]);
+  } catch (e) {
+    console.warn('API fetch failed, using supplemental data only:', e.message);
+  }
 
   const birthsByYear = {}, birthsByYearBorough = {}, birthsByMonth = {};
   for (const row of histBirths) {
@@ -685,6 +785,13 @@ async function loadAllData() {
     const cause = simpleCause(row.leading_cause);
     if (!deathsByYearCause[y]) deathsByYearCause[y] = {};
     deathsByYearCause[y][cause] = (deathsByYearCause[y][cause] || 0) + d;
+  }
+
+  // Merge supplemental DOHMH data — fills gaps where API data doesn't exist
+  for (const [yr, d] of Object.entries(supplementalData)) {
+    const y = +yr;
+    if (!birthsByYear[y]) birthsByYear[y] = d.births;
+    if (!deathsByYear[y]) deathsByYear[y] = d.deaths;
   }
 
   return { birthsByYear, deathsByYear, birthsByYearBorough, deathsByYearBorough,
@@ -791,12 +898,6 @@ function buildMainChart(data) {
   const maxVal = Math.max(d3.max(yearData, d => d.births || 0), d3.max(yearData, d => d.deaths || 0));
   const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
 
-  // Gap
-  g.append('rect').attr('x', x(1910)).attr('y', 0)
-    .attr('width', x(2006) - x(1910)).attr('height', h).attr('class', 'gap-marker');
-  g.append('text').attr('x', (x(1910) + x(2006)) / 2).attr('y', h / 2 - 6).attr('class', 'gap-label').text('No machine-readable data');
-  g.append('text').attr('x', (x(1910) + x(2006)) / 2).attr('y', h / 2 + 10).attr('class', 'gap-label').text('1910–2006');
-
   // Axes (dark theme)
   g.append('g').attr('transform', `translate(0,${h})`).call(
     d3.axisBottom(x).tickFormat(d3.format('d')).ticks(12).tickSize(0)
@@ -812,7 +913,9 @@ function buildMainChart(data) {
   const eras = [
     { year: 1863, label: 'Civil War' }, { year: 1880, label: 'Registration mandated' },
     { year: 1898, label: 'Consolidation' }, { year: 1918, label: '1918 Flu' },
-    { year: 1930, label: 'Depression' }, { year: 2020, label: 'COVID-19' }
+    { year: 1930, label: 'Depression' }, { year: 1946, label: 'Baby Boom' },
+    { year: 1968, label: 'Peak deaths' }, { year: 2001, label: '9/11' },
+    { year: 2020, label: 'COVID-19' }
   ];
   for (const era of eras) {
     if (era.year < minYear || era.year > maxYear) continue;
