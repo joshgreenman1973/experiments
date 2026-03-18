@@ -148,7 +148,7 @@ const SPENDING = [
   },
   { id: 'health', label: 'Health & Hospitals', amount: 13.2, color: C.cerulean,
     workers: 40000, personnel: 8.5, otps: 4.7,
-    desc: 'NYC Health + Hospitals runs the largest public health system in the US: 11 acute-care hospitals, 70+ community health centers, 1.4 million patients a year.',
+    desc: 'NYC Health + Hospitals runs the largest public health system in the US: 11 acute-care hospitals, 70+ community health centers, more than 1 million patients a year.',
     subs: [
       { label: 'H+H hospital operations', amount: 7.2 },
       { label: 'DOHMH public health programs', amount: 2.4 },
@@ -184,7 +184,7 @@ const SPENDING = [
   },
   { id: 'fire', label: 'Fire & EMS (FDNY)', amount: 2.5, color: C.orange,
     workers: 17000, personnel: 2.1, otps: 0.4,
-    desc: 'Operates 218 firehouses and responds to 1.8 million calls/year. EMS response times have been rising.',
+    desc: 'Operates 218 firehouses and responds to ~1.5 million calls a year. EMS response times have been rising.',
     subs: [
       { label: 'Fire suppression', amount: 1.6 },
       { label: 'Emergency medical services', amount: 0.9 },
@@ -340,7 +340,7 @@ const OUTYEAR_GAPS = [
 
 const RISKS = [
   { label: 'Federal funding cuts (OBBBA)', low: 1000, high: 4000, color: C.magenta, desc: 'The “One Big Beautiful Bill Act” threatens $90–150B in Medicaid cuts to NYS over 10 years. New work requirements (effective 2027) could strip coverage from 500,000 to 1.2 million New Yorkers. Section 8, Title I, SNAP and CDBG also at risk.' },
-  { label: 'Labor contract costs', low: 800, high: 2000, color: C.cerulean, desc: 'NYC must negotiate contracts with all major unions. Every 1% raise costs ~$400 million/year. Pattern bargaining suggests 3-4% annual increases.' },
+  { label: 'Labor contract costs', low: 800, high: 2000, color: C.cerulean, desc: 'NYC must negotiate contracts with all major unions. Every 1% raise costs ~$450 million/year. Pattern bargaining suggests 3-4% annual increases.' },
   { label: 'Asylum seeker costs', low: 500, high: 1400, color: C.orange, desc: 'Currently ~$1.4 billion/year in FY2026, down from the FY2024 peak. Could decline further if arrivals slow, or rebound if federal work permits are revoked.' },
   { label: 'Unbudgeted overtime', low: 559, high: 800, color: C.indigo, desc: 'Comptroller estimates $559 million. Historically, NYPD alone exceeds budget by 60-80%.' },
   { label: 'Class size mandate', low: 543, high: 1300, color: C.chartreuse, desc: 'State mandate requires hiring ~6,000 teachers over 5 years. Costs up to $1.3 billion annually when fully phased in.' },
@@ -606,7 +606,7 @@ function ActScale() {
           <div className="insight-box">
             <div className="insight-label">Beyond the annual budget</div>
             <p>
-              The city also carries ~$110 billion in outstanding debt (GO bonds + TFA), $210 billion+ in unfunded pension and retiree health obligations,
+              The city also carries ~$110 billion in outstanding debt (GO bonds + TFA), more than $100 billion in unfunded retiree health obligations alone,
               and billions in deferred infrastructure maintenance. City-funded spending has grown from $60 billion to nearly $96 billion in
               a decade — <span className="hl">$16 billion above what inflation alone would explain</span>.
             </p>
@@ -827,8 +827,11 @@ function ActCliff() {
           </h2>
         </FadeIn>
         <p className="act-sub">
+          New York City is required by law to adopt a balanced budget every year — a rule imposed after the 1975 fiscal crisis, when the city nearly went bankrupt and the state created the Financial Control Board to oversee its finances. The FCB still exists today.
+        </p>
+        <p className="act-sub">
           That’s the mayor’s number. Comptroller Levine projects a combined <strong style={{ color: C.orange }}>$10.4 billion shortfall</strong> across
-          FY2026–27 — the worst since the Great Recession. CBC’s “False Choice” report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
+          FY2026–27 — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
           But the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
         </p>
 
@@ -865,7 +868,7 @@ function ActCliff() {
         <p className="prose">
           The plan also draws down <strong style={{ color: C.chartreuse }}>$980 million from the Rainy Day Fund</strong> and
           $229 million from the Retiree Health Benefits Trust — one-time money that won’t be there next year. City Council Speaker
-          Julie Menin immediately called the property tax hike a “non-starter” and released the Council’s own fiscal analysis showing
+          Julie Menin immediately called the property tax hike a "non-starter" and released the Council’s own fiscal analysis showing
           <strong style={{ color: C.chartreuse }}>$1.7 billion in unrecognized resources</strong> — from higher-than-projected
           tax revenue, debt service savings, unfilled vacancies, and unrecognized interest earnings — arguing the Rainy Day Fund
           doesn’t need to be tapped at all. The CBC called the savings targets aspirational, not operational.
@@ -881,7 +884,7 @@ function ActCliff() {
             citing structural budget gaps and reliance on one-time revenues. Two days later, <span className="hl" style={{ color: C.chartreuse }}>S&P warned it may downgrade</span> the
             city’s AA rating if the budget is balanced by draining reserves. A downgrade would raise borrowing costs on
             the city’s ~$110 billion in outstanding debt — every basis point costs taxpayers roughly $4.7 million per year.
-            The last time NYC was downgraded was 2021, briefly, during COVID. Before that: the fiscal crisis of the 1970s.
+            The last time NYC had its credit outlook revised was 2021, during COVID. Before that: the fiscal crisis of the 1970s.
           </p>
         </div>
         </FadeIn>
@@ -932,14 +935,14 @@ function ActCliff() {
             it would dwarf every other budget risk combined.
           </p>
           <p style={{ marginTop: 10 }}>
-            Meanwhile, the federal “One Big Beautiful Bill Act” threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
+            Meanwhile, the federal "One Big Beautiful Bill Act" threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
             ten years. New work requirements taking effect in 2027 could strip coverage from 500,000 to 1.2 million New Yorkers. The state Senate’s
             one-house budget (March 10, 2026) would authorize NYC to raise corporate taxes by up to <span className="hl" style={{ color: C.chartreuse }}>$1.75 billion</span> ($1.5 billion corporate + $250 million UBT) — but that requires final passage by the April 1 deadline and the governor has not endorsed it.
           </p>
         </div>
         </FadeIn>
 
-        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC “False Choice” (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
+        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
       </div>
     </div>
   )
@@ -983,10 +986,10 @@ function ActProposals() {
         </div>
 
         <p className="prose">
-          NYC employs roughly <strong>288,000 people</strong> — more than the active-duty U.S. Marine Corps. Salaries, wages, overtime, pensions, and health insurance for current and retired workers consume about <strong>70 cents of every dollar</strong> the city spends. Pensions alone cost <strong>{fmtB(SPENDING.find(s => s.id === 'pensions').amount)}</strong> per year, up from $1.5 billion in 2002.
+          NYC employs roughly <strong>306,000 people</strong> — more than the active-duty U.S. Marine Corps. Salaries, wages, overtime, pensions, and health insurance for current and retired workers consume about <strong>70 cents of every dollar</strong> the city spends. Pensions alone cost <strong>{fmtB(SPENDING.find(s => s.id === 'pensions').amount)}</strong> per year, up from $1.5 billion in 2002.
         </p>
         <p className="prose">
-          The city negotiates contracts with more than <strong>150 municipal unions</strong>, led by DC 37 (the largest, representing ~150,000 members), the UFT (teachers), the PBA (police officers), and the UFA (firefighters). Pattern bargaining means that whatever the city agrees to with one major union sets the floor for the rest. Every 1% across-the-board raise costs roughly <strong>$400 million per year</strong>.
+          The city negotiates contracts with more than <strong>150 municipal unions</strong>, led by DC 37 (the largest, representing ~150,000 members), the UFT (teachers), the PBA (police officers), and the UFA (firefighters). Pattern bargaining means that whatever the city agrees to with one major union sets the floor for the rest. Every 1% across-the-board raise costs roughly <strong>$450 million per year</strong>.
         </p>
         <p className="prose">
           Health insurance is the other pressure point. The city provides <strong>premium-free health coverage</strong> to employees and retirees — a benefit virtually no private employer still offers. The de Blasio administration tried to switch retirees to a Medicare Advantage plan; unions sued and won. The Adams administration tried again; same result. The annual cost of employee and retiree health benefits now exceeds <strong>$9 billion</strong>.
@@ -1051,7 +1054,7 @@ function ActProposals() {
           <div className="new-spend-item">
             <span className="new-spend-amount">$300M</span>
             <div className="new-spend-body">
-              <div className="new-spend-label">Mental health & “B-HEARD” crisis response</div>
+              <div className="new-spend-label">Mental health & "B-HEARD" crisis response</div>
               <div className="new-spend-desc">Scaling up non-police mental health emergency response teams citywide. Currently operational in limited precincts.</div>
             </div>
           </div>
@@ -1120,7 +1123,7 @@ function ActProposals() {
         <div className="proposal-card">
           <div className="proposal-header">
             <div className="proposal-source">Citizens Budget Commission</div>
-            <div className="proposal-title">“False Choice” (March 2026)</div>
+            <div className="proposal-title">"False Choice" (March 2026)</div>
           </div>
           <p className="prose" style={{ marginBottom: 12 }}>
             The CBC — the city’s most influential fiscal watchdog — published its most aggressive reform agenda yet. Their core argument: the combined FY26–27 gap is <strong>$9.4 billion</strong>, city-funded spending grew <strong>6.8% annually</strong> from FY21–25 (outpacing tax revenue growth of 5.2%), and <strong>NYC’s spending problem is structural, not cyclical</strong>. No amount of new revenue will fix it without operational reform.
@@ -1174,7 +1177,7 @@ function ActProposals() {
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1770)}</span> Agency savings via EO 12 Chief Savings Officers (2.5%)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(980)}</span> Rainy Day Fund drawdown (one-time)</div>
           </div>
-          <p className="proposal-note">Council Speaker Menin called the property tax hike a “non-starter.” CBC warned the savings targets are aspirational, not operational. The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
+          <p className="proposal-note">Council Speaker Menin called the property tax hike a "non-starter." CBC warned the savings targets are aspirational, not operational. The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
         </div>
         </FadeIn>
 
@@ -1187,7 +1190,7 @@ function ActProposals() {
         </div>
         </FadeIn>
 
-        <Source>CBC “False Choice” (March 2026); Comptroller FY2027 Budget Preview; Mayor’s FY2027 Preliminary Budget (Feb 2026); NYC Office of Labor Relations</Source>
+        <Source>CBC "False Choice" (March 2026); Comptroller FY2027 Budget Preview; Mayor’s FY2027 Preliminary Budget (Feb 2026); NYC Office of Labor Relations</Source>
       </div>
     </div>
   )
