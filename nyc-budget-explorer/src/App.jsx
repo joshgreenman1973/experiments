@@ -1069,14 +1069,40 @@ function ActProposals() {
               <div className="new-spend-desc">Additional city contribution to address $78B+ in deferred maintenance at the nation's largest public housing authority.</div>
             </div>
           </div>
+          <div className="new-spend-item">
+            <span className="new-spend-amount">$106M</span>
+            <div className="new-spend-body">
+              <div className="new-spend-label">Summer Rising youth program</div>
+              <div className="new-spend-desc">Summer academics and enrichment for K-12 students, with outyear funding committed.</div>
+            </div>
+          </div>
+          <div className="new-spend-item">
+            <span className="new-spend-amount">$54M</span>
+            <div className="new-spend-body">
+              <div className="new-spend-label">Community Food Connection (tripling food assistance)</div>
+              <div className="new-spend-desc">More than triples HRA's baseline food assistance funding in FY27.</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="insight-box" style={{ marginTop: 16 }}>
+          <div className="insight-label">Not yet funded — but on the horizon</div>
+          <p>
+            Two of Mamdani's biggest campaign promises are <em>not</em> in the preliminary budget but loom over the fiscal picture.
+            <strong> Free citywide bus service</strong> would cost an estimated $800M–$1B/year in lost MTA fare revenue — the city and state
+            would jointly reimburse the MTA. Requires state legislation; Governor Hochul has not endorsed it.
+            <strong> A new Department of Community Safety</strong> would consolidate gun violence prevention, hate crime prevention, and
+            community mental health into a single agency at an estimated $500M in new funding (plus ~$600M transferred from existing agencies).
+            The administration says funding will appear in the executive budget due late April.
+          </p>
         </div>
 
         <div className="insight-box">
           <div className="insight-label">The math problem</div>
           <p>
-            These new initiatives total roughly <span className="hl">$1.6 billion</span>. Add that to the $5.4B structural gap and
-            Mamdani actually needs to find <span className="hl">$7 billion</span> — through some combination of new taxes, spending cuts
-            elsewhere, and reserve drawdowns. Critics call it fiscal fantasy. Supporters say the city can't afford
+            The funded initiatives above total roughly <span className="hl">$1.76 billion</span>. Add that to the $5.4B structural gap and
+            Mamdani actually needs to find <span className="hl">$7.2 billion</span> — through some combination of new taxes, spending cuts
+            elsewhere, and reserve drawdowns. And that's before free buses or the Department of Community Safety. Critics call it fiscal fantasy. Supporters say the city can't afford
             <em>not</em> to invest in childcare and climate. Both are right, which is what makes this so hard.
           </p>
         </div>
