@@ -231,6 +231,11 @@ canvas.spark{display:block;margin:4px auto 0;image-rendering:auto}
     <div class="metrics" id="water-metrics"><div class="loading">Fetching water data&#8230;</div></div>
   </div>
 
+  <div class="section" id="sec-spending" data-accent="blue">
+    <div class="section-header"><h2>City Spending (Comptroller)</h2><div><a class="source-link" href="https://www.checkbooknyc.com" target="_blank">source</a> <span class="section-badge" id="spending-date">&#8230;</span></div></div>
+    <div class="metrics" id="spending-metrics"><div class="loading">Fetching CheckbookNYC&#8230;</div></div>
+  </div>
+
   <div class="section" id="sec-oath" data-accent="orange">
     <div class="section-header"><h2>Enforcement (OATH/ECB)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/OATH-ECB-Violations/jtm6-3c6z" target="_blank">source</a> <span class="section-badge" id="oath-date">&#8230;</span></div></div>
     <div class="metrics" id="oath-metrics"><div class="loading">Fetching OATH data&#8230;</div></div>
@@ -1163,6 +1168,110 @@ async function loadWorkforce() {
   }
 }
 
+async function checkbookQuery(xmlBody) {
+  // Try CORS proxies in order
+  const proxies = [
+    url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+  // Direct POST through CORS proxy
+  for (const makeProxy of proxies) {
+    try {
+      const proxyUrl = makeProxy('https://www.checkbooknyc.com/api');
+      const r = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/xml'},
+        body: xmlBody,
+        signal: AbortSignal.timeout(15000),
+      });
+      if (r.ok) {
+        const text = await r.text();
+        if (text.includes('<result>success</result>')) return text;
+      }
+    } catch(e) { continue; }
+  }
+  throw new Error('CheckbookNYC unavailable (CORS)');
+}
+
+function parseXmlVal(xml, tag) {
+  const m = xml.match(new RegExp(`<${tag}>(.*?)</${tag}>`));
+  return m ? m[1] : null;
+}
+
+function parseXmlAll(xml, tag) {
+  const re = new RegExp(`<${tag}>(.*?)</${tag}>`, 'g');
+  const results = [];
+  let m;
+  while ((m = re.exec(xml)) !== null) results.push(m[1]);
+  return results;
+}
+
+async function loadSpending() {
+  try {
+    // Get spending by category for current FY
+    const spendingXml = await checkbookQuery(
+      `<request><type_of_data>Spending</type_of_data><records_from>1</records_from><max_records>20</max_records><search_criteria><criteria><name>fiscal_year</name><type>value</type><value>2025</value></criteria></search_criteria><response_columns><column>agency</column><column>payee_name</column><column>check_amount</column><column>issue_date</column><column>spending_category</column></response_columns></request>`
+    );
+
+    const totalRecords = parseXmlVal(spendingXml, 'record_count');
+
+    // Parse transactions
+    const transactions = spendingXml.match(/<transaction>[\s\S]*?<\/transaction>/g) || [];
+    const parsed = transactions.map(tx => ({
+      agency: parseXmlVal(tx, 'agency'),
+      payee: parseXmlVal(tx, 'payee_name')?.replace(/&amp;/g,'&'),
+      amount: Number(parseXmlVal(tx, 'check_amount') || 0),
+      date: parseXmlVal(tx, 'issue_date'),
+      category: parseXmlVal(tx, 'spending_category'),
+    }));
+
+    // Aggregate by spending category
+    const byCat = {};
+    parsed.forEach(t => {
+      const cat = t.category || 'Other';
+      byCat[cat] = (byCat[cat] || 0) + t.amount;
+    });
+
+    // Get most recent issue dates
+    const dates = parsed.map(t => t.date).filter(Boolean).sort().reverse();
+    const latestDate = dates[0];
+
+    // Total amount in sample
+    const totalAmount = parsed.reduce((s,t) => s + t.amount, 0);
+
+    setBadge('spending-date', 'FY2025');
+    addStatus('Checkbook', 'live');
+
+    let html = '';
+    html += row('Total FY2025 Transactions', fmt(totalRecords));
+    html += row('Latest Payment Date', fmtDate(latestDate));
+
+    // Show recent large payments
+    const sorted = parsed.sort((a,b) => b.amount - a.amount);
+    if (sorted.length) {
+      html += '<table class="mini-table"><tr><th>Recent Large Payments</th><th>Amount</th></tr>';
+      sorted.slice(0, 8).forEach(t => {
+        const name = (t.payee || t.agency || '').slice(0, 30);
+        html += `<tr><td>${name}</td><td>$${fmt(Math.round(t.amount))}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    html += '<div class="data-date">Via <a href="https://www.checkbooknyc.com" target="_blank" style="color:var(--blue)">CheckbookNYC</a> (Comptroller)</div>';
+
+    setM('spending-metrics', html);
+  } catch(e) {
+    // Fallback: show a link to CheckbookNYC
+    setBadge('spending-date', '\u2014');
+    addStatus('Checkbook', 'stale');
+    setM('spending-metrics', `<div style="padding:8px 0;font-size:11px;color:var(--text-dim)">
+      CheckbookNYC API blocked by CORS policy. Visit
+      <a href="https://www.checkbooknyc.com/spending/search/transactions" target="_blank" style="color:var(--blue)">CheckbookNYC</a>
+      directly for city spending data including nonprofit payment times.
+    </div>`);
+  }
+}
+
 async function loadOATH() {
   try {
     const d90 = isoDate(90), d180 = isoDate(180);
@@ -1295,7 +1404,7 @@ async function init() {
   await Promise.allSettled([
     loadShelter(), loadCrime(), loadTraffic(), loadEMS(), loadFire(),
     load311(), loadRestaurants(), loadHousing(), loadBuildings(),
-    loadDOT(), loadParks(), loadWater(), loadOATH(), loadSanitation(),
+    loadDOT(), loadParks(), loadWater(), loadSpending(), loadOATH(), loadSanitation(),
     loadNYCHA(), loadWorkforce(),
   ]);
 }
