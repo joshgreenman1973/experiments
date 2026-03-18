@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Experiments | Vital City</title>
+  <meta name="description" content="A gallery of creative urban data tools and maps built by independent developers and small teams.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!--
+    DEVELOPER NOTE: Vital City uses "Gascogne" as their primary serif.
+    We use Source Serif 4 as a stand-in. Swap for Gascogne when
+    integrating into the Ghost theme.
+  -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,300;1,8..60,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─────────────────────────────────────────────
+       VITAL CITY — EXPERIMENTS PAGE
+       Matches the section-page pattern used by
+       Commentary, Policy, and Data Explorer.
+       ───────────────────────────────────────────── */
+
+    :root {
+      --vc-black: #000000;
+      --vc-dark: #1a1a1a;
+      --vc-charcoal: #434343;
+      --vc-medium: #6b6b6b;
+      --vc-light: #999;
+      --vc-rule: #d9d9d9;
+      --vc-bg: #fafafa;
+      --vc-white: #ffffff;
+      --vc-accent: #c94c24;       /* coral/orange used for category labels */
+      --vc-accent-hover: #a83d1c;
+      /* Swap these when integrating into Ghost: */
+      --vc-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      --vc-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;  /* stand-in for Gascogne */
+      --vc-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--vc-sans);
+      color: var(--vc-charcoal);
+      background: var(--vc-white);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Site Nav (placeholder — Ghost provides the real one) ── */
+    .site-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 18px 40px;
+      border-bottom: 1px solid var(--vc-rule);
+    }
+
+    .site-nav .logo {
+      font-family: var(--vc-sans);
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--vc-black);
+      text-decoration: none;
+    }
+
+    .site-nav .logo .tagline {
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--vc-charcoal);
+      margin-left: 10px;
+    }
+
+    .site-nav nav {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .site-nav nav a {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--vc-dark);
+      text-decoration: none;
+    }
+
+    .site-nav nav a:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    .site-nav nav a.active {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    .site-nav .nav-donate {
+      background: var(--vc-black);
+      color: var(--vc-white) !important;
+      padding: 8px 18px;
+      border-radius: 2px;
+      text-decoration: none !important;
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    /* ── Page Header (matches Commentary / Policy / Data Explorer) ── */
+    .page-header {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 48px 40px 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 40px;
+    }
+
+    .page-header h1 {
+      font-family: var(--vc-display);
+      font-size: clamp(52px, 7vw, 80px);
+      font-weight: 400;
+      font-style: italic;
+      color: var(--vc-black);
+      line-height: 1.0;
+      flex-shrink: 0;
+    }
+
+    .page-header .page-description {
+      font-family: var(--vc-serif);
+      font-size: clamp(15px, 1.4vw, 17px);
+      font-weight: 300;
+      color: var(--vc-medium);
+      line-height: 1.55;
+      max-width: 400px;
+      text-align: right;
+    }
+
+    /* ── Orange rule (matches the thin colored line on VC pages) ── */
+    .section-rule {
+      max-width: 1340px;
+      margin: 24px auto 0;
+      padding: 0 40px;
+    }
+
+    .section-rule hr {
+      border: none;
+      height: 2px;
+      background: var(--vc-accent);
+    }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 28px 40px 0;
+    }
+
+    .disclaimer-inner {
+      background: #f7f5f3;
+      border-left: 3px solid var(--vc-accent);
+      padding: 16px 20px;
+      max-width: 880px;
+    }
+
+    .disclaimer-inner p {
+      font-family: var(--vc-serif);
+      font-size: 14.5px;
+      color: var(--vc-medium);
+      line-height: 1.65;
+    }
+
+    .disclaimer-inner strong {
+      color: var(--vc-charcoal);
+      font-weight: 600;
+    }
+
+    /* ── Gallery Grid ── */
+    .gallery {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 36px 40px 80px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--vc-white);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Preview Window ── */
+    .card-preview {
+      position: relative;
+      width: 100%;
+      height: 300px;
+      background: #f0eeed;
+      overflow: hidden;
+    }
+
+    .card-preview iframe {
+      width: 200%;
+      height: 200%;
+      border: none;
+      transform: scale(0.5);
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    .card-preview.interactive iframe {
+      pointer-events: auto;
+      width: 100%;
+      height: 100%;
+      transform: none;
+    }
+
+    .card-preview .preview-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0);
+      transition: background 0.2s;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .card-preview.interactive .preview-overlay {
+      display: none;
+    }
+
+    .card-preview .preview-overlay:hover {
+      background: rgba(0,0,0,0.3);
+    }
+
+    .card-preview .preview-overlay .interact-prompt {
+      opacity: 0;
+      transition: opacity 0.2s;
+      background: var(--vc-white);
+      color: var(--vc-dark);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .card-preview .preview-overlay:hover .interact-prompt {
+      opacity: 1;
+    }
+
+    /* Fallback for blocked iframes */
+    .card-preview .fallback {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: white;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .card-preview .fallback.visible {
+      display: flex;
+    }
+
+    .card-preview .fallback .fallback-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .card-preview .fallback .fallback-text {
+      font-size: 15px;
+      opacity: 0.8;
+    }
+
+    /* ── Card Body ── */
+    .card-body {
+      padding: 16px 0 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-tag {
+      font-family: var(--vc-sans);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--vc-accent);
+      margin-bottom: 6px;
+    }
+
+    .card-body h3 {
+      font-family: var(--vc-serif);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--vc-black);
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    .card-body h3 a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .card-body h3 a:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .card-desc {
+      font-family: var(--vc-sans);
+      font-size: 14px;
+      color: var(--vc-medium);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+
+    .card-creator {
+      font-family: var(--vc-sans);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--vc-charcoal);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Archive Section ── */
+    .archive-section {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 0 40px 40px;
+    }
+
+    .archive-toggle {
+      font-family: var(--vc-sans);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--vc-medium);
+      background: none;
+      border: 1px solid var(--vc-rule);
+      padding: 10px 20px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+    }
+
+    .archive-toggle:hover {
+      border-color: var(--vc-charcoal);
+      color: var(--vc-charcoal);
+    }
+
+    .archive-list {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .archive-list.visible {
+      display: block;
+    }
+
+    .archive-list p {
+      font-size: 14px;
+      color: var(--vc-light);
+      font-style: italic;
+    }
+
+    /* ── Footer ── */
+    .page-footer {
+      max-width: 1340px;
+      margin: 0 auto;
+      padding: 24px 40px 60px;
+      border-top: 1px solid var(--vc-rule);
+    }
+
+    .page-footer p {
+      font-family: var(--vc-sans);
+      font-size: 13px;
+      color: var(--vc-light);
+      line-height: 1.7;
+    }
+
+    .page-footer a {
+      color: var(--vc-accent);
+      text-decoration: none;
+    }
+
+    .page-footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .site-nav { padding: 14px 20px; }
+      .site-nav nav { display: none; } /* hamburger in Ghost */
+
+      .page-header {
+        flex-direction: column;
+        padding: 32px 20px 0;
+        gap: 16px;
+      }
+
+      .page-header .page-description {
+        text-align: left;
+        max-width: 100%;
+      }
+
+      .section-rule { padding: 0 20px; }
+      .disclaimer { padding: 24px 20px 0; }
+
+      .gallery {
+        grid-template-columns: 1fr;
+        padding: 28px 20px 60px;
+        gap: 36px;
+      }
+
+      .card-preview { height: 240px; }
+
+      .archive-section { padding: 0 20px 40px; }
+      .page-footer { padding: 24px 20px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    ┌──────────────────────────────────────────────────────┐
+    │  DEVELOPER NOTE                                      │
+    │                                                      │
+    │  This nav is a placeholder that mirrors Vital City's │
+    │  existing nav structure. When integrating into Ghost, │
+    │  remove this <header class="site-nav"> entirely —    │
+    │  Ghost will inject the real site nav.                 │
+    │                                                      │
+    │  Similarly, swap "Source Serif 4" for "Gascogne"     │
+    │  in the CSS custom properties above.                 │
+    └──────────────────────────────────────────────────────┘
+  -->
+  <header class="site-nav">
+    <a href="https://www.vitalcitynyc.org/" class="logo">
+      VITAL CITY <span class="tagline">New ideas.</span>
+    </a>
+    <nav>
+      <a href="#">The Journal</a>
+      <a href="#">Commentary</a>
+      <a href="#">Data</a>
+      <a href="#">Policy</a>
+      <a href="#">About Us</a>
+      <a href="#" class="nav-donate">DONATE</a>
+    </nav>
+  </header>
+
+  <!-- Page header: matches Commentary / Policy / Data Explorer layout -->
+  <div class="page-header">
+    <h1>Experiments</h1>
+    <p class="page-description">
+      Creative urban data tools and maps built by
+      independent developers and small teams on the
+      new frontier of civic technology
+    </p>
+  </div>
+
+  <div class="section-rule"><hr></div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <div class="disclaimer-inner">
+      <p>
+        <strong>A note:</strong> These tools are built by independent developers and small teams, not by Vital City. Think of them as the equivalent of beta software — creative, illuminating, and occasionally imperfect. We share them because they represent some of the best work happening on the new frontier of civic technology, but we encourage you to double-check any data or findings before relying on them. Inclusion here is not an endorsement of every conclusion. If you want to recommend an experiment for us to feature, email us at <a href="mailto:info@vitalcitynyc.org?subject=Data%20gallery">info@vitalcitynyc.org</a> with subject line "Data gallery."
+      </p>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div class="gallery" id="gallery"></div>
+
+  <!-- Archive -->
+  <div class="archive-section">
+    <button class="archive-toggle" onclick="toggleArchive()">View previously featured tools</button>
+    <div class="archive-list" id="archive-list">
+      <p>No archived tools yet. As we rotate the gallery each month, previously featured tools will appear here.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    <p>
+      Know of a tool that belongs here? <a href="mailto:tips@vitalcitynyc.org">Send us a tip</a>.<br>
+      Gallery updated monthly. Last updated March 2026.
+    </p>
+  </footer>
+
+  <script>
+    // ── Tool Data ──────────────────────────────────────
+    // Edit this array to add, remove, or reorder tools.
+    // Set "archived: true" to move a tool to the archive.
+
+    const tools = [
+      {
+        id: "bikemap",
+        name: "bikemap.nyc",
+        tag: "Transit",
+        url: "https://bikemap.nyc/",
+        description: "Every one of the 291 million Citi Bike trips ever taken, animated on a map in real time. Search by date, station, or even paste a Citi Bike receipt to find your own ride. No backend server — it runs entirely in your browser.",
+        creator: "Freeman Jiang",
+        icon: "🚲",
+        archived: false
+      },
+      {
+        id: "subway-stories",
+        name: "Subway Stories",
+        tag: "Transit",
+        url: "https://subwaystories.nyc/",
+        description: "A 3D visualization of MTA ridership that turns raw turnstile data into narrative \"stories\" — following fans to Flushing Meadows, tracing nightlife along the L, and revealing how the city's rhythms shift hour by hour.",
+        creator: "Jediah Katz, Marc Zitelli & Julia Han",
+        icon: "🚇",
+        archived: false
+      },
+      {
+        id: "311-wrapped",
+        name: "311 Wrapped",
+        tag: "Civic Data",
+        url: "https://311wrapped.com/",
+        description: "Your city's year in complaints, Spotify Wrapped-style. Breaks down 311 data into digestible, shareable visualizations that reveal what neighborhoods are calling about — from noise to rodents to potholes.",
+        creator: "Khaled Eltokhy",
+        icon: "📞",
+        archived: false
+      },
+      {
+        id: "rent-heatmap",
+        name: "NYC Rent Heat Map",
+        tag: "Housing",
+        url: "https://eshaghoff.github.io/nyc-rent-map/",
+        description: "An interactive heat map of real asking rents across the five boroughs, built from thousands of StreetEasy listings. Toggle between bedroom counts, overlay subway stations and crime data, and hover anywhere to see estimated rent.",
+        creator: "Sam Eshaghoff",
+        icon: "🏠",
+        archived: false
+      },
+      {
+        id: "permit-pulse",
+        name: "PermitPulse NYC",
+        tag: "Development",
+        url: "https://www.permitpulse.nyc/",
+        description: "Track where New York is building, in real time. Every new DOB-issued permit is plotted on an isometric 3D map of the city, revealing construction booms and neighborhood-level development patterns.",
+        creator: "Built on Isometric NYC",
+        icon: "🏗️",
+        archived: false
+      },
+      {
+        id: "isometric-nyc",
+        name: "Isometric NYC",
+        tag: "Mapping",
+        url: "https://cannoneyed.com/isometric-nyc/",
+        description: "A beautiful isometric 3D rendering of every building footprint in New York City. Zoom, pan, and explore the city's skyline from an architectural bird's-eye view. The open-source engine behind PermitPulse and other tools.",
+        creator: "cannoneyed",
+        icon: "🏙️",
+        archived: false
+      },
+      {
+        id: "art-off-rails",
+        name: "Art Off the Rails",
+        tag: "Culture",
+        url: "https://artworkmta.pages.dev/",
+        description: "An interactive map of the MTA's permanent art collection — mosaics, sculptures, and installations across subway, Metro-North, and LIRR stations. Click any station to discover what you've been walking past. Winner of the 2024 MTA Open Data Challenge.",
+        creator: "Stephanie Dang",
+        icon: "🎨",
+        archived: false
+      },
+      {
+        id: "language-map",
+        name: "Languages of NYC",
+        tag: "Community",
+        url: "https://languagemap.nyc/",
+        description: "Over 700 language varieties mapped across the five boroughs — the product of more than a decade of fieldwork. From Gottscheerisch to Newari, this map reveals the staggering linguistic diversity that makes New York the world's most multilingual city.",
+        creator: "Endangered Language Alliance",
+        icon: "🗣️",
+        archived: false
+      },
+      {
+        id: "sidewalk-widths",
+        name: "Sidewalk Widths NYC",
+        tag: "Infrastructure",
+        url: "https://sidewalkwidths.nyc/",
+        description: "How wide is the sidewalk under your feet? This map color-codes every sidewalk in all five boroughs by width — originally built for social distancing, now a useful lens on walkability and urban design.",
+        creator: "Meli Harvey",
+        icon: "🚶",
+        archived: false
+      },
+      {
+        id: "civic-calendar",
+        name: "NYC Civic Calendar",
+        tag: "Civic Engagement",
+        url: "https://nyc-civic-calendar.vercel.app/",
+        description: "Subscribe to your local government's meetings — community boards, council hearings, precinct meetings — delivered straight to your Google, Apple, or Outlook calendar. Automatically refreshed weekly from official NYC sources.",
+        creator: "Laeo Crnkovic-Rubsamen",
+        icon: "📅",
+        archived: false
+      }
+    ];
+
+    // ── Render ─────────────────────────────────────────
+    function renderGallery() {
+      const gallery = document.getElementById('gallery');
+      const active = tools.filter(t => !t.archived);
+
+      gallery.innerHTML = active.map(tool => `
+        <article class="card" data-tool-id="${tool.id}">
+          <div class="card-preview" id="preview-${tool.id}">
+            <iframe
+              src="${tool.url}"
+              loading="lazy"
+              sandbox="allow-scripts allow-same-origin allow-popups"
+              title="Preview of ${tool.name}"
+              onerror="showFallback('${tool.id}')"
+            ></iframe>
+            <div class="preview-overlay" onclick="activatePreview('${tool.id}')">
+              <span class="interact-prompt">Click to interact</span>
+            </div>
+            <div class="fallback" id="fallback-${tool.id}">
+              <div class="fallback-icon">${tool.icon}</div>
+              <div class="fallback-text">${tool.name}</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-tag">${tool.tag}</div>
+            <h3><a href="${tool.url}" target="_blank" rel="noopener noreferrer">${tool.name}</a></h3>
+            <p class="card-desc">${tool.description}</p>
+            <div class="card-creator">${tool.creator}</div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function showFallback(id) {
+      const el = document.getElementById('fallback-' + id);
+      if (el) el.classList.add('visible');
+    }
+
+    function activatePreview(id) {
+      const el = document.getElementById('preview-' + id);
+      if (el) el.classList.add('interactive');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.card-preview')) {
+        document.querySelectorAll('.card-preview.interactive').forEach(el =>
+          el.classList.remove('interactive')
+        );
+      }
+    });
+
+    function toggleArchive() {
+      document.getElementById('archive-list').classList.toggle('visible');
+    }
+
+    renderGallery();
+  </script>
+
+</body>
+</html>
