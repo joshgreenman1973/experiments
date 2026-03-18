@@ -478,7 +478,7 @@
 
   <div class="section" id="boroughSection">
     <h2>Manhattan dominated early — then Brooklyn caught up</h2>
-    <p class="dek">Borough-level patterns from digitized vital records. Birth certificates cover 1855–1909; death certificates 1862–1948.</p>
+    <p class="dek">Borough-level patterns from digitized vital records. Birth certificates cover 1855–1909; death certificates 1862–1948. <strong>Note:</strong> Manhattan death certificates are missing from the digitized archive for 1887–1919, causing an artificial dip in the deaths chart during that period.</p>
     <div class="section-row">
       <div>
         <div class="sub-heading births">Births by Borough</div>
@@ -627,66 +627,50 @@ async function fetchJSON(url) {
 }
 
 // ---- SUPPLEMENTAL DATA (DOHMH Annual Summary of Vital Statistics, Table PC1) ----
-// Pre-1966 figures are 5-year averages; 1966+ are individual year totals.
+// Pre-1966: 5-year averages interpolated to smooth annual estimates.
+// 1966+: individual year totals.
 // Sources: nyc.gov/assets/doh/downloads/pdf/vs/2008sum.pdf, 2020sum.pdf, 2023sum.pdf
-const supplementalData = {
-  // 5-year averages spread across individual years for smooth charting
-  // 1898-1900
-  1898: { births: 119000, deaths: 67503 }, 1899: { births: 119000, deaths: 67503 },
-  1900: { births: 119000, deaths: 67503 },
-  // 1901-1905
-  1901: { births: 129000, deaths: 71689 }, 1902: { births: 129000, deaths: 71689 },
-  1903: { births: 129000, deaths: 71689 }, 1904: { births: 129000, deaths: 71689 },
-  1905: { births: 129000, deaths: 71689 },
-  // 1906-1910
-  1906: { births: 144000, deaths: 75865 }, 1907: { births: 144000, deaths: 75865 },
-  1908: { births: 144000, deaths: 75865 }, 1909: { births: 144000, deaths: 75865 },
-  1910: { births: 144000, deaths: 75865 },
-  // 1911-1915
-  1911: { births: 140581, deaths: 74666 }, 1912: { births: 140581, deaths: 74666 },
-  1913: { births: 140581, deaths: 74666 }, 1914: { births: 140581, deaths: 74666 },
-  1915: { births: 140581, deaths: 74666 },
-  // 1916-1920
-  1916: { births: 136101, deaths: 80435 }, 1917: { births: 136101, deaths: 80435 },
-  1918: { births: 136101, deaths: 80435 }, 1919: { births: 136101, deaths: 80435 },
-  1920: { births: 136101, deaths: 80435 },
-  // 1921-1925
-  1921: { births: 130462, deaths: 69303 }, 1922: { births: 130462, deaths: 69303 },
-  1923: { births: 130462, deaths: 69303 }, 1924: { births: 130462, deaths: 69303 },
-  1925: { births: 130462, deaths: 69303 },
-  // 1926-1930
-  1926: { births: 125590, deaths: 75395 }, 1927: { births: 125590, deaths: 75395 },
-  1928: { births: 125590, deaths: 75395 }, 1929: { births: 125590, deaths: 75395 },
-  1930: { births: 125590, deaths: 75395 },
-  // 1931-1935
-  1931: { births: 106179, deaths: 75561 }, 1932: { births: 106179, deaths: 75561 },
-  1933: { births: 106179, deaths: 75561 }, 1934: { births: 106179, deaths: 75561 },
-  1935: { births: 106179, deaths: 75561 },
-  // 1936-1940
-  1936: { births: 102418, deaths: 76065 }, 1937: { births: 102418, deaths: 76065 },
-  1938: { births: 102418, deaths: 76065 }, 1939: { births: 102418, deaths: 76065 },
-  1940: { births: 102418, deaths: 76065 },
-  // 1941-1945
-  1941: { births: 126495, deaths: 78382 }, 1942: { births: 126495, deaths: 78382 },
-  1943: { births: 126495, deaths: 78382 }, 1944: { births: 126495, deaths: 78382 },
-  1945: { births: 126495, deaths: 78382 },
-  // 1946-1950
-  1946: { births: 158926, deaths: 79708 }, 1947: { births: 158926, deaths: 79708 },
-  1948: { births: 158926, deaths: 79708 }, 1949: { births: 158926, deaths: 79708 },
-  1950: { births: 158926, deaths: 79708 },
-  // 1951-1955
-  1951: { births: 163526, deaths: 80583 }, 1952: { births: 163526, deaths: 80583 },
-  1953: { births: 163526, deaths: 80583 }, 1954: { births: 163526, deaths: 80583 },
-  1955: { births: 163526, deaths: 80583 },
-  // 1956-1960
-  1956: { births: 166949, deaths: 84290 }, 1957: { births: 166949, deaths: 84290 },
-  1958: { births: 166949, deaths: 84290 }, 1959: { births: 166949, deaths: 84290 },
-  1960: { births: 166949, deaths: 84290 },
-  // 1961-1965
-  1961: { births: 165197, deaths: 87597 }, 1962: { births: 165197, deaths: 87597 },
-  1963: { births: 165197, deaths: 87597 }, 1964: { births: 165197, deaths: 87597 },
-  1965: { births: 165197, deaths: 87597 },
-  // Individual years 1966+
+//
+// Interpolation: we place each 5-year average at the midpoint of its period,
+// then linearly interpolate between midpoints for every year.
+const supplementalData = (function() {
+  // Midpoint anchors from DOHMH Table PC1 (5-year averages)
+  const anchors = [
+    { year: 1899, births: 119000, deaths: 67503 },  // 1898-1900
+    { year: 1903, births: 129000, deaths: 71689 },  // 1901-1905
+    { year: 1908, births: 144000, deaths: 75865 },  // 1906-1910
+    { year: 1913, births: 140581, deaths: 74666 },  // 1911-1915
+    { year: 1918, births: 136101, deaths: 80435 },  // 1916-1920
+    { year: 1923, births: 130462, deaths: 69303 },  // 1921-1925
+    { year: 1928, births: 125590, deaths: 75395 },  // 1926-1930
+    { year: 1933, births: 106179, deaths: 75561 },  // 1931-1935
+    { year: 1938, births: 102418, deaths: 76065 },  // 1936-1940
+    { year: 1943, births: 126495, deaths: 78382 },  // 1941-1945
+    { year: 1948, births: 158926, deaths: 79708 },  // 1946-1950
+    { year: 1953, births: 163526, deaths: 80583 },  // 1951-1955
+    { year: 1958, births: 166949, deaths: 84290 },  // 1956-1960
+    { year: 1963, births: 165197, deaths: 87597 },  // 1961-1965
+  ];
+  const result = {};
+  // Interpolate between anchors for every year 1898–1965
+  for (let y = 1898; y <= 1965; y++) {
+    let before = anchors[0], after = anchors[anchors.length - 1];
+    for (let i = 0; i < anchors.length - 1; i++) {
+      if (y >= anchors[i].year && y <= anchors[i + 1].year) {
+        before = anchors[i]; after = anchors[i + 1]; break;
+      }
+    }
+    if (y <= anchors[0].year) { before = after = anchors[0]; }
+    if (y >= anchors[anchors.length - 1].year) { before = after = anchors[anchors.length - 1]; }
+    const span = after.year - before.year || 1;
+    const t = (y - before.year) / span;
+    result[y] = {
+      births: Math.round(before.births + (after.births - before.births) * t),
+      deaths: Math.round(before.deaths + (after.deaths - before.deaths) * t)
+    };
+  }
+  // Individual years 1966+ (exact DOHMH figures)
+  const annual = {
   1966: { births: 153335, deaths: 88418 }, 1967: { births: 145802, deaths: 87610 },
   1968: { births: 141920, deaths: 91169 }, 1969: { births: 146221, deaths: 88535 },
   1970: { births: 149192, deaths: 88161 },
@@ -716,8 +700,12 @@ const supplementalData = {
   2017: { births: 117013, deaths: 54319 }, 2018: { births: 114296, deaths: 55081 },
   2019: { births: 110442, deaths: 54559 }, 2020: { births: 100022, deaths: 82143 },
   2021: { births: 99262, deaths: 63551 }, 2022: { births: 99459, deaths: 60596 },
-  2023: { births: 98389, deaths: 55459 }
-};
+  2023: { births: 98389, deaths: 55459 },
+  2024: { births: 100218, deaths: 55263 }  // provisional, DOHMH quarterly data
+  };
+  Object.assign(result, annual);
+  return result;
+})();
 
 // ---- DATA LOADING ----
 async function loadAllData() {
