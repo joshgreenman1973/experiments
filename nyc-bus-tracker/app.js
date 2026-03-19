@@ -31,6 +31,7 @@ let playTimer = null;
 let routeShapes = null;
 let selectedRoute = null;
 let sortMode = 'name'; // 'name', 'bunching', 'gaps', 'buses'
+let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S'
 let busSpeedCache = {}; // busId → speed in mph
 
 // ═══ INIT ═══
@@ -678,7 +679,20 @@ function renderRouteList(metrics) {
     route, ...m,
   }));
 
-  // Filter
+  // Borough filter
+  if (boroFilter !== 'all') {
+    routes = routes.filter(r => {
+      const rt = r.route.toUpperCase();
+      if (boroFilter === 'Bx') return rt.startsWith('BX');
+      if (boroFilter === 'B') return rt.startsWith('B') && !rt.startsWith('BX');
+      if (boroFilter === 'S') return rt.startsWith('S');
+      if (boroFilter === 'Q') return rt.startsWith('Q');
+      if (boroFilter === 'M') return rt.startsWith('M');
+      return true;
+    });
+  }
+
+  // Text filter
   if (filter) {
     routes = routes.filter(r =>
       r.route.toLowerCase().includes(filter) ||
@@ -860,6 +874,16 @@ function setupControls() {
     col.addEventListener('click', () => {
       sortMode = col.dataset.sort;
       updateSortHighlight();
+      if (currentSnapshot) computeMetrics(currentSnapshot);
+    });
+  });
+
+  // Borough filter
+  document.querySelectorAll('.boro-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      boroFilter = btn.dataset.boro;
+      document.querySelectorAll('.boro-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
       if (currentSnapshot) computeMetrics(currentSnapshot);
     });
   });
