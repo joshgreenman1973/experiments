@@ -510,14 +510,14 @@
   </div>
 
   <div class="section" id="ageSection">
-    <h2>1 in 8 deaths was an infant under one year old</h2>
-    <p class="dek">Aggregated from 3.7 million death certificates, 1862–1948. The toll of infant mortality is staggering by modern standards.</p>
+    <h2>In the 1800s, 1 in 8 deaths was an infant. Today, it's 1 in 100.</h2>
+    <p class="dek">Who dies has changed as dramatically as how many. Historical data from 3.7 million digitized death certificates; modern data from DOHMH annual summaries.</p>
     <div class="tab-bar" id="ageTabs">
       <button class="tab active" data-view="overall">All Years</button>
       <button class="tab" data-view="era">By Era</button>
     </div>
     <div id="ageChart"></div>
-    <div class="source-line">Source: <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">NYC Dept. of Records, Historical Death Certificates</a></div>
+    <div class="source-line">Sources: <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">NYC Dept. of Records, Historical Death Certificates</a>; <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">DOHMH Annual Summaries</a></div>
   </div>
 
   <div class="section" id="causeSection">
@@ -533,6 +533,13 @@
     <div class="legend" id="raceLegend"></div>
     <div id="raceChart"></div>
     <div class="source-line">Source: <a href="https://data.cityofnewyork.us/Health/Percent-Live-Births-by-Infant-Sex-and-Mother-s-Rac/wffy-3iyg">NYC DOHMH, Births by Race/Ethnicity</a></div>
+  </div>
+
+  <div class="section" id="naturalChangeSection">
+    <h2>New York's natural growth has been shrinking for decades</h2>
+    <p class="dek">Births minus deaths each year — the "natural increase." This doesn't count migration, which has been at least as powerful a force. In 2020, COVID nearly erased the surplus entirely.</p>
+    <div id="naturalChangeChart"></div>
+    <div class="source-line">Source: <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">NYC DOHMH Annual Summary of Vital Statistics</a></div>
   </div>
 
 </div>
@@ -831,6 +838,26 @@ function ageGroup(a) {
 const ageGroups = ['Under 1','1–4','5–14','15–24','25–44','45–64','65–79','80+'];
 const ageColors = [VC.magenta, VC.orange, VC.orange80, VC.chartreuse, VC.cerulean, VC.indigo, VC.periwinkle, VC.rose];
 
+// Modern age-at-death data (DOHMH Annual Summary, Table M2 / public use datasets)
+// Aggregated into era buckets to match the historical eras
+const modernAgeData = {
+  // 2007-2014 average (from DOHMH summaries 2007, 2010, 2014)
+  '2007–2014': {
+    'Under 1': 5200, '1–4': 560, '5–14': 1000, '15–24': 4500,
+    '25–44': 21500, '45–64': 92000, '65–79': 115000, '80+': 182000
+  },
+  // 2015-2019 (from DOHMH public use death datasets)
+  '2015–2019': {
+    'Under 1': 2031, '1–4': 307, '5–14': 439, '15–24': 2029,
+    '25–44': 11580, '45–64': 49227, '65–79': 72023, '80+': 112601
+  },
+  // 2020-2023 (from DOHMH summaries — includes COVID spike)
+  '2020–2023': {
+    'Under 1': 1604, '1–4': 268, '5–14': 487, '15–24': 2056,
+    '25–44': 14697, '45–64': 50177, '65–79': 73868, '80+': 118455
+  }
+};
+
 function processAgeData(raw) {
   const overall = {}; for (const g of ageGroups) overall[g] = 0;
   const eras = { '1862–1879': {}, '1880–1899': {}, '1900–1919': {}, '1920–1948': {} };
@@ -847,6 +874,11 @@ function processAgeData(raw) {
     else if (y < 1900) eras['1880–1899'][grp] += t;
     else if (y < 1920) eras['1900–1919'][grp] += t;
     else eras['1920–1948'][grp] += t;
+  }
+  // Add modern eras
+  for (const [era, data] of Object.entries(modernAgeData)) {
+    eras[era] = { ...data };
+    for (const g of ageGroups) overall[g] += (data[g] || 0);
   }
   return { overall, eras };
 }
@@ -1088,7 +1120,13 @@ function buildAgeChart(ageData) {
 
     const x0 = d3.scaleBand().domain(eraNames).range([0, w]).padding(0.15);
     const x1 = d3.scaleBand().domain(ageGroups).range([0, x0.bandwidth()]).padding(0.05);
-    const y = d3.scaleLinear().domain([0, 45]).range([h, 0]);
+    // Compute max percentage across all eras
+    const allPcts = [];
+    for (const era of eraNames) {
+      const total = d3.sum(ageGroups.map(g => ageData.eras[era][g]));
+      for (const grp of ageGroups) allPcts.push(total > 0 ? (ageData.eras[era][grp] / total) * 100 : 0);
+    }
+    const y = d3.scaleLinear().domain([0, Math.ceil(d3.max(allPcts) / 5) * 5 + 5]).range([h, 0]);
 
     for (const era of eraNames) {
       const total = d3.sum(ageGroups.map(g => ageData.eras[era][g]));
@@ -1233,6 +1271,94 @@ function buildRaceChart(birthsByYearRace) {
     }).on('mouseleave', hideTip);
 }
 
+function buildNaturalChangeChart(birthsByYear, deathsByYear) {
+  // Build year-by-year natural change where both births AND deaths exist
+  const allYears = [...new Set([...Object.keys(birthsByYear), ...Object.keys(deathsByYear)].map(Number))].sort((a, b) => a - b);
+  const data = [];
+  for (const y of allYears) {
+    if (birthsByYear[y] && deathsByYear[y]) {
+      data.push({ year: y, births: birthsByYear[y], deaths: deathsByYear[y], change: birthsByYear[y] - deathsByYear[y] });
+    }
+  }
+  if (!data.length) return;
+
+  const el = document.getElementById('naturalChangeChart');
+  const width = Math.min(860, el.clientWidth), height = 360;
+  const m = { top: 20, right: 20, bottom: 40, left: 60 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#naturalChangeChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(data, d => d.year)).range([0, w]);
+  const yMin = d3.min(data, d => d.change);
+  const yMax = d3.max(data, d => d.change);
+  const yPad = (yMax - yMin) * 0.1;
+  const y = d3.scaleLinear().domain([Math.min(0, yMin - yPad), yMax + yPad]).range([h, 0]);
+
+  // Grid + axes
+  whiteAxes(g, x, y, w, h, { yFmt: d => d >= 1000 ? d3.format('.2s')(d) : d });
+
+  // Zero line
+  if (y.domain()[0] < 0) {
+    g.append('line').attr('x1', 0).attr('x2', w).attr('y1', y(0)).attr('y2', y(0))
+      .attr('stroke', VC.charcoal).attr('stroke-width', 1.5).attr('stroke-dasharray', '6,3');
+    g.append('text').attr('x', w + 4).attr('y', y(0) + 4)
+      .attr('fill', VC.charcoal).attr('font-size', '10px').attr('font-weight', '600').text('0');
+  }
+
+  // Area above zero (positive = cerulean)
+  const areaPos = d3.area()
+    .x(d => x(d.year))
+    .y0(d => y(Math.min(0, d.change)))
+    .y1(d => y(Math.max(0, d.change)))
+    .curve(d3.curveMonotoneX);
+
+  // Split into positive and negative segments via clip paths
+  const defs = svg.append('defs');
+  defs.append('clipPath').attr('id', 'clipPos')
+    .append('rect').attr('x', 0).attr('y', 0).attr('width', w).attr('height', y(0));
+  defs.append('clipPath').attr('id', 'clipNeg')
+    .append('rect').attr('x', 0).attr('y', y(0)).attr('width', w).attr('height', h - y(0));
+
+  // Positive area (cerulean)
+  g.append('path').datum(data).attr('d', areaPos)
+    .attr('fill', VC.cerulean).attr('opacity', 0.25).attr('clip-path', 'url(#clipPos)');
+  // Negative area (orange)
+  g.append('path').datum(data).attr('d', areaPos)
+    .attr('fill', VC.orange).attr('opacity', 0.25).attr('clip-path', 'url(#clipNeg)');
+
+  // Line
+  const line = d3.line().x(d => x(d.year)).y(d => y(d.change)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('d', line)
+    .attr('fill', 'none').attr('stroke', VC.cerulean).attr('stroke-width', 2.5);
+
+  // Key annotations
+  const annotations = [
+    { year: 1946, label: 'Baby Boom peak', anchor: 'start' },
+    { year: 2020, label: 'COVID', anchor: 'end' }
+  ];
+  for (const a of annotations) {
+    const d = data.find(v => v.year === a.year);
+    if (!d) continue;
+    g.append('circle').attr('cx', x(d.year)).attr('cy', y(d.change)).attr('r', 4)
+      .attr('fill', d.change >= 0 ? VC.cerulean : VC.orange);
+    g.append('text').attr('x', x(d.year) + (a.anchor === 'end' ? -8 : 8)).attr('y', y(d.change) - 10)
+      .attr('text-anchor', a.anchor).attr('fill', VC.charcoal).attr('font-size', '10px').attr('font-weight', '700')
+      .text(`${a.label}: ${d.change >= 0 ? '+' : ''}${fmt(d.change)}`);
+  }
+
+  // Hover
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const d = data.find(v => v.year === yr);
+      if (!d) { hideTip(); return; }
+      const color = d.change >= 0 ? VC.cerulean : VC.orange;
+      showTip(event, `<strong>${d.year}</strong><br><span style="color:${VC.chartreuse}">Births: ${fmt(d.births)}</span><br><span style="color:${VC.orange}">Deaths: ${fmt(d.deaths)}</span><br><span style="color:${color}"><strong>Natural change: ${d.change >= 0 ? '+' : ''}${fmt(d.change)}</strong></span>`);
+    }).on('mouseleave', hideTip);
+}
+
 function buildJokeChart(birthsByYear) {
   const years = Object.keys(birthsByYear).map(Number).filter(y => y <= 1909).sort((a, b) => a - b);
   const el = document.getElementById('jokeChart');
@@ -1320,6 +1446,7 @@ function animate(chart) {
     buildAgeChart(data.ageData);
     buildCauseChart(data.deathsByYearCause);
     buildRaceChart(data.birthsByYearRace);
+    buildNaturalChangeChart(data.birthsByYear, data.deathsByYear);
     buildJokeChart(data.birthsByYear);
 
     // Re-observe sections that may have rendered
