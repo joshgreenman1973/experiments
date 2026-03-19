@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC FOIL Tracker — Who's Asking What From City Hall</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy: #0a1628;
+  --navy-mid: #132240;
+  --navy-light: #1c3258;
+  --ink: #0d1b2a;
+  --cream: #f5f0e8;
+  --cream-dark: #e8e0d0;
+  --parchment: #faf7f2;
+  --gold: #c8a43a;
+  --gold-dim: #a88a2e;
+  --red: #c23b22;
+  --red-soft: #d4553e;
+  --green: #2e7d4f;
+  --green-soft: #3a9960;
+  --slate: #64748b;
+  --rule: rgba(10, 22, 40, 0.15);
+  --rule-heavy: rgba(10, 22, 40, 0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  background: var(--parchment);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NEWSPAPER TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── MASTHEAD ── */
+.masthead {
+  background: var(--navy);
+  color: var(--cream);
+  padding: 0.5rem 0;
+  border-bottom: 3px solid var(--gold);
+  position: relative;
+}
+
+.masthead-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--navy);
+  color: var(--cream);
+  text-align: center;
+  padding: 2.5rem 2rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.header h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 0.3rem;
+}
+
+.header h1 span {
+  display: block;
+  font-size: 0.35em;
+  font-weight: 400;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.5rem;
+}
+
+.header-rule {
+  width: 80px;
+  height: 3px;
+  background: var(--gold);
+  margin: 1rem auto;
+  border: none;
+}
+
+.header p {
+  max-width: 600px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--cream-dark);
+  font-style: italic;
+}
+
+/* ── STATS STRIP ── */
+.stats-strip {
+  background: var(--navy-mid);
+  border-bottom: 1px solid var(--navy-light);
+  padding: 1.5rem 2rem;
+}
+
+.stats-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--navy-light);
+}
+
+.stat-card {
+  background: var(--navy-mid);
+  padding: 1.2rem 1.5rem;
+  text-align: center;
+}
+
+.stat-number {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: var(--cream);
+  line-height: 1.2;
+}
+
+.stat-number.gold { color: var(--gold); }
+.stat-number.red { color: var(--red-soft); }
+.stat-number.green { color: var(--green-soft); }
+
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-top: 0.3rem;
+}
+
+/* ── MAIN CONTAINER ── */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* ── SECTION HEADINGS ── */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 2.5rem 0 1.5rem;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 0.4rem;
+}
+
+.section-head h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.section-head .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+  align-self: center;
+}
+
+.section-head .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--slate);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-group.search { flex: 2; min-width: 250px; }
+
+.filter-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--slate);
+}
+
+.filter-input,
+.filter-select {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule-heavy);
+  border-radius: 2px;
+  background: var(--parchment);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  border-color: var(--navy);
+}
+
+.filter-clear {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: 1px solid var(--rule-heavy);
+  border-radius: 2px;
+  color: var(--slate);
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: end;
+}
+
+.filter-clear:hover {
+  background: var(--navy);
+  color: var(--cream);
+  border-color: var(--navy);
+}
+
+/* ── REQUEST FEED ── */
+.request-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.request-item {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: start;
+  animation: fadeIn 0.3s ease both;
+}
+
+.request-item:first-child {
+  border-top: 1px solid var(--rule);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.request-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.request-foil-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--navy);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+  line-height: 1.4;
+}
+
+.request-foil-id:hover {
+  border-bottom-color: var(--navy);
+}
+
+.request-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--slate);
+}
+
+.request-body h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 0.25rem;
+}
+
+.request-body h3.under-review {
+  font-style: italic;
+  color: var(--slate);
+  font-weight: 400;
+}
+
+.request-agency {
+  font-size: 0.85rem;
+  color: var(--slate);
+}
+
+.request-agency strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.request-determination {
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+  color: var(--slate);
+  font-style: italic;
+  line-height: 1.4;
+  max-width: 500px;
+}
+
+.request-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: end;
+  white-space: nowrap;
+}
+
+.badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 2px;
+  line-height: 1.4;
+}
+
+.badge-open {
+  background: rgba(46, 125, 79, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(46, 125, 79, 0.3);
+}
+
+.badge-closed {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--slate);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.badge-fulfilled {
+  background: rgba(46, 125, 79, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(46, 125, 79, 0.2);
+}
+
+.badge-denied {
+  background: rgba(194, 59, 34, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(194, 59, 34, 0.2);
+}
+
+.badge-partial {
+  background: rgba(200, 164, 58, 0.1);
+  color: var(--gold-dim);
+  border: 1px solid rgba(200, 164, 58, 0.3);
+}
+
+.badge-days {
+  font-size: 0.6rem;
+  color: var(--slate);
+  text-align: right;
+}
+
+/* ── AGENCY TABLE ── */
+.agency-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 3rem;
+}
+
+.agency-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.agency-table thead {
+  border-bottom: 2px solid var(--ink);
+}
+
+.agency-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--slate);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.agency-table th:hover { color: var(--ink); }
+
+.agency-table th.sorted { color: var(--navy); }
+.agency-table th .sort-arrow { margin-left: 0.3rem; font-size: 0.5rem; }
+
+.agency-table th:nth-child(n+2) { text-align: right; }
+
+.agency-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.agency-table td:nth-child(n+2) {
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.agency-table tr:hover td {
+  background: rgba(10, 22, 40, 0.02);
+}
+
+.agency-name {
+  font-weight: 600;
+  max-width: 350px;
+}
+
+.denial-bar {
+  display: inline-block;
+  height: 4px;
+  background: var(--red-soft);
+  border-radius: 2px;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  min-width: 2px;
+}
+
+/* ── PAGINATION ── */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 2rem 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+.pagination button {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--rule-heavy);
+  border-radius: 2px;
+  background: var(--parchment);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: var(--navy);
+  color: var(--cream);
+  border-color: var(--navy);
+}
+
+.pagination button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pagination .page-info {
+  color: var(--slate);
+  min-width: 100px;
+  text-align: center;
+}
+
+/* ── LOADING / EMPTY ── */
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  font-style: italic;
+  color: var(--slate);
+  font-size: 1.1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--slate);
+  font-style: italic;
+}
+
+/* ── FOOTER ── */
+.footer {
+  background: var(--navy);
+  color: var(--cream-dark);
+  margin-top: 3rem;
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.85rem;
+  border-top: 3px solid var(--gold);
+}
+
+.footer a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.footer a:hover { border-bottom-color: var(--gold); }
+
+.footer p { margin: 0.3rem 0; }
+
+.footer .footer-small {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slate);
+  margin-top: 1rem;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .stats-inner { grid-template-columns: repeat(2, 1fr); }
+  .request-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  .request-meta {
+    flex-direction: row;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .request-badges {
+    flex-direction: row;
+    align-items: center;
+  }
+  .filter-bar { flex-direction: column; }
+  .filter-group { min-width: 100%; }
+  .agency-name { max-width: 200px; }
+  .section-head h2 { font-size: 1.1rem; }
+}
+
+@media (max-width: 480px) {
+  .stats-inner { grid-template-columns: 1fr 1fr; }
+  .header { padding: 1.5rem 1rem; }
+  .container { padding: 0 1rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <span>Public Records</span>
+    <span id="last-updated">Loading…</span>
+  </div>
+</div>
+
+<header class="header">
+  <h1>
+    <span>New York City</span>
+    FOIL Tracker
+  </h1>
+  <hr class="header-rule">
+  <p>
+    Every freedom-of-information request filed through NYC's OpenRecords portal—who's
+    asking what, from which agency, and whether the city hands it over.
+  </p>
+</header>
+
+<div class="stats-strip">
+  <div class="stats-inner">
+    <div class="stat-card">
+      <div class="stat-number" id="stat-total">—</div>
+      <div class="stat-label">Total in system</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number gold" id="stat-tracked">—</div>
+      <div class="stat-label">Tracked here</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-response-time">—</div>
+      <div class="stat-label">Avg. response (days)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number red" id="stat-denial-rate">—</div>
+      <div class="stat-label">Denial rate</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- REQUESTS SECTION -->
+  <div class="section-head">
+    <h2>Recent Requests</h2>
+    <div class="rule"></div>
+    <span class="count" id="results-count"></span>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group search">
+      <label class="filter-label" for="search-input">Search</label>
+      <input type="text" id="search-input" class="filter-input" placeholder="Search by title, agency, or FOIL ID…">
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="agency-filter">Agency</label>
+      <select id="agency-filter" class="filter-select">
+        <option value="">All agencies</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="status-filter">Status</label>
+      <select id="status-filter" class="filter-select">
+        <option value="">All</option>
+        <option value="Open">Open</option>
+        <option value="Closed">Closed</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="determination-filter">Determination</label>
+      <select id="determination-filter" class="filter-select">
+        <option value="">All</option>
+        <option value="Fulfilled">Fulfilled</option>
+        <option value="Denied">Denied</option>
+        <option value="Partially Denied">Partially denied</option>
+      </select>
+    </div>
+    <button class="filter-clear" id="clear-filters">Clear</button>
+  </div>
+
+  <div id="request-feed" class="request-feed">
+    <div class="loading">Loading requests…</div>
+  </div>
+
+  <div class="pagination" id="pagination" style="display:none;">
+    <button id="prev-page">\u2190 Prev</button>
+    <span class="page-info" id="page-info"></span>
+    <button id="next-page">Next \u2192</button>
+  </div>
+
+  <!-- AGENCY BREAKDOWN -->
+  <div class="section-head">
+    <h2>By Agency</h2>
+    <div class="rule"></div>
+    <span class="count">Which agencies get the most requests?</span>
+  </div>
+
+  <div class="agency-table-wrap">
+    <table class="agency-table" id="agency-table">
+      <thead>
+        <tr>
+          <th data-sort="name">Agency <span class="sort-arrow"></span></th>
+          <th data-sort="total">Requests <span class="sort-arrow"></span></th>
+          <th data-sort="open">Open <span class="sort-arrow"></span></th>
+          <th data-sort="fulfilled">Fulfilled <span class="sort-arrow"></span></th>
+          <th data-sort="denied">Denied <span class="sort-arrow"></span></th>
+          <th data-sort="denial_rate">Denial Rate <span class="sort-arrow"></span></th>
+          <th data-sort="avg_days">Avg. Days <span class="sort-arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="agency-tbody">
+        <tr><td colspan="7" class="loading">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <p>
+    Data sourced from <a href="https://a860-openrecords.nyc.gov/request/view_all" target="_blank" rel="noopener">NYC OpenRecords</a>,
+    the city's public FOIL request portal.
+  </p>
+  <p>Updated automatically every six hours.</p>
+  <p class="footer-small">
+    NYC FOIL Tracker is an independent civic project. Not affiliated with NYC government.
+  </p>
+</footer>
+
+<script>
+const PER_PAGE = 25;
+let allData = null;
+let filtered = [];
+let currentPage = 1;
+let agencySortKey = 'total';
+let agencySortDir = -1;
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatDateShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function truncate(s, n) {
+  if (!s || s.length <= n) return s || '';
+  return s.substring(0, n) + '…';
+}
+
+async function loadData() {
+  try {
+    const resp = await fetch('data/requests.json');
+    if (!resp.ok) throw new Error('Failed to load data');
+    allData = await resp.json();
+    init();
+  } catch (err) {
+    document.getElementById('request-feed').innerHTML =
+      '<div class="empty-state">Could not load data. The scraper may not have run yet.</div>';
+    console.error(err);
+  }
+}
+
+function init() {
+  // Update header
+  document.getElementById('last-updated').textContent =
+    `Updated ${timeAgo(allData.lastUpdated)} — ${formatDate(allData.lastUpdated)}`;
+
+  // Stats
+  document.getElementById('stat-total').textContent = allData.totalInSystem || '—';
+  document.getElementById('stat-tracked').textContent = allData.requestsFetched?.toLocaleString() || '—';
+
+  // Calculate global stats
+  const closed = allData.requests.filter(r => r.status === 'Closed');
+  const withTime = allData.requests.filter(r => r.responseTimeDays != null);
+  const denied = allData.requests.filter(r => r.determination === 'Denied');
+  const determined = allData.requests.filter(r => r.determination);
+
+  if (withTime.length > 0) {
+    const avg = Math.round(withTime.reduce((a, r) => a + r.responseTimeDays, 0) / withTime.length);
+    document.getElementById('stat-response-time').textContent = avg;
+  }
+
+  if (determined.length > 0) {
+    const rate = ((denied.length / determined.length) * 100).toFixed(1);
+    document.getElementById('stat-denial-rate').textContent = rate + '%';
+  }
+
+  // Populate agency filter
+  const agencies = [...new Set(allData.requests.map(r => r.agency).filter(Boolean))].sort();
+  const agencySelect = document.getElementById('agency-filter');
+  for (const a of agencies) {
+    const opt = document.createElement('option');
+    opt.value = a;
+    // Abbreviation in parens
+    const abbr = a.match(/\(([^)]+)\)/);
+    opt.textContent = abbr ? abbr[1] + ' — ' + a.replace(/\s*\([^)]+\)/, '') : a;
+    agencySelect.appendChild(opt);
+  }
+
+  // Events
+  document.getElementById('search-input').addEventListener('input', debounce(applyFilters, 200));
+  document.getElementById('agency-filter').addEventListener('change', applyFilters);
+  document.getElementById('status-filter').addEventListener('change', applyFilters);
+  document.getElementById('determination-filter').addEventListener('change', applyFilters);
+  document.getElementById('clear-filters').addEventListener('click', clearFilters);
+  document.getElementById('prev-page').addEventListener('click', () => { currentPage--; renderFeed(); });
+  document.getElementById('next-page').addEventListener('click', () => { currentPage++; renderFeed(); });
+
+  // Agency table sorting
+  document.querySelectorAll('.agency-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (agencySortKey === key) agencySortDir *= -1;
+      else { agencySortKey = key; agencySortDir = -1; }
+      renderAgencyTable();
+    });
+  });
+
+  applyFilters();
+  renderAgencyTable();
+}
+
+function applyFilters() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const agency = document.getElementById('agency-filter').value;
+  const status = document.getElementById('status-filter').value;
+  const determination = document.getElementById('determination-filter').value;
+
+  filtered = allData.requests.filter(r => {
+    if (q) {
+      const searchable = `${r.title} ${r.agency} ${r.foilId} ${r.determinationMessage || ''}`.toLowerCase();
+      if (!searchable.includes(q)) return false;
+    }
+    if (agency && r.agency !== agency) return false;
+    if (status && r.status !== status) return false;
+    if (determination && r.determination !== determination) return false;
+    return true;
+  });
+
+  currentPage = 1;
+  renderFeed();
+}
+
+function clearFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('agency-filter').value = '';
+  document.getElementById('status-filter').value = '';
+  document.getElementById('determination-filter').value = '';
+  applyFilters();
+}
+
+function renderFeed() {
+  const feed = document.getElementById('request-feed');
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+
+  document.getElementById('results-count').textContent =
+    `${filtered.length.toLocaleString()} request${filtered.length !== 1 ? 's' : ''}`;
+
+  if (filtered.length === 0) {
+    feed.innerHTML = '<div class="empty-state">No requests match your filters.</div>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const start = (currentPage - 1) * PER_PAGE;
+  const page = filtered.slice(start, start + PER_PAGE);
+
+  feed.innerHTML = page.map((r, i) => {
+    const titleClass = r.isUnderReview ? ' class="under-review"' : '';
+    const displayTitle = r.isUnderReview ? 'Under review' : escapeHtml(r.title || 'Untitled');
+
+    let badges = '';
+    // Status badge
+    if (r.status === 'Open') {
+      badges += '<span class="badge badge-open">Open</span>';
+    } else {
+      badges += '<span class="badge badge-closed">Closed</span>';
+    }
+
+    // Determination badge
+    if (r.determination === 'Fulfilled') {
+      badges += '<span class="badge badge-fulfilled">Fulfilled</span>';
+    } else if (r.determination === 'Denied') {
+      badges += '<span class="badge badge-denied">Denied</span>';
+    } else if (r.determination === 'Partially Denied') {
+      badges += '<span class="badge badge-partial">Partial</span>';
+    }
+
+    // Response time
+    if (r.responseTimeDays != null) {
+      badges += `<span class="badge-days">${r.responseTimeDays} day${r.responseTimeDays !== 1 ? 's' : ''}</span>`;
+    }
+
+    // Agency abbreviation
+    const agencyAbbr = r.agency?.match(/\(([^)]+)\)/);
+    const agencyDisplay = agencyAbbr
+      ? `<strong>${agencyAbbr[1]}</strong> — ${r.agency.replace(/\s*\([^)]+\)/, '')}`
+      : escapeHtml(r.agency || '');
+
+    // Determination message
+    let detMsg = '';
+    if (r.determinationMessage) {
+      detMsg = `<div class="request-determination">\u201C${escapeHtml(truncate(r.determinationMessage, 200))}\u201D</div>`;
+    }
+
+    return `
+      <div class="request-item" style="animation-delay: ${i * 0.03}s">
+        <div class="request-meta">
+          <a class="request-foil-id" href="${r.url || '#'}" target="_blank" rel="noopener">${escapeHtml(r.foilId)}</a>
+          <span class="request-date">${formatDateShort(r.dateSubmitted)}</span>
+        </div>
+        <div class="request-body">
+          <h3${titleClass}>${displayTitle}</h3>
+          <div class="request-agency">${agencyDisplay}</div>
+          ${detMsg}
+        </div>
+        <div class="request-badges">${badges}</div>
+      </div>`;
+  }).join('');
+
+  // Pagination
+  const pagination = document.getElementById('pagination');
+  if (totalPages > 1) {
+    pagination.style.display = 'flex';
+    document.getElementById('page-info').textContent = `${currentPage} of ${totalPages}`;
+    document.getElementById('prev-page').disabled = currentPage <= 1;
+    document.getElementById('next-page').disabled = currentPage >= totalPages;
+  } else {
+    pagination.style.display = 'none';
+  }
+}
+
+function renderAgencyTable() {
+  const tbody = document.getElementById('agency-tbody');
+  if (!allData?.agencyStats) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No agency data.</td></tr>';
+    return;
+  }
+
+  const entries = Object.entries(allData.agencyStats).map(([name, s]) => ({
+    name,
+    ...s,
+    denial_rate: s.closed > 0 ? (s.denied / s.closed) : 0,
+    avg_days: s.avgResponseDays || 0,
+  }));
+
+  entries.sort((a, b) => {
+    let av = a[agencySortKey], bv = b[agencySortKey];
+    if (typeof av === 'string') return agencySortDir * av.localeCompare(bv);
+    return agencySortDir * (av - bv);
+  });
+
+  // Update sort arrows
+  document.querySelectorAll('.agency-table th[data-sort]').forEach(th => {
+    const arrow = th.querySelector('.sort-arrow');
+    th.classList.toggle('sorted', th.dataset.sort === agencySortKey);
+    if (th.dataset.sort === agencySortKey) {
+      arrow.textContent = agencySortDir === 1 ? '\u25B2' : '\u25BC';
+    } else {
+      arrow.textContent = '';
+    }
+  });
+
+  const maxDenialRate = Math.max(...entries.map(e => e.denial_rate), 0.01);
+
+  tbody.innerHTML = entries.map(e => {
+    const pct = (e.denial_rate * 100).toFixed(1);
+    const barW = Math.round((e.denial_rate / maxDenialRate) * 40);
+    const abbr = e.name.match(/\(([^)]+)\)/);
+    const displayName = abbr
+      ? `<strong>${abbr[1]}</strong> ${e.name.replace(/\s*\([^)]+\)/, '')}`
+      : escapeHtml(e.name);
+
+    return `<tr>
+      <td class="agency-name">${displayName}</td>
+      <td>${e.total}</td>
+      <td>${e.open}</td>
+      <td>${e.fulfilled}</td>
+      <td>${e.denied}</td>
+      <td><span class="denial-bar" style="width:${barW}px"></span>${pct}%</td>
+      <td>${e.avg_days || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+loadData();
+</script>
+</body>
+</html>
