@@ -47,7 +47,9 @@ for (const day of allDays) {
 
 function escXml(s) {
   if (!s) return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // Strip XML-invalid control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)
+  return s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function fmtMoney(n) {
