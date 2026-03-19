@@ -63,7 +63,10 @@ async function init() {
 
   updateLoadingText('Initializing map\u2026');
 
-  // Init map
+  // Start API fetch NOW — don't wait for map tiles to load
+  const apiDataPromise = prefetchLiveData();
+
+  // Init map (loads tiles in parallel with API fetch)
   map = new maplibregl.Map({
     container: 'map',
     style: CONFIG.tileUrl,
@@ -80,9 +83,14 @@ async function init() {
     // Generate directional pointer icon for buses
     createBusPointerIcon();
 
-    // Fetch bus data FIRST (fast), then lazy-load route shapes (slow)
-    updateLoadingText('Fetching live bus positions\u2026');
-    await fetchLiveData();
+    // API data was fetched in parallel with map — just await the result
+    updateLoadingText('Processing bus data\u2026');
+    const prefetchedData = await apiDataPromise;
+    if (prefetchedData) {
+      processLiveData(prefetchedData);
+    } else {
+      await fetchLiveData(); // fallback
+    }
 
     hideLoading();
     document.getElementById('live-badge').style.display = 'flex';
@@ -124,6 +132,8 @@ async function loadRouteShapes() {
       data: routeShapes,
     });
 
+    // Insert route lines BELOW bus layers so late-loading shapes don't cover dots
+    const beforeLayer = map.getLayer('bus-glow') ? 'bus-glow' : undefined;
     map.addLayer({
       id: 'route-lines',
       type: 'line',
@@ -133,77 +143,88 @@ async function loadRouteShapes() {
         'line-width': 2,
         'line-opacity': 0.35,
       },
-    });
+    }, beforeLayer);
   } catch (e) {
     console.warn('Could not load route shapes:', e);
   }
 }
 
-async function fetchLiveData() {
+// Prefetch: starts the API call immediately, returns raw parsed data
+async function prefetchLiveData() {
   try {
     const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
-
     const data = await res.json();
     const delivery = data?.Siri?.ServiceDelivery?.VehicleMonitoringDelivery;
     if (!delivery?.[0]?.VehicleActivity) throw new Error('No vehicle data');
+    return delivery[0].VehicleActivity;
+  } catch (e) {
+    console.error('Prefetch failed:', e);
+    return null;
+  }
+}
 
-    const vehicles = parseVehicles(delivery[0].VehicleActivity);
-    const now = Date.now();
+// Process raw API data into snapshot and render
+function processLiveData(vehicleActivity) {
+  const vehicles = parseVehicles(vehicleActivity);
+  const now = Date.now();
 
-    // Update bus position cache with fresh data
-    for (const v of vehicles) {
-      busPositionCache[v.id] = { lat: v.lat, lon: v.lon, ts: now, route: v.route, dir: v.dir, bearing: v.bearing };
+  // Update bus position cache with fresh data
+  for (const v of vehicles) {
+    busPositionCache[v.id] = { lat: v.lat, lon: v.lon, ts: now, route: v.route, dir: v.dir, bearing: v.bearing };
+  }
+
+  // Merge: include cached buses missing from this poll (stale < 2 min)
+  const vehicleIds = new Set(vehicles.map(v => v.id));
+  let mergedVehicles = [...vehicles];
+  for (const [id, cached] of Object.entries(busPositionCache)) {
+    if (!vehicleIds.has(id) && (now - cached.ts) < 120000) {
+      mergedVehicles.push({
+        id, route: cached.route, dir: cached.dir,
+        lat: cached.lat, lon: cached.lon, bearing: cached.bearing || 0,
+        dest: '', nextStop: '', distFromStop: '', stopsAway: null, phase: '', ts: '',
+        routeFull: '', bunched: 0,
+      });
     }
+  }
 
-    // Merge: include cached buses missing from this poll (stale < 2 min)
-    const vehicleIds = new Set(vehicles.map(v => v.id));
-    let mergedVehicles = [...vehicles];
-    for (const [id, cached] of Object.entries(busPositionCache)) {
-      if (!vehicleIds.has(id) && (now - cached.ts) < 120000) {
-        // Bus was seen recently but not in this poll — keep it
-        mergedVehicles.push({
-          id, route: cached.route, dir: cached.dir,
-          lat: cached.lat, lon: cached.lon, bearing: cached.bearing || 0,
-          dest: '', nextStop: '', distFromStop: '', stopsAway: null, phase: '', ts: '',
-          routeFull: '', bunched: 0,
-        });
-      }
-    }
+  // Evict stale entries (> 3 min)
+  for (const [id, cached] of Object.entries(busPositionCache)) {
+    if (now - cached.ts > 180000) delete busPositionCache[id];
+  }
 
-    // Evict stale entries (> 3 min)
-    for (const [id, cached] of Object.entries(busPositionCache)) {
-      if (now - cached.ts > 180000) delete busPositionCache[id];
-    }
+  const snapshot = {
+    ts: new Date().toISOString(),
+    count: mergedVehicles.length,
+    vehicles: mergedVehicles,
+  };
 
-    const snapshot = {
-      ts: new Date().toISOString(),
-      count: mergedVehicles.length,
-      vehicles: mergedVehicles,
-    };
+  if (previousSnapshot) {
+    computeSpeeds(previousSnapshot, snapshot);
+  }
+  previousSnapshot = currentSnapshot;
+  currentSnapshot = snapshot;
+  snapshots.push(snapshot);
+  if (snapshots.length > 200) snapshots.shift();
 
-    // Calculate speeds from previous snapshot
-    if (previousSnapshot) {
-      computeSpeeds(previousSnapshot, snapshot);
-    }
-    previousSnapshot = currentSnapshot;
-    currentSnapshot = snapshot;
-    snapshots.push(snapshot);
-    // Keep last 200 snapshots in memory for timeline
-    if (snapshots.length > 200) snapshots.shift();
+  renderBuses(snapshot);
+  computeMetrics(snapshot);
+  updateTimeline();
 
-    renderBuses(snapshot);
-    computeMetrics(snapshot);
-    updateTimeline();
+  document.getElementById('status-text').textContent =
+    `Updated ${formatTime(new Date(snapshot.ts))}`;
+}
 
-    document.getElementById('status-text').textContent =
-      `Updated ${formatTime(new Date(snapshot.ts))}`;
+async function fetchLiveData() {
+  try {
+    const activity = await prefetchLiveData();
+    if (!activity) throw new Error('No data');
+    processLiveData(activity);
   } catch (e) {
     console.error('Fetch failed:', e);
     document.getElementById('status-text').textContent =
       `Error: ${e.message}`;
-    // Dismiss loading overlay on error so UI is visible
     hideLoading();
   }
 }
