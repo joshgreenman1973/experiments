@@ -679,8 +679,14 @@ function renderRouteList(metrics) {
     route, ...m,
   }));
 
-  // Borough filter
-  if (boroFilter !== 'all') {
+  // Borough filter or Top 25
+  if (boroFilter === 'top25') {
+    // Sort all routes by bus count, take top 25
+    routes.sort((a, b) => b.buses - a.buses);
+    routes = routes.slice(0, 25);
+    // Highlight these on the map
+    highlightRoutes(routes.map(r => r.route));
+  } else if (boroFilter !== 'all') {
     routes = routes.filter(r => {
       const rt = r.route.toUpperCase();
       if (boroFilter === 'Bx') return rt.startsWith('BX');
@@ -881,9 +887,15 @@ function setupControls() {
   // Borough filter
   document.querySelectorAll('.boro-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Clear map highlight when leaving top25 or route selection
+      if (boroFilter === 'top25' && btn.dataset.boro !== 'top25') {
+        clearRouteHighlight();
+      }
       boroFilter = btn.dataset.boro;
+      selectedRoute = null;
       document.querySelectorAll('.boro-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      if (boroFilter !== 'top25') clearRouteHighlight();
       if (currentSnapshot) computeMetrics(currentSnapshot);
     });
   });
