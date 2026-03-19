@@ -246,6 +246,21 @@ canvas.spark{display:block;margin:4px auto 0;image-rendering:auto}
     <div class="metrics" id="sanitation-metrics"><div class="loading">Fetching sanitation data&#8230;</div></div>
   </div>
 
+  <div class="section" id="sec-response" data-accent="blue">
+    <div class="section-header"><h2>311 Response Speed</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">source</a> <span class="section-badge" id="response-date">&#8230;</span></div></div>
+    <div class="metrics" id="response-metrics"><div class="loading">Fetching response times&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-mmr" data-accent="purple">
+    <div class="section-header"><h2>Agency Processing Times (MMR)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/Agency-Performance-Indicators/rbed-zzin" target="_blank">source</a> <span class="section-badge" id="mmr-date">&#8230;</span></div></div>
+    <div class="metrics" id="mmr-metrics"><div class="loading">Fetching MMR data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-capital" data-accent="cyan">
+    <div class="section-header"><h2>Capital Projects</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/Capital-Projects-Dashboard/n7gv-k5yt" target="_blank">source</a> <span class="section-badge" id="capital-date">&#8230;</span></div></div>
+    <div class="metrics" id="capital-metrics"><div class="loading">Fetching capital data&#8230;</div></div>
+  </div>
+
   <div class="section" id="sec-nycha" data-accent="pink">
     <div class="section-header"><h2>Public Housing (NYCHA)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Housing-Development/Housing-Maintenance-Code-Violations/im9z-53hg" target="_blank">source</a> <span class="section-badge" id="nycha-date">&#8230;</span></div></div>
     <div class="metrics" id="nycha-metrics"><div class="loading">Fetching NYCHA data&#8230;</div></div>
@@ -902,11 +917,22 @@ async function loadBuildings() {
 
     const comp = permitsMonth && permitsPrior ? compBadge(Number(permitsMonth.cnt), Number(permitsPrior.cnt), true, 'vs prior 30d') : null;
 
+    // Permit processing time (approved to issued)
+    let avgProcessing = null;
+    try {
+      const [proc] = await q('rbx6-tga4',
+        `$select=avg(date_diff_d(issued_date,approved_date)) as avg_days&$where=issued_date>='${d30}' AND approved_date IS NOT NULL`);
+      avgProcessing = proc?.avg_days ? Number(proc.avg_days) : null;
+    } catch(e) { /* skip if unsupported */ }
+
     setBadge('buildings-date', 'Live');
     addStatus('DOB', 'live');
 
     let html = '';
     html += row('Permits Issued (30d)', fmt(permitsMonth?.cnt), comp);
+    if (avgProcessing !== null) {
+      html += row('Avg Approval \u2192 Issuance', fmtDec(avgProcessing, 0) + ' days');
+    }
     html += row('Active Open Complaints', fmt(activeComplaints?.cnt));
 
     if (byType.length) {
@@ -1272,6 +1298,159 @@ async function loadSpending() {
   }
 }
 
+async function load311Response() {
+  try {
+    const d30 = isoDate(30);
+
+    // Average days to close by agency (top agencies by volume)
+    const byAgency = await q('erm2-nwe9',
+      `$select=agency,avg(date_diff_d(closed_date,created_date)) as avg_days,count(*) as cnt&$where=closed_date IS NOT NULL AND created_date>='${d30}'&$group=agency&$order=cnt DESC&$limit=12`);
+
+    setBadge('response-date', 'Live');
+    addStatus('311 Speed', 'live');
+
+    let html = '';
+    html += '<table class="mini-table"><tr><th>Agency</th><th>Avg Days to Close</th><th>Volume</th></tr>';
+    byAgency.forEach(r => {
+      const days = Number(r.avg_days);
+      const color = days < 1 ? 'var(--green)' : days < 3 ? 'var(--text)' : days < 7 ? 'var(--yellow)' : 'var(--red)';
+      html += `<tr><td>${r.agency}</td><td style="color:${color}">${fmtDec(days, 1)}</td><td>${fmt(r.cnt)}</td></tr>`;
+    });
+    html += '</table>';
+
+    // Visual: bar chart of response times
+    const maxDays = Math.max(...byAgency.map(r => Number(r.avg_days)));
+    html += '<div class="boro-bars" style="margin-top:6px">';
+    byAgency.slice(0, 8).forEach(r => {
+      const days = Number(r.avg_days);
+      const color = days < 1 ? 'var(--green)' : days < 3 ? 'var(--blue)' : days < 7 ? 'var(--yellow)' : 'var(--red)';
+      html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:50px;font-size:9px">${r.agency}</span><span class="boro-track"><span class="boro-fill" style="width:${Math.min(days/maxDays*100,100)}%;background:${color}"></span></span><span class="boro-val">${fmtDec(days,1)}d</span></div>`;
+    });
+    html += '</div>';
+    html += '<div class="data-date">Avg calendar days from 311 request to closure (30 days)</div>';
+
+    setM('response-metrics', html);
+  } catch(e) {
+    setM('response-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('311 Speed', 'stale');
+  }
+}
+
+async function loadMMR() {
+  try {
+    // Get all "Average time" indicators with actual values for FY2025
+    const indicators = await q('rbed-zzin',
+      `$select=agency,indicator,acceptedvalue&$where=indicator like '%25Average time%25' AND fiscalyear='2025'&$limit=30`);
+
+    // Filter out NA and retired
+    const valid = indicators.filter(r =>
+      r.acceptedvalue && r.acceptedvalue !== 'NA' && !r.indicator?.includes('RETIRED')
+    );
+
+    // Also get some "processing time" indicators
+    const procIndicators = await q('rbed-zzin',
+      `$select=agency,indicator,acceptedvalue&$where=indicator like '%25processing time%25' AND fiscalyear='2025'&$limit=10`);
+    const validProc = procIndicators.filter(r => r.acceptedvalue && r.acceptedvalue !== 'NA');
+
+    // Combine and deduplicate
+    const all = [...valid, ...validProc];
+    const seen = new Set();
+    const unique = all.filter(r => {
+      const key = r.agency + r.indicator;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Sort by value (highest processing times first, treating as numbers where possible)
+    unique.sort((a, b) => {
+      const va = parseFloat(a.acceptedvalue) || 0;
+      const vb = parseFloat(b.acceptedvalue) || 0;
+      return vb - va;
+    });
+
+    setBadge('mmr-date', 'FY2025');
+    addStatus('MMR', 'delayed');
+
+    let html = '';
+    html += '<table class="mini-table"><tr><th>Indicator</th><th>Value</th></tr>';
+    unique.slice(0, 12).forEach(r => {
+      // Shorten indicator name
+      let name = r.indicator.replace('Average time to ', '').replace('Average time for ', '');
+      name = r.agency + ': ' + name.charAt(0).toUpperCase() + name.slice(1);
+      if (name.length > 55) name = name.slice(0, 53) + '\u2026';
+      const val = r.acceptedvalue;
+      const numVal = parseFloat(val);
+      const color = numVal > 30 ? 'var(--red)' : numVal > 7 ? 'var(--yellow)' : 'var(--text)';
+      html += `<tr><td style="font-family:var(--font-sans)">${name}</td><td style="color:${color}">${val}</td></tr>`;
+    });
+    html += '</table>';
+    html += '<div class="data-date">From Mayor\u2019s Management Report performance indicators</div>';
+
+    setM('mmr-metrics', html);
+  } catch(e) {
+    setM('mmr-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('MMR', 'stale');
+  }
+}
+
+async function loadCapital() {
+  try {
+    // Projects by phase
+    const byPhase = await q('n7gv-k5yt',
+      `$select=current_phase,count(*) as cnt&$group=current_phase&$order=cnt DESC&$limit=6`);
+
+    // Total project count and budget
+    const [totals] = await q('n7gv-k5yt',
+      `$select=count(*) as cnt,sum(budget_forecast) as total_budget`);
+
+    // By managing agency
+    const byAgency = await q('n7gv-k5yt',
+      `$select=managing_agency,count(*) as cnt,sum(budget_forecast) as budget&$group=managing_agency&$order=cnt DESC&$limit=8`);
+
+    // Largest projects
+    const largest = await q('n7gv-k5yt',
+      `$select=project_name,managing_agency,budget_forecast,current_phase&$order=budget_forecast DESC&$limit=5`);
+
+    setBadge('capital-date', 'Live');
+    addStatus('Capital', 'live');
+
+    const totalBudget = Number(totals?.total_budget || 0);
+
+    let html = '';
+    html += row('Active Capital Projects', fmt(totals?.cnt));
+    html += row('Total Budget Forecast', totalBudget > 0 ? '$' + fmt(Math.round(totalBudget / 1000000)) + 'M' : '\u2014');
+
+    // Phase breakdown bars
+    if (byPhase.length) {
+      const maxP = Math.max(...byPhase.filter(r=>r.current_phase).map(r => Number(r.cnt)));
+      html += '<div class="boro-bars" style="margin-top:4px">';
+      byPhase.filter(r=>r.current_phase).forEach(r => {
+        const val = Number(r.cnt);
+        const colors = {Design:'var(--blue)',Construction:'var(--green)','Construction Procurement':'var(--yellow)',IT:'var(--purple)','Close-Out':'var(--text-dim)'};
+        html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:80px;font-size:9px">${r.current_phase}</span><span class="boro-track"><span class="boro-fill" style="width:${val/maxP*100}%;background:${colors[r.current_phase]||'var(--cyan)'}"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    // Largest projects
+    if (largest.length) {
+      html += '<table class="mini-table"><tr><th>Largest Projects</th><th>Budget</th></tr>';
+      largest.forEach(r => {
+        const name = (r.project_name || '').slice(0, 35);
+        const budget = Number(r.budget_forecast || 0);
+        html += `<tr><td>${name}</td><td>$${fmt(Math.round(budget/1000000))}M</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    setM('capital-metrics', html);
+  } catch(e) {
+    setM('capital-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Capital', 'stale');
+  }
+}
+
 async function loadOATH() {
   try {
     const d90 = isoDate(90), d180 = isoDate(180);
@@ -1405,7 +1584,7 @@ async function init() {
     loadShelter(), loadCrime(), loadTraffic(), loadEMS(), loadFire(),
     load311(), loadRestaurants(), loadHousing(), loadBuildings(),
     loadDOT(), loadParks(), loadWater(), loadSpending(), loadOATH(), loadSanitation(),
-    loadNYCHA(), loadWorkforce(),
+    load311Response(), loadMMR(), loadCapital(), loadNYCHA(), loadWorkforce(),
   ]);
 }
 
