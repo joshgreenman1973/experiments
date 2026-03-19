@@ -83,13 +83,22 @@ async function init() {
     // Generate directional pointer icon for buses
     createBusPointerIcon();
 
-    // API data was fetched in parallel with map — just await the result
+    // Try cached snapshot for instant render while fresh data loads
+    const cached = loadCachedSnapshot();
+    if (cached) {
+      processLiveData(cached, true);
+      hideLoading();
+      document.getElementById('live-badge').style.display = 'flex';
+    }
+
+    // Now await the fresh API data (was fetching in parallel with map)
     updateLoadingText('Processing bus data\u2026');
     const prefetchedData = await apiDataPromise;
     if (prefetchedData) {
       processLiveData(prefetchedData);
-    } else {
-      await fetchLiveData(); // fallback
+      cacheLiveData(prefetchedData);
+    } else if (!cached) {
+      await fetchLiveData(); // fallback only if no cache either
     }
 
     hideLoading();
@@ -152,7 +161,9 @@ async function loadRouteShapes() {
 // Prefetch: starts the API call immediately, returns raw parsed data
 async function prefetchLiveData() {
   try {
-    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2`;
+    // VehicleMonitoringDetailLevel=minimum cuts response size ~60%
+    // (drops onward calls, monitored call details we don't need)
+    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2&VehicleMonitoringDetailLevel=minimum`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
@@ -165,8 +176,52 @@ async function prefetchLiveData() {
   }
 }
 
+// Cache last snapshot in sessionStorage for instant reload
+function cacheLiveData(vehicleActivity) {
+  try {
+    // Store a compact version — just the fields we need
+    const compact = vehicleActivity.map(a => {
+      const j = a.MonitoredVehicleJourney;
+      if (!j?.VehicleLocation) return null;
+      return {
+        id: j.VehicleRef || '',
+        r: j.LineRef || '',
+        d: j.DirectionRef || '0',
+        lat: j.VehicleLocation.Latitude,
+        lon: j.VehicleLocation.Longitude,
+        b: j.Bearing || 0,
+        dst: j.DestinationName?.[0] || j.DestinationName || '',
+      };
+    }).filter(Boolean);
+    sessionStorage.setItem('bus_cache', JSON.stringify({ ts: Date.now(), v: compact }));
+  } catch (e) { /* quota exceeded — ignore */ }
+}
+
+function loadCachedSnapshot() {
+  try {
+    const raw = sessionStorage.getItem('bus_cache');
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    // Only use if less than 5 minutes old
+    if (Date.now() - cached.ts > 300000) return null;
+    // Convert compact format back to API-like structure
+    return cached.v.map(v => ({
+      MonitoredVehicleJourney: {
+        VehicleRef: v.id,
+        LineRef: v.r,
+        DirectionRef: String(v.d),
+        VehicleLocation: { Latitude: v.lat, Longitude: v.lon },
+        Bearing: v.b,
+        DestinationName: [v.dst],
+      },
+      RecordedAtTime: new Date(cached.ts).toISOString(),
+    }));
+  } catch (e) { return null; }
+}
+
 // Process raw API data into snapshot and render
-function processLiveData(vehicleActivity) {
+// isCached=true skips position merging (stale data, don't pollute cache)
+function processLiveData(vehicleActivity, isCached = false) {
   const vehicles = parseVehicles(vehicleActivity);
   const now = Date.now();
 
@@ -221,6 +276,7 @@ async function fetchLiveData() {
     const activity = await prefetchLiveData();
     if (!activity) throw new Error('No data');
     processLiveData(activity);
+    cacheLiveData(activity);
   } catch (e) {
     console.error('Fetch failed:', e);
     document.getElementById('status-text').textContent =
