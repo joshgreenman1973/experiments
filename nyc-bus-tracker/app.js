@@ -81,6 +81,14 @@ async function init() {
     hideLoading();
     document.getElementById('live-badge').style.display = 'flex';
 
+    // Set title animation endpoint based on actual container width
+    const lane = document.querySelector('.title-lane');
+    const title = document.querySelector('.bus-title');
+    if (lane && title) {
+      const end = lane.offsetWidth - title.offsetWidth;
+      if (end > 0) title.style.setProperty('--end', `${end}px`);
+    }
+
     // Start auto-refresh
     setInterval(() => {
       if (isLive) fetchLiveData();
