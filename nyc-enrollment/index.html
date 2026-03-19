@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC K-12 Enrollment Shifts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --vc-black: #050507;
+            --vc-white: #ffffff;
+            --vc-cloud: #dddddd;
+            --vc-chartreuse: #dde44c;
+            --vc-orange: #ff7c53;
+            --vc-periwinkle: #9b9fbc;
+            --vc-rose: #cea9be;
+            --vc-magenta: #e7466d;
+            --vc-charcoal: #707175;
+            --vc-indigo: #394882;
+            --vc-cerulean: #217ebe;
+            --font-primary: 'Helvetica Neue', Arial, sans-serif;
+            --font-secondary: Georgia, 'Times New Roman', serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-primary);
+            background-color: var(--vc-white);
+            color: var(--vc-black);
+            -webkit-font-smoothing: antialiased;
+        }
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            height: 4px; background: var(--vc-cloud); border-radius: 2px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--vc-black); cursor: pointer;
+            border: 3px solid var(--vc-white); box-shadow: 0 0 0 1px var(--vc-black);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--vc-black); cursor: pointer;
+            border: 3px solid var(--vc-white); box-shadow: 0 0 0 1px var(--vc-black);
+        }
+        .recharts-legend-item-text { font-size: 12px !important; font-family: var(--font-primary) !important; }
+        .recharts-cartesian-axis-tick-value { font-family: var(--font-primary) !important; }
+        .custom-scrollbar::-webkit-scrollbar { height: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--vc-cloud); border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+
+        const compositionData = [
+            { year: 1940, public: 980000, charter: 0, religious: 250000, nonReligious: 20000, homeschool: 0 },
+            { year: 1941, public: 965000, charter: 0, religious: 252000, nonReligious: 20000, homeschool: 0 },
+            { year: 1942, public: 950000, charter: 0, religious: 254000, nonReligious: 20500, homeschool: 0 },
+            { year: 1943, public: 935000, charter: 0, religious: 256000, nonReligious: 20500, homeschool: 0 },
+            { year: 1944, public: 920000, charter: 0, religious: 258000, nonReligious: 21000, homeschool: 0 },
+            { year: 1945, public: 900000, charter: 0, religious: 260000, nonReligious: 21000, homeschool: 0 },
+            { year: 1946, public: 895000, charter: 0, religious: 265000, nonReligious: 21500, homeschool: 0 },
+            { year: 1947, public: 890000, charter: 0, religious: 270000, nonReligious: 22000, homeschool: 0 },
+            { year: 1948, public: 895000, charter: 0, religious: 275000, nonReligious: 23000, homeschool: 0 },
+            { year: 1949, public: 905000, charter: 0, religious: 280000, nonReligious: 24000, homeschool: 0 },
+            { year: 1950, public: 920000, charter: 0, religious: 285000, nonReligious: 25000, homeschool: 0 },
+            { year: 1951, public: 930000, charter: 0, religious: 295000, nonReligious: 25000, homeschool: 0 },
+            { year: 1952, public: 940000, charter: 0, religious: 305000, nonReligious: 25000, homeschool: 0 },
+            { year: 1953, public: 950000, charter: 0, religious: 315000, nonReligious: 25000, homeschool: 0 },
+            { year: 1954, public: 960000, charter: 0, religious: 325000, nonReligious: 25000, homeschool: 0 },
+            { year: 1955, public: 975000, charter: 0, religious: 335000, nonReligious: 25500, homeschool: 0 },
+            { year: 1956, public: 990000, charter: 0, religious: 345000, nonReligious: 26000, homeschool: 0 },
+            { year: 1957, public: 1005000, charter: 0, religious: 355000, nonReligious: 26500, homeschool: 0 },
+            { year: 1958, public: 1020000, charter: 0, religious: 365000, nonReligious: 27000, homeschool: 0 },
+            { year: 1959, public: 1035000, charter: 0, religious: 375000, nonReligious: 27500, homeschool: 0 },
+            { year: 1960, public: 1050000, charter: 0, religious: 385000, nonReligious: 28000, homeschool: 0 },
+            { year: 1961, public: 1060000, charter: 0, religious: 390000, nonReligious: 28500, homeschool: 0 },
+            { year: 1962, public: 1070000, charter: 0, religious: 395000, nonReligious: 29000, homeschool: 0 },
+            { year: 1963, public: 1080000, charter: 0, religious: 398000, nonReligious: 29500, homeschool: 0 },
+            { year: 1964, public: 1090000, charter: 0, religious: 400000, nonReligious: 30000, homeschool: 0 },
+            { year: 1965, public: 1100000, charter: 0, religious: 395000, nonReligious: 30500, homeschool: 0 },
+            { year: 1966, public: 1110000, charter: 0, religious: 390000, nonReligious: 31000, homeschool: 0 },
+            { year: 1967, public: 1115000, charter: 0, religious: 385000, nonReligious: 31000, homeschool: 0 },
+            { year: 1968, public: 1120000, charter: 0, religious: 380000, nonReligious: 31000, homeschool: 0 },
+            { year: 1969, public: 1125000, charter: 0, religious: 380000, nonReligious: 31000, homeschool: 0 },
+            { year: 1970, public: 1130000, charter: 0, religious: 385000, nonReligious: 31000, homeschool: 0 },
+            { year: 1971, public: 1125000, charter: 0, religious: 385000, nonReligious: 30500, homeschool: 0 },
+            { year: 1972, public: 1115000, charter: 0, religious: 385000, nonReligious: 30000, homeschool: 0 },
+            { year: 1973, public: 1105000, charter: 0, religious: 385000, nonReligious: 29500, homeschool: 0 },
+            { year: 1974, public: 1095000, charter: 0, religious: 385000, nonReligious: 29000, homeschool: 0 },
+            { year: 1975, public: 1080000, charter: 0, religious: 385000, nonReligious: 30000, homeschool: 100 },
+            { year: 1976, public: 1060000, charter: 0, religious: 375000, nonReligious: 30500, homeschool: 150 },
+            { year: 1977, public: 1040000, charter: 0, religious: 365000, nonReligious: 31000, homeschool: 200 },
+            { year: 1978, public: 1010000, charter: 0, religious: 355000, nonReligious: 31000, homeschool: 250 },
+            { year: 1979, public: 980000, charter: 0, religious: 345000, nonReligious: 31500, homeschool: 300 },
+            { year: 1980, public: 960000, charter: 0, religious: 335000, nonReligious: 31500, homeschool: 400 },
+            { year: 1981, public: 945000, charter: 0, religious: 325000, nonReligious: 31500, homeschool: 500 },
+            { year: 1982, public: 938000, charter: 0, religious: 315000, nonReligious: 32000, homeschool: 600 },
+            { year: 1983, public: 935000, charter: 0, religious: 305000, nonReligious: 32000, homeschool: 700 },
+            { year: 1984, public: 933000, charter: 0, religious: 295000, nonReligious: 32000, homeschool: 800 },
+            { year: 1985, public: 934000, charter: 0, religious: 285000, nonReligious: 32000, homeschool: 900 },
+            { year: 1986, public: 936000, charter: 0, religious: 278000, nonReligious: 32000, homeschool: 1000 },
+            { year: 1987, public: 940000, charter: 0, religious: 273000, nonReligious: 32000, homeschool: 1100 },
+            { year: 1988, public: 943000, charter: 0, religious: 267000, nonReligious: 33000, homeschool: 1200 },
+            { year: 1989, public: 948000, charter: 0, religious: 262000, nonReligious: 33000, homeschool: 1300 },
+            { year: 1990, public: 956000, charter: 0, religious: 256000, nonReligious: 34000, homeschool: 1400 },
+            { year: 1991, public: 965000, charter: 0, religious: 254000, nonReligious: 34000, homeschool: 1500 },
+            { year: 1992, public: 978000, charter: 0, religious: 250000, nonReligious: 35000, homeschool: 1600 },
+            { year: 1993, public: 990000, charter: 0, religious: 247000, nonReligious: 35000, homeschool: 1700 },
+            { year: 1994, public: 1002000, charter: 0, religious: 244000, nonReligious: 36000, homeschool: 1800 },
+            { year: 1995, public: 1014000, charter: 0, religious: 242000, nonReligious: 36000, homeschool: 1900 },
+            { year: 1996, public: 1030000, charter: 0, religious: 238000, nonReligious: 37000, homeschool: 2000 },
+            { year: 1997, public: 1045000, charter: 0, religious: 235000, nonReligious: 37000, homeschool: 2200 },
+            { year: 1998, public: 1058000, charter: 0, religious: 231000, nonReligious: 38000, homeschool: 2400 },
+            { year: 1999, public: 1065000, charter: 1000, religious: 229000, nonReligious: 38000, homeschool: 2600 },
+            { year: 2000, public: 1073000, charter: 2500, religious: 226000, nonReligious: 39000, homeschool: 2800 },
+            { year: 2001, public: 1068000, charter: 4000, religious: 224000, nonReligious: 39000, homeschool: 3000 },
+            { year: 2002, public: 1060000, charter: 6000, religious: 221000, nonReligious: 40000, homeschool: 3200 },
+            { year: 2003, public: 1055000, charter: 8000, religious: 219000, nonReligious: 40000, homeschool: 3400 },
+            { year: 2004, public: 1050000, charter: 10000, religious: 216000, nonReligious: 41000, homeschool: 3600 },
+            { year: 2005, public: 1045000, charter: 12500, religious: 215000, nonReligious: 41000, homeschool: 3800 },
+            { year: 2006, public: 1040000, charter: 15000, religious: 213000, nonReligious: 42000, homeschool: 4000 },
+            { year: 2007, public: 1035000, charter: 20000, religious: 210000, nonReligious: 42000, homeschool: 4200 },
+            { year: 2008, public: 1030000, charter: 25000, religious: 206000, nonReligious: 43000, homeschool: 4500 },
+            { year: 2009, public: 1025000, charter: 32000, religious: 204000, nonReligious: 43000, homeschool: 4800 },
+            { year: 2010, public: 1020000, charter: 40000, religious: 205000, nonReligious: 43000, homeschool: 5000 },
+            { year: 2011, public: 1015000, charter: 50000, religious: 203000, nonReligious: 43000, homeschool: 5200 },
+            { year: 2012, public: 1005000, charter: 60000, religious: 197900, nonReligious: 44000, homeschool: 5500 },
+            { year: 2013, public: 1002000, charter: 70000, religious: 196000, nonReligious: 44000, homeschool: 5800 },
+            { year: 2014, public: 1000000, charter: 83000, religious: 194000, nonReligious: 44000, homeschool: 6100 },
+            { year: 2015, public: 995000, charter: 95000, religious: 192000, nonReligious: 44000, homeschool: 6400 },
+            { year: 2016, public: 990000, charter: 106000, religious: 191000, nonReligious: 44000, homeschool: 6800 },
+            { year: 2017, public: 985000, charter: 114000, religious: 190000, nonReligious: 44000, homeschool: 7100 },
+            { year: 2018, public: 975000, charter: 120000, religious: 188000, nonReligious: 45000, homeschool: 7500 },
+            { year: 2019, public: 965000, charter: 129000, religious: 185000, nonReligious: 45000, homeschool: 7800 },
+            { year: 2020, public: 935000, charter: 135000, religious: 180000, nonReligious: 45000, homeschool: 12000 },
+            { year: 2021, public: 890000, charter: 142000, religious: 175000, nonReligious: 45000, homeschool: 14800 },
+            { year: 2022, public: 870000, charter: 145000, religious: 173000, nonReligious: 45000, homeschool: 15500 },
+            { year: 2023, public: 855000, charter: 148000, religious: 170000, nonReligious: 45000, homeschool: 16000 },
+            { year: 2024, public: 845000, charter: 150500, religious: 169000, nonReligious: 45000, homeschool: 16500 },
+            { year: 2025, public: 835000, charter: 152000, religious: 168000, nonReligious: 45000, homeschool: 16800 }
+        ];
+
+        const earlyChildhoodData = [
+            { year: 2012, preK: 18000, threeK: 0 },
+            { year: 2013, preK: 19000, threeK: 0 },
+            { year: 2014, preK: 53000, threeK: 0 },
+            { year: 2015, preK: 68000, threeK: 0 },
+            { year: 2016, preK: 70000, threeK: 0 },
+            { year: 2017, preK: 70000, threeK: 1500 },
+            { year: 2018, preK: 69000, threeK: 5000 },
+            { year: 2019, preK: 68000, threeK: 15000 },
+            { year: 2020, preK: 60000, threeK: 25000 },
+            { year: 2021, preK: 58000, threeK: 35000 },
+            { year: 2022, preK: 56000, threeK: 40000 },
+            { year: 2023, preK: 55000, threeK: 42000 },
+            { year: 2024, preK: 54000, threeK: 40000 },
+            { year: 2025, preK: 52000, threeK: 38000 }
+        ];
+
+        const gradeData = [
+            { grade: 'K',  y2019: 72000, y2025: 56000 },
+            { grade: '1',  y2019: 74000, y2025: 59000 },
+            { grade: '2',  y2019: 75000, y2025: 61000 },
+            { grade: '3',  y2019: 74000, y2025: 63000 },
+            { grade: '4',  y2019: 76000, y2025: 64000 },
+            { grade: '5',  y2019: 76000, y2025: 65000 },
+            { grade: '6',  y2019: 75000, y2025: 66000 },
+            { grade: '7',  y2019: 74000, y2025: 67000 },
+            { grade: '8',  y2019: 73000, y2025: 68000 },
+            { grade: '9',  y2019: 82000, y2025: 76000 },
+            { grade: '10', y2019: 78000, y2025: 73000 },
+            { grade: '11', y2019: 70000, y2025: 67000 },
+            { grade: '12', y2019: 66000, y2025: 64000 }
+        ];
+
+        const COLORS = {
+            public: '#dde44c',
+            charter: '#ff7c53',
+            religious: '#394882',
+            nonReligious: '#9b9fbc',
+            homeschool: '#e7466d',
+            preK: '#217ebe',
+            threeK: '#cea9be',
+            y2019: '#dddddd',
+            y2025: '#e7466d',
+        };
+
+        const formatYAxis = (v) => {
+            if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+            if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+            return v;
+        };
+
+        const formatNumber = (n) => n.toLocaleString();
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (!active || !payload || !payload.length || payload[0].value === undefined) return null;
+            var displayLabel = typeof label === 'number' ? Math.floor(label) : label;
+            var total = payload.reduce((sum, e) => sum + e.value, 0);
+            return (
+                <div style={{ background: '#050507', color: '#fff', padding: '16px 20px', minWidth: '240px', fontFamily: 'var(--font-primary)', boxShadow: '0 8px 32px rgba(0,0,0,0.24)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '10px', marginBottom: '10px' }}>
+                        <span style={{ fontWeight: 900, fontSize: '20px', letterSpacing: '-0.02em' }}>{displayLabel}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#dde44c' }}>{total.toLocaleString()} total</span>
+                    </div>
+                    {[...payload].reverse().map((entry, i) => {
+                        var pct = ((entry.value / total) * 100).toFixed(1);
+                        return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: '13px', marginBottom: '5px' }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: entry.color, marginRight: '8px', flexShrink: 0 }} />
+                                <span style={{ color: 'rgba(255,255,255,0.7)', marginRight: 'auto' }}>{entry.name}</span>
+                                <span style={{ fontWeight: 700, marginLeft: '12px', fontVariantNumeric: 'tabular-nums' }}>{entry.value.toLocaleString()}</span>
+                                <span style={{ fontWeight: 600, marginLeft: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.45)', width: '40px', textAlign: 'right' }}>{pct}%</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        const PlayIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>;
+        const PauseIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="5" height="18"/><rect x="14" y="3" width="5" height="18"/></svg>;
+        const ResetIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+
+        const StatCard = ({ label, value, detail, color }) => (
+            <div style={{ background: '#fff', border: '1px solid #ddd', padding: '20px 24px', flex: 1, minWidth: '160px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#707175', marginBottom: '6px' }}>{label}</div>
+                <div style={{ fontSize: '32px', fontWeight: 900, letterSpacing: '-0.03em', color: color || '#050507', lineHeight: 1 }}>{value}</div>
+                {detail && <div style={{ fontSize: '12px', color: '#707175', marginTop: '6px' }}>{detail}</div>}
+            </div>
+        );
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('composition');
+            const [progress, setProgress] = useState(2025);
+            const [isPlaying, setIsPlaying] = useState(false);
+
+            useEffect(() => {
+                var raf;
+                var last = performance.now();
+                var tick = (now) => {
+                    var dt = now - last;
+                    last = now;
+                    setProgress(prev => {
+                        var next = prev + (dt / 120);
+                        if (next >= 2025) { setIsPlaying(false); return 2025; }
+                        return next;
+                    });
+                    raf = requestAnimationFrame(tick);
+                };
+                if (isPlaying) { last = performance.now(); raf = requestAnimationFrame(tick); }
+                return () => cancelAnimationFrame(raf);
+            }, [isPlaying]);
+
+            const handlePlayPause = () => {
+                if (progress >= 2025 && !isPlaying) { setProgress(1940); setIsPlaying(true); }
+                else { setIsPlaying(!isPlaying); }
+            };
+            const handleReset = () => { setIsPlaying(false); setProgress(1940); };
+
+            var yr = Math.floor(progress);
+            var frac = progress - yr;
+            var animatedData = compositionData.filter(d => d.year <= yr);
+            if (yr < 2025) {
+                var prev = compositionData.find(p => p.year === yr);
+                var next = compositionData.find(p => p.year === yr + 1);
+                if (prev && next && frac > 0) {
+                    var lerp = (a, b) => a + (b - a) * frac;
+                    animatedData.push({
+                        year: yr + frac,
+                        public: lerp(prev.public, next.public),
+                        religious: lerp(prev.religious, next.religious),
+                        nonReligious: lerp(prev.nonReligious, next.nonReligious),
+                        charter: lerp(prev.charter, next.charter),
+                        homeschool: lerp(prev.homeschool, next.homeschool),
+                    });
+                }
+            }
+
+            var currentEntry = animatedData[animatedData.length - 1] || compositionData[0];
+            var currentTotal = currentEntry.public + currentEntry.religious + currentEntry.nonReligious + currentEntry.charter + currentEntry.homeschool;
+            var peakEntry = compositionData.reduce((max, d) => {
+                var t = d.public + d.religious + d.nonReligious + d.charter + d.homeschool;
+                return t > (max.public + max.religious + max.nonReligious + max.charter + max.homeschool) ? d : max;
+            });
+            var peakTotal = peakEntry.public + peakEntry.religious + peakEntry.nonReligious + peakEntry.charter + peakEntry.homeschool;
+
+            var tabs = [
+                { id: 'composition', label: 'Total K-12 Composition' },
+                { id: 'prek', label: 'Early Childhood (Pre-K / 3-K)' },
+                { id: 'grades', label: 'Public Enrollment by Grade' },
+            ];
+
+            var vcLogo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 24"><text x="0" y="18" font-family="Helvetica Neue,Arial,sans-serif" font-size="16" font-weight="900" letter-spacing="0.1em" fill="#050507">VITAL CITY</text></svg>');
+
+            return (
+                <div style={{ maxWidth: '960px', margin: '0 auto', padding: '24px 16px 60px' }}>
+                    <div style={{ marginBottom: '40px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#707175', marginBottom: '12px' }}>Data Interactive</div>
+                        <h1 style={{ fontSize: 'clamp(28px, 5vw, 44px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-0.03em', color: '#050507', marginBottom: '12px', maxWidth: '700px' }}>
+                            {"The city\u2019s schools are shrinking\u2014but this isn\u2019t just a pandemic story"}
+                        </h1>
+                        <p style={{ fontFamily: 'var(--font-secondary)', fontSize: 'clamp(16px, 2.5vw, 20px)', color: '#707175', lineHeight: 1.5, maxWidth: '600px' }}>
+                            85 years of enrollment data, from Baby Boom to pandemic exodus
+                        </p>
+                    </div>
+
+                    <div className="custom-scrollbar" style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '32px', overflowX: 'auto' }}>
+                        {tabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                                background: 'none', border: 'none',
+                                borderBottom: activeTab === tab.id ? '3px solid #050507' : '3px solid transparent',
+                                padding: '12px 20px', fontSize: '12px',
+                                fontWeight: activeTab === tab.id ? 700 : 500,
+                                textTransform: 'uppercase', letterSpacing: '0.08em',
+                                color: activeTab === tab.id ? '#050507' : '#707175',
+                                cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-primary)',
+                            }}>{tab.label}</button>
+                        ))}
+                    </div>
+
+                    {/* TAB 1: COMPOSITION - uses display toggle */}
+                    <div style={{ display: activeTab === 'composition' ? 'block' : 'none' }}>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                            NYC lost 300,000 K-12 students from peak to present
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '24px' }}>
+                            {"Total enrollment by sector, 1940\u20132025 (estimated)"}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                            <StatCard label="Current Year" value={Math.floor(progress)} />
+                            <StatCard label="Total Students" value={formatYAxis(Math.round(currentTotal))} detail={'Peak: ' + formatYAxis(peakTotal) + ' in ' + peakEntry.year} />
+                            <StatCard label="Public School Share" value={((currentEntry.public / currentTotal) * 100).toFixed(0) + '%'} detail={formatNumber(Math.round(currentEntry.public)) + ' students'} color="#dde44c" />
+                            <StatCard label="Charter Share" value={((currentEntry.charter / currentTotal) * 100).toFixed(1) + '%'} detail={currentEntry.charter > 0 ? formatNumber(Math.round(currentEntry.charter)) + ' students' : 'Not yet established'} color="#ff7c53" />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#f8f8f8', border: '1px solid #ddd', marginBottom: '20px', flexWrap: 'wrap' }}>
+                            <button onClick={handlePlayPause} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050507', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                {isPlaying ? <PauseIcon /> : <PlayIcon />}
+                            </button>
+                            <button onClick={handleReset} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#050507', border: '1px solid #ddd', cursor: 'pointer' }}>
+                                <ResetIcon />
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#707175', fontVariantNumeric: 'tabular-nums' }}>1940</span>
+                                <input type="range" min="1940" max="2025" step="0.1" value={progress} onChange={(e) => { setProgress(parseFloat(e.target.value)); setIsPlaying(false); }} style={{ flex: 1 }} />
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#050507', fontVariantNumeric: 'tabular-nums', width: '32px' }}>{Math.floor(progress)}</span>
+                            </div>
+                        </div>
+
+                        <div style={{ height: '420px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={animatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                    <XAxis dataKey="year" type="number" domain={[1940, 2025]} ticks={[1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={45} />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
+                                    <Area isAnimationActive={false} type="monotone" dataKey="public" name="Traditional Public" stackId="1" stroke="#dde44c" fill="#dde44c" fillOpacity={0.9} />
+                                    <Area isAnimationActive={false} type="monotone" dataKey="religious" name="Religious / Parochial" stackId="1" stroke="#394882" fill="#394882" fillOpacity={0.85} />
+                                    <Area isAnimationActive={false} type="monotone" dataKey="nonReligious" name="Independent (Secular)" stackId="1" stroke="#9b9fbc" fill="#9b9fbc" fillOpacity={0.8} />
+                                    <Area isAnimationActive={false} type="monotone" dataKey="charter" name="Charter" stackId="1" stroke="#ff7c53" fill="#ff7c53" fillOpacity={0.9} />
+                                    <Area isAnimationActive={false} type="monotone" dataKey="homeschool" name="Homeschool" stackId="1" stroke="#e7466d" fill="#e7466d" fillOpacity={0.85} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div>
+                                <span style={{ fontWeight: 600 }}>Source:</span>{' '}
+                                <a href="https://data.nysed.gov/" style={{ color: '#707175', textDecoration: 'underline' }}>NYS Education Dept.</a>,{' '}
+                                <a href="https://ibo.nyc.ny.us/" style={{ color: '#707175', textDecoration: 'underline' }}>NYC IBO</a>,{' '}
+                                <a href="https://infohub.nyced.org/" style={{ color: '#707175', textDecoration: 'underline' }}>DOE InfoHub</a>
+                                <br /><em>Note: Pre-2000 data are historical estimates.</em>
+                            </div>
+                            <img src={vcLogo} alt="Vital City" style={{ height: '16px', opacity: 0.5 }} />
+                        </div>
+                    </div>
+
+                    {/* TAB 2: EARLY CHILDHOOD */}
+                    {activeTab === 'prek' && <div>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                            The early childhood boom masked the K-12 decline
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '28px' }}>
+                            Universal Pre-K launched in 2014; 3-K for All began in 2017
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                            <StatCard label="Pre-K Peak" value="70k" detail={"2016\u20132017"} color="#217ebe" />
+                            <StatCard label="Pre-K 2025" value="52k" detail="-26% from peak" color="#217ebe" />
+                            <StatCard label="3-K Peak" value="42k" detail="2023" color="#cea9be" />
+                            <StatCard label="Combined 2025" value="90k" detail="Down from 97k peak" />
+                        </div>
+
+                        <div style={{ height: '400px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={earlyChildhoodData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                    <XAxis dataKey="year" tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(221,228,76,0.1)' }} />
+                                    <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
+                                    <Bar isAnimationActive={false} dataKey="preK" name="Pre-K Enrollment" stackId="a" fill="#217ebe" />
+                                    <Bar isAnimationActive={false} dataKey="threeK" name="3-K Enrollment" stackId="a" fill="#cea9be" radius={[3, 3, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div><span style={{ fontWeight: 600 }}>Source:</span>{' '}<a href="https://infohub.nyced.org/reports/school-quality/information-and-data-overview" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE Demographic Snapshots</a></div>
+                            <img src={vcLogo} alt="Vital City" style={{ height: '16px', opacity: 0.5 }} />
+                        </div>
+                    </div>}
+
+                    {/* TAB 3: GRADES */}
+                    {activeTab === 'grades' && <div>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                            {"Lower grades got hollowed out\u2014the ripple hasn\u2019t stopped"}
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '28px' }}>
+                            Public school enrollment by grade, 2019 vs. 2025
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                            <StatCard label="Kindergarten Drop" value="-22%" detail={"72k \u2192 56k"} color="#e7466d" />
+                            <StatCard label="Grade 1 Drop" value="-20%" detail={"74k \u2192 59k"} color="#e7466d" />
+                            <StatCard label="Grade 12 Drop" value="-3%" detail={"66k \u2192 64k"} color="#707175" />
+                        </div>
+
+                        <div style={{ height: '400px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={gradeData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }} barCategoryGap="20%">
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                    <XAxis dataKey="grade" tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(221,228,76,0.1)' }} />
+                                    <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
+                                    <Bar isAnimationActive={false} dataKey="y2019" name="2019 Enrollment" fill="#dddddd" radius={[3, 3, 0, 0]} />
+                                    <Bar isAnimationActive={false} dataKey="y2025" name="2025 Enrollment" fill="#e7466d" radius={[3, 3, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div><span style={{ fontWeight: 600 }}>Source:</span>{' '}<a href="https://infohub.nyced.org/" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE InfoHub</a></div>
+                            <img src={vcLogo} alt="Vital City" style={{ height: '16px', opacity: 0.5 }} />
+                        </div>
+                    </div>}
+
+                    <div style={{ marginTop: '40px', padding: '20px 0', borderTop: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <img src={vcLogo} alt="Vital City" style={{ height: '20px' }} />
+                        <span style={{ fontSize: '11px', color: '#707175' }}>{"\u00a9 2025 Vital City"}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
