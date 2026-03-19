@@ -331,6 +331,28 @@ function highlightRoute(route) {
   }
 }
 
+function highlightRoutes(routes) {
+  if (!map.getLayer('route-lines') || routes.length === 0) return;
+
+  // Build a match expression: ['in', ['get', 'route'], ['literal', [...]]]
+  const matchExpr = ['in', ['get', 'route'], ['literal', routes]];
+
+  map.setPaintProperty('route-lines', 'line-opacity', [
+    'case', matchExpr, 0.85, 0.04,
+  ]);
+  map.setPaintProperty('route-lines', 'line-width', [
+    'case', matchExpr, 3.5, 1,
+  ]);
+  map.setPaintProperty('bus-dots', 'circle-opacity', [
+    'case', matchExpr, 1, 0.08,
+  ]);
+  if (map.getLayer('bus-glow')) {
+    map.setPaintProperty('bus-glow', 'circle-opacity', [
+      'case', matchExpr, 0.3, 0.02,
+    ]);
+  }
+}
+
 function clearRouteHighlight() {
   if (!map.getLayer('route-lines')) return;
   map.setPaintProperty('route-lines', 'line-opacity', 0.35);
@@ -551,10 +573,6 @@ function markBusBunched(snapshot, busId) {
 // ═══ LONG WAIT ALERTS ═══
 function renderWaitAlerts(waits20, waits30) {
   const container = document.getElementById('wait-alerts');
-  const list30 = document.getElementById('wait-list-30');
-  const list20 = document.getElementById('wait-list-20');
-  const section30 = document.getElementById('wait-30');
-  const section20 = document.getElementById('wait-20');
 
   if (waits30.length === 0 && waits20.length === 0) {
     container.style.display = 'none';
@@ -563,41 +581,76 @@ function renderWaitAlerts(waits20, waits30) {
 
   container.style.display = 'block';
 
+  let html = '';
+
   if (waits30.length > 0) {
-    section30.style.display = 'block';
-    list30.innerHTML = waits30.map(w => {
-      const color = routeColor(w.route);
-      return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
-    }).join('');
-    list30.querySelectorAll('.wait-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const route = chip.dataset.route;
-        selectedRoute = route;
-        highlightRoute(route);
-        zoomToRoute(route);
-      });
-    });
-  } else {
-    section30.style.display = 'none';
+    html += `<div class="wait-row" data-tier="30">
+      <span class="wait-dot severe"></span>
+      <span class="wait-count">${waits30.length}</span>
+      <span class="wait-label">route${waits30.length !== 1 ? 's' : ''} with 30+ min waits</span>
+      <span class="wait-toggle" id="toggle-30">\u25B6</span>
+    </div>
+    <div class="wait-detail" id="detail-30" style="display:none">
+      ${waits30.map(w => {
+        const color = routeColor(w.route);
+        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+      }).join('')}
+    </div>`;
   }
 
   if (waits20.length > 0) {
-    section20.style.display = 'block';
-    list20.innerHTML = waits20.map(w => {
-      const color = routeColor(w.route);
-      return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
-    }).join('');
-    list20.querySelectorAll('.wait-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const route = chip.dataset.route;
-        selectedRoute = route;
-        highlightRoute(route);
-        zoomToRoute(route);
-      });
-    });
-  } else {
-    section20.style.display = 'none';
+    html += `<div class="wait-row" data-tier="20">
+      <span class="wait-dot bad"></span>
+      <span class="wait-count">${waits20.length}</span>
+      <span class="wait-label">route${waits20.length !== 1 ? 's' : ''} with 20\u201330 min waits</span>
+      <span class="wait-toggle" id="toggle-20">\u25B6</span>
+    </div>
+    <div class="wait-detail" id="detail-20" style="display:none">
+      ${waits20.map(w => {
+        const color = routeColor(w.route);
+        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+      }).join('')}
+    </div>`;
   }
+
+  container.innerHTML = html;
+
+  // Store for highlight access
+  container._waits = { 30: waits30, 20: waits20 };
+
+  // Click row → toggle detail AND highlight all those routes on map
+  container.querySelectorAll('.wait-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const tier = row.dataset.tier;
+      const detail = document.getElementById(`detail-${tier}`);
+      const toggle = document.getElementById(`toggle-${tier}`);
+      const waits = container._waits[tier] || [];
+      const routes = waits.map(w => w.route);
+
+      if (detail.style.display === 'none') {
+        detail.style.display = 'flex';
+        toggle.textContent = '\u25BC';
+        // Highlight all long-wait routes on the map
+        highlightRoutes(routes);
+        selectedRoute = null; // clear single selection
+      } else {
+        detail.style.display = 'none';
+        toggle.textContent = '\u25B6';
+        clearRouteHighlight();
+      }
+    });
+  });
+
+  // Chip click → highlight single route
+  container.querySelectorAll('.wait-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const route = chip.dataset.route;
+      selectedRoute = route;
+      highlightRoute(route);
+      zoomToRoute(route);
+    });
+  });
 }
 
 // ═══ ROUTE LIST ═══
