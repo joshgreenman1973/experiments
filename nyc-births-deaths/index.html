@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Pulse of New York City — Vital City</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --vc-black: #050507;
+    --vc-white: #ffffff;
+    --vc-cloud: #dddddd;
+    --vc-chartreuse: #dde44c;
+    --vc-orange: #ff7c53;
+    --vc-periwinkle: #9b9fbc;
+    --vc-rose: #cea9be;
+    --vc-magenta: #e7466d;
+    --vc-charcoal: #707175;
+    --vc-indigo: #394882;
+    --vc-cerulean: #217ebe;
+    --vc-chartreuse-80: #e4e871;
+    --vc-chartreuse-50: #edefa8;
+    --vc-chartreuse-20: #f7f8dd;
+    --vc-orange-80: #f69577;
+    --vc-orange-50: #fabcaa;
+    --vc-magenta-80: #ec6b8a;
+    --vc-cerulean-80: #4e98cb;
+    --font-primary: 'Halyard', 'Helvetica Neue', Arial, sans-serif;
+    --font-secondary: 'Gascogne', Georgia, 'Times New Roman', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--vc-black);
+    color: var(--vc-white);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- HERO (dark mode, on-brand for data tools) ---- */
+  .hero {
+    text-align: center;
+    padding: 80px 24px 24px;
+    max-width: 860px;
+    margin: 0 auto;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero h1 {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+    color: var(--vc-white);
+    margin-bottom: 16px;
+    line-height: 1.1;
+  }
+
+  .hero h1 span {
+    color: var(--vc-chartreuse);
+  }
+
+  .hero .dek {
+    font-family: var(--font-secondary);
+    font-size: 1.15rem;
+    color: var(--vc-periwinkle);
+    font-weight: 300;
+    line-height: 1.7;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* ---- COUNTERS ---- */
+  .counter-row {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    padding: 32px 20px 8px;
+    opacity: 0;
+    animation: fadeUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+  }
+
+  .counter-box { text-align: center; }
+
+  .counter-box .label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--vc-charcoal);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  .counter-box .year-display {
+    font-size: 3.4rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    color: var(--vc-white);
+    line-height: 1;
+  }
+
+  .counter-box .count {
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .counter-box .count.births { color: var(--vc-chartreuse); }
+  .counter-box .count.deaths { color: var(--vc-orange); }
+  .counter-box .count.natural { color: var(--vc-cerulean); }
+
+  /* ---- CONTROLS ---- */
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    color: var(--vc-white);
+    padding: 8px 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.25s ease;
+  }
+
+  .btn:hover {
+    border-color: var(--vc-chartreuse);
+    color: var(--vc-chartreuse);
+  }
+
+  .btn.active {
+    background: var(--vc-chartreuse);
+    border-color: var(--vc-chartreuse);
+    color: var(--vc-black);
+  }
+
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--vc-charcoal);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .speed-control input[type="range"] {
+    width: 70px;
+    accent-color: var(--vc-chartreuse);
+  }
+
+  /* ---- MAIN CHART (dark bg) ---- */
+  .chart-dark {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+    position: relative;
+  }
+
+  .chart-dark svg { width: 100%; overflow: visible; }
+
+  /* ---- WHITE SECTIONS ---- */
+  .white-zone {
+    background: var(--vc-white);
+    color: var(--vc-black);
+    padding: 60px 0;
+  }
+
+  .section {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .section.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .section h2 {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--vc-black);
+    margin-bottom: 6px;
+    line-height: 1.25;
+    max-width: 700px;
+  }
+
+  .section .dek {
+    font-family: var(--font-primary);
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--vc-charcoal);
+    margin-bottom: 20px;
+    line-height: 1.5;
+    max-width: 700px;
+  }
+
+  .section-row {
+    display: flex;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .section-row > div { flex: 1; min-width: 280px; }
+
+  .sub-heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  .sub-heading.births { color: var(--vc-chartreuse); filter: brightness(0.7); }
+  .sub-heading.deaths { color: var(--vc-orange); }
+
+  /* ---- TAB BAR ---- */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 18px;
+    border-bottom: 1.5px solid var(--vc-cloud);
+    width: fit-content;
+  }
+
+  .tab-bar .tab {
+    padding: 8px 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--vc-charcoal);
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    font-family: var(--font-primary);
+    border-bottom: 2.5px solid transparent;
+    margin-bottom: -1.5px;
+  }
+
+  .tab-bar .tab:hover { color: var(--vc-black); }
+  .tab-bar .tab.active {
+    color: var(--vc-black);
+    border-bottom-color: var(--vc-orange);
+  }
+
+  /* ---- LEGEND ---- */
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .legend .item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--vc-charcoal);
+  }
+
+  .legend .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  /* ---- LOADING ---- */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--vc-charcoal);
+    font-size: 0.9rem;
+  }
+
+  .loading .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2.5px solid rgba(221,228,76,0.2);
+    border-top-color: var(--vc-chartreuse);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- TOOLTIP ---- */
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--vc-black);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--vc-white);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.12s;
+    max-width: 260px;
+    font-family: var(--font-primary);
+  }
+
+  /* ---- DATA NOTE ---- */
+  .data-note-zone {
+    background: var(--vc-cloud);
+    padding: 50px 0;
+  }
+
+  .data-note {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 24px;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    color: var(--vc-charcoal);
+  }
+
+  .data-note h3 {
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--vc-black);
+    margin-bottom: 10px;
+  }
+
+  .data-note strong { color: var(--vc-black); }
+
+  /* ---- FOOTER ---- */
+  footer {
+    background: var(--vc-orange);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  footer .logo {
+    margin-bottom: 16px;
+  }
+
+  footer .logo img {
+    height: 22px;
+    filter: brightness(0) invert(1);
+  }
+
+  footer .links {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.8;
+  }
+
+  footer .links a {
+    color: var(--vc-white);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ---- SVG TYPOGRAPHY ---- */
+  svg text {
+    font-family: var(--font-primary);
+  }
+
+  /* ---- CHART SOURCE LINE ---- */
+  .source-line {
+    font-size: 0.68rem;
+    color: var(--vc-charcoal);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  .source-line a {
+    color: var(--vc-charcoal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ---- JOKE SECTION ---- */
+  .joke-zone {
+    background: var(--vc-chartreuse-20);
+    padding: 50px 0;
+  }
+
+  .joke-zone .section {
+    padding-bottom: 20px;
+  }
+
+  .joke-zone .section h2 {
+    color: var(--vc-black);
+  }
+
+  /* ---- DARK CHART ERA ANNOTATIONS ---- */
+  .era-line { stroke: rgba(255,255,255,0.12); stroke-dasharray: 3,4; }
+  .era-label { font-size: 10px; fill: var(--vc-periwinkle); text-anchor: middle; }
+  /* Pre-1966 data is 5-year averages — add subtle shading */
+  .avg-marker { fill: rgba(255,255,255,0.02); }
+
+  /* ---- WHITE CHART ERA ANNOTATIONS ---- */
+  .era-line-light { stroke: var(--vc-cloud); stroke-dasharray: 3,4; }
+  .era-label-light { font-size: 10px; fill: var(--vc-charcoal); text-anchor: middle; }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO (dark data-tool zone) ===== -->
+<div class="hero">
+  <h1>Every life that began — and ended —<br>in <span>New York City</span></h1>
+  <p class="dek">From 1855 to 2023, the natural pulse of the five boroughs: 2.6 million birth certificates and 3.7 million death certificates, animated year by year. This doesn't capture migration, which has been at least as powerful a force in shaping the city's population.</p>
+</div>
+
+<div class="counter-row">
+  <div class="counter-box">
+    <div class="label">Year</div>
+    <div class="year-display" id="yearDisplay">—</div>
+  </div>
+  <div class="counter-box">
+    <div class="label">Births</div>
+    <div class="count births" id="birthCount">—</div>
+  </div>
+  <div class="counter-box">
+    <div class="label">Deaths</div>
+    <div class="count deaths" id="deathCount">—</div>
+  </div>
+  <div class="counter-box">
+    <div class="label">Natural Change</div>
+    <div class="count natural" id="netCount">—</div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="playBtn">&#9654; Play</button>
+  <button class="btn" id="resetBtn">Reset</button>
+  <div class="speed-control">
+    <span>Speed</span>
+    <input type="range" id="speedSlider" min="1" max="10" value="5">
+  </div>
+</div>
+
+<div class="chart-dark" id="mainChart">
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    Loading vital statistics from NYC Open Data&hellip;<br>
+    <span style="font-size:0.75rem;opacity:0.5">Querying 6.3 million historical records</span>
+  </div>
+</div>
+
+<!-- ===== WHITE ZONE: all analytical charts ===== -->
+<div class="white-zone">
+
+  <div class="section" id="boroughSection">
+    <h2>Manhattan dominated early — then Brooklyn caught up</h2>
+    <p class="dek">Borough-level patterns from digitized vital records. Birth certificates cover 1855–1909; death certificates 1862–1948. <strong>Note:</strong> Manhattan death certificates are missing from the digitized archive for 1887–1919, causing an artificial dip in the deaths chart during that period.</p>
+    <div class="section-row">
+      <div>
+        <div class="sub-heading births">Births by Borough</div>
+        <div class="legend" id="birthBoroughLegend"></div>
+        <div id="birthBoroughChart"></div>
+      </div>
+      <div>
+        <div class="sub-heading deaths">Deaths by Borough</div>
+        <div class="legend" id="deathBoroughLegend"></div>
+        <div id="deathBoroughChart"></div>
+      </div>
+    </div>
+    <div class="source-line">Source: <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-Bi/5gq7-rgmv">NYC Dept. of Records, Historical Birth Certificates</a>; <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">Historical Death Certificates</a></div>
+  </div>
+
+  <div class="section" id="seasonSection">
+    <h2>Winter was the deadliest season; October the most common birth month</h2>
+    <p class="dek">Monthly totals across all years in the historical record.</p>
+    <div class="section-row">
+      <div>
+        <div class="sub-heading births">Births by Month, 1855–1909</div>
+        <div id="birthMonthChart"></div>
+      </div>
+      <div>
+        <div class="sub-heading deaths">Deaths by Month, 1862–1948</div>
+        <div id="deathMonthChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="ageSection">
+    <h2>In the 1800s, 1 in 8 deaths was an infant. Today, it's 1 in 100.</h2>
+    <p class="dek">Who dies has changed as dramatically as how many. Historical data from 3.7 million digitized death certificates; modern data from DOHMH annual summaries.</p>
+    <div class="tab-bar" id="ageTabs">
+      <button class="tab active" data-view="overall">All Years</button>
+      <button class="tab" data-view="era">By Era</button>
+    </div>
+    <div id="ageChart"></div>
+    <div class="source-line">Sources: <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">NYC Dept. of Records, Historical Death Certificates</a>; <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">DOHMH Annual Summaries</a></div>
+  </div>
+
+  <div class="section" id="causeSection">
+    <h2>COVID-19 dwarfed every other cause of death in a single year</h2>
+    <p class="dek">Leading causes of death from NYC DOHMH vital statistics, 2007–2021.</p>
+    <div id="causeChart"></div>
+    <div class="source-line">Source: <a href="https://data.cityofnewyork.us/Health/New-York-City-Leading-Causes-of-Death/jb7j-dtam">NYC DOHMH, Leading Causes of Death</a></div>
+  </div>
+
+  <div class="section" id="raceSection">
+    <h2>The city's births are becoming more diverse — and fewer</h2>
+    <p class="dek">Live births by mother's race/ethnicity, 2007–2023. Total births fell from 130,000 to under 100,000.</p>
+    <div class="legend" id="raceLegend"></div>
+    <div id="raceChart"></div>
+    <div class="source-line">Source: <a href="https://data.cityofnewyork.us/Health/Percent-Live-Births-by-Infant-Sex-and-Mother-s-Rac/wffy-3iyg">NYC DOHMH, Births by Race/Ethnicity</a></div>
+  </div>
+
+  <div class="section" id="naturalChangeSection">
+    <h2>New York's natural growth has been shrinking for decades</h2>
+    <p class="dek">Births minus deaths each year — the "natural increase." This doesn't count migration, which has been at least as powerful a force. In 2020, COVID nearly erased the surplus entirely.</p>
+    <div id="naturalChangeChart"></div>
+    <div class="source-line">Source: <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">NYC DOHMH Annual Summary of Vital Statistics</a></div>
+  </div>
+
+</div>
+
+<!-- ===== JOKE ===== -->
+<div class="joke-zone">
+  <div class="section" id="jokeSection">
+    <h2>Average age at birth has remained remarkably consistent</h2>
+    <p class="dek">A rigorous analysis across all 2.6 million birth certificates, 1855–1909.</p>
+    <div id="jokeChart"></div>
+  </div>
+</div>
+
+<!-- ===== DATA NOTE ===== -->
+<div class="data-note-zone">
+  <div class="data-note">
+    <h3>About this data</h3>
+    <strong>Sources:</strong> NYC Dept. of Records (digitized birth certificates, 1855–1909; death certificates, 1862–1948); NYC DOHMH <em>Annual Summary of Vital Statistics</em>, Table PC1, 1898–2023 (annual totals and 5-year averages); NYC DOHMH vital statistics datasets on Open Data (births by race/ethnicity 2007–2023, deaths by cause 2007–2021).<br><br>
+    <strong>Data quality note, pre-1966:</strong> The main chart uses 5-year averages from DOHMH Table PC1 for years prior to 1966, which is why the line appears stepped during those periods. Individual annual figures exist in older PDF summaries but are not yet digitized. Borough-level breakdowns from digitized certificates remain limited to 1855–1909 (births) and 1862–1948 (deaths).<br><br>
+    <strong>What this doesn't show:</strong> Migration — both domestic and international — has been at least as important as natural increase in shaping New York's population. The city's population surged from under 1 million in 1860 to nearly 8 million by 1940, driven overwhelmingly by immigration.<br><br>
+    <strong>Historical caveats:</strong> Early vital registration was incomplete, especially before New York State mandated universal registration in 1880. Figures before that date undercount actual births and deaths. The historical death certificate data also lacks cause of death — only name, age, county, and date were digitized.<br><br>
+    <strong>Not tracked:</strong> Religion, hospital/facility of birth, and occupation are not present in the digitized certificate indices.
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="logo"><img src="vc-logo.png" alt="Vital City"></div>
+  <div class="links">
+    Data from <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-Bi/5gq7-rgmv">NYC Historical Birth Certificates</a>,
+    <a href="https://data.cityofnewyork.us/City-Government/NYC-Historical-Vital-Records-Index-to-Digitized-De/797j-9xvg">Death Certificates</a>,
+    <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">DOHMH Annual Summaries</a>,
+    and <a href="https://data.cityofnewyork.us/Health/New-York-City-Leading-Causes-of-Death/jb7j-dtam">DOHMH Vital Statistics</a>.
+  </div>
+</footer>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const fmt = d3.format(',');
+const VC = {
+  black: '#050507', white: '#ffffff', cloud: '#dddddd',
+  chartreuse: '#dde44c', orange: '#ff7c53', periwinkle: '#9b9fbc',
+  rose: '#cea9be', magenta: '#e7466d', charcoal: '#707175',
+  indigo: '#394882', cerulean: '#217ebe',
+  chartreuse80: '#e4e871', chartreuse50: '#edefa8', chartreuse20: '#f7f8dd',
+  orange80: '#f69577', orange50: '#fabcaa',
+  magenta80: '#ec6b8a', cerulean80: '#4e98cb'
+};
+
+const boroughColors = {
+  'Manhattan': VC.magenta,
+  'Brooklyn': VC.cerulean,
+  'Bronx': VC.orange,
+  'Queens': VC.indigo,
+  'Staten Island': VC.periwinkle
+};
+
+const countyMap = {
+  'new york': 'Manhattan', 'manhattan': 'Manhattan',
+  'kings': 'Brooklyn', 'brooklyn': 'Brooklyn',
+  'bronx': 'Bronx',
+  'queens': 'Queens',
+  'richmond': 'Staten Island', 'staten island': 'Staten Island'
+};
+
+const monthOrder = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const tooltip = document.getElementById('tooltip');
+function showTip(event, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.opacity = 1;
+  tooltip.style.left = Math.min(event.clientX + 14, window.innerWidth - 280) + 'px';
+  tooltip.style.top = (event.clientY - 10) + 'px';
+}
+function hideTip() { tooltip.style.opacity = 0; }
+
+// ---- Scroll reveal ----
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ---- SUPPLEMENTAL DATA (DOHMH Annual Summary of Vital Statistics, Table PC1) ----
+// Pre-1966: 5-year averages interpolated to smooth annual estimates.
+// 1966+: individual year totals.
+// Sources: nyc.gov/assets/doh/downloads/pdf/vs/2008sum.pdf, 2020sum.pdf, 2023sum.pdf
+//
+// Interpolation: we place each 5-year average at the midpoint of its period,
+// then linearly interpolate between midpoints for every year.
+const supplementalData = (function() {
+  // Midpoint anchors from DOHMH Table PC1 (5-year averages)
+  const anchors = [
+    { year: 1899, births: 119000, deaths: 67503 },  // 1898-1900
+    { year: 1903, births: 129000, deaths: 71689 },  // 1901-1905
+    { year: 1908, births: 144000, deaths: 75865 },  // 1906-1910
+    { year: 1913, births: 140581, deaths: 74666 },  // 1911-1915
+    { year: 1918, births: 136101, deaths: 80435 },  // 1916-1920
+    { year: 1923, births: 130462, deaths: 69303 },  // 1921-1925
+    { year: 1928, births: 125590, deaths: 75395 },  // 1926-1930
+    { year: 1933, births: 106179, deaths: 75561 },  // 1931-1935
+    { year: 1938, births: 102418, deaths: 76065 },  // 1936-1940
+    { year: 1943, births: 126495, deaths: 78382 },  // 1941-1945
+    { year: 1948, births: 158926, deaths: 79708 },  // 1946-1950
+    { year: 1953, births: 163526, deaths: 80583 },  // 1951-1955
+    { year: 1958, births: 166949, deaths: 84290 },  // 1956-1960
+    { year: 1963, births: 165197, deaths: 87597 },  // 1961-1965
+  ];
+  const result = {};
+  // Interpolate between anchors for every year 1898–1965
+  for (let y = 1898; y <= 1965; y++) {
+    let before = anchors[0], after = anchors[anchors.length - 1];
+    for (let i = 0; i < anchors.length - 1; i++) {
+      if (y >= anchors[i].year && y <= anchors[i + 1].year) {
+        before = anchors[i]; after = anchors[i + 1]; break;
+      }
+    }
+    if (y <= anchors[0].year) { before = after = anchors[0]; }
+    if (y >= anchors[anchors.length - 1].year) { before = after = anchors[anchors.length - 1]; }
+    const span = after.year - before.year || 1;
+    const t = (y - before.year) / span;
+    result[y] = {
+      births: Math.round(before.births + (after.births - before.births) * t),
+      deaths: Math.round(before.deaths + (after.deaths - before.deaths) * t)
+    };
+  }
+  // Individual years 1966+ (exact DOHMH figures)
+  const annual = {
+  1966: { births: 153335, deaths: 88418 }, 1967: { births: 145802, deaths: 87610 },
+  1968: { births: 141920, deaths: 91169 }, 1969: { births: 146221, deaths: 88535 },
+  1970: { births: 149192, deaths: 88161 },
+  1971: { births: 131920, deaths: 86724 }, 1972: { births: 117088, deaths: 85363 },
+  1973: { births: 110639, deaths: 82319 }, 1974: { births: 110642, deaths: 79846 },
+  1975: { births: 109418, deaths: 76312 }, 1976: { births: 109995, deaths: 77538 },
+  1977: { births: 110486, deaths: 75011 }, 1978: { births: 106720, deaths: 73081 },
+  1979: { births: 106021, deaths: 72079 }, 1980: { births: 107066, deaths: 76625 },
+  1981: { births: 108547, deaths: 73329 }, 1982: { births: 111487, deaths: 73083 },
+  1983: { births: 112353, deaths: 73544 }, 1984: { births: 113332, deaths: 74278 },
+  1985: { births: 118542, deaths: 74852 }, 1986: { births: 122108, deaths: 75702 },
+  1987: { births: 127386, deaths: 76448 }, 1988: { births: 132226, deaths: 77817 },
+  1989: { births: 137673, deaths: 75957 }, 1990: { births: 139630, deaths: 73875 },
+  1991: { births: 138148, deaths: 72421 }, 1992: { births: 136002, deaths: 71001 },
+  1993: { births: 133583, deaths: 73408 }, 1994: { births: 133662, deaths: 71038 },
+  1995: { births: 131009, deaths: 70769 }, 1996: { births: 126901, deaths: 66784 },
+  1997: { births: 123313, deaths: 62506 }, 1998: { births: 124252, deaths: 61010 },
+  1999: { births: 123739, deaths: 62470 }, 2000: { births: 125563, deaths: 60839 },
+  2001: { births: 124023, deaths: 62964 }, 2002: { births: 122937, deaths: 59651 },
+  2003: { births: 124345, deaths: 59213 }, 2004: { births: 124099, deaths: 57466 },
+  2005: { births: 122725, deaths: 57068 }, 2006: { births: 125506, deaths: 55391 },
+  2007: { births: 128961, deaths: 54073 }, 2008: { births: 127680, deaths: 54193 },
+  2009: { births: 126774, deaths: 52881 }, 2010: { births: 124791, deaths: 52575 },
+  2011: { births: 123029, deaths: 52789 }, 2012: { births: 123231, deaths: 52455 },
+  2013: { births: 120457, deaths: 53409 }, 2014: { births: 122084, deaths: 53034 },
+  2015: { births: 121673, deaths: 54120 }, 2016: { births: 120367, deaths: 54280 },
+  2017: { births: 117013, deaths: 54319 }, 2018: { births: 114296, deaths: 55081 },
+  2019: { births: 110442, deaths: 54559 }, 2020: { births: 100022, deaths: 82143 },
+  2021: { births: 99262, deaths: 63551 }, 2022: { births: 99459, deaths: 60596 },
+  2023: { births: 98389, deaths: 55459 },
+  2024: { births: 100218, deaths: 55263 }  // provisional, DOHMH quarterly data
+  };
+  Object.assign(result, annual);
+  return result;
+})();
+
+// ---- DATA LOADING ----
+async function loadAllData() {
+  // Try to load from APIs; fall back gracefully if they fail
+  let histBirths = [], histDeaths = [], modernBirthRace = [], modernDeaths = [], histDeathAge = [];
+  try {
+    [histBirths, histDeaths, modernBirthRace, modernDeaths, histDeathAge] = await Promise.all([
+      fetchJSON('https://data.cityofnewyork.us/resource/5gq7-rgmv.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,county,month,count(*)%20as%20total&$group=year,county,month&$order=year&$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/wffy-3iyg.json?$limit=5000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/jb7j-dtam.json?$limit=50000'),
+      fetchJSON('https://data.cityofnewyork.us/resource/797j-9xvg.json?$select=year,age,count(*)%20as%20total&$group=year,age&$order=year&$limit=50000')
+    ]);
+  } catch (e) {
+    console.warn('API fetch failed, using supplemental data only:', e.message);
+  }
+
+  const birthsByYear = {}, birthsByYearBorough = {}, birthsByMonth = {};
+  for (const row of histBirths) {
+    const y = +row.year, t = +row.total;
+    if (!y || !t || y < 1855 || y > 1910) continue;
+    const boro = countyMap[(row.county || '').toLowerCase()] || row.county;
+    birthsByYear[y] = (birthsByYear[y] || 0) + t;
+    if (!birthsByYearBorough[y]) birthsByYearBorough[y] = {};
+    birthsByYearBorough[y][boro] = (birthsByYearBorough[y][boro] || 0) + t;
+    const m = (row.month || '').toLowerCase();
+    if (monthOrder.includes(m)) birthsByMonth[m] = (birthsByMonth[m] || 0) + t;
+  }
+
+  const deathsByYear = {}, deathsByYearBorough = {}, deathsByMonth = {};
+  for (const row of histDeaths) {
+    const y = +row.year, t = +row.total;
+    if (!y || !t || y < 1862 || y > 1948) continue;
+    const boro = countyMap[(row.county || '').toLowerCase()] || row.county;
+    deathsByYear[y] = (deathsByYear[y] || 0) + t;
+    if (!deathsByYearBorough[y]) deathsByYearBorough[y] = {};
+    deathsByYearBorough[y][boro] = (deathsByYearBorough[y][boro] || 0) + t;
+    const m = (row.month || '').toLowerCase();
+    if (monthOrder.includes(m)) deathsByMonth[m] = (deathsByMonth[m] || 0) + t;
+  }
+
+  const raceNorm = {
+    'Non-Hispanic White': 'Non-Hispanic White', 'Non-Hispanic Black': 'Non-Hispanic Black',
+    'Hispanic': 'Hispanic', 'Asian and Pacific Islander': 'Asian/Pacific Islander',
+    'Asian/ Pacific Islander': 'Asian/Pacific Islander', 'Asian/Pacific Islander': 'Asian/Pacific Islander',
+    'Other': 'Other', 'Other Race/ Ethnicity': 'Other', 'Not Stated/Unknown': 'Other',
+    'not stated': 'Other', 'Not stated /Unknown': 'Other'
+  };
+
+  const birthsByYearRace = {};
+  for (const row of modernBirthRace) {
+    const y = +row.birth_year, b = +row.births;
+    if (!y || !b) continue;
+    const race = raceNorm[row.race_or_ethnicity_of_mother] || 'Other';
+    birthsByYear[y] = (birthsByYear[y] || 0) + b;
+    if (!birthsByYearRace[y]) birthsByYearRace[y] = {};
+    birthsByYearRace[y][race] = (birthsByYearRace[y][race] || 0) + b;
+  }
+
+  const deathsByYearCause = {};
+  for (const row of modernDeaths) {
+    const y = +row.year, d = +row.deaths;
+    if (!y || !d) continue;
+    deathsByYear[y] = (deathsByYear[y] || 0) + d;
+    const cause = simpleCause(row.leading_cause);
+    if (!deathsByYearCause[y]) deathsByYearCause[y] = {};
+    deathsByYearCause[y][cause] = (deathsByYearCause[y][cause] || 0) + d;
+  }
+
+  // Merge supplemental DOHMH data — fills gaps where API data doesn't exist
+  for (const [yr, d] of Object.entries(supplementalData)) {
+    const y = +yr;
+    if (!birthsByYear[y]) birthsByYear[y] = d.births;
+    if (!deathsByYear[y]) deathsByYear[y] = d.deaths;
+  }
+
+  return { birthsByYear, deathsByYear, birthsByYearBorough, deathsByYearBorough,
+           birthsByMonth, deathsByMonth, birthsByYearRace, deathsByYearCause,
+           ageData: processAgeData(histDeathAge) };
+}
+
+function simpleCause(raw) {
+  if (!raw) return 'Other';
+  const s = raw.toLowerCase();
+  if (s.includes('heart')) return 'Heart Disease';
+  if (s.includes('malignan') || s.includes('cancer') || s.includes('neoplasm')) return 'Cancer';
+  if (s.includes('covid')) return 'COVID-19';
+  if (s.includes('influenza') || s.includes('pneumonia')) return 'Flu & Pneumonia';
+  if (s.includes('cerebrovascular') || s.includes('stroke')) return 'Stroke';
+  if (s.includes('diabetes')) return 'Diabetes';
+  if (s.includes('accident') || s.includes('unintentional')) return 'Accidents';
+  if (s.includes('chronic lower respiratory') || s.includes('copd')) return 'Chronic Respiratory';
+  if (s.includes('alzheimer')) return "Alzheimer's";
+  if (s.includes('kidney') || s.includes('renal') || s.includes('nephritis')) return 'Kidney Disease';
+  if (s.includes('assault') || s.includes('homicid')) return 'Homicide';
+  if (s.includes('self') || s.includes('suicid')) return 'Suicide';
+  if (s.includes('hiv')) return 'HIV';
+  return 'Other';
+}
+
+function parseAge(ageStr) {
+  if (!ageStr) return null;
+  const s = ageStr.trim().toLowerCase();
+  if (!s || s === '-' || s === '?' || s === 'sb' || s === 'stillborn') return null;
+  const yM = s.match(/^(\d+)\s*y/); if (yM) return +yM[1];
+  const mM = s.match(/^(\d+)\s*m/); if (mM) return +mM[1] / 12;
+  const dM = s.match(/^(\d+)\s*d/); if (dM) return +dM[1] / 365;
+  const hM = s.match(/^(\d+)\s*h/); if (hM) return 0;
+  return null;
+}
+
+function ageGroup(a) {
+  if (a < 1) return 'Under 1';
+  if (a < 5) return '1–4';
+  if (a < 15) return '5–14';
+  if (a < 25) return '15–24';
+  if (a < 45) return '25–44';
+  if (a < 65) return '45–64';
+  if (a < 80) return '65–79';
+  return '80+';
+}
+
+const ageGroups = ['Under 1','1–4','5–14','15–24','25–44','45–64','65–79','80+'];
+const ageColors = [VC.magenta, VC.orange, VC.orange80, VC.chartreuse, VC.cerulean, VC.indigo, VC.periwinkle, VC.rose];
+
+// Modern age-at-death data (DOHMH Annual Summary, Table M2 / public use datasets)
+// Aggregated into era buckets to match the historical eras
+const modernAgeData = {
+  // 2007-2014 average (from DOHMH summaries 2007, 2010, 2014)
+  '2007–2014': {
+    'Under 1': 5200, '1–4': 560, '5–14': 1000, '15–24': 4500,
+    '25–44': 21500, '45–64': 92000, '65–79': 115000, '80+': 182000
+  },
+  // 2015-2019 (from DOHMH public use death datasets)
+  '2015–2019': {
+    'Under 1': 2031, '1–4': 307, '5–14': 439, '15–24': 2029,
+    '25–44': 11580, '45–64': 49227, '65–79': 72023, '80+': 112601
+  },
+  // 2020-2023 (from DOHMH summaries — includes COVID spike)
+  '2020–2023': {
+    'Under 1': 1604, '1–4': 268, '5–14': 487, '15–24': 2056,
+    '25–44': 14697, '45–64': 50177, '65–79': 73868, '80+': 118455
+  }
+};
+
+function processAgeData(raw) {
+  const overall = {}; for (const g of ageGroups) overall[g] = 0;
+  const eras = { '1862–1879': {}, '1880–1899': {}, '1900–1919': {}, '1920–1948': {} };
+  for (const e of Object.keys(eras)) for (const g of ageGroups) eras[e][g] = 0;
+  for (const row of raw) {
+    const y = +row.year, t = +row.total;
+    if (!y || !t) continue;
+    const age = parseAge(row.age);
+    if (age === null) continue;
+    const grp = ageGroup(age);
+    if (!ageGroups.includes(grp)) continue;
+    overall[grp] += t;
+    if (y < 1880) eras['1862–1879'][grp] += t;
+    else if (y < 1900) eras['1880–1899'][grp] += t;
+    else if (y < 1920) eras['1900–1919'][grp] += t;
+    else eras['1920–1948'][grp] += t;
+  }
+  // Add modern eras
+  for (const [era, data] of Object.entries(modernAgeData)) {
+    eras[era] = { ...data };
+    for (const g of ageGroups) overall[g] += (data[g] || 0);
+  }
+  return { overall, eras };
+}
+
+// ---- CHART BUILDERS ----
+
+function whiteAxes(g, x, y, w, h, opts = {}) {
+  g.append('g').attr('transform', `translate(0,${h})`).call(
+    d3.axisBottom(x).tickFormat(opts.xFmt || d3.format('d')).ticks(opts.xTicks || 8).tickSize(0)
+  ).call(g => g.select('.domain').attr('stroke', VC.cloud))
+   .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px').attr('dy', '0.8em');
+
+  g.append('g').call(
+    d3.axisLeft(y).tickFormat(opts.yFmt || (d => d >= 1000 ? d3.format('.2s')(d) : d)).ticks(opts.yTicks || 5).tickSize(-w)
+  ).call(g => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', '#eee'); })
+   .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+}
+
+function buildMainChart(data) {
+  const { birthsByYear, deathsByYear } = data;
+  const allYears = [...new Set([...Object.keys(birthsByYear), ...Object.keys(deathsByYear)].map(Number))];
+  const minYear = Math.min(...allYears), maxYear = Math.max(...allYears);
+  const yearData = [];
+  for (let y = minYear; y <= maxYear; y++)
+    yearData.push({ year: y, births: birthsByYear[y] || null, deaths: deathsByYear[y] || null });
+
+  const el = document.getElementById('mainChart');
+  const width = Math.min(1040, el.clientWidth);
+  const height = 380;
+  const m = { top: 28, right: 28, bottom: 40, left: 55 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#mainChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain([minYear, maxYear]).range([0, w]);
+  const maxVal = Math.max(d3.max(yearData, d => d.births || 0), d3.max(yearData, d => d.deaths || 0));
+  const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
+
+  // Axes (dark theme)
+  g.append('g').attr('transform', `translate(0,${h})`).call(
+    d3.axisBottom(x).tickFormat(d3.format('d')).ticks(12).tickSize(0)
+  ).call(g => g.select('.domain').attr('stroke', 'rgba(255,255,255,0.1)'))
+   .selectAll('text').attr('fill', VC.periwinkle).attr('font-size', '10px').attr('dy', '0.8em');
+
+  g.append('g').call(
+    d3.axisLeft(y).tickFormat(d => d >= 1000 ? d3.format('.2s')(d) : d).ticks(6).tickSize(-w)
+  ).call(g => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', 'rgba(255,255,255,0.05)'); })
+   .selectAll('text').attr('fill', VC.periwinkle).attr('font-size', '10px');
+
+  // Era annotations
+  const eras = [
+    { year: 1863, label: 'Civil War' }, { year: 1880, label: 'Registration mandated' },
+    { year: 1898, label: 'Consolidation' }, { year: 1918, label: '1918 Flu' },
+    { year: 1930, label: 'Depression' }, { year: 1946, label: 'Baby Boom' },
+    { year: 1968, label: 'Peak deaths' }, { year: 2001, label: '9/11' },
+    { year: 2020, label: 'COVID-19' }
+  ];
+  for (const era of eras) {
+    if (era.year < minYear || era.year > maxYear) continue;
+    g.append('line').attr('x1', x(era.year)).attr('x2', x(era.year))
+      .attr('y1', 0).attr('y2', h).attr('class', 'era-line');
+    g.append('text').attr('x', x(era.year)).attr('y', -6).attr('class', 'era-label').text(era.label);
+  }
+
+  // Clip
+  const clip = svg.append('defs').append('clipPath').attr('id', 'reveal')
+    .append('rect').attr('x', 0).attr('y', 0).attr('width', 0).attr('height', height);
+  const cg = g.append('g').attr('clip-path', 'url(#reveal)');
+
+  // Areas + lines
+  const bArea = d3.area().defined(d => d.births !== null).x(d => x(d.year)).y0(h).y1(d => y(d.births)).curve(d3.curveMonotoneX);
+  const dArea = d3.area().defined(d => d.deaths !== null).x(d => x(d.year)).y0(h).y1(d => y(d.deaths)).curve(d3.curveMonotoneX);
+  const bLine = d3.line().defined(d => d.births !== null).x(d => x(d.year)).y(d => y(d.births)).curve(d3.curveMonotoneX);
+  const dLine = d3.line().defined(d => d.deaths !== null).x(d => x(d.year)).y(d => y(d.deaths)).curve(d3.curveMonotoneX);
+
+  cg.append('path').datum(yearData).attr('d', bArea).attr('fill', VC.chartreuse).attr('opacity', 0.1);
+  cg.append('path').datum(yearData).attr('d', dArea).attr('fill', VC.orange).attr('opacity', 0.08);
+  cg.append('path').datum(yearData).attr('d', bLine).attr('fill', 'none').attr('stroke', VC.chartreuse).attr('stroke-width', 2.5);
+  cg.append('path').datum(yearData).attr('d', dLine).attr('fill', 'none').attr('stroke', VC.orange).attr('stroke-width', 2.5);
+
+  const scanline = g.append('line').attr('y1', 0).attr('y2', h).attr('stroke', 'rgba(255,255,255,0.2)').attr('stroke-width', 1).style('display', 'none');
+  const birthDot = g.append('circle').attr('r', 4).attr('fill', VC.chartreuse).style('display', 'none');
+  const deathDot = g.append('circle').attr('r', 4).attr('fill', VC.orange).style('display', 'none');
+
+  // Legend
+  const lg = g.append('g').attr('transform', `translate(${w - 100}, 6)`);
+  lg.append('line').attr('x2', 16).attr('stroke', VC.chartreuse).attr('stroke-width', 2.5);
+  lg.append('text').attr('x', 22).attr('y', 4).text('Births').attr('fill', VC.chartreuse).attr('font-size', '11px').attr('font-weight', '700');
+  lg.append('line').attr('x2', 16).attr('y1', 16).attr('y2', 16).attr('stroke', VC.orange).attr('stroke-width', 2.5);
+  lg.append('text').attr('x', 22).attr('y', 20).text('Deaths').attr('fill', VC.orange).attr('font-size', '11px').attr('font-weight', '700');
+
+  // Hover
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const d = yearData.find(v => v.year === yr);
+      if (!d) { hideTip(); return; }
+      const b = d.births !== null ? fmt(d.births) : 'no data';
+      const dt = d.deaths !== null ? fmt(d.deaths) : 'no data';
+      let net = '';
+      if (d.births !== null && d.deaths !== null) {
+        const n = d.births - d.deaths;
+        net = `<br>Natural change: <strong style="color:${n >= 0 ? VC.chartreuse : VC.orange}">${n >= 0 ? '+' : ''}${fmt(n)}</strong>`;
+      }
+      showTip(event, `<strong>${d.year}</strong><br><span style="color:${VC.chartreuse}">Births: ${b}</span><br><span style="color:${VC.orange}">Deaths: ${dt}</span>${net}`);
+    }).on('mouseleave', hideTip);
+
+  return { yearData, x, y, w, h, clip, scanline, birthDot, deathDot };
+}
+
+function buildStackedArea(data, containerId, legendId, boroughData) {
+  const boroughs = ['Manhattan', 'Brooklyn', 'Bronx', 'Queens', 'Staten Island'];
+  const years = Object.keys(boroughData).map(Number).sort((a, b) => a - b);
+  if (!years.length) return;
+  const yearArr = years.map(y => { const r = { year: y }; for (const b of boroughs) r[b] = boroughData[y]?.[b] || 0; return r; });
+
+  const el = document.getElementById(containerId);
+  const width = Math.min(500, el.parentElement.clientWidth);
+  const height = 250;
+  const m = { top: 8, right: 16, bottom: 32, left: 50 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select(`#${containerId}`).append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(years)).range([0, w]);
+  const stacked = d3.stack().keys(boroughs)(yearArr);
+  const yMax = d3.max(stacked[stacked.length - 1], d => d[1]);
+  const y = d3.scaleLinear().domain([0, yMax * 1.05]).range([h, 0]);
+
+  const area = d3.area().x(d => x(d.data.year)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveMonotoneX);
+  for (const layer of stacked)
+    g.append('path').datum(layer).attr('d', area).attr('fill', boroughColors[layer.key]).attr('opacity', 0.75);
+
+  whiteAxes(g, x, y, w, h);
+
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const row = boroughData[yr];
+      if (!row) { hideTip(); return; }
+      let html = `<strong>${yr}</strong>`;
+      for (const b of boroughs) if (row[b]) html += `<br><span style="color:${boroughColors[b]}">${b}: ${fmt(row[b])}</span>`;
+      showTip(event, html);
+    }).on('mouseleave', hideTip);
+
+  const leg = document.getElementById(legendId);
+  for (const b of boroughs) {
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = `<div class="swatch" style="background:${boroughColors[b]}"></div>${b}`;
+    leg.appendChild(item);
+  }
+}
+
+function buildBarChart(containerId, monthData, color) {
+  const data = monthOrder.map((m, i) => ({ month: monthNames[i], value: monthData[m] || 0 }));
+  const el = document.getElementById(containerId);
+  const width = Math.min(500, el.parentElement.clientWidth);
+  const height = 230;
+  const m = { top: 8, right: 12, bottom: 40, left: 50 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select(`#${containerId}`).append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleBand().domain(data.map(d => d.month)).range([0, w]).padding(0.2);
+  const y = d3.scaleLinear().domain([0, d3.max(data, d => d.value) * 1.1]).range([h, 0]);
+
+  g.selectAll('rect').data(data).enter().append('rect')
+    .attr('x', d => x(d.month)).attr('y', h).attr('width', x.bandwidth()).attr('height', 0)
+    .attr('fill', color).attr('rx', 2)
+    .on('mousemove', (event, d) => showTip(event, `<strong>${d.month}</strong><br>${fmt(d.value)}`))
+    .on('mouseleave', hideTip)
+    .transition().duration(800).delay((d, i) => i * 50).ease(d3.easeCubicOut)
+    .attr('y', d => y(d.value)).attr('height', d => h - y(d.value));
+
+  g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).tickSize(0))
+    .call(g => g.select('.domain').attr('stroke', VC.cloud))
+    .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+  g.append('g').call(d3.axisLeft(y).tickFormat(d3.format('.2s')).ticks(5).tickSize(-w))
+    .call(g => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', '#eee'); })
+    .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+}
+
+function buildAgeChart(ageData) {
+  const el = document.getElementById('ageChart');
+
+  function drawOverall() {
+    el.innerHTML = '';
+    const data = ageGroups.map((g, i) => ({ group: g, value: ageData.overall[g], color: ageColors[i] }));
+    const total = d3.sum(data, d => d.value);
+
+    const width = Math.min(680, el.clientWidth);
+    const height = 300;
+    const m = { top: 20, right: 16, bottom: 45, left: 60 };
+    const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+    const svg = d3.select('#ageChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+    const x = d3.scaleBand().domain(ageGroups).range([0, w]).padding(0.15);
+    const y = d3.scaleLinear().domain([0, d3.max(data, d => d.value) * 1.15]).range([h, 0]);
+
+    g.selectAll('rect').data(data).enter().append('rect')
+      .attr('x', d => x(d.group)).attr('y', h).attr('width', x.bandwidth()).attr('height', 0)
+      .attr('fill', (d, i) => ageColors[i]).attr('rx', 3)
+      .on('mousemove', (event, d) => showTip(event, `<strong>Age ${d.group}</strong><br>${fmt(d.value)} deaths (${((d.value / total) * 100).toFixed(1)}%)`))
+      .on('mouseleave', hideTip)
+      .transition().duration(700).delay((d, i) => i * 80).ease(d3.easeCubicOut)
+      .attr('y', d => y(d.value)).attr('height', d => h - y(d.value));
+
+    // Direct labels
+    g.selectAll('.lbl').data(data).enter().append('text')
+      .attr('x', d => x(d.group) + x.bandwidth() / 2).attr('y', d => y(d.value) - 8)
+      .attr('text-anchor', 'middle').attr('fill', VC.charcoal).attr('font-size', '11px').attr('font-weight', '700')
+      .attr('opacity', 0)
+      .text(d => ((d.value / total) * 100).toFixed(1) + '%')
+      .transition().duration(500).delay((d, i) => 600 + i * 80).attr('opacity', 1);
+
+    g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).tickSize(0))
+      .call(g => g.select('.domain').attr('stroke', VC.cloud))
+      .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+    g.append('g').call(d3.axisLeft(y).tickFormat(d3.format('.2s')).ticks(5).tickSize(-w))
+      .call(g => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', '#eee'); })
+      .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+  }
+
+  function drawByEra() {
+    el.innerHTML = '';
+    const eraNames = Object.keys(ageData.eras);
+    const width = Math.min(680, el.clientWidth), height = 300;
+    const m = { top: 10, right: 16, bottom: 45, left: 55 };
+    const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+    const svg = d3.select('#ageChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+    const x0 = d3.scaleBand().domain(eraNames).range([0, w]).padding(0.15);
+    const x1 = d3.scaleBand().domain(ageGroups).range([0, x0.bandwidth()]).padding(0.05);
+    // Compute max percentage across all eras
+    const allPcts = [];
+    for (const era of eraNames) {
+      const total = d3.sum(ageGroups.map(g => ageData.eras[era][g]));
+      for (const grp of ageGroups) allPcts.push(total > 0 ? (ageData.eras[era][grp] / total) * 100 : 0);
+    }
+    const y = d3.scaleLinear().domain([0, Math.ceil(d3.max(allPcts) / 5) * 5 + 5]).range([h, 0]);
+
+    for (const era of eraNames) {
+      const total = d3.sum(ageGroups.map(g => ageData.eras[era][g]));
+      const eg = g.append('g').attr('transform', `translate(${x0(era)},0)`);
+      eg.selectAll('rect').data(ageGroups.map((grp, i) => ({
+        group: grp, pct: total > 0 ? (ageData.eras[era][grp] / total) * 100 : 0, color: ageColors[i]
+      }))).enter().append('rect')
+        .attr('x', d => x1(d.group)).attr('y', h).attr('width', x1.bandwidth()).attr('height', 0)
+        .attr('fill', d => d.color).attr('rx', 1)
+        .on('mousemove', (event, d) => showTip(event, `<strong>${era}</strong><br>Age ${d.group}: ${d.pct.toFixed(1)}%`))
+        .on('mouseleave', hideTip)
+        .transition().duration(600).delay((d, i) => i * 50).ease(d3.easeCubicOut)
+        .attr('y', d => y(d.pct)).attr('height', d => h - y(d.pct));
+    }
+
+    g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x0).tickSize(0))
+      .call(g => g.select('.domain').attr('stroke', VC.cloud))
+      .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+    g.append('g').call(d3.axisLeft(y).tickFormat(d => d + '%').ticks(5).tickSize(-w))
+      .call(g => { g.select('.domain').remove(); g.selectAll('.tick line').attr('stroke', '#eee'); })
+      .selectAll('text').attr('fill', VC.charcoal).attr('font-size', '10px');
+
+    // Micro legend
+    const lg = g.append('g').attr('transform', `translate(${w - 180}, 0)`);
+    ageGroups.forEach((a, i) => {
+      const row = Math.floor(i / 2), col = i % 2;
+      lg.append('rect').attr('x', col * 85).attr('y', row * 15).attr('width', 8).attr('height', 8).attr('fill', ageColors[i]).attr('rx', 1);
+      lg.append('text').attr('x', col * 85 + 12).attr('y', row * 15 + 8).text(a).attr('fill', VC.charcoal).attr('font-size', '9px');
+    });
+  }
+
+  drawOverall();
+  document.querySelectorAll('#ageTabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('#ageTabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      tab.dataset.view === 'overall' ? drawOverall() : drawByEra();
+    });
+  });
+}
+
+function buildCauseChart(deathsByYearCause) {
+  const years = Object.keys(deathsByYearCause).map(Number).sort((a, b) => a - b);
+  if (!years.length) return;
+  const causeTotals = {};
+  for (const y of years) for (const [c, v] of Object.entries(deathsByYearCause[y])) causeTotals[c] = (causeTotals[c] || 0) + v;
+  const topCauses = Object.entries(causeTotals).sort((a, b) => b[1] - a[1]).slice(0, 8).map(d => d[0]);
+
+  const causeColorMap = {
+    'Heart Disease': VC.magenta, 'Cancer': VC.cerulean, 'Other': VC.chartreuse,
+    'Flu & Pneumonia': VC.orange, 'Accidents': VC.periwinkle, 'COVID-19': VC.orange80,
+    'Diabetes': VC.rose, 'Stroke': VC.indigo
+  };
+  const causeColors = d3.scaleOrdinal().domain(topCauses).range(topCauses.map(c => causeColorMap[c] || VC.charcoal));
+
+  const yearArr = years.map(y => { const r = { year: y }; for (const c of topCauses) r[c] = deathsByYearCause[y]?.[c] || 0; return r; });
+
+  const el = document.getElementById('causeChart');
+  const width = Math.min(860, el.clientWidth), height = 330;
+  const m = { top: 10, right: 130, bottom: 32, left: 50 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#causeChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(years)).range([0, w]);
+  const stacked = d3.stack().keys(topCauses)(yearArr);
+  const yMax = d3.max(stacked[stacked.length - 1], d => d[1]);
+  const y = d3.scaleLinear().domain([0, yMax * 1.05]).range([h, 0]);
+
+  const area = d3.area().x(d => x(d.data.year)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveMonotoneX);
+  for (const layer of stacked)
+    g.append('path').datum(layer).attr('d', area).attr('fill', causeColors(layer.key)).attr('opacity', 0.8);
+
+  whiteAxes(g, x, y, w, h);
+
+  // Legend
+  const lg = g.append('g').attr('transform', `translate(${w + 14}, 8)`);
+  topCauses.forEach((c, i) => {
+    lg.append('rect').attr('y', i * 19).attr('width', 10).attr('height', 10).attr('fill', causeColors(c)).attr('rx', 2);
+    lg.append('text').attr('x', 16).attr('y', i * 19 + 9).text(c).attr('fill', VC.charcoal).attr('font-size', '10px').attr('font-weight', '500');
+  });
+
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const row = deathsByYearCause[yr];
+      if (!row) { hideTip(); return; }
+      let html = `<strong>${yr}</strong>`;
+      for (const c of topCauses) if (row[c]) html += `<br><span style="color:${causeColors(c)}">${c}: ${fmt(row[c])}</span>`;
+      showTip(event, html);
+    }).on('mouseleave', hideTip);
+}
+
+function buildRaceChart(birthsByYearRace) {
+  const years = Object.keys(birthsByYearRace).map(Number).sort((a, b) => a - b);
+  if (!years.length) return;
+  const races = ['Non-Hispanic White', 'Hispanic', 'Non-Hispanic Black', 'Asian/Pacific Islander'];
+  const raceColors = {
+    'Hispanic': VC.orange, 'Non-Hispanic White': VC.cerulean,
+    'Non-Hispanic Black': VC.chartreuse, 'Asian/Pacific Islander': VC.magenta
+  };
+
+  const yearArr = years.map(y => { const r = { year: y }; for (const rc of races) r[rc] = birthsByYearRace[y]?.[rc] || 0; return r; });
+
+  const el = document.getElementById('raceChart');
+  const width = Math.min(860, el.clientWidth), height = 280;
+  const m = { top: 10, right: 16, bottom: 32, left: 50 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#raceChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(years)).range([0, w]);
+  const stacked = d3.stack().keys(races)(yearArr);
+  const yMax = d3.max(stacked[stacked.length - 1], d => d[1]);
+  const y = d3.scaleLinear().domain([0, yMax * 1.05]).range([h, 0]);
+
+  const area = d3.area().x(d => x(d.data.year)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveMonotoneX);
+  for (const layer of stacked)
+    g.append('path').datum(layer).attr('d', area).attr('fill', raceColors[layer.key]).attr('opacity', 0.75);
+
+  whiteAxes(g, x, y, w, h);
+
+  const leg = document.getElementById('raceLegend');
+  for (const r of races) {
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = `<div class="swatch" style="background:${raceColors[r]}"></div>${r}`;
+    leg.appendChild(item);
+  }
+
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const row = birthsByYearRace[yr];
+      if (!row) { hideTip(); return; }
+      let html = `<strong>${yr}</strong>`;
+      for (const r of races) if (row[r]) html += `<br><span style="color:${raceColors[r]}">${r}: ${fmt(row[r])}</span>`;
+      html += `<br><strong>Total: ${fmt(d3.sum(races.map(r => row[r] || 0)))}</strong>`;
+      showTip(event, html);
+    }).on('mouseleave', hideTip);
+}
+
+function buildNaturalChangeChart(birthsByYear, deathsByYear) {
+  // Build year-by-year natural change where both births AND deaths exist
+  const allYears = [...new Set([...Object.keys(birthsByYear), ...Object.keys(deathsByYear)].map(Number))].sort((a, b) => a - b);
+  const data = [];
+  for (const y of allYears) {
+    if (birthsByYear[y] && deathsByYear[y]) {
+      data.push({ year: y, births: birthsByYear[y], deaths: deathsByYear[y], change: birthsByYear[y] - deathsByYear[y] });
+    }
+  }
+  if (!data.length) return;
+
+  const el = document.getElementById('naturalChangeChart');
+  const width = Math.min(860, el.clientWidth), height = 360;
+  const m = { top: 20, right: 20, bottom: 40, left: 60 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#naturalChangeChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(data, d => d.year)).range([0, w]);
+  const yMin = d3.min(data, d => d.change);
+  const yMax = d3.max(data, d => d.change);
+  const yPad = (yMax - yMin) * 0.1;
+  const y = d3.scaleLinear().domain([Math.min(0, yMin - yPad), yMax + yPad]).range([h, 0]);
+
+  // Grid + axes
+  whiteAxes(g, x, y, w, h, { yFmt: d => d >= 1000 ? d3.format('.2s')(d) : d });
+
+  // Zero line
+  if (y.domain()[0] < 0) {
+    g.append('line').attr('x1', 0).attr('x2', w).attr('y1', y(0)).attr('y2', y(0))
+      .attr('stroke', VC.charcoal).attr('stroke-width', 1.5).attr('stroke-dasharray', '6,3');
+    g.append('text').attr('x', w + 4).attr('y', y(0) + 4)
+      .attr('fill', VC.charcoal).attr('font-size', '10px').attr('font-weight', '600').text('0');
+  }
+
+  // Area above zero (positive = cerulean)
+  const areaPos = d3.area()
+    .x(d => x(d.year))
+    .y0(d => y(Math.min(0, d.change)))
+    .y1(d => y(Math.max(0, d.change)))
+    .curve(d3.curveMonotoneX);
+
+  // Split into positive and negative segments via clip paths
+  const defs = svg.append('defs');
+  defs.append('clipPath').attr('id', 'clipPos')
+    .append('rect').attr('x', 0).attr('y', 0).attr('width', w).attr('height', y(0));
+  defs.append('clipPath').attr('id', 'clipNeg')
+    .append('rect').attr('x', 0).attr('y', y(0)).attr('width', w).attr('height', h - y(0));
+
+  // Positive area (cerulean)
+  g.append('path').datum(data).attr('d', areaPos)
+    .attr('fill', VC.cerulean).attr('opacity', 0.25).attr('clip-path', 'url(#clipPos)');
+  // Negative area (orange)
+  g.append('path').datum(data).attr('d', areaPos)
+    .attr('fill', VC.orange).attr('opacity', 0.25).attr('clip-path', 'url(#clipNeg)');
+
+  // Line
+  const line = d3.line().x(d => x(d.year)).y(d => y(d.change)).curve(d3.curveMonotoneX);
+  g.append('path').datum(data).attr('d', line)
+    .attr('fill', 'none').attr('stroke', VC.cerulean).attr('stroke-width', 2.5);
+
+  // Key annotations
+  const annotations = [
+    { year: 1946, label: 'Baby Boom peak', anchor: 'start' },
+    { year: 2020, label: 'COVID', anchor: 'end' }
+  ];
+  for (const a of annotations) {
+    const d = data.find(v => v.year === a.year);
+    if (!d) continue;
+    g.append('circle').attr('cx', x(d.year)).attr('cy', y(d.change)).attr('r', 4)
+      .attr('fill', d.change >= 0 ? VC.cerulean : VC.orange);
+    g.append('text').attr('x', x(d.year) + (a.anchor === 'end' ? -8 : 8)).attr('y', y(d.change) - 10)
+      .attr('text-anchor', a.anchor).attr('fill', VC.charcoal).attr('font-size', '10px').attr('font-weight', '700')
+      .text(`${a.label}: ${d.change >= 0 ? '+' : ''}${fmt(d.change)}`);
+  }
+
+  // Hover
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      const d = data.find(v => v.year === yr);
+      if (!d) { hideTip(); return; }
+      const color = d.change >= 0 ? VC.cerulean : VC.orange;
+      showTip(event, `<strong>${d.year}</strong><br><span style="color:${VC.chartreuse}">Births: ${fmt(d.births)}</span><br><span style="color:${VC.orange}">Deaths: ${fmt(d.deaths)}</span><br><span style="color:${color}"><strong>Natural change: ${d.change >= 0 ? '+' : ''}${fmt(d.change)}</strong></span>`);
+    }).on('mouseleave', hideTip);
+}
+
+function buildJokeChart(birthsByYear) {
+  const years = Object.keys(birthsByYear).map(Number).filter(y => y <= 1909).sort((a, b) => a - b);
+  const el = document.getElementById('jokeChart');
+  const width = Math.min(680, el.clientWidth), height = 200;
+  const m = { top: 24, right: 16, bottom: 32, left: 50 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+
+  const svg = d3.select('#jokeChart').append('svg').attr('viewBox', `0 0 ${width} ${height}`);
+  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
+
+  const x = d3.scaleLinear().domain(d3.extent(years)).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 5]).range([h, 0]);
+
+  whiteAxes(g, x, y, w, h, { yFmt: d => d + ' yrs' });
+
+  g.append('path').datum(years)
+    .attr('d', d3.line().x(d => x(d)).y(() => y(0)))
+    .attr('fill', 'none').attr('stroke', VC.chartreuse).attr('stroke-width', 3);
+
+  g.append('text').attr('x', w / 2).attr('y', -8)
+    .attr('text-anchor', 'middle').attr('fill', VC.charcoal).attr('font-size', '11px').attr('font-style', 'italic')
+    .text('Remarkably consistent across all years and boroughs');
+
+  g.append('rect').attr('width', w).attr('height', h).attr('fill', 'transparent').style('cursor', 'crosshair')
+    .on('mousemove', function(event) {
+      const yr = Math.round(x.invert(d3.pointer(event)[0]));
+      if (yr >= 1855 && yr <= 1909) showTip(event, `<strong>${yr}</strong><br>Average age at birth: <strong>0</strong>`);
+    }).on('mouseleave', hideTip);
+}
+
+// ---- ANIMATION ----
+let anim = { playing: false, idx: 0, timer: null };
+
+function animate(chart) {
+  const { yearData, x, y, clip, scanline, birthDot, deathDot } = chart;
+  const yearEl = document.getElementById('yearDisplay');
+  const birthEl = document.getElementById('birthCount');
+  const deathEl = document.getElementById('deathCount');
+  const netEl = document.getElementById('netCount');
+  const speed = document.getElementById('speedSlider');
+
+  function step() {
+    if (anim.idx >= yearData.length) {
+      anim.playing = false;
+      document.getElementById('playBtn').innerHTML = '&#9654; Play';
+      scanline.style('display', 'none');
+      birthDot.style('display', 'none');
+      deathDot.style('display', 'none');
+      return;
+    }
+    const d = yearData[anim.idx];
+    const px = x(d.year);
+    clip.attr('width', px + 2);
+    scanline.attr('x1', px).attr('x2', px).style('display', null);
+    yearEl.textContent = d.year;
+    if (d.births !== null) {
+      birthEl.textContent = fmt(d.births);
+      birthDot.attr('cx', px).attr('cy', y(d.births)).style('display', null);
+    } else { birthEl.textContent = '—'; birthDot.style('display', 'none'); }
+    if (d.deaths !== null) {
+      deathEl.textContent = fmt(d.deaths);
+      deathDot.attr('cx', px).attr('cy', y(d.deaths)).style('display', null);
+    } else { deathEl.textContent = '—'; deathDot.style('display', 'none'); }
+    if (d.births !== null && d.deaths !== null) {
+      const n = d.births - d.deaths;
+      netEl.textContent = (n >= 0 ? '+' : '') + fmt(n);
+      netEl.style.color = n >= 0 ? VC.cerulean : VC.orange;
+    } else { netEl.textContent = '—'; }
+    anim.idx++;
+    anim.timer = setTimeout(step, (11 - (+speed.value)) * 28);
+  }
+  step();
+}
+
+// ---- MAIN ----
+(async function main() {
+  try {
+    const data = await loadAllData();
+    document.getElementById('loading').remove();
+    const chart = buildMainChart(data);
+    buildStackedArea(data, 'birthBoroughChart', 'birthBoroughLegend', data.birthsByYearBorough);
+    buildStackedArea(data, 'deathBoroughChart', 'deathBoroughLegend', data.deathsByYearBorough);
+    buildBarChart('birthMonthChart', data.birthsByMonth, VC.chartreuse);
+    buildBarChart('deathMonthChart', data.deathsByMonth, VC.orange);
+    buildAgeChart(data.ageData);
+    buildCauseChart(data.deathsByYearCause);
+    buildRaceChart(data.birthsByYearRace);
+    buildNaturalChangeChart(data.birthsByYear, data.deathsByYear);
+    buildJokeChart(data.birthsByYear);
+
+    // Re-observe sections that may have rendered
+    document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+    const playBtn = document.getElementById('playBtn');
+    playBtn.addEventListener('click', () => {
+      if (anim.playing) {
+        anim.playing = false; clearTimeout(anim.timer);
+        playBtn.innerHTML = '&#9654; Play';
+      } else {
+        if (anim.idx >= chart.yearData.length) { anim.idx = 0; chart.clip.attr('width', 0); }
+        anim.playing = true;
+        playBtn.innerHTML = '&#10074;&#10074; Pause';
+        animate(chart);
+      }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      anim.playing = false; clearTimeout(anim.timer); anim.idx = 0;
+      chart.clip.attr('width', 0);
+      chart.scanline.style('display', 'none');
+      chart.birthDot.style('display', 'none');
+      chart.deathDot.style('display', 'none');
+      document.getElementById('yearDisplay').textContent = '—';
+      document.getElementById('birthCount').textContent = '—';
+      document.getElementById('deathCount').textContent = '—';
+      document.getElementById('netCount').textContent = '—';
+      playBtn.innerHTML = '&#9654; Play';
+    });
+
+    setTimeout(() => playBtn.click(), 600);
+  } catch (err) {
+    document.getElementById('loading').innerHTML = `<div style="color:${VC.orange}">Error: ${err.message}</div>`;
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>

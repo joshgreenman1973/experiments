@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC / NYS Policy Calendar 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --color-policy: #4a6fa5;
+            --color-policy-bg: #f0f4f8;
+            --color-book: #2d8659;
+            --color-book-bg: #edf7f0;
+            --color-anniversary: #c77c14;
+            --color-anniversary-bg: #fef7eb;
+            --color-custom: #7c3aed;
+            --color-custom-bg: #f3f0ff;
+            --color-vitalcity: #d64045;
+            --color-vitalcity-bg: #fef2f2;
+            --color-text: #1a1a2e;
+            --color-muted: #666;
+            --color-border: #e2e2e2;
+            --color-bg: #f7f7f8;
+            --color-card: #fff;
+            --color-accent: #2c5282;
+            --radius: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .site-header {
+            background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 100%);
+            color: white;
+            padding: 22px 20px 18px;
+            text-align: center;
+        }
+        .site-header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 2px; }
+        .site-header p { font-size: 0.82rem; opacity: 0.8; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
+
+        /* Sticky controls */
+        .controls {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--color-bg);
+            padding: 12px 0 8px;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .controls-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .month-nav button {
+            background: none;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text);
+        }
+        .month-nav button:hover { background: #eee; }
+        .month-label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            min-width: 120px;
+            text-align: center;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .month-label:hover { background: #eee; }
+
+        .spacer { flex: 1; }
+
+        .btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--color-border);
+            background: white;
+            color: var(--color-text);
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .btn:hover { background: #f0f0f0; }
+        .btn-primary { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+        .btn-primary:hover { background: #1a4971; }
+        .btn-sm { padding: 3px 8px; font-size: 0.72rem; }
+        .btn-ghost { border: none; background: none; color: var(--color-muted); }
+        .btn-ghost:hover { color: var(--color-text); background: #eee; }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .chip {
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1.5px solid var(--color-border);
+            background: white;
+            color: var(--color-muted);
+            user-select: none;
+        }
+        .chip.active { border-color: var(--color-accent); background: var(--color-accent); color: white; }
+        .chip[data-type="policy"].active { background: var(--color-policy); border-color: var(--color-policy); }
+        .chip[data-type="book"].active { background: var(--color-book); border-color: var(--color-book); }
+        .chip[data-type="anniversary"].active { background: var(--color-anniversary); border-color: var(--color-anniversary); }
+        .chip[data-type="custom"].active { background: var(--color-custom); border-color: var(--color-custom); }
+        .chip[data-type="vitalcity"].active { background: var(--color-vitalcity); border-color: var(--color-vitalcity); }
+
+        .search-box {
+            flex: 1;
+            min-width: 120px;
+            padding: 5px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .search-box:focus { border-color: var(--color-accent); box-shadow: 0 0 0 2px rgba(44,82,130,0.12); }
+
+        /* Month quick-nav */
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 4px;
+            margin-top: 8px;
+            padding: 8px 0;
+        }
+        .month-grid button {
+            padding: 6px 4px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            background: white;
+            font-size: 0.72rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+            color: var(--color-muted);
+            text-align: center;
+        }
+        .month-grid button.active { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+        .month-grid button:hover:not(.active) { background: #f0f0f0; }
+        .month-grid .month-count { font-size: 0.62rem; opacity: 0.7; display: block; }
+
+        /* ─── YEAR OVERVIEW ─── */
+        .year-overview { margin-top: 12px; }
+        .year-month {
+            margin-bottom: 24px;
+        }
+        .year-month-header {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--color-accent);
+            padding: 6px 0;
+            border-bottom: 2px solid var(--color-accent);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        .year-month-count {
+            font-size: 0.72rem;
+            font-weight: 400;
+            color: var(--color-muted);
+        }
+
+        /* Compact event rows for year overview */
+        .event-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            background: white;
+            border-left: 3px solid var(--color-policy);
+            transition: background 0.1s;
+            cursor: default;
+        }
+        .event-row:hover { background: #fafbfc; }
+        .event-row.book { border-left-color: var(--color-book); }
+        .event-row.anniversary { border-left-color: var(--color-anniversary); }
+        .event-row.custom { border-left-color: var(--color-custom); }
+        .event-row.vitalcity { border-left-color: var(--color-vitalcity); }
+
+        .event-row .ev-date {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-muted);
+            min-width: 52px;
+            flex-shrink: 0;
+            padding-top: 1px;
+        }
+        .event-row .ev-date .approx {
+            font-size: 0.6rem;
+            font-weight: 400;
+            font-style: italic;
+            color: #aaa;
+        }
+        .event-row .ev-body { flex: 1; min-width: 0; }
+        .event-row .ev-title {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.3;
+        }
+        .event-row .ev-title a {
+            color: inherit;
+            text-decoration: none;
+            border-bottom: 1px dotted transparent;
+        }
+        .event-row .ev-title a:hover { border-bottom-color: var(--color-accent); color: var(--color-accent); }
+        .event-row .ev-note {
+            font-size: 0.78rem;
+            color: var(--color-muted);
+            line-height: 1.4;
+            margin-top: 2px;
+        }
+        .event-row .ev-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .ev-badge.policy { background: var(--color-policy-bg); color: var(--color-policy); }
+        .ev-badge.book { background: var(--color-book-bg); color: var(--color-book); }
+        .ev-badge.anniversary { background: var(--color-anniversary-bg); color: var(--color-anniversary); }
+        .ev-badge.custom { background: var(--color-custom-bg); color: var(--color-custom); }
+        .ev-badge.vitalcity { background: var(--color-vitalcity-bg); color: var(--color-vitalcity); }
+
+        /* Hover actions */
+        .event-row .ev-actions {
+            display: none;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .event-row:hover .ev-actions { display: flex; }
+        .event-row:hover .ev-badge { display: none; }
+        .ev-action {
+            font-size: 0.68rem;
+            color: var(--color-accent);
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: inherit;
+            padding: 0;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+        .ev-action:hover { text-decoration: underline; }
+        .ev-action.delete { color: #c53030; }
+
+        /* ─── SINGLE MONTH VIEW ─── */
+        .month-view { margin-top: 12px; }
+
+        /* Calendar grid */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--color-border);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .cal-grid .dh {
+            background: #f0f0f0;
+            text-align: center;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 5px 2px;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .cal-grid .dc {
+            background: white;
+            min-height: 80px;
+            padding: 3px;
+            cursor: default;
+        }
+        .cal-grid .dc.empty { background: #fafafa; }
+        .cal-grid .dc.today { background: #eff6ff; box-shadow: inset 0 0 0 2px var(--color-accent); }
+        .cal-grid .dc.has-ev { cursor: pointer; }
+        .cal-grid .dc.has-ev:hover { background: #f5f8ff; }
+        .dn {
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--color-muted);
+            margin-bottom: 2px;
+        }
+        .dc.today .dn {
+            background: var(--color-accent);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+        .dd { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin: 1px; }
+        .dd.policy { background: var(--color-policy); }
+        .dd.book { background: var(--color-book); }
+        .dd.anniversary { background: var(--color-anniversary); }
+        .dd.custom { background: var(--color-custom); }
+        .dd.vitalcity { background: var(--color-vitalcity); }
+        .dep {
+            font-size: 0.6rem;
+            line-height: 1.2;
+            color: var(--color-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 1px 2px;
+            border-radius: 2px;
+            margin-top: 1px;
+        }
+        .dep.policy { background: var(--color-policy-bg); }
+        .dep.book { background: var(--color-book-bg); }
+        .dep.anniversary { background: var(--color-anniversary-bg); }
+        .dep.custom { background: var(--color-custom-bg); }
+        .dep.vitalcity { background: var(--color-vitalcity-bg); }
+
+        /* Popover */
+        .popover {
+            position: fixed;
+            z-index: 200;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            padding: 14px;
+            min-width: 280px;
+            max-width: 380px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .popover h3 { font-size: 0.88rem; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border); }
+        .popover-ev { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+        .popover-ev:last-child { border-bottom: none; }
+        .popover-ev-title { font-weight: 600; font-size: 0.82rem; }
+        .popover-ev-note { font-size: 0.75rem; color: var(--color-muted); margin-top: 2px; }
+        .popover-ev-actions { margin-top: 3px; display: flex; gap: 8px; }
+        .popover-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            color: #999;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal h2 { font-size: 1rem; margin-bottom: 16px; }
+        .fg { margin-bottom: 12px; }
+        .fg label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px; color: var(--color-muted); }
+        .fg input, .fg select, .fg textarea {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+        }
+        .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--color-accent); }
+        .fg textarea { resize: vertical; min-height: 50px; }
+        .modal-btns { display: flex; gap: 6px; justify-content: flex-end; margin-top: 18px; }
+
+        /* Empty */
+        .empty { text-align: center; padding: 30px; color: var(--color-muted); font-size: 0.88rem; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1a1a2e;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            transition: transform 0.3s;
+            z-index: 400;
+        }
+        .toast.visible { transform: translateX(-50%) translateY(0); }
+
+        /* Print */
+        @media print {
+            .controls, .site-header, .ev-actions { display: none !important; }
+            .event-row { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+            .event-row:hover .ev-badge { display: inline; }
+            body { background: white; }
+        }
+
+        /* Mobile */
+        @media (max-width: 640px) {
+            .site-header h1 { font-size: 1.2rem; }
+            .month-grid { grid-template-columns: repeat(4, 1fr); }
+            .cal-grid .dc { min-height: 50px; }
+            .dep { display: none; }
+            .event-row .ev-actions { display: flex; }
+            .event-row .ev-badge { display: none; }
+            .popover { left: 8px !important; right: 8px !important; min-width: auto; max-width: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <h1>NYC / NYS Policy Calendar 2026</h1>
+        <p>Public policy, books & anniversaries for the year ahead</p>
+    </header>
+
+    <div class="container">
+        <div class="controls">
+            <div class="controls-top">
+                <div class="month-nav">
+                    <button onclick="changeMonth(-1)" title="Previous">&#8249;</button>
+                    <span class="month-label" id="monthLabel" onclick="toggleMonthPicker()"></span>
+                    <button onclick="changeMonth(1)" title="Next">&#8250;</button>
+                </div>
+                <span class="spacer"></span>
+                <button class="btn btn-ghost btn-sm" id="viewToggle" onclick="toggleView()" title="Toggle grid/list"></button>
+                <button class="btn btn-sm" onclick="exportVisible()" title="Download calendar file">Export .ics</button>
+                <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add</button>
+            </div>
+            <div id="monthPicker" style="display:none;"></div>
+            <div class="filter-row">
+                <div class="chip active" data-type="all" onclick="toggleFilter('all')">All</div>
+                <div class="chip" data-type="policy" onclick="toggleFilter('policy')">Policy</div>
+                <div class="chip" data-type="book" onclick="toggleFilter('book')">Books</div>
+                <div class="chip" data-type="anniversary" onclick="toggleFilter('anniversary')">Anniversaries</div>
+                <div class="chip" data-type="vitalcity" onclick="toggleFilter('vitalcity')">Vital City</div>
+                <div class="chip" data-type="custom" onclick="toggleFilter('custom')">My Events</div>
+                <input type="search" class="search-box" placeholder="Search..." oninput="onSearch(this.value)" id="searchInput">
+            </div>
+        </div>
+
+        <div id="content"></div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div class="modal-overlay hidden" id="addModal" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <h2>Add Event</h2>
+            <form onsubmit="saveEvent(event)">
+                <div class="fg">
+                    <label for="evDate">Date</label>
+                    <input type="date" id="evDate" required>
+                </div>
+                <div class="fg">
+                    <label for="evTitle">Title</label>
+                    <input type="text" id="evTitle" required placeholder="e.g. City Council Hearing on Housing">
+                </div>
+                <div class="fg">
+                    <label for="evNote">Description (optional)</label>
+                    <textarea id="evNote" placeholder="Details, context, what to watch for..."></textarea>
+                </div>
+                <div class="fg">
+                    <label for="evUrl">Link (optional)</label>
+                    <input type="url" id="evUrl" placeholder="https://...">
+                </div>
+                <div class="fg">
+                    <label for="evType">Type</label>
+                    <select id="evType">
+                        <option value="custom">My Event</option>
+                        <option value="policy">Policy</option>
+                        <option value="book">Book</option>
+                        <option value="anniversary">Anniversary</option>
+                        <option value="vitalcity">Vital City Plans</option>
+                    </select>
+                </div>
+                <div class="modal-btns">
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="popover" id="popover" style="display:none;"></div>
+    <div class="toast" id="toast"></div>
+
+<script>
+// ─── DATA ─────────────────────────────────────────────────────
+const EVENTS = [
+    // MARCH (from March 17 onward)
+    { date: "2026-03-24", title: "City Council Budget Hearings Continue", note: "Agency heads testify before Council. Key drama: new administration priorities vs. Council moderates. Hearings run through April.", type: "policy", approx: true, url: "https://council.nyc.gov/" },
+    { date: "2026-03-24", title: "Dracula Urbanism by Wilson & Wyly", note: "Polemical critique of \u2018smart city\u2019 development\u2014who benefits, who gets harmed. (Academic)", type: "book" },
+    { date: "2026-03-31", title: "No New York by Adele Bertei", note: "Memoir of No Wave NYC\u2014the women who shaped the late-70s downtown scene (Contortions, Eno, CBGB). (Beacon/Faber)", type: "book" },
+    { date: "2026-03-31", title: "NYS FY2026 Ends", note: "State fiscal year closes. Any budget extenders or late actions must occur before midnight.", type: "policy" },
+
+    // APRIL
+    { date: "2026-04-05", title: "Easter Sunday", note: "Major holiday.", type: "policy" },
+    { date: "2026-04-01", title: "NYS Budget Deadline / FY2027 Begins", note: "State budget must pass or extenders enacted. Determines city tax authority, mayoral control, MTA funding, and Medicaid allocations.", type: "policy", url: "https://www.budget.ny.gov/" },
+    { date: "2026-04-01", title: "City Council Budget Response Due", note: "Council publishes response to Preliminary Budget. Formal start of budget negotiations with Mayor.", type: "policy", approx: true, url: "https://council.nyc.gov/budget/" },
+    { date: "2026-04-01", title: "Willets Point Commons Opens (~880 Units)", note: "Largest 100% affordable housing development in NYC in 40 years. Queens.", type: "policy", approx: true },
+    { date: "2026-04-06", title: "Petition Filing Period Opens", note: "Candidates begin collecting petition signatures for November ballot lines. Filing period runs through early June.", type: "policy", approx: true, url: "https://www.elections.ny.gov/" },
+    { date: "2026-04-11", title: "Mamdani\u2019s 100th Day in Office", note: "Traditional benchmark for new administrations. Expect media assessments of early executive orders, appointments, and policy direction.", type: "policy" },
+    { date: "2026-04-15", title: "Nunez Monitor Report", note: "Semi-annual Rikers status report to Judge Swain. Critical assessment of jail violence and reform progress. (Exact date set by court.)", type: "policy", approx: true },
+    { date: "2026-04-25", title: "RGB Income & Expense Study", note: "Data on landlord net operating income. Key ammunition for rent freeze advocates if NOI is high.", type: "policy", approx: true, url: "https://rentguidelinesboard.cityofnewyork.us/" },
+
+    // MAY
+    { date: "2026-05-04", title: "Met Gala", note: "Metropolitan Museum of Art Costume Institute benefit. Major NYC cultural event.", type: "anniversary", approx: true },
+    { date: "2026-05-01", title: "NYC Executive Budget Due", note: "Charter-mandated deadline for first-year mayors (extended from Apr 26 per 2022 charter revision). Mayor updates budget based on Albany outcome.", type: "policy", url: "https://www.nyc.gov/site/omb/index.page" },
+    { date: "2026-05-01", title: "Penn Station Master Developer Selection", note: "Amtrak/DOT expected to complete developer selection. Construction targeted for 2027.", type: "policy", approx: true },
+    { date: "2026-05-05", title: "RGB Preliminary Vote", note: "Board votes on rent adjustment range. High-profile clash between tenant advocates and property owner representatives.", type: "policy", approx: true, url: "https://rentguidelinesboard.cityofnewyork.us/" },
+    { date: "2026-05-25", title: "Memorial Day", note: "Federal holiday. City offices closed.", type: "policy" },
+    { date: "2026-05-25", title: "Nunez Federal Court Conference", note: "Judge Swain hearing on Monitor report. Could signal receivership proceedings if violence metrics remain poor.", type: "policy", approx: true },
+    { date: "2026-05-29", title: "Voter Registration Deadline (Primary)", note: "Last day to register to vote in the June 23 primary election.", type: "policy", approx: true, url: "https://www.elections.ny.gov/" },
+
+    // JUNE
+    { date: "2026-06-01", title: "American LGBTQ+ Museum Opens", note: "Nation\u2019s first museum dedicated to LGBTQ+ history, within New-York Historical Society\u2019s Tang Wing.", type: "anniversary", approx: true },
+    { date: "2026-06-05", title: "Budget Adoption Target", note: "Traditional target for Mayor-Council budget agreement, though not a hard deadline.", type: "policy" },
+    { date: "2026-06-08", title: "Luigi Mangione State Murder Trial Begins", note: "Trial for killing of UnitedHealthcare CEO Brian Thompson in Midtown Manhattan.", type: "policy" },
+    { date: "2026-06-13", title: "FIFA World Cup Begins at MetLife Stadium", note: "8 matches at MetLife (most of any venue). Massive security, transit, and economic impact for the region.", type: "policy", url: "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/fifa-world-cup-26" },
+    { date: "2026-06-13", title: "Early Voting Begins (Primary)", note: "Nine-day early voting period for state primaries. Runs through June 21.", type: "policy", url: "https://www.elections.ny.gov/" },
+    { date: "2026-06-15", title: "421-a Completion Deadline", note: "Hard deadline for tax-incentive projects that missed the Sept 2024 Letter of Intent window.", type: "policy" },
+    { date: "2026-06-15", title: "Mayoral Control Negotiations", note: "Current law expires June 30. Mamdani administration must negotiate renewal/reform with Albany.", type: "policy", approx: true },
+    { date: "2026-06-04", title: "NYS Legislative Session Last Scheduled Day", note: "Last scheduled session day per Senate calendar. Sessions often run past this. Final push for mayoral control, tax authority, housing, and other city priorities.", type: "policy" },
+    { date: "2026-06-23", title: "NYS Primary Election", note: "Statewide primaries including gubernatorial (Hochul vs. Delgado), legislative, and Congressional races.", type: "policy", url: "https://www.elections.ny.gov/" },
+    { date: "2026-06-23", title: "City of Fortune by Mason B. Williams", note: "Sweeping history of contemporary NYC from fiscal crisis to COVID\u2014who gained, who was priced out, and how inequality was structured. (W.W. Norton)", type: "book" },
+    { date: "2026-06-23", title: "Unwinding Privatization", note: "Policy volume on where privatization failed and what re-municipalization looks like. Ed. Alexander et al. (MIT Press)", type: "book" },
+    { date: "2026-06-25", title: "RGB Final Vote", note: "Final rent adjustment decision for October 2026\u2013September 2027 leases. First test of Mamdani appointees.", type: "policy", approx: true, url: "https://rentguidelinesboard.cityofnewyork.us/" },
+    { date: "2026-06-30", title: "NYC Budget Adoption Deadline", note: "Council and Mayor must adopt FY2027 budget. Final deal reveals actual funding levels for policy priorities.", type: "policy", url: "https://council.nyc.gov/budget/" },
+    { date: "2026-06-30", title: "Mayoral Control Expiration", note: "Current schools governance law sunsets. Requires Albany action to continue or modify.", type: "policy" },
+
+    // JULY
+    { date: "2026-07-01", title: "NYC FY2027 Begins", note: "New city fiscal year starts. Budget implementation begins.", type: "policy" },
+    { date: "2026-07-01", title: "Rikers Land Transfer Deadline", note: "Semi-annual statutory deadline to transfer unused Rikers land to DCAS. Progress marker for closure plan.", type: "policy" },
+    { date: "2026-07-03", title: "Liberty Weekend 40th Anniversary", note: "July 1986: Statue of Liberty centennial and rededication after restoration. Reagan presided; largest tall ship parade in modern history.", type: "anniversary" },
+    { date: "2026-07-04", title: "Independence Day / Macy\u2019s 50th Anniversary Fireworks", note: "50th anniversary of the Macy\u2019s Fourth of July Fireworks. Centerpiece of America250 celebrations.", type: "anniversary" },
+    { date: "2026-07-04", title: "America250 / Sail4th250", note: "America\u2019s 250th birthday. NYC Harbor hosts largest fleet of tall ships and naval vessels ever assembled\u2014echoing 1976 bicentennial and 1986 Liberty Weekend.", type: "anniversary", url: "https://america250.org/" },
+    { date: "2026-07-12", title: "1976 DNC 50th Anniversary", note: "50 years since the Democratic National Convention at Madison Square Garden nominated Carter during NYC\u2019s fiscal crisis.", type: "anniversary" },
+    { date: "2026-07-19", title: "FIFA World Cup Final at MetLife Stadium", note: "Largest single sporting event ever hosted in the NYC region.", type: "policy", url: "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/fifa-world-cup-26" },
+    { date: "2026-07-15", title: "MTA Financial Plan Update", note: "July Plan provides updated revenue projections and capital program status.", type: "policy", approx: true, url: "https://new.mta.info/transparency/financial-information" },
+    { date: "2026-07-29", title: "Son of Sam 50th Anniversary (First Attack)", note: "July 29, 1976: David Berkowitz began his series of attacks that terrorized NYC for a year. Context for the Goetz books arriving earlier in 2026.", type: "anniversary" },
+
+    // AUGUST
+    { date: "2026-08-31", title: "US Open Tennis Begins", note: "Runs through Sept 13. Major tourism and transit impact for Queens.", type: "policy", url: "https://www.usopen.org/" },
+    { date: "2026-08-01", title: "Reinventing Transit by Baruch Feigenbaum", note: "Reform agenda for U.S. transit systems: governance, competition, service redesign, technology. (Reason Foundation/Academic)", type: "book" },
+    { date: "2026-08-31", title: "\u2018One Year to Close Rikers\u2019", note: "Statutory deadline to close Rikers is August 31, 2027. This marks exactly one year remaining. Major media/advocacy focus point.", type: "policy" },
+
+    // SEPTEMBER
+    { date: "2026-09-07", title: "Labor Day", note: "Federal holiday. City offices closed.", type: "policy" },
+    { date: "2026-09-08", title: "First Day of School", note: "2026\u201327 school year likely begins day after Labor Day. Chancellor\u2019s first full year under new administration.", type: "policy", approx: true, url: "https://www.schools.nyc.gov/" },
+    { date: "2026-09-11", title: "9/11 25th Anniversary", note: "Twenty-fifth anniversary of the September 11, 2001 attacks. Major commemorations at 9/11 Memorial, citywide observances. FDNY plans year-long commemoration. Yankees vs. Mets game scheduled.", type: "anniversary", url: "https://www.911memorial.org/" },
+    { date: "2026-09-14", title: "UN General Assembly Opens", note: "World leaders descend on NYC. Major security, traffic, and diplomatic implications. Watch for city-level engagement.", type: "policy", approx: true },
+    { date: "2026-09-17", title: "Mayor\u2019s Management Report Due", note: "Charter-mandated MMR deadline. Scorecard for agency performance: trash, crime, service delivery metrics.", type: "policy", url: "https://www.nyc.gov/site/operations/performance/mmr.page" },
+    { date: "2026-09-30", title: "Federal FY2026 Ends / Shutdown Risk", note: "FY2026 appropriations expire at midnight. NYC heavily exposed to federal funding disruptions (housing vouchers, Medicaid, transit, FEMA).", type: "policy" },
+    { date: "2026-09-25", title: "MTA 2027 Preliminary Budget", note: "MTA releases preliminary budget for following year. Key indicators of fiscal health and service levels.", type: "policy", approx: true, url: "https://new.mta.info/transparency/financial-information" },
+
+    // OCTOBER
+    { date: "2026-10-01", title: "New Rent Guidelines Take Effect", note: "RGB-approved adjustments apply to new and renewal leases starting this date.", type: "policy", url: "https://rentguidelinesboard.cityofnewyork.us/" },
+    { date: "2026-10-01", title: "City of Yes: First Affordable Housing District List", note: "DCP publishes list of 12 community districts with lowest affordable housing production.", type: "policy", approx: true },
+    { date: "2026-10-01", title: "HPD Fair Housing Framework Assessment Due", note: "First-ever needs assessment and five-year affordable housing production targets for all 59 community districts.", type: "policy", approx: true },
+    { date: "2026-10-01", title: "Federal Fiscal Year 2027 Begins", note: "Start of federal FY2027. Watch for continuing resolutions, government shutdown risks, and impact on NYC federal funding (housing vouchers, Medicaid, transit).", type: "policy" },
+    { date: "2026-10-09", title: "Voter Registration Deadline (General)", note: "Last day to register to vote in the November 3 general election.", type: "policy", approx: true, url: "https://www.elections.ny.gov/" },
+    { date: "2026-10-12", title: "Columbus Day / Indigenous Peoples\u2019 Day", note: "Federal holiday. City offices closed.", type: "policy" },
+    { date: "2026-10-24", title: "Early Voting Begins (General)", note: "Nine-day early voting period for general election. Runs through November 1.", type: "policy", url: "https://www.elections.ny.gov/" },
+
+    // NOVEMBER
+    { date: "2026-11-01", title: "NYC Marathon 50th Anniversary (Five-Borough Course)", note: "The marathon first ran through all five boroughs in 1976 for the U.S. bicentennial. 2026 marks 50 years of the iconic course.", type: "anniversary", approx: true, url: "https://www.nyrr.org/tcsnycmarathon" },
+    { date: "2026-11-03", title: "General Election", note: "Gubernatorial (Hochul vs. likely Blakeman), Congressional, and state legislative races. Hochul-Mamdani coordination critical for Democratic turnout.", type: "policy", url: "https://www.elections.ny.gov/" },
+    { date: "2026-11-11", title: "Veterans Day", note: "Federal holiday. City offices closed.", type: "policy" },
+    { date: "2026-11-15", title: "Nunez Monitor Report", note: "Second semi-annual Rikers report. Effectively grades Mamdani\u2019s first year of jail management. Poor grade accelerates receivership timeline.", type: "policy", approx: true },
+    { date: "2026-11-25", title: "NYC November Financial Plan Update", note: "City updates revenue and expenditure projections. Sets baseline for next budget cycle.", type: "policy", approx: true, url: "https://www.nyc.gov/site/omb/index.page" },
+    { date: "2026-11-26", title: "Thanksgiving / 100th Macy\u2019s Thanksgiving Day Parade", note: "Federal holiday. Milestone 100th parade (not held during WWII, hence 100th in 2026). Year-long celebration campaign.", type: "anniversary" },
+
+    // DECEMBER
+    { date: "2026-12-15", title: "MTA Board Adopts 2027 Budget", note: "Final MTA operating budget for coming year.", type: "policy", approx: true, url: "https://new.mta.info/transparency/board-and-committee-meetings" },
+    { date: "2026-12-25", title: "Christmas Day", note: "Federal holiday. City offices closed.", type: "policy" },
+    { date: "2026-12-28", title: "Albany Post-Election Positioning", note: "Lame duck period for termed-out legislators. Watch for late-session activity on pending bills.", type: "policy", approx: true }
+];
+
+// ─── STATE ────────────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const STORAGE_KEY = 'nycPolicyCal_custom';
+const today = new Date();
+
+let currentMonth = -1; // -1 = all months (year overview)
+let currentView = 'list'; // 'list' or 'grid' (grid only for single month)
+let activeFilters = new Set(['all']);
+let searchQuery = '';
+
+// Start on "all months" view
+if (location.hash) loadHash();
+
+// ─── CUSTOM EVENTS ───────────────────────────────────────────
+function getCustom() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveCustom(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+function allEvents() {
+    return [...EVENTS, ...getCustom().map(e => ({ ...e, custom: true }))].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ─── FILTERING ────────────────────────────────────────────────
+function filtered() {
+    let ev = allEvents();
+    if (!activeFilters.has('all')) {
+        ev = ev.filter(e => activeFilters.has(e.type) || (activeFilters.has('custom') && e.custom));
+    }
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        ev = ev.filter(e => e.title.toLowerCase().includes(q) || (e.note && e.note.toLowerCase().includes(q)));
+    }
+    return ev;
+}
+
+function monthEvents(m) {
+    const prefix = `2026-${String(m + 1).padStart(2, '0')}`;
+    return filtered().filter(e => e.date.startsWith(prefix));
+}
+
+function toggleFilter(type) {
+    if (type === 'all') {
+        activeFilters = new Set(['all']);
+    } else {
+        activeFilters.delete('all');
+        activeFilters.has(type) ? activeFilters.delete(type) : activeFilters.add(type);
+        if (activeFilters.size === 0) activeFilters = new Set(['all']);
+    }
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', activeFilters.has(c.dataset.type)));
+    render();
+    updateHash();
+}
+
+function onSearch(val) { searchQuery = val.trim(); render(); }
+
+// ─── NAVIGATION ───────────────────────────────────────────────
+function changeMonth(d) {
+    if (currentMonth === -1) { currentMonth = d > 0 ? 0 : 11; }
+    else { currentMonth += d; if (currentMonth < -1) currentMonth = 11; if (currentMonth > 11) currentMonth = -1; }
+    closePopover();
+    render();
+    updateHash();
+}
+
+function goMonth(m) {
+    currentMonth = m;
+    document.getElementById('monthPicker').style.display = 'none';
+    closePopover();
+    render();
+    updateHash();
+}
+
+function toggleMonthPicker() {
+    const el = document.getElementById('monthPicker');
+    if (el.style.display === 'none') {
+        el.innerHTML = '<div class="month-grid">' +
+            `<button class="${currentMonth === -1 ? 'active' : ''}" onclick="goMonth(-1)">All Year</button>` +
+            MONTHS.map((m, i) => {
+                const c = monthEvents(i).length;
+                return `<button class="${i === currentMonth ? 'active' : ''}" onclick="goMonth(${i})">${m.slice(0,3)}<span class="month-count">${c}</span></button>`;
+            }).join('') + '</div>';
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function toggleView() {
+    if (currentMonth === -1) { currentMonth = today.getFullYear() === 2026 ? today.getMonth() : 0; }
+    currentView = currentView === 'list' ? 'grid' : 'list';
+    closePopover();
+    render();
+    updateHash();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────
+function render() {
+    // Header
+    const label = document.getElementById('monthLabel');
+    label.textContent = currentMonth === -1 ? 'All Months \u2013 2026' : `${MONTHS[currentMonth]} 2026`;
+
+    // View toggle
+    const vt = document.getElementById('viewToggle');
+    if (currentMonth === -1) {
+        vt.textContent = 'Grid \u2197';
+        vt.title = 'Pick a month for grid view';
+    } else {
+        vt.textContent = currentView === 'list' ? 'Grid' : 'List';
+    }
+
+    const el = document.getElementById('content');
+    if (currentMonth === -1) {
+        el.innerHTML = renderYearOverview();
+    } else if (currentView === 'grid') {
+        el.innerHTML = renderGrid();
+    } else {
+        el.innerHTML = renderMonthList();
+    }
+}
+
+function renderYearOverview() {
+    let html = '<div class="year-overview">';
+    for (let m = 0; m < 12; m++) {
+        const events = monthEvents(m);
+        if (events.length === 0) continue;
+        html += `<div class="year-month">
+            <div class="year-month-header">
+                <span style="cursor:pointer" onclick="goMonth(${m})">${MONTHS[m]}</span>
+                <span class="year-month-count">${events.length} event${events.length !== 1 ? 's' : ''}</span>
+            </div>`;
+        if (events.length === 0) {
+            html += '<div class="empty">No events</div>';
+        } else {
+            html += events.map(e => renderEventRow(e)).join('');
+        }
+        html += '</div>';
+    }
+    return html + '</div>';
+}
+
+function renderMonthList() {
+    const events = monthEvents(currentMonth);
+    if (events.length === 0) return '<div class="empty">No events this month matching your filters.</div>';
+    return '<div class="month-view">' + events.map(e => renderEventRow(e)).join('') + '</div>';
+}
+
+function renderEventRow(e) {
+    const d = parseDate(e.date);
+    const dateStr = `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
+    const isCustom = e.custom;
+    const titleHtml = e.url
+        ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title)}</a>`
+        : esc(e.title);
+
+    return `<div class="event-row ${e.type}">
+        <div class="ev-date">${dateStr}${e.approx ? ' <span class="approx">~</span>' : ''}</div>
+        <div class="ev-body">
+            <div class="ev-title">${titleHtml}</div>
+            ${e.note ? `<div class="ev-note">${esc(e.note)}</div>` : ''}
+        </div>
+        <span class="ev-badge ${e.type}">${typeLabel(e.type)}</span>
+        <div class="ev-actions">
+            <button class="ev-action" onclick="dlICS(${escA(JSON.stringify(e))})">ics</button>
+            <a class="ev-action" href="${gcalUrl(e)}" target="_blank" rel="noopener">gcal</a>
+            ${isCustom ? `<button class="ev-action delete" onclick="delCustom('${escA(e.date)}','${escA(e.title)}')">delete</button>` : ''}
+        </div>
+    </div>`;
+}
+
+function renderGrid() {
+    const m = currentMonth;
+    const events = monthEvents(m);
+    const firstDay = new Date(2026, m, 1).getDay();
+    const days = new Date(2026, m + 1, 0).getDate();
+    const todayD = today.getFullYear() === 2026 && today.getMonth() === m ? today.getDate() : -1;
+
+    const byDay = {};
+    events.forEach(e => { const d = parseInt(e.date.split('-')[2]); (byDay[d] = byDay[d] || []).push(e); });
+
+    let html = '<div class="month-view"><div class="cal-grid">';
+    html += ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="dh">${d}</div>`).join('');
+
+    for (let i = 0; i < firstDay; i++) html += '<div class="dc empty"></div>';
+
+    for (let d = 1; d <= days; d++) {
+        const de = byDay[d] || [];
+        const cls = ['dc'];
+        if (d === todayD) cls.push('today');
+        if (de.length) cls.push('has-ev');
+
+        html += `<div class="${cls.join(' ')}" ${de.length ? `onclick="showPop(event,${m},${d})"` : ''}>
+            <div class="dn">${d}</div>
+            <div>${de.map(e => `<span class="dd ${e.type}"></span>`).join('')}</div>
+            ${de.slice(0, 2).map(e => `<div class="dep ${e.type}">${esc(e.title)}</div>`).join('')}
+            ${de.length > 2 ? `<div style="font-size:0.55rem;color:#999">+${de.length - 2}</div>` : ''}
+        </div>`;
+    }
+    return html + '</div></div>';
+}
+
+// ─── POPOVER ──────────────────────────────────────────────────
+const popEl = document.getElementById('popover');
+
+function showPop(evt, m, day) {
+    const events = monthEvents(m).filter(e => parseInt(e.date.split('-')[2]) === day);
+    if (!events.length) return;
+
+    const dateStr = new Date(2026, m, day).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    popEl.innerHTML = `<button class="popover-close" onclick="closePopover()">\u00d7</button>
+        <h3>${dateStr}</h3>
+        ${events.map(e => {
+            const titleHtml = e.url ? `<a href="${esc(e.url)}" target="_blank" style="color:var(--color-accent)">${esc(e.title)}</a>` : esc(e.title);
+            return `<div class="popover-ev">
+                <div class="popover-ev-title"><span class="dd ${e.type}" style="margin-right:3px"></span>${titleHtml}</div>
+                ${e.note ? `<div class="popover-ev-note">${esc(e.note)}</div>` : ''}
+                <div class="popover-ev-actions">
+                    <button class="ev-action" onclick="dlICS(${escA(JSON.stringify(e))})">ics</button>
+                    <a class="ev-action" href="${gcalUrl(e)}" target="_blank">gcal</a>
+                    ${e.custom ? `<button class="ev-action delete" onclick="delCustom('${escA(e.date)}','${escA(e.title)}');closePopover()">delete</button>` : ''}
+                </div>
+            </div>`;
+        }).join('')}`;
+
+    const rect = evt.currentTarget.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - 170;
+    let top = rect.bottom + 6;
+    if (left < 8) left = 8;
+    if (left + 340 > window.innerWidth) left = window.innerWidth - 348;
+    if (top + 250 > window.innerHeight) top = rect.top - 260;
+    popEl.style.left = left + 'px';
+    popEl.style.top = top + 'px';
+    popEl.style.display = 'block';
+    setTimeout(() => document.addEventListener('click', outsideClose, { once: true }), 0);
+}
+
+function closePopover() { popEl.style.display = 'none'; }
+function outsideClose(e) { if (!popEl.contains(e.target) && !e.target.closest('.dc')) closePopover(); }
+
+// ─── MODAL ────────────────────────────────────────────────────
+function openAddModal() {
+    const m = currentMonth === -1 ? (today.getFullYear() === 2026 ? today.getMonth() : 0) : currentMonth;
+    document.getElementById('evDate').value = `2026-${String(m + 1).padStart(2, '0')}-15`;
+    document.getElementById('evTitle').value = '';
+    document.getElementById('evNote').value = '';
+    document.getElementById('evUrl').value = '';
+    document.getElementById('evType').value = 'custom';
+    document.getElementById('addModal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('addModal').classList.add('hidden'); }
+
+function saveEvent(e) {
+    e.preventDefault();
+    const ev = {
+        date: document.getElementById('evDate').value,
+        title: document.getElementById('evTitle').value.trim(),
+        note: document.getElementById('evNote').value.trim() || undefined,
+        url: document.getElementById('evUrl').value.trim() || undefined,
+        type: document.getElementById('evType').value,
+        custom: true
+    };
+    const arr = getCustom();
+    arr.push(ev);
+    saveCustom(arr);
+    closeModal();
+    render();
+    toast('Event added');
+}
+
+function delCustom(date, title) {
+    saveCustom(getCustom().filter(e => !(e.date === date && e.title === title)));
+    render();
+    toast('Event removed');
+}
+
+// ─── ICS ──────────────────────────────────────────────────────
+function icsEsc(s) { return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+
+function makeICS(events) {
+    const vevents = events.map(e => {
+        const ds = e.date.replace(/-/g, '');
+        const d = parseDate(e.date); d.setDate(d.getDate() + 1);
+        const de = d.toISOString().split('T')[0].replace(/-/g, '');
+        return `BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${ds}\r\nDTEND;VALUE=DATE:${de}\r\nSUMMARY:${icsEsc(e.title)}\r\nDESCRIPTION:${icsEsc(e.note || '')}\r\n${e.url ? 'URL:' + e.url + '\r\n' : ''}UID:${ds}-${e.title.replace(/\W/g, '').slice(0, 30)}@nyc-policy-cal\r\nEND:VEVENT`;
+    }).join('\r\n');
+    return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//NYC Policy Calendar//EN\r\nCALSCALE:GREGORIAN\r\nX-WR-CALNAME:NYC Policy Calendar 2026\r\n${vevents}\r\nEND:VCALENDAR`;
+}
+
+function dlICS(data) {
+    const e = typeof data === 'string' ? JSON.parse(data) : data;
+    const blob = new Blob([makeICS([e])], { type: 'text/calendar;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = e.title.replace(/[^a-zA-Z0-9 ]/g, '').replace(/ /g, '_').slice(0, 40) + '.ics';
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Downloaded');
+}
+
+function exportVisible() {
+    const events = currentMonth === -1 ? filtered() : monthEvents(currentMonth);
+    if (!events.length) { toast('No events to export'); return; }
+    const blob = new Blob([makeICS(events)], { type: 'text/calendar;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = currentMonth === -1 ? 'NYC_Policy_Calendar_2026.ics' : `NYC_Policy_Calendar_${MONTHS[currentMonth]}_2026.ics`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast(`Exported ${events.length} events`);
+}
+
+function gcalUrl(e) {
+    const ds = e.date.replace(/-/g, '');
+    const d = parseDate(e.date); d.setDate(d.getDate() + 1);
+    const de = d.toISOString().split('T')[0].replace(/-/g, '');
+    return `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: 'TEMPLATE', text: e.title, dates: ds + '/' + de, details: e.note || '' })}`;
+}
+
+// ─── URL HASH ─────────────────────────────────────────────────
+function updateHash() {
+    const p = [];
+    if (currentMonth !== -1) p.push('m=' + currentMonth);
+    if (currentView !== 'list') p.push('v=' + currentView);
+    if (!activeFilters.has('all')) p.push('f=' + [...activeFilters].join(','));
+    history.replaceState(null, '', p.length ? '#' + p.join('&') : location.pathname);
+}
+
+function loadHash() {
+    const h = location.hash.slice(1); if (!h) return;
+    const p = Object.fromEntries(h.split('&').map(s => s.split('=')));
+    if (p.m !== undefined) currentMonth = parseInt(p.m);
+    if (p.v) currentView = p.v;
+    if (p.f) activeFilters = new Set(p.f.split(','));
+}
+
+// ─── UTIL ─────────────────────────────────────────────────────
+function parseDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+const TYPE_LABELS = { policy: 'policy', book: 'book', anniversary: 'anniversary', custom: 'my event', vitalcity: 'vital city' };
+function typeLabel(t) { return TYPE_LABELS[t] || t; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escA(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function toast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg;
+    t.classList.add('visible'); setTimeout(() => t.classList.remove('visible'), 2200);
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+    if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+    if (e.key === 'ArrowLeft') changeMonth(-1);
+    if (e.key === 'ArrowRight') changeMonth(1);
+    if (e.key === 'Escape') { closePopover(); closeModal(); }
+});
+
+// Init
+document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', activeFilters.has(c.dataset.type)));
+render();
+</script>
+</body>
+</html>

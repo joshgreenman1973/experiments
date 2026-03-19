@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Record Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="alternate" type="application/rss+xml" title="City Record Digest" href="feed.xml">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: #1a1a1a;
+      background: #f5f5f5;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    header p {
+      color: #777;
+      font-size: 13px;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid #e8e8e8;
+      margin-bottom: 24px;
+      margin-top: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #888;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab:hover { color: #434343; }
+
+    .tab.active {
+      color: #c0392b;
+      border-bottom-color: #c0392b;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+
+    .date-nav button {
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+    }
+
+    .date-nav button:hover { background: #434343; }
+    .date-nav button:disabled { background: #ccc; cursor: default; }
+
+    .date-nav .current-date {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0;
+      margin-bottom: 28px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .stats-bar > div {
+      padding: 14px 18px;
+      border-right: 1px solid #f0f0f0;
+    }
+
+    .stats-bar > div:last-child { border-right: none; }
+
+    .stats-bar .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      color: #999;
+      margin-bottom: 2px;
+    }
+
+    .stats-bar .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      display: block;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-top: 36px;
+      margin-bottom: 16px;
+      color: #434343;
+    }
+
+    h2.notable { color: #c0392b; }
+
+    .notice-card {
+      margin-bottom: 12px;
+      padding: 14px 16px;
+      background: #fff;
+      border-left: 3px solid #c0392b;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .notice-card.medium {
+      border-left-color: #5b8db8;
+    }
+
+    .notice-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .notice-card h3 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .notice-card h3 a:hover {
+      text-decoration: underline;
+    }
+
+    .notice-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .notice-card p {
+      font-size: 13.5px;
+      color: #434343;
+      line-height: 1.55;
+    }
+
+    .amount {
+      font-weight: 700;
+    }
+
+    .section-group {
+      margin-top: 24px;
+    }
+
+    .section-group h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    .section-group ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .section-group li {
+      font-size: 13.5px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .section-group li:last-child { border-bottom: none; }
+
+    .section-group li a {
+      color: #5b8db8;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .section-group li a:hover { text-decoration: underline; }
+
+    .section-group .li-meta {
+      color: #888;
+      font-size: 12px;
+    }
+
+    /* Weekly/Monthly summaries */
+    .summary-period {
+      margin-bottom: 32px;
+    }
+
+    .summary-period h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #434343;
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .summary-stat {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .summary-stat .label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 600;
+    }
+
+    .summary-stat .value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1a1a1a;
+      display: block;
+    }
+
+    .top-item {
+      padding: 10px 14px;
+      background: #fff;
+      border-left: 3px solid #c0392b;
+      margin-bottom: 8px;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .top-item h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .top-item h4 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .top-item h4 a:hover { text-decoration: underline; }
+
+    .top-item .item-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+    }
+
+    .top-item p {
+      font-size: 13px;
+      color: #434343;
+      line-height: 1.5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 13px;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #e8e8e8;
+      font-size: 11px;
+      color: #999;
+    }
+
+    footer a { color: #888; }
+
+    /* Search */
+    .search-bar {
+      margin-top: 16px;
+      margin-bottom: 0;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 10px 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-box input:focus {
+      border-color: #5b8db8;
+    }
+
+    .search-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+
+    .search-filters select,
+    .search-filters input[type="date"] {
+      padding: 6px 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      background: #fff;
+      color: #434343;
+      outline: none;
+    }
+
+    .agency-link {
+      color: #5b8db8;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .agency-link:hover { text-decoration: underline; }
+
+    .search-result-count {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .search-result {
+      padding: 12px 14px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .search-result h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .search-result h4 a {
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+
+    .search-result h4 a:hover { text-decoration: underline; }
+
+    .search-result .result-meta {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .search-result .result-summary {
+      font-size: 13px;
+      color: #434343;
+      line-height: 1.5;
+    }
+
+    mark {
+      background: #fff3cd;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* Subscribe panel */
+    .subscribe-toggle {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5b8db8;
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+      float: right;
+      margin-top: 4px;
+    }
+
+    .subscribe-toggle:hover { text-decoration: underline; }
+
+    .subscribe-toggle svg {
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
+      margin-right: 3px;
+      fill: #5b8db8;
+    }
+
+    .subscribe-panel {
+      display: none;
+      margin-top: 12px;
+      margin-bottom: 16px;
+      padding: 16px 18px;
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .subscribe-panel.open { display: block; }
+
+    .subscribe-panel h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #434343;
+      margin-bottom: 12px;
+    }
+
+    .feed-group {
+      margin-bottom: 14px;
+    }
+
+    .feed-group h4 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .feed-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .feed-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #434343;
+      background: #f5f5f5;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .feed-chip:hover {
+      background: #eef4fa;
+      border-color: #5b8db8;
+      color: #1a1a1a;
+    }
+
+    .feed-chip .feed-count {
+      font-size: 10px;
+      color: #999;
+      font-weight: 400;
+    }
+
+    .feed-chip svg {
+      width: 12px;
+      height: 12px;
+      fill: #5b8db8;
+      flex-shrink: 0;
+    }
+
+    .subscribe-hint {
+      font-size: 11px;
+      color: #999;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .subscribe-hint a { color: #5b8db8; }
+
+    .subscribe-section {
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    .subscribe-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .subscribe-section h4 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #434343;
+      margin-bottom: 8px;
+    }
+
+    .subscribe-section h4 svg {
+      width: 13px;
+      height: 13px;
+      vertical-align: -2px;
+      margin-right: 4px;
+    }
+
+    .subscribe-email-box {
+      background: #f8fafb;
+      border: 1px solid #d9e6ef;
+      border-radius: 3px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .subscribe-email-box p {
+      font-size: 13px;
+      color: #434343;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .subscribe-email-box .setup-note {
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 16px 14px 40px; }
+      header h1 { font-size: 18px; }
+      .tabs { overflow-x: auto; }
+      .tab { padding: 8px 14px; font-size: 11px; white-space: nowrap; }
+      .stats-bar { gap: 14px; }
+      .summary-stats { grid-template-columns: 1fr 1fr; }
+      .search-filters { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>City Record Digest
+      <a class="subscribe-toggle" onclick="toggleSubscribe()" title="Subscribe via RSS">
+        <svg viewBox="0 0 24 24"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36zM4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44zm0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83z"/></svg>Subscribe
+      </a>
+    </h1>
+    <p>Notable NYC government notices — procurement, hearings, rules, and more</p>
+  </header>
+
+  <div class="subscribe-panel" id="subscribe-panel">
+    <h3>Subscribe</h3>
+
+    <div class="subscribe-section">
+      <h4><svg viewBox="0 0 24 24" fill="#5b8db8"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg> Email Updates</h4>
+      <div id="followit-embed">
+        <style>
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview {
+            display: flex !important; flex-direction: column !important; justify-content: center !important;
+            margin-top: 0 !important; padding: 14px 16px !important; max-width: none !important;
+            border-radius: 3px !important; box-shadow: none !important;
+          }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview,
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview * { box-sizing: border-box !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-heading { width: 100% !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-heading h5 { margin-top: 0 !important; margin-bottom: 0 !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-input-field { margin-top: 10px !important; width: 100% !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-input-field input {
+            width: 100% !important; height: 36px !important; border-radius: 3px !important;
+            border: 1px solid #e8e8e8 !important; background-color: #fff; outline: none !important;
+            color: #434343 !important; font-family: "Inter", Arial, sans-serif !important;
+            font-size: 13px; font-weight: 400; line-height: 20px; text-align: center;
+          }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-input-field input::placeholder { color: #999 !important; opacity: 1 !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-submit-button { margin-top: 8px !important; width: 100% !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-submit-button button {
+            width: 100% !important; height: 36px !important; border: 0 !important;
+            border-radius: 3px !important; line-height: 0px !important;
+            font-family: "Inter", Arial, sans-serif !important;
+          }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .form-preview .preview-submit-button button:hover { cursor: pointer !important; }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .powered-by-line {
+            color: #999 !important; font-family: "Inter", Arial, sans-serif !important;
+            font-size: 11px !important; font-weight: 400 !important; line-height: 20px !important;
+            text-align: center !important; text-decoration: none !important;
+            display: flex !important; width: 100% !important; justify-content: center !important;
+            align-items: center !important; margin-top: 6px !important;
+          }
+          .followit--follow-form-container[attr-a][attr-b][attr-c][attr-d][attr-e][attr-f] .powered-by-line img { margin-left: 6px !important; height: 1em !important; max-height: 1em !important; }
+        </style>
+        <div class="followit--follow-form-container" attr-a attr-b attr-c attr-d attr-e attr-f>
+          <form action="https://api.follow.it/subscription-form/Z1dWTWVXazg4MS9RaExkKzR2ZWMwZnRVMHhrYTVlMUFKblorb3kxT2E0Z0RiajFBM3duTVQyME04aXdVbDlxdUFpejlJU09wR3d6MHZLNTEvMFE1amdCWnA0eWFKalJ0b3VMOCttdGRUZVRacFN2eDhUWjhuMnlmR2pHdDBQdUR8ZThNV1hwbTEwOUsrNXhDTVRQTjF3MG1Ud2RzU2Vub1Z0c1Q4S3oxQjJBRT0=/8" method="post">
+            <div class="form-preview" style="background-color: #f8fafb; position: relative; border-style: solid; border-width: 1px; border-color: #d9e6ef;">
+              <div class="preview-heading"><h5 style="font-family: Inter, Arial, sans-serif; font-weight: 600; color: #434343; font-size: 13px; text-align: center;">Get City Record Digest by email:</h5></div>
+              <div class="preview-input-field"><input type="email" name="email" required placeholder="Enter your email" spellcheck="false" style="font-family: Inter, Arial, sans-serif; font-weight: 400; color: #434343; font-size: 13px; text-align: center; background-color: #fff;"></div>
+              <div class="preview-submit-button"><button type="submit" style="font-family: Inter, Arial, sans-serif; font-weight: 600; color: #fff; font-size: 13px; text-align: center; background-color: #5b8db8;">Subscribe</button></div>
+            </div>
+          </form>
+          <a href="https://follow.it" class="powered-by-line">Powered by <img src="https://follow.it/images/colored-logo.svg" alt="follow.it" height="17px"/></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="subscribe-section">
+      <h4><svg viewBox="0 0 24 24" fill="#5b8db8"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36zM4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44zm0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83z"/></svg> RSS Feeds</h4>
+      <div id="feed-lists">Loading feeds...</div>
+      <p class="subscribe-hint">Copy any feed URL into your RSS reader (Feedly, Inoreader, Feedbin, Apple News, Outlook, etc.). <a href="feed.xml">Main feed</a></p>
+    </div>
+  </div>
+
+  <!-- Search box (always visible) -->
+  <div class="search-bar">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Search all notices — agency, vendor, topic, dollar amount...">
+    </div>
+    <div class="search-filters" id="search-filters" style="display:none;">
+      <select id="filter-section"><option value="">All sections</option></select>
+      <select id="filter-type"><option value="">All types</option></select>
+      <input type="date" id="filter-from" title="From date">
+      <input type="date" id="filter-to" title="To date">
+    </div>
+  </div>
+
+  <!-- Search results (replaces tab content when active) -->
+  <div id="search-results" style="display:none;"></div>
+
+  <div id="tab-content">
+  <div class="tabs">
+    <button class="tab active" data-tab="daily">Today's Digest</button>
+    <button class="tab" data-tab="weekly">This Week</button>
+    <button class="tab" data-tab="monthly">This Month</button>
+    <button class="tab" data-tab="yearly">This Year</button>
+  </div>
+
+  <!-- DAILY TAB -->
+  <div id="tab-daily" class="tab-panel active">
+    <div class="date-nav">
+      <button id="prev-day">&larr; Prev</button>
+      <span class="current-date" id="current-date-label"></span>
+      <button id="next-day">Next &rarr;</button>
+    </div>
+    <div id="daily-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- WEEKLY TAB -->
+  <div id="tab-weekly" class="tab-panel">
+    <div id="weekly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- MONTHLY TAB -->
+  <div id="tab-monthly" class="tab-panel">
+    <div id="monthly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- YEARLY TAB -->
+  <div id="tab-yearly" class="tab-panel">
+    <div id="yearly-content"><div class="loading">Loading...</div></div>
+  </div>
+
+  </div><!-- /tab-content -->
+
+  <footer>
+    Data source: <a href="https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx">NYC Open Data (dg92-zbpx)</a> |
+    Full City Record: <a href="https://a856-cityrecord.nyc.gov/">a856-cityrecord.nyc.gov</a>
+  </footer>
+</div>
+
+<script>
+const DATA_DIR = 'data/';
+const RECORD_BASE = 'https://a856-cityrecord.nyc.gov/RequestDetail/';
+
+// Cache for loaded day data
+const dayCache = {};
+
+// Available data files (populated from manifest)
+let availableDates = [];
+let currentDateIdx = 0;
+
+// ── Initialization ──────────────────────────────────────────
+
+async function init() {
+  try {
+    const resp = await fetch(DATA_DIR + 'manifest.json');
+    if (!resp.ok) throw new Error('No manifest');
+    availableDates = await resp.json();
+    availableDates.sort((a, b) => b.localeCompare(a)); // newest first
+  } catch {
+    document.getElementById('daily-content').innerHTML =
+      '<div class="empty-state">No digest data available yet. Check back after the first scheduled run.</div>';
+    document.getElementById('weekly-content').innerHTML =
+      '<div class="empty-state">No data available yet.</div>';
+    document.getElementById('monthly-content').innerHTML =
+      '<div class="empty-state">No data available yet.</div>';
+    return;
+  }
+
+  if (availableDates.length === 0) {
+    document.getElementById('daily-content').innerHTML =
+      '<div class="empty-state">No digest data available yet.</div>';
+    return;
+  }
+
+  currentDateIdx = 0;
+  setupTabs();
+  setupDateNav();
+  await renderDaily();
+  renderWeekly();
+  renderMonthly();
+  renderYearly();
+}
+
+// ── Data loading ────────────────────────────────────────────
+
+async function loadDay(dateStr) {
+  if (dayCache[dateStr]) return dayCache[dateStr];
+  try {
+    const resp = await fetch(DATA_DIR + dateStr + '.json');
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    dayCache[dateStr] = data;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ── Tab switching ───────────────────────────────────────────
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+// ── Date navigation ─────────────────────────────────────────
+
+function setupDateNav() {
+  document.getElementById('prev-day').addEventListener('click', async () => {
+    if (currentDateIdx < availableDates.length - 1) {
+      currentDateIdx++;
+      await renderDaily();
+    }
+  });
+  document.getElementById('next-day').addEventListener('click', async () => {
+    if (currentDateIdx > 0) {
+      currentDateIdx--;
+      await renderDaily();
+    }
+  });
+  updateNavButtons();
+}
+
+function updateNavButtons() {
+  document.getElementById('prev-day').disabled = currentDateIdx >= availableDates.length - 1;
+  document.getElementById('next-day').disabled = currentDateIdx <= 0;
+}
+
+// ── Format helpers ──────────────────────────────────────────
+
+function fmtDate(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function fmtShortDate(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fmtMoney(n) {
+  if (!n) return '';
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(num)) return '';
+  if (num >= 1e6) return '$' + (num / 1e6).toFixed(1) + 'M';
+  if (num >= 1e3) return '$' + (num / 1e3).toFixed(0) + 'K';
+  return '$' + num.toLocaleString();
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function agencyHtml(name) {
+  if (!name) return '';
+  const safe = escHtml(name).replace(/'/g, "\\'");
+  return `<a class="agency-link" onclick="searchByAgency('${safe}')">${escHtml(name)}</a>`;
+}
+
+// ── Render daily digest ─────────────────────────────────────
+
+async function renderDaily() {
+  const dateStr = availableDates[currentDateIdx];
+  document.getElementById('current-date-label').textContent = fmtDate(dateStr);
+  updateNavButtons();
+
+  const data = await loadDay(dateStr);
+  const container = document.getElementById('daily-content');
+
+  if (!data) {
+    container.innerHTML = '<div class="empty-state">No data available for this date.</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Stats bar
+  const totalValue = (data.notices || []).reduce((sum, n) => sum + (parseFloat(n.contract_amount) || 0), 0);
+  const soleSources = (data.notices || []).filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source')
+  );
+  const notableCount = (data.notable || []).length;
+  html += `<div class="stats-bar">
+    <div><div class="stat-label">Notices</div><span class="stat-value">${data.notices ? data.notices.length : 0}</span></div>
+    <div><div class="stat-label">Contract Value</div><span class="stat-value">${fmtMoney(totalValue) || '$0'}</span></div>
+    <div><div class="stat-label">Flagged</div><span class="stat-value">${notableCount}</span></div>
+    <div><div class="stat-label">Sole Source</div><span class="stat-value">${soleSources.length}</span></div>
+  </div>`;
+
+  // Notable developments
+  const notable = (data.notable || []);
+  if (notable.length > 0) {
+    html += '<h2 class="notable">Notable Developments</h2>';
+    notable.forEach(item => {
+      html += renderNoticeCard(item, false);
+    });
+  }
+
+  // Worth watching
+  const watching = (data.watching || []);
+  if (watching.length > 0) {
+    html += '<h2>Worth Watching</h2>';
+    watching.forEach(item => {
+      html += renderNoticeCard(item, true);
+    });
+  }
+
+  // All notices by section
+  const sections = {};
+  (data.notices || []).forEach(n => {
+    const sec = n.section_name || 'Other';
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push(n);
+  });
+
+  html += '<h2>All Notices by Section</h2>';
+  for (const [secName, notices] of Object.entries(sections).sort()) {
+    html += `<div class="section-group"><h3>${escHtml(secName)} (${notices.length})</h3><ul>`;
+    notices.forEach(n => {
+      const metaParts = [];
+      if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+      if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+      if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+      html += `<li>
+        <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+        <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
+      </li>`;
+    });
+    html += '</ul></div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function renderNoticeCard(item, isMedium) {
+  const cls = isMedium ? 'notice-card medium' : 'notice-card';
+  let details = '';
+  if (item.contract_amount) details += `<strong>${fmtMoney(item.contract_amount)}</strong> `;
+  if (item.event_date) details += `Hearing: ${fmtShortDate(item.event_date.slice(0, 10))} `;
+  if (item.due_date) details += `Due: ${fmtShortDate(item.due_date.slice(0, 10))} `;
+  if (item.vendor_name) details += `Vendor: ${escHtml(item.vendor_name)} `;
+
+  return `<div class="${cls}">
+    <h3><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h3>
+    <div class="notice-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)} | ${escHtml(item.type_of_notice_description)}</div>
+    <p>${escHtml(item.summary || '')}</p>
+    ${details ? '<p style="font-size:13px;color:#666;margin-top:6px;">' + details + '</p>' : ''}
+  </div>`;
+}
+
+// ── Render weekly summary ───────────────────────────────────
+
+async function renderWeekly() {
+  const container = document.getElementById('weekly-content');
+  // Load last 5 business days
+  const recentDates = availableDates.slice(0, 5);
+  const allData = await Promise.all(recentDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length === 0) {
+    container.innerHTML = '<div class="empty-state">No weekly data available yet.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Count by section
+  const sectionCounts = {};
+  allNotices.forEach(n => {
+    const s = n.section_name || 'Other';
+    sectionCounts[s] = (sectionCounts[s] || 0) + 1;
+  });
+
+  // Top contracts
+  const withAmount = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 10);
+
+  const dateRange = recentDates.length > 1
+    ? fmtShortDate(recentDates[recentDates.length - 1]) + ' — ' + fmtShortDate(recentDates[0])
+    : fmtShortDate(recentDates[0]);
+
+  let html = `<div class="summary-period">
+    <h3>Week in Review: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Flagged Items</span><span class="value">${allNotable.length}</span></div>
+    </div>`;
+
+  // Section breakdown
+  html += '<h3>Notices by Section</h3><div class="stats-bar" style="flex-wrap:wrap;">';
+  for (const [sec, count] of Object.entries(sectionCounts).sort((a, b) => b[1] - a[1])) {
+    html += `<div><span class="stat-value">${count}</span>${escHtml(sec)}</div>`;
+  }
+  html += '</div>';
+
+  // Biggest contracts this week
+  if (withAmount.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts This Week</h3>';
+    withAmount.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged items
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Developments This Week</h3>';
+    // Deduplicate by request_id and take top 10
+    const seen = new Set();
+    const uniqueNotable = allNotable.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 10);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Render monthly summary ──────────────────────────────────
+
+async function renderMonthly() {
+  const container = document.getElementById('monthly-content');
+  // Load all available dates (up to ~22 business days)
+  const monthDates = availableDates.slice(0, 22);
+  const allData = await Promise.all(monthDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length < 2) {
+    container.innerHTML = '<div class="empty-state">Monthly summaries will appear after a few days of data collection.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Agency breakdown
+  const agencyCounts = {};
+  const agencyValue = {};
+  allNotices.forEach(n => {
+    const a = n.agency_name || 'Unknown';
+    agencyCounts[a] = (agencyCounts[a] || 0) + 1;
+    agencyValue[a] = (agencyValue[a] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  const topAgenciesByValue = Object.entries(agencyValue)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  // Top contracts
+  const topContracts = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 15);
+
+  const dateRange = monthDates.length > 1
+    ? fmtShortDate(monthDates[monthDates.length - 1]) + ' — ' + fmtShortDate(monthDates[0])
+    : fmtShortDate(monthDates[0]);
+
+  // Sole source tracking
+  const soleSources = allNotices.filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
+    (n.type_of_notice_description || '').toLowerCase().includes('negotiated')
+  );
+  const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  let html = `<div class="summary-period">
+    <h3>Monthly Overview: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Non-Competitive Awards</span><span class="value">${soleSources.length} (${fmtMoney(soleSourceValue)})</span></div>
+    </div>`;
+
+  // Top agencies by contract value
+  if (topAgenciesByValue.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
+    topAgenciesByValue.forEach(([agency, value]) => {
+      html += `<div class="top-item" style="border-left-color:#2a5db0;">
+        <h4>${escHtml(agency)}</h4>
+        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
+      </div>`;
+    });
+  }
+
+  // Largest contracts this month
+  if (topContracts.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts This Month</h3>';
+    topContracts.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged developments
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Biggest Developments This Month</h3>';
+    const seen = new Set();
+    const uniqueNotable = allNotable.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 15);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Render yearly summary ───────────────────────────────────
+
+async function renderYearly() {
+  const container = document.getElementById('yearly-content');
+  // Load all available dates
+  const allData = await Promise.all(availableDates.map(d => loadDay(d)));
+  const days = allData.filter(Boolean);
+
+  if (days.length < 5) {
+    container.innerHTML = '<div class="empty-state">Yearly summaries will appear after more data is collected.</div>';
+    return;
+  }
+
+  const allNotices = days.flatMap(d => d.notices || []);
+  const allNotable = days.flatMap(d => (d.notable || []).concat(d.watching || []));
+  const totalValue = allNotices.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Agency breakdown
+  const agencyCounts = {};
+  const agencyValue = {};
+  allNotices.forEach(n => {
+    const a = n.agency_name || 'Unknown';
+    agencyCounts[a] = (agencyCounts[a] || 0) + 1;
+    agencyValue[a] = (agencyValue[a] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  const topAgenciesByValue = Object.entries(agencyValue)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  // Top contracts
+  const topContracts = allNotices
+    .filter(n => parseFloat(n.contract_amount) > 0)
+    .sort((a, b) => parseFloat(b.contract_amount) - parseFloat(a.contract_amount))
+    .slice(0, 20);
+
+  // Section breakdown
+  const sectionCounts = {};
+  const sectionValue = {};
+  allNotices.forEach(n => {
+    const s = n.section_name || 'Other';
+    sectionCounts[s] = (sectionCounts[s] || 0) + 1;
+    sectionValue[s] = (sectionValue[s] || 0) + (parseFloat(n.contract_amount) || 0);
+  });
+
+  // Sole source tracking
+  const soleSources = allNotices.filter(n =>
+    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
+    (n.selection_method_description || '').toLowerCase().includes('negotiated')
+  );
+  const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+
+  // Monthly trends
+  const monthlyData = {};
+  days.forEach(day => {
+    const month = day.date.slice(0, 7); // YYYY-MM
+    if (!monthlyData[month]) monthlyData[month] = { notices: 0, value: 0, days: 0 };
+    monthlyData[month].notices += (day.notices || []).length;
+    monthlyData[month].value += (day.notices || []).reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
+    monthlyData[month].days++;
+  });
+
+  const dateRange = availableDates.length > 1
+    ? fmtShortDate(availableDates[availableDates.length - 1]) + ' — ' + fmtShortDate(availableDates[0])
+    : fmtShortDate(availableDates[0]);
+
+  const year = availableDates[0].slice(0, 4);
+
+  let html = `<div class="summary-period">
+    <h3>${year} Year in Review: ${dateRange}</h3>
+    <div class="summary-stats">
+      <div class="summary-stat"><span class="label">Total Notices</span><span class="value">${allNotices.length.toLocaleString()}</span></div>
+      <div class="summary-stat"><span class="label">Total Contract Value</span><span class="value">${fmtMoney(totalValue)}</span></div>
+      <div class="summary-stat"><span class="label">Days Covered</span><span class="value">${days.length}</span></div>
+      <div class="summary-stat"><span class="label">Non-Competitive Awards</span><span class="value">${soleSources.length} (${fmtMoney(soleSourceValue)})</span></div>
+    </div>`;
+
+  // Monthly trend
+  html += '<h3 style="margin-top:24px;">Monthly Breakdown</h3>';
+  const months = Object.entries(monthlyData).sort();
+  months.forEach(([month, data]) => {
+    const mDate = new Date(month + '-15');
+    const mLabel = mDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    html += `<div class="top-item" style="border-left-color:#5b8db8;">
+      <h4>${mLabel}</h4>
+      <div class="item-meta">${data.notices.toLocaleString()} notices | ${fmtMoney(data.value)} in contracts | ${data.days} days</div>
+    </div>`;
+  });
+
+  // Sections breakdown
+  html += '<h3 style="margin-top:24px;">Notices by Section</h3>';
+  Object.entries(sectionCounts).sort((a, b) => b[1] - a[1]).forEach(([sec, count]) => {
+    const val = sectionValue[sec] || 0;
+    html += `<div class="top-item" style="border-left-color:#e8e8e8;">
+      <h4>${escHtml(sec)}</h4>
+      <div class="item-meta">${count.toLocaleString()} notices${val > 0 ? ' | ' + fmtMoney(val) + ' in contracts' : ''}</div>
+    </div>`;
+  });
+
+  // Top agencies by contract value
+  if (topAgenciesByValue.length > 0) {
+    html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
+    topAgenciesByValue.forEach(([agency, value]) => {
+      html += `<div class="top-item" style="border-left-color:#2a5db0;">
+        <h4>${escHtml(agency)}</h4>
+        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
+      </div>`;
+    });
+  }
+
+  // Largest contracts
+  if (topContracts.length > 0) {
+    html += '<h3 style="margin-top:24px;">Largest Contracts</h3>';
+    topContracts.forEach(n => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+      </div>`;
+    });
+  }
+
+  // Top flagged developments
+  if (allNotable.length > 0) {
+    html += '<h3 style="margin-top:24px;">Biggest Developments</h3>';
+    const seen = new Set();
+    // Sort by contract amount to surface most significant
+    const sorted = [...allNotable].sort((a, b) => (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0));
+    const uniqueNotable = sorted.filter(n => {
+      if (seen.has(n.request_id)) return false;
+      seen.add(n.request_id);
+      return true;
+    }).slice(0, 20);
+
+    uniqueNotable.forEach(item => {
+      html += `<div class="top-item">
+        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
+        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+      </div>`;
+    });
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Search ──────────────────────────────────────────────────
+
+let allSearchableNotices = [];
+let searchReady = false;
+
+async function loadAllNotices() {
+  if (searchReady) return;
+  const results = await Promise.all(availableDates.map(d => loadDay(d)));
+  const days = results.filter(Boolean);
+
+  // Build searchable index: flatten all notices with their summaries
+  const notableLookup = {};
+  days.forEach(day => {
+    (day.notable || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
+    (day.watching || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
+  });
+
+  allSearchableNotices = days.flatMap(day =>
+    (day.notices || []).map(n => ({
+      ...n,
+      summary: notableLookup[n.request_id] || '',
+      _searchText: [
+        n.short_title,
+        n.agency_name,
+        n.section_name,
+        n.type_of_notice_description,
+        n.category_description,
+        n.vendor_name,
+        n.contract_amount ? fmtMoney(n.contract_amount) : '',
+        n.selection_method_description,
+        notableLookup[n.request_id] || ''
+      ].filter(Boolean).join(' ').toLowerCase()
+    }))
+  );
+
+  // Populate filter dropdowns
+  const sections = [...new Set(allSearchableNotices.map(n => n.section_name).filter(Boolean))].sort();
+  const types = [...new Set(allSearchableNotices.map(n => n.type_of_notice_description).filter(Boolean))].sort();
+
+  const secSelect = document.getElementById('filter-section');
+  sections.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    secSelect.appendChild(opt);
+  });
+
+  const typeSelect = document.getElementById('filter-type');
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    typeSelect.appendChild(opt);
+  });
+
+  searchReady = true;
+}
+
+function activateSearch() {
+  const input = document.getElementById('search-input');
+  const filtersEl = document.getElementById('search-filters');
+  const resultsEl = document.getElementById('search-results');
+  const tabContent = document.getElementById('tab-content');
+  filtersEl.style.display = 'flex';
+  resultsEl.style.display = 'block';
+  tabContent.style.display = 'none';
+  input.focus();
+}
+
+function deactivateSearch() {
+  document.getElementById('search-filters').style.display = 'none';
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('tab-content').style.display = 'block';
+}
+
+function searchByAgency(agencyName) {
+  const input = document.getElementById('search-input');
+  input.value = agencyName;
+  loadAllNotices().then(() => {
+    activateSearch();
+    doSearch();
+  });
+}
+
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const secFilter = document.getElementById('filter-section');
+  const typeFilter = document.getElementById('filter-type');
+  const fromDate = document.getElementById('filter-from');
+  const toDate = document.getElementById('filter-to');
+
+  let debounceTimer;
+  const runSearch = () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => doSearch(), 150);
+  };
+
+  input.addEventListener('input', async () => {
+    await loadAllNotices();
+    const hasQuery = input.value.trim() || secFilter.value || typeFilter.value || fromDate.value || toDate.value;
+    if (hasQuery) activateSearch(); else deactivateSearch();
+    runSearch();
+  });
+
+  input.addEventListener('focus', async () => {
+    await loadAllNotices();
+  });
+
+  secFilter.addEventListener('change', runSearch);
+  typeFilter.addEventListener('change', runSearch);
+  fromDate.addEventListener('change', runSearch);
+  toDate.addEventListener('change', runSearch);
+}
+
+function doSearch() {
+  const query = document.getElementById('search-input').value.trim().toLowerCase();
+  const secFilter = document.getElementById('filter-section').value;
+  const typeFilter = document.getElementById('filter-type').value;
+  const fromDate = document.getElementById('filter-from').value;
+  const toDate = document.getElementById('filter-to').value;
+  const container = document.getElementById('search-results');
+
+  if (!query && !secFilter && !typeFilter && !fromDate && !toDate) {
+    deactivateSearch();
+    return;
+  }
+
+  activateSearch();
+
+  const terms = query.split(/\s+/).filter(Boolean);
+
+  let results = allSearchableNotices.filter(n => {
+    if (secFilter && n.section_name !== secFilter) return false;
+    if (typeFilter && n.type_of_notice_description !== typeFilter) return false;
+    const nDate = (n.start_date || '').slice(0, 10);
+    if (fromDate && nDate < fromDate) return false;
+    if (toDate && nDate > toDate) return false;
+    if (terms.length === 0) return true;
+    return terms.every(t => n._searchText.includes(t));
+  });
+
+  // Sort: newest first, then by contract amount
+  results.sort((a, b) => {
+    const dateComp = (b.start_date || '').localeCompare(a.start_date || '');
+    if (dateComp !== 0) return dateComp;
+    return (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0);
+  });
+
+  const total = results.length;
+  const shown = results.slice(0, 100);
+
+  let html = `<div class="search-result-count">${total} result${total !== 1 ? 's' : ''}${total > 100 ? ' (showing first 100)' : ''}</div>`;
+
+  if (shown.length === 0) {
+    html += '<div class="empty-state">No notices match your search.</div>';
+  }
+
+  shown.forEach(n => {
+    let title = escHtml(n.short_title);
+    let summary = n.summary ? escHtml(n.summary) : '';
+
+    // Highlight search terms
+    if (terms.length > 0) {
+      terms.forEach(term => {
+        const re = new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        title = title.replace(re, '<mark>$1</mark>');
+        if (summary) summary = summary.replace(re, '<mark>$1</mark>');
+      });
+    }
+
+    const metaParts = [n.section_name, n.type_of_notice_description, fmtShortDate(n.start_date.slice(0, 10))].filter(Boolean);
+    if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+    if (n.vendor_name) metaParts.push(n.vendor_name);
+
+    html += `<div class="search-result">
+      <h4><a href="${RECORD_BASE}${n.request_id}">${title}</a></h4>
+      <div class="result-meta">${agencyHtml(n.agency_name)} | ${escHtml(metaParts.join(' | '))}</div>
+      ${summary ? '<div class="result-summary">' + summary + '</div>' : ''}
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ── Subscribe panel ─────────────────────────────────────────
+
+function toggleSubscribe() {
+  const panel = document.getElementById('subscribe-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open') && !panel.dataset.loaded) {
+    loadFeedIndex();
+  }
+}
+
+async function loadFeedIndex() {
+  const panel = document.getElementById('subscribe-panel');
+  const container = document.getElementById('feed-lists');
+  try {
+    const resp = await fetch('feed-index.json');
+    if (!resp.ok) throw new Error('No feed index');
+    const idx = await resp.json();
+
+    const rssSvg = '<svg viewBox="0 0 24 24"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36zM4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44zm0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93v-2.83z"/></svg>';
+
+    let html = '';
+
+    // Main feed
+    html += `<div class="feed-group"><h4>Full Digest</h4><div class="feed-list">`;
+    html += `<a class="feed-chip" href="${idx.main.url}" title="All notable developments">${rssSvg} ${escHtml(idx.main.title)} <span class="feed-count">${idx.main.count}</span></a>`;
+    html += `</div></div>`;
+
+    // Section feeds
+    if (idx.sections && idx.sections.length > 0) {
+      html += `<div class="feed-group"><h4>By Section</h4><div class="feed-list">`;
+      idx.sections.forEach(s => {
+        html += `<a class="feed-chip" href="${s.url}" title="${escHtml(s.name)}">${rssSvg} ${escHtml(s.name)} <span class="feed-count">${s.count}</span></a>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // Agency feeds
+    if (idx.agencies && idx.agencies.length > 0) {
+      html += `<div class="feed-group"><h4>By Agency</h4><div class="feed-list">`;
+      idx.agencies.forEach(a => {
+        html += `<a class="feed-chip" href="${a.url}" title="${escHtml(a.name)}">${rssSvg} ${escHtml(a.name)} <span class="feed-count">${a.count}</span></a>`;
+      });
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
+    panel.dataset.loaded = '1';
+  } catch {
+    container.innerHTML = '<p style="color:#888;font-size:13px;">Feed index not available. <a href="feed.xml">Main RSS feed</a></p>';
+  }
+}
+
+// ── Start ───────────────────────────────────────────────────
+init();
+setupSearch();
+</script>
+
+</body>
+</html>
