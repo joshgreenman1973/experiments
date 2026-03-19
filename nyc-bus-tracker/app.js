@@ -31,7 +31,8 @@ let playTimer = null;
 let routeShapes = null;
 let selectedRoute = null;
 let sortMode = 'name'; // 'name', 'bunching', 'gaps', 'buses'
-let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S'
+let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S', 'top25', 'nearby'
+let userLocation = null; // {lat, lon} from geolocation
 let busSpeedCache = {}; // busId → speed in mph
 
 // ═══ INIT ═══
@@ -81,12 +82,14 @@ async function init() {
     hideLoading();
     document.getElementById('live-badge').style.display = 'flex';
 
-    // Set title animation endpoint based on actual container width
+    // Set title animation endpoint based on actual container width, then start
     const lane = document.querySelector('.title-lane');
     const title = document.querySelector('.bus-title');
     if (lane && title) {
       const end = lane.offsetWidth - title.offsetWidth;
       if (end > 0) title.style.setProperty('--end', `${end}px`);
+      // Start animation after a brief delay so --end is applied
+      requestAnimationFrame(() => title.classList.add('animate'));
     }
 
     // Start auto-refresh
@@ -687,8 +690,21 @@ function renderRouteList(metrics) {
     route, ...m,
   }));
 
-  // Borough filter or Top 25
-  if (boroFilter === 'top25') {
+  // Borough filter, Top 25, or Nearby
+  if (boroFilter === 'nearby' && userLocation && currentSnapshot) {
+    // Find routes with buses within ~0.5 miles of user
+    const nearbyRoutes = new Set();
+    for (const v of currentSnapshot.vehicles) {
+      const dist = haversine(userLocation.lat, userLocation.lon, v.lat, v.lon);
+      if (dist < 800) { // ~0.5 miles in meters
+        nearbyRoutes.add(v.route);
+      }
+    }
+    routes = routes.filter(r => nearbyRoutes.has(r.route));
+    if (nearbyRoutes.size > 0) {
+      highlightRoutes([...nearbyRoutes]);
+    }
+  } else if (boroFilter === 'top25') {
     // Sort all routes by bus count, take top 25
     routes.sort((a, b) => b.buses - a.buses);
     routes = routes.slice(0, 25);
@@ -895,15 +911,39 @@ function setupControls() {
   // Borough filter
   document.querySelectorAll('.boro-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      // Clear map highlight when leaving top25 or route selection
-      if (boroFilter === 'top25' && btn.dataset.boro !== 'top25') {
+      // Clear map highlight when leaving top25/nearby
+      if ((boroFilter === 'top25' || boroFilter === 'nearby') &&
+          btn.dataset.boro !== 'top25' && btn.dataset.boro !== 'nearby') {
         clearRouteHighlight();
       }
+
+      // Handle nearby: trigger geolocation
+      if (btn.dataset.boro === 'nearby') {
+        if (!navigator.geolocation) {
+          alert('Geolocation not supported by your browser.');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            boroFilter = 'nearby';
+            selectedRoute = null;
+            document.querySelectorAll('.boro-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Zoom to user location
+            map.flyTo({ center: [userLocation.lon, userLocation.lat], zoom: 14 });
+            if (currentSnapshot) computeMetrics(currentSnapshot);
+          },
+          () => { alert('Could not get your location.'); }
+        );
+        return;
+      }
+
       boroFilter = btn.dataset.boro;
       selectedRoute = null;
       document.querySelectorAll('.boro-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      if (boroFilter !== 'top25') clearRouteHighlight();
+      if (boroFilter !== 'top25' && boroFilter !== 'nearby') clearRouteHighlight();
       if (currentSnapshot) computeMetrics(currentSnapshot);
     });
   });
