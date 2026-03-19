@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEO Audit — vitalcitynyc.org</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem; }
+
+  /* Stats */
+  .stats { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    flex: 1;
+    min-width: 150px;
+  }
+  .stat-value { font-size: 2rem; font-weight: 700; }
+  .stat-label { color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Sections */
+  .section { margin-bottom: 2.5rem; }
+  .section-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; }
+
+  /* Score distribution */
+  .dist-bar-group { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+  .dist-label { width: 60px; font-size: 0.85rem; text-align: right; color: var(--text-secondary); }
+  .dist-track { flex: 1; height: 24px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+  .dist-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .dist-count { width: 30px; font-size: 0.85rem; font-weight: 600; }
+
+  /* Tables */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+
+  .count-cell { width: 60px; text-align: center; }
+  .score-cell { width: 55px; text-align: center; font-weight: 700; font-size: 0.9rem; border-radius: 4px; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.8rem;
+  }
+  .badge-error { background: #fef2f2; color: #dc2626; }
+  .badge-warn { background: #fefce8; color: #ca8a04; }
+
+  .tag {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin: 0.1rem;
+    line-height: 1.6;
+  }
+  .tag-error { background: #fef2f2; color: #dc2626; }
+  .tag-warn { background: #fefce8; color: #ca8a04; }
+  .tag-ok { background: #f0fdf4; color: #16a34a; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.82rem; }
+  .url-list a { display: block; font-size: 0.8rem; }
+
+  /* Filters */
+  .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .filter-bar label { font-size: 0.85rem; color: var(--text-secondary); }
+  .filter-btn {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.3rem 0.7rem; font-size: 0.8rem; cursor: pointer; color: var(--text-secondary);
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .problems-cell { max-width: 500px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .problems-cell { max-width: 250px; }
+  }
+
+  /* Two-col layout for issues/warnings */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>SEO Audit</h1>
+<p class="subtitle">vitalcitynyc.org — Scanned March 19, 2026 — 40 of ~800 pages</p>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-value" style="color: #ca8a04">81/100</div>
+    <div class="stat-label">Average Score</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color: #dc2626">38</div>
+    <div class="stat-label">Errors</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color: #ca8a04">38</div>
+    <div class="stat-label">Warnings</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color: #16a34a">6</div>
+    <div class="stat-label">Clean Pages</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Score Distribution</div>
+  <div class="card" style="padding: 1.25rem;">
+    <div class="dist-bar-group">
+        <div class="dist-label">90–100</div>
+        <div class="dist-track">
+          <div class="dist-bar" style="width: 100%; background: #16a34a"></div>
+        </div>
+        <div class="dist-count">19</div>
+      </div>
+<div class="dist-bar-group">
+        <div class="dist-label">70–89</div>
+        <div class="dist-track">
+          <div class="dist-bar" style="width: 63%; background: #ca8a04"></div>
+        </div>
+        <div class="dist-count">12</div>
+      </div>
+<div class="dist-bar-group">
+        <div class="dist-label">50–69</div>
+        <div class="dist-track">
+          <div class="dist-bar" style="width: 42%; background: #ea580c"></div>
+        </div>
+        <div class="dist-count">8</div>
+      </div>
+<div class="dist-bar-group">
+        <div class="dist-label">0–49</div>
+        <div class="dist-track">
+          <div class="dist-bar" style="width: 5%; background: #dc2626"></div>
+        </div>
+        <div class="dist-count">1</div>
+      </div>
+  </div>
+</div>
+
+<div class="section two-col">
+  <div>
+    <div class="section-title">Errors (38)</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>#</th><th>Issue</th></tr></thead>
+        <tbody><tr><td class="count-cell"><span class="badge badge-error">19</span></td><td>Missing meta description</td></tr>
+<tr><td class="count-cell"><span class="badge badge-error">9</span></td><td>Missing og:description</td></tr>
+<tr><td class="count-cell"><span class="badge badge-error">9</span></td><td>Missing og:image</td></tr>
+<tr><td class="count-cell"><span class="badge badge-error">1</span></td><td>Missing H1 tag</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <div class="section-title">Warnings (38)</div>
+    <div class="card">
+      <table>
+        <thead><tr><th>#</th><th>Warning</th></tr></thead>
+        <tbody><tr><td class="count-cell"><span class="badge badge-warn">9</span></td><td>No structured data (JSON-LD) found</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">8</span></td><td>Heading level skip: H1 → H3</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">6</span></td><td>Meta description too long (...)</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">6</span></td><td>N of M images missing alt text</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">3</span></td><td>Meta description too short (...)</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">3</span></td><td>Title too long (...)</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">1</span></td><td>Generic title — should be unique per page</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">1</span></td><td>Heading level skip: H2 → H4</td></tr>
+<tr><td class="count-cell"><span class="badge badge-warn">1</span></td><td>Large page size (515 KB)</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="section-title">Duplicate Titles</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Title</th><th>Count</th><th>Pages</th></tr></thead>
+      <tbody><tr>
+        <td><code>Vital City | Commentary</code></td>
+        <td>3 pages</td>
+        <td class="url-list"><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a><br><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a><br><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a></td>
+      </tr>
+<tr>
+        <td><code>Vital City | Vital City</code></td>
+        <td>8 pages</td>
+        <td class="url-list"><a href="https://www.vitalcitynyc.org/editors-picks/" target="_blank">/editors-picks/</a><br><a href="https://www.vitalcitynyc.org/authors/" target="_blank">/authors/</a><br><a href="https://www.vitalcitynyc.org/tags/" target="_blank">/tags/</a><br><a href="https://www.vitalcitynyc.org/account/" target="_blank">/account/</a><br><a href="https://www.vitalcitynyc.org/membership/" target="_blank">/membership/</a><br><a href="https://www.vitalcitynyc.org/recommendations/" target="_blank">/recommendations/</a><br><a href="https://www.vitalcitynyc.org/signup/" target="_blank">/signup/</a><br><a href="https://www.vitalcitynyc.org/signin/" target="_blank">/signin/</a></td>
+      </tr></tbody>
+    </table>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="section-title">Page-by-Page Results</div>
+  <div class="filter-bar">
+    <label>Show:</label>
+    <button class="filter-btn active" onclick="filterPages('all')">All</button>
+    <button class="filter-btn" onclick="filterPages('errors')">With Errors</button>
+    <button class="filter-btn" onclick="filterPages('warnings')">With Warnings</button>
+    <button class="filter-btn" onclick="filterPages('clean')">Clean Only</button>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Score</th><th>Page</th><th>Issues</th></tr></thead>
+      <tbody id="page-table"><tr class="page-row" data-score="35">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        35
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/editors-picks/" target="_blank">/editors-picks/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-error">Missing H1 tag</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/archive/" target="_blank">/archive/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/authors/" target="_blank">/authors/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/tags/" target="_blank">/tags/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/account/" target="_blank">/account/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/membership/" target="_blank">/membership/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/recommendations/" target="_blank">/recommendations/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/signup/" target="_blank">/signup/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="50">
+      <td class="score-cell" style="color: #dc2626; background: #fef2f2">
+        50
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/signin/" target="_blank">/signin/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-error">Missing og:description</span> <span class="tag tag-error">Missing og:image</span> <span class="tag tag-warn">No structured data (JSON-LD) found</span></td>
+    </tr>
+<tr class="page-row" data-score="75">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        75
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/about/" target="_blank">/about/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-warn">Heading level skip: H1 → H3</span> <span class="tag tag-warn">19 of 21 images missing alt text</span></td>
+    </tr>
+<tr class="page-row" data-score="80">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        80
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/donate/" target="_blank">/donate/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="80">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        80
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/contributors/" target="_blank">/contributors/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too long (172 chars, max 160)</span> <span class="tag tag-warn">Heading level skip: H1 → H3</span> <span class="tag tag-warn">254 of 427 images missing alt text</span> <span class="tag tag-warn">Large page size (515 KB)</span></td>
+    </tr>
+<tr class="page-row" data-score="80">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        80
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/culture/" target="_blank">/culture/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="80">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        80
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/data/" target="_blank">/data/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span> <span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/contribute/" target="_blank">/contribute/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/jails/" target="_blank">/jails/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/subway-crime/" target="_blank">/subway-crime/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/crime/" target="_blank">/crime/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/data-stories/" target="_blank">/data-stories/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/privacy/" target="_blank">/privacy/</a></td>
+      <td class="problems-cell"><span class="tag tag-error">Missing meta description</span></td>
+    </tr>
+<tr class="page-row" data-score="85">
+      <td class="score-cell" style="color: #ca8a04; background: #fefce8">
+        85
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/rental-ripoff-hearings-landlords-tenants-economics/" target="_blank">/rental-ripoff-hearings-landlords-tenants-economics/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Title too long (78 chars, max 60)</span> <span class="tag tag-warn">Meta description too long (208 chars, max 160)</span> <span class="tag tag-warn">1 of 7 images missing alt text</span></td>
+    </tr>
+<tr class="page-row" data-score="90">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        90
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/" target="_blank">/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Generic title — should be unique per page</span> <span class="tag tag-warn">3 of 53 images missing alt text</span></td>
+    </tr>
+<tr class="page-row" data-score="90">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        90
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/explorer/" target="_blank">/explorer/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too long (268 chars, max 160)</span> <span class="tag tag-warn">1 of 3 images missing alt text</span></td>
+    </tr>
+<tr class="page-row" data-score="90">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        90
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/careers/" target="_blank">/careers/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too long (298 chars, max 160)</span> <span class="tag tag-warn">Heading level skip: H2 → H4</span></td>
+    </tr>
+<tr class="page-row" data-score="90">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        90
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/how-architecture-can-create-community-or-isolation/" target="_blank">/how-architecture-can-create-community-or-isolation/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Title too long (65 chars, max 60)</span> <span class="tag tag-warn">2 of 9 images missing alt text</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/experiments/" target="_blank">/experiments/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too long (265 chars, max 160)</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/commentary/" target="_blank">/commentary/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Heading level skip: H1 → H3</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/issue-3/" target="_blank">/issue-3/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too short (35 chars, min ~50)</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/issue-4/" target="_blank">/issue-4/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too short (36 chars, min ~50)</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/free-observation-decks-new-york/" target="_blank">/free-observation-decks-new-york/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too short (46 chars, min ~50)</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/zohran-mamdani-technology-innovation-new-york/" target="_blank">/zohran-mamdani-technology-innovation-new-york/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Title too long (80 chars, max 60)</span></td>
+    </tr>
+<tr class="page-row" data-score="95">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        95
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/renita-francois-interview-neighborhood-safety/" target="_blank">/renita-francois-interview-neighborhood-safety/</a></td>
+      <td class="problems-cell"><span class="tag tag-warn">Meta description too long (199 chars, max 160)</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/crime-looking-back-at-2025-and-ahead-to-2026/" target="_blank">/crime-looking-back-at-2025-and-ahead-to-2026/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/issue-1/" target="_blank">/issue-1/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/issue-2/" target="_blank">/issue-2/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/just-fix-it/" target="_blank">/just-fix-it/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/issues/" target="_blank">/issues/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr>
+<tr class="page-row" data-score="100">
+      <td class="score-cell" style="color: #16a34a; background: #f0fdf4">
+        100
+      </td>
+      <td><a href="https://www.vitalcitynyc.org/policy/" target="_blank">/policy/</a></td>
+      <td class="problems-cell"><span class="tag tag-ok">Clean</span></td>
+    </tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function filterPages(mode) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('.page-row').forEach(row => {
+    const score = parseInt(row.dataset.score);
+    const hasError = row.querySelector('.tag-error');
+    const hasWarn = row.querySelector('.tag-warn');
+    const isClean = !hasError && !hasWarn;
+    if (mode === 'all') row.style.display = '';
+    else if (mode === 'errors') row.style.display = hasError ? '' : 'none';
+    else if (mode === 'warnings') row.style.display = (hasError || hasWarn) ? '' : 'none';
+    else if (mode === 'clean') row.style.display = isClean ? '' : 'none';
+  });
+}
+</script>
+
+</body>
+</html>
