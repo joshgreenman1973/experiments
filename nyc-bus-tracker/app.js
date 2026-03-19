@@ -35,6 +35,13 @@ let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S', 'top25', 'nearby'
 let userLocation = null; // {lat, lon} from geolocation
 let busSpeedCache = {}; // busId → speed in mph
 
+// Rolling-average buffers (smooth out poll-to-poll jitter)
+const SMOOTH_WINDOW = 3;
+let speedHistory = [];   // last N system avg speeds
+let waitHistory = [];     // last N avg rider wait times
+let gapCountHistory = []; // last N {g30, g20} objects
+let busPositionCache = {}; // busId → {lat, lon, ts, route, dir} — persists across polls
+
 // ═══ INIT ═══
 async function init() {
   // Prompt for API key if not provided
@@ -73,14 +80,15 @@ async function init() {
     // Generate directional pointer icon for buses
     createBusPointerIcon();
 
-    updateLoadingText('Loading route shapes\u2026');
-    await loadRouteShapes();
-
+    // Fetch bus data FIRST (fast), then lazy-load route shapes (slow)
     updateLoadingText('Fetching live bus positions\u2026');
     await fetchLiveData();
 
     hideLoading();
     document.getElementById('live-badge').style.display = 'flex';
+
+    // Load route shapes in background — doesn't block initial render
+    loadRouteShapes();
 
     // Set title animation endpoint based on actual container width, then start
     const lane = document.querySelector('.title-lane');
@@ -142,10 +150,37 @@ async function fetchLiveData() {
     if (!delivery?.[0]?.VehicleActivity) throw new Error('No vehicle data');
 
     const vehicles = parseVehicles(delivery[0].VehicleActivity);
+    const now = Date.now();
+
+    // Update bus position cache with fresh data
+    for (const v of vehicles) {
+      busPositionCache[v.id] = { lat: v.lat, lon: v.lon, ts: now, route: v.route, dir: v.dir, bearing: v.bearing };
+    }
+
+    // Merge: include cached buses missing from this poll (stale < 2 min)
+    const vehicleIds = new Set(vehicles.map(v => v.id));
+    let mergedVehicles = [...vehicles];
+    for (const [id, cached] of Object.entries(busPositionCache)) {
+      if (!vehicleIds.has(id) && (now - cached.ts) < 120000) {
+        // Bus was seen recently but not in this poll — keep it
+        mergedVehicles.push({
+          id, route: cached.route, dir: cached.dir,
+          lat: cached.lat, lon: cached.lon, bearing: cached.bearing || 0,
+          dest: '', nextStop: '', distFromStop: '', stopsAway: null, phase: '', ts: '',
+          routeFull: '', bunched: 0,
+        });
+      }
+    }
+
+    // Evict stale entries (> 3 min)
+    for (const [id, cached] of Object.entries(busPositionCache)) {
+      if (now - cached.ts > 180000) delete busPositionCache[id];
+    }
+
     const snapshot = {
       ts: new Date().toISOString(),
-      count: vehicles.length,
-      vehicles,
+      count: mergedVehicles.length,
+      vehicles: mergedVehicles,
     };
 
     // Calculate speeds from previous snapshot
@@ -538,18 +573,39 @@ function computeMetrics(snapshot) {
     }
     if (rm.gapMinutes) allGaps.push(...rm.gapMinutes);
   }
-  const systemAvgSpeed = allSpeeds.length > 0
+  const rawSpeed = allSpeeds.length > 0
     ? Math.round(allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length * 10) / 10
     : null;
 
   // Average rider wait time = E[gap^2] / (2 * E[gap])
-  // This accounts for bunching: if gaps are uneven, riders wait longer
-  let avgRiderWait = null;
+  let rawWait = null;
   if (allGaps.length > 0) {
     const meanGap = allGaps.reduce((a, b) => a + b, 0) / allGaps.length;
     const meanGapSq = allGaps.reduce((a, b) => a + b * b, 0) / allGaps.length;
-    avgRiderWait = meanGap > 0 ? Math.round(meanGapSq / (2 * meanGap) * 10) / 10 : null;
+    rawWait = meanGap > 0 ? Math.round(meanGapSq / (2 * meanGap) * 10) / 10 : null;
   }
+
+  // Rolling-average smoothing to dampen poll-to-poll jitter
+  if (rawSpeed != null) {
+    speedHistory.push(rawSpeed);
+    if (speedHistory.length > SMOOTH_WINDOW) speedHistory.shift();
+  }
+  if (rawWait != null) {
+    waitHistory.push(rawWait);
+    if (waitHistory.length > SMOOTH_WINDOW) waitHistory.shift();
+  }
+  gapCountHistory.push({ g30: longWaits30.length, g20: longWaits20.length });
+  if (gapCountHistory.length > SMOOTH_WINDOW) gapCountHistory.shift();
+
+  const systemAvgSpeed = speedHistory.length > 0
+    ? Math.round(speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length * 10) / 10
+    : null;
+  const avgRiderWait = waitHistory.length > 0
+    ? Math.round(waitHistory.reduce((a, b) => a + b, 0) / waitHistory.length * 10) / 10
+    : null;
+  // Smoothed gap counts for display
+  const smoothG30 = Math.round(gapCountHistory.reduce((a, b) => a + b.g30, 0) / gapCountHistory.length);
+  const smoothG20 = Math.round(gapCountHistory.reduce((a, b) => a + b.g20, 0) / gapCountHistory.length);
 
   // Update system stats
   document.getElementById('stat-buses').textContent = vehicles.length.toLocaleString();
@@ -561,7 +617,7 @@ function computeMetrics(snapshot) {
   bunchEl.className = `value ${totalBunching > 50 ? 'bad' : totalBunching > 20 ? 'warn' : 'good'}`;
 
   document.getElementById('stat-gaps').textContent =
-    longWaits30.length + longWaits20.length;
+    smoothG30 + smoothG20;
 
   // Update speed stat
   const speedEl = document.getElementById('stat-speed');
