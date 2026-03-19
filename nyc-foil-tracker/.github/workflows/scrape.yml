@@ -1,0 +1,46 @@
+name: Scrape OpenRecords
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: nyc-foil-tracker
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: nyc-foil-tracker
+        run: npx playwright install chromium --with-deps
+
+      - name: Run scraper
+        working-directory: nyc-foil-tracker
+        run: node scrape.mjs
+
+      - name: Commit and push data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nyc-foil-tracker/data/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update FOIL request data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          fi
