@@ -602,7 +602,6 @@ function renderWaitAlerts(waits20, waits30) {
 
   if (waits30.length > 0) {
     html += `<div class="wait-row" data-tier="30">
-      <span class="wait-dot severe"></span>
       <span class="wait-count">${waits30.length}</span>
       <span class="wait-label">route${waits30.length !== 1 ? 's' : ''} with 30+ min waits</span>
       <span class="wait-toggle" id="toggle-30">\u25B6</span>
@@ -617,7 +616,6 @@ function renderWaitAlerts(waits20, waits30) {
 
   if (waits20.length > 0) {
     html += `<div class="wait-row" data-tier="20">
-      <span class="wait-dot bad"></span>
       <span class="wait-count">${waits20.length}</span>
       <span class="wait-label">route${waits20.length !== 1 ? 's' : ''} with 20\u201330 min waits</span>
       <span class="wait-toggle" id="toggle-20">\u25B6</span>
