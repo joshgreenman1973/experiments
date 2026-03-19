@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NYC Bus Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="description" content="Real-time animated map of every NYC bus with performance metrics, bunching detection, and gap analysis." />
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Loading bus data&hellip;</div>
+    <div class="loading-brand"></div>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Map edge gradient for sidebar blend -->
+  <div class="map-vignette"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+
+    <div class="sidebar-header">
+      <div class="title-lane">
+        <h1 class="bus-title">NYC <span>Bus Tracker</span></h1>
+      </div>
+      <div class="subtitle">Real-time positions, bunching &amp; gap detection across all routes</div>
+    </div>
+
+    <!-- System-wide stats -->
+    <div class="system-stats" id="system-stats">
+      <div class="stat-card">
+        <div class="label">Active Buses</div>
+        <div class="value accent" id="stat-buses">&mdash;</div>
+        <div class="detail" id="stat-routes-count">&mdash; routes</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Avg Speed</div>
+        <div class="value" id="stat-speed">&mdash;</div>
+        <div class="detail">mph (observed)</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Bunching</div>
+        <div class="value bad" id="stat-bunching">&mdash;</div>
+        <div class="detail">bus pairs too close</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Big Gaps</div>
+        <div class="value warn" id="stat-gaps">&mdash;</div>
+        <div class="detail">single-bus directions</div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="live-badge" id="live-badge" style="display:none">
+        <div class="live-dot"></div> Live
+      </div>
+      <div id="status-text">Connecting&hellip;</div>
+    </div>
+
+    <!-- Route filter -->
+    <div class="route-filter">
+      <input type="text" id="route-search" placeholder="Filter routes&hellip;" />
+      <button class="sort-btn active" id="sort-btn" data-sort="name">A&ndash;Z</button>
+    </div>
+
+    <!-- Route list -->
+    <div class="route-section">
+      <div class="route-list-header">
+        <div>Route</div>
+        <div></div>
+        <div style="text-align:right">Buses</div>
+        <div style="text-align:right">MPH</div>
+        <div style="text-align:right">Bunch</div>
+        <div style="text-align:right">Gap</div>
+      </div>
+      <div class="route-list" id="route-list"></div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline" id="timeline">
+    <div class="timeline-controls">
+      <button class="timeline-btn" id="btn-live" title="Live mode">&#x25C9;</button>
+      <button class="timeline-btn" id="btn-play" title="Play/Pause">&#x25B6;</button>
+    </div>
+    <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
+    <div class="timeline-time" id="timeline-time">&mdash;:&mdash;</div>
+    <div class="timeline-speed" id="timeline-speed" title="Click to change speed">1&times;</div>
+    <div class="timeline-date" id="timeline-date"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
