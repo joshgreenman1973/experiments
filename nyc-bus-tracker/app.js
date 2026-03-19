@@ -469,7 +469,8 @@ function computeMetrics(snapshot) {
 
     if (sorted.length <= 1) {
       routeMetrics[route].gaps++;
-    } else {
+    } else if (sorted.length >= 3) {
+      // Only estimate gaps when 3+ buses — fewer gives unreliable spacing
       let maxGapThisDir = 0;
       for (let i = 0; i < sorted.length - 1; i++) {
         const dist = haversine(
@@ -477,7 +478,8 @@ function computeMetrics(snapshot) {
           sorted[i + 1].lat, sorted[i + 1].lon
         );
         const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
-        const rounded = Math.round(gapMin);
+        // Cap at 60 min — anything higher is likely a route terminus gap, not a real wait
+        const rounded = Math.min(60, Math.round(gapMin));
         routeMetrics[route].gapMinutes.push(rounded);
         maxGapThisDir = Math.max(maxGapThisDir, rounded);
       }
