@@ -462,33 +462,49 @@ function computeMetrics(snapshot) {
     const speedMps = (routeSpeed * 1609.34) / 3600; // convert mph to meters per second
 
     if (!routeMetrics[route].gapMinutes) routeMetrics[route].gapMinutes = [];
+    if (!routeMetrics[route].dirGaps) routeMetrics[route].dirGaps = {};
+
+    const dir = parseInt(key.split('_')[1], 10);
 
     if (sorted.length <= 1) {
       routeMetrics[route].gaps++;
     } else {
+      let maxGapThisDir = 0;
       for (let i = 0; i < sorted.length - 1; i++) {
         const dist = haversine(
           sorted[i].lat, sorted[i].lon,
           sorted[i + 1].lat, sorted[i + 1].lon
         );
         const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
-        routeMetrics[route].gapMinutes.push(Math.round(gapMin));
+        const rounded = Math.round(gapMin);
+        routeMetrics[route].gapMinutes.push(rounded);
+        maxGapThisDir = Math.max(maxGapThisDir, rounded);
       }
+      // Track max gap per direction (0 or 1)
+      routeMetrics[route].dirGaps[dir] = maxGapThisDir;
     }
   }
 
-  // Compute max gap per route and identify long waits
+  // Compute max gap per route and identify long waits with direction info
   const longWaits20 = []; // 20-30 min
   const longWaits30 = []; // 30+ min
   for (const [route, rm] of Object.entries(routeMetrics)) {
     rm.maxGap = rm.gapMinutes && rm.gapMinutes.length > 0
       ? Math.max(...rm.gapMinutes) : null;
 
-    if (rm.maxGap != null) {
+    if (rm.maxGap != null && rm.maxGap >= 20) {
+      // Check which directions have long gaps
+      const dirs = rm.dirGaps || {};
+      const dir0bad = (dirs[0] || 0) >= 20;
+      const dir1bad = (dirs[1] || 0) >= 20;
+      // both = \u2194, one direction = \u2192 or \u2190
+      const dirLabel = (dir0bad && dir1bad) ? '\u2194' : '\u2192';
+
+      const entry = { route, gap: rm.maxGap, bothDirs: dir0bad && dir1bad, dirLabel };
       if (rm.maxGap >= 30) {
-        longWaits30.push({ route, gap: rm.maxGap });
-      } else if (rm.maxGap >= 20) {
-        longWaits20.push({ route, gap: rm.maxGap });
+        longWaits30.push(entry);
+      } else {
+        longWaits20.push(entry);
       }
     }
     if (rm.gaps > 0) gapRoutes++;
@@ -593,7 +609,7 @@ function renderWaitAlerts(waits20, waits30) {
     <div class="wait-detail" id="detail-30" style="display:none">
       ${waits30.map(w => {
         const color = routeColor(w.route);
-        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-dir">${w.dirLabel}</span><span class="wait-min">${w.gap}m</span></span>`;
       }).join('')}
     </div>`;
   }
@@ -608,7 +624,7 @@ function renderWaitAlerts(waits20, waits30) {
     <div class="wait-detail" id="detail-20" style="display:none">
       ${waits20.map(w => {
         const color = routeColor(w.route);
-        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-dir">${w.dirLabel}</span><span class="wait-min">${w.gap}m</span></span>`;
       }).join('')}
     </div>`;
   }
