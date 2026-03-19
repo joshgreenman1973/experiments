@@ -639,6 +639,17 @@ popRank.sort((a, b) => countries[b].pop - countries[a].pop);
 const colorSlot = new Array(countries.length);
 popRank.forEach((ci, rank) => { colorSlot[ci] = rank; });
 
+// Swap color slots to avoid similar hues for area-adjacent countries
+// Brazil (pop rank 6, hue 105°) and China (pop rank 1, hue 138°) are both green
+// Swap Brazil with a country whose hue is far from green
+const brazilIdx = countries.findIndex(c => c.name === 'Brazil');
+const swapIdx = countries.findIndex(c => c.name === 'Turkey'); // Turkey rank ~17, hue ~213° (blue)
+if (brazilIdx >= 0 && swapIdx >= 0) {
+  const tmp = colorSlot[brazilIdx];
+  colorSlot[brazilIdx] = colorSlot[swapIdx];
+  colorSlot[swapIdx] = tmp;
+}
+
 for (let i = 0; i < countries.length; i++) {
   const rank = colorSlot[i];
   const hue = (rank * goldenAngle) % 360;
