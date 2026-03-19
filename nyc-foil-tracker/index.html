@@ -705,7 +705,7 @@ body::before {
   <div class="section-head">
     <h2>By Agency</h2>
     <div class="rule"></div>
-    <span class="count">Which agencies get the most requests?</span>
+    <span class="count" id="agency-period">Which agencies get the most requests?</span>
   </div>
 
   <div class="agency-table-wrap">
@@ -971,6 +971,18 @@ function renderAgencyTable() {
   if (!allData?.agencyStats) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No agency data.</td></tr>';
     return;
+  }
+
+  // Show the date range these stats cover
+  const dates = allData.requests
+    .map(r => r.dateSubmitted)
+    .filter(Boolean)
+    .sort();
+  if (dates.length > 0) {
+    const oldest = formatDate(dates[0]);
+    const newest = formatDate(dates[dates.length - 1]);
+    document.getElementById('agency-period').textContent =
+      `Based on ${allData.requests.length} requests, ${oldest} – ${newest}`;
   }
 
   const entries = Object.entries(allData.agencyStats).map(([name, s]) => ({
