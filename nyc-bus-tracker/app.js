@@ -424,21 +424,59 @@ function computeMetrics(snapshot) {
       }
     }
 
-    // Detect gaps: if only 1 bus on a route/direction, that\u2019s a potential gap
-    // More sophisticated: check spacing between consecutive buses along the route
-    if (buses.length === 1) {
-      // Single bus on a route/direction — likely a gap
+    // Estimate gaps in minutes between consecutive buses
+    // Sort buses by latitude (rough proxy for position along route)
+    // Use longitude for east-west routes
+    const isEastWest = buses.length >= 2 &&
+      Math.abs(buses[0].lon - buses[1].lon) > Math.abs(buses[0].lat - buses[1].lat);
+    const sorted = [...buses].sort((a, b) =>
+      isEastWest ? a.lon - b.lon : a.lat - b.lat
+    );
+
+    // Default speed assumption if no observed speed: 8 mph
+    const routeSpeed = routeMetrics[route].speeds.length > 0
+      ? routeMetrics[route].speeds.reduce((a, b) => a + b, 0) / routeMetrics[route].speeds.length
+      : 8;
+    const speedMps = (routeSpeed * 1609.34) / 3600; // convert mph to meters per second
+
+    if (!routeMetrics[route].gapMinutes) routeMetrics[route].gapMinutes = [];
+
+    if (sorted.length <= 1) {
       routeMetrics[route].gaps++;
+    } else {
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const dist = haversine(
+          sorted[i].lat, sorted[i].lon,
+          sorted[i + 1].lat, sorted[i + 1].lon
+        );
+        const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
+        routeMetrics[route].gapMinutes.push(Math.round(gapMin));
+      }
     }
   }
 
-  // Count routes with gaps
-  for (const rm of Object.values(routeMetrics)) {
+  // Compute max gap per route and identify long waits
+  const longWaits20 = []; // 20-30 min
+  const longWaits30 = []; // 30+ min
+  for (const [route, rm] of Object.entries(routeMetrics)) {
+    rm.maxGap = rm.gapMinutes && rm.gapMinutes.length > 0
+      ? Math.max(...rm.gapMinutes) : null;
+
+    if (rm.maxGap != null) {
+      if (rm.maxGap >= 30) {
+        longWaits30.push({ route, gap: rm.maxGap });
+      } else if (rm.maxGap >= 20) {
+        longWaits20.push({ route, gap: rm.maxGap });
+      }
+    }
     if (rm.gaps > 0) gapRoutes++;
   }
+  longWaits30.sort((a, b) => b.gap - a.gap);
+  longWaits20.sort((a, b) => b.gap - a.gap);
 
-  // Compute system-wide average speed
+  // Compute system-wide average speed and rider wait time
   const allSpeeds = [];
+  const allGaps = [];
   for (const rm of Object.values(routeMetrics)) {
     if (rm.speeds.length > 0) {
       rm.avgSpeed = Math.round(rm.speeds.reduce((a, b) => a + b, 0) / rm.speeds.length * 10) / 10;
@@ -446,10 +484,20 @@ function computeMetrics(snapshot) {
     } else {
       rm.avgSpeed = null;
     }
+    if (rm.gapMinutes) allGaps.push(...rm.gapMinutes);
   }
   const systemAvgSpeed = allSpeeds.length > 0
     ? Math.round(allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length * 10) / 10
     : null;
+
+  // Average rider wait time = E[gap^2] / (2 * E[gap])
+  // This accounts for bunching: if gaps are uneven, riders wait longer
+  let avgRiderWait = null;
+  if (allGaps.length > 0) {
+    const meanGap = allGaps.reduce((a, b) => a + b, 0) / allGaps.length;
+    const meanGapSq = allGaps.reduce((a, b) => a + b * b, 0) / allGaps.length;
+    avgRiderWait = meanGap > 0 ? Math.round(meanGapSq / (2 * meanGap) * 10) / 10 : null;
+  }
 
   // Update system stats
   document.getElementById('stat-buses').textContent = vehicles.length.toLocaleString();
@@ -460,7 +508,8 @@ function computeMetrics(snapshot) {
   const bunchEl = document.getElementById('stat-bunching');
   bunchEl.className = `value ${totalBunching > 50 ? 'bad' : totalBunching > 20 ? 'warn' : 'good'}`;
 
-  document.getElementById('stat-gaps').textContent = gapRoutes;
+  document.getElementById('stat-gaps').textContent =
+    longWaits30.length + longWaits20.length;
 
   // Update speed stat
   const speedEl = document.getElementById('stat-speed');
@@ -473,6 +522,20 @@ function computeMetrics(snapshot) {
     }
   }
 
+  // Update wait time stat
+  const waitEl = document.getElementById('stat-wait');
+  if (waitEl) {
+    if (avgRiderWait != null) {
+      waitEl.textContent = `${avgRiderWait}`;
+      waitEl.className = `value ${avgRiderWait > 15 ? 'bad' : avgRiderWait > 10 ? 'warn' : 'accent'}`;
+    } else {
+      waitEl.textContent = '\u2014';
+    }
+  }
+
+  // Render long wait alerts
+  renderWaitAlerts(longWaits20, longWaits30);
+
   // Re-render bus layer with bunching flags
   renderBuses(snapshot);
 
@@ -483,6 +546,58 @@ function computeMetrics(snapshot) {
 function markBusBunched(snapshot, busId) {
   const bus = snapshot.vehicles.find(v => v.id === busId);
   if (bus) bus.bunched = 1;
+}
+
+// ═══ LONG WAIT ALERTS ═══
+function renderWaitAlerts(waits20, waits30) {
+  const container = document.getElementById('wait-alerts');
+  const list30 = document.getElementById('wait-list-30');
+  const list20 = document.getElementById('wait-list-20');
+  const section30 = document.getElementById('wait-30');
+  const section20 = document.getElementById('wait-20');
+
+  if (waits30.length === 0 && waits20.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+
+  if (waits30.length > 0) {
+    section30.style.display = 'block';
+    list30.innerHTML = waits30.map(w => {
+      const color = routeColor(w.route);
+      return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+    }).join('');
+    list30.querySelectorAll('.wait-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const route = chip.dataset.route;
+        selectedRoute = route;
+        highlightRoute(route);
+        zoomToRoute(route);
+      });
+    });
+  } else {
+    section30.style.display = 'none';
+  }
+
+  if (waits20.length > 0) {
+    section20.style.display = 'block';
+    list20.innerHTML = waits20.map(w => {
+      const color = routeColor(w.route);
+      return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-min">${w.gap}m</span></span>`;
+    }).join('');
+    list20.querySelectorAll('.wait-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const route = chip.dataset.route;
+        selectedRoute = route;
+        highlightRoute(route);
+        zoomToRoute(route);
+      });
+    });
+  } else {
+    section20.style.display = 'none';
+  }
 }
 
 // ═══ ROUTE LIST ═══
