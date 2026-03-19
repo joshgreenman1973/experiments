@@ -1,0 +1,58 @@
+name: Collect Bus Data
+
+on:
+  # Every 5 minutes, 6am-11pm ET (10am-3am UTC during EDT, 11am-4am UTC during EST)
+  # Using broad UTC window to cover both DST states
+  schedule:
+    - cron: '*/5 10-23 * * *'   # 10:00-23:55 UTC
+    - cron: '*/5 0-4 * * *'     # 00:00-04:55 UTC (late evening ET)
+
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check if within operating hours (6am-11pm ET)
+        run: |
+          HOUR_ET=$(TZ='America/New_York' date +%H)
+          if [ "$HOUR_ET" -lt 6 ] || [ "$HOUR_ET" -ge 23 ]; then
+            echo "Outside operating hours (${HOUR_ET}:00 ET). Skipping."
+            exit 0
+          fi
+          echo "Within operating hours (${HOUR_ET}:00 ET). Proceeding."
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: cd nyc-bus-tracker/collector && npm ci
+
+      - name: Collect bus data
+        run: node nyc-bus-tracker/collector/collect.js
+        env:
+          MTA_API_KEY: ${{ secrets.MTA_BUSTIME_API_KEY }}
+
+      - name: Commit and push data
+        run: |
+          git config user.name "Bus Tracker Bot"
+          git config user.email "bus-bot@users.noreply.github.com"
+          git add nyc-bus-tracker/data/snapshots/
+
+          if git diff --staged --quiet; then
+            echo "No new data to commit"
+          else
+            DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
+            git commit -m "Bus data: ${DATE} ET"
+            git push
+          fi
