@@ -161,9 +161,9 @@ async function loadRouteShapes() {
 // Prefetch: starts the API call immediately, returns raw parsed data
 async function prefetchLiveData() {
   try {
-    // VehicleMonitoringDetailLevel=minimum cuts response size ~60%
-    // (drops onward calls, monitored call details we don't need)
-    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2&VehicleMonitoringDetailLevel=minimum`;
+    // VehicleMonitoringDetailLevel=basic keeps route/direction/destination
+    // but drops onward calls and stop-level details we don't need
+    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2&VehicleMonitoringDetailLevel=basic`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
