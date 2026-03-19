@@ -844,14 +844,30 @@ function setupControls() {
     if (currentSnapshot) computeMetrics(currentSnapshot);
   });
 
-  // Sort button
+  // Sort button (cycles through modes)
   document.getElementById('sort-btn').addEventListener('click', () => {
     const modes = ['name', 'buses', 'speed', 'bunching', 'gaps'];
     const labels = ['A\u2013Z', 'Buses', 'Speed', 'Bunch', 'Gaps'];
     const idx = modes.indexOf(sortMode);
     sortMode = modes[(idx + 1) % modes.length];
     document.getElementById('sort-btn').textContent = labels[(idx + 1) % labels.length];
+    updateSortHighlight();
     if (currentSnapshot) computeMetrics(currentSnapshot);
+  });
+
+  // Column header sorting
+  document.querySelectorAll('.col-sort').forEach(col => {
+    col.addEventListener('click', () => {
+      sortMode = col.dataset.sort;
+      updateSortHighlight();
+      if (currentSnapshot) computeMetrics(currentSnapshot);
+    });
+  });
+}
+
+function updateSortHighlight() {
+  document.querySelectorAll('.col-sort').forEach(col => {
+    col.classList.toggle('active', col.dataset.sort === sortMode);
   });
 }
 
