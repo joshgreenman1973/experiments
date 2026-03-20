@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 45-Minute City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2129;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #1565c0;
+  --ring1: #1565c0;
+  --ring2: #1976d2;
+  --ring3: #00897b;
+  --ring4: #43a047;
+  --ring5: #f9a825;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* ── HERO ── */
+#hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+#hero-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(21, 101, 192, 0.15);
+  animation: pulse-out 6s ease-out infinite;
+}
+.pulse-ring:nth-child(1) { width: 120px; height: 120px; animation-delay: 0s; }
+.pulse-ring:nth-child(2) { width: 240px; height: 240px; animation-delay: 0.8s; }
+.pulse-ring:nth-child(3) { width: 380px; height: 380px; animation-delay: 1.6s; }
+.pulse-ring:nth-child(4) { width: 540px; height: 540px; animation-delay: 2.4s; }
+.pulse-ring:nth-child(5) { width: 720px; height: 720px; animation-delay: 3.2s; }
+/* 5 rings for 45-minute concept */
+
+@keyframes pulse-out {
+  0% { opacity: 0; transform: scale(0.8); }
+  20% { opacity: 0.6; }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+#hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 24px;
+}
+
+#hero h1 {
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #fff 0%, #90caf9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+#hero .subtitle {
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 40px;
+}
+
+#search-bar {
+  display: flex;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+#search-bar:focus-within { border-color: var(--accent); }
+
+#search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 14px 18px;
+  outline: none;
+}
+#search-input::placeholder { color: var(--text-dim); }
+
+#search-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 14px 22px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#search-btn:hover { background: #1976d2; }
+
+#scroll-cta {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  animation: bob 2s ease-in-out infinite;
+}
+#scroll-cta span { display: block; margin-top: 4px; font-size: 1.2rem; }
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* ── LOCATION CARDS (horizontal scroller) ── */
+#location-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  background: linear-gradient(transparent, var(--bg) 30%);
+  padding: 40px 16px 16px;
+  display: none;
+}
+
+#location-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#location-scroll::-webkit-scrollbar { display: none; }
+
+.loc-card {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 170px;
+}
+.loc-card:hover { border-color: var(--accent); }
+.loc-card.active { border-color: var(--accent); background: rgba(21,101,192,0.15); }
+.loc-card .loc-name { font-weight: 700; font-size: 0.85rem; margin-bottom: 2px; white-space: nowrap; }
+.loc-card .loc-desc { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; }
+
+/* ── MAP ── */
+#map-section {
+  display: none;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* ── STATS PANEL ── */
+#stats-panel {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 340px;
+  max-height: calc(100vh - 100px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  z-index: 800;
+  overflow-y: auto;
+  padding: 24px;
+  display: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+#stats-panel h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+#stats-address {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.equity-score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 14px;
+  background: var(--surface2);
+  border-radius: 10px;
+}
+
+.score-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.score-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.score-label strong { color: var(--text); display: block; font-size: 0.9rem; }
+
+.stat-section { margin-bottom: 16px; }
+.stat-section h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.time-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+  font-size: 0.82rem;
+}
+.time-band .band-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.time-band .band-label { flex: 1; }
+.time-band .band-pop { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.subway-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.subway-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.neighborhoods {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+.neighborhoods strong { color: var(--text); }
+
+/* ── COMPARE ── */
+#compare-btn {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 800;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: none;
+  transition: all 0.2s;
+}
+#compare-btn:hover { border-color: var(--accent); }
+#compare-btn.active { background: var(--accent); border-color: var(--accent); }
+
+#compare-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  z-index: 800;
+  padding: 20px;
+  display: none;
+}
+#compare-panel h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; }
+
+.compare-pick {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.compare-pick:hover { background: rgba(21,101,192,0.2); }
+.compare-pick.selected { background: rgba(21,101,192,0.25); border-left: 3px solid var(--accent); }
+
+#compare-stats {
+  display: none;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.compare-col {
+  flex: 1;
+  font-size: 0.78rem;
+}
+.compare-col h4 { font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; }
+.compare-col .c-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.compare-col .c-label { color: var(--text-dim); }
+
+/* ── BACK BUTTON ── */
+#back-btn {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 18px;
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: none;
+  transition: border-color 0.2s;
+}
+#back-btn:hover { border-color: var(--accent); }
+
+/* ── NEAREST NOTE ── */
+#nearest-note {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 850;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.82rem;
+  display: none;
+  white-space: nowrap;
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  #stats-panel {
+    top: auto;
+    bottom: 80px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 45vh;
+    border-radius: 14px 14px 0 0;
+  }
+  #compare-panel {
+    top: auto;
+    bottom: 80px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+  #compare-btn { top: auto; bottom: 80px; right: 8px; }
+}
+
+/* Leaflet overrides */
+.leaflet-control-attribution { font-size: 10px !important; }
+.leaflet-control-zoom { border: 1px solid var(--border) !important; }
+.leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div id="hero">
+  <div id="hero-bg">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+  </div>
+  <div id="hero-content">
+    <h1>The 45-Minute City</h1>
+    <p class="subtitle">How far can you get in 45 minutes?</p>
+    <div id="search-bar">
+      <input id="search-input" type="text" placeholder="Enter a NYC address\u2026 or click the map" />
+      <button id="search-btn">Search</button>
+    </div>
+    <div id="scroll-cta" onclick="enterMap()">Or pick a starting point<span>\u2193</span></div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div id="map-section">
+  <div id="map"></div>
+</div>
+
+<!-- BACK -->
+<button id="back-btn" onclick="goHome()">\u2190 Back</button>
+
+<!-- STATS -->
+<div id="stats-panel">
+  <h2 id="stats-name"></h2>
+  <div id="stats-address"></div>
+  <div class="equity-score">
+    <div class="score-circle" id="score-circle">0</div>
+    <div class="score-label"><strong>Transit Equity Score</strong>Relative measure of transit access from this location</div>
+  </div>
+  <div class="stat-section">
+    <h3>Population Reachable</h3>
+    <div id="pop-bands"></div>
+  </div>
+  <div class="stat-section">
+    <h3>Subway Lines Within 10 Min</h3>
+    <div class="subway-lines" id="subway-lines"></div>
+  </div>
+  <div class="stat-section">
+    <h3>Reachable Within 30 Min</h3>
+    <div class="neighborhoods" id="near-hoods"></div>
+  </div>
+  <div class="stat-section">
+    <h3>Reachable Within 45 Min</h3>
+    <div class="neighborhoods" id="far-hoods"></div>
+  </div>
+</div>
+
+<!-- COMPARE -->
+<button id="compare-btn" onclick="toggleCompare()">Compare</button>
+<div id="compare-panel">
+  <h3>Pick two locations to compare</h3>
+  <div id="compare-picks"></div>
+  <div id="compare-stats"></div>
+</div>
+
+<!-- LOCATION BAR -->
+<div id="location-bar">
+  <div id="location-scroll"></div>
+</div>
+
+<!-- NEAREST NOTE -->
+<div id="nearest-note" id="nearest-note"></div>
+
+<script>
+// ── DATA ──
+const COLORS = ['#1565c0','#1976d2','#00897b','#43a047','#f9a825'];
+const BANDS = ['0\u20139 min','9\u201318 min','18\u201327 min','27\u201336 min','36\u201345 min'];
+
+// Helper: generate polygon ring. center=[lat,lng], radii in degrees, shape offsets for transit corridors
+function makeRing(center, baseRadius, elongations, nPoints) {
+  nPoints = nPoints || 16;
+  const pts = [];
+  for (let i = 0; i < nPoints; i++) {
+    const angle = (2 * Math.PI * i) / nPoints;
+    // Find which elongation sector we're in
+    let r = baseRadius;
+    for (const el of elongations) {
+      const diff = Math.abs(angle - el.angle);
+      const wrap = Math.min(diff, 2 * Math.PI - diff);
+      if (wrap < el.spread) {
+        r += el.amount * (1 - wrap / el.spread);
+      }
+    }
+    // Add slight randomness for organic feel
+    r *= (0.95 + Math.random() * 0.1);
+    pts.push([
+      center[0] + r * Math.cos(angle),
+      center[1] + r * Math.sin(angle) / Math.cos(center[0] * Math.PI / 180)
+    ]);
+  }
+  pts.push(pts[0]); // close ring
+  return pts;
+}
+
+// Elongation directions (in radians): N=PI/2, S=-PI/2, E=0, W=PI, NE=PI/4, NW=3PI/4
+const N = Math.PI/2, S = -Math.PI/2, E = 0, W = Math.PI, NE = Math.PI/4, NW = 3*Math.PI/4, SE = -Math.PI/4, SW = -3*Math.PI/4;
+
+const LOCATIONS = [
+  {
+    id: 'times-square',
+    name: 'Times Square',
+    desc: 'The crossroads of the world',
+    address: '42nd St & Broadway, Manhattan',
+    center: [40.7580, -73.9855],
+    score: 95,
+    pop: ['285,000','890,000','1,920,000','3,450,000','5,100,000'],
+    subways: [{line:'1',color:'#ee352e'},{line:'2',color:'#ee352e'},{line:'3',color:'#ee352e'},{line:'7',color:'#b933ad'},{line:'N',color:'#fccc0a'},{line:'Q',color:'#fccc0a'},{line:'R',color:'#fccc0a'},{line:'W',color:'#fccc0a'},{line:'S',color:'#808183'},{line:'A',color:'#2850ad'},{line:'C',color:'#2850ad'},{line:'E',color:'#2850ad'}],
+    near: 'Midtown, Hell\u2019s Kitchen, Murray Hill, Chelsea, Upper West Side, Koreatown, Garment District',
+    far: 'Harlem, South Bronx, Downtown Brooklyn, Astoria, Williamsburg, Financial District',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: N, amount: 0.04, spread: 0.6},
+        {angle: S, amount: 0.035, spread: 0.6},
+        {angle: E, amount: 0.02, spread: 0.5},
+        {angle: NE, amount: 0.015, spread: 0.4},
+      ];
+      return [
+        makeRing(c, 0.008, elongs, 18),
+        makeRing(c, 0.018, elongs.map(e=>({...e, amount: e.amount*1.1})), 18),
+        makeRing(c, 0.032, elongs.map(e=>({...e, amount: e.amount*1.3})), 20),
+        makeRing(c, 0.050, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.072, elongs.map(e=>({...e, amount: e.amount*1.7})), 22),
+      ];
+    }
+  },
+  {
+    id: 'downtown-brooklyn',
+    name: 'Downtown Brooklyn',
+    desc: 'Borough Hall transit hub',
+    address: 'Borough Hall, Brooklyn',
+    center: [40.6934, -73.9905],
+    score: 88,
+    pop: ['210,000','720,000','1,650,000','3,100,000','4,600,000'],
+    subways: [{line:'2',color:'#ee352e'},{line:'3',color:'#ee352e'},{line:'4',color:'#00933c'},{line:'5',color:'#00933c'},{line:'A',color:'#2850ad'},{line:'C',color:'#2850ad'},{line:'F',color:'#ff6319'},{line:'G',color:'#6cbe45'},{line:'R',color:'#fccc0a'}],
+    near: 'DUMBO, Brooklyn Heights, Park Slope, Fort Greene, Boerum Hill, Lower Manhattan',
+    far: 'Midtown, Williamsburg, Crown Heights, Bay Ridge, Flatbush',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: N, amount: 0.03, spread: 0.5},
+        {angle: S, amount: 0.025, spread: 0.7},
+        {angle: NW, amount: 0.02, spread: 0.4},
+        {angle: SE, amount: 0.02, spread: 0.5},
+      ];
+      return [
+        makeRing(c, 0.007, elongs, 18),
+        makeRing(c, 0.016, elongs.map(e=>({...e, amount: e.amount*1.1})), 18),
+        makeRing(c, 0.028, elongs.map(e=>({...e, amount: e.amount*1.3})), 20),
+        makeRing(c, 0.044, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.064, elongs.map(e=>({...e, amount: e.amount*1.7})), 22),
+      ];
+    }
+  },
+  {
+    id: 'jackson-heights',
+    name: 'Jackson Heights',
+    desc: 'Queens\u2019 diverse crossroads',
+    address: 'Roosevelt Ave & 74th St, Queens',
+    center: [40.7557, -73.8831],
+    score: 68,
+    pop: ['180,000','520,000','1,100,000','2,200,000','3,600,000'],
+    subways: [{line:'7',color:'#b933ad'},{line:'E',color:'#2850ad'},{line:'F',color:'#ff6319'},{line:'M',color:'#ff6319'},{line:'R',color:'#fccc0a'}],
+    near: 'Elmhurst, Corona, Woodside, East Elmhurst, Astoria',
+    far: 'Midtown Manhattan, Flushing, Downtown Brooklyn, Forest Hills, Long Island City',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: W, amount: 0.04, spread: 0.5},
+        {angle: E, amount: 0.015, spread: 0.4},
+        {angle: NW, amount: 0.02, spread: 0.3},
+        {angle: SW, amount: 0.01, spread: 0.3},
+      ];
+      return [
+        makeRing(c, 0.006, elongs, 16),
+        makeRing(c, 0.013, elongs.map(e=>({...e, amount: e.amount*1.1})), 18),
+        makeRing(c, 0.023, elongs.map(e=>({...e, amount: e.amount*1.4})), 18),
+        makeRing(c, 0.036, elongs.map(e=>({...e, amount: e.amount*1.6})), 20),
+        makeRing(c, 0.052, elongs.map(e=>({...e, amount: e.amount*1.9})), 22),
+      ];
+    }
+  },
+  {
+    id: 'south-bronx',
+    name: 'South Bronx',
+    desc: '149th & Grand Concourse',
+    address: '149th St & Grand Concourse, Bronx',
+    center: [40.8200, -73.9271],
+    score: 62,
+    pop: ['155,000','480,000','1,050,000','2,000,000','3,300,000'],
+    subways: [{line:'2',color:'#ee352e'},{line:'4',color:'#00933c'},{line:'5',color:'#00933c'},{line:'B',color:'#ff6319'},{line:'D',color:'#ff6319'}],
+    near: 'Mott Haven, Melrose, Morrisania, Highbridge, Central Harlem',
+    far: 'Midtown, Upper West Side, Washington Heights, Fordham, Downtown Brooklyn',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: S, amount: 0.035, spread: 0.6},   // into Manhattan
+        {angle: N, amount: 0.02, spread: 0.5},    // up the Bronx
+        {angle: SW, amount: 0.015, spread: 0.3},
+      ];
+      return [
+        makeRing(c, 0.006, elongs, 16),
+        makeRing(c, 0.013, elongs.map(e=>({...e, amount: e.amount*1.1})), 18),
+        makeRing(c, 0.022, elongs.map(e=>({...e, amount: e.amount*1.3})), 18),
+        makeRing(c, 0.034, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.048, elongs.map(e=>({...e, amount: e.amount*1.8})), 22),
+      ];
+    }
+  },
+  {
+    id: 'st-george',
+    name: 'St. George, Staten Island',
+    desc: 'The forgotten borough\u2019s gateway',
+    address: 'St. George Ferry Terminal, Staten Island',
+    center: [40.6433, -74.0764],
+    score: 25,
+    pop: ['35,000','85,000','180,000','420,000','950,000'],
+    subways: [{line:'SIR',color:'#2850ad'}],
+    near: 'Tompkinsville, New Brighton, Stapleton, Grymes Hill',
+    far: 'Lower Manhattan (via ferry), Brooklyn (limited), rest of Staten Island',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: S, amount: 0.008, spread: 0.5},   // SIR south
+        {angle: NE, amount: 0.025, spread: 0.3},  // ferry to Manhattan
+      ];
+      return [
+        makeRing(c, 0.004, elongs, 14),
+        makeRing(c, 0.008, elongs.map(e=>({...e, amount: e.amount*1.0})), 16),
+        makeRing(c, 0.013, elongs.map(e=>({...e, amount: e.amount*1.2})), 16),
+        makeRing(c, 0.018, elongs.map(e=>({...e, amount: e.amount*1.5})), 18),
+        makeRing(c, 0.024, elongs.map(e=>({...e, amount: e.amount*2.0})), 20),
+      ];
+    }
+  },
+  {
+    id: 'east-new-york',
+    name: 'East New York',
+    desc: 'Transit desert on the edge',
+    address: 'Broadway Junction, Brooklyn',
+    center: [40.6590, -73.8759],
+    score: 38,
+    pop: ['95,000','280,000','620,000','1,350,000','2,500,000'],
+    subways: [{line:'A',color:'#2850ad'},{line:'C',color:'#2850ad'},{line:'J',color:'#996633'},{line:'L',color:'#a7a9ac'},{line:'Z',color:'#996633'}],
+    near: 'Brownsville, Cypress Hills, Woodhaven, Canarsie',
+    far: 'Downtown Brooklyn, Lower Manhattan, Jamaica, Bed-Stuy, Crown Heights',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: W, amount: 0.025, spread: 0.5},   // A/C toward Manhattan
+        {angle: NW, amount: 0.015, spread: 0.3},  // J/Z
+        {angle: N, amount: 0.008, spread: 0.3},   // L train
+      ];
+      return [
+        makeRing(c, 0.005, elongs, 14),
+        makeRing(c, 0.010, elongs.map(e=>({...e, amount: e.amount*1.1})), 16),
+        makeRing(c, 0.017, elongs.map(e=>({...e, amount: e.amount*1.3})), 18),
+        makeRing(c, 0.026, elongs.map(e=>({...e, amount: e.amount*1.6})), 20),
+        makeRing(c, 0.038, elongs.map(e=>({...e, amount: e.amount*1.9})), 22),
+      ];
+    }
+  },
+  {
+    id: 'flushing',
+    name: 'Flushing',
+    desc: 'End of the 7 line',
+    address: 'Main St & Roosevelt Ave, Flushing',
+    center: [40.7614, -73.8300],
+    score: 55,
+    pop: ['140,000','380,000','820,000','1,700,000','3,000,000'],
+    subways: [{line:'7',color:'#b933ad'}],
+    near: 'Murray Hill (Queens), Whitestone, College Point, Bayside',
+    far: 'Jackson Heights, Midtown Manhattan, Astoria, Forest Hills, Long Island City',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: W, amount: 0.05, spread: 0.4},    // 7 train to Manhattan (strong)
+        {angle: SW, amount: 0.015, spread: 0.3},
+        {angle: N, amount: 0.005, spread: 0.3},
+        {angle: E, amount: 0.003, spread: 0.3},
+      ];
+      return [
+        makeRing(c, 0.005, elongs, 14),
+        makeRing(c, 0.011, elongs.map(e=>({...e, amount: e.amount*1.0})), 16),
+        makeRing(c, 0.019, elongs.map(e=>({...e, amount: e.amount*1.3})), 18),
+        makeRing(c, 0.030, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.044, elongs.map(e=>({...e, amount: e.amount*1.8})), 22),
+      ];
+    }
+  },
+  {
+    id: 'washington-heights',
+    name: 'Washington Heights',
+    desc: 'Uptown\u2019s transit corridor',
+    address: '181st St & Broadway, Manhattan',
+    center: [40.8448, -73.9386],
+    score: 72,
+    pop: ['170,000','540,000','1,200,000','2,400,000','3,800,000'],
+    subways: [{line:'1',color:'#ee352e'},{line:'A',color:'#2850ad'}],
+    near: 'Inwood, Fort George, Hamilton Heights, High Bridge, Morris Heights',
+    far: 'Midtown, Harlem, South Bronx, Upper West Side, Downtown Brooklyn',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: S, amount: 0.04, spread: 0.5},   // A/1 downtown
+        {angle: N, amount: 0.015, spread: 0.4},  // Inwood
+        {angle: E, amount: 0.01, spread: 0.3},   // cross to Bronx
+      ];
+      return [
+        makeRing(c, 0.006, elongs, 16),
+        makeRing(c, 0.014, elongs.map(e=>({...e, amount: e.amount*1.1})), 18),
+        makeRing(c, 0.024, elongs.map(e=>({...e, amount: e.amount*1.3})), 18),
+        makeRing(c, 0.037, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.053, elongs.map(e=>({...e, amount: e.amount*1.8})), 22),
+      ];
+    }
+  },
+  {
+    id: 'coney-island',
+    name: 'Coney Island',
+    desc: 'End of the line by the sea',
+    address: 'Stillwell Ave Terminal, Brooklyn',
+    center: [40.5749, -73.9859],
+    score: 32,
+    pop: ['60,000','170,000','400,000','900,000','1,800,000'],
+    subways: [{line:'D',color:'#ff6319'},{line:'F',color:'#ff6319'},{line:'N',color:'#fccc0a'},{line:'Q',color:'#fccc0a'}],
+    near: 'Brighton Beach, Sea Gate, Gravesend, Bensonhurst',
+    far: 'Bay Ridge, Flatbush, Downtown Brooklyn',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: N, amount: 0.03, spread: 0.5},
+        {angle: NE, amount: 0.02, spread: 0.4},
+        {angle: NW, amount: 0.008, spread: 0.3},
+      ];
+      return [
+        makeRing(c, 0.004, elongs, 14),
+        makeRing(c, 0.009, elongs.map(e=>({...e, amount: e.amount*1.1})), 16),
+        makeRing(c, 0.015, elongs.map(e=>({...e, amount: e.amount*1.3})), 18),
+        makeRing(c, 0.024, elongs.map(e=>({...e, amount: e.amount*1.5})), 20),
+        makeRing(c, 0.036, elongs.map(e=>({...e, amount: e.amount*1.8})), 22),
+      ];
+    }
+  },
+  {
+    id: 'pelham-bay',
+    name: 'Pelham Bay',
+    desc: 'The Bronx\u2019s far reach',
+    address: 'Pelham Bay Park Station, Bronx',
+    center: [40.8527, -73.8280],
+    score: 30,
+    pop: ['45,000','130,000','320,000','750,000','1,500,000'],
+    subways: [{line:'6',color:'#00933c'}],
+    near: 'Country Club, Westchester Square, Throggs Neck, City Island (bus)',
+    far: 'Parkchester, Hunts Point, East Harlem',
+    rings: function() {
+      const c = this.center;
+      const elongs = [
+        {angle: SW, amount: 0.035, spread: 0.4},
+        {angle: S, amount: 0.01, spread: 0.3},
+        {angle: W, amount: 0.008, spread: 0.3},
+      ];
+      return [
+        makeRing(c, 0.004, elongs, 14),
+        makeRing(c, 0.008, elongs.map(e=>({...e, amount: e.amount*1.0})), 16),
+        makeRing(c, 0.013, elongs.map(e=>({...e, amount: e.amount*1.2})), 16),
+        makeRing(c, 0.020, elongs.map(e=>({...e, amount: e.amount*1.5})), 18),
+        makeRing(c, 0.029, elongs.map(e=>({...e, amount: e.amount*1.8})), 20),
+      ];
+    }
+  }
+];
+
+// Pre-generate all ring data (call ring functions once with seeded randomness)
+// We'll regenerate on each call but that's fine for demo purposes
+
+// ── STATE ──
+let map = null;
+let currentLayers = [];
+let currentLocation = null;
+let compareMode = false;
+let compareSelections = [];
+let compareLayers = [];
+let animationTimer = null;
+
+// ── INIT ──
+function initMap() {
+  if (map) return;
+  map = L.map('map', {
+    center: [40.7128, -74.0060],
+    zoom: 11,
+    zoomControl: true,
+    attributionControl: true
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '\u00a9 <a href="https://carto.com/">CARTO</a> \u00a9 <a href="https://www.openstreetmap.org/">OSM</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Click-to-pin: drop a pin on the map and snap to nearest demo point
+  map.on('click', function(e) {
+    if (compareMode) return;
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+
+    // Find nearest pre-computed point
+    let nearest = null;
+    let minDist = Infinity;
+    LOCATIONS.forEach(loc => {
+      const d = Math.sqrt(Math.pow(lat - loc.center[0], 2) + Math.pow(lon - loc.center[1], 2));
+      if (d < minDist) {
+        minDist = d;
+        nearest = loc;
+      }
+    });
+
+    // Remove old dropped pin if any
+    if (window._droppedPin) map.removeLayer(window._droppedPin);
+    window._droppedPin = L.circleMarker([lat, lon], {
+      radius: 5,
+      fillColor: '#ff4081',
+      fillOpacity: 0.9,
+      color: '#fff',
+      weight: 1.5
+    }).addTo(map);
+
+    selectLocation(nearest.id);
+
+    const noteEl = document.getElementById('nearest-note');
+    noteEl.innerHTML = 'Showing nearest demo point: <strong>' + nearest.name + '</strong>';
+    noteEl.style.display = 'block';
+    setTimeout(() => noteEl.style.display = 'none', 4000);
+  });
+}
+
+function enterMap(locId) {
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('map-section').style.display = 'block';
+  document.getElementById('location-bar').style.display = 'block';
+  document.getElementById('back-btn').style.display = 'block';
+  document.getElementById('compare-btn').style.display = 'block';
+
+  initMap();
+  setTimeout(() => map.invalidateSize(), 100);
+
+  if (locId) {
+    selectLocation(locId);
+  } else {
+    selectLocation('times-square');
+  }
+}
+
+function goHome() {
+  document.getElementById('hero').style.display = 'flex';
+  document.getElementById('map-section').style.display = 'none';
+  document.getElementById('location-bar').style.display = 'none';
+  document.getElementById('back-btn').style.display = 'none';
+  document.getElementById('stats-panel').style.display = 'none';
+  document.getElementById('compare-btn').style.display = 'none';
+  document.getElementById('compare-panel').style.display = 'none';
+  document.getElementById('nearest-note').style.display = 'none';
+  compareMode = false;
+}
+
+// ── BUILD LOCATION CARDS ──
+function buildLocationCards() {
+  const scroll = document.getElementById('location-scroll');
+  scroll.innerHTML = '';
+  LOCATIONS.forEach(loc => {
+    const card = document.createElement('div');
+    card.className = 'loc-card';
+    card.id = 'card-' + loc.id;
+    card.innerHTML = '<div class="loc-name">' + loc.name + '</div><div class="loc-desc">' + loc.desc + '</div>';
+    card.onclick = () => {
+      if (compareMode) {
+        toggleCompareSelection(loc.id);
+      } else {
+        selectLocation(loc.id);
+      }
+    };
+    scroll.appendChild(card);
+  });
+}
+
+// ── SELECT LOCATION ──
+function selectLocation(locId) {
+  const loc = LOCATIONS.find(l => l.id === locId);
+  if (!loc) return;
+  currentLocation = loc;
+
+  // Update active card
+  document.querySelectorAll('.loc-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById('card-' + locId);
+  if (card) {
+    card.classList.add('active');
+    card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  // Clear old layers
+  clearLayers();
+
+  // Animate isochrones
+  const rings = loc.rings();
+  map.flyTo(loc.center, 12, { duration: 0.8 });
+
+  animateRings(rings, loc.center);
+
+  // Update stats
+  showStats(loc);
+}
+
+function clearLayers() {
+  if (animationTimer) {
+    clearTimeout(animationTimer);
+    animationTimer = null;
+  }
+  currentLayers.forEach(l => map.removeLayer(l));
+  currentLayers = [];
+}
+
+function animateRings(rings, center, opacity, layerArray) {
+  opacity = opacity || 0.45;
+  layerArray = layerArray || currentLayers;
+
+  // Add marker for center
+  const marker = L.circleMarker(center, {
+    radius: 6,
+    fillColor: '#fff',
+    fillOpacity: 1,
+    color: '#fff',
+    weight: 2
+  }).addTo(map);
+  layerArray.push(marker);
+
+  // Animate rings from inside out (but add outer first so they layer correctly)
+  // Add all rings with 0 opacity first, then fade them in
+  const ringLayers = [];
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const layer = L.polygon(rings[i], {
+      color: COLORS[i],
+      weight: 1.5,
+      fillColor: COLORS[i],
+      fillOpacity: 0,
+      opacity: 0,
+      className: 'iso-ring'
+    }).addTo(map);
+    ringLayers[i] = layer;
+    layerArray.push(layer);
+  }
+
+  // Sequential fade-in
+  rings.forEach((_, i) => {
+    const delay = i * 400;
+    animationTimer = setTimeout(() => {
+      const el = ringLayers[i]._path;
+      if (el) {
+        el.style.transition = 'fill-opacity 400ms ease-out, stroke-opacity 400ms ease-out, transform 300ms ease-out';
+        el.style.fillOpacity = opacity;
+        el.style.strokeOpacity = 0.8;
+        // Add glow filter
+        el.style.filter = 'drop-shadow(0 0 4px ' + COLORS[i] + '40)';
+      }
+    }, delay);
+  });
+
+  // Final pulse effect
+  animationTimer = setTimeout(() => {
+    ringLayers.forEach((layer, i) => {
+      const el = layer._path;
+      if (el) {
+        el.style.transition = 'fill-opacity 300ms ease-in-out';
+        el.style.fillOpacity = (opacity * 1.2);
+        setTimeout(() => {
+          el.style.fillOpacity = opacity;
+        }, 300);
+      }
+    });
+  }, rings.length * 400 + 200);
+}
+
+// ── STATS ──
+function showStats(loc) {
+  const panel = document.getElementById('stats-panel');
+  panel.style.display = 'block';
+
+  document.getElementById('stats-name').textContent = loc.name;
+  document.getElementById('stats-address').textContent = loc.address;
+
+  // Score
+  const circle = document.getElementById('score-circle');
+  circle.textContent = loc.score;
+  const scoreColor = loc.score >= 80 ? '#43a047' : loc.score >= 50 ? '#f9a825' : '#e65100';
+  circle.style.background = scoreColor + '25';
+  circle.style.color = scoreColor;
+  circle.style.border = '3px solid ' + scoreColor;
+
+  // Population bands
+  const popDiv = document.getElementById('pop-bands');
+  popDiv.innerHTML = '';
+  BANDS.forEach((band, i) => {
+    popDiv.innerHTML += '<div class="time-band"><span class="band-dot" style="background:' + COLORS[i] + '"></span><span class="band-label">' + band + '</span><span class="band-pop">' + loc.pop[i] + '</span></div>';
+  });
+
+  // Subway lines
+  const subDiv = document.getElementById('subway-lines');
+  subDiv.innerHTML = '';
+  loc.subways.forEach(s => {
+    subDiv.innerHTML += '<span class="subway-badge" style="background:' + s.color + '">' + s.line + '</span>';
+  });
+
+  // Neighborhoods
+  document.getElementById('near-hoods').innerHTML = loc.near;
+  document.getElementById('far-hoods').innerHTML = loc.far;
+}
+
+// ── COMPARE ──
+function toggleCompare() {
+  compareMode = !compareMode;
+  const btn = document.getElementById('compare-btn');
+  const panel = document.getElementById('compare-panel');
+
+  if (compareMode) {
+    btn.classList.add('active');
+    btn.textContent = 'Exit Compare';
+    panel.style.display = 'block';
+    document.getElementById('stats-panel').style.display = 'none';
+    compareSelections = [];
+    compareLayers.forEach(l => map.removeLayer(l));
+    compareLayers = [];
+    buildComparePicks();
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = 'Compare';
+    panel.style.display = 'none';
+    compareLayers.forEach(l => map.removeLayer(l));
+    compareLayers = [];
+    if (currentLocation) selectLocation(currentLocation.id);
+  }
+}
+
+function buildComparePicks() {
+  const div = document.getElementById('compare-picks');
+  div.innerHTML = '';
+  LOCATIONS.forEach(loc => {
+    const pick = document.createElement('div');
+    pick.className = 'compare-pick';
+    pick.id = 'cpick-' + loc.id;
+    pick.textContent = loc.name;
+    pick.onclick = () => toggleCompareSelection(loc.id);
+    div.appendChild(pick);
+  });
+}
+
+function toggleCompareSelection(locId) {
+  const idx = compareSelections.indexOf(locId);
+  if (idx >= 0) {
+    compareSelections.splice(idx, 1);
+  } else if (compareSelections.length < 2) {
+    compareSelections.push(locId);
+  } else {
+    compareSelections.shift();
+    compareSelections.push(locId);
+  }
+
+  // Update UI
+  document.querySelectorAll('.compare-pick').forEach(p => p.classList.remove('selected'));
+  compareSelections.forEach(id => {
+    const el = document.getElementById('cpick-' + id);
+    if (el) el.classList.add('selected');
+  });
+
+  // Clear and draw
+  clearLayers();
+  compareLayers.forEach(l => map.removeLayer(l));
+  compareLayers = [];
+
+  if (compareSelections.length === 2) {
+    showCompare();
+  } else if (compareSelections.length === 1) {
+    const loc = LOCATIONS.find(l => l.id === compareSelections[0]);
+    map.flyTo(loc.center, 11, { duration: 0.8 });
+    animateRings(loc.rings(), loc.center, 0.35, compareLayers);
+    document.getElementById('compare-stats').style.display = 'none';
+  }
+}
+
+function showCompare() {
+  const loc1 = LOCATIONS.find(l => l.id === compareSelections[0]);
+  const loc2 = LOCATIONS.find(l => l.id === compareSelections[1]);
+
+  // Fit bounds
+  const bounds = L.latLngBounds([loc1.center, loc2.center]).pad(0.5);
+  map.flyToBounds(bounds, { duration: 0.8 });
+
+  // Draw both with different opacities
+  setTimeout(() => {
+    animateRings(loc1.rings(), loc1.center, 0.3, compareLayers);
+    setTimeout(() => {
+      animateRings(loc2.rings(), loc2.center, 0.3, compareLayers);
+    }, 200);
+  }, 300);
+
+  // Show stats comparison
+  const statsDiv = document.getElementById('compare-stats');
+  statsDiv.style.display = 'flex';
+  statsDiv.innerHTML = '<div class="compare-col"><h4>' + loc1.name + '</h4><div class="c-row"><span class="c-label">Score</span><span>' + loc1.score + '</span></div><div class="c-row"><span class="c-label">45-min reach</span><span>' + loc1.pop[4] + '</span></div><div class="c-row"><span class="c-label">30-min reach</span><span>' + loc1.pop[2] + '</span></div><div class="c-row"><span class="c-label">Subway lines</span><span>' + loc1.subways.length + '</span></div></div><div class="compare-col"><h4>' + loc2.name + '</h4><div class="c-row"><span class="c-label">Score</span><span>' + loc2.score + '</span></div><div class="c-row"><span class="c-label">45-min reach</span><span>' + loc2.pop[4] + '</span></div><div class="c-row"><span class="c-label">30-min reach</span><span>' + loc2.pop[2] + '</span></div><div class="c-row"><span class="c-label">Subway lines</span><span>' + loc2.subways.length + '</span></div></div>';
+}
+
+// ── SEARCH ──
+async function doSearch() {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) return;
+
+  const noteEl = document.getElementById('nearest-note');
+
+  try {
+    const resp = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(query + ', New York City') + '&format=json&limit=1');
+    const data = await resp.json();
+
+    if (data.length === 0) {
+      noteEl.textContent = 'Could not find that address. Try another?';
+      noteEl.style.display = 'block';
+      setTimeout(() => noteEl.style.display = 'none', 3000);
+      return;
+    }
+
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+
+    // Find nearest pre-computed point
+    let nearest = null;
+    let minDist = Infinity;
+    LOCATIONS.forEach(loc => {
+      const d = Math.sqrt(Math.pow(lat - loc.center[0], 2) + Math.pow(lon - loc.center[1], 2));
+      if (d < minDist) {
+        minDist = d;
+        nearest = loc;
+      }
+    });
+
+    // Enter map and show
+    if (document.getElementById('hero').style.display !== 'none') {
+      enterMap(nearest.id);
+    } else {
+      selectLocation(nearest.id);
+    }
+
+    noteEl.innerHTML = 'Showing nearest demo point: <strong>' + nearest.name + '</strong>';
+    noteEl.style.display = 'block';
+    setTimeout(() => noteEl.style.display = 'none', 4000);
+
+  } catch(e) {
+    noteEl.textContent = 'Search failed. Please try again.';
+    noteEl.style.display = 'block';
+    setTimeout(() => noteEl.style.display = 'none', 3000);
+  }
+}
+
+document.getElementById('search-btn').addEventListener('click', doSearch);
+document.getElementById('search-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
+
+// ── INIT ──
+buildLocationCards();
+</script>
+</body>
+</html>

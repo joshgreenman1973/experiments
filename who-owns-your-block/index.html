@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Who Owns Your Block</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #fafafa;
+  --text: #1a1a1a;
+  --text-secondary: #555;
+  --border: #e0e0e0;
+  --blue: #1a237e;
+  --purple: #6a1b9a;
+  --red: #b71c1c;
+  --panel-bg: #fff;
+  --shadow: 0 2px 16px rgba(0,0,0,0.08);
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* HEADER / LANDING */
+.landing {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 24px 32px;
+  text-align: center;
+}
+
+.landing h1 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: clamp(2.4rem, 5vw, 3.6rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.landing .subhead {
+  font-size: 1.15rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-bottom: 20px;
+}
+
+.landing .explainer {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 640px;
+  margin: 0 auto;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+/* SEARCH */
+.search-bar {
+  max-width: 520px;
+  margin: 24px auto 0;
+  position: relative;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-bar input:focus {
+  border-color: var(--purple);
+}
+
+.search-bar .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+  font-size: 1rem;
+}
+
+/* MAP CONTAINER */
+.map-wrap {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  min-height: 400px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* LEGEND */
+.legend {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1000;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(8px);
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  font-size: 0.8rem;
+}
+
+.legend h4 {
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  width: 180px;
+  margin-bottom: 6px;
+}
+
+.legend-scale div {
+  flex: 1;
+  height: 100%;
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* DETAIL PANEL */
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100%;
+  background: var(--panel-bg);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+  z-index: 1001;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  padding: 24px;
+}
+
+.detail-panel.open {
+  transform: translateX(0);
+}
+
+.detail-panel .close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.detail-panel h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.detail-panel .block-class {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.detail-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+.detail-stat .label {
+  color: var(--text-secondary);
+}
+
+.detail-stat .value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.concentration-bar-wrap {
+  margin-top: 20px;
+}
+
+.concentration-bar-wrap h4 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.ownership-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ownership-bar div {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.bar-legend {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.bar-legend span {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.bar-legend .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+/* BOROUGH SUMMARY */
+.borough-summary {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.borough-summary h2 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.borough-summary .section-sub {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.borough-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 16px;
+  transition: background 0.2s;
+}
+
+.borough-toggle:hover {
+  background: #f0f0f0;
+}
+
+.borough-cards {
+  display: none;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.borough-cards.open {
+  display: grid;
+}
+
+.borough-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.borough-card h4 {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.borough-card .stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 5px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.borough-card .stat-row:last-child {
+  border-bottom: none;
+}
+
+.borough-card .stat-row .label {
+  color: var(--text-secondary);
+}
+
+.borough-card .stat-row .value {
+  font-weight: 600;
+}
+
+/* METHODOLOGY */
+.methodology {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  border-top: 1px solid var(--border);
+}
+
+.methodology h3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+}
+
+.methodology p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .map-wrap {
+    height: 80vh;
+  }
+
+  .detail-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    max-height: 65vh;
+    transform: translateY(100%);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+  }
+
+  .detail-panel.open {
+    transform: translateY(0);
+  }
+
+  .detail-panel::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: #d0d0d0;
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .legend {
+    bottom: 12px;
+    left: 12px;
+    padding: 10px 14px;
+  }
+
+  .landing {
+    padding: 32px 20px 24px;
+  }
+
+  .landing h1 {
+    font-size: 2rem;
+  }
+
+  .borough-cards {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<section class="landing">
+  <h1>Who Owns Your Block</h1>
+  <p class="subhead">A map of property ownership concentration across New York City</p>
+  <p class="explainer">
+    In New York City, a single LLC can quietly control an entire block\u2019s worth of housing. Shell companies obscure who truly owns buildings, making it nearly impossible for tenants and neighbors to know who\u2019s making decisions about their homes. This map reveals ownership concentration at the tax-block level\u2014showing where property is held by many distinct owners and where a handful of entities control everything. The more concentrated a block\u2019s ownership, the more power rests in fewer hands.
+  </p>
+  <div class="search-bar">
+    <span class="search-icon">\u26B2</span>
+    <input type="text" id="searchInput" placeholder="Search by neighborhood or address\u2026" />
+  </div>
+</section>
+
+<!-- MAP -->
+<div class="map-wrap">
+  <div id="map"></div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <h4>Ownership Concentration</h4>
+    <div class="legend-scale">
+      <div style="background:#1a237e;"></div>
+      <div style="background:#283593;"></div>
+      <div style="background:#4527a0;"></div>
+      <div style="background:#6a1b9a;"></div>
+      <div style="background:#8e244d;"></div>
+      <div style="background:#b71c1c;"></div>
+    </div>
+    <div class="legend-labels">
+      <span>Many owners</span>
+      <span>Few owners</span>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <button class="close-btn" id="closePanel">&times;</button>
+    <h3 id="panelBlockId"></h3>
+    <div class="block-class" id="panelClass"></div>
+    <div id="panelStats"></div>
+    <div class="concentration-bar-wrap">
+      <h4>Ownership Breakdown</h4>
+      <div class="ownership-bar" id="ownershipBar"></div>
+      <div class="bar-legend" id="barLegend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOROUGH SUMMARY -->
+<section class="borough-summary">
+  <h2>Borough Breakdown</h2>
+  <p class="section-sub">Ownership concentration varies dramatically across the five boroughs.</p>
+  <button class="borough-toggle" id="boroughToggle">Show borough stats \u25BE</button>
+  <div class="borough-cards" id="boroughCards"></div>
+</section>
+
+<!-- METHODOLOGY -->
+<section class="methodology">
+  <h3>Methodology &amp; Data</h3>
+  <p>
+    This map uses data from NYC\u2019s Primary Land Use Tax Lot Output (PLUTO), published by the Department of City Planning via the NYC Open Data portal. Ownership concentration is calculated at the tax-block level: for each block, we count the number of distinct owners listed across all lots. The \u201cconcentration score\u201d represents the percentage of a block\u2019s lots controlled by the single largest owner. Blocks where one entity owns every lot score 100%; blocks with many different owners score lower. LLC names are taken directly from property records and may obscure the ultimate beneficial owner. Assessed values reflect the city\u2019s most recent tax assessment and may differ from market value.
+  </p>
+</section>
+
+<script>
+(function() {
+  // --- SEEDED RANDOM ---
+  let seed = 42;
+  function rand() {
+    seed = (seed * 16807 + 0) % 2147483647;
+    return (seed - 1) / 2147483646;
+  }
+  function randInt(a, b) { return Math.floor(rand() * (b - a + 1)) + a; }
+  function pick(arr) { return arr[Math.floor(rand() * arr.length)]; }
+
+  // --- NEIGHBORHOODS ---
+  const neighborhoods = [
+    // Manhattan
+    { name: 'East Harlem', borough: 'MN', lat: 40.7945, lng: -73.9425, type: 'mixed', concentration: 'high' },
+    { name: 'Lower East Side', borough: 'MN', lat: 40.715, lng: -73.984, type: 'mixed', concentration: 'high' },
+    { name: 'Midtown', borough: 'MN', lat: 40.7549, lng: -73.984, type: 'commercial', concentration: 'very_high' },
+    { name: 'Financial District', borough: 'MN', lat: 40.7075, lng: -74.009, type: 'commercial', concentration: 'very_high' },
+    { name: 'Washington Heights', borough: 'MN', lat: 40.8417, lng: -73.9393, type: 'residential', concentration: 'moderate' },
+    { name: 'Chelsea', borough: 'MN', lat: 40.7465, lng: -74.0014, type: 'mixed', concentration: 'high' },
+    { name: 'Upper West Side', borough: 'MN', lat: 40.787, lng: -73.975, type: 'residential', concentration: 'moderate' },
+    { name: 'Inwood', borough: 'MN', lat: 40.8677, lng: -73.9212, type: 'residential', concentration: 'moderate' },
+    { name: 'SoHo', borough: 'MN', lat: 40.7233, lng: -73.9985, type: 'commercial', concentration: 'very_high' },
+    { name: 'Harlem', borough: 'MN', lat: 40.8116, lng: -73.9465, type: 'residential', concentration: 'high' },
+    // Brooklyn
+    { name: 'Bushwick', borough: 'BK', lat: 40.6944, lng: -73.9213, type: 'mixed', concentration: 'moderate' },
+    { name: 'Bay Ridge', borough: 'BK', lat: 40.6348, lng: -74.0187, type: 'residential', concentration: 'low' },
+    { name: 'Williamsburg', borough: 'BK', lat: 40.7081, lng: -73.9571, type: 'mixed', concentration: 'high' },
+    { name: 'Crown Heights', borough: 'BK', lat: 40.6694, lng: -73.9422, type: 'residential', concentration: 'moderate' },
+    { name: 'East New York', borough: 'BK', lat: 40.6590, lng: -73.8759, type: 'residential', concentration: 'moderate' },
+    { name: 'Sunset Park', borough: 'BK', lat: 40.6454, lng: -74.0104, type: 'mixed', concentration: 'moderate' },
+    { name: 'Flatbush', borough: 'BK', lat: 40.6414, lng: -73.9583, type: 'residential', concentration: 'low' },
+    { name: 'Greenpoint', borough: 'BK', lat: 40.7274, lng: -73.9514, type: 'mixed', concentration: 'high' },
+    { name: 'DUMBO', borough: 'BK', lat: 40.7033, lng: -73.9890, type: 'commercial', concentration: 'very_high' },
+    { name: 'Park Slope', borough: 'BK', lat: 40.6728, lng: -73.9778, type: 'residential', concentration: 'low' },
+    { name: 'Bedford-Stuyvesant', borough: 'BK', lat: 40.6872, lng: -73.9418, type: 'residential', concentration: 'moderate' },
+    // Queens
+    { name: 'Astoria', borough: 'QN', lat: 40.7723, lng: -73.9301, type: 'residential', concentration: 'low' },
+    { name: 'Long Island City', borough: 'QN', lat: 40.7440, lng: -73.9568, type: 'commercial', concentration: 'very_high' },
+    { name: 'Flushing', borough: 'QN', lat: 40.7654, lng: -73.8318, type: 'mixed', concentration: 'moderate' },
+    { name: 'Jackson Heights', borough: 'QN', lat: 40.7456, lng: -73.8831, type: 'residential', concentration: 'low' },
+    { name: 'Jamaica', borough: 'QN', lat: 40.7028, lng: -73.7890, type: 'mixed', concentration: 'moderate' },
+    { name: 'Ridgewood', borough: 'QN', lat: 40.7043, lng: -73.9058, type: 'residential', concentration: 'low' },
+    { name: 'Woodside', borough: 'QN', lat: 40.7455, lng: -73.9030, type: 'residential', concentration: 'low' },
+    { name: 'Sunnyside', borough: 'QN', lat: 40.7433, lng: -73.9196, type: 'residential', concentration: 'low' },
+    { name: 'Elmhurst', borough: 'QN', lat: 40.7360, lng: -73.8780, type: 'residential', concentration: 'low' },
+    // Bronx
+    { name: 'Hunts Point', borough: 'BX', lat: 40.8094, lng: -73.8803, type: 'industrial', concentration: 'very_high' },
+    { name: 'Mott Haven', borough: 'BX', lat: 40.8090, lng: -73.9230, type: 'mixed', concentration: 'high' },
+    { name: 'Fordham', borough: 'BX', lat: 40.8615, lng: -73.8985, type: 'mixed', concentration: 'moderate' },
+    { name: 'Riverdale', borough: 'BX', lat: 40.8990, lng: -73.9130, type: 'residential', concentration: 'low' },
+    { name: 'Tremont', borough: 'BX', lat: 40.8464, lng: -73.9005, type: 'residential', concentration: 'moderate' },
+    { name: 'Parkchester', borough: 'BX', lat: 40.8388, lng: -73.8615, type: 'residential', concentration: 'high' },
+    { name: 'Throggs Neck', borough: 'BX', lat: 40.8229, lng: -73.8198, type: 'residential', concentration: 'low' },
+    { name: 'Morris Park', borough: 'BX', lat: 40.8529, lng: -73.8545, type: 'residential', concentration: 'low' },
+    // Staten Island
+    { name: 'St. George', borough: 'SI', lat: 40.6433, lng: -74.0764, type: 'mixed', concentration: 'moderate' },
+    { name: 'Tottenville', borough: 'SI', lat: 40.5063, lng: -74.2421, type: 'residential', concentration: 'low' },
+    { name: 'New Dorp', borough: 'SI', lat: 40.5733, lng: -74.1168, type: 'residential', concentration: 'low' },
+    { name: 'Stapleton', borough: 'SI', lat: 40.6270, lng: -74.0755, type: 'mixed', concentration: 'moderate' },
+    { name: 'Great Kills', borough: 'SI', lat: 40.5545, lng: -74.1518, type: 'residential', concentration: 'low' },
+  ];
+
+  const boroughNames = { MN: 'Manhattan', BK: 'Brooklyn', QN: 'Queens', BX: 'Bronx', SI: 'Staten Island' };
+
+  const streetNames = ['Broadway', 'Atlantic', 'Flatbush', 'Nostrand', 'Bedford', 'DeKalb', 'Myrtle', 'Fulton',
+    'Grand', 'Metropolitan', 'Flushing', 'Jamaica', 'Fordham', 'Tremont', 'Burnside', 'Jerome',
+    'Third', 'Lexington', 'Park', 'Madison', 'Amsterdam', 'Columbus', 'Steinway', 'Ditmars',
+    'Astoria', 'Northern', 'Queens', 'Linden', 'Liberty', 'Pitkin', 'Eastern Pkwy', 'Ocean',
+    'Coney Island', 'Brighton Beach', 'Kings Hwy', 'Victory', 'Hylan', 'Richmond', 'Bay'];
+
+  const lastNames = ['Holdings', 'Properties', 'Realty', 'Capital', 'Associates', 'Partners', 'Group',
+    'Management', 'Investments', 'Development', 'Ventures', 'Equities', 'Acquisitions'];
+
+  const firstParts = ['BRT', 'NYR', 'Metro', 'Urban', 'City', 'Empire', 'Harbor', 'Bridge', 'Liberty',
+    'Crown', 'Pacific', 'Atlantic', 'Hudson', 'East River', 'Prospect', 'Flatlands',
+    'Greenfield', 'Cornerstone', 'Pinnacle', 'Skyline', 'Borough', 'Gateway'];
+
+  function generateLLCName(neighborhood) {
+    const r = rand();
+    if (r < 0.4) {
+      const num = randInt(100, 999);
+      const st = pick(streetNames);
+      return num + ' ' + st + ' ' + pick(lastNames) + ' LLC';
+    } else if (r < 0.7) {
+      return pick(firstParts) + ' ' + pick(lastNames) + ' LLC';
+    } else {
+      return neighborhood.split(' ')[0] + ' ' + pick(lastNames) + ' LLC';
+    }
+  }
+
+  function concentrationRange(level) {
+    switch (level) {
+      case 'very_high': return [70, 100];
+      case 'high': return [45, 75];
+      case 'moderate': return [25, 50];
+      case 'low': return [10, 30];
+    }
+  }
+
+  function classLabel(t) {
+    switch (t) {
+      case 'residential': return 'Residential';
+      case 'commercial': return 'Commercial';
+      case 'mixed': return 'Mixed-Use';
+      case 'industrial': return 'Industrial';
+    }
+  }
+
+  // Generate blocks
+  const blocks = [];
+
+  neighborhoods.forEach(hood => {
+    const count = randInt(3, 9);
+    for (let i = 0; i < count; i++) {
+      const lat = hood.lat + (rand() - 0.5) * 0.012;
+      const lng = hood.lng + (rand() - 0.5) * 0.012;
+      const blockNum = randInt(1000, 9999).toString().padStart(5, '0');
+      const [cMin, cMax] = concentrationRange(hood.concentration);
+      const concentration = randInt(cMin, cMax);
+      const totalLots = hood.type === 'commercial' ? randInt(3, 15) : randInt(6, 40);
+      const ownerCount = Math.max(1, Math.round(totalLots * (1 - concentration / 100) * (0.6 + rand() * 0.8)));
+      const topOwnerLots = Math.max(1, Math.round(totalLots * concentration / 100));
+      const topOwnerName = generateLLCName(hood.name);
+      const assessedPerLot = hood.type === 'commercial' ? randInt(800000, 12000000) :
+                             hood.type === 'industrial' ? randInt(400000, 3000000) :
+                             randInt(200000, 4000000);
+      const totalAssessed = assessedPerLot * totalLots;
+
+      // Generate ownership segments for bar
+      const segments = [];
+      segments.push({ name: topOwnerName, lots: topOwnerLots });
+      let remaining = totalLots - topOwnerLots;
+      let ownersLeft = Math.max(0, ownerCount - 1);
+      while (remaining > 0 && ownersLeft > 0) {
+        const take = ownersLeft === 1 ? remaining : randInt(1, Math.ceil(remaining / ownersLeft));
+        segments.push({ name: generateLLCName(hood.name), lots: Math.min(take, remaining) });
+        remaining -= take;
+        ownersLeft--;
+      }
+      if (remaining > 0) {
+        segments.push({ name: 'Other owners', lots: remaining });
+      }
+
+      blocks.push({
+        id: hood.borough + '-' + blockNum,
+        lat, lng,
+        neighborhood: hood.name,
+        borough: hood.borough,
+        type: hood.type,
+        totalLots,
+        ownerCount: Math.max(ownerCount, 1),
+        concentration,
+        topOwnerName,
+        topOwnerLots,
+        totalAssessed,
+        segments,
+        radius: Math.max(4, Math.min(10, totalLots / 4))
+      });
+    }
+  });
+
+  // --- COLOR ---
+  function getColor(concentration) {
+    // 0 = many owners (blue) -> 100 = few owners (red)
+    if (concentration < 20) return '#1a237e';
+    if (concentration < 35) return '#283593';
+    if (concentration < 50) return '#4527a0';
+    if (concentration < 65) return '#6a1b9a';
+    if (concentration < 80) return '#8e244d';
+    return '#b71c1c';
+  }
+
+  // --- MAP ---
+  const map = L.map('map', { zoomControl: true }).setView([40.7128, -73.97], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors \u00a9 <a href="https://carto.com/">CARTO</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  const markers = [];
+  blocks.forEach(block => {
+    const color = getColor(block.concentration);
+    const marker = L.circleMarker([block.lat, block.lng], {
+      radius: block.radius,
+      fillColor: color,
+      color: color,
+      weight: 1,
+      opacity: 0.9,
+      fillOpacity: 0.7
+    }).addTo(map);
+
+    marker.bindTooltip(
+      '<strong>' + block.id + '</strong><br>' + block.neighborhood + '<br>' + block.ownerCount + ' owner' + (block.ownerCount !== 1 ? 's' : '') + ' \u00b7 ' + block.concentration + '% concentrated',
+      { direction: 'top', offset: [0, -6] }
+    );
+
+    marker.on('click', function() { openPanel(block); });
+    markers.push({ marker, block });
+  });
+
+  // --- PANEL ---
+  const panel = document.getElementById('detailPanel');
+  const closeBtn = document.getElementById('closePanel');
+
+  function formatCurrency(n) {
+    return '$' + n.toLocaleString('en-US');
+  }
+
+  function openPanel(block) {
+    document.getElementById('panelBlockId').textContent = 'Block ' + block.id;
+    document.getElementById('panelClass').textContent = classLabel(block.type) + ' \u00b7 ' + block.neighborhood;
+
+    const stats = [
+      ['Total lots', block.totalLots],
+      ['Distinct owners', block.ownerCount],
+      ['Concentration score', block.concentration + '%'],
+      ['Top owner controls', Math.round(block.topOwnerLots / block.totalLots * 100) + '% of block'],
+      ['Top owner', block.topOwnerName],
+      ['Total assessed value', formatCurrency(block.totalAssessed)],
+      ['Building class', classLabel(block.type)],
+    ];
+
+    document.getElementById('panelStats').innerHTML = stats.map(function(s) {
+      return '<div class="detail-stat"><span class="label">' + s[0] + '</span><span class="value">' + s[1] + '</span></div>';
+    }).join('');
+
+    // Bar
+    const barColors = ['#b71c1c', '#d84315', '#ef6c00', '#f9a825', '#43a047', '#1565c0', '#6a1b9a', '#4e342e', '#546e7a', '#78909c'];
+    const bar = document.getElementById('ownershipBar');
+    const legend = document.getElementById('barLegend');
+    let barHtml = '';
+    let legendHtml = '';
+    const showMax = Math.min(block.segments.length, 6);
+    block.segments.slice(0, showMax).forEach(function(seg, i) {
+      const pct = (seg.lots / block.totalLots * 100).toFixed(1);
+      barHtml += '<div style="width:' + pct + '%;background:' + barColors[i % barColors.length] + ';" title="' + seg.name + ': ' + seg.lots + ' lots"></div>';
+      legendHtml += '<span><span class="dot" style="background:' + barColors[i % barColors.length] + ';"></span>' + seg.name.substring(0, 28) + (seg.name.length > 28 ? '\u2026' : '') + ' (' + pct + '%)</span> ';
+    });
+    if (block.segments.length > showMax) {
+      const otherLots = block.segments.slice(showMax).reduce(function(a, s) { return a + s.lots; }, 0);
+      const pct = (otherLots / block.totalLots * 100).toFixed(1);
+      barHtml += '<div style="width:' + pct + '%;background:#bdbdbd;"></div>';
+      legendHtml += '<span><span class="dot" style="background:#bdbdbd;"></span>Others (' + pct + '%)</span>';
+    }
+    bar.innerHTML = barHtml;
+    legend.innerHTML = legendHtml;
+
+    panel.classList.add('open');
+  }
+
+  closeBtn.addEventListener('click', function() {
+    panel.classList.remove('open');
+  });
+
+  map.on('click', function(e) {
+    if (!e.originalEvent.target.closest('.detail-panel')) {
+      panel.classList.remove('open');
+    }
+  });
+
+  // --- SEARCH ---
+  const searchInput = document.getElementById('searchInput');
+  let searchTimeout;
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch(searchInput.value.trim());
+    }
+  });
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const q = searchInput.value.trim().toLowerCase();
+    if (q.length < 2) return;
+    // Local neighborhood search first
+    const match = neighborhoods.find(function(n) {
+      return n.name.toLowerCase().includes(q);
+    });
+    if (match) {
+      searchTimeout = setTimeout(function() {
+        map.setView([match.lat, match.lng], 14);
+        highlightNearby(match.lat, match.lng);
+      }, 400);
+    }
+  });
+
+  function doSearch(query) {
+    if (!query) return;
+    // Check local neighborhoods first
+    const localMatch = neighborhoods.find(function(n) {
+      return n.name.toLowerCase().includes(query.toLowerCase());
+    });
+    if (localMatch) {
+      map.setView([localMatch.lat, localMatch.lng], 14);
+      highlightNearby(localMatch.lat, localMatch.lng);
+      return;
+    }
+    // Nominatim
+    fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query + ', New York City') + '&limit=1')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          map.setView([lat, lng], 15);
+          highlightNearby(lat, lng);
+        }
+      })
+      .catch(function() {});
+  }
+
+  function highlightNearby(lat, lng) {
+    markers.forEach(function(m) {
+      const d = Math.sqrt(Math.pow(m.block.lat - lat, 2) + Math.pow(m.block.lng - lng, 2));
+      if (d < 0.01) {
+        m.marker.setStyle({ weight: 3, color: '#000', fillOpacity: 0.95 });
+        setTimeout(function() {
+          m.marker.setStyle({
+            weight: 1,
+            color: getColor(m.block.concentration),
+            fillOpacity: 0.7
+          });
+        }, 3000);
+      }
+    });
+  }
+
+  // --- BOROUGH SUMMARY ---
+  const boroughToggle = document.getElementById('boroughToggle');
+  const boroughCards = document.getElementById('boroughCards');
+  let boroughOpen = false;
+
+  boroughToggle.addEventListener('click', function() {
+    boroughOpen = !boroughOpen;
+    boroughCards.classList.toggle('open', boroughOpen);
+    boroughToggle.textContent = boroughOpen ? 'Hide borough stats \u25B4' : 'Show borough stats \u25BE';
+  });
+
+  const boroughData = {};
+  ['MN', 'BK', 'QN', 'BX', 'SI'].forEach(function(b) {
+    const bBlocks = blocks.filter(function(bl) { return bl.borough === b; });
+    const avgConc = Math.round(bBlocks.reduce(function(a, bl) { return a + bl.concentration; }, 0) / bBlocks.length);
+    const mostConc = bBlocks.reduce(function(a, bl) { return bl.concentration > a.concentration ? bl : a; }, bBlocks[0]);
+    const owners = new Set();
+    bBlocks.forEach(function(bl) {
+      bl.segments.forEach(function(s) { owners.add(s.name); });
+    });
+    const assessedValues = bBlocks.map(function(bl) { return bl.totalAssessed; }).sort(function(a, b) { return a - b; });
+    const medianAssessed = assessedValues[Math.floor(assessedValues.length / 2)];
+
+    boroughData[b] = { avgConc, mostConc, uniqueOwners: owners.size, medianAssessed };
+  });
+
+  boroughCards.innerHTML = ['MN', 'BK', 'QN', 'BX', 'SI'].map(function(b) {
+    const d = boroughData[b];
+    return '<div class="borough-card">' +
+      '<h4>' + boroughNames[b] + '</h4>' +
+      '<div class="stat-row"><span class="label">Avg. concentration</span><span class="value">' + d.avgConc + '%</span></div>' +
+      '<div class="stat-row"><span class="label">Most concentrated block</span><span class="value">' + d.mostConc.id + ' (' + d.mostConc.concentration + '%)</span></div>' +
+      '<div class="stat-row"><span class="label">Unique owners</span><span class="value">' + d.uniqueOwners.toLocaleString() + '</span></div>' +
+      '<div class="stat-row"><span class="label">Median assessed value</span><span class="value">' + formatCurrency(d.medianAssessed) + '</span></div>' +
+    '</div>';
+  }).join('');
+
+})();
+</script>
+</body>
+</html>

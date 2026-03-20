@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Time Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0a;
+  --bg-card: #141414;
+  --bg-hover: #1a1a1a;
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --accent: #c9a84c;
+  --accent-dim: #a07d2e;
+  --sepia-start: #8b7355;
+  --sepia-end: #5c4a32;
+  --modern-start: #4a5568;
+  --modern-end: #2d3748;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Playfair Display', serif;
+}
+
+/* ── Hero ── */
+.hero {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(201,168,76,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 30%, rgba(201,168,76,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.hero-title {
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--text);
+  opacity: 0;
+  animation: fadeUp 1s ease forwards;
+}
+
+.hero-tagline {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  color: var(--accent);
+  margin-top: 1rem;
+  opacity: 0;
+  animation: fadeUp 1s 0.3s ease forwards;
+}
+
+.hero-btn {
+  margin-top: 3rem;
+  padding: 1rem 2.5rem;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  animation: fadeUp 1s 0.6s ease forwards;
+}
+
+.hero-btn:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.scroll-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  animation: fadeUp 1s 0.9s ease forwards;
+}
+
+.scroll-hint span {
+  display: block;
+  width: 2px;
+  height: 40px;
+  background: var(--accent-dim);
+  margin: 0 auto;
+  animation: scrollPulse 2s ease infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scrollPulse {
+  0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+  50% { opacity: 1; transform: scaleY(1); }
+}
+
+/* ── Main Section ── */
+#viewer-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 2rem;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.section-header h2 {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.section-header p {
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
+/* ── Before/After Slider ── */
+.slider-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.slider-wrapper.visible {
+  opacity: 1;
+}
+
+.slider-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 8px;
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.slider-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slider-layer-before {
+  z-index: 1;
+  clip-path: inset(0 0 0 0);
+}
+
+.slider-layer-after {
+  z-index: 0;
+}
+
+.placeholder-img {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.placeholder-img.then-side {
+  background: linear-gradient(135deg, var(--sepia-start) 0%, var(--sepia-end) 100%);
+}
+
+.placeholder-img.now-side {
+  background: linear-gradient(135deg, var(--modern-start) 0%, var(--modern-end) 100%);
+}
+
+.placeholder-img .label-era {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  opacity: 0.3;
+}
+
+.placeholder-img .label-place {
+  font-size: clamp(0.75rem, 1.5vw, 1rem);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.25;
+}
+
+/* Slider Divider */
+.slider-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: rgba(255,255,255,0.85);
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 0 12px rgba(0,0,0,0.5), 0 0 4px rgba(255,255,255,0.2);
+  transition: background 0.2s ease;
+}
+
+.slider-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 50%;
+  z-index: 11;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease;
+}
+
+.slider-container:active .slider-handle {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.slider-handle svg {
+  width: 20px;
+  height: 20px;
+  fill: #333;
+}
+
+/* Era labels on slider */
+.era-badge {
+  position: absolute;
+  top: 1rem;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.era-badge.then {
+  left: 1rem;
+  background: rgba(139,115,85,0.8);
+  color: #fff;
+}
+
+.era-badge.now {
+  right: 1rem;
+  background: rgba(74,85,104,0.8);
+  color: #fff;
+}
+
+/* ── Location Info ── */
+.location-info {
+  max-width: 960px;
+  margin: 2rem auto 0;
+  padding: 0 0.5rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.4s ease;
+}
+
+.location-info.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.location-info h3 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.location-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.location-meta .year-badge {
+  background: var(--accent-dim);
+  color: #fff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.location-desc {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 680px;
+}
+
+/* Nav arrows */
+.nav-arrows {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.nav-arrow {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #333;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.nav-arrow:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-counter {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ── Filmstrip ── */
+.filmstrip-section {
+  max-width: 1200px;
+  margin: 3rem auto 0;
+  padding: 0 1.5rem;
+}
+
+.filmstrip {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.75rem 0 1rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+.filmstrip::-webkit-scrollbar { height: 4px; }
+.filmstrip::-webkit-scrollbar-track { background: transparent; }
+.filmstrip::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.film-card {
+  flex: 0 0 auto;
+  width: 140px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
+  background: var(--bg-card);
+}
+
+.film-card:hover {
+  border-color: #444;
+  transform: translateY(-2px);
+}
+
+.film-card.active {
+  border-color: var(--accent);
+}
+
+.film-card-thumb {
+  width: 100%;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.film-card-thumb.sepia {
+  background: linear-gradient(135deg, var(--sepia-start), var(--sepia-end));
+}
+
+.film-card-thumb span {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  opacity: 0.35;
+}
+
+.film-card-label {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Map ── */
+.map-section {
+  max-width: 1200px;
+  margin: 3rem auto 0;
+  padding: 0 1.5rem 4rem;
+}
+
+.map-toggle {
+  display: none;
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid #222;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.map-toggle:hover {
+  border-color: #444;
+  color: var(--text);
+}
+
+.map-container {
+  width: 100%;
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #222;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 2rem 1.5rem 3rem;
+  color: #444;
+  font-size: 0.8rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .slider-container {
+    aspect-ratio: 4 / 3;
+    border-radius: 4px;
+  }
+
+  .film-card { width: 120px; }
+  .film-card-thumb { height: 65px; }
+
+  .map-toggle { display: block; }
+
+  .map-container {
+    height: 300px;
+    transition: all 0.3s ease;
+  }
+
+  .map-container.collapsed {
+    height: 0;
+    border: none;
+    overflow: hidden;
+  }
+
+  .nav-arrows { margin-top: 1.5rem; }
+}
+
+/* ── Leaflet overrides ── */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card);
+  color: var(--text);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.leaflet-popup-tip { background: var(--bg-card); }
+
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.leaflet-popup-content strong {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+}
+
+.leaflet-popup-content .popup-year {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.leaflet-popup-content .popup-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.leaflet-popup-content .popup-link:hover {
+  text-decoration: underline;
+}
+
+.custom-marker {
+  background: var(--accent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transition: transform 0.2s ease;
+}
+
+.custom-marker:hover {
+  transform: scale(1.3);
+}
+
+.custom-marker.active {
+  background: #fff;
+  border-color: var(--accent);
+  transform: scale(1.4);
+}
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<section class="hero">
+  <h1 class="hero-title">NYC Time Machine</h1>
+  <p class="hero-tagline">\u201CEvery corner has a ghost.\u201D</p>
+  <button class="hero-btn" onclick="document.getElementById('viewer-section').scrollIntoView({behavior:'smooth'})">Start Exploring</button>
+  <div class="scroll-hint"><span></span></div>
+</section>
+
+<!-- Viewer -->
+<section id="viewer-section">
+  <div class="section-header">
+    <h2>Slide Through Time</h2>
+    <p>Drag the handle to reveal what once was. Use arrow keys or the filmstrip below to explore all 13 locations.</p>
+  </div>
+
+  <div class="slider-wrapper" id="sliderWrapper">
+    <div class="slider-container" id="sliderContainer">
+      <div class="slider-layer slider-layer-after" id="layerAfter">
+        <div class="placeholder-img now-side" id="nowPlaceholder">
+          <span class="label-era">Present Day</span>
+          <span class="label-place" id="nowLabel"></span>
+        </div>
+      </div>
+      <div class="slider-layer slider-layer-before" id="layerBefore">
+        <div class="placeholder-img then-side" id="thenPlaceholder">
+          <span class="label-era" id="thenYear"></span>
+          <span class="label-place" id="thenLabel"></span>
+        </div>
+      </div>
+      <span class="era-badge then" id="badgeThen">Then</span>
+      <span class="era-badge now" id="badgeNow">Now</span>
+      <div class="slider-divider" id="sliderDivider">
+        <div class="slider-handle">
+          <svg viewBox="0 0 24 24"><path d="M8 5l-5 7 5 7M16 5l5 7-5 7"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="location-info" id="locationInfo">
+    <h3 id="locName"></h3>
+    <div class="location-meta">
+      <span class="year-badge" id="locYear"></span>
+      <span id="locAddress"></span>
+    </div>
+    <p class="location-desc" id="locDesc"></p>
+  </div>
+
+  <div class="nav-arrows">
+    <button class="nav-arrow" id="prevBtn" aria-label="Previous location">&larr;</button>
+    <span class="nav-counter" id="navCounter"></span>
+    <button class="nav-arrow" id="nextBtn" aria-label="Next location">&rarr;</button>
+  </div>
+</section>
+
+<!-- Filmstrip -->
+<section class="filmstrip-section">
+  <div class="filmstrip" id="filmstrip"></div>
+</section>
+
+<!-- Map -->
+<section class="map-section">
+  <button class="map-toggle" id="mapToggle">Toggle Map View</button>
+  <div class="map-container" id="mapContainer">
+    <div id="map"></div>
+  </div>
+</section>
+
+<footer class="footer">
+  NYC Time Machine &middot; A love letter to the city\u2019s layers
+</footer>
+
+<script>
+const locations = [
+  {
+    name: 'Penn Station',
+    address: 'Seventh Ave & 31st St, Midtown',
+    year: 1910,
+    lat: 40.7506,
+    lng: -73.9935,
+    beforeImage: null,
+    afterImage: null,
+    description: 'Before the wrecking ball swung in 1963, Penn Station was a Beaux-Arts cathedral of pink granite and soaring glass vaults\u2014a gateway that made arriving in New York feel like entering a palace. Its demolition became the rallying cry that birthed the city\u2019s landmarks preservation movement.'
+  },
+  {
+    name: 'Times Square',
+    address: 'Broadway & 42nd St, Midtown',
+    year: 1975,
+    lat: 40.7580,
+    lng: -73.9855,
+    beforeImage: null,
+    afterImage: null,
+    description: 'In the mid-\u201970s, Times Square was a neon-soaked underworld of grindhouse theaters, peep shows, and three-card monte hustlers\u2014the crossroads of sleaze and spectacle. The grime was real, but so was the electric, anything-goes energy that would later be sanitized into a corporate theme park.'
+  },
+  {
+    name: 'Williamsburg Waterfront',
+    address: 'Kent Ave & N 6th St, Brooklyn',
+    year: 1990,
+    lat: 40.7214,
+    lng: -73.9614,
+    beforeImage: null,
+    afterImage: null,
+    description: 'Before the glass towers and artisanal coffee, the Williamsburg waterfront was a post-industrial moonscape of rusting sugar refineries and abandoned piers where the only visitors were fishermen and graffiti writers. The transformation into Brooklyn\u2019s gilded edge remains one of the city\u2019s most dramatic reinventions.'
+  },
+  {
+    name: 'World Trade Center Site',
+    address: 'Church St & Vesey St, Lower Manhattan',
+    year: 1970,
+    lat: 40.7116,
+    lng: -74.0131,
+    beforeImage: null,
+    afterImage: null,
+    description: 'In 1970, the Twin Towers were rising from a 16-acre hole blasted through Radio Row\u2014an old electronics bazaar wiped off the map for the sake of Minoru Yamasaki\u2019s aluminum-skinned monoliths. The displaced merchants protested bitterly, but the skyline was already being rewritten.'
+  },
+  {
+    name: 'Coney Island',
+    address: 'Surf Ave & Stillwell Ave, Brooklyn',
+    year: 1920,
+    lat: 40.5749,
+    lng: -73.9812,
+    beforeImage: null,
+    afterImage: null,
+    description: 'At its roaring peak, Coney Island packed a million visitors onto its boardwalk on a single summer day\u2014three competing amusement parks, sideshow barkers, and the original Nathan\u2019s hot dog stand all crammed into a few sandy blocks. It was democracy\u2019s playground, chaotic and glorious.'
+  },
+  {
+    name: 'Lower East Side',
+    address: 'Orchard St & Rivington St, Manhattan',
+    year: 1905,
+    lat: 40.7196,
+    lng: -73.9889,
+    beforeImage: null,
+    afterImage: null,
+    description: 'Orchard Street in 1905 was a canyon of pushcarts and fire escapes, where a dozen immigrant families shared a single tenement floor and the streets hummed in Yiddish, Italian, and a half-dozen other tongues. This was the crucible of American immigrant life\u2014cramped, desperate, and bursting with possibility.'
+  },
+  {
+    name: 'Central Park',
+    address: 'Fifth Ave & 59th St, Manhattan',
+    year: 1857,
+    lat: 40.7829,
+    lng: -73.9654,
+    beforeImage: null,
+    afterImage: null,
+    description: 'Before Olmsted and Vaux worked their magic, the future Central Park was a rocky, swampy wasteland dotted with shantytowns and bone-boiling works\u2014including Seneca Village, a thriving Black community razed to make way for the grand vision. Twenty thousand workers moved ten million cartloads of earth to sculpt the illusion of nature.'
+  },
+  {
+    name: 'Brooklyn Bridge',
+    address: 'Brooklyn Bridge, City Hall',
+    year: 1883,
+    lat: 40.7061,
+    lng: -73.9969,
+    beforeImage: null,
+    afterImage: null,
+    description: 'When it opened on May 24, 1883, the Brooklyn Bridge was the longest suspension bridge on Earth\u2014a gothic cathedral of cable and stone that joined two rival cities across the East River. It cost $15 million and at least 27 lives, including its visionary designer, John Roebling.'
+  },
+  {
+    name: 'Harlem',
+    address: '125th St & Lenox Ave, Manhattan',
+    year: 1935,
+    lat: 40.8099,
+    lng: -73.9458,
+    beforeImage: null,
+    afterImage: null,
+    description: 'By 1935, 125th Street was the Main Street of Black America\u2014home to the Apollo Theater, the Savoy Ballroom, and a literary and artistic explosion that redefined American culture. The Harlem Renaissance turned these blocks into hallowed ground, even as the Depression tightened its grip.'
+  },
+  {
+    name: 'South Bronx',
+    address: 'Charlotte St & Jennings St, Bronx',
+    year: 1977,
+    lat: 40.8280,
+    lng: -73.8936,
+    beforeImage: null,
+    afterImage: null,
+    description: 'Charlotte Street in 1977 looked like a war zone\u2014block after block of hollowed-out apartment buildings, arson fires burning nightly, and a community abandoned by the city that was supposed to protect it. Presidents Carter and Reagan both stood on this rubble for photo ops; the residents rebuilt it themselves.'
+  },
+  {
+    name: 'The High Line',
+    address: 'Gansevoort St & Washington St, Chelsea',
+    year: 2005,
+    lat: 40.7395,
+    lng: -74.0080,
+    beforeImage: null,
+    afterImage: null,
+    description: 'In 2005, the High Line was still a rusted, overgrown ghost of the Meatpacking District\u2019s industrial past\u2014a mile-and-a-half of abandoned railway tracks where wildflowers pushed through the gravel thirty feet above the street. Two neighbors with no development experience saved it from demolition and sparked a global movement.'
+  },
+  {
+    name: 'Fulton Fish Market',
+    address: 'Fulton St & South St, Lower Manhattan',
+    year: 1940,
+    lat: 40.7063,
+    lng: -74.0033,
+    beforeImage: null,
+    afterImage: null,
+    description: 'At four in the morning, the cobblestones of Fulton Street ran slick with ice water and fish blood as rubber-booted workers hauled crates of striped bass, bluefish, and flounder under bare lightbulbs. For 180 years, this was the city\u2019s piscine heart\u2014loud, fragrant, and mob-connected to the gills.'
+  },
+  {
+    name: 'Floyd Bennett Field',
+    address: 'Flatbush Ave, Jamaica Bay, Brooklyn',
+    year: 1935,
+    lat: 40.5913,
+    lng: -73.8914,
+    beforeImage: null,
+    afterImage: null,
+    description: 'New York City\u2019s first municipal airport opened in 1931 on a spit of landfill jutting into Jamaica Bay, and within years it hosted record-breaking flights by Wiley Post, Howard Hughes, and \u201CWrong Way\u201D Corrigan. The city abandoned it for Idlewild in the \u201940s, and today its vast runways belong to the birds and the community gardeners.'
+  }
+];
+
+let currentIndex = 0;
+let sliderPos = 50;
+let isDragging = false;
+let leafletMap = null;
+let markers = [];
+
+// ── Slider Logic ──
+const container = document.getElementById('sliderContainer');
+const divider = document.getElementById('sliderDivider');
+const layerBefore = document.getElementById('layerBefore');
+
+function setSliderPosition(pct) {
+  pct = Math.max(2, Math.min(98, pct));
+  sliderPos = pct;
+  divider.style.left = pct + '%';
+  layerBefore.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+}
+
+function getPointerPct(e) {
+  const rect = container.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  return ((clientX - rect.left) / rect.width) * 100;
+}
+
+container.addEventListener('mousedown', (e) => { isDragging = true; setSliderPosition(getPointerPct(e)); });
+container.addEventListener('touchstart', (e) => { isDragging = true; setSliderPosition(getPointerPct(e)); }, { passive: true });
+
+window.addEventListener('mousemove', (e) => { if (isDragging) setSliderPosition(getPointerPct(e)); });
+window.addEventListener('touchmove', (e) => { if (isDragging) setSliderPosition(getPointerPct(e)); }, { passive: true });
+
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('touchend', () => { isDragging = false; });
+
+// ── Load Location ──
+function loadLocation(index, animate = true) {
+  currentIndex = index;
+  const loc = locations[index];
+
+  if (animate) {
+    document.getElementById('sliderWrapper').classList.remove('visible');
+    document.getElementById('locationInfo').classList.remove('visible');
+
+    setTimeout(() => {
+      updateContent(loc);
+      document.getElementById('sliderWrapper').classList.add('visible');
+      setTimeout(() => document.getElementById('locationInfo').classList.add('visible'), 150);
+    }, 200);
+  } else {
+    updateContent(loc);
+    document.getElementById('sliderWrapper').classList.add('visible');
+    document.getElementById('locationInfo').classList.add('visible');
+  }
+
+  // Reset slider
+  setSliderPosition(50);
+
+  // Update filmstrip
+  document.querySelectorAll('.film-card').forEach((c, i) => {
+    c.classList.toggle('active', i === index);
+  });
+
+  // Scroll filmstrip to active card
+  const activeCard = document.querySelectorAll('.film-card')[index];
+  if (activeCard) {
+    activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  // Update nav counter
+  document.getElementById('navCounter').textContent = `${index + 1} / ${locations.length}`;
+
+  // Update map markers
+  markers.forEach((m, i) => {
+    const el = m.getElement();
+    if (el) {
+      el.classList.toggle('active', i === index);
+    }
+  });
+
+  if (leafletMap) {
+    leafletMap.panTo([loc.lat, loc.lng], { animate: true, duration: 0.5 });
+  }
+}
+
+function updateContent(loc) {
+  document.getElementById('thenYear').textContent = loc.year;
+  document.getElementById('thenLabel').textContent = loc.name;
+  document.getElementById('nowLabel').textContent = loc.name;
+  document.getElementById('locName').textContent = loc.name;
+  document.getElementById('locYear').textContent = loc.year;
+  document.getElementById('locAddress').textContent = loc.address;
+  document.getElementById('locDesc').textContent = loc.description;
+
+  // If real images were provided, swap backgrounds here:
+  const thenDiv = document.getElementById('thenPlaceholder');
+  const nowDiv = document.getElementById('nowPlaceholder');
+  if (loc.beforeImage) {
+    thenDiv.style.backgroundImage = `url(${loc.beforeImage})`;
+    thenDiv.style.backgroundSize = 'cover';
+    thenDiv.style.backgroundPosition = 'center';
+  } else {
+    thenDiv.style.backgroundImage = '';
+    thenDiv.style.background = `linear-gradient(135deg, var(--sepia-start) 0%, var(--sepia-end) 100%)`;
+  }
+  if (loc.afterImage) {
+    nowDiv.style.backgroundImage = `url(${loc.afterImage})`;
+    nowDiv.style.backgroundSize = 'cover';
+    nowDiv.style.backgroundPosition = 'center';
+  } else {
+    nowDiv.style.backgroundImage = '';
+    nowDiv.style.background = `linear-gradient(135deg, var(--modern-start) 0%, var(--modern-end) 100%)`;
+  }
+}
+
+// ── Navigation ──
+document.getElementById('prevBtn').addEventListener('click', () => {
+  loadLocation((currentIndex - 1 + locations.length) % locations.length);
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  loadLocation((currentIndex + 1) % locations.length);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') {
+    loadLocation((currentIndex - 1 + locations.length) % locations.length);
+  } else if (e.key === 'ArrowRight') {
+    loadLocation((currentIndex + 1) % locations.length);
+  }
+});
+
+// ── Filmstrip ──
+function buildFilmstrip() {
+  const strip = document.getElementById('filmstrip');
+  locations.forEach((loc, i) => {
+    const card = document.createElement('div');
+    card.className = 'film-card' + (i === 0 ? ' active' : '');
+    card.innerHTML = `
+      <div class="film-card-thumb sepia"><span>${loc.year}</span></div>
+      <div class="film-card-label">${loc.name}</div>
+    `;
+    card.addEventListener('click', () => {
+      loadLocation(i);
+      document.getElementById('sliderWrapper').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    strip.appendChild(card);
+  });
+}
+
+// ── Map ──
+function initMap() {
+  leafletMap = L.map('map', {
+    center: [40.7306, -73.9866],
+    zoom: 11,
+    zoomControl: true,
+    attributionControl: false
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(leafletMap);
+
+  locations.forEach((loc, i) => {
+    const icon = L.divIcon({
+      className: 'custom-marker' + (i === 0 ? ' active' : ''),
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+
+    const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(leafletMap);
+    marker.bindPopup(`
+      <strong>${loc.name}</strong><br>
+      <span class="popup-year">${loc.year}</span><br>
+      <span class="popup-link" onclick="window.goToLocation(${i})">View in slider \u2192</span>
+    `);
+    marker.on('click', () => {
+      setTimeout(() => {}, 100);
+    });
+    markers.push(marker);
+  });
+}
+
+window.goToLocation = function(i) {
+  loadLocation(i);
+  document.getElementById('sliderWrapper').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  leafletMap.closePopup();
+};
+
+// ── Map Toggle (Mobile) ──
+document.getElementById('mapToggle').addEventListener('click', () => {
+  const mc = document.getElementById('mapContainer');
+  mc.classList.toggle('collapsed');
+  if (!mc.classList.contains('collapsed')) {
+    setTimeout(() => leafletMap.invalidateSize(), 350);
+  }
+});
+
+// ── Init ──
+buildFilmstrip();
+initMap();
+loadLocation(0, false);
+</script>
+</body>
+</html>
