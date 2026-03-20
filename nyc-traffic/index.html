@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Traffic Pulse — Real-Time Speed Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0e14;
+    --bg-secondary: #111820;
+    --bg-tertiary: #1a2230;
+    --bg-glass: rgba(10, 14, 20, 0.88);
+    --text-primary: #e8edf4;
+    --text-secondary: #7a8ba0;
+    --text-muted: #4a5568;
+    --accent: #00e5ff;
+    --accent-dim: rgba(0, 229, 255, 0.15);
+    --border: rgba(255, 255, 255, 0.06);
+    --border-accent: rgba(0, 229, 255, 0.25);
+    --speed-stop: #ff1744;
+    --speed-slow: #ff6d00;
+    --speed-moderate: #ffd600;
+    --speed-moving: #76ff03;
+    --speed-freeflow: #00e676;
+    --speed-nodata: #546e7a;
+    --glow-red: 0 0 12px rgba(255, 23, 68, 0.5);
+    --glow-green: 0 0 12px rgba(0, 230, 118, 0.5);
+    --glow-cyan: 0 0 12px rgba(0, 229, 255, 0.4);
+    --panel-radius: 14px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Instrument Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #map {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* Override Leaflet popups */
+  .leaflet-popup-content-wrapper {
+    background: var(--bg-glass) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--border-accent) !important;
+    border-radius: 12px !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), var(--glow-cyan) !important;
+    padding: 0 !important;
+    min-width: 260px;
+  }
+  .leaflet-popup-tip {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-accent) !important;
+  }
+  .leaflet-popup-close-button {
+    color: var(--text-secondary) !important;
+    font-size: 20px !important;
+    top: 8px !important;
+    right: 10px !important;
+  }
+  .leaflet-popup-close-button:hover { color: var(--accent) !important; }
+  .leaflet-popup-content { margin: 0 !important; }
+
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-control-zoom a {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 18px !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--accent) !important;
+  }
+
+  /* Panels */
+  .panel {
+    position: absolute;
+    z-index: 1000;
+    background: var(--bg-glass);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: var(--panel-radius);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s ease;
+  }
+
+  /* Header bar */
+  #header {
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    border-top: none;
+    gap: 16px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--speed-stop), var(--speed-freeflow));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .header-title {
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+  .header-title span {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 8px;
+  }
+
+  .header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+  }
+
+  #search-container {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+  }
+  #search-input {
+    width: 100%;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    padding: 9px 14px 9px 36px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #search-input::placeholder { color: var(--text-muted); }
+  #search-input:focus {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  #search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  .search-result-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.15s;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--bg-tertiary); }
+  .search-result-item .road-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-result-item .speed-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-left: 10px;
+    flex-shrink: 0;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Refresh controls */
+  .refresh-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #refresh-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  #refresh-btn:hover {
+    background: var(--accent-dim);
+    border-color: var(--border-accent);
+    color: var(--accent);
+  }
+  #refresh-btn.loading .refresh-icon { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refresh-icon { display: inline-block; font-size: 14px; }
+
+  #auto-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  #auto-toggle input[type="checkbox"] {
+    appearance: none;
+    width: 32px;
+    height: 18px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  #auto-toggle input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    top: 2px; left: 2px;
+    transition: transform 0.2s, background 0.2s;
+  }
+  #auto-toggle input[type="checkbox"]:checked {
+    background: var(--accent-dim);
+    border-color: var(--border-accent);
+  }
+  #auto-toggle input[type="checkbox"]:checked::after {
+    transform: translateX(14px);
+    background: var(--accent);
+  }
+
+  #countdown {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Left sidebar — Stats */
+  #stats-panel {
+    top: 72px;
+    left: 16px;
+    width: 280px;
+    padding: 18px;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+  }
+
+  .stats-section {
+    margin-bottom: 20px;
+  }
+  .stats-section:last-child { margin-bottom: 0; }
+
+  .stats-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .stat-unit {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+  .stat-small {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .speed-distribution {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    gap: 2px;
+    margin-top: 10px;
+  }
+  .speed-dist-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    min-width: 2px;
+  }
+
+  .dist-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: 8px;
+  }
+  .dist-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+  .dist-legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .slowest-list { list-style: none; }
+  .slowest-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .slowest-item:hover { opacity: 0.8; }
+  .slowest-item:last-child { border-bottom: none; }
+  .slowest-rank {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    width: 16px;
+    flex-shrink: 0;
+  }
+  .slowest-info { flex: 1; min-width: 0; }
+  .slowest-name {
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .slowest-borough {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .slowest-speed {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* Right sidebar — Borough filters + Legend */
+  #filter-panel {
+    top: 72px;
+    right: 16px;
+    width: 220px;
+    padding: 18px;
+  }
+
+  .filter-section {
+    margin-bottom: 20px;
+  }
+  .filter-section:last-child { margin-bottom: 0; }
+
+  .borough-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+  }
+  .borough-filter:hover { opacity: 0.85; }
+
+  .borough-check {
+    appearance: none;
+    width: 18px; height: 18px;
+    border: 2px solid var(--text-muted);
+    border-radius: 5px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .borough-check:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .borough-check:checked::after {
+    content: '\2713';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bg-primary);
+  }
+
+  .borough-label {
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+  }
+  .borough-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+  }
+  .legend-line {
+    width: 28px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-line.dashed {
+    background: repeating-linear-gradient(
+      90deg,
+      var(--speed-nodata) 0px,
+      var(--speed-nodata) 5px,
+      transparent 5px,
+      transparent 9px
+    );
+  }
+  .legend-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .legend-speed {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  /* Status bar */
+  #status-bar {
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    white-space: nowrap;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--speed-freeflow);
+    box-shadow: var(--glow-green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .status-dot.error {
+    background: var(--speed-stop);
+    box-shadow: var(--glow-red);
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #status-bar .data-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2000;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    transition: opacity 0.6s ease;
+  }
+  #loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .loading-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .loading-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+
+  /* Popup content */
+  .popup-content {
+    padding: 16px;
+  }
+  .popup-road-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+  .popup-borough {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .popup-speed-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .popup-speed-value {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .popup-speed-unit {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .popup-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .popup-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .popup-meta-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  .popup-meta-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    #stats-panel { display: none; }
+    #filter-panel { width: 180px; }
+    .header-title span { display: none; }
+  }
+  @media (max-width: 600px) {
+    #filter-panel { display: none; }
+    #header { padding: 0 12px; }
+    #search-container { max-width: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Connecting to NYC traffic sensors&#x2026;</div>
+</div>
+
+<div id="map"></div>
+
+<!-- Header -->
+<div id="header" class="panel">
+  <div class="header-left">
+    <div class="logo-mark">&#x25B2;</div>
+    <div class="header-title">NYC Traffic Pulse <span>Real-Time Speed Map</span></div>
+  </div>
+  <div class="header-center">
+    <div id="search-container">
+      <span class="search-icon">&#x2315;</span>
+      <input type="text" id="search-input" placeholder="Search road segments&#x2026;" autocomplete="off" />
+      <div id="search-results"></div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="refresh-group">
+      <button id="refresh-btn">
+        <span class="refresh-icon">&#x21BB;</span> Refresh
+      </button>
+      <label id="auto-toggle">
+        <input type="checkbox" id="auto-refresh-check" checked />
+        Auto
+      </label>
+      <span id="countdown">2:00</span>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Panel -->
+<div id="stats-panel" class="panel">
+  <div class="stats-section">
+    <div class="stats-label">Segments Reporting</div>
+    <div class="stat-row">
+      <span class="stat-value" id="stat-total">--</span>
+      <span class="stat-unit">active</span>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <div class="stats-label">Average Speed</div>
+    <div class="stat-row">
+      <span class="stat-value" id="stat-avg-speed">--</span>
+      <span class="stat-unit">mph</span>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <div class="stats-label">Speed Distribution</div>
+    <div class="speed-distribution" id="speed-dist"></div>
+    <div class="dist-legend" id="dist-legend"></div>
+  </div>
+
+  <div class="stats-section">
+    <div class="stats-label">Slowest Segments</div>
+    <ul class="slowest-list" id="slowest-list"></ul>
+  </div>
+</div>
+
+<!-- Filter Panel -->
+<div id="filter-panel" class="panel">
+  <div class="filter-section">
+    <div class="stats-label">Boroughs</div>
+    <div id="borough-filters"></div>
+  </div>
+
+  <div class="filter-section">
+    <div class="stats-label">Speed Legend</div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--speed-stop)"></div>
+      <span class="legend-text">Heavy congestion</span>
+      <span class="legend-speed">0&#x2013;10</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--speed-slow)"></div>
+      <span class="legend-text">Slow</span>
+      <span class="legend-speed">10&#x2013;20</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--speed-moderate)"></div>
+      <span class="legend-text">Moderate</span>
+      <span class="legend-speed">20&#x2013;30</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--speed-moving)"></div>
+      <span class="legend-text">Moving</span>
+      <span class="legend-speed">30&#x2013;40</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line" style="background:var(--speed-freeflow)"></div>
+      <span class="legend-text">Free flow</span>
+      <span class="legend-speed">40+</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line dashed"></div>
+      <span class="legend-text">No data</span>
+      <span class="legend-speed">&#x2014;</span>
+    </div>
+  </div>
+</div>
+
+<!-- Status Bar -->
+<div id="status-bar" class="panel">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">Initializing&#x2026;</span>
+  <span class="data-time" id="data-time"></span>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ── Config ──
+  const API_BASE = 'https://data.cityofnewyork.us/resource/i4gi-tjb9.json';
+  const REFRESH_INTERVAL = 120; // seconds
+  const BOROUGHS = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+
+  // ── State ──
+  let allSegments = [];
+  let segmentLayers = {};
+  let highlightedLayer = null;
+  let autoRefresh = true;
+  let countdownSec = REFRESH_INTERVAL;
+  let countdownTimer = null;
+  let activeBoroughs = new Set(BOROUGHS);
+
+  // ── Map Setup ──
+  const map = L.map('map', {
+    center: [40.7128, -73.97],
+    zoom: 11,
+    zoomControl: false,
+    attributionControl: false
+  });
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  L.control.attribution({ position: 'bottomright', prefix: false })
+    .addAttribution('DOT Traffic Speeds \u00B7 <a href="https://data.cityofnewyork.us" style="color:var(--accent)">NYC Open Data</a>')
+    .addTo(map);
+
+  const segmentsGroup = L.layerGroup().addTo(map);
+
+  // ── Speed helpers ──
+  function getSpeedColor(speed, status) {
+    if (status === '-101' || status === -101) return '#546e7a';
+    const s = parseFloat(speed);
+    if (isNaN(s) || s <= 0) return '#546e7a';
+    if (s <= 10) return '#ff1744';
+    if (s <= 20) return '#ff6d00';
+    if (s <= 30) return '#ffd600';
+    if (s <= 40) return '#76ff03';
+    return '#00e676';
+  }
+
+  function getSpeedCategory(speed, status) {
+    if (status === '-101' || status === -101) return 'nodata';
+    const s = parseFloat(speed);
+    if (isNaN(s) || s <= 0) return 'nodata';
+    if (s <= 10) return 'stop';
+    if (s <= 20) return 'slow';
+    if (s <= 30) return 'moderate';
+    if (s <= 40) return 'moving';
+    return 'freeflow';
+  }
+
+  function getLineWeight(name) {
+    if (!name) return 3;
+    const upper = name.toUpperCase();
+    if (/(EXPWY|EXPY|FDR|BQE|PKWY|TPKE|THWY|BRGE|TUNNEL|TBB|BRIDGE|I-\d|RT \d)/i.test(upper)) return 5;
+    if (/(AVE|BLVD|BROADWAY)/i.test(upper)) return 4;
+    return 3;
+  }
+
+  // ── Parse link_points ──
+  function parseCoords(linkPoints) {
+    if (!linkPoints) return [];
+    return linkPoints.trim().split(/\s+/).map(pair => {
+      const [lat, lng] = pair.split(',').map(Number);
+      if (isNaN(lat) || isNaN(lng)) return null;
+      return [lat, lng];
+    }).filter(Boolean);
+  }
+
+  // ── Format time ──
+  function formatTime(isoStr) {
+    if (!isoStr) return '\u2014';
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  }
+
+  function formatTimeShort(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) +
+      ' \u00b7 ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ── Build popup ──
+  function buildPopup(seg) {
+    const color = getSpeedColor(seg.speed, seg.status);
+    const speed = parseFloat(seg.speed);
+    const speedDisplay = isNaN(speed) ? '\u2014' : speed.toFixed(1);
+    const tt = parseFloat(seg.travel_time);
+    const ttDisplay = isNaN(tt) ? '\u2014' : (tt < 60 ? tt.toFixed(0) + 's' : (tt / 60).toFixed(1) + 'min');
+
+    return `<div class="popup-content">
+      <div class="popup-road-name">${seg.link_name || '\u2014'}</div>
+      <div class="popup-borough">${seg.borough || '\u2014'}</div>
+      <div class="popup-speed-row">
+        <span class="popup-speed-value" style="color:${color}">${speedDisplay}</span>
+        <span class="popup-speed-unit">mph</span>
+      </div>
+      <div class="popup-meta">
+        <div class="popup-meta-item">
+          <span class="popup-meta-label">Travel Time</span>
+          <span class="popup-meta-value">${ttDisplay}</span>
+        </div>
+        <div class="popup-meta-item">
+          <span class="popup-meta-label">Status</span>
+          <span class="popup-meta-value">${seg.status === '0' ? 'Normal' : 'Sensor Issue'}</span>
+        </div>
+        <div class="popup-meta-item">
+          <span class="popup-meta-label">Owner</span>
+          <span class="popup-meta-value">${seg.owner || '\u2014'}</span>
+        </div>
+        <div class="popup-meta-item">
+          <span class="popup-meta-label">Updated</span>
+          <span class="popup-meta-value">${formatTime(seg.data_as_of)}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Deduplicate by link_id (keep latest) ──
+  function deduplicateSegments(data) {
+    const map = new Map();
+    for (const row of data) {
+      const key = row.link_id || row.id;
+      const existing = map.get(key);
+      if (!existing || (row.data_as_of && (!existing.data_as_of || row.data_as_of > existing.data_as_of))) {
+        map.set(key, row);
+      }
+    }
+    return Array.from(map.values());
+  }
+
+  // ── Render segments on map ──
+  function renderSegments() {
+    segmentsGroup.clearLayers();
+    segmentLayers = {};
+
+    for (const seg of allSegments) {
+      if (!activeBoroughs.has(seg.borough)) continue;
+
+      const coords = parseCoords(seg.link_points);
+      if (coords.length < 2) continue;
+
+      const color = getSpeedColor(seg.speed, seg.status);
+      const isNoData = getSpeedCategory(seg.speed, seg.status) === 'nodata';
+      const weight = getLineWeight(seg.link_name);
+
+      // Glow layer (wider, transparent)
+      const glow = L.polyline(coords, {
+        color: color,
+        weight: weight + 6,
+        opacity: 0.15,
+        smoothFactor: 1.5,
+        interactive: false
+      });
+
+      // Main line
+      const line = L.polyline(coords, {
+        color: color,
+        weight: weight,
+        opacity: isNoData ? 0.4 : 0.85,
+        smoothFactor: 1.5,
+        dashArray: isNoData ? '6 8' : null,
+        lineCap: 'round',
+        lineJoin: 'round'
+      });
+
+      line.bindPopup(buildPopup(seg), { maxWidth: 300, className: '' });
+
+      line.on('mouseover', function() {
+        this.setStyle({ weight: weight + 3, opacity: 1 });
+        glow.setStyle({ opacity: 0.35 });
+      });
+      line.on('mouseout', function() {
+        this.setStyle({ weight: weight, opacity: isNoData ? 0.4 : 0.85 });
+        glow.setStyle({ opacity: 0.15 });
+      });
+
+      segmentsGroup.addLayer(glow);
+      segmentsGroup.addLayer(line);
+
+      const key = seg.link_id || seg.id;
+      segmentLayers[key] = { line, glow, seg };
+    }
+  }
+
+  // ── Update stats panel ──
+  function updateStats() {
+    const active = allSegments.filter(s => activeBoroughs.has(s.borough));
+    const withSpeed = active.filter(s => {
+      const sp = parseFloat(s.speed);
+      return !isNaN(sp) && sp > 0 && s.status !== '-101';
+    });
+
+    document.getElementById('stat-total').textContent = withSpeed.length;
+
+    const avgSpeed = withSpeed.length > 0
+      ? withSpeed.reduce((sum, s) => sum + parseFloat(s.speed), 0) / withSpeed.length
+      : 0;
+    document.getElementById('stat-avg-speed').textContent = avgSpeed.toFixed(1);
+
+    // Speed distribution
+    const cats = { stop: 0, slow: 0, moderate: 0, moving: 0, freeflow: 0, nodata: 0 };
+    for (const s of active) {
+      cats[getSpeedCategory(s.speed, s.status)]++;
+    }
+    const total = active.length || 1;
+    const distEl = document.getElementById('speed-dist');
+    const colors = {
+      stop: 'var(--speed-stop)',
+      slow: 'var(--speed-slow)',
+      moderate: 'var(--speed-moderate)',
+      moving: 'var(--speed-moving)',
+      freeflow: 'var(--speed-freeflow)',
+      nodata: 'var(--speed-nodata)'
+    };
+    const labels = {
+      stop: '0&#x2013;10',
+      slow: '10&#x2013;20',
+      moderate: '20&#x2013;30',
+      moving: '30&#x2013;40',
+      freeflow: '40+',
+      nodata: 'N/A'
+    };
+    distEl.innerHTML = '';
+    const legendEl = document.getElementById('dist-legend');
+    legendEl.innerHTML = '';
+    for (const [cat, count] of Object.entries(cats)) {
+      if (count === 0) continue;
+      const pct = (count / total * 100).toFixed(1);
+      const bar = document.createElement('div');
+      bar.className = 'speed-dist-bar';
+      bar.style.width = pct + '%';
+      bar.style.background = colors[cat];
+      bar.title = `${labels[cat]} mph: ${count} (${pct}%)`;
+      distEl.appendChild(bar);
+
+      const li = document.createElement('div');
+      li.className = 'dist-legend-item';
+      li.innerHTML = `<div class="dist-legend-dot" style="background:${colors[cat]}"></div>${count} ${labels[cat]}`;
+      legendEl.appendChild(li);
+    }
+
+    // Slowest segments
+    const slowest = withSpeed
+      .slice()
+      .sort((a, b) => parseFloat(a.speed) - parseFloat(b.speed))
+      .slice(0, 5);
+    const listEl = document.getElementById('slowest-list');
+    listEl.innerHTML = '';
+    slowest.forEach((s, i) => {
+      const li = document.createElement('li');
+      li.className = 'slowest-item';
+      const spd = parseFloat(s.speed);
+      const color = getSpeedColor(s.speed, s.status);
+      li.innerHTML = `
+        <span class="slowest-rank">${i + 1}</span>
+        <div class="slowest-info">
+          <div class="slowest-name">${s.link_name || '\u2014'}</div>
+          <div class="slowest-borough">${s.borough || ''}</div>
+        </div>
+        <span class="slowest-speed" style="color:${color}">${spd.toFixed(1)}</span>
+      `;
+      li.addEventListener('click', () => {
+        const key = s.link_id || s.id;
+        const entry = segmentLayers[key];
+        if (entry) {
+          map.fitBounds(entry.line.getBounds(), { padding: [80, 80], maxZoom: 15 });
+          entry.line.openPopup();
+        }
+      });
+      listEl.appendChild(li);
+    });
+
+    // Borough counts
+    updateBoroughCounts();
+  }
+
+  // ── Borough filters ──
+  function initBoroughFilters() {
+    const container = document.getElementById('borough-filters');
+    container.innerHTML = '';
+    for (const b of BOROUGHS) {
+      const label = document.createElement('label');
+      label.className = 'borough-filter';
+      label.innerHTML = `
+        <input type="checkbox" class="borough-check" value="${b}" checked />
+        <span class="borough-label">${b}</span>
+        <span class="borough-count" data-borough="${b}">0</span>
+      `;
+      const cb = label.querySelector('input');
+      cb.addEventListener('change', () => {
+        if (cb.checked) activeBoroughs.add(b);
+        else activeBoroughs.delete(b);
+        renderSegments();
+        updateStats();
+      });
+      container.appendChild(label);
+    }
+  }
+
+  function updateBoroughCounts() {
+    for (const b of BOROUGHS) {
+      const count = allSegments.filter(s => s.borough === b).length;
+      const el = document.querySelector(`.borough-count[data-borough="${b}"]`);
+      if (el) el.textContent = count;
+    }
+  }
+
+  // ── Search ──
+  function initSearch() {
+    const input = document.getElementById('search-input');
+    const results = document.getElementById('search-results');
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      if (q.length < 2) {
+        results.style.display = 'none';
+        // Reset any highlight
+        if (highlightedLayer) {
+          renderSegments();
+          highlightedLayer = null;
+        }
+        return;
+      }
+
+      const matches = allSegments
+        .filter(s => s.link_name && s.link_name.toLowerCase().includes(q))
+        .slice(0, 12);
+
+      if (matches.length === 0) {
+        results.style.display = 'none';
+        return;
+      }
+
+      results.innerHTML = '';
+      for (const s of matches) {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        const spd = parseFloat(s.speed);
+        const color = getSpeedColor(s.speed, s.status);
+        const speedText = isNaN(spd) ? 'N/A' : spd.toFixed(1) + ' mph';
+        item.innerHTML = `
+          <span class="road-name">${s.link_name}</span>
+          <span class="speed-badge" style="background:${color}20;color:${color}">${speedText}</span>
+        `;
+        item.addEventListener('click', () => {
+          const key = s.link_id || s.id;
+          const entry = segmentLayers[key];
+          if (entry) {
+            map.fitBounds(entry.line.getBounds(), { padding: [80, 80], maxZoom: 15 });
+            entry.line.openPopup();
+            entry.line.setStyle({ weight: 8, opacity: 1 });
+            highlightedLayer = entry;
+          }
+          results.style.display = 'none';
+          input.value = s.link_name;
+        });
+        results.appendChild(item);
+      }
+      results.style.display = 'block';
+    });
+
+    // Close results on click outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#search-container')) {
+        results.style.display = 'none';
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        input.value = '';
+        results.style.display = 'none';
+        if (highlightedLayer) {
+          renderSegments();
+          highlightedLayer = null;
+        }
+      }
+    });
+  }
+
+  // ── Refresh controls ──
+  function initRefreshControls() {
+    const btn = document.getElementById('refresh-btn');
+    const autoCheck = document.getElementById('auto-refresh-check');
+
+    btn.addEventListener('click', () => fetchData());
+
+    autoCheck.addEventListener('change', () => {
+      autoRefresh = autoCheck.checked;
+      if (autoRefresh) startCountdown();
+      else stopCountdown();
+    });
+  }
+
+  function startCountdown() {
+    stopCountdown();
+    countdownSec = REFRESH_INTERVAL;
+    updateCountdownDisplay();
+    countdownTimer = setInterval(() => {
+      countdownSec--;
+      updateCountdownDisplay();
+      if (countdownSec <= 0) {
+        fetchData();
+      }
+    }, 1000);
+  }
+
+  function stopCountdown() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+    document.getElementById('countdown').textContent = '\u2014';
+  }
+
+  function updateCountdownDisplay() {
+    const m = Math.floor(countdownSec / 60);
+    const s = countdownSec % 60;
+    document.getElementById('countdown').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  // ── Fetch data ──
+  async function fetchData() {
+    const btn = document.getElementById('refresh-btn');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const dataTime = document.getElementById('data-time');
+
+    btn.classList.add('loading');
+    statusText.textContent = 'Fetching latest data\u2026';
+
+    try {
+      // Get the latest readings — fetch enough to cover all segments
+      const url = `${API_BASE}?$limit=2000&$order=data_as_of%20DESC`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      allSegments = deduplicateSegments(data);
+      renderSegments();
+      updateStats();
+
+      // Status update
+      const latestTime = allSegments.reduce((max, s) =>
+        s.data_as_of && s.data_as_of > max ? s.data_as_of : max, '');
+
+      statusDot.classList.remove('error');
+      statusText.textContent = `${allSegments.length} segments loaded`;
+      dataTime.textContent = formatTimeShort(latestTime);
+      document.getElementById('data-time').textContent = formatTimeShort(latestTime);
+
+      // Hide loading overlay on first load
+      document.getElementById('loading-overlay').classList.add('hidden');
+
+    } catch (err) {
+      console.error('Fetch error:', err);
+      statusDot.classList.add('error');
+      statusText.textContent = `Error: ${err.message}`;
+
+      // Still hide overlay so map is visible
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
+    btn.classList.remove('loading');
+
+    if (autoRefresh) startCountdown();
+  }
+
+  // ── Init ──
+  initBoroughFilters();
+  initSearch();
+  initRefreshControls();
+  fetchData();
+
+})();
+</script>
+</body>
+</html>
