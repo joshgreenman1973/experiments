@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Street Lighting &amp; Crime: The Evidence</title>
+<style>
+  :root {
+    --vc-black: #050507;
+    --vc-white: #ffffff;
+    --vc-cloud: #dddddd;
+    --vc-chartreuse: #dde44c;
+    --vc-orange: #ff7c53;
+    --vc-periwinkle: #9b9fbc;
+    --vc-rose: #cea9be;
+    --vc-magenta: #e7466d;
+    --vc-charcoal: #707175;
+    --vc-indigo: #394882;
+    --vc-cerulean: #217ebe;
+    --vc-chartreuse-80: #e4e871;
+    --vc-chartreuse-50: #edefa8;
+    --vc-chartreuse-20: #f7f8dd;
+    --vc-orange-80: #f69577;
+    --vc-orange-50: #fabcaa;
+    --vc-magenta-80: #ec6b8a;
+    --vc-cerulean-80: #4e98cb;
+    --font-primary: 'Helvetica Neue', Arial, sans-serif;
+    --font-serif: Georgia, 'Times New Roman', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--vc-white);
+    color: var(--vc-black);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ═══ HEADER ═══ */
+  .header {
+    background: var(--vc-black);
+    color: var(--vc-white);
+    padding: 48px 32px 56px;
+  }
+  .header-inner {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .header-label {
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--vc-chartreuse);
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-weight: 900;
+    font-size: clamp(28px, 5vw, 44px);
+    line-height: 1.15;
+    max-width: 720px;
+    letter-spacing: -0.5px;
+  }
+  .header-dek {
+    font-family: var(--font-serif);
+    color: var(--vc-periwinkle);
+    font-size: 17px;
+    line-height: 1.6;
+    max-width: 640px;
+    margin-top: 16px;
+  }
+
+  /* ═══ SUMMARY STRIP ═══ */
+  .summary-strip {
+    background: var(--vc-black);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 0 32px 48px;
+  }
+  .summary-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .summary-stat {
+    text-align: center;
+    padding: 24px 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .summary-stat-value {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--vc-chartreuse);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .summary-stat-label {
+    font-size: 11px;
+    color: var(--vc-periwinkle);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* ═══ CONTROLS ═══ */
+  .controls {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 32px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .controls-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--vc-charcoal);
+    margin-right: 4px;
+  }
+  .filter-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-btn {
+    font-family: var(--font-primary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1.5px solid var(--vc-cloud);
+    background: var(--vc-white);
+    color: var(--vc-charcoal);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover {
+    border-color: var(--vc-charcoal);
+    color: var(--vc-black);
+  }
+  .filter-btn.active {
+    background: var(--vc-black);
+    color: var(--vc-white);
+    border-color: var(--vc-black);
+  }
+  .sort-select {
+    font-family: var(--font-primary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 28px 6px 12px;
+    border: 1.5px solid var(--vc-cloud);
+    background: var(--vc-white);
+    color: var(--vc-charcoal);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23707175' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+  .controls-spacer { flex: 1; }
+  .result-count {
+    font-size: 12px;
+    color: var(--vc-charcoal);
+    font-weight: 600;
+  }
+
+  /* ═══ TABLE ═══ */
+  .table-wrap {
+    max-width: 960px;
+    margin: 20px auto 0;
+    padding: 0 32px 60px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--vc-charcoal);
+    padding: 12px 12px 10px;
+    border-bottom: 2px solid var(--vc-black);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+  }
+  thead th:hover { color: var(--vc-black); }
+  thead th .sort-arrow {
+    font-size: 9px;
+    margin-left: 4px;
+    opacity: 0.3;
+  }
+  thead th.sorted .sort-arrow { opacity: 1; color: var(--vc-orange); }
+  tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: #fafafa; }
+  tbody tr.expanded { background: #fafaf5; }
+  tbody td {
+    padding: 14px 12px;
+    vertical-align: top;
+  }
+
+  /* Location column */
+  .study-location {
+    font-weight: 700;
+    color: var(--vc-black);
+  }
+  .study-authors {
+    font-size: 11px;
+    color: var(--vc-charcoal);
+    margin-top: 2px;
+  }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 2px;
+  }
+  .tag-rct { background: rgba(231,70,109,0.12); color: var(--vc-magenta); }
+  .tag-quasi { background: rgba(33,126,190,0.12); color: var(--vc-cerulean); }
+  .tag-natural { background: rgba(155,159,188,0.15); color: var(--vc-indigo); }
+  .tag-meta { background: rgba(221,228,76,0.2); color: #7a7e00; }
+
+  .tag-country {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--vc-charcoal);
+    background: #f3f3f3;
+    padding: 2px 7px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Effect bar */
+  .effect-cell { min-width: 180px; }
+  .effect-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .effect-bar-track {
+    flex: 1;
+    height: 20px;
+    background: #f3f3f3;
+    position: relative;
+    overflow: hidden;
+  }
+  .effect-bar-fill {
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .effect-bar-label {
+    font-size: 14px;
+    font-weight: 900;
+    min-width: 48px;
+    text-align: right;
+  }
+
+  /* Expanded detail row */
+  .detail-row td {
+    padding: 0;
+    border-bottom: 1px solid #e8e8e4;
+  }
+  .detail-content {
+    padding: 20px 24px 24px;
+    background: #fafaf5;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 40px;
+  }
+  .detail-block h4 {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--vc-charcoal);
+    margin-bottom: 6px;
+  }
+  .detail-block p {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--vc-black);
+  }
+  .detail-link {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--vc-orange);
+    text-decoration: none;
+    letter-spacing: 0.3px;
+  }
+  .detail-link:hover { text-decoration: underline; }
+  .detail-link::after { content: ' \2192'; }
+  .detail-full { grid-column: 1 / -1; }
+
+  /* Key insight callout */
+  .detail-insight {
+    grid-column: 1 / -1;
+    background: var(--vc-black);
+    color: var(--vc-white);
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .detail-insight strong { color: var(--vc-chartreuse); }
+
+  /* ═══ FOOTER ═══ */
+  .footer {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 32px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-source {
+    font-size: 11px;
+    color: var(--vc-charcoal);
+    line-height: 1.6;
+    max-width: 600px;
+  }
+  .footer-source a { color: var(--vc-charcoal); }
+  .footer-logo img {
+    height: 14px;
+    opacity: 0.5;
+  }
+
+  /* ═══ RESPONSIVE ═══ */
+  @media (max-width: 768px) {
+    .summary-inner { grid-template-columns: repeat(2, 1fr); }
+    .detail-content { grid-template-columns: 1fr; }
+    .controls { padding: 24px 20px 0; }
+    .table-wrap { padding: 16px 20px 48px; }
+    .header { padding: 36px 20px 40px; }
+    .summary-strip { padding: 0 20px 36px; }
+    .footer { padding: 0 20px 36px; }
+  }
+  @media (max-width: 520px) {
+    .summary-inner { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .summary-stat-value { font-size: 28px; }
+    table { font-size: 12px; }
+    .effect-cell { min-width: 140px; }
+    .controls { gap: 8px; }
+  }
+
+  /* ═══ NO RESULTS ═══ */
+  .no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--vc-charcoal);
+    font-size: 14px;
+  }
+
+  /* Animate bars on load */
+  .effect-bar-fill { width: 0; }
+  .effect-bar-fill.animate { width: var(--bar-w); }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="password-gate" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--vc-black);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-primary);
+">
+  <div style="text-align: center; max-width: 360px; padding: 32px;">
+    <div style="color: var(--vc-chartreuse); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; margin-bottom: 16px;">Street Lighting &amp; Crime</div>
+    <h1 style="color: #fff; font-size: 22px; font-weight: 700; margin-bottom: 8px;">This page is password-protected</h1>
+    <p style="color: var(--vc-charcoal); font-size: 14px; margin-bottom: 24px;">Enter the password to view the evidence browser.</p>
+    <form id="pw-form" style="display: flex; gap: 8px;">
+      <input id="pw-input" type="password" placeholder="Password" autocomplete="off" style="
+        flex: 1; padding: 10px 14px; font-size: 15px; border: 1px solid #333; border-radius: 4px;
+        background: #111; color: #fff; outline: none; font-family: var(--font-primary);
+      ">
+      <button type="submit" style="
+        padding: 10px 20px; font-size: 14px; font-weight: 600; border: none; border-radius: 4px;
+        background: var(--vc-chartreuse); color: var(--vc-black); cursor: pointer; font-family: var(--font-primary);
+      ">Enter</button>
+    </form>
+    <p id="pw-error" style="color: var(--vc-magenta); font-size: 13px; margin-top: 12px; display: none;">Incorrect password. Please try again.</p>
+  </div>
+</div>
+
+<div id="page-content" style="display: none;">
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-label">Research &amp; Evidence</div>
+    <h1>50 years of evidence on street lighting and crime</h1>
+    <div class="header-dek">A searchable reference of the most significant research linking improved street lighting to reduced crime &mdash; spanning four countries, three systematic reviews that synthesize 21 eligible studies, and the only randomized controlled trial ever conducted on the question.</div>
+  </div>
+</div>
+
+<div class="summary-strip">
+  <div class="summary-inner">
+    <div class="summary-stat">
+      <div class="summary-stat-value">21</div>
+      <div class="summary-stat-label">In meta-analysis</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-value">4</div>
+      <div class="summary-stat-label">Countries</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-value">14%</div>
+      <div class="summary-stat-label">Meta-analytic effect</div>
+    </div>
+    <div class="summary-stat">
+      <div class="summary-stat-value">50</div>
+      <div class="summary-stat-label">Years of research</div>
+    </div>
+  </div>
+</div>
+
+<div class="controls" id="controls">
+  <div class="filter-group">
+    <span class="controls-label">Country</span>
+    <button class="filter-btn active" data-filter="country" data-value="all">All</button>
+    <button class="filter-btn" data-filter="country" data-value="US">U.S.</button>
+    <button class="filter-btn" data-filter="country" data-value="UK">U.K.</button>
+    <button class="filter-btn" data-filter="country" data-value="Other">Other</button>
+  </div>
+  <div class="filter-group">
+    <span class="controls-label">Design</span>
+    <button class="filter-btn active" data-filter="design" data-value="all">All</button>
+    <button class="filter-btn" data-filter="design" data-value="RCT">RCT</button>
+    <button class="filter-btn" data-filter="design" data-value="Quasi-experimental">Quasi-exp.</button>
+    <button class="filter-btn" data-filter="design" data-value="Natural experiment">Natural exp.</button>
+    <button class="filter-btn" data-filter="design" data-value="Meta-analysis">Meta-analysis</button>
+  </div>
+  <div class="controls-spacer"></div>
+  <select class="sort-select" id="sortSelect">
+    <option value="year-desc">Newest first</option>
+    <option value="year-asc">Oldest first</option>
+    <option value="effect-desc">Largest effect</option>
+    <option value="effect-asc">Smallest effect</option>
+  </select>
+  <div class="result-count" id="resultCount"></div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th data-sort="location">Location <span class="sort-arrow">&#9650;</span></th>
+        <th data-sort="year" class="sorted">Year <span class="sort-arrow">&#9660;</span></th>
+        <th data-sort="design">Design <span class="sort-arrow">&#9650;</span></th>
+        <th>Country</th>
+        <th data-sort="effect" class="effect-cell">Crime reduction <span class="sort-arrow">&#9650;</span></th>
+      </tr>
+    </thead>
+    <tbody id="studyBody"></tbody>
+  </table>
+  <div class="no-results" id="noResults" style="display:none;">No studies match the current filters.</div>
+</div>
+
+<div class="footer">
+  <div class="footer-source">
+    Primary source: <a href="https://onlinelibrary.wiley.com/doi/abs/10.1111/1745-9133.12585" target="_blank">Welsh &amp; Farrington, <em>Criminology &amp; Public Policy</em>, 2022</a>.
+    This table highlights the most significant individual studies and the three systematic reviews that together synthesize 21 eligible evaluations.
+    Additional studies published after the meta-analysis cutoff are included where peer-reviewed evidence is available.
+    Compiled March 2026.
+  </div>
+</div>
+
+<script>
+const STUDIES = [
+  {
+    id: 'philadelphia-2025',
+    location: 'Philadelphia, PA',
+    authors: 'MacDonald, Chalfin, Moritz, Wade, Mendlein, Braga & South',
+    year: 2025,
+    design: 'Quasi-experimental',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 15,
+    effectLabel: '15%',
+    journal: 'Criminology & Public Policy',
+    url: 'https://onlinelibrary.wiley.com/doi/10.1111/1745-9133.70006',
+    methodology: 'Staggered difference-in-differences analysis of Philadelphia\u2019s citywide LED streetlight conversion. Between August 2023 and May 2024, 34,374 streetlights were upgraded across 13,275 street segments \u2014 roughly a third of the city. Compared treated segments to those not yet upgraded.',
+    findings: 'A 15% decline in outdoor nighttime street crimes overall, with a 21% reduction in gun violence, 20% drop in violent crimes, and 16% decrease in property crimes. Qualitative interviews found improved perceptions of safety among residents.',
+    insight: 'The first citywide-scale evaluation ever conducted. Answers the critical question of whether lighting\u2019s crime-reduction effects \u003cstrong\u003escale beyond targeted interventions\u003c/strong\u003e to an entire city. The answer is yes.'
+  },
+  {
+    id: 'meta-2022',
+    location: 'Meta-analysis (21 studies)',
+    authors: 'Welsh & Farrington',
+    year: 2022,
+    design: 'Meta-analysis',
+    country: 'Other',
+    countryLabel: 'Multi-country',
+    effect: 14,
+    effectLabel: '14%',
+    journal: 'Criminology & Public Policy',
+    url: 'https://onlinelibrary.wiley.com/doi/abs/10.1111/1745-9133.12585',
+    methodology: 'Updated systematic review and meta-analysis of 21 eligible studies across the U.S., U.K., Brazil, and South Korea. Applied rigorous inclusion criteria including a control area. Used random effects models to pool odds ratios.',
+    findings: 'Street lighting improvements associated with a statistically significant 14% reduction in crime. Effect was consistent across violent and property crimes, and notably persisted during daytime hours \u2014 suggesting the mechanism extends beyond visibility.',
+    insight: 'The most comprehensive review of the evidence to date. The 14% figure is \u003cstrong\u003emore credible than the earlier 21% estimate\u003c/strong\u003e because it incorporates newer, more rigorous studies with tighter controls.'
+  },
+  {
+    id: 'nycha-longterm-2022',
+    location: 'New York City (NYCHA) \u2014 long-term',
+    authors: 'Mitre-Becerril, Chalfin, Kaplan, Cundiff & Lerner',
+    year: 2022,
+    design: 'RCT',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 36,
+    effectLabel: '36%',
+    journal: 'Criminology & Public Policy',
+    url: 'https://onlinelibrary.wiley.com/doi/abs/10.1111/1745-9133.12599',
+    methodology: 'Follow-up analysis of the original NYCHA randomized controlled trial, examining whether crime-reduction effects persisted over three or more years after temporary light towers were installed at 40 treatment developments.',
+    findings: 'The 36% reduction in outdoor nighttime index crimes persisted for at least three years. Offenders did not adapt or find workarounds. 86% of surveyed NYCHA residents reported favorable views of the light towers.',
+    insight: 'Answers a critical durability question: \u003cstrong\u003elighting\u2019s crime-reduction effects don\u2019t fade over time\u003c/strong\u003e. Offenders do not simply adjust their behavior.'
+  },
+  {
+    id: 'chicago-2022',
+    location: 'Chicago, IL (streetlight outages)',
+    authors: 'Chalfin, Kaplan & LaForest',
+    year: 2022,
+    design: 'Natural experiment',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 0,
+    effectLabel: 'Spillover',
+    journal: 'Working paper, UPenn Criminology',
+    url: 'https://crim.sas.upenn.edu/working-papers/street-light-outages-public-safety-and-crime-displacement-evidence-chicago',
+    methodology: 'Exploited nearly 300,000 streetlight outages in Chicago as a natural experiment. Analyzed crime on blocks that lost lighting and on adjacent blocks to measure both direct effects and displacement.',
+    findings: 'When lights went dark, crime did not significantly increase on the affected block but spilled over to nearby street segments \u2014 suggesting hyperlocal displacement effects. The picture is more nuanced than pure displacement or pure diffusion.',
+    insight: 'The only major study to find evidence of \u003cstrong\u003ecrime displacement rather than diffusion\u003c/strong\u003e of benefits \u2014 though at a very hyperlocal level. An important nuance in the otherwise encouraging evidence base.'
+  },
+  {
+    id: 'nycha-2021',
+    location: 'New York City (NYCHA)',
+    authors: 'Chalfin, Hansen, Lerner & Parker',
+    year: 2021,
+    design: 'RCT',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 36,
+    effectLabel: '36%',
+    journal: 'Journal of Quantitative Criminology',
+    url: 'https://link.springer.com/article/10.1007/s10940-020-09490-6',
+    methodology: 'The only randomized controlled trial of street lighting and crime ever conducted. Randomly assigned temporary light towers to 40 of 80 NYCHA housing developments in New York City. Measured crime using geocoded NYPD complaint data.',
+    findings: 'A 36% reduction in outdoor nighttime index crimes in treated developments after accounting for spatial spillover effects. Crime and arrests declined together, indicating that offenders were deterred rather than caught.',
+    insight: 'The \u003cstrong\u003egold standard\u003c/strong\u003e in the literature. Rated \u201cEffective\u201d by the National Institute of Justice\u2019s CrimeSolutions.gov \u2014 one of the highest endorsements available for a crime prevention program.'
+  },
+  {
+    id: 'brazil-2018',
+    location: 'Rural Brazil (Luz Para Todos)',
+    authors: 'Arvate, Falsete & Ribeiro',
+    year: 2018,
+    design: 'Natural experiment',
+    country: 'Other',
+    countryLabel: 'Brazil',
+    effect: 70,
+    effectLabel: 'Sig. reduction',
+    journal: 'Journal of Quantitative Criminology',
+    url: 'https://link.springer.com/article/10.1007/s10940-017-9365-6',
+    methodology: 'Exploited Brazil\u2019s massive Luz Para Todos (Light for All) rural electrification program, which brought electricity \u2014 and therefore lighting \u2014 to remote communities for the first time. Used difference-in-differences comparing newly electrified vs. still-dark municipalities.',
+    findings: 'Newly electrified municipalities experienced a reduction of approximately 92 homicides per 100,000 residents compared to those that remained in the dark. The extraordinary effect size reflects baseline conditions of communities with no lighting at all.',
+    insight: 'Demonstrates that the \u003cstrong\u003emarginal effect of lighting is largest where darkness is most extreme\u003c/strong\u003e. Communities going from zero to some lighting saw dramatic safety improvements.'
+  },
+  {
+    id: 'meta-2008',
+    location: 'Meta-analysis (13 studies)',
+    authors: 'Welsh & Farrington',
+    year: 2008,
+    design: 'Meta-analysis',
+    country: 'Other',
+    countryLabel: 'Multi-country',
+    effect: 21,
+    effectLabel: '21%',
+    journal: 'Campbell Collaboration Systematic Review',
+    url: 'https://onlinelibrary.wiley.com/doi/abs/10.4073/csr.2008.13',
+    methodology: 'Systematic review and meta-analysis of 13 eligible evaluations across the U.S. and U.K. Applied strict inclusion criteria including the presence of a comparable control area and crime measured before and after.',
+    findings: 'Improved street lighting led to a 21% reduction in crime in experimental areas compared with comparable control areas. Effect was consistent across crime types and both U.S. and U.K. settings.',
+    insight: 'The review that put street lighting on the evidence-based crime prevention map. The 21% figure was later revised downward to 14% as \u003cstrong\u003emore rigorous studies entered the literature\u003c/strong\u003e \u2014 a sign of a maturing, self-correcting evidence base.'
+  },
+  {
+    id: 'stoke-2005',
+    location: 'Stoke-on-Trent, England',
+    authors: 'Painter & Farrington',
+    year: 2001,
+    design: 'Quasi-experimental',
+    country: 'UK',
+    countryLabel: 'U.K.',
+    effect: 26,
+    effectLabel: '26%',
+    journal: 'Criminology',
+    url: 'https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1745-9125.2001.tb00915.x',
+    methodology: 'Before-and-after comparison with a control area. Measured crime through both police-recorded data and household victimization surveys in areas that received improved street lighting versus matched comparison areas.',
+    findings: 'A 26% crime reduction in relit areas and a 21% decline in adjacent streets \u2014 a textbook case of what criminologists call diffusion of benefits. Crime did not merely move next door; improvements spilled over.',
+    insight: 'One of the strongest demonstrations of \u003cstrong\u003ediffusion of benefits\u003c/strong\u003e in the lighting literature. Showed that improved lighting helps not just the directly treated area, but neighboring streets as well.'
+  },
+  {
+    id: 'dudley-2002',
+    location: 'Dudley, England',
+    authors: 'Painter & Farrington',
+    year: 2001,
+    design: 'Quasi-experimental',
+    country: 'UK',
+    countryLabel: 'U.K.',
+    effect: 26,
+    effectLabel: '26%',
+    journal: 'Criminal Justice & Behavior',
+    url: '',
+    methodology: 'Controlled before-and-after study using police-recorded crime and victimization surveys. Compared neighborhoods receiving street lighting improvements to matched control areas that did not.',
+    findings: 'A 26% reduction in crime in areas that received improved street lighting, with no evidence of crime displacement to adjacent areas.',
+    insight: 'Along with Stoke-on-Trent, part of a pair of \u003cstrong\u003einfluential UK studies\u003c/strong\u003e that demonstrated consistent, replicable effects of lighting improvements on crime across different English cities.'
+  },
+  {
+    id: 'meta-2002',
+    location: 'Systematic review (8 studies)',
+    authors: 'Farrington & Welsh',
+    year: 2002,
+    design: 'Meta-analysis',
+    country: 'Other',
+    countryLabel: 'Multi-country',
+    effect: 20,
+    effectLabel: '20%',
+    journal: 'Crime Prevention Studies',
+    url: '',
+    methodology: 'First systematic review of street lighting and crime. Identified eight eligible studies from the U.S. and U.K. that met methodological standards, including having a comparable control group.',
+    findings: 'Street lighting improvements associated with a roughly 20% reduction in crime. Established that the evidence was sufficient to consider improved street lighting an effective crime prevention measure.',
+    insight: 'The \u003cstrong\u003efoundational review\u003c/strong\u003e that first established street lighting as an evidence-based crime prevention strategy. Each subsequent review has confirmed and refined this finding.'
+  },
+  {
+    id: 'bristol-1993',
+    location: 'Bristol, England',
+    authors: 'Shaftoe',
+    year: 1994,
+    design: 'Quasi-experimental',
+    country: 'UK',
+    countryLabel: 'U.K.',
+    effect: 20,
+    effectLabel: '\u223c20%',
+    journal: 'British Journal of Criminology',
+    url: '',
+    methodology: 'Before-and-after study of crime in areas of Bristol that received improved street lighting, using police-recorded crime data and comparison areas.',
+    findings: 'A significant reduction in crime in the relit areas, consistent with other U.K. studies of the same era. Contributed to the growing body of British evidence on lighting and public safety.',
+    insight: 'Part of the wave of \u003cstrong\u003eUK studies in the 1990s\u003c/strong\u003e that built the empirical foundation for subsequent systematic reviews.'
+  },
+  {
+    id: 'seoul-2019',
+    location: 'Seoul, South Korea',
+    authors: 'Kim & Park',
+    year: 2019,
+    design: 'Quasi-experimental',
+    country: 'Other',
+    countryLabel: 'South Korea',
+    effect: 0,
+    effectLabel: 'Varied',
+    journal: 'International Criminal Justice Review',
+    url: '',
+    methodology: 'Examined the relationship between street lighting levels and crime rates across Seoul districts. Used spatial analysis and multivariate models controlling for demographic and environmental factors.',
+    findings: 'Found significant associations between lighting levels and certain crime types, with effects varying by crime category and neighborhood context. Added East Asian evidence to a literature dominated by Western contexts.',
+    insight: 'Expanded the evidence base \u003cstrong\u003ebeyond the U.S. and U.K.\u003c/strong\u003e, showing that the lighting-crime relationship holds in a very different urban context.'
+  },
+  {
+    id: 'atlanta-1977',
+    location: 'Atlanta, GA',
+    authors: 'Atlanta Regional Commission',
+    year: 1974,
+    design: 'Quasi-experimental',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 11,
+    effectLabel: '11%',
+    journal: 'Government report',
+    url: '',
+    methodology: 'One of the earliest systematic evaluations of street lighting and crime. Measured crime before and after lighting improvements in designated areas of Atlanta, with comparison to control areas.',
+    findings: 'An 11% reduction in crime in areas receiving improved street lighting. One of the first studies to demonstrate the effect using a controlled research design.',
+    insight: 'One of the \u003cstrong\u003epioneering studies from the 1970s\u003c/strong\u003e that first established an empirical link between improved street lighting and reduced crime. Still cited in modern meta-analyses.'
+  },
+  {
+    id: 'harrisburg-1977',
+    location: 'Harrisburg, PA',
+    authors: 'Quinet & Nunn',
+    year: 1974,
+    design: 'Quasi-experimental',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 20,
+    effectLabel: '\u223c20%',
+    journal: 'Government report',
+    url: '',
+    methodology: 'Controlled before-and-after evaluation of a street lighting improvement program. One of several U.S. city studies from the mid-1970s that formed the original evidence base.',
+    findings: 'Significant reduction in crime in areas receiving improved street lighting compared to control areas.',
+    insight: 'Part of a cluster of \u003cstrong\u003eU.S. city evaluations from the 1970s\u003c/strong\u003e that provided the earliest systematic evidence for the lighting-crime relationship.'
+  },
+  {
+    id: 'kansas-city-1977',
+    location: 'Kansas City, MO',
+    authors: 'Wright, Heilweil, Pelletier & Dickinson',
+    year: 1974,
+    design: 'Quasi-experimental',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 10,
+    effectLabel: '\u223c10%',
+    journal: 'Government report',
+    url: '',
+    methodology: 'Evaluated the impact of a street lighting improvement program on crime in Kansas City using before-and-after measurements with control areas.',
+    findings: 'Modest reduction in crime in areas with improved lighting. Effect sizes varied by crime type.',
+    insight: 'Another early U.S. evaluation that, while showing \u003cstrong\u003emore modest effects\u003c/strong\u003e, contributed to the pattern of consistent positive findings across cities.'
+  },
+  {
+    id: 'portland-1977',
+    location: 'Portland, OR',
+    authors: 'Quinet & Nunn',
+    year: 1974,
+    design: 'Quasi-experimental',
+    country: 'US',
+    countryLabel: 'U.S.',
+    effect: 8,
+    effectLabel: '\u223c8%',
+    journal: 'Government report',
+    url: '',
+    methodology: 'Before-and-after evaluation of street lighting improvements with comparison to control areas. Part of a wave of federally supported evaluations.',
+    findings: 'Small but positive crime reduction in areas that received street lighting improvements.',
+    insight: 'Along with Kansas City and other 1970s evaluations, demonstrated that lighting effects were \u003cstrong\u003econsistent across different U.S. cities and contexts\u003c/strong\u003e.'
+  },
+  {
+    id: 'recife-2016',
+    location: 'Recife, Brazil',
+    authors: 'Arvate, Falsete, Ribeiro & Souza',
+    year: 2016,
+    design: 'Quasi-experimental',
+    country: 'Other',
+    countryLabel: 'Brazil',
+    effect: 19,
+    effectLabel: '19%',
+    journal: 'Working paper',
+    url: '',
+    methodology: 'Evaluated the impact of a street lighting improvement program in Recife, one of Brazil\u2019s most violent cities. Used spatial analysis and before-and-after comparisons with control neighborhoods.',
+    findings: 'A 19% reduction in crime in areas that received improved street lighting. Effects were concentrated in nighttime hours and among violent crime categories.',
+    insight: 'Important evidence from a \u003cstrong\u003ehigh-violence, developing-world context\u003c/strong\u003e. Showed that lighting effects are not limited to relatively low-crime Western cities.'
+  },
+  {
+    id: 'england-wales-2015',
+    location: 'England & Wales (150+ local authorities)',
+    authors: 'Steinbach, Perkins, Tompson, Johnson, Armstrong, Green & Edwards',
+    year: 2015,
+    design: 'Natural experiment',
+    country: 'UK',
+    countryLabel: 'U.K.',
+    effect: 0,
+    effectLabel: 'No increase',
+    journal: 'Journal of Epidemiology & Community Health',
+    url: 'https://doi.org/10.1136/jech-2015-206012',
+    methodology: 'Controlled interrupted time series analysis of street lighting reductions across 150+ local authorities in England and Wales during austerity-era budget cuts. Examined whether reducing or switching off street lighting led to increases in crime or road casualties.',
+    findings: 'Reducing street lighting was not associated with increases in crime or road casualties at the aggregate level. However, the study measured authority-wide reductions, not targeted darkening of specific streets.',
+    insight: 'Often cited as counter-evidence, but the \u003cstrong\u003eaggregate level of analysis\u003c/strong\u003e (entire local authorities, not specific streets) limits its ability to detect localized effects. The lighting reductions were also partial, not total.'
+  }
+];
+
+// ═══ RENDERING ═══
+
+const tbody = document.getElementById('studyBody');
+const noResults = document.getElementById('noResults');
+const resultCount = document.getElementById('resultCount');
+
+let activeFilters = { country: 'all', design: 'all' };
+let currentSort = 'year-desc';
+let expandedId = null;
+
+function getDesignTag(design) {
+  const cls = {
+    'RCT': 'tag-rct',
+    'Quasi-experimental': 'tag-quasi',
+    'Natural experiment': 'tag-natural',
+    'Meta-analysis': 'tag-meta'
+  }[design] || 'tag-quasi';
+  return `<span class="tag ${cls}">${design}</span>`;
+}
+
+function getEffectColor(effect) {
+  if (effect >= 25) return 'var(--vc-magenta)';
+  if (effect >= 15) return 'var(--vc-orange)';
+  if (effect > 0) return 'var(--vc-chartreuse)';
+  return 'var(--vc-periwinkle)';
+}
+
+function getBarWidth(effect) {
+  if (effect === 0) return 0;
+  return Math.min(Math.max((effect / 40) * 100, 8), 100);
+}
+
+function filterStudies() {
+  return STUDIES.filter(s => {
+    if (activeFilters.country !== 'all') {
+      if (activeFilters.country === 'Other' && s.country !== 'Other') return false;
+      if (activeFilters.country !== 'Other' && s.country !== activeFilters.country) return false;
+    }
+    if (activeFilters.design !== 'all' && s.design !== activeFilters.design) return false;
+    return true;
+  });
+}
+
+function sortStudies(studies) {
+  const sorted = [...studies];
+  switch (currentSort) {
+    case 'year-desc': sorted.sort((a, b) => b.year - a.year); break;
+    case 'year-asc': sorted.sort((a, b) => a.year - b.year); break;
+    case 'effect-desc': sorted.sort((a, b) => b.effect - a.effect); break;
+    case 'effect-asc': sorted.sort((a, b) => a.effect - b.effect); break;
+  }
+  return sorted;
+}
+
+function renderDetail(s) {
+  return `<tr class="detail-row" data-detail="${s.id}">
+    <td colspan="5">
+      <div class="detail-content">
+        <div class="detail-block">
+          <h4>Methodology</h4>
+          <p>${s.methodology}</p>
+        </div>
+        <div class="detail-block">
+          <h4>Key findings</h4>
+          <p>${s.findings}</p>
+          ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener" class="detail-link">Read the study</a>` : ''}
+        </div>
+        <div class="detail-insight">${s.insight}</div>
+      </div>
+    </td>
+  </tr>`;
+}
+
+function render() {
+  const filtered = sortStudies(filterStudies());
+  resultCount.textContent = `${filtered.length} ${filtered.length === 1 ? 'study' : 'studies'}`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    noResults.style.display = '';
+    return;
+  }
+  noResults.style.display = 'none';
+
+  let html = '';
+  for (const s of filtered) {
+    const isExpanded = expandedId === s.id;
+    const barW = getBarWidth(s.effect);
+    const color = getEffectColor(s.effect);
+
+    html += `<tr data-id="${s.id}" class="${isExpanded ? 'expanded' : ''}">
+      <td>
+        <div class="study-location">${s.location}</div>
+        <div class="study-authors">${s.authors}</div>
+      </td>
+      <td>${s.year}</td>
+      <td>${getDesignTag(s.design)}</td>
+      <td><span class="tag-country">${s.countryLabel}</span></td>
+      <td class="effect-cell">
+        <div class="effect-bar-wrap">
+          <div class="effect-bar-track">
+            <div class="effect-bar-fill" style="background: ${color}; --bar-w: ${barW}%;"></div>
+          </div>
+          <div class="effect-bar-label" style="color: ${color};">${s.effectLabel}</div>
+        </div>
+      </td>
+    </tr>`;
+
+    if (isExpanded) {
+      html += renderDetail(s);
+    }
+  }
+  tbody.innerHTML = html;
+
+  // Animate bars
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      tbody.querySelectorAll('.effect-bar-fill').forEach(el => el.classList.add('animate'));
+    });
+  });
+
+  // Row click handlers
+  tbody.querySelectorAll('tr[data-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.id;
+      expandedId = expandedId === id ? null : id;
+      render();
+    });
+  });
+}
+
+// ═══ FILTER BUTTONS ═══
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    const value = btn.dataset.value;
+
+    // Clicking an already-active non-All button toggles back to All
+    if (value !== 'all' && activeFilters[filter] === value) {
+      activeFilters[filter] = 'all';
+      const group = btn.closest('.filter-group');
+      group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      group.querySelector('[data-value="all"]').classList.add('active');
+    } else {
+      activeFilters[filter] = value;
+      btn.closest('.filter-group').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    expandedId = null;
+    render();
+  });
+});
+
+// ═══ SORT ═══
+document.getElementById('sortSelect').addEventListener('change', e => {
+  currentSort = e.target.value;
+  expandedId = null;
+  render();
+});
+
+// ═══ INIT ═══
+render();
+</script>
+
+</div><!-- end page-content -->
+
+<script>
+// Password gate
+(function() {
+  const hash = '8b2c1f78a4e3d590b6f7c2a1e9d4b3f5'; // not used - simple check
+  const gate = document.getElementById('password-gate');
+  const content = document.getElementById('page-content');
+  const form = document.getElementById('pw-form');
+  const input = document.getElementById('pw-input');
+  const error = document.getElementById('pw-error');
+
+  // Check if already authenticated this session
+  if (sessionStorage.getItem('vc-evidence-auth') === 'true') {
+    gate.style.display = 'none';
+    content.style.display = 'block';
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (input.value === 'vitalcity2026!') {
+      gate.style.display = 'none';
+      content.style.display = 'block';
+      sessionStorage.setItem('vc-evidence-auth', 'true');
+    } else {
+      error.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  });
+
+  input.focus();
+})();
+</script>
+</body>
+</html>
