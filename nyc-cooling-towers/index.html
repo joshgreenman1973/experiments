@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
   :root {
     --bg-deep: #0a0c10;
@@ -432,9 +431,8 @@
   <!-- View toggles -->
   <div class="section-label">View Mode</div>
   <div class="view-toggles">
-    <button class="view-toggle active" data-view="heatmap">Heatmap</button>
-    <button class="view-toggle" data-view="points">Points</button>
-    <button class="view-toggle" data-view="borough">By Borough</button>
+    <button class="view-toggle active" data-view="borough">By Borough</button>
+    <button class="view-toggle" data-view="points">All Points</button>
   </div>
 
   <!-- Stats -->
@@ -555,7 +553,7 @@
 const BOROUGHS = ['Manhattan', 'Bronx', 'Brooklyn', 'Queens', 'Staten Island', 'Unknown'];
 const BOROUGH_COLORS = ['#ff4d2a', '#a78bfa', '#4ecdc4', '#ffb347', '#f472b6', '#64748b'];
 
-let map, rawData, heatLayer, currentView = 'heatmap';
+let map, rawData, currentView = 'borough';
 const canvas = document.getElementById('pointCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -623,32 +621,14 @@ async function initMap() {
     opacity: 0.6
   }).addTo(map);
 
-  // Create heatmap data: [lat, lng, intensity]
-  const heatData = rawData.map(([lng, lat]) => [lat, lng, 0.6]);
-
-  heatLayer = L.heatLayer(heatData, {
-    radius: 14,
-    blur: 12,
-    maxZoom: 15,
-    max: 1.0,
-    gradient: {
-      0.0: 'rgba(10, 12, 16, 0)',
-      0.15: 'rgba(120, 40, 20, 0.4)',
-      0.3: 'rgba(200, 60, 20, 0.55)',
-      0.5: 'rgba(255, 100, 40, 0.7)',
-      0.7: 'rgba(255, 160, 50, 0.85)',
-      0.9: 'rgba(255, 200, 80, 0.95)',
-      1.0: 'rgba(255, 240, 180, 1)'
-    }
-  }).addTo(map);
-
-  // Set up canvas overlay for custom point rendering
+  // Set up canvas overlay for point rendering
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
   map.on('move', drawPoints);
   map.on('zoom', drawPoints);
   map.on('moveend', drawPoints);
   map.on('zoomend', drawPoints);
+  drawPoints();
 }
 
 function resizeCanvas() {
@@ -663,7 +643,7 @@ function resizeCanvas() {
 
 function drawPoints() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!map || !rawData || currentView === 'heatmap') return;
+  if (!map || !rawData) return;
 
   const bounds = map.getBounds();
   const zoom = map.getZoom();
@@ -709,13 +689,7 @@ document.querySelectorAll('.view-toggle').forEach(btn => {
 
 function setView(view) {
   if (!map) return;
-  if (view === 'heatmap') {
-    heatLayer.addTo(map);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  } else {
-    map.removeLayer(heatLayer);
-    drawPoints();
-  }
+  drawPoints();
 }
 </script>
 </body>
