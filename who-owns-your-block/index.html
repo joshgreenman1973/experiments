@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -372,6 +373,102 @@ body {
   line-height: 1.75;
 }
 
+/* ANALYTICS */
+.analytics {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.analytics h2 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.analytics .section-sub {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.chart-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.chart-card h4 {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.chart-card canvas {
+  width: 100% !important;
+  max-height: 280px;
+}
+
+.chart-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.chart-card .chart-note {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+/* TOP OWNERS TABLE */
+.top-owners-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.top-owners-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.top-owners-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.top-owners-table tr:last-child td {
+  border-bottom: none;
+}
+
+.top-owners-table .owner-bar {
+  display: inline-block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--purple);
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   .map-wrap {
@@ -422,6 +519,10 @@ body {
   .borough-cards {
     grid-template-columns: 1fr;
   }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 </head>
@@ -432,11 +533,11 @@ body {
   <h1>Who Owns Your Block</h1>
   <p class="subhead">A map of property ownership concentration across New York City</p>
   <p class="explainer">
-    In New York City, a single LLC can quietly control an entire block\u2019s worth of housing. Shell companies obscure who truly owns buildings, making it nearly impossible for tenants and neighbors to know who\u2019s making decisions about their homes. This map reveals ownership concentration at the tax-block level\u2014showing where property is held by many distinct owners and where a handful of entities control everything. The more concentrated a block\u2019s ownership, the more power rests in fewer hands.
+    In New York City, a single LLC can quietly control an entire block’s worth of housing. Shell companies obscure who truly owns buildings, making it nearly impossible for tenants and neighbors to know who’s making decisions about their homes. This map reveals ownership concentration at the tax-block level—showing where property is held by many distinct owners and where a handful of entities control everything. The more concentrated a block’s ownership, the more power rests in fewer hands.
   </p>
   <div class="search-bar">
-    <span class="search-icon">\u26B2</span>
-    <input type="text" id="searchInput" placeholder="Search by neighborhood or address\u2026" />
+    <span class="search-icon">&#x1F50D;</span>
+    <input type="text" id="searchInput" placeholder="Search by neighborhood or address…" />
   </div>
 </section>
 
@@ -479,15 +580,54 @@ body {
 <section class="borough-summary">
   <h2>Borough Breakdown</h2>
   <p class="section-sub">Ownership concentration varies dramatically across the five boroughs.</p>
-  <button class="borough-toggle" id="boroughToggle">Show borough stats \u25BE</button>
+  <button class="borough-toggle" id="boroughToggle">Show borough stats ▾</button>
   <div class="borough-cards" id="boroughCards"></div>
+</section>
+
+<!-- ANALYTICS -->
+<section class="analytics">
+  <h2>Data Deep Dive</h2>
+  <p class="section-sub">Charts and breakdowns revealing patterns in who controls NYC's blocks.</p>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h4>Concentration Distribution</h4>
+      <canvas id="chartDistribution"></canvas>
+      <p class="chart-note">How many blocks fall into each concentration bracket. Higher concentration means fewer entities control more property.</p>
+    </div>
+    <div class="chart-card">
+      <h4>Average Concentration by Borough</h4>
+      <canvas id="chartBorough"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>Blocks by Property Type</h4>
+      <canvas id="chartType"></canvas>
+    </div>
+    <div class="chart-card">
+      <h4>Concentration by Property Type</h4>
+      <canvas id="chartTypeConcentration"></canvas>
+    </div>
+    <div class="chart-card full-width">
+      <h4>Assessed Value vs. Concentration</h4>
+      <canvas id="chartScatter"></canvas>
+      <p class="chart-note">Each dot is a tax block. Higher and further right means more valuable property controlled by fewer owners.</p>
+    </div>
+    <div class="chart-card full-width">
+      <h4>Neighborhood Concentration Ranking</h4>
+      <canvas id="chartNeighborhood"></canvas>
+    </div>
+    <div class="chart-card full-width">
+      <h4>Most Prolific LLCs</h4>
+      <div id="topOwnersTable"></div>
+      <p class="chart-note">Entities that appear as the top owner across the most tax blocks.</p>
+    </div>
+  </div>
 </section>
 
 <!-- METHODOLOGY -->
 <section class="methodology">
   <h3>Methodology &amp; Data</h3>
   <p>
-    This map uses data from NYC\u2019s Primary Land Use Tax Lot Output (PLUTO), published by the Department of City Planning via the NYC Open Data portal. Ownership concentration is calculated at the tax-block level: for each block, we count the number of distinct owners listed across all lots. The \u201cconcentration score\u201d represents the percentage of a block\u2019s lots controlled by the single largest owner. Blocks where one entity owns every lot score 100%; blocks with many different owners score lower. LLC names are taken directly from property records and may obscure the ultimate beneficial owner. Assessed values reflect the city\u2019s most recent tax assessment and may differ from market value.
+    This map uses data from NYC’s Primary Land Use Tax Lot Output (PLUTO), published by the Department of City Planning via the NYC Open Data portal. Ownership concentration is calculated at the tax-block level: for each block, we count the number of distinct owners listed across all lots. The “concentration score” represents the percentage of a block’s lots controlled by the single largest owner. Blocks where one entity owns every lot score 100%; blocks with many different owners score lower. LLC names are taken directly from property records and may obscure the ultimate beneficial owner. Assessed values reflect the city’s most recent tax assessment and may differ from market value.
   </p>
 </section>
 
@@ -855,6 +995,238 @@ body {
       '<div class="stat-row"><span class="label">Median assessed value</span><span class="value">' + formatCurrency(d.medianAssessed) + '</span></div>' +
     '</div>';
   }).join('');
+
+  // --- CHARTS ---
+  const chartFont = { family: "'Inter', system-ui, sans-serif" };
+  Chart.defaults.font.family = chartFont.family;
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = '#555';
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
+  // 1. Concentration Distribution (histogram)
+  const brackets = [
+    { label: '0\u201320%', min: 0, max: 20 },
+    { label: '20\u201335%', min: 20, max: 35 },
+    { label: '35\u201350%', min: 35, max: 50 },
+    { label: '50\u201365%', min: 50, max: 65 },
+    { label: '65\u201380%', min: 65, max: 80 },
+    { label: '80\u2013100%', min: 80, max: 101 }
+  ];
+  const bracketCounts = brackets.map(function(br) {
+    return blocks.filter(function(b) { return b.concentration >= br.min && b.concentration < br.max; }).length;
+  });
+  const bracketColors = ['#1a237e', '#283593', '#4527a0', '#6a1b9a', '#8e244d', '#b71c1c'];
+
+  new Chart(document.getElementById('chartDistribution'), {
+    type: 'bar',
+    data: {
+      labels: brackets.map(function(br) { return br.label; }),
+      datasets: [{
+        data: bracketCounts,
+        backgroundColor: bracketColors,
+        borderRadius: 4,
+        barPercentage: 0.85
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Number of blocks' }, grid: { color: '#f0f0f0' } },
+        x: { title: { display: true, text: 'Concentration range' }, grid: { display: false } }
+      }
+    }
+  });
+
+  // 2. Average Concentration by Borough (horizontal bar)
+  const boroughOrder = ['MN', 'BK', 'QN', 'BX', 'SI'];
+  const boroughAvgs = boroughOrder.map(function(b) { return boroughData[b].avgConc; });
+  const boroughColorMap = { MN: '#1a237e', BK: '#4527a0', QN: '#6a1b9a', BX: '#8e244d', SI: '#b71c1c' };
+
+  new Chart(document.getElementById('chartBorough'), {
+    type: 'bar',
+    data: {
+      labels: boroughOrder.map(function(b) { return boroughNames[b]; }),
+      datasets: [{
+        data: boroughAvgs,
+        backgroundColor: boroughOrder.map(function(b) { return boroughColorMap[b]; }),
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, max: 100, title: { display: true, text: 'Avg. concentration %' }, grid: { color: '#f0f0f0' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+  // 3. Blocks by Property Type (donut)
+  const types = ['residential', 'commercial', 'mixed', 'industrial'];
+  const typeLabels = { residential: 'Residential', commercial: 'Commercial', mixed: 'Mixed-Use', industrial: 'Industrial' };
+  const typeColors = { residential: '#1565c0', commercial: '#b71c1c', mixed: '#6a1b9a', industrial: '#ef6c00' };
+  const typeCounts = types.map(function(t) { return blocks.filter(function(b) { return b.type === t; }).length; });
+
+  new Chart(document.getElementById('chartType'), {
+    type: 'doughnut',
+    data: {
+      labels: types.map(function(t) { return typeLabels[t]; }),
+      datasets: [{
+        data: typeCounts,
+        backgroundColor: types.map(function(t) { return typeColors[t]; }),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // 4. Concentration by Property Type (grouped stats)
+  const typeAvgConc = types.map(function(t) {
+    const tBlocks = blocks.filter(function(b) { return b.type === t; });
+    return Math.round(tBlocks.reduce(function(a, b) { return a + b.concentration; }, 0) / tBlocks.length);
+  });
+
+  new Chart(document.getElementById('chartTypeConcentration'), {
+    type: 'bar',
+    data: {
+      labels: types.map(function(t) { return typeLabels[t]; }),
+      datasets: [{
+        label: 'Avg. concentration %',
+        data: typeAvgConc,
+        backgroundColor: types.map(function(t) { return typeColors[t]; }),
+        borderRadius: 4,
+        barPercentage: 0.65
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Avg. concentration %' }, grid: { color: '#f0f0f0' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  // 5. Scatter: Assessed Value vs. Concentration
+  const scatterData = blocks.map(function(b) {
+    return { x: b.concentration, y: b.totalAssessed / 1000000 };
+  });
+  const scatterColors = blocks.map(function(b) { return getColor(b.concentration); });
+
+  new Chart(document.getElementById('chartScatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: scatterData,
+        backgroundColor: scatterColors,
+        pointRadius: 5,
+        pointHoverRadius: 7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return 'Concentration: ' + ctx.parsed.x + '% \u00b7 Value: $' + ctx.parsed.y.toFixed(1) + 'M';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Concentration %' }, grid: { color: '#f0f0f0' } },
+        y: { title: { display: true, text: 'Total assessed value ($M)' }, grid: { color: '#f0f0f0' },
+          ticks: { callback: function(v) { return '$' + v + 'M'; } }
+        }
+      }
+    }
+  });
+
+  // 6. Neighborhood Concentration Ranking (horizontal bar)
+  const hoodStats = {};
+  blocks.forEach(function(b) {
+    if (!hoodStats[b.neighborhood]) hoodStats[b.neighborhood] = [];
+    hoodStats[b.neighborhood].push(b.concentration);
+  });
+  const hoodAvgs = Object.keys(hoodStats).map(function(name) {
+    var vals = hoodStats[name];
+    return { name: name, avg: Math.round(vals.reduce(function(a, v) { return a + v; }, 0) / vals.length) };
+  }).sort(function(a, b) { return b.avg - a.avg; });
+
+  new Chart(document.getElementById('chartNeighborhood'), {
+    type: 'bar',
+    data: {
+      labels: hoodAvgs.map(function(h) { return h.name; }),
+      datasets: [{
+        data: hoodAvgs.map(function(h) { return h.avg; }),
+        backgroundColor: hoodAvgs.map(function(h) { return getColor(h.avg); }),
+        borderRadius: 3,
+        barPercentage: 0.8
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, max: 100, title: { display: true, text: 'Avg. concentration %' }, grid: { color: '#f0f0f0' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Set explicit height for neighborhood chart based on count
+  document.getElementById('chartNeighborhood').parentElement.style.height = (hoodAvgs.length * 22 + 60) + 'px';
+
+  // 7. Top Owners Table
+  const ownerBlocks = {};
+  blocks.forEach(function(b) {
+    if (!ownerBlocks[b.topOwnerName]) ownerBlocks[b.topOwnerName] = { count: 0, totalLots: 0, totalAssessed: 0, boroughs: new Set() };
+    ownerBlocks[b.topOwnerName].count++;
+    ownerBlocks[b.topOwnerName].totalLots += b.topOwnerLots;
+    ownerBlocks[b.topOwnerName].totalAssessed += b.totalAssessed;
+    ownerBlocks[b.topOwnerName].boroughs.add(boroughNames[b.borough]);
+  });
+
+  const topOwners = Object.keys(ownerBlocks).map(function(name) {
+    return { name: name, count: ownerBlocks[name].count, totalLots: ownerBlocks[name].totalLots,
+      totalAssessed: ownerBlocks[name].totalAssessed, boroughs: Array.from(ownerBlocks[name].boroughs) };
+  }).filter(function(o) { return o.count > 1; })
+    .sort(function(a, b) { return b.count - a.count || b.totalLots - a.totalLots; })
+    .slice(0, 15);
+
+  var maxCount = topOwners.length > 0 ? topOwners[0].count : 1;
+  var tableHtml = '<table class="top-owners-table"><thead><tr><th>LLC Name</th><th>Blocks</th><th>Lots Controlled</th><th>Total Assessed</th><th>Borough(s)</th></tr></thead><tbody>';
+  topOwners.forEach(function(o) {
+    var barWidth = Math.round(o.count / maxCount * 60);
+    tableHtml += '<tr><td>' + o.name + '</td><td><span class="owner-bar" style="width:' + barWidth + 'px;"></span>' + o.count + '</td><td>' + o.totalLots + '</td><td>' + formatCurrency(o.totalAssessed) + '</td><td>' + o.boroughs.join(', ') + '</td></tr>';
+  });
+  tableHtml += '</tbody></table>';
+
+  if (topOwners.length === 0) {
+    tableHtml = '<p style="color:#999;font-size:0.9rem;">No LLC appears as top owner on more than one block in this dataset.</p>';
+  }
+  document.getElementById('topOwnersTable').innerHTML = tableHtml;
 
 })();
 </script>
