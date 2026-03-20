@@ -422,6 +422,7 @@ body {
   max-height: 280px;
 }
 
+
 .chart-card.full-width {
   grid-column: 1 / -1;
 }
@@ -612,7 +613,7 @@ body {
       <p class="chart-note">Each dot is a tax block. Higher and further right means more valuable property controlled by fewer owners.</p>
     </div>
     <div class="chart-card full-width">
-      <h4>Neighborhood Concentration Ranking</h4>
+      <h4>Top 15 Most Concentrated Neighborhoods</h4>
       <canvas id="chartNeighborhood"></canvas>
     </div>
     <div class="chart-card full-width">
@@ -1172,13 +1173,14 @@ body {
     return { name: name, avg: Math.round(vals.reduce(function(a, v) { return a + v; }, 0) / vals.length) };
   }).sort(function(a, b) { return b.avg - a.avg; });
 
+  var top15 = hoodAvgs.slice(0, 15);
   new Chart(document.getElementById('chartNeighborhood'), {
     type: 'bar',
     data: {
-      labels: hoodAvgs.map(function(h) { return h.name; }),
+      labels: top15.map(function(h) { return h.name; }),
       datasets: [{
-        data: hoodAvgs.map(function(h) { return h.avg; }),
-        backgroundColor: hoodAvgs.map(function(h) { return getColor(h.avg); }),
+        data: top15.map(function(h) { return h.avg; }),
+        backgroundColor: top15.map(function(h) { return getColor(h.avg); }),
         borderRadius: 3,
         barPercentage: 0.8
       }]
@@ -1186,7 +1188,8 @@ body {
     options: {
       indexAxis: 'y',
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: true,
+      aspectRatio: 1.6,
       plugins: { legend: { display: false } },
       scales: {
         x: { beginAtZero: true, max: 100, title: { display: true, text: 'Avg. concentration %' }, grid: { color: '#f0f0f0' } },
@@ -1194,9 +1197,6 @@ body {
       }
     }
   });
-
-  // Set explicit height for neighborhood chart based on count
-  document.getElementById('chartNeighborhood').parentElement.style.height = (hoodAvgs.length * 22 + 60) + 'px';
 
   // 7. Top Owners Table
   const ownerBlocks = {};
