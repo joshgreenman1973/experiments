@@ -178,6 +178,39 @@ function buildLayout(){
   const memo={};
   function gen(id){if(memo[id]!==undefined)return memo[id];const p=P(id);if(!p||!p.parentIds||!p.parentIds.length){memo[id]=0;return 0}memo[id]=1+Math.max(...p.parentIds.map(pid=>gen(pid)));return memo[id]}
   data.people.forEach(p=>gen(p.id));
+
+  // Normalize: spouses must be on the same row, and children must be below parents
+  let changed=true,iters=0;
+  while(changed&&iters<100){
+    changed=false;iters++;
+    // Align spouses to same generation (use max)
+    data.people.forEach(p=>{
+      if(p.spouseId&&memo[p.spouseId]!==undefined){
+        const mx=Math.max(memo[p.id],memo[p.spouseId]);
+        if(memo[p.id]<mx){memo[p.id]=mx;changed=true}
+        if(memo[p.spouseId]<mx){memo[p.spouseId]=mx;changed=true}
+      }
+    });
+    // Also align co-parents who aren't listed as spouses (e.g. divorced)
+    data.people.forEach(ch=>{
+      if(ch.parentIds&&ch.parentIds.length===2){
+        const g0=memo[ch.parentIds[0]],g1=memo[ch.parentIds[1]];
+        if(g0!==undefined&&g1!==undefined&&g0!==g1){
+          const mx=Math.max(g0,g1);
+          if(memo[ch.parentIds[0]]<mx){memo[ch.parentIds[0]]=mx;changed=true}
+          if(memo[ch.parentIds[1]]<mx){memo[ch.parentIds[1]]=mx;changed=true}
+        }
+      }
+    });
+    // Ensure children are always one generation below their parents
+    data.people.forEach(p=>{
+      if(p.parentIds&&p.parentIds.length){
+        const parentMax=Math.max(...p.parentIds.map(pid=>memo[pid]||0));
+        if(memo[p.id]<=parentMax){memo[p.id]=parentMax+1;changed=true}
+      }
+    });
+  }
+
   const maxGen=Math.max(0,...Object.values(memo));
 
   // Group by generation, then build couple-units per row
@@ -254,7 +287,7 @@ function buildLayout(){
 
   let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
   nodes.forEach(n=>{minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x+CW);minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y+CH)});
-  return{nodes,links,width:maxX-minX,height:maxY-minY,offsetX:-minX,offsetY:-minY};
+  return{nodes,links,width:maxX-minX,height:maxY-minY,offsetX:-minX,offsetY:-minY,genMap:memo};
 }
 
 // ===== RENDER =====
@@ -269,11 +302,21 @@ function render(){
   svg.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
   let h='';
 
-  // Generation labels
-  const gYs={},memo2={};
-  function gen2(id){if(memo2[id]!==undefined)return memo2[id];const p=P(id);if(!p||!p.parentIds||!p.parentIds.length){memo2[id]=0;return 0}memo2[id]=1+Math.max(...p.parentIds.map(pid=>gen2(pid)));return memo2[id]}
-  L.nodes.forEach(n=>{const g=gen2(n.person.id);const y=n.y+oy;if(!gYs[g]||y<gYs[g])gYs[g]=y});
-  const gLabels={0:'3\u00d7Great-Grandparents',1:'2\u00d7Great-Grandparents',2:'Great-Grandparents',3:'Grandparents',4:'Parents',5:'Children',6:'Grandchildren'};
+  // Generation labels — use L.genMap computed in buildLayout
+  const gYs={};
+  L.nodes.forEach(n=>{const g=L.genMap[n.person.id];const y=n.y+oy;if(g!==undefined&&(!gYs[g]||y<gYs[g]))gYs[g]=y});
+  const joshGen=L.genMap['josh']||5;
+  const mxG=Math.max(0,...Object.values(L.genMap));
+  const gLabels={};
+  for(let g=0;g<=mxG;g++){
+    const diff=joshGen-g;
+    if(diff<0)gLabels[g]='Grandchildren';
+    else if(diff===0)gLabels[g]='Children';
+    else if(diff===1)gLabels[g]='Parents';
+    else if(diff===2)gLabels[g]='Grandparents';
+    else if(diff===3)gLabels[g]='Great-Grandparents';
+    else gLabels[g]=(diff-2)+'\u00d7Great-Grandparents';
+  }
   Object.entries(gYs).forEach(([g,y])=>{
     h+=`<text x="6" y="${y+CH/2+3}" font-family="Inter,sans-serif" font-size="9" fill="#9a8c7a" font-weight="500" style="text-transform:uppercase;letter-spacing:.07em">${gLabels[g]||'Gen '+g}</text>`;
   });
