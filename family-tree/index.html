@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Greenman Family Tree</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf8f5;--card-bg:#fff;--card-border:#d4c9b8;--text-primary:#2c2416;--text-secondary:#6b5d4d;--text-muted:#9a8c7a;--accent:#5a7a5e;--accent-light:#e8f0e9;--connector:#b8a998;--male:#4a6fa5;--female:#8b5e83;--font-display:'Source Serif 4',Georgia,serif;--font-body:'Inter',-apple-system,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text-primary);min-height:100vh}
+header{text-align:center;padding:1.75rem 1rem 1rem;border-bottom:1px solid var(--card-border);background:var(--card-bg)}
+header h1{font-family:var(--font-display);font-size:1.9rem;font-weight:700;letter-spacing:-0.02em}
+header p{font-size:.82rem;color:var(--text-muted);margin-top:.2rem}
+.toolbar{display:flex;justify-content:center;gap:.6rem;padding:.65rem 1rem;background:var(--card-bg);border-bottom:1px solid var(--card-border);flex-wrap:wrap}
+.toolbar button{font-family:var(--font-body);font-size:.78rem;font-weight:500;padding:.4rem .85rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-secondary);cursor:pointer;transition:all .15s}
+.toolbar button:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.toolbar button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.search-box{display:flex;align-items:center;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);padding:0 .7rem}
+.search-box svg{width:14px;height:14px;color:var(--text-muted);flex-shrink:0}
+.search-box input{border:none;background:transparent;font-family:var(--font-body);font-size:.78rem;padding:.4rem .45rem;outline:none;color:var(--text-primary);width:140px}
+#tree-container{width:100%;overflow:auto;padding:1.5rem 1rem 3rem;min-height:calc(100vh - 130px)}
+#tree-svg{overflow:visible;display:block;margin:0 auto}
+.connector-line{fill:none;stroke:var(--connector);stroke-width:1.5}
+.marriage-line{fill:none;stroke:var(--connector);stroke-width:2;stroke-dasharray:6 3}
+.person-card{cursor:pointer}
+.person-card:hover{filter:drop-shadow(0 3px 10px rgba(0,0,0,.12))}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,36,22,.5);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.active{display:flex}
+.modal{background:var(--card-bg);border-radius:12px;padding:1.5rem;width:90%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h2{font-family:var(--font-display);font-size:1.15rem;margin-bottom:.9rem}
+.modal label{display:block;font-size:.78rem;font-weight:500;color:var(--text-secondary);margin:.65rem 0 .2rem}
+.modal label:first-of-type{margin-top:0}
+.modal input,.modal select{width:100%;padding:.45rem .65rem;border:1px solid var(--card-border);border-radius:6px;font-family:var(--font-body);font-size:.83rem;color:var(--text-primary);background:var(--bg)}
+.modal input:focus,.modal select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-light)}
+.modal-actions{display:flex;gap:.65rem;margin-top:1.1rem;justify-content:flex-end}
+.modal-actions button{font-family:var(--font-body);font-size:.83rem;font-weight:500;padding:.5rem 1rem;border-radius:6px;cursor:pointer;border:1px solid var(--card-border);background:var(--bg);color:var(--text-secondary)}
+.modal-actions button.save{background:var(--accent);color:#fff;border-color:var(--accent)}
+.modal-actions button.delete{background:#c0392b;color:#fff;border-color:#c0392b;margin-right:auto}
+
+.detail-panel{display:none;position:fixed;right:0;top:0;bottom:0;width:330px;background:var(--card-bg);border-left:1px solid var(--card-border);box-shadow:-4px 0 20px rgba(0,0,0,.06);z-index:50;padding:1.75rem 1.25rem;overflow-y:auto}
+.detail-panel.active{display:block}
+.detail-panel .close-btn{position:absolute;top:.8rem;right:.8rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-muted)}
+.detail-panel h2{font-family:var(--font-display);font-size:1.25rem;margin-bottom:.15rem}
+.detail-panel .detail-dates{color:var(--text-secondary);font-size:.85rem;margin-bottom:.9rem}
+.detail-panel .detail-field{margin-bottom:.6rem}
+.detail-panel .detail-label{font-size:.7rem;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.detail-panel .detail-value{font-size:.88rem;color:var(--text-primary);margin-top:.08rem}
+.detail-panel .detail-value a{color:var(--accent);text-decoration:none}
+.detail-panel .detail-value a:hover{text-decoration:underline}
+.detail-panel .detail-actions{margin-top:1.1rem;display:flex;gap:.45rem;flex-wrap:wrap}
+.detail-panel .detail-actions button{font-family:var(--font-body);font-size:.78rem;font-weight:500;padding:.35rem .75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--bg);color:var(--text-secondary);cursor:pointer}
+.detail-panel .detail-actions button:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.stats{text-align:center;padding:.35rem;font-size:.7rem;color:var(--text-muted);border-top:1px solid var(--card-border);background:var(--card-bg);position:fixed;bottom:0;left:0;right:0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Greenman Family Tree</h1>
+  <p>An interactive genealogy &bull; Greenman, Heller, Davis &amp; Krause families</p>
+</header>
+<div class="toolbar">
+  <div class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="search-input" placeholder="Search people&hellip;"/></div>
+  <button class="primary" onclick="openAddModal()">+ Add Person</button>
+  <button onclick="zoomIn()">Zoom In</button>
+  <button onclick="zoomOut()">Zoom Out</button>
+  <button onclick="resetView()">Reset View</button>
+  <button onclick="exportData()">Export JSON</button>
+  <button onclick="document.getElementById('import-file').click()">Import JSON</button>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)"/>
+</div>
+<div id="tree-container"><svg id="tree-svg"></svg></div>
+<div class="stats" id="stats-bar"></div>
+<div class="detail-panel" id="detail-panel">
+  <button class="close-btn" onclick="closeDetail()">&times;</button>
+  <div id="detail-content"></div>
+</div>
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="modal-title">Add Person</h2>
+    <label for="f-fn">First Name</label><input id="f-fn"/>
+    <label for="f-mn">Middle Name</label><input id="f-mn"/>
+    <label for="f-ln">Last Name</label><input id="f-ln"/>
+    <label for="f-maiden">Maiden Name</label><input id="f-maiden" placeholder="If applicable"/>
+    <label for="f-gender">Gender</label><select id="f-gender"><option value="">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
+    <label for="f-bd">Birth Date</label><input id="f-bd" placeholder="e.g. Aug. 3, 1973"/>
+    <label for="f-bp">Birth Place</label><input id="f-bp"/>
+    <label for="f-dd">Death Date</label><input id="f-dd"/>
+    <label for="f-dp">Death Place</label><input id="f-dp"/>
+    <label for="f-occ">Occupation</label><input id="f-occ"/>
+    <label for="f-parent">Parent Of</label><select id="f-parent" multiple style="height:65px"></select>
+    <label for="f-spouse">Spouse Of</label><select id="f-spouse"><option value="">None</option></select>
+    <label for="f-notes">Notes</label><input id="f-notes"/>
+    <div class="modal-actions">
+      <button class="delete" id="modal-del" style="display:none" onclick="deletePerson()">Delete</button>
+      <button onclick="closeModalBtn()">Cancel</button>
+      <button class="save" onclick="savePerson()">Save</button>
+    </div>
+  </div>
+</div>
+<script>
+const STORAGE_KEY='greenman-family-tree-v5';
+function defaultData(){return{people:[
+// ===== 3×GREAT-GRANDPARENTS (Minsk, ~1820s–1840s) =====
+{id:'gggp_davis_m',firstName:'\u2014',lastName:'Davidovich',maidenName:'',gender:'male',birthDate:'c. 1820s\u20131830s',birthPlace:'Minsk Guberniya, Russian Empire',deathDate:'',deathPlace:'Minsk, Belarus',occupation:'',parentIds:[],spouseId:'gggp_davis_f',notes:'Meyer Davis\u2019s paternal grandfather. Father of David Davidovich. The Davidovich family lived in the Minsk Guberniya for generations. The patronymic Davidovich (\u201cson of David\u201d) is specifically Belorussian/Eastern Ashkenazic. Jewish communities in the Pale of Settlement maintained metrical books (births, marriages, deaths) through the local synagogue.'},
+{id:'gggp_davis_f',firstName:'\u2014',lastName:'Davidovich',maidenName:'',gender:'female',birthDate:'c. 1820s',birthPlace:'Minsk Guberniya, Russian Empire',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'gggp_davis_m',notes:'Meyer Davis\u2019s paternal grandmother. Jewish women in the Pale of Settlement often ran household economies while men studied Torah.'},
+// ===== 2×GREAT-GRANDPARENTS (Minsk, ~1850s–1870s) =====
+{id:'ggp_davis_m',firstName:'David',lastName:'Davidovich',maidenName:'',gender:'male',birthDate:'c. 1850s\u20131860s',birthPlace:'Minsk, Russian Empire',deathDate:'',deathPlace:'',occupation:'',parentIds:['gggp_davis_m','gggp_davis_f'],spouseId:'ggp_davis_f',notes:'Meyer Davis\u2019s father. First name inferred from the patronymic Davidovich (\u201cson of David\u201d). Likely lived in Minsk\u2019s Jewish quarter; Minsk had 47,562 Jews in 1897 (52.3% of the city). Jewish men in the Pale of Settlement were subject to harsh conscription laws (25 years of military service) and economic restrictions. The surname was later Americanized from Davidovich to Davis.'},
+{id:'ggp_davis_f',firstName:'\u2014',lastName:'Davidovich',maidenName:'',gender:'female',birthDate:'c. 1860s',birthPlace:'Minsk, Russian Empire',deathDate:'',deathPlace:'Chicago, IL',occupation:'',parentIds:[],spouseId:'ggp_davis_m',notes:'Meyer Davis\u2019s mother. Maiden name unknown. Per Yetta\u2019s obituary, young Yetta helped translate for her Yiddish-speaking grandmother around Chicago\u2014this is likely either Meyer\u2019s or Rae\u2019s mother, confirming she also immigrated to the U.S. Research needed in JewishGen Minsk vital records or Revision Lists.'},
+{id:'ggp_rae_m',firstName:'\u2014',lastName:'\u2014',maidenName:'',gender:'male',birthDate:'c. 1860s',birthPlace:'Minsk, Russian Empire',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_rae_f',notes:'Rae Davis\u2019s father. Rae\u2019s maiden name is unknown; it was likely a different Jewish family in Minsk. Research needed in immigration/naturalization records.'},
+{id:'ggp_rae_f',firstName:'\u2014',lastName:'\u2014',maidenName:'',gender:'female',birthDate:'c. 1860s',birthPlace:'Minsk, Russian Empire',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_rae_m',notes:'Rae Davis\u2019s mother.'},
+// ===== GREAT-GRANDPARENTS =====
+{id:'meyer_davis',firstName:'Meyer',lastName:'Davis',maidenName:'',gender:'male',birthDate:'c. 1890s',birthPlace:'Minsk, Belarus (Russian Empire)',deathDate:'',deathPlace:'Chicago, IL',occupation:'',parentIds:['ggp_davis_m','ggp_davis_f'],spouseId:'rae_davis',notes:'Per Harold Davis\u2019s obituary, Meyer was a \u201cRussian Jewish immigrant.\u201d Likely immigrated between 1905\u20131921 (before the Emergency Quota Act). The family may have initially landed in New York (Harold was born there in 1923) before settling in Chicago. Original surname Davidovich (\u201cson of David\u201d)\u2014meaning Meyer\u2019s father was likely named David/Dovid. Americanized to Davis. Settled in North Lawndale at 1646 S. Millard Ave\u2014the epicenter of Jewish Chicago, home to ~110,000 Jews by 1930. Father of four: Yetta, Florence, Herman, and Harold.'},
+{id:'rae_davis',firstName:'Rae',lastName:'Davis',maidenName:'',gender:'female',birthDate:'c. 1890s',birthPlace:'Minsk, Belarus (Russian Empire)',deathDate:'',deathPlace:'Chicago, IL',occupation:'',parentIds:['ggp_rae_m','ggp_rae_f'],spouseId:'meyer_davis',notes:'Also recorded as \u201cRay.\u201d Immigrated from Minsk, Belarus to Chicago. Lived at 1646 S. Millard Ave, North Lawndale. Mother of four: Yetta, Florence, Herman, and Harold.'},
+{id:'ggp_heller_m',firstName:'\u2014',lastName:'Heller',maidenName:'',gender:'male',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_heller_f',notes:'Norman \u201cTallie\u201d Heller\u2019s father. Heller is a German/Ashkenazi Jewish surname, possibly a habitational name for someone from Schwäbisch Hall in Swabia, Germany, or from Yiddish \u201chel\u201d (bright). Likely a Jewish immigrant to Chicago. Research needed in Cook County census records.'},
+{id:'ggp_heller_f',firstName:'\u2014',lastName:'Heller',maidenName:'',gender:'female',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_heller_m',notes:'Norman \u201cTallie\u201d Heller\u2019s mother. Maiden name unknown.'},
+{id:'ggp_greenman_m',firstName:'\u2014',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_greenman_f',notes:'Albert Greenman\u2019s father. Likely Jewish immigrant to Chicago. Greenman is an Americanized form of Grünemann (German topographic name). 20.3% of Greenman surname holders have Ashkenazi Jewish ancestry. Part of the Ashkenazi \u201cgreen\u201d surname cluster (Greenstein, Greenfeld, Greenbaum).'},
+{id:'ggp_greenman_f',firstName:'\u2014',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_greenman_m',notes:'Albert Greenman\u2019s mother. Maiden name unknown.'},
+{id:'ggp_krause_m',firstName:'\u2014',lastName:'Krause',maidenName:'',gender:'male',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_krause_f',notes:'Gladys Krause\u2019s father. Krause is a German/Ashkenazi Jewish surname from Middle High German \u201ckrus\u201d (curly)\u2014a nickname for someone with curly hair, or from \u201ckruse\u201d (pitcher/jug), an occupational name for a potter.'},
+{id:'ggp_krause_f',firstName:'\u2014',lastName:'Krause',maidenName:'',gender:'female',birthDate:'c. 1890s',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'ggp_krause_m',notes:'Gladys Krause\u2019s mother. Maiden name unknown.'},
+// ===== GRANDPARENTS =====
+{id:'norman',firstName:'Norman',lastName:'Heller',maidenName:'',gender:'male',birthDate:'c. 1918',birthPlace:'Illinois',deathDate:'2006',deathPlace:'',occupation:'Storekeeper',parentIds:['ggp_heller_m','ggp_heller_f'],spouseId:'yetta',notes:'Known as \u201cTallie\u201d (possibly from Naftali/Naphtali). Ran a store with Yetta. Loved theater and fine arts; patronized Chicago theaters with family. Per Yetta\u2019s obituary, they were \u201ctrue love and soulmate[s].\u201d'},
+{id:'yetta',firstName:'Yetta',lastName:'Heller',maidenName:'Davis',gender:'female',birthDate:'c. Sept. 1922',birthPlace:'Chicago, IL',deathDate:'Aug. 2022',deathPlace:'',occupation:'Storekeeper',parentIds:['meyer_davis','rae_davis'],spouseId:'norman',notes:'Daughter of immigrants from Minsk, Belarus. Lived 99 years, 11 months. Bilingual in English and Yiddish; as a girl helped translate for her Yiddish-speaking grandmother around Chicago. Always had a piano in her home, played until arthritis stopped her. Loved theater and fine arts. Lit Shabbat candles every Friday night; kept a tzedakah pushka in every home. \u201cA strong, independent, Jewish woman\u2026a pillar for her family and friends.\u201d Her devotion to \u201ctrue love and soulmate, Tallie, never wavered.\u201d Had three siblings: Florence, Herman, and Harold.'},
+{id:'florence',firstName:'Florence',lastName:'Davis',maidenName:'',gender:'female',birthDate:'',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'',parentIds:['meyer_davis','rae_davis'],spouseId:'',notes:'Daughter of Meyer and Rae Davis. Yetta\u2019s sister.'},
+{id:'herman',firstName:'Herman',lastName:'Davis',maidenName:'',gender:'male',birthDate:'c. 1923',birthPlace:'Chicago, IL',deathDate:'1982',deathPlace:'',occupation:'',parentIds:['meyer_davis','rae_davis'],spouseId:'',notes:'Son of Meyer and Rae Davis. Yetta\u2019s brother.'},
+{id:'harold',firstName:'Harold',lastName:'Davis',maidenName:'',gender:'male',birthDate:'March 2, 1923',birthPlace:'New York City, NY',deathDate:'June 25, 2014',deathPlace:'Chicago, IL',occupation:'Publishing',parentIds:['meyer_davis','rae_davis'],spouseId:'gertrude',notes:'Born in NYC\u2014suggesting the family initially landed in New York before relocating to Chicago. \u201cThe son of Russian Jewish immigrants.\u201d DePaul University, journalism degree. Long career in publishing. Avid book collector and crossword puzzle solver. Married Gertrude Telpner for 70 years. Survived by 3 children, 4 grandchildren, 11 great-grandchildren.'},
+{id:'gertrude',firstName:'Gertrude',lastName:'Davis',maidenName:'Telpner',gender:'female',birthDate:'',birthPlace:'',deathDate:'2014',deathPlace:'',occupation:'',parentIds:[],spouseId:'harold',notes:'Née Telpner. Married to Harold Davis for 70 years. Predeceased Harold by 10 weeks.'},
+{id:'albert',firstName:'Albert',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'',parentIds:['ggp_greenman_m','ggp_greenman_f'],spouseId:'gladys',notes:'Richard and Steven\u2019s father. Family lived in Norwood Park on the North Side of Chicago. Once told his grandson: \u201cThere\u2019s a right way to do everything, though it\u2019s not always the most interesting way.\u201d Note: A different Albert Greenman in Chicago (married to Mary \u201cManya\u201d Geller, children Herbert and Sharron) is a separate person.'},
+{id:'gladys',firstName:'Gladys',lastName:'Greenman',maidenName:'Krause',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['ggp_krause_m','ggp_krause_f'],spouseId:'albert',notes:'Richard\u2019s mother. Née Krause.'},
+// ===== PARENTS =====
+{id:'richard',firstName:'Richard',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'Aug. 29, 1943',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'Academic physician',parentIds:['albert','gladys'],spouseId:'bernadine',notes:'Grew up in Norwood Park, Chicago (6120 N. Navarre Ave). MD license in Florida (issued 1974). Family relocated from Chicago to Miami to raise their sons. Also associated with Aquinnah, MA (Martha\u2019s Vineyard).'},
+{id:'bernadine',firstName:'Bernadine',lastName:'Heller-Greenman',maidenName:'Heller',gender:'female',birthDate:'March 31, 1945',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'Art history professor, FIU',parentIds:['norman','yetta'],spouseId:'richard',notes:'Known as \u201cBunny.\u201d Mather High School, Chicago (class of 1962). PhD, Florida State University (2002). Dissertation: \u201cThe Monument du Costume of Jean-Michel Moreau le Jeune in the Context of Rousseau and the Ancien Régime\u201d (advisor: Robert Neuman). Published in Athanor 20. Retired from FIU; now in Brooklyn near adult children and grandchildren. Makes art quilts. Her family was more observant than Richard\u2019s; sons raised in a Conservative synagogue, all had bar mitzvahs.'},
+{id:'michael_h',firstName:'Michael',lastName:'Heller',maidenName:'',gender:'male',birthDate:'',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'Attorney',parentIds:['norman','yetta'],spouseId:'elinor',notes:'Bernadine\u2019s brother. Formerly at Sonnenschein, Nath & Rosenthal, Chicago. Married three times: first to Shirley, then to Wanda (children Sydney and Tikvah), then to Elinor.'},
+{id:'elinor',firstName:'Elinor',lastName:'Heller',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'michael_h',notes:'Michael Heller\u2019s third wife.'},
+{id:'wanda',firstName:'Wanda',lastName:'Heller',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'',notes:'Michael Heller\u2019s second wife. Mother of Sydney and Tikvah.'},
+{id:'steven',firstName:'Steven',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'',parentIds:['albert','gladys'],spouseId:'nancy_s',notes:'Richard\u2019s brother.'},
+{id:'nancy_s',firstName:'Nancy',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'steven',notes:'Steven Greenman\u2019s wife. Mother of Rachel and Jennifer.'},
+// ===== JOSH\u2019S GENERATION =====
+{id:'ben',firstName:'Ben',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'Sept. 28, 1969',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'Author, editor',parentIds:['richard','bernadine'],spouseId:'gail',notes:'Raised in Miami; Miami Palmetto Senior High School (class of 1986). NYT-bestselling author. Editor at The New Yorker (2000\u20132014). Nearly 30 fiction and nonfiction books including The Slippage, Mo\u2019 Meta Blues (with Questlove), I Am Brian Wilson, Dig If You Will the Picture. Collaborations with George Clinton, Gene Simmons, Steven Van Zandt, Sly Stone. Lives in Brooklyn.'},
+{id:'gail',firstName:'Gail',lastName:'Ghezzi',maidenName:'Ghezzi',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'Art director',parentIds:[],spouseId:'ben',notes:'Former AD, OnEarth (NRDC). Designs for Hearst, Simon & Schuster. Artist: shadow box works on mortality.'},
+{id:'aaron',firstName:'Aaron',middleName:'C.',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'c. 1971',birthPlace:'Chicago, IL',deathDate:'',deathPlace:'',occupation:'Photographer',parentIds:['richard','bernadine'],spouseId:'egle',notes:'Art history, Amherst College. Street photographer in the Leica M tradition; favors prime lenses and black-and-white. Over 25 years of work on four continents. Luminous Landscape author, featured on the Leica Camera Blog. Based in Europe. Three children (Adele, Isaac, Elliot) with Catherine Gay (recently divorced); son Levi with Egle.'},
+{id:'catherine',firstName:'Catherine',lastName:'Gay',maidenName:'Gay',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'',notes:'Aaron Greenman\u2019s former wife. Mother of Adele, Isaac, and Elliot.'},
+{id:'egle',firstName:'Egle',lastName:'',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'aaron',notes:'Aaron Greenman\u2019s partner. Mother of Levi.'},
+{id:'josh',firstName:'Josh',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'Aug. 3, 1973',birthPlace:'Palo Alto, CA',deathDate:'',deathPlace:'',occupation:'Journalist, editor',parentIds:['richard','bernadine'],spouseId:'nancy',notes:'Managing editor, Vital City (2023\u2013present). Op-ed editor, then editorial page editor, NY Daily News (2006\u20132022). Founding editor, InsideSchools.org. Two daughters: Lola and Sasha. Brooklyn.'},
+{id:'nancy',firstName:'Nancy',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'josh',notes:'Brooklyn.'},
+{id:'tikvah',firstName:'Tikvah',lastName:'Heller',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['michael_h','wanda'],spouseId:'',notes:''},
+{id:'sydney',firstName:'Sydney',lastName:'Heller',maidenName:'',gender:'male',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'Web developer, IT consultant',parentIds:['michael_h','wanda'],spouseId:'kristina',notes:'Also known as Syd. Berkeley/Piedmont, CA.'},
+{id:'rachel',firstName:'Rachel',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['steven','nancy_s'],spouseId:'',notes:'Daughter of Steven and Nancy Greenman.'},
+{id:'jennifer',firstName:'Jennifer',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['steven','nancy_s'],spouseId:'',notes:'Daughter of Steven and Nancy Greenman.'},
+{id:'kristina',firstName:'Kristina',lastName:'Kostenkova Heller',maidenName:'Kostenkova',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'Family physician (DO)',parentIds:[],spouseId:'sydney',notes:'Board-certified family physician at Kaiser Permanente, Oakland/Richmond, CA.'},
+// ===== GRANDCHILDREN =====
+{id:'daniel',firstName:'Daniel',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'2001',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['ben','gail'],spouseId:'',notes:''},
+{id:'jakob',firstName:'Jake',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'2004',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['ben','gail'],spouseId:'',notes:''},
+{id:'lola',firstName:'Lola',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'Brooklyn, NY',deathDate:'',deathPlace:'',occupation:'',parentIds:['josh','nancy'],spouseId:'',notes:''},
+{id:'sasha',firstName:'Sasha',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'Brooklyn, NY',deathDate:'',deathPlace:'',occupation:'',parentIds:['josh','nancy'],spouseId:'',notes:''},
+{id:'adele',firstName:'Adele',lastName:'Greenman',maidenName:'',gender:'female',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['aaron','catherine'],spouseId:'',notes:''},
+{id:'isaac',firstName:'Isaac',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['aaron','catherine'],spouseId:'',notes:''},
+{id:'elliot',firstName:'Elliot',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['aaron','catherine'],spouseId:'',notes:''},
+{id:'zhenya',firstName:'Zhenya',lastName:'',maidenName:'',gender:'',birthDate:'',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:[],spouseId:'',notes:'Listed as great-grandchild in Yetta Heller\u2019s 2022 obituary. Uncertain.'},
+{id:'levi',firstName:'Levi',lastName:'Greenman',maidenName:'',gender:'male',birthDate:'c. 2025\u20132026',birthPlace:'',deathDate:'',deathPlace:'',occupation:'',parentIds:['aaron','egle'],spouseId:'',notes:'Recently born.'}
+]};}
+
+let data=loadData(),currentScale=1,editingPersonId=null,highlightedId=null;
+function loadData(){try{const s=localStorage.getItem(STORAGE_KEY);if(s)return JSON.parse(s)}catch(e){}return defaultData()}
+function saveData(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
+function P(id){return data.people.find(p=>p.id===id)}
+function children(id){return data.people.filter(p=>p.parentIds&&p.parentIds.includes(id))}
+function parents(id){const p=P(id);return(!p||!p.parentIds)?[]:p.parentIds.map(P).filter(Boolean)}
+function siblings(id){const p=P(id);if(!p||!p.parentIds||!p.parentIds.length)return[];return data.people.filter(o=>o.id!==id&&o.parentIds&&o.parentIds.some(pid=>p.parentIds.includes(pid)))}
+
+// ===== GENERATION-ROW LAYOUT =====
+const CW=168,CH=66,HG=18,VG=76,CG=10;
+
+function buildLayout(){
+  const nodes=[],links=[];
+  // Compute generation for each person
+  const memo={};
+  function gen(id){if(memo[id]!==undefined)return memo[id];const p=P(id);if(!p||!p.parentIds||!p.parentIds.length){memo[id]=0;return 0}memo[id]=1+Math.max(...p.parentIds.map(pid=>gen(pid)));return memo[id]}
+  data.people.forEach(p=>gen(p.id));
+  const maxGen=Math.max(0,...Object.values(memo));
+
+  // Group by generation, then build couple-units per row
+  const byGen={};
+  data.people.forEach(p=>{const g=memo[p.id];if(!byGen[g])byGen[g]=[];byGen[g].push(p)});
+
+  function parseBY(d){if(!d)return 9999;const m=d.match(/(\d{4})/);return m?parseInt(m[1]):9999}
+
+  function buildUnits(people){
+    const units=[],used=new Set();
+    people.sort((a,b)=>parseBY(a.birthDate)-parseBY(b.birthDate));
+    people.forEach(p=>{
+      if(used.has(p.id))return;used.add(p.id);
+      const sp=p.spouseId?P(p.spouseId):null;
+      if(sp&&!used.has(sp.id)){used.add(sp.id);units.push([p,sp])}
+      else{units.push([p])}
+    });
+    return units;
+  }
+
+  function unitW(u){return u.length===2?CW*2+CG:CW}
+
+  // Calculate widths
+  const genUnits={},genWidths={};
+  for(let g=0;g<=maxGen;g++){
+    if(!byGen[g])continue;
+    genUnits[g]=buildUnits(byGen[g]);
+    genWidths[g]=genUnits[g].reduce((s,u)=>s+unitW(u),0)+Math.max(0,genUnits[g].length-1)*HG;
+  }
+  const totalW=Math.max(...Object.values(genWidths),400);
+
+  // Place each row centered
+  for(let g=0;g<=maxGen;g++){
+    if(!genUnits[g])continue;
+    const y=g*(CH+VG);
+    let x=(totalW-genWidths[g])/2;
+    genUnits[g].forEach(unit=>{
+      unit.forEach((p,i)=>{nodes.push({person:p,x:x+i*(CW+CG),y})});
+      if(unit.length===2)links.push({type:'marriage',x1:x+CW,y1:y+CH/2,x2:x+CW+CG,y2:y+CH/2});
+      x+=unitW(unit)+HG;
+    });
+  }
+
+  // Draw parent->child connectors
+  const drawn=new Set();
+  data.people.forEach(p=>{
+    if(!p.parentIds||!p.parentIds.length)return;
+    const key=[...p.parentIds].sort().join(',');
+    if(drawn.has(key))return;drawn.add(key);
+    const sibs=data.people.filter(s=>s.parentIds&&p.parentIds.every(pid=>s.parentIds.includes(pid)));
+    const pNodes=p.parentIds.map(pid=>nodes.find(n=>n.person.id===pid)).filter(Boolean);
+    if(!pNodes.length)return;
+    let pcx,pcy;
+    if(pNodes.length===2){
+      const l=pNodes[0].x<pNodes[1].x?pNodes[0]:pNodes[1];
+      const r=pNodes[0].x<pNodes[1].x?pNodes[1]:pNodes[0];
+      pcx=(l.x+CW+r.x)/2;pcy=l.y+CH;
+    }else{pcx=pNodes[0].x+CW/2;pcy=pNodes[0].y+CH}
+    const cCenters=[],cUsed=new Set();
+    sibs.forEach(s=>{
+      if(cUsed.has(s.id))return;cUsed.add(s.id);
+      const cn=nodes.find(n=>n.person.id===s.id);if(!cn)return;
+      const sp=s.spouseId?nodes.find(n=>n.person.id===s.spouseId):null;
+      if(sp){cUsed.add(s.spouseId);const lx=Math.min(cn.x,sp.x);const rx=Math.max(cn.x,sp.x);cCenters.push((lx+CW+rx)/2)}
+      else{cCenters.push(cn.x+CW/2)}
+    });
+    if(!cCenters.length)return;
+    const cY=Math.min(...sibs.map(s=>{const n=nodes.find(nn=>nn.person.id===s.id);return n?n.y:Infinity}));
+    const midY=(pcy+cY)/2;
+    links.push({type:'connector',points:[[pcx,pcy],[pcx,midY]]});
+    if(cCenters.length>1)links.push({type:'connector',points:[[Math.min(...cCenters),midY],[Math.max(...cCenters),midY]]});
+    cCenters.forEach(ccx=>{links.push({type:'connector',points:[[ccx,midY],[ccx,cY]]})});
+  });
+
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  nodes.forEach(n=>{minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x+CW);minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y+CH)});
+  return{nodes,links,width:maxX-minX,height:maxY-minY,offsetX:-minX,offsetY:-minY};
+}
+
+// ===== RENDER =====
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function render(){
+  const svg=document.getElementById('tree-svg');
+  const L=buildLayout(),pad=40;
+  const ox=(L.offsetX||0)+pad,oy=(L.offsetY||0)+pad;
+  const svgW=(L.width||400)+pad*2,svgH=(L.height||200)+pad*2;
+  svg.setAttribute('width',svgW*currentScale);
+  svg.setAttribute('height',svgH*currentScale);
+  svg.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
+  let h='';
+
+  // Generation labels
+  const gYs={},memo2={};
+  function gen2(id){if(memo2[id]!==undefined)return memo2[id];const p=P(id);if(!p||!p.parentIds||!p.parentIds.length){memo2[id]=0;return 0}memo2[id]=1+Math.max(...p.parentIds.map(pid=>gen2(pid)));return memo2[id]}
+  L.nodes.forEach(n=>{const g=gen2(n.person.id);const y=n.y+oy;if(!gYs[g]||y<gYs[g])gYs[g]=y});
+  const gLabels={0:'3\u00d7Great-Grandparents',1:'2\u00d7Great-Grandparents',2:'Great-Grandparents',3:'Grandparents',4:'Parents',5:'Children',6:'Grandchildren'};
+  Object.entries(gYs).forEach(([g,y])=>{
+    h+=`<text x="6" y="${y+CH/2+3}" font-family="Inter,sans-serif" font-size="9" fill="#9a8c7a" font-weight="500" style="text-transform:uppercase;letter-spacing:.07em">${gLabels[g]||'Gen '+g}</text>`;
+  });
+
+  // Links
+  L.links.forEach(l=>{
+    if(l.type==='marriage')h+=`<line class="marriage-line" x1="${l.x1+ox}" y1="${l.y1+oy}" x2="${l.x2+ox}" y2="${l.y2+oy}"/>`;
+    else if(l.points)h+=`<polyline class="connector-line" points="${l.points.map(p=>(p[0]+ox)+','+(p[1]+oy)).join(' ')}"/>`;
+  });
+
+  // Cards
+  L.nodes.forEach(n=>{
+    const p=n.person,x=n.x+ox,y=n.y+oy;
+    const ac=p.gender==='female'?'#8b5e83':p.gender==='male'?'#4a6fa5':'#d4c9b8';
+    const isHl=highlightedId===p.id;
+    const isPh=p.firstName==='\u2014';
+    const fill=isPh?'#f5f2ee':'#fff';
+    h+=`<g class="person-card" onclick="showDetail('${p.id}')" transform="translate(${x},${y})">`;
+    h+=`<rect x="1.5" y="1.5" width="${CW}" height="${CH}" rx="7" fill="rgba(0,0,0,.03)"/>`;
+    h+=`<rect width="${CW}" height="${CH}" rx="7" fill="${fill}" stroke="${ac}" stroke-width="${isHl?2.5:1.3}"/>`;
+    h+=`<rect x="0" y="10" width="3.5" height="18" rx="2" fill="${ac}"/>`;
+    let nm=p.firstName+(p.middleName?' '+p.middleName:'')+' '+p.lastName;
+    if(nm.length>24)nm=nm.slice(0,22)+'\u2026';
+    const nsz=isPh?11:12.5;
+    const nst=isPh?'font-style:italic;fill:#9a8c7a':'fill:#2c2416';
+    h+=`<text x="12" y="26" font-family="Source Serif 4,Georgia,serif" font-size="${nsz}" font-weight="600" style="${nst}">${esc(nm)}</text>`;
+    let ds='';
+    if(p.birthDate){ds='b. '+p.birthDate;if(p.deathDate)ds+=' \u2013 d. '+p.deathDate}
+    if(ds){if(ds.length>34)ds=ds.slice(0,32)+'\u2026';h+=`<text x="12" y="41" font-family="Inter,sans-serif" font-size="10" fill="#6b5d4d">${esc(ds)}</text>`}
+    const sub=p.occupation||p.birthPlace||'';
+    if(sub){const sh=sub.length>30?sub.slice(0,28)+'\u2026':sub;h+=`<text x="12" y="56" font-family="Inter,sans-serif" font-size="9.5" fill="#9a8c7a">${esc(sh)}</text>`}
+    if(p.maidenName&&p.maidenName!==p.lastName)h+=`<text x="${CW-6}" y="${CH-6}" font-family="Inter,sans-serif" font-size="8.5" fill="#9a8c7a" text-anchor="end">n\u00e9e ${esc(p.maidenName)}</text>`;
+    h+=`</g>`;
+  });
+  svg.innerHTML=h;updateStats();
+}
+
+function getGen(id,seen){if(!seen)seen=new Set();if(seen.has(id))return 1;seen.add(id);const p=P(id);if(!p||!p.parentIds||!p.parentIds.length)return 1;return 1+Math.max(...p.parentIds.map(pid=>getGen(pid,seen)))}
+
+// ===== DETAIL =====
+function showDetail(id){
+  const p=P(id);if(!p)return;highlightedId=id;render();
+  const pan=document.getElementById('detail-panel'),con=document.getElementById('detail-content');
+  const par=parents(id),kids=children(id),sibs=siblings(id),sp=p.spouseId?P(p.spouseId):null;
+  let fn=p.firstName+(p.middleName?' '+p.middleName:'')+' '+p.lastName;
+  let ds='';if(p.birthDate)ds+='b. '+p.birthDate;if(p.birthDate&&p.deathDate)ds+=' \u2014 ';if(p.deathDate)ds+='d. '+p.deathDate;
+  let htm=`<h2>${esc(fn)}</h2>`;if(ds)htm+=`<div class="detail-dates">${esc(ds)}</div>`;
+  const f=(l,v)=>v?`<div class="detail-field"><div class="detail-label">${l}</div><div class="detail-value">${v}</div></div>`:'';
+  const lnk=pp=>`<a href="#" onclick="event.preventDefault();showDetail('${pp.id}')">${esc(pp.firstName+' '+pp.lastName)}</a>`;
+  htm+=f('Birth Place',esc(p.birthPlace));htm+=f('Death Place',esc(p.deathPlace));
+  if(p.maidenName&&p.maidenName!==p.lastName)htm+=f('Maiden Name',esc(p.maidenName));
+  htm+=f('Gender',p.gender?p.gender[0].toUpperCase()+p.gender.slice(1):'');
+  htm+=f('Occupation',esc(p.occupation));
+  if(par.length)htm+=f('Parents',par.map(lnk).join(', '));
+  if(sp)htm+=f('Spouse',lnk(sp));
+  if(sibs.length)htm+=f('Siblings',sibs.map(lnk).join(', '));
+  if(kids.length)htm+=f('Children',kids.map(lnk).join(', '));
+  if(p.notes)htm+=f('Notes',esc(p.notes));
+  htm+=`<div class="detail-actions"><button onclick="openEditModal('${p.id}')">Edit</button><button onclick="openAddModal('${p.id}')">Add Relative</button></div>`;
+  con.innerHTML=htm;pan.classList.add('active');
+}
+function closeDetail(){document.getElementById('detail-panel').classList.remove('active');highlightedId=null;render()}
+
+// ===== MODAL =====
+const FMAP={fn:'firstName',mn:'middleName',ln:'lastName',maiden:'maidenName',gender:'gender',bd:'birthDate',bp:'birthPlace',dd:'deathDate',dp:'deathPlace',occ:'occupation',notes:'notes'};
+function populateDD(exId){
+  const ps=document.getElementById('f-parent'),ss=document.getElementById('f-spouse');
+  ps.innerHTML='';ss.innerHTML='<option value="">None</option>';
+  data.people.forEach(p=>{if(p.id===exId)return;const nm=p.firstName+' '+p.lastName;
+    let o1=document.createElement('option');o1.value=p.id;o1.textContent=nm;ps.appendChild(o1);
+    let o2=document.createElement('option');o2.value=p.id;o2.textContent=nm;ss.appendChild(o2);
+  });
+}
+function openAddModal(ctx){editingPersonId=null;document.getElementById('modal-title').textContent='Add Person';document.getElementById('modal-del').style.display='none';Object.keys(FMAP).forEach(f=>{const el=document.getElementById('f-'+f);if(el.tagName==='SELECT'&&f!=='parent')el.value='';else if(el.tagName!=='SELECT')el.value=''});if(ctx){const c=P(ctx);if(c)document.getElementById('f-ln').value=c.lastName}populateDD(null);document.getElementById('modal-overlay').classList.add('active')}
+function openEditModal(id){const p=P(id);if(!p)return;editingPersonId=id;document.getElementById('modal-title').textContent='Edit Person';document.getElementById('modal-del').style.display='inline-block';Object.entries(FMAP).forEach(([f,k])=>{document.getElementById('f-'+f).value=p[k]||''});populateDD(id);const kids=children(id);Array.from(document.getElementById('f-parent').options).forEach(o=>{o.selected=kids.some(c=>c.id===o.value)});document.getElementById('f-spouse').value=p.spouseId||'';document.getElementById('modal-overlay').classList.add('active')}
+function closeModal(e){if(e&&e.target!==document.getElementById('modal-overlay'))return;document.getElementById('modal-overlay').classList.remove('active')}
+function closeModalBtn(){document.getElementById('modal-overlay').classList.remove('active')}
+function savePerson(){
+  const v={};Object.entries(FMAP).forEach(([f,k])=>{v[k]=(document.getElementById('f-'+f).value||'').trim()});
+  if(!v.firstName&&!v.lastName){alert('Enter a name.');return}
+  const spId=document.getElementById('f-spouse').value;
+  const chIds=Array.from(document.getElementById('f-parent').selectedOptions).map(o=>o.value);
+  if(editingPersonId){
+    const p=P(editingPersonId);Object.assign(p,v);
+    if(p.spouseId&&p.spouseId!==spId){const os=P(p.spouseId);if(os&&os.spouseId===editingPersonId)os.spouseId=''}
+    p.spouseId=spId;if(spId){const ns=P(spId);if(ns)ns.spouseId=editingPersonId}
+    data.people.forEach(c=>{if(!c.parentIds)c.parentIds=[];const isC=chIds.includes(c.id),hasP=c.parentIds.includes(editingPersonId);if(isC&&!hasP)c.parentIds.push(editingPersonId);if(!isC&&hasP)c.parentIds=c.parentIds.filter(x=>x!==editingPersonId)});
+  }else{
+    const id=(v.firstName+v.lastName).toLowerCase().replace(/[^a-z]/g,'')+'_'+Date.now();
+    data.people.push({id,...v,parentIds:[],spouseId:spId});
+    if(spId){const s=P(spId);if(s)s.spouseId=id}
+    chIds.forEach(cid=>{const c=P(cid);if(c){if(!c.parentIds)c.parentIds=[];c.parentIds.push(id)}});
+  }
+  saveData();closeModalBtn();render();if(editingPersonId)showDetail(editingPersonId);
+}
+function deletePerson(){if(!editingPersonId||!confirm('Remove?'))return;const p=P(editingPersonId);if(p.spouseId){const s=P(p.spouseId);if(s&&s.spouseId===editingPersonId)s.spouseId=''}data.people.forEach(c=>{if(c.parentIds)c.parentIds=c.parentIds.filter(x=>x!==editingPersonId)});data.people=data.people.filter(x=>x.id!==editingPersonId);saveData();closeModalBtn();closeDetail();render()}
+
+// ===== SEARCH / ZOOM / IO =====
+document.getElementById('search-input').addEventListener('input',function(){const q=this.value.trim().toLowerCase();if(!q){highlightedId=null;render();return}const m=data.people.find(p=>(p.firstName+' '+p.lastName).toLowerCase().includes(q)||(p.middleName||'').toLowerCase().includes(q)||(p.maidenName||'').toLowerCase().includes(q));if(m)showDetail(m.id)});
+function zoomIn(){currentScale=Math.min(currentScale+.15,3);render()}
+function zoomOut(){currentScale=Math.max(currentScale-.15,.25);render()}
+function resetView(){currentScale=1;highlightedId=null;closeDetail();render()}
+function exportData(){const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='greenman-family-tree.json';a.click()}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.people){data=d;saveData();render()}}catch(err){alert('Error: '+err.message)}};r.readAsText(f);e.target.value=''}
+function updateStats(){const n=data.people.length;const gs=new Set();data.people.forEach(p=>gs.add(getGen(p.id)));const sn=new Set(data.people.map(p=>p.maidenName||p.lastName).filter(Boolean));document.getElementById('stats-bar').textContent=`${n} people \u00b7 ${gs.size} generations \u00b7 ${sn.size} surnames`}
+
+// ===== INIT =====
+(function(){render();const svg=document.getElementById('tree-svg');const vb=svg.getAttribute('viewBox').split(' ').map(Number);const cw=document.getElementById('tree-container').clientWidth-20;if(vb[2]>cw){currentScale=Math.max(.3,cw/vb[2]);render()}})();
+</script>
+</body>
+</html>
