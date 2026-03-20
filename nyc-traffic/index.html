@@ -854,14 +854,63 @@
     return 3;
   }
 
-  // ── Parse link_points ──
-  function parseCoords(linkPoints) {
+  // ── Decode Google encoded polyline ──
+  function decodePolyline(raw) {
+    // API escapes backslashes before special chars — strip all backslashes
+    const encoded = raw.replace(/\\/g, '');
+    const coords = [];
+    let index = 0, lat = 0, lng = 0;
+    while (index < encoded.length) {
+      let shift = 0, result = 0, byte;
+      do {
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+      shift = 0; result = 0;
+      do {
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+      coords.push([lat / 1e5, lng / 1e5]);
+    }
+    return coords;
+  }
+
+  // ── Parse link_points as fallback ──
+  function parseLinkPoints(linkPoints) {
     if (!linkPoints) return [];
-    return linkPoints.trim().split(/\s+/).map(pair => {
-      const [lat, lng] = pair.split(',').map(Number);
-      if (isNaN(lat) || isNaN(lng)) return null;
-      return [lat, lng];
-    }).filter(Boolean);
+    const pairs = linkPoints.trim().split(/\s+/);
+    const coords = [];
+    for (const pair of pairs) {
+      const parts = pair.split(',');
+      if (parts.length !== 2) continue;
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (isNaN(lat) || isNaN(lng)) continue;
+      // Sanity check: must be in the NYC metro area
+      if (lat < 40.4 || lat > 41.0 || lng < -74.4 || lng > -73.5) continue;
+      coords.push([lat, lng]);
+    }
+    return coords;
+  }
+
+  // ── Get coordinates for a segment ──
+  function getSegmentCoords(seg) {
+    // Prefer encoded polyline — it has full road geometry
+    if (seg.encoded_poly_line) {
+      try {
+        const coords = decodePolyline(seg.encoded_poly_line);
+        if (coords.length >= 2) return coords;
+      } catch (e) { /* fall through */ }
+    }
+    // Fallback to link_points
+    return parseLinkPoints(seg.link_points);
   }
 
   // ── Format time ──
@@ -935,7 +984,7 @@
     for (const seg of allSegments) {
       if (!activeBoroughs.has(seg.borough)) continue;
 
-      const coords = parseCoords(seg.link_points);
+      const coords = getSegmentCoords(seg);
       if (coords.length < 2) continue;
 
       const color = getSpeedColor(seg.speed, seg.status);
