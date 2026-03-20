@@ -454,9 +454,57 @@
     color: var(--slate);
     font-size: 14px;
   }
+
+  /* ═══ PASSWORD GATE ═══ */
+  .pw-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--black);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+  }
+  .pw-gate.hidden { display: none; }
+  .pw-gate label {
+    font-family: var(--font-primary);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--slate-light);
+  }
+  .pw-gate input {
+    font-family: var(--font-primary);
+    font-size: 16px; padding: 12px 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px; background: rgba(255,255,255,0.05);
+    color: var(--white); width: 280px; text-align: center;
+    outline: none; transition: border-color 0.2s;
+  }
+  .pw-gate input:focus { border-color: var(--amber-light); }
+  .pw-gate input.shake {
+    animation: shake 0.4s ease;
+    border-color: var(--rose);
+  }
+  .pw-gate button {
+    font-family: var(--font-primary);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 32px; border: none; border-radius: 6px;
+    background: var(--amber); color: var(--white);
+    cursor: pointer; transition: background 0.2s;
+  }
+  .pw-gate button:hover { background: #b45309; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+  }
 </style>
 </head>
 <body>
+
+<div class="pw-gate" id="pwGate">
+  <label>Password required</label>
+  <input type="password" id="pwInput" placeholder="Enter password" autocomplete="off">
+  <button id="pwBtn">Enter</button>
+</div>
 
 <div class="header">
   <div class="header-inner">
@@ -1383,6 +1431,38 @@ document.getElementById('sortSelect').addEventListener('change', e => {
 
 // ═══ INIT ═══
 render();
+
+// ═══ PASSWORD GATE ═══
+(function() {
+  const HASH = '2736601cdf6599be3b82779e542e0e62c083cea16795f68c181609f8801a3a79';
+  const gate = document.getElementById('pwGate');
+  const inp = document.getElementById('pwInput');
+  const btn = document.getElementById('pwBtn');
+
+  if (sessionStorage.getItem('eb_auth') === HASH) {
+    gate.classList.add('hidden');
+  } else {
+    document.body.style.overflow = 'hidden';
+  }
+
+  async function check() {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(inp.value));
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hex === HASH) {
+      sessionStorage.setItem('eb_auth', HASH);
+      gate.classList.add('hidden');
+      document.body.style.overflow = '';
+    } else {
+      inp.classList.add('shake');
+      inp.value = '';
+      setTimeout(() => inp.classList.remove('shake'), 400);
+    }
+  }
+
+  btn.addEventListener('click', check);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+  if (!gate.classList.contains('hidden')) inp.focus();
+})();
 </script>
 </body>
 </html>
