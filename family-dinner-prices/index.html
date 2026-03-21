@@ -680,19 +680,14 @@ if (sessionStorage.getItem('dinner-access') === '1') { document.body.classList.r
       <canvas id="cuisineChart"></canvas>
     </div>
     <div class="chart-card">
-      <h3>Cheapest Neighborhoods</h3>
-      <p class="chart-note">Neighborhoods with 3+ restaurants sampled, lowest average</p>
+      <h3>Where We Found the Lowest Bills</h3>
+      <p class="chart-note">Average across 3+ restaurants sampled in each neighborhood. Reflects our sample, not the full neighborhood.</p>
       <canvas id="cheapNeighborhoodChart"></canvas>
     </div>
     <div class="chart-card">
-      <h3>Priciest Neighborhoods</h3>
-      <p class="chart-note">Neighborhoods with 3+ restaurants sampled, highest average</p>
+      <h3>Where We Found the Highest Bills</h3>
+      <p class="chart-note">Average across 3+ restaurants sampled in each neighborhood. Reflects our sample, not the full neighborhood.</p>
       <canvas id="expensiveNeighborhoodChart"></canvas>
-    </div>
-    <div class="chart-card full-width">
-      <h3>Kids Menu Savings</h3>
-      <p class="chart-note">Restaurants with kids' menus vs. those without — does it matter?</p>
-      <canvas id="kidsMenuChart"></canvas>
     </div>
     <div class="chart-card full-width" id="trendChartCard" style="display:none">
       <h3>Price Trends Over Time</h3>
@@ -1016,11 +1011,89 @@ function renderBoroughChart() {
   });
 }
 
+// Consolidate granular cuisine labels into broader categories for charts
+const CUISINE_MAP = {
+  // Caribbean
+  'Trinidadian': 'Caribbean',
+  'Jamaican': 'Caribbean',
+  'West Indian': 'Caribbean',
+  'Guyanese': 'Caribbean',
+  'Caribbean Seafood': 'Caribbean',
+  // Chinese
+  'Szechuan': 'Chinese',
+  'Sichuan': 'Chinese',
+  'Cantonese': 'Chinese',
+  'Chinese (Fuzhou)': 'Chinese',
+  'Chinese (Henan)': 'Chinese',
+  'Chinese (Dongbei)': 'Chinese',
+  'Chinese (Xi\'an)': 'Chinese',
+  'Chinese (Mongolian)': 'Chinese',
+  'Chinese-American': 'Chinese',
+  'Taiwanese': 'Chinese',
+  'Cantonese Bakery': 'Chinese',
+  // Latin American
+  'Dominican': 'Latin American',
+  'Colombian': 'Colombian/Latin',
+  'Cuban': 'Latin American',
+  'Venezuelan': 'Latin American',
+  'Ecuadorian': 'Latin American',
+  'Puerto Rican': 'Latin American',
+  'Salvadoran': 'Latin American',
+  'Latin-American': 'Latin American',
+  // Italian
+  'Italian-American': 'Italian',
+  'Italian Deli': 'Italian',
+  'Italian Bakery/Cafe': 'Italian',
+  'Italian Bakery/Deli': 'Italian',
+  'Kosher Italian': 'Italian',
+  'Neapolitan Pizza': 'Pizza',
+  'Coal-Fired Pizza': 'Pizza',
+  'Kosher Pizza': 'Pizza',
+  // Asian
+  'Thai (Isaan)': 'Thai',
+  'Indo-Chinese': 'Indian',
+  'South Indian': 'Indian',
+  'South Asian': 'Indian',
+  'Indian Street Food': 'Indian',
+  'Tibetan': 'Nepali/Tibetan',
+  'Tibetan-Nepalese': 'Nepali/Tibetan',
+  'Nepali': 'Nepali/Tibetan',
+  'Malaysian': 'Southeast Asian',
+  'Filipino Fast Food': 'Filipino',
+  // Other consolidations
+  'Chinese-Latin': 'Latin American',
+  'Chinese-Peruvian': 'Peruvian',
+  'Japanese-Dominican Fusion': 'Japanese',
+  'Mexican (Pueblan)': 'Mexican',
+  'Mexican (Oaxacan)': 'Mexican',
+  'Mexican Seafood': 'Mexican',
+  'Ukrainian Diner': 'Diner',
+  'Roast Beef': 'Deli',
+  'Kosher Deli': 'Deli',
+  'Late-Night Counter': 'Diner',
+  'Southern': 'Soul Food/Southern',
+  'Soul Food': 'Soul Food/Southern',
+  'Southern/BBQ': 'BBQ',
+  'African Diaspora': 'West African',
+  'Palestinian': 'Middle Eastern',
+  'Turkish': 'Middle Eastern',
+  'Yemeni': 'Middle Eastern',
+  'Halal': 'Middle Eastern',
+  'Panini': 'Cafe',
+  'Health-Conscious': 'Cafe',
+  'Sri Lankan': 'Indian',
+};
+
+function normalizeCuisine(cuisine) {
+  return CUISINE_MAP[cuisine] || cuisine;
+}
+
 function renderCuisineChart() {
   const cuisineData = {};
   getActiveData().forEach(d => {
-    if (!cuisineData[d.cuisine]) cuisineData[d.cuisine] = [];
-    cuisineData[d.cuisine].push(d.totalWithTip);
+    const cuisine = normalizeCuisine(d.cuisine);
+    if (!cuisineData[cuisine]) cuisineData[cuisine] = [];
+    cuisineData[cuisine].push(d.totalWithTip);
   });
   const sorted = Object.entries(cuisineData).sort((a, b) => b[1].length - a[1].length).slice(0, 10);
   const labels = sorted.map(([c]) => c);
@@ -1056,22 +1129,6 @@ function renderNeighborhoodCharts() {
     type: 'bar',
     data: { labels: priciest.map(n => `${n.name} (${n.count})`), datasets: [{ data: priciest.map(n => n.avg), backgroundColor: '#c23616', borderRadius: 3 }] },
     options: { ...chartDefaults, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { callback: v => '$' + v } } } }
-  });
-}
-
-function renderKidsMenuChart() {
-  const withKids = DATA.filter(d => d.kidsMenu === 'yes');
-  const withoutKids = DATA.filter(d => d.kidsMenu !== 'yes');
-  const avgWith = withKids.length ? withKids.reduce((a, d) => a + d.totalWithTip, 0) / withKids.length : 0;
-  const avgWithout = withoutKids.length ? withoutKids.reduce((a, d) => a + d.totalWithTip, 0) / withoutKids.length : 0;
-
-  chartInstances.kidsMenu = new Chart(document.getElementById('kidsMenuChart'), {
-    type: 'bar',
-    data: {
-      labels: [`Has Kids Menu (${withKids.length})`, `No Kids Menu (${withoutKids.length})`],
-      datasets: [{ data: [avgWith, avgWithout], backgroundColor: ['#2d6a4f', '#e76f51'], borderRadius: 3, barThickness: 40 }]
-    },
-    options: { ...chartDefaults, scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v, font: {size: 9} }, title: { display: true, text: 'Average Total Bill', font: {size: 9} } } } }
   });
 }
 
@@ -1263,7 +1320,7 @@ function switchView(view) {
   renderBoroughChart();
   renderCuisineChart();
   renderNeighborhoodCharts();
-  renderKidsMenuChart();
+
   renderTrendCharts();
   renderTrackingNote();
   renderTable(data);
@@ -1303,7 +1360,7 @@ function init() {
   renderBoroughChart();
   renderCuisineChart();
   renderNeighborhoodCharts();
-  renderKidsMenuChart();
+
   renderTrendCharts();
   renderTrackingNote();
   renderTable(getActiveData());
