@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+/**
+ * Builds price-history.js from snapshot files.
+ *
+ * Reads all data/snapshots/*.json files and computes:
+ *   - Per-restaurant price history
+ *   - Change vs. previous snapshot
+ *   - City-wide and borough-level trend data
+ *
+ * Output: family-dinner-prices/price-history.js
+ * This file is loaded by the page and used to render trend UI.
+ *
+ * Usage: node scripts/build-history.js
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const baseDir = path.join(__dirname, '..');
+const dataDir = path.join(baseDir, 'data');
+const snapshotsDir = path.join(dataDir, 'snapshots');
+
+// ── Load all snapshots in chronological order ───────────────────
+const snapshotFiles = fs.readdirSync(snapshotsDir)
+  .filter(f => f.endsWith('.json'))
+  .sort(); // chronological since filenames are YYYY-MM-DD.json
+
+if (snapshotFiles.length === 0) {
+  console.error('No snapshots found.');
+  process.exit(1);
+}
+
+const snapshots = snapshotFiles.map(f => {
+  const data = JSON.parse(fs.readFileSync(path.join(snapshotsDir, f), 'utf8'));
+  return data;
+});
+
+console.log(`Found ${snapshots.length} snapshot(s): ${snapshotFiles.join(', ')}`);
+
+// ── Load registry for metadata ──────────────────────────────────
+const registry = JSON.parse(fs.readFileSync(path.join(dataDir, 'restaurants.json'), 'utf8'));
+const registryMap = {};
+registry.forEach(r => registryMap[r.id] = r);
+
+// ── Build per-restaurant history ────────────────────────────────
+const TAX = 1.08875;
+const TIP = 0.18;
+
+function totalWithTip(price) {
+  const preTax = price / TAX;
+  return price + (preTax * TIP);
+}
+
+const restaurantHistory = {};
+
+for (const r of registry) {
+  const prices = [];
+  for (const snap of snapshots) {
+    const entry = snap.prices[r.id];
+    if (entry) {
+      prices.push({
+        date: snap.date,
+        price: entry.price,
+        totalWithTip: Math.round(totalWithTip(entry.price) * 100) / 100,
+        source: entry.source || 'baseline',
+      });
+    }
+  }
+
+  if (prices.length === 0) continue;
+
+  const latest = prices[prices.length - 1];
+  const previous = prices.length >= 2 ? prices[prices.length - 2] : null;
+  const first = prices[0];
+
+  restaurantHistory[r.id] = {
+    prices,
+    latest: latest.totalWithTip,
+    change1m: previous ? Math.round((latest.totalWithTip - previous.totalWithTip) * 100) / 100 : 0,
+    changePct1m: previous ? Math.round((latest.totalWithTip - previous.totalWithTip) / previous.totalWithTip * 10000) / 100 : 0,
+    changeTotal: Math.round((latest.totalWithTip - first.totalWithTip) * 100) / 100,
+    changePctTotal: Math.round((latest.totalWithTip - first.totalWithTip) / first.totalWithTip * 10000) / 100,
+  };
+}
+
+// ── Build aggregate trends ──────────────────────────────────────
+const trends = {
+  dates: snapshots.map(s => s.date),
+  citywide: [],
+  byBorough: {},
+  byCuisineGroup: { pizza: [], diner: [], chinese: [], all: [] },
+};
+
+const boroughs = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+boroughs.forEach(b => trends.byBorough[b] = []);
+
+for (const snap of snapshots) {
+  // City-wide average
+  const allPrices = Object.values(snap.prices).map(p => totalWithTip(p.price));
+  trends.citywide.push(Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length * 100) / 100);
+
+  // Borough averages
+  for (const borough of boroughs) {
+    const ids = registry.filter(r => r.borough === borough).map(r => r.id);
+    const prices = ids.filter(id => snap.prices[id]).map(id => totalWithTip(snap.prices[id].price));
+    const avg = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length * 100) / 100 : null;
+    trends.byBorough[borough].push(avg);
+  }
+
+  // Cuisine group averages
+  for (const [group, datasets] of Object.entries({
+    pizza: ['pizza'],
+    diner: ['diner'],
+    chinese: ['chinese'],
+    all: ['all'],
+  })) {
+    const ids = registry.filter(r => datasets.includes(r.dataset)).map(r => r.id);
+    const prices = ids.filter(id => snap.prices[id]).map(id => totalWithTip(snap.prices[id].price));
+    const avg = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length * 100) / 100 : null;
+    trends.byCuisineGroup[group].push(avg);
+  }
+}
+
+// ── Biggest movers ──────────────────────────────────────────────
+const movers = Object.entries(restaurantHistory)
+  .filter(([, h]) => h.change1m !== 0)
+  .map(([id, h]) => ({
+    id,
+    name: registryMap[id]?.name || id,
+    borough: registryMap[id]?.borough || '',
+    change: h.change1m,
+    changePct: h.changePct1m,
+    latest: h.latest,
+  }))
+  .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+  .slice(0, 20);
+
+// ── Output ──────────────────────────────────────────────────────
+const output = {
+  generatedAt: new Date().toISOString(),
+  snapshotCount: snapshots.length,
+  dates: trends.dates,
+  restaurantHistory,
+  trends,
+  movers,
+};
+
+const jsContent = `// Auto-generated by build-history.js — do not edit
+// Last updated: ${output.generatedAt}
+// Snapshots: ${output.snapshotCount}
+
+const PRICE_HISTORY = ${JSON.stringify(output, null, 2)};
+`;
+
+fs.writeFileSync(path.join(baseDir, 'price-history.js'), jsContent);
+
+console.log(`\nGenerated price-history.js`);
+console.log(`  Restaurants tracked: ${Object.keys(restaurantHistory).length}`);
+console.log(`  Snapshots: ${snapshots.length}`);
+console.log(`  Date range: ${trends.dates[0]} to ${trends.dates[trends.dates.length - 1]}`);
+if (movers.length > 0) {
+  console.log(`  Biggest movers (${movers.length}):`);
+  movers.slice(0, 5).forEach(m => {
+    const arrow = m.change > 0 ? '▲' : '▼';
+    console.log(`    ${arrow} ${m.name}: ${m.change > 0 ? '+' : ''}$${m.change.toFixed(2)} (${m.changePct}%)`);
+  });
+} else {
+  console.log('  No price changes yet (single snapshot — baseline).');
+}

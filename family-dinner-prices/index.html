@@ -375,6 +375,36 @@
       grid-column: 1 / -1;
     }
 
+    /* ── TREND INDICATORS ── */
+    .trend-arrow {
+      font-size: 0.65rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+    }
+    .trend-arrow.up { color: var(--red); }
+    .trend-arrow.down { color: var(--green); }
+    .trend-arrow.flat { color: var(--ink-faint); }
+    .trend-badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 0.1rem 0.35rem;
+      border-radius: 2px;
+      margin-left: 0.3rem;
+    }
+    .trend-badge.up { background: #fde8e4; color: var(--red); }
+    .trend-badge.down { background: #d8f3dc; color: var(--green); }
+    .tracking-note {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--ink-faint);
+      font-style: italic;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.3);
+      border: 1px dashed var(--plate-outer);
+    }
+
     /* ── DATA TABLE ── */
     .table-section {
       max-width: 1100px;
@@ -574,6 +604,21 @@
       <p class="chart-note">Restaurants with kids' menus vs. those without — does it matter?</p>
       <canvas id="kidsMenuChart"></canvas>
     </div>
+    <div class="chart-card full-width" id="trendChartCard" style="display:none">
+      <h3>Price Trends Over Time</h3>
+      <p class="chart-note">Monthly city-wide and borough averages — tracking starts after the first update</p>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="chart-card" id="moversUpCard" style="display:none">
+      <h3>Biggest Price Increases</h3>
+      <p class="chart-note">Restaurants with the largest month-over-month jumps</p>
+      <canvas id="moversUpChart"></canvas>
+    </div>
+    <div class="chart-card" id="moversDownCard" style="display:none">
+      <h3>Biggest Price Drops</h3>
+      <p class="chart-note">Restaurants where dinner got cheaper</p>
+      <canvas id="moversDownChart"></canvas>
+    </div>
   </div>
 </div>
 
@@ -602,7 +647,7 @@
 
 <div class="footer">
   <p class="signoff">Thanks for dining with us!</p>
-  <p>Prices gathered March 2026 from publicly available online menus, delivery platforms, and restaurant websites. Estimates assume standard portions at menu price, NYC sales tax of 8.875%, and a standard 18% tip on the pre-tax subtotal. Individual experiences will vary. This is not a review or recommendation — it's a price check.</p>
+  <p>Prices gathered March 2026 from publicly available in-restaurant menus and restaurant websites (not delivery platform prices, which are typically 15–30% higher). Estimates assume standard portions at menu price, NYC sales tax of 8.875%, and a standard 18% tip on the pre-tax subtotal. Prices are re-checked monthly; trend data appears after the first update. Individual experiences will vary. This is not a review or recommendation — it's a price check.</p>
 </div>
 
 </div><!-- /placemat -->
@@ -611,6 +656,7 @@
 <script src="pizza-data.js"></script>
 <script src="diner-data.js"></script>
 <script src="chinese-data.js"></script>
+<script src="price-history.js"></script>
 <script>
 // ══════════════════════════════════════════════
 // DATASETS & TIP CALC
@@ -984,6 +1030,110 @@ function setupTableSort() {
 }
 
 // ══════════════════════════════════════════════
+// TREND CHARTS (activated after 2+ snapshots)
+// ══════════════════════════════════════════════
+const hasHistory = typeof PRICE_HISTORY !== 'undefined' && PRICE_HISTORY.snapshotCount >= 2;
+
+function renderTrendCharts() {
+  if (!hasHistory) return;
+
+  const H = PRICE_HISTORY;
+
+  // Show trend chart cards
+  document.getElementById('trendChartCard').style.display = '';
+
+  // City-wide + borough trend lines
+  const boroughColors = {
+    'Manhattan': '#c23616', 'Brooklyn': '#1d3557',
+    'Queens': '#2d6a4f', 'Bronx': '#e76f51', 'Staten Island': '#7b1fa2'
+  };
+
+  const datasets = [{
+    label: 'City Average',
+    data: H.trends.citywide,
+    borderColor: '#2c1810',
+    borderWidth: 2.5,
+    pointRadius: 4,
+    tension: 0.3,
+  }];
+
+  for (const [borough, color] of Object.entries(boroughColors)) {
+    datasets.push({
+      label: borough,
+      data: H.trends.byBorough[borough],
+      borderColor: color,
+      borderWidth: 1.5,
+      pointRadius: 3,
+      borderDash: [4, 2],
+      tension: 0.3,
+    });
+  }
+
+  const labels = H.dates.map(d => {
+    const [y, m] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[parseInt(m) - 1] + ' ' + y.slice(2);
+  });
+
+  chartInstances.trend = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      ...chartDefaults,
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 9 } } } },
+      scales: {
+        y: { ticks: { callback: v => '$' + v, font: { size: 9 } } },
+        x: { ticks: { font: { size: 9 } } }
+      }
+    }
+  });
+
+  // Biggest movers
+  const moversUp = H.movers.filter(m => m.change > 0).slice(0, 8);
+  const moversDown = H.movers.filter(m => m.change < 0).slice(0, 8);
+
+  if (moversUp.length > 0) {
+    document.getElementById('moversUpCard').style.display = '';
+    chartInstances.moversUp = new Chart(document.getElementById('moversUpChart'), {
+      type: 'bar',
+      data: {
+        labels: moversUp.map(m => m.name),
+        datasets: [{ data: moversUp.map(m => m.change), backgroundColor: '#c23616', borderRadius: 3 }]
+      },
+      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '+$' + v, font: { size: 8 } } } } }
+    });
+  }
+
+  if (moversDown.length > 0) {
+    document.getElementById('moversDownCard').style.display = '';
+    chartInstances.moversDown = new Chart(document.getElementById('moversDownChart'), {
+      type: 'bar',
+      data: {
+        labels: moversDown.map(m => m.name),
+        datasets: [{ data: moversDown.map(m => Math.abs(m.change)), backgroundColor: '#2d6a4f', borderRadius: 3 }]
+      },
+      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '-$' + v, font: { size: 8 } } } } }
+    });
+  }
+}
+
+function renderTrackingNote() {
+  // Show a note about price tracking status
+  const chartsSection = document.querySelector('.charts-section .charts-grid');
+  const existing = document.getElementById('trackingNote');
+  if (existing) existing.remove();
+
+  if (!hasHistory) {
+    const note = document.createElement('div');
+    note.id = 'trackingNote';
+    note.className = 'tracking-note';
+    note.style.gridColumn = '1 / -1';
+    note.textContent = 'Price tracking begins March 2026. Trend charts will appear after the first monthly update.';
+    chartsSection.appendChild(note);
+  }
+}
+
+// ══════════════════════════════════════════════
 // VIEW SWITCHER
 // ══════════════════════════════════════════════
 function destroyAllCharts() {
@@ -1025,6 +1175,8 @@ function switchView(view) {
   renderCuisineChart();
   renderNeighborhoodCharts();
   renderKidsMenuChart();
+  renderTrendCharts();
+  renderTrackingNote();
   renderTable(data);
 }
 
@@ -1063,6 +1215,8 @@ function init() {
   renderCuisineChart();
   renderNeighborhoodCharts();
   renderKidsMenuChart();
+  renderTrendCharts();
+  renderTrackingNote();
   renderTable(getActiveData());
   setupTableSort();
   setupViewSwitcher();
