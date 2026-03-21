@@ -485,14 +485,29 @@
   .source-line a { color: var(--cerulean); text-decoration: underline; }
 
   /* Math walkthrough */
-  .math-details { border-top: 1px solid var(--cloud); padding-top: 20px; }
+  .math-details { border-top: 1px solid var(--cloud); padding-top: 24px; }
   .math-details summary {
-    font-size: 0.85rem; font-weight: 700; color: var(--charcoal);
-    cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 8px 0;
+    font-size: 0.9rem; font-weight: 700; color: var(--black);
+    cursor: pointer; letter-spacing: 0.01em;
+    padding: 16px 24px;
+    background: var(--chartreuse-20);
+    border: 2px solid var(--chartreuse);
+    display: flex; align-items: center; gap: 8px;
+    transition: background 0.15s;
+    list-style: none;
   }
-  .math-details summary:hover { color: var(--black); }
-  .math-details[open] summary { margin-bottom: 20px; }
+  .math-details summary::-webkit-details-marker { display: none; }
+  .math-details summary::before {
+    content: '▸';
+    font-size: 1rem;
+    color: var(--charcoal);
+    transition: transform 0.2s;
+  }
+  .math-details[open] summary::before {
+    transform: rotate(90deg);
+  }
+  .math-details summary:hover { background: var(--chartreuse-50); }
+  .math-details[open] summary { margin-bottom: 20px; border-color: var(--chartreuse); background: var(--chartreuse-20); }
   .math-walkthrough {
     font-size: 0.82rem; color: var(--charcoal); line-height: 1.7;
   }
@@ -561,12 +576,13 @@
 <!-- ====== SECTION 1: Raw Numbers ====== -->
 <section>
   <h2>The subway accounts for less than 1 in 15 public-space violent crimes</h2>
-  <p class="section-dek">Start with what NYPD actually reports: violent index crimes (murder, rape, robbery, felony assault) in transit vs. on streets and public spaces, 2023.</p>
+  <p class="section-dek">Start with what NYPD actually reports: violent index crimes (murder, rape, robbery, felony assault) in transit vs. on streets and public spaces, 2023. Toggle to include misdemeanor assault or all seven index crime categories.</p>
 
   <div class="toggle-row">
     <span class="toggle-label">Show:</span>
-    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index Crimes</button>
-    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index Crimes</button>
+    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index</button>
+    <button class="toggle-btn" data-crime="violent_plus" onclick="setCrimeType('violent_plus')">+ Misd. Assault</button>
+    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index</button>
   </div>
 
   <div class="stat-row">
@@ -639,17 +655,17 @@
 
   <div class="method-note">
     <strong>Method 1: Walking-trip decomposition.</strong>
-    NYC DOT&rsquo;s Citywide Mobility Survey finds New Yorkers average 2.5 trips/weekday (2.3 on weekends). MIT&rsquo;s Nature Cities model (2026) finds 41% of all NYC trips are on foot. With an effective daily population of ~9.5M (8.3M residents + 1M+ commuters + 200K tourists), that yields ~9.7M walking trips/day at ~20 min each = <strong>~3.2M person-hours/day, or ~1.18B/year</strong> from walking trips alone.
+    NYC DOT&rsquo;s Citywide Mobility Survey finds New Yorkers average 2.5 trips/weekday (2.3 on weekends), or a weighted average of ~2.44/day. MIT&rsquo;s Nature Cities model (2026) finds 41% of all NYC trips are on foot. With an effective daily population of ~9.5M (8.3M residents + 1M+ commuters + 200K tourists), that yields ~9.5M walking trips/day at ~20 min each = <strong>~3.2M person-hours/day, or ~1.16B/year</strong> from walking trips alone.
   </div>
 
   <div class="method-note">
     <strong>Method 2: Time-use approach.</strong>
-    ATUS shows Americans average ~20 min/day walking. New Yorkers walk 1.5&ndash;2.5&times; the national average (DOH, step-count studies). Using 45 min/day for the 8.3M residents, 30 min for 1M commuters, and 120 min for tourists yields <strong>~2.5B person-hours/year</strong>. But this includes all outdoor time, not just street-adjacent exposure&mdash;discount by ~30% for time in parks, plazas, and private outdoor spaces to get <strong>~1.7B</strong> for street-comparable spaces.
+    ATUS shows Americans average ~20 min/day walking. New Yorkers walk 1.5&ndash;2.5&times; the national average (DOH, step-count studies). Using 45 min/day for the 8.3M residents, 30 min for 1M commuters, and 120 min for tourists yields <strong>~2.5B person-hours/year</strong>. But this includes all outdoor time, not just street-adjacent exposure&mdash;discount by ~30% for time in parks, plazas, and private outdoor spaces to get <strong>~1.8B</strong> for street-comparable spaces.
   </div>
 
   <div class="method-note">
     <strong>Method 3: Residual-time / activity accounting.</strong>
-    Of 24 hours, the average New Yorker spends ~8 hrs sleeping, ~8&ndash;9 hrs at work/school (indoors), ~4&ndash;5 hrs at home awake, ~0.7 hrs on transit. That leaves ~2&ndash;3 hrs for &ldquo;other&rdquo;&mdash;errands, walking, socializing, dining out, etc. Not all is street-exposed; estimate ~60% is, yielding ~1.2&ndash;1.8 hrs/day &times; 9.5M = <strong>~4.2&ndash;6.2B person-hours/year</strong>. But much of this is in cars, buildings, or otherwise sheltered. Applying a 30&ndash;40% &ldquo;true street exposure&rdquo; factor: <strong>~1.5&ndash;2.2B</strong>.
+    Of 24 hours, the average New Yorker spends ~8 hrs sleeping, ~8&ndash;9 hrs at work/school (indoors), ~4&ndash;5 hrs at home awake, ~0.7 hrs on transit. That leaves ~2&ndash;3 hrs for &ldquo;other&rdquo;&mdash;errands, walking, socializing, dining out, etc. Not all is street-exposed; estimate ~60% is, yielding ~1.2&ndash;1.8 hrs/day &times; 9.5M = <strong>~4.2&ndash;6.2B person-hours/year</strong>. But much of this is in cars, buildings, or otherwise sheltered. Applying a 30&ndash;45% &ldquo;true street exposure&rdquo; factor: <strong>~1.5&ndash;2.2B</strong>.
   </div>
 
   <h3>Triangulated estimate</h3>
@@ -659,8 +675,8 @@
         <tr><th>Method</th><th>Estimate</th><th>Captures</th><th>Likely Bias</th></tr>
       </thead>
       <tbody>
-        <tr><td>Walking-trip decomposition</td><td class="mono">1.18B</td><td>Walking trips only</td><td>Undercount (misses loitering, outdoor dining, waiting)</td></tr>
-        <tr><td>Time-use approach</td><td class="mono">1.7B</td><td>All outdoor pedestrian time</td><td>Moderate (broad survey, adjusted)</td></tr>
+        <tr><td>Walking-trip decomposition</td><td class="mono">1.16B</td><td>Walking trips only</td><td>Undercount (misses loitering, outdoor dining, waiting)</td></tr>
+        <tr><td>Time-use approach</td><td class="mono">1.8B</td><td>All outdoor pedestrian time</td><td>Moderate (broad survey, adjusted)</td></tr>
         <tr><td>Residual-time accounting</td><td class="mono">1.5&ndash;2.2B</td><td>All non-indoor, non-transit time</td><td>Wide range (hardest to pin down)</td></tr>
         <tr class="highlight"><td><strong>Central estimate</strong></td><td class="mono"><strong>~1.6B</strong></td><td colspan="2">Weighted toward methods 1 &amp; 2 (more empirically grounded)</td></tr>
       </tbody>
@@ -677,8 +693,9 @@
 
   <div class="toggle-row">
     <span class="toggle-label">Show:</span>
-    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index Crimes</button>
-    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index Crimes</button>
+    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index</button>
+    <button class="toggle-btn" data-crime="violent_plus" onclick="setCrimeType('violent_plus')">+ Misd. Assault</button>
+    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index</button>
   </div>
 
   <div class="stat-row">
@@ -699,7 +716,7 @@
     <div class="callout-label" id="ratio-label">You face roughly <strong>eight times the risk</strong> of violent index crime victimization per hour on the street compared to per hour on the subway</div>
   </div>
 
-  <p>Put another way: for every hour you spend riding the subway, you&rsquo;d need to spend only <strong>~7.6 minutes</strong> on the street to accumulate the same statistical risk of violent victimization.</p>
+  <p id="minutes-equivalence">Put another way: for every hour you spend riding the subway, you&rsquo;d need to spend only <strong>~7.6 minutes</strong> on the street to accumulate the same statistical risk of violent victimization.</p>
 </section>
 
 </div><!-- end .container for light sections -->
@@ -770,6 +787,7 @@
     <div class="toggle-row">
       <span class="toggle-label">Crime type:</span>
       <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index</button>
+      <button class="toggle-btn" data-crime="violent_plus" onclick="setCrimeType('violent_plus')">+ Misd. Assault</button>
       <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index</button>
     </div>
 
@@ -836,42 +854,8 @@
 <!-- ====== SECTION 6: Sensitivity Analysis ====== -->
 <section>
   <h2>Even the most generous assumptions don&rsquo;t close the gap</h2>
-  <p class="section-dek">The subway exposure estimate is relatively tight. The street estimate carries more uncertainty. Drag the sliders to see how the population-level ratio changes.</p>
+  <p class="section-dek">The subway exposure estimate is relatively tight. The street estimate carries more uncertainty. Here&rsquo;s what happens to the violent index crime ratio as you vary the assumption about how many hours New Yorkers spend on streets.</p>
 
-  <div class="calc-inputs light-slider" style="border: 1px solid var(--cloud); padding: 28px; margin: 28px 0; background: var(--white);">
-    <div class="slider-group">
-      <label>Street person-hours (billions/year)</label>
-      <div class="slider-meta"><span>1.0B (very conservative)</span><span>3.0B (very generous)</span></div>
-      <input type="range" id="street-hours-slider" min="1.0" max="3.0" step="0.1" value="1.6">
-      <div class="slider-value" id="street-hours-display">1.6 billion</div>
-    </div>
-    <div class="slider-group">
-      <label>Subway person-hours (millions/year)</label>
-      <div class="slider-meta"><span>700M</span><span>1,000M</span></div>
-      <input type="range" id="subway-hours-slider" min="700" max="1000" step="10" value="880">
-      <div class="slider-value" id="subway-hours-display">880 million</div>
-    </div>
-  </div>
-
-  <div class="sensitivity-row">
-    <div class="sens-card">
-      <div class="sens-label">Subway Rate</div>
-      <div class="sens-number" id="sens-subway-rate" style="color: var(--cerulean)">1.27</div>
-      <div class="sens-detail">per million person-hours</div>
-    </div>
-    <div class="sens-card">
-      <div class="sens-label">Street Rate</div>
-      <div class="sens-number" id="sens-street-rate" style="color: var(--orange)">10.05</div>
-      <div class="sens-detail">per million person-hours</div>
-    </div>
-    <div class="sens-card">
-      <div class="sens-label">Street / Subway Ratio</div>
-      <div class="sens-number" id="sens-ratio" style="color: var(--black)">7.9&times;</div>
-      <div class="sens-detail">times riskier on streets</div>
-    </div>
-  </div>
-
-  <h3>Pre-computed scenarios</h3>
   <div class="data-table-wrap">
     <table>
       <thead>
@@ -931,12 +915,14 @@
   <h2>Bottom line</h2>
 
   <div class="callout">
-    <div class="callout-number">6&ndash;11&times;</div>
-    <div class="callout-label">Per hour spent, the street is <strong>six to eleven times</strong> more dangerous than the subway across all plausible assumptions</div>
+    <div class="callout-number">6&ndash;12&times;</div>
+    <div class="callout-label">Per hour spent, the street is <strong>six to twelve times</strong> more dangerous than the subway, depending on crime category and exposure assumptions</div>
   </div>
 
-  <p>The popular fear of subway crime is understandable&mdash;an enclosed underground train <em>feels</em> dangerous. But the data tell a consistent story: hour for hour, New Yorkers face dramatically higher violent crime risk on the surface than underground. Even stress-testing every assumption in the most generous direction, the subway&rsquo;s per-hour risk never comes close to the street&rsquo;s.</p>
+  <p>The popular fear of subway crime is understandable&mdash;an enclosed underground train <em>feels</em> dangerous. But the data tell a consistent story across every crime category: hour for hour, New Yorkers face dramatically higher crime risk on the surface than underground. For violent index crimes, the ratio is ~8×. Include misdemeanor assault and it&rsquo;s ~6× (the subway generates proportionally more low-level altercations). For all index crimes, it&rsquo;s nearly 12×. Even stress-testing every assumption in the most generous direction, the subway&rsquo;s per-hour risk never comes close to the street&rsquo;s.</p>
   <p>This isn&rsquo;t an argument that subway crime doesn&rsquo;t matter. Every violent crime matters. But if the goal is reducing New Yorkers&rsquo; overall exposure to violence, the surface&mdash;where 93.5% of public-space violence occurs&mdash;is where the largest gains are to be found.</p>
+
+  <p style="margin-top: 20px;"><strong>Don&rsquo;t trust the numbers?</strong> Every calculation in this analysis is shown step by step in the <a href="#math-walkthrough" style="color: var(--cerulean); text-decoration: underline; font-weight: 600;">full math walkthrough</a> below the methodology table.</p>
 </section>
 
 <!-- ====== SECTION 10: Methodology ====== -->
@@ -948,8 +934,10 @@
       <thead><tr><th>Input</th><th>Value</th><th>Source</th></tr></thead>
       <tbody>
         <tr><td>Subway violent index crimes (2023)</td><td class="mono">1,120</td><td>NYPD CompStat / Vital City</td></tr>
+        <tr><td>Subway misdemeanor assaults (2023)</td><td class="mono">1,744</td><td>NYPD Complaint Data (NYC Open Data)</td></tr>
         <tr><td>Subway total index crimes (2023)</td><td class="mono">2,285</td><td>NYPD end-of-year report</td></tr>
         <tr><td>Street/public violent index crimes (2023)</td><td class="mono">16,079</td><td>NYPD CompStat / Vital City</td></tr>
+        <tr><td>Street/public misdemeanor assaults (2023)</td><td class="mono">14,883</td><td>NYPD Complaint Data (NYC Open Data, &ldquo;street&rdquo; premise)</td></tr>
         <tr><td>Street/public total index crimes (2023, est.)</td><td class="mono">~48,000</td><td>Estimated from citywide total minus transit/housing</td></tr>
         <tr><td>Subway annual ridership (2023)</td><td class="mono">1.3B rides</td><td>MTA ridership data</td></tr>
         <tr><td>Avg. subway trip + platform time</td><td class="mono">~40 min</td><td>MTA estimates, Vital City</td></tr>
@@ -964,10 +952,10 @@
     </table>
   </div>
 
-  <p style="font-size: 0.8rem; color: var(--charcoal); margin-top: 20px;">&ldquo;Violent index crimes&rdquo; includes murder, rape, robbery, and felony assault as classified by NYPD. &ldquo;All index crimes&rdquo; adds burglary, grand larceny, and grand larceny auto. &ldquo;Street/public&rdquo; crimes are those occurring on streets, sidewalks, and public outdoor spaces. Transit crimes include those on subway trains, platforms, and in station areas. All 2023 figures. Street total index crime estimate derived from citywide totals (126,678) minus transit (2,285) and housing authority (6,149), with ~40% share attributed to street/public outdoor locations based on crime-type distribution analysis.</p>
+  <p style="font-size: 0.8rem; color: var(--charcoal); margin-top: 20px;">&ldquo;Violent index crimes&rdquo; includes murder, rape, robbery, and felony assault as classified by NYPD. &ldquo;Violent + misd. assault&rdquo; adds misdemeanor assault (Assault 3 &amp; Related Offenses, the lower-level assault charge that covers most street altercations). &ldquo;All index crimes&rdquo; adds burglary, grand larceny, and grand larceny auto. &ldquo;Street/public&rdquo; crimes are those occurring on streets, sidewalks, and public outdoor spaces. Transit crimes include those on subway trains, platforms, and in station areas. All 2023 figures. Misdemeanor assault counts from NYPD Complaint Data Historic (NYC Open Data), filtered by premise type. Street total index crime estimate derived from citywide totals (126,678) minus transit (2,285) and housing authority (6,149), with ~40% share attributed to street/public outdoor locations based on crime-type distribution analysis.</p>
 
-  <details class="math-details" style="margin-top: 32px;">
-    <summary>Show full math walkthrough</summary>
+  <details class="math-details" id="math-walkthrough" style="margin-top: 32px;">
+    <summary>Show full math walkthrough &mdash; every calculation, step by step</summary>
     <div class="math-walkthrough">
 
       <h4>1. Subway exposure (person-hours)</h4>
@@ -985,10 +973,10 @@
         <span class="math-line">Avg. trips per person per day = <strong>2.5</strong> (weekday); <strong>2.3</strong> (weekend)</span>
         <span class="math-line">Weighted daily average: (2.5 &times; 5 + 2.3 &times; 2) &divide; 7 = <strong>2.44 trips/day</strong></span>
         <span class="math-line">Share of trips on foot (MIT/Nature Cities) = <strong>41%</strong></span>
-        <span class="math-line">Walking trips/day: 9,500,000 &times; 2.44 &times; 0.41 = <strong>9,504,800</strong></span>
+        <span class="math-line">Walking trips/day: 9,500,000 &times; 2.44 &times; 0.41 = <strong>9,503,800</strong></span>
         <span class="math-line">Avg. walking trip duration = <strong>20 minutes</strong></span>
-        <span class="math-line">Daily person-hours: 9,504,800 &times; 20 &divide; 60 = <strong>3,168,267 hrs/day</strong></span>
-        <span class="math-line">Annual: 3,168,267 &times; 365 = <strong>1,156,417,333 &asymp; 1.18 billion</strong></span>
+        <span class="math-line">Daily person-hours: 9,503,800 &times; 20 &divide; 60 = <strong>3,167,933 hrs/day</strong></span>
+        <span class="math-line">Annual: 3,167,933 &times; 365 = <strong>1,156,295,545 &asymp; 1.16 billion</strong></span>
         <span class="math-note">This is a floor estimate: it captures purposeful walking trips but misses time spent standing outside, outdoor dining, waiting at bus stops, etc.</span>
       </div>
 
@@ -996,11 +984,11 @@
       <div class="math-block">
         <span class="math-line">National avg. daily walking time (ATUS) = <strong>20 min/day</strong></span>
         <span class="math-line">NYC multiplier (DOH/step-count studies) = <strong>1.5&ndash;2.5&times;</strong></span>
-        <span class="math-line">Residents (8.3M &times; 45 min/day): 8,300,000 &times; 45 &divide; 60 &times; 365 = <strong>2,278,125,000 hrs</strong></span>
+        <span class="math-line">Residents (8.3M &times; 45 min/day): 8,300,000 &times; 45 &divide; 60 &times; 365 = <strong>2,272,125,000 hrs</strong></span>
         <span class="math-line">Commuters (1.0M &times; 30 min/day, 250 workdays): 1,000,000 &times; 30 &divide; 60 &times; 250 = <strong>125,000,000 hrs</strong></span>
         <span class="math-line">Tourists (200K &times; 120 min/day): 200,000 &times; 120 &divide; 60 &times; 365 = <strong>146,000,000 hrs</strong></span>
-        <span class="math-line">Total outdoor pedestrian time: <strong>&asymp; 2.55 billion hrs</strong></span>
-        <span class="math-line">Discount ~30% for parks, plazas, private outdoor spaces: 2,550,000,000 &times; 0.70 = <strong>&asymp; 1.7 billion</strong></span>
+        <span class="math-line">Total outdoor pedestrian time: <strong>&asymp; 2.54 billion hrs</strong></span>
+        <span class="math-line">Discount ~30% for parks, plazas, private outdoor spaces: 2,543,000,000 &times; 0.70 = <strong>&asymp; 1.78 billion</strong></span>
         <span class="math-note">The 30% discount is a judgment call. NYC has extensive park systems (Central Park alone sees 42M visitors/year) and outdoor dining expanded dramatically post-2020. These are &ldquo;outdoor&rdquo; but not street-comparable for crime exposure purposes.</span>
       </div>
 
@@ -1013,18 +1001,18 @@
         <span class="math-line">&nbsp;&nbsp;Transit: <strong>0.7 hrs</strong></span>
         <span class="math-line">&nbsp;&nbsp;Remaining: 24 &minus; 8.0 &minus; 8.5 &minus; 4.5 &minus; 0.7 = <strong>2.3 hrs</strong></span>
         <span class="math-line">Of remaining, ~60% is street-exposed: 2.3 &times; 0.60 = <strong>1.38 hrs/day</strong></span>
-        <span class="math-line">Citywide: 9,500,000 &times; 1.38 &times; 365 = <strong>4,786,050,000 hrs</strong></span>
-        <span class="math-line">Apply 30&ndash;40% &ldquo;true street exposure&rdquo; factor (much time is in cars, stores, etc.):</span>
-        <span class="math-line">&nbsp;&nbsp;Low end: 4,786,050,000 &times; 0.30 = <strong>1.44 billion</strong></span>
-        <span class="math-line">&nbsp;&nbsp;High end: 4,786,050,000 &times; 0.45 = <strong>2.15 billion</strong></span>
+        <span class="math-line">Citywide: 9,500,000 &times; 1.38 &times; 365 = <strong>4,785,150,000 hrs</strong></span>
+        <span class="math-line">Apply 30&ndash;45% &ldquo;true street exposure&rdquo; factor (much time is in cars, stores, etc.):</span>
+        <span class="math-line">&nbsp;&nbsp;Low end: 4,785,150,000 &times; 0.30 = <strong>1.44 billion</strong></span>
+        <span class="math-line">&nbsp;&nbsp;High end: 4,785,150,000 &times; 0.45 = <strong>2.15 billion</strong></span>
         <span class="math-line">Range: <strong>1.5&ndash;2.2 billion</strong></span>
         <span class="math-note">This method has the widest uncertainty because the &ldquo;true street exposure&rdquo; factor is hard to pin down empirically. It serves mainly as a sanity check on the other two methods.</span>
       </div>
 
       <h4>5. Triangulated central estimate</h4>
       <div class="math-block">
-        <span class="math-line">Method 1 (walking trips only): <strong>1.18B</strong> &larr; likely undercount</span>
-        <span class="math-line">Method 2 (time-use, adjusted): <strong>1.70B</strong> &larr; moderate confidence</span>
+        <span class="math-line">Method 1 (walking trips only): <strong>1.16B</strong> &larr; likely undercount</span>
+        <span class="math-line">Method 2 (time-use, adjusted): <strong>1.78B</strong> &larr; moderate confidence</span>
         <span class="math-line">Method 3 (residual time): <strong>1.50&ndash;2.20B</strong> &larr; wide range</span>
         <span class="math-line">Weighted toward Methods 1 &amp; 2 (more empirical): <strong>&asymp; 1.6 billion person-hours/year</strong></span>
         <span class="math-note">Plausible range: 1.2B (conservative) to 2.2B (generous). Method 1 provides a hard floor; Method 2 is the most empirically grounded; Method 3 confirms plausibility.</span>
@@ -1035,12 +1023,17 @@
         <span class="math-line"><strong>Violent index crimes:</strong></span>
         <span class="math-line">&nbsp;&nbsp;Subway: 1,120 &divide; 880 = <strong>1.27 per million person-hours</strong></span>
         <span class="math-line">&nbsp;&nbsp;Street: 16,079 &divide; 1,600 = <strong>10.05 per million person-hours</strong></span>
-        <span class="math-line">&nbsp;&nbsp;Ratio: 10.05 &divide; 1.27 = <strong>7.91&times;</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Ratio: 10.05 &divide; 1.27 = <strong>7.91×</strong></span>
+        <span class="math-line">&nbsp;</span>
+        <span class="math-line"><strong>Violent + misdemeanor assault:</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Subway: (1,120 + 1,744) = 2,864 &divide; 880 = <strong>3.25 per million person-hours</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Street: (16,079 + 14,883) = 30,962 &divide; 1,600 = <strong>19.35 per million person-hours</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Ratio: 19.35 &divide; 3.25 = <strong>5.95×</strong></span>
         <span class="math-line">&nbsp;</span>
         <span class="math-line"><strong>All index crimes:</strong></span>
         <span class="math-line">&nbsp;&nbsp;Subway: 2,285 &divide; 880 = <strong>2.60 per million person-hours</strong></span>
         <span class="math-line">&nbsp;&nbsp;Street: 48,000 &divide; 1,600 = <strong>30.00 per million person-hours</strong></span>
-        <span class="math-line">&nbsp;&nbsp;Ratio: 30.00 &divide; 2.60 = <strong>11.54&times;</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Ratio: 30.00 &divide; 2.60 = <strong>11.54×</strong></span>
       </div>
 
       <h4>7. Deriving the ~48,000 street total index crime estimate</h4>
@@ -1063,7 +1056,24 @@
         <span class="math-note">The outdoor share percentages are estimated from NYPD location-of-occurrence data patterns. The violent subtotal (~29,500) is consistent with the known 16,079 violent crimes on streets (since the balance includes outdoor locations not classified as &ldquo;street&rdquo;&mdash;parking lots, playgrounds, etc.).</span>
       </div>
 
-      <h4>8. Personal risk calculator formula</h4>
+      <h4>8. Misdemeanor assault data</h4>
+      <div class="math-block">
+        <span class="math-line">Source: NYPD Complaint Data Historic (NYC Open Data), 2023</span>
+        <span class="math-line">Filtered to offense description = &ldquo;Assault 3 &amp; Related Offenses&rdquo;, law category = misdemeanor</span>
+        <span class="math-line">&nbsp;</span>
+        <span class="math-line">Citywide misdemeanor assaults (NYPD official): <strong>44,151</strong></span>
+        <span class="math-line">Subway (premise = &ldquo;Transit &ndash; NYC Subway&rdquo;): <strong>1,744</strong></span>
+        <span class="math-line">Street (premise = &ldquo;Street&rdquo;): <strong>14,883</strong></span>
+        <span class="math-line">Residence (apt + single-family + public housing): ~26,411 (60%)</span>
+        <span class="math-line">Other (shelters, commercial, parks, etc.): remainder</span>
+        <span class="math-line">&nbsp;</span>
+        <span class="math-line"><strong>&ldquo;Violent + misd. assault&rdquo; category:</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Subway: 1,120 + 1,744 = <strong>2,864</strong></span>
+        <span class="math-line">&nbsp;&nbsp;Street: 16,079 + 14,883 = <strong>30,962</strong></span>
+        <span class="math-note">Misdemeanor assault (Assault 3) is the most common assault charge in NYC, covering most street altercations that result in minor injury. It&rsquo;s not an index crime, but it&rsquo;s the crime New Yorkers are most likely to encounter as victims or witnesses. The subway share (8.5% of combined violent + misd. assault) is higher than for violent index alone (6.5%), which compresses the ratio from 7.9× to ~6.0×. This makes sense: confined spaces generate more low-level altercations proportionally.</span>
+      </div>
+
+      <h4>9. Personal risk calculator formula</h4>
       <div class="math-block">
         <span class="math-line">The calculator uses a Bernoulli trials model:</span>
         <span class="math-line">&nbsp;</span>
@@ -1092,7 +1102,7 @@
         <span class="math-note">The Bernoulli model treats each hour as an independent trial. This slightly understates risk for very high-exposure scenarios (where crimes are not fully independent) but the effect is negligible at these low per-hour rates.</span>
       </div>
 
-      <h4>9. Neighborhood multiplier derivation</h4>
+      <h4>10. Neighborhood multiplier derivation</h4>
       <div class="math-block">
         <span class="math-line">Citywide violent crime rate (2024): 47,901 &divide; 8,803,952 = <strong>5.44 per 1,000 residents</strong></span>
         <span class="math-line">&nbsp;</span>
@@ -1112,7 +1122,7 @@
         <span class="math-note">The multiplier applies only to street risk. Per-capita rates use residential population as the denominator, which inflates rates in areas with large non-resident populations (Midtown, Lower Manhattan, Downtown Brooklyn). Violent crime multipliers are less affected by this distortion than total crime multipliers.</span>
       </div>
 
-      <h4>10. Sensitivity range derivation</h4>
+      <h4>11. Sensitivity range derivation</h4>
       <div class="math-block">
         <span class="math-line">Holding subway exposure fixed at 880M person-hours and violent crimes constant:</span>
         <span class="math-line">&nbsp;</span>
@@ -1176,45 +1186,54 @@ const DATA = {
     subway: 1120,
     street: 16079,
     label: 'violent index',
-    labelCap: 'Violent Index'
+    labelCap: 'Violent Index',
+    desc: 'murder, rape, robbery, felony assault'
+  },
+  violent_plus: {
+    subway: 2864,
+    street: 30962,
+    label: 'violent + misdemeanor assault',
+    labelCap: 'Violent + Misd. Assault',
+    desc: 'violent index crimes plus misdemeanor assault (Assault 3)'
   },
   all: {
     subway: 2285,
     street: 48000,
     label: 'index',
-    labelCap: 'All Index'
+    labelCap: 'All Index',
+    desc: 'all seven index crime categories'
   }
 };
 
 const NEIGHBORHOODS = {
   citywide:       { violent: 1.00, total: 1.00, label: 'Citywide average' },
-  mott_haven:     { violent: 3.12, total: 2.32, label: 'Mott Haven: 3.12\u00d7 avg (40th Pct)' },
-  hunts_point:    { violent: 2.67, total: 2.07, label: 'Hunts Point: 2.67\u00d7 avg (41st Pct)' },
-  morrisania:     { violent: 2.48, total: 1.81, label: 'Morrisania / Crotona: 2.48\u00d7 avg (42nd Pct)' },
-  east_harlem:    { violent: 2.22, total: 1.61, label: 'East Harlem: 2.22\u00d7 avg (23rd, 25th Pcts)' },
-  south_bronx:    { violent: 1.97, total: 1.43, label: 'South Bronx / Melrose: 1.97\u00d7 avg (44th, 46th Pcts)' },
-  jamaica:        { violent: 1.93, total: 1.36, label: 'Jamaica, Queens: 1.93\u00d7 avg (103rd Pct)' },
-  brownsville:    { violent: 1.80, total: 1.16, label: 'Brownsville: 1.80\u00d7 avg (73rd Pct)' },
-  central_harlem: { violent: 1.71, total: 1.33, label: 'Central Harlem: 1.71\u00d7 avg (28th, 32nd Pcts)' },
-  east_ny:        { violent: 1.65, total: 1.27, label: 'East New York: 1.65\u00d7 avg (75th Pct)' },
-  downtown_bk:    { violent: 1.65, total: 1.86, label: 'Downtown Brooklyn: 1.65\u00d7 avg (84th Pct)' },
-  bushwick:       { violent: 1.21, total: 1.07, label: 'Bushwick: 1.21\u00d7 avg (83rd Pct)' },
-  bed_stuy:       { violent: 1.13, total: 0.90, label: 'Bed-Stuy: 1.13\u00d7 avg (79th, 81st Pcts)' },
-  wash_heights:   { violent: 1.03, total: 0.99, label: 'Washington Heights: 1.03\u00d7 avg (33rd, 34th Pcts)' },
-  flatbush:       { violent: 0.98, total: 0.76, label: 'Flatbush: 0.98\u00d7 avg (67th, 70th Pcts)' },
-  crown_heights:  { violent: 0.90, total: 0.70, label: 'Crown Heights: 0.90\u00d7 avg (71st, 77th Pcts)' },
-  astoria:        { violent: 0.81, total: 0.84, label: 'Astoria: 0.81\u00d7 avg (114th Pct)' },
-  tribeca:        { violent: 0.79, total: 1.51, label: 'Tribeca / BPC: 0.79\u00d7 violent avg (high property crime from tourists)' },
-  sunset_park:    { violent: 0.72, total: 0.69, label: 'Sunset Park: 0.72\u00d7 avg (72nd Pct)' },
-  riverdale:      { violent: 0.70, total: 1.08, label: 'Riverdale: 0.70\u00d7 avg (50th Pct)' },
-  williamsburg:   { violent: 0.68, total: 0.98, label: 'Williamsburg: 0.68\u00d7 avg (90th, 94th Pcts)' },
-  park_slope:     { violent: 0.68, total: 0.93, label: 'Park Slope: 0.68\u00d7 avg (78th Pct)' },
-  staten_island:  { violent: 0.49, total: 0.50, label: 'Staten Island: 0.49\u00d7 avg' },
-  uws:            { violent: 0.46, total: 0.72, label: 'Upper West Side: 0.46\u00d7 avg (20th, 24th Pcts)' },
-  ues:            { violent: 0.36, total: 0.79, label: 'Upper East Side: 0.36\u00d7 avg (19th Pct)' },
-  forest_hills:   { violent: 0.34, total: 0.56, label: 'Forest Hills: 0.34\u00d7 avg (112th Pct)' },
-  bay_ridge:      { violent: 0.28, total: 0.46, label: 'Bay Ridge: 0.28\u00d7 avg (68th Pct)' },
-  bayside:        { violent: 0.25, total: 0.69, label: 'Bayside: 0.25\u00d7 avg (111th Pct)' }
+  mott_haven:     { violent: 3.12, total: 2.32, label: 'Mott Haven: 3.12× avg (40th Pct)' },
+  hunts_point:    { violent: 2.67, total: 2.07, label: 'Hunts Point: 2.67× avg (41st Pct)' },
+  morrisania:     { violent: 2.48, total: 1.81, label: 'Morrisania / Crotona: 2.48× avg (42nd Pct)' },
+  east_harlem:    { violent: 2.22, total: 1.61, label: 'East Harlem: 2.22× avg (23rd, 25th Pcts)' },
+  south_bronx:    { violent: 1.97, total: 1.43, label: 'South Bronx / Melrose: 1.97× avg (44th, 46th Pcts)' },
+  jamaica:        { violent: 1.93, total: 1.36, label: 'Jamaica, Queens: 1.93× avg (103rd Pct)' },
+  brownsville:    { violent: 1.80, total: 1.16, label: 'Brownsville: 1.80× avg (73rd Pct)' },
+  central_harlem: { violent: 1.71, total: 1.33, label: 'Central Harlem: 1.71× avg (28th, 32nd Pcts)' },
+  east_ny:        { violent: 1.65, total: 1.27, label: 'East New York: 1.65× avg (75th Pct)' },
+  downtown_bk:    { violent: 1.65, total: 1.86, label: 'Downtown Brooklyn: 1.65× avg (84th Pct)' },
+  bushwick:       { violent: 1.21, total: 1.07, label: 'Bushwick: 1.21× avg (83rd Pct)' },
+  bed_stuy:       { violent: 1.13, total: 0.90, label: 'Bed-Stuy: 1.13× avg (79th, 81st Pcts)' },
+  wash_heights:   { violent: 1.03, total: 0.99, label: 'Washington Heights: 1.03× avg (33rd, 34th Pcts)' },
+  flatbush:       { violent: 0.98, total: 0.76, label: 'Flatbush: 0.98× avg (67th, 70th Pcts)' },
+  crown_heights:  { violent: 0.90, total: 0.70, label: 'Crown Heights: 0.90× avg (71st, 77th Pcts)' },
+  astoria:        { violent: 0.81, total: 0.84, label: 'Astoria: 0.81× avg (114th Pct)' },
+  tribeca:        { violent: 0.79, total: 1.51, label: 'Tribeca / BPC: 0.79× violent avg (high property crime from tourists)' },
+  sunset_park:    { violent: 0.72, total: 0.69, label: 'Sunset Park: 0.72× avg (72nd Pct)' },
+  riverdale:      { violent: 0.70, total: 1.08, label: 'Riverdale: 0.70× avg (50th Pct)' },
+  williamsburg:   { violent: 0.68, total: 0.98, label: 'Williamsburg: 0.68× avg (90th, 94th Pcts)' },
+  park_slope:     { violent: 0.68, total: 0.93, label: 'Park Slope: 0.68× avg (78th Pct)' },
+  staten_island:  { violent: 0.49, total: 0.50, label: 'Staten Island: 0.49× avg' },
+  uws:            { violent: 0.46, total: 0.72, label: 'Upper West Side: 0.46× avg (20th, 24th Pcts)' },
+  ues:            { violent: 0.36, total: 0.79, label: 'Upper East Side: 0.36× avg (19th Pct)' },
+  forest_hills:   { violent: 0.34, total: 0.56, label: 'Forest Hills: 0.34× avg (112th Pct)' },
+  bay_ridge:      { violent: 0.28, total: 0.46, label: 'Bay Ridge: 0.28× avg (68th Pct)' },
+  bayside:        { violent: 0.25, total: 0.69, label: 'Bayside: 0.25× avg (111th Pct)' }
 };
 
 // ============ STATE ============
@@ -1273,7 +1292,7 @@ function updateAll() {
 
   document.getElementById('subway-rate').textContent = subwayRate;
   document.getElementById('street-rate').textContent = streetRate;
-  document.getElementById('ratio-display').textContent = ratio + '\u00d7';
+  document.getElementById('ratio-display').textContent = ratio + '×';
 
   const roundedRatio = Math.round(parseFloat(ratio));
   const words = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen'];
@@ -1281,24 +1300,11 @@ function updateAll() {
   document.getElementById('ratio-label').innerHTML =
     'You face roughly <strong>' + ratioWord + ' times the risk</strong> of ' + d.label + ' crime victimization per hour on the street compared to per hour on the subway';
 
-  updateSensitivity();
+  const minutesEquiv = (60 / parseFloat(ratio)).toFixed(1);
+  document.getElementById('minutes-equivalence').innerHTML =
+    'Put another way: for every hour you spend riding the subway, you\u2019d need to spend only <strong>~' + minutesEquiv + ' minutes</strong> on the street to accumulate the same statistical risk of ' + d.label + ' crime victimization.';
+
   updatePersonalCalc();
-}
-
-function updateSensitivity() {
-  const streetB = parseFloat(document.getElementById('street-hours-slider').value);
-  const subwayM = parseFloat(document.getElementById('subway-hours-slider').value);
-  const d = DATA[crimeType];
-
-  const subRate = (d.subway / subwayM).toFixed(2);
-  const stRate = (d.street / (streetB * 1000)).toFixed(2);
-  const r = (stRate / subRate).toFixed(1);
-
-  document.getElementById('street-hours-display').textContent = streetB.toFixed(1) + ' billion';
-  document.getElementById('subway-hours-display').textContent = subwayM.toFixed(0) + ' million';
-  document.getElementById('sens-subway-rate').textContent = subRate;
-  document.getElementById('sens-street-rate').textContent = stRate;
-  document.getElementById('sens-ratio').textContent = r + '\u00d7';
 }
 
 function updatePersonalCalc() {
@@ -1306,7 +1312,7 @@ function updatePersonalCalc() {
   const streetHrsWeek = parseFloat(document.getElementById('personal-street').value);
   const d = DATA[crimeType];
   const nData = NEIGHBORHOODS[neighborhood];
-  const bMult = crimeType === 'violent' ? nData.violent : nData.total;
+  const bMult = crimeType === 'all' ? nData.total : nData.violent;
 
   document.getElementById('personal-subway-display').textContent = subwayHrsWeek + ' hrs/week';
   document.getElementById('personal-street-display').textContent = streetHrsWeek + ' hrs/week';
@@ -1343,15 +1349,13 @@ function updatePersonalCalc() {
     document.getElementById('calc-ratio-detail').textContent = 'Need both to compare';
   } else {
     const personalRatio = (streetRisk / subwayRisk).toFixed(1);
-    document.getElementById('calc-ratio').textContent = personalRatio + '\u00d7';
+    document.getElementById('calc-ratio').textContent = personalRatio + '×';
     document.getElementById('calc-ratio-detail').textContent =
-      'Your street time generates ' + personalRatio + '\u00d7 more ' + d.label + ' crime risk';
+      'Your street time generates ' + personalRatio + '× more ' + d.label + ' crime risk';
   }
 }
 
 // ============ EVENT LISTENERS ============
-document.getElementById('street-hours-slider').addEventListener('input', updateSensitivity);
-document.getElementById('subway-hours-slider').addEventListener('input', updateSensitivity);
 document.getElementById('personal-subway').addEventListener('input', updatePersonalCalc);
 document.getElementById('personal-street').addEventListener('input', updatePersonalCalc);
 
