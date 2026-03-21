@@ -320,8 +320,8 @@ function buildSubwayGraph() {
   for (const [s1, s2, route] of SUBWAY_ADJACENCY) {
     const key = [s1, s2].sort().join(':');
     const time = SUBWAY_TRAVEL_TIMES[key] || 120;
-    if (subwayGraph[s1]) subwayGraph[s1].push({ to: s2, time });
-    if (subwayGraph[s2]) subwayGraph[s2].push({ to: s1, time });
+    if (subwayGraph[s1]) subwayGraph[s1].push({ to: s2, time, route });
+    if (subwayGraph[s2]) subwayGraph[s2].push({ to: s1, time, route });
   }
 }
 
@@ -336,6 +336,9 @@ function buildBusGraph() {
     if (busGraph[s2]) busGraph[s2].push({ to: s1, time });
   }
 }
+
+const SUBWAY_TRANSFER = 180; // 3-min penalty for switching subway lines
+const BUS_TRANSFER = 300;    // 5-min penalty for switching bus routes
 
 function dijkstra(startNodes, graph, maxTime) {
   const dist = {};
@@ -363,6 +366,45 @@ function dijkstra(startNodes, graph, maxTime) {
   return dist;
 }
 
+// Line-aware Dijkstra: tracks which route you're riding so transfers cost extra time
+function dijkstraTransfer(startNodes, graph, maxTime, transferPenalty) {
+  const dist = {};      // "node:route" → best time in that state
+  const bestDist = {};  // node → best time across all routes
+  const pq = [];
+
+  for (const { id, startTime } of startNodes) {
+    const key = id + ':_';
+    dist[key] = startTime;
+    bestDist[id] = startTime;
+    pq.push([startTime, id, '_']); // '_' = just arrived on foot, no line yet
+  }
+  pq.sort((a, b) => a[0] - b[0]);
+
+  while (pq.length) {
+    const [d, u, fromRoute] = pq.shift();
+    const uKey = u + ':' + fromRoute;
+    if (d > dist[uKey]) continue;
+    if (d > maxTime) continue;
+
+    for (const edge of (graph[u] || [])) {
+      const eRoute = edge.route || '_';
+      const isTransfer = fromRoute !== '_' && eRoute !== '_' && eRoute !== fromRoute;
+      const nd = d + edge.time + (isTransfer ? transferPenalty : 0);
+      const eKey = edge.to + ':' + eRoute;
+
+      if (nd <= maxTime && (dist[eKey] === undefined || nd < dist[eKey])) {
+        dist[eKey] = nd;
+        if (bestDist[edge.to] === undefined || nd < bestDist[edge.to]) {
+          bestDist[edge.to] = nd;
+        }
+        pq.push([nd, edge.to, eRoute]);
+        pq.sort((a, b) => a[0] - b[0]);
+      }
+    }
+  }
+  return bestDist;
+}
+
 function calculateReach(lat, lng, mode) {
   const results = [];
   const walkableSubway = [];
@@ -373,7 +415,7 @@ function calculateReach(lat, lng, mode) {
       const wt = walkTime(lat, lng, s.lat, s.lng);
       if (wt <= 900) walkableSubway.push({ id: s.id, startTime: wt + SUBWAY_WAIT });
     }
-    const dist = dijkstra(walkableSubway, subwayGraph, 2700);
+    const dist = dijkstraTransfer(walkableSubway, subwayGraph, 2700, SUBWAY_TRANSFER);
     for (const [sid, time] of Object.entries(dist)) {
       const s = SUBWAY_STATIONS.find(x => x.id === sid);
       if (s) results.push({
@@ -692,9 +734,9 @@ function updateStats(reach, lat, lng) {
   }
 
   const mn = document.getElementById('method-note');
-  if (mode === 'subway') mn.textContent = 'Walk time to nearest station (80 m/min, \u00d71.4 grid factor) + 3-min average wait + real GTFS schedule travel times between stations.';
-  else if (mode === 'bus') mn.textContent = 'Walk time to nearest bus stop (80 m/min, \u00d71.4 grid factor) + 7-min average wait + real GTFS schedule travel times between stops. Bus stops clustered at ~400m resolution.';
-  else mn.textContent = 'Walk to nearest subway station or bus stop + wait time (3 min subway, 7 min bus) + real GTFS travel times. Shows combined reach of both networks.';
+  if (mode === 'subway') mn.textContent = 'Walk to nearest station + 3-min wait + real GTFS travel times. Transfers between lines add 3 minutes.';
+  else if (mode === 'bus') mn.textContent = 'Walk to nearest bus stop + 7-min wait + real GTFS travel times (adjusted for real-world bus speeds). Bus stops clustered at ~400m resolution.';
+  else mn.textContent = 'Walk to nearest subway station or bus stop + wait time (3 min subway, 7 min bus) + real GTFS travel times. Subway transfers add 3 minutes.';
 }
 
 function goHome() {
