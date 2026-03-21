@@ -162,7 +162,7 @@
       margin: 0 auto;
       padding: 1rem 0 2rem;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      grid-template-columns: repeat(5, 1fr);
       gap: 0.75rem;
     }
     .stat-card {
@@ -177,7 +177,6 @@
     .stat-card:nth-child(3) { transform: rotate(-0.3deg); }
     .stat-card:nth-child(4) { transform: rotate(1.2deg); }
     .stat-card:nth-child(5) { transform: rotate(-0.7deg); }
-    .stat-card:nth-child(6) { transform: rotate(0.8deg); }
     .stat-card .number {
       font-family: 'Playfair Display', Georgia, serif;
       font-size: 2rem;
@@ -609,6 +608,8 @@ function checkGate() {
     document.body.classList.remove('locked');
     document.getElementById('gate').remove();
     sessionStorage.setItem('dinner-access', '1');
+    // Delay init slightly so the placemat is fully visible before map initializes
+    setTimeout(init, 100);
   } else {
     document.getElementById('gateError').style.display = 'block';
   }
@@ -822,7 +823,6 @@ function renderBigNumbers() {
     { number: fmt(min), label: 'Cheapest Found', cls: 'green' },
     { number: fmt(max), label: 'Most Expensive', cls: '' },
     { number: data.length.toString(), label: 'Restaurants', cls: '' },
-    { number: fmt(spread), label: 'Price Spread', cls: '' },
   ];
 
   document.getElementById('bigNumbers').innerHTML = cards.map(c =>
@@ -1311,7 +1311,13 @@ function init() {
   setupViewSwitcher();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function() {
+  // Only init if the gate is already cleared (returning visitor with session)
+  // Otherwise, init will be called after password entry
+  if (!document.body.classList.contains('locked')) {
+    init();
+  }
+});
 </script>
 
 </body>
