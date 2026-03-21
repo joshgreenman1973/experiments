@@ -517,58 +517,120 @@ function analyzePoint(lat, lng) {
   }, 50);
 }
 
+// Build a concave-ish hull from points using a grid-based approach
+function buildHull(points, origin, gridSize) {
+  if (points.length < 3) return points.map(p => [p.lat, p.lng]);
+  // Create a grid and find the outline
+  const allPts = points.map(p => [p.lat, p.lng]).concat([[origin.lat, origin.lng]]);
+  // Use convex hull as a simple approach, with point sampling for shape
+  // Sort by angle from origin for a star-shaped polygon
+  const sorted = allPts.map(p => {
+    const angle = Math.atan2(p[0] - origin.lat, p[1] - origin.lng);
+    return { lat: p[0], lng: p[1], angle };
+  }).sort((a, b) => a.angle - b.angle);
+
+  // Group into angular sectors and take the farthest point in each
+  const sectors = 36; // 10-degree sectors
+  const sectorPts = [];
+  for (let i = 0; i < sectors; i++) {
+    const minA = -Math.PI + (i * 2 * Math.PI / sectors);
+    const maxA = minA + (2 * Math.PI / sectors);
+    const inSector = sorted.filter(p => p.angle >= minA && p.angle < maxA);
+    if (inSector.length > 0) {
+      // Take the farthest point
+      let best = inSector[0], bestDist = 0;
+      for (const p of inSector) {
+        const d = (p.lat - origin.lat)**2 + (p.lng - origin.lng)**2;
+        if (d > bestDist) { bestDist = d; best = p; }
+      }
+      sectorPts.push([best.lat, best.lng]);
+    }
+  }
+  // Close the polygon
+  if (sectorPts.length > 2) sectorPts.push(sectorPts[0]);
+  return sectorPts;
+}
+
 function renderIsochrones(reach) {
   clearIsochrones();
   const { origin, results } = reach;
 
-  // Draw filled walking-reach zones from origin (outermost first)
+  // Build filled polygon shapes for each time band (outermost first)
   for (let b = 4; b >= 0; b--) {
-    const r = (BAND_SECONDS[b] / 60) * WALK_SPEED / GRID_FACTOR;
-    walkCircles.push(L.circle([origin.lat, origin.lng], {
-      radius: r, fillColor: BAND_COLORS[b], fillOpacity: 0.12,
-      color: BAND_COLORS[b], weight: 1, opacity: 0.4
-    }).addTo(map));
-  }
-
-  // Draw walking-reach zones from each reachable station/stop
-  // This shows the actual area you can cover after exiting transit
-  for (let b = 4; b >= 0; b--) {
-    for (const s of results.filter(r => r.band === b)) {
-      const rem = BAND_SECONDS[b] - s.totalTime;
-      const walkMin = Math.max(rem, 120) / 60; // at least 2 min walk radius for visibility
-      const walkRadius = (walkMin * WALK_SPEED) / GRID_FACTOR;
-      isoLayers.push(L.circle([s.lat, s.lng], {
-        radius: Math.min(walkRadius, 1200),
-        fillColor: BAND_COLORS[b], fillOpacity: 0.15, color: BAND_COLORS[b], weight: 0
+    const bandResults = results.filter(r => r.band <= b);
+    if (bandResults.length < 3) {
+      // Too few points — just draw a walking circle
+      const r = (BAND_SECONDS[b] / 60) * WALK_SPEED / GRID_FACTOR;
+      walkCircles.push(L.circle([origin.lat, origin.lng], {
+        radius: r, fillColor: BAND_COLORS[b], fillOpacity: 0.25,
+        color: BAND_COLORS[b], weight: 1.5, opacity: 0.6
       }).addTo(map));
+      continue;
+    }
+
+    // Generate expanded points: each reachable stop + walking radius around it
+    const expandedPts = [];
+    for (const s of bandResults) {
+      const rem = BAND_SECONDS[b] - s.totalTime;
+      const walkDeg = Math.max(rem, 90) / 60 * WALK_SPEED / GRID_FACTOR / 111000; // rough meters to degrees
+      // Add the station point plus 8 surrounding points at walk radius
+      expandedPts.push({ lat: s.lat, lng: s.lng });
+      for (let a = 0; a < 8; a++) {
+        const angle = a * Math.PI / 4;
+        expandedPts.push({
+          lat: s.lat + walkDeg * Math.sin(angle),
+          lng: s.lng + walkDeg * Math.cos(angle) / Math.cos(s.lat * Math.PI / 180)
+        });
+      }
+    }
+    // Also add walking circle points from origin
+    const walkDeg = (BAND_SECONDS[b] / 60) * WALK_SPEED / GRID_FACTOR / 111000;
+    for (let a = 0; a < 16; a++) {
+      const angle = a * Math.PI / 8;
+      expandedPts.push({
+        lat: origin.lat + walkDeg * Math.sin(angle),
+        lng: origin.lng + walkDeg * Math.cos(angle) / Math.cos(origin.lat * Math.PI / 180)
+      });
+    }
+
+    const hull = buildHull(expandedPts, origin);
+    if (hull.length > 2) {
+      const poly = L.polygon(hull, {
+        fillColor: BAND_COLORS[b],
+        fillOpacity: 0.2,
+        color: BAND_COLORS[b],
+        weight: 1.5,
+        opacity: 0.5,
+        smoothFactor: 2
+      }).addTo(map);
+      isoLayers.push(poly);
     }
   }
 
-  // Highlight reachable subway stations
+  // Dim all stations/stops, then subtly highlight reachable ones
   for (const m of subwayMarkers) {
     const r = results.find(x => x.id === 'S_' + m.sid);
     if (r && r.band >= 0) {
-      m.setStyle({ radius: 5, fillColor: BAND_COLORS[r.band], fillOpacity: 0.9, weight: 1.5, color: '#fff' });
+      m.setStyle({ radius: 3, fillColor: '#fff', fillOpacity: 0.7, weight: 1, color: BAND_COLORS[r.band] });
       m.bringToFront();
     } else {
-      m.setStyle({ radius: 2, fillOpacity: 0.15, weight: 0.3, color: 'rgba(255,255,255,0.1)' });
+      m.setStyle({ radius: 1.5, fillOpacity: 0.08, weight: 0, color: 'transparent' });
     }
   }
 
-  // Highlight reachable bus stops
   for (const m of busMarkers) {
     const r = results.find(x => x.id === 'B_' + m.bidx);
     if (r && r.band >= 0) {
-      m.setStyle({ radius: 3, fillColor: BAND_COLORS[r.band], fillOpacity: 0.8, weight: 1, color: '#fff' });
+      m.setStyle({ radius: 2, fillColor: '#fff', fillOpacity: 0.5, weight: 0.5, color: BAND_COLORS[r.band] });
       m.bringToFront();
     } else {
-      m.setStyle({ radius: 1, fillOpacity: 0.1, weight: 0 });
+      m.setStyle({ radius: 0.5, fillOpacity: 0.05, weight: 0, color: 'transparent' });
     }
   }
 
   // Origin marker on top
   isoLayers.push(L.circleMarker([origin.lat, origin.lng], {
-    radius: 8, fillColor: '#fff', fillOpacity: 1, color: '#1565c0', weight: 3
+    radius: 9, fillColor: '#fff', fillOpacity: 1, color: '#1565c0', weight: 3
   }).addTo(map));
 
   // Fit bounds
