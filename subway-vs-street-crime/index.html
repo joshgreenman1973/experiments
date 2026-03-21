@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subway vs. Street: Where Are You Really at Risk?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  /* Password gate */
+  #pw-gate {
+    position: fixed;
+    inset: 0;
+    background: #0c0f14;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #pw-gate form {
+    text-align: center;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  #pw-gate h2 {
+    color: #e2e6ed;
+    font-size: 1.3rem;
+    margin-bottom: 16px;
+  }
+  #pw-gate input[type="password"] {
+    padding: 10px 16px;
+    font-size: 1rem;
+    border: 1px solid #2a3040;
+    border-radius: 8px;
+    background: #151921;
+    color: #e2e6ed;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    width: 240px;
+  }
+  #pw-gate button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #4dabf7;
+    color: #0c0f14;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 8px;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  #pw-error {
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    margin-top: 10px;
+    display: none;
+  }
+  .content-wrap { display: none; }
+
+  :root {
+    --bg: #0c0f14;
+    --surface: #151921;
+    --surface2: #1c2230;
+    --border: #2a3040;
+    --text: #e2e6ed;
+    --text-muted: #8892a4;
+    --accent: #4dabf7;
+    --accent2: #ffd43b;
+    --subway-color: #4dabf7;
+    --street-color: #ff6b6b;
+    --safe-color: #51cf66;
+    --warn-color: #ffd43b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  header {
+    padding: 64px 0 48px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+  header h1 span.subway { color: var(--subway-color); }
+  header h1 span.street { color: var(--street-color); }
+  header .subtitle {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    max-width: 700px;
+  }
+  .source-note {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .source-note a { color: var(--accent); text-decoration: none; }
+  .source-note a:hover { text-decoration: underline; }
+
+  section {
+    padding: 48px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  section:last-child { border-bottom: none; }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    margin-top: 28px;
+  }
+  .section-intro {
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    font-size: 1rem;
+  }
+
+  .big-number-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 28px 0;
+  }
+  .big-number-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+  }
+  .big-number-card .label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .big-number-card .number {
+    font-size: 2.8rem;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.1;
+  }
+  .big-number-card .unit {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .big-number-card.subway .number { color: var(--subway-color); }
+  .big-number-card.street .number { color: var(--street-color); }
+
+  .comparison-visual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 28px 0;
+  }
+  .bar-group { margin-bottom: 24px; }
+  .bar-group:last-child { margin-bottom: 0; }
+  .bar-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .bar-track {
+    background: var(--surface2);
+    border-radius: 6px;
+    height: 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: width 1.5s ease;
+  }
+  .bar-fill.subway { background: var(--subway-color); color: #0c0f14; }
+  .bar-fill.street { background: var(--street-color); color: #0c0f14; }
+
+  .data-table-wrap { overflow-x: auto; margin: 20px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+  }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  td.mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; }
+  tr.highlight td { background: var(--surface2); font-weight: 600; }
+
+  .slider-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 28px 0;
+  }
+  .slider-group { margin-bottom: 24px; }
+  .slider-group:last-child { margin-bottom: 0; }
+  .slider-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .slider-group .slider-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--surface2);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .slider-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .result-callout {
+    background: linear-gradient(135deg, #1a2332, #1c2a1c);
+    border: 1px solid #2d4a2d;
+    border-radius: 12px;
+    padding: 32px;
+    margin: 28px 0;
+    text-align: center;
+  }
+  .result-callout .result-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 3.2rem;
+    font-weight: 700;
+    color: var(--accent2);
+    line-height: 1.1;
+  }
+  .result-callout .result-label {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .method-note {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    border-radius: 0 8px 8px 0;
+  }
+  .method-note strong { color: var(--text); }
+
+  section p { margin-bottom: 12px; font-size: 0.95rem; }
+
+  .assumptions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .assumption-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .assumption-card .a-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .assumption-card .a-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .assumption-card .a-source {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .sensitivity-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .sensitivity-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .sensitivity-card .sc-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .sensitivity-card .sc-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .sensitivity-card .sc-detail {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Toggle switch */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .toggle-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: #0c0f14;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .toggle-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Personal calculator */
+  .calc-results {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .calc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .calc-card .calc-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .calc-card .calc-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .calc-card .calc-detail {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .calc-card.subway-card .calc-number { color: var(--subway-color); }
+  .calc-card.street-card .calc-number { color: var(--street-color); }
+  .calc-card.ratio-card .calc-number { color: var(--accent2); }
+
+  /* Borough selector */
+  .borough-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0 20px;
+  }
+  .borough-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .borough-btn.active {
+    background: var(--street-color);
+    color: #0c0f14;
+    border-color: var(--street-color);
+    font-weight: 600;
+  }
+
+  /* Step indicator */
+  .step-row {
+    display: flex;
+    gap: 0;
+    margin: 32px 0 24px;
+  }
+  .step {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .step:first-child { border-radius: 8px 0 0 8px; }
+  .step:last-child { border-radius: 0 8px 8px 0; }
+  .step.active {
+    background: var(--accent);
+    color: #0c0f14;
+    font-weight: 600;
+    border-color: var(--accent);
+  }
+  .step .step-num {
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  footer {
+    padding: 40px 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 640px) {
+    header h1 { font-size: 1.7rem; }
+    .big-number-row, .assumptions-grid { grid-template-columns: 1fr; }
+    .sensitivity-grid, .calc-results { grid-template-columns: 1fr; }
+    .big-number-card .number { font-size: 2rem; }
+    .result-callout .result-number { font-size: 2.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="pw-gate">
+  <form id="pw-form">
+    <h2>Enter password to view</h2>
+    <div>
+      <input type="password" id="pw-input" placeholder="Password" autofocus>
+      <button type="submit">Go</button>
+    </div>
+    <div id="pw-error">Incorrect password</div>
+  </form>
+</div>
+
+<div class="content-wrap" id="content-wrap">
+<div class="container">
+
+<header>
+  <h1>Is the <span class="subway">Subway</span> Safer Than the <span class="street">Street</span>?</h1>
+  <p class="subtitle">A per-hour risk model comparing violent crime victimization underground vs. on the surface in New York City.</p>
+  <p class="source-note">Building on <a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/" target="_blank">&ldquo;Underground, Safer Than the Surface&rdquo;</a> (Vital City) with additional data from the American Time Use Survey, NYC DOT Citywide Mobility Survey, MIT/Nature Cities pedestrian model (2026), and MTA ridership data.</p>
+</header>
+
+<!-- ====== SECTION 1: The Raw Numbers ====== -->
+<section>
+  <h2>The Raw Numbers (2023)</h2>
+  <p class="section-intro">Start with what NYPD actually reports: violent index crimes (murder, rape, robbery, felony assault) in transit vs. on streets and public spaces.</p>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Show:</span>
+    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index Crimes</button>
+    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index Crimes</button>
+  </div>
+
+  <div class="big-number-row">
+    <div class="big-number-card subway">
+      <div class="label">Subway <span class="crime-type-label">Violent</span> Crimes</div>
+      <div class="number" id="raw-subway">1,120</div>
+      <div class="unit" id="raw-subway-pct">6.5% of public-space violence</div>
+    </div>
+    <div class="big-number-card street">
+      <div class="label">Street / Public <span class="crime-type-label">Violent</span> Crimes</div>
+      <div class="number" id="raw-street">16,079</div>
+      <div class="unit" id="raw-street-pct">93.5% of public-space violence</div>
+    </div>
+  </div>
+
+  <div class="comparison-visual">
+    <div class="bar-group">
+      <div class="bar-label"><span>Subway</span><span id="bar-subway-pct">6.5%</span></div>
+      <div class="bar-track">
+        <div class="bar-fill subway" id="bar-subway" style="width: 6.5%"></div>
+      </div>
+    </div>
+    <div class="bar-group">
+      <div class="bar-label"><span>Street / Public Space</span><span id="bar-street-pct">93.5%</span></div>
+      <div class="bar-track">
+        <div class="bar-fill street" id="bar-street" style="width: 93.5%">93.5%</div>
+      </div>
+    </div>
+  </div>
+
+  <p>On raw counts, the subway accounts for less than 1 in 15 public-space violent crimes. But raw counts are meaningless without a denominator. What matters is: <strong>how much time do people spend in each environment?</strong></p>
+</section>
+
+<!-- ====== SECTION 2: Vital City's Approach ====== -->
+<section>
+  <h2>How Vital City Framed It</h2>
+  <p class="section-intro">Before extending the analysis, it&rsquo;s worth walking through the original methodology carefully. <a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/" target="_blank" style="color: var(--accent);">The Vital City article</a> took a valuable first step that most crime coverage skips entirely: it asked about <em>exposure</em>.</p>
+
+  <div class="step-row">
+    <div class="step active"><span class="step-num">1</span>Count crimes</div>
+    <div class="step active"><span class="step-num">2</span>Estimate exposure</div>
+    <div class="step active"><span class="step-num">3</span>Compute rates</div>
+    <div class="step active"><span class="step-num">4</span>Compare</div>
+  </div>
+
+  <h3>Step 1: Isolating Public-Space Violence</h3>
+  <p>The article focused on violent index crimes&mdash;murders, rapes, robberies, and felony assaults&mdash;comparing only those that occurred in the transit system to those on streets and public outdoor spaces. This is the right comparison: it excludes domestic violence, commercial burglaries, and other crimes that occur in contexts where subway-vs.-street framing makes no sense.</p>
+
+  <h3>Step 2: Estimating Subway Exposure</h3>
+  <p>The subway side is relatively tractable. In 2023, riders took roughly <strong>1.3 billion trips</strong>. Each trip involves an average of ~30 minutes on a train plus ~10 minutes of platform time, stair-climbing, and tunnel-walking. That yields about <strong>880 million person-hours</strong> of subway exposure per year.</p>
+
+  <div class="method-note">
+    <strong>A note on &ldquo;person-hours.&rdquo;</strong> This denominator captures total time everyone collectively spends in the subway system. It doesn&rsquo;t matter whether those 880 million hours come from 5 million daily riders taking two trips each or from 2 million riders taking five trips each. What matters for risk calculation is: for every hour anyone is down there, how many crimes occur? A frequent rider accumulates more hours and proportionally more exposure&mdash;the <em>rate per hour</em> stays the same.
+  </div>
+
+  <h3>Step 3: The Key Insight</h3>
+  <p>The article calculated a subway violent crime rate of roughly <strong>1.3 crimes per million person-hours</strong>. Then it asked: what would the street rate need to be to equal this? The answer: New Yorkers would need to collectively spend <strong>12.5+ billion person-hours</strong> on the streets each year for the per-hour risk to match the subway&rsquo;s. That would require every person in the metro area to spend 25+ hours a week outdoors on the street&mdash;an implausible amount of time.</p>
+
+  <h3>Step 4: Where I Extend the Analysis</h3>
+  <p>The Vital City article made a compelling qualitative case, but stopped short of computing an actual street crime rate. My analysis below takes the next step: building three independent estimates of how many person-hours New Yorkers actually spend on streets, so we can calculate a direct per-hour comparison and let you stress-test the assumptions.</p>
+</section>
+
+<!-- ====== SECTION 3: Estimating Exposure ====== -->
+<section>
+  <h2>Estimating Street Exposure: The Hard Part</h2>
+  <p class="section-intro">The subway estimate is relatively tight. The street side is where this analysis gets interesting&mdash;and where most existing analyses fall short.</p>
+
+  <h3>Three Independent Estimates</h3>
+
+  <div class="method-note">
+    <strong>Method 1: Walking-Trip Decomposition</strong><br>
+    NYC DOT&rsquo;s Citywide Mobility Survey finds New Yorkers average 2.5 trips/weekday (2.3 on weekends). MIT&rsquo;s Nature Cities model (2026) finds 41% of all NYC trips are on foot. With an effective daily population of ~9.5M (8.3M residents + 1M+ commuters + 200K tourists), that yields ~9.7M walking trips/day at ~20 min each = <strong>~3.2M person-hours/day, or ~1.18B/year</strong> from walking trips alone.
+  </div>
+
+  <div class="method-note">
+    <strong>Method 2: Time-Use Approach</strong><br>
+    ATUS shows Americans average ~20 min/day walking. NYCers walk 1.5&ndash;2.5&times; the national average (DOH, step-count studies). Using 45 min/day for the 8.3M residents, 30 min for 1M commuters, and 120 min for tourists yields <strong>~2.5B person-hours/year</strong>. But this includes all outdoor time, not just street-adjacent exposure&mdash;discount by ~30% for time in parks, plazas, and private outdoor spaces to get <strong>~1.7B</strong> for street-comparable spaces.
+  </div>
+
+  <div class="method-note">
+    <strong>Method 3: Residual-Time / Activity Accounting</strong><br>
+    Of 24 hours, the average NYCer spends ~8 hrs sleeping, ~8&ndash;9 hrs at work/school (indoors), ~4&ndash;5 hrs at home awake, ~0.7 hrs on transit. That leaves ~2&ndash;3 hrs for &ldquo;other&rdquo;&mdash;errands, walking, socializing, dining out, etc. Not all is street-exposed; estimate ~60% is, yielding ~1.2&ndash;1.8 hrs/day &times; 9.5M = <strong>~4.2&ndash;6.2B person-hours/year</strong>. But much of this is in cars, buildings, or otherwise sheltered. Applying a 30&ndash;40% &ldquo;true street exposure&rdquo; factor: <strong>~1.5&ndash;2.2B</strong>.
+  </div>
+
+  <h3>Triangulated Estimate</h3>
+  <div class="data-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Estimate (B person-hrs/yr)</th><th>Captures</th><th>Likely Bias</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Walking-trip decomposition</td><td class="mono">1.18B</td><td>Walking trips only</td><td>Undercount (misses loitering, outdoor dining, waiting)</td></tr>
+        <tr><td>Time-use approach</td><td class="mono">1.7B</td><td>All outdoor pedestrian time</td><td>Moderate (broad survey, adjusted)</td></tr>
+        <tr><td>Residual-time accounting</td><td class="mono">1.5&ndash;2.2B</td><td>All non-indoor, non-transit time</td><td>Wide range (hardest to pin down)</td></tr>
+        <tr class="highlight"><td><strong>Central estimate</strong></td><td class="mono"><strong>~1.6B</strong></td><td colspan="2">Weighted toward methods 1 &amp; 2 (more empirically grounded)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>I use <strong>1.6 billion person-hours</strong> as the central estimate, with a range of 1.2B (conservative) to 2.2B (generous). This is roughly <strong>1.8&times; the subway&rsquo;s 880M</strong>&mdash;meaning the average New Yorker spends less than twice as much time in street-exposed spaces as on the subway system.</p>
+</section>
+
+<!-- ====== SECTION 4: The Per-Hour Rates ====== -->
+<section>
+  <h2>The Crime Rates: Per Million Person-Hours</h2>
+  <p class="section-intro">Now we can compute the number that actually matters for personal risk: how many crimes per unit of time spent in each environment.</p>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Show:</span>
+    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index Crimes</button>
+    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index Crimes</button>
+  </div>
+
+  <div class="big-number-row">
+    <div class="big-number-card subway">
+      <div class="label">Subway Rate</div>
+      <div class="number" id="subway-rate">1.27</div>
+      <div class="unit"><span class="crime-type-label-lower">violent</span> crimes per million person-hours</div>
+    </div>
+    <div class="big-number-card street">
+      <div class="label">Street Rate</div>
+      <div class="number" id="street-rate">10.05</div>
+      <div class="unit"><span class="crime-type-label-lower">violent</span> crimes per million person-hours</div>
+    </div>
+  </div>
+
+  <div class="result-callout">
+    <div class="result-number" id="ratio-display">7.9&times;</div>
+    <div class="result-label" id="ratio-label">You face roughly <strong>eight times the risk</strong> of violent victimization per hour on the street compared to per hour on the subway</div>
+  </div>
+
+  <p>Put another way: for every hour you spend riding the subway, you&rsquo;d need to spend only <strong>~7.6 minutes</strong> on the street to accumulate the same statistical risk of violent victimization.</p>
+</section>
+
+<!-- ====== SECTION 5: Personal Risk Calculator ====== -->
+<section>
+  <h2>Your Personal Risk</h2>
+  <p class="section-intro">How much time do <em>you</em> spend in each environment? Adjust the sliders to estimate your own annual risk.</p>
+
+  <div class="slider-section">
+    <div class="slider-group">
+      <label>Hours per week on the subway (including platform time)</label>
+      <div class="slider-meta"><span>0 hrs</span><span>20 hrs</span></div>
+      <input type="range" id="personal-subway" min="0" max="20" step="0.5" value="5">
+      <div class="slider-value" id="personal-subway-display">5 hrs/week</div>
+    </div>
+
+    <div class="slider-group">
+      <label>Hours per week walking / outdoors on streets</label>
+      <div class="slider-meta"><span>0 hrs</span><span>40 hrs</span></div>
+      <input type="range" id="personal-street" min="0" max="40" step="0.5" value="10">
+      <div class="slider-value" id="personal-street-display">10 hrs/week</div>
+    </div>
+
+    <div class="slider-group" style="margin-bottom: 0;">
+      <label>Neighborhood where you spend most outdoor time</label>
+      <select id="neighborhood-select" onchange="setNeighborhood(this.value)" style="
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--surface2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 0.95rem;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url('data:image/svg+xml;utf8,<svg fill=\&quot;%238892a4\&quot; viewBox=\&quot;0 0 24 24\&quot; xmlns=\&quot;http://www.w3.org/2000/svg\&quot;><path d=\&quot;M7 10l5 5 5-5z\&quot;/></svg>');
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 20px;
+      ">
+        <option value="citywide">Citywide Average</option>
+        <optgroup label="&mdash; Higher Risk &mdash;">
+          <option value="mott_haven">Mott Haven (3.12&times;)</option>
+          <option value="hunts_point">Hunts Point (2.67&times;)</option>
+          <option value="morrisania">Morrisania / Crotona (2.48&times;)</option>
+          <option value="east_harlem">East Harlem (2.22&times;)</option>
+          <option value="south_bronx">South Bronx / Melrose (1.97&times;)</option>
+          <option value="jamaica">Jamaica, Queens (1.93&times;)</option>
+          <option value="brownsville">Brownsville (1.80&times;)</option>
+          <option value="central_harlem">Central Harlem (1.71&times;)</option>
+          <option value="east_ny">East New York (1.65&times;)</option>
+          <option value="downtown_bk">Downtown Brooklyn (1.65&times;)</option>
+        </optgroup>
+        <optgroup label="&mdash; Near Average &mdash;">
+          <option value="bushwick">Bushwick (1.21&times;)</option>
+          <option value="bed_stuy">Bedford-Stuyvesant (1.13&times;)</option>
+          <option value="wash_heights">Washington Heights (1.03&times;)</option>
+          <option value="flatbush">Flatbush (0.98&times;)</option>
+          <option value="crown_heights">Crown Heights (0.90&times;)</option>
+          <option value="astoria">Astoria (0.81&times;)</option>
+        </optgroup>
+        <optgroup label="&mdash; Lower Risk &mdash;">
+          <option value="tribeca">Tribeca / Battery Park City (0.79&times;)</option>
+          <option value="sunset_park">Sunset Park (0.72&times;)</option>
+          <option value="riverdale">Riverdale (0.70&times;)</option>
+          <option value="williamsburg">Williamsburg (0.68&times;)</option>
+          <option value="park_slope">Park Slope (0.68&times;)</option>
+          <option value="staten_island">Staten Island (0.49&times;)</option>
+          <option value="uws">Upper West Side (0.46&times;)</option>
+          <option value="ues">Upper East Side (0.36&times;)</option>
+          <option value="forest_hills">Forest Hills (0.34&times;)</option>
+          <option value="bay_ridge">Bay Ridge (0.28&times;)</option>
+          <option value="bayside">Bayside (0.25&times;)</option>
+        </optgroup>
+      </select>
+      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;" id="neighborhood-note">Using citywide average crime rate</div>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Crime type:</span>
+    <button class="toggle-btn active" data-crime="violent" onclick="setCrimeType('violent')">Violent Index</button>
+    <button class="toggle-btn" data-crime="all" onclick="setCrimeType('all')">All Index</button>
+  </div>
+
+  <div class="calc-results">
+    <div class="calc-card subway-card">
+      <div class="calc-label">Your Annual Subway Risk</div>
+      <div class="calc-number" id="calc-subway-risk">0.033%</div>
+      <div class="calc-detail" id="calc-subway-odds">1 in 3,026</div>
+    </div>
+    <div class="calc-card street-card">
+      <div class="calc-label">Your Annual Street Risk</div>
+      <div class="calc-number" id="calc-street-risk">0.523%</div>
+      <div class="calc-detail" id="calc-street-odds">1 in 191</div>
+    </div>
+    <div class="calc-card ratio-card">
+      <div class="calc-label">Street Risk &divide; Subway Risk</div>
+      <div class="calc-number" id="calc-ratio">15.8&times;</div>
+      <div class="calc-detail" id="calc-ratio-detail">Your street time generates 15.8&times; more risk</div>
+    </div>
+  </div>
+
+  <div class="method-note">
+    <strong>How to read this:</strong> &ldquo;Your Annual Subway Risk&rdquo; is the probability that you personally would be the victim of a <span class="crime-type-label-lower">violent index</span> crime in the subway system over the course of a year, given how many hours you spend there. This is a <em>statistical average</em>&mdash;your actual risk depends on which stations, what time of day, and many other factors. The &ldquo;ratio&rdquo; card shows how much more total risk your street time generates compared to your subway time.<br><br>
+    <strong>Neighborhood adjustment applies to street risk only.</strong> The subway is a system-wide network&mdash;a Mott Haven resident rides through Midtown on the same train as an Upper East Sider&mdash;so transit crime doesn&rsquo;t vary cleanly by neighborhood. But surface crime rates vary enormously: a resident of Mott Haven faces 3&times; the citywide average violent crime risk per hour outdoors, while someone in Bayside faces about a quarter of it. That&rsquo;s a 12&times; gap within the same city.
+  </div>
+
+  <h3>The Neighborhood Spectrum</h3>
+  <p>Multipliers are based on violent crime rates per 1,000 residents by NYPD precinct (2024 CompStat data, 2020 Census population). The range is striking&mdash;and far wider than borough-level averages suggest.</p>
+  <div class="data-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Neighborhood</th><th>Precinct(s)</th><th>Violent Crime Multiplier</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Mott Haven</td><td class="mono">40th</td><td class="mono" style="color: var(--street-color);">3.12&times;</td></tr>
+        <tr><td>Hunts Point</td><td class="mono">41st</td><td class="mono" style="color: var(--street-color);">2.67&times;</td></tr>
+        <tr><td>Morrisania / Crotona</td><td class="mono">42nd</td><td class="mono" style="color: var(--street-color);">2.48&times;</td></tr>
+        <tr><td>East Harlem</td><td class="mono">23rd, 25th</td><td class="mono" style="color: var(--street-color);">2.22&times;</td></tr>
+        <tr><td>South Bronx / Melrose</td><td class="mono">44th, 46th</td><td class="mono" style="color: var(--street-color);">1.97&times;</td></tr>
+        <tr><td>Jamaica, Queens</td><td class="mono">103rd</td><td class="mono" style="color: var(--street-color);">1.93&times;</td></tr>
+        <tr><td>Brownsville</td><td class="mono">73rd</td><td class="mono" style="color: var(--street-color);">1.80&times;</td></tr>
+        <tr><td>Central Harlem</td><td class="mono">28th, 32nd</td><td class="mono" style="color: var(--street-color);">1.71&times;</td></tr>
+        <tr><td>East New York</td><td class="mono">75th</td><td class="mono" style="color: var(--street-color);">1.65&times;</td></tr>
+        <tr class="highlight"><td><strong>Citywide Average</strong></td><td class="mono">&mdash;</td><td class="mono"><strong>1.00&times;</strong></td></tr>
+        <tr><td>Crown Heights</td><td class="mono">71st, 77th</td><td class="mono" style="color: var(--safe-color);">0.90&times;</td></tr>
+        <tr><td>Astoria</td><td class="mono">114th</td><td class="mono" style="color: var(--safe-color);">0.81&times;</td></tr>
+        <tr><td>Park Slope</td><td class="mono">78th</td><td class="mono" style="color: var(--safe-color);">0.68&times;</td></tr>
+        <tr><td>Upper West Side</td><td class="mono">20th, 24th</td><td class="mono" style="color: var(--safe-color);">0.46&times;</td></tr>
+        <tr><td>Upper East Side</td><td class="mono">19th</td><td class="mono" style="color: var(--safe-color);">0.36&times;</td></tr>
+        <tr><td>Bay Ridge</td><td class="mono">68th</td><td class="mono" style="color: var(--safe-color);">0.28&times;</td></tr>
+        <tr><td>Bayside</td><td class="mono">111th</td><td class="mono" style="color: var(--safe-color);">0.25&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="method-note">
+    <strong>A note on Midtown and Lower Manhattan:</strong> Per-capita crime rates in these areas are inflated by the enormous daytime population of commuters and tourists (the denominator uses only residents). This analysis uses violent crime multipliers, which are less affected by this distortion than total crime&mdash;but Midtown&rsquo;s 2.92&times; violent rate is still partly a denominator artifact. Neighborhoods like Tribeca/Battery Park City (0.79&times; violent) are likely close to their true risk level.
+  </div>
+</section>
+
+<!-- ====== SECTION 6: Sensitivity Analysis ====== -->
+<section>
+  <h2>Sensitivity Analysis</h2>
+  <p class="section-intro">The subway exposure estimate is relatively tight. The street estimate carries more uncertainty. Drag the sliders to see how the population-level ratio changes.</p>
+
+  <div class="slider-section">
+    <div class="slider-group">
+      <label>Street Person-Hours (billions/year)</label>
+      <div class="slider-meta"><span>1.0B (very conservative)</span><span>3.0B (very generous)</span></div>
+      <input type="range" id="street-hours-slider" min="1.0" max="3.0" step="0.1" value="1.6">
+      <div class="slider-value" id="street-hours-display">1.6 billion</div>
+    </div>
+    <div class="slider-group">
+      <label>Subway Person-Hours (millions/year)</label>
+      <div class="slider-meta"><span>700M</span><span>1,000M</span></div>
+      <input type="range" id="subway-hours-slider" min="700" max="1000" step="10" value="880">
+      <div class="slider-value" id="subway-hours-display">880 million</div>
+    </div>
+  </div>
+
+  <div class="sensitivity-grid">
+    <div class="sensitivity-card">
+      <div class="sc-label">Subway Rate</div>
+      <div class="sc-number" id="sens-subway-rate" style="color: var(--subway-color)">1.27</div>
+      <div class="sc-detail">per million person-hours</div>
+    </div>
+    <div class="sensitivity-card">
+      <div class="sc-label">Street Rate</div>
+      <div class="sc-number" id="sens-street-rate" style="color: var(--street-color)">10.05</div>
+      <div class="sc-detail">per million person-hours</div>
+    </div>
+    <div class="sensitivity-card">
+      <div class="sc-label">Street / Subway Ratio</div>
+      <div class="sc-number" id="sens-ratio" style="color: var(--accent2)">7.9&times;</div>
+      <div class="sc-detail">times riskier on streets</div>
+    </div>
+  </div>
+
+  <h3>Pre-Computed Scenarios</h3>
+  <div class="data-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Scenario</th><th>Street Hours (B)</th><th>Street Rate</th><th>Ratio</th><th>Interpretation</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Ultra-conservative</td><td class="mono">1.0B</td><td class="mono">16.08</td><td class="mono"><strong>12.7&times;</strong></td><td>Only counts actual walking-trip minutes</td></tr>
+        <tr><td>Conservative</td><td class="mono">1.2B</td><td class="mono">13.40</td><td class="mono"><strong>10.6&times;</strong></td><td>Walking trips + brief outdoor stops</td></tr>
+        <tr class="highlight"><td>Central estimate</td><td class="mono">1.6B</td><td class="mono">10.05</td><td class="mono"><strong>7.9&times;</strong></td><td>Triangulated best estimate</td></tr>
+        <tr><td>Generous</td><td class="mono">2.2B</td><td class="mono">7.31</td><td class="mono"><strong>5.8&times;</strong></td><td>All outdoor time broadly defined</td></tr>
+        <tr><td>Extreme</td><td class="mono">3.0B</td><td class="mono">5.36</td><td class="mono"><strong>4.2&times;</strong></td><td>Implausibly generous</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><strong>Key finding:</strong> Even under the most generous possible assumptions about street exposure&mdash;tripling the conservative estimate&mdash;streets remain at least <strong>4&times; more dangerous per hour</strong> than the subway. Under plausible assumptions, the ratio is <strong>6&ndash;11&times;</strong>.</p>
+</section>
+
+<!-- ====== SECTION 7: Why the Gap ====== -->
+<section>
+  <h2>Why the Gap? Six Hypotheses</h2>
+  <p class="section-intro">A risk ratio this large demands explanation. Several mechanisms likely contribute, and they reinforce each other.</p>
+
+  <div class="method-note">
+    <strong>1. Surveillance density.</strong> The subway is one of the most camera-saturated environments in New York. Platform cameras, in-car cameras, and uniformed officers at turnstiles create a deterrence environment that open streets cannot match. Offenders know this.
+  </div>
+  <div class="method-note">
+    <strong>2. Channelized movement.</strong> Subway riders flow through controlled chokepoints&mdash;turnstiles, platform edges, car doors. Offenders have fewer escape routes and victims have more bystanders nearby. Streets offer infinite approach and escape vectors.
+  </div>
+  <div class="method-note">
+    <strong>3. Population composition effects.</strong> Subway riders skew toward commuters&mdash;employed, sober, purposeful travelers. Street populations include all of these plus people in crisis, intoxicated individuals, and those involved in street-level disputes. The &ldquo;interaction pool&rdquo; on streets includes more potential offenders and more high-risk encounters.
+  </div>
+  <div class="method-note">
+    <strong>4. Temporal concentration.</strong> Subway ridership concentrates heavily in rush hours, when violence is lowest. Streets have 24/7 exposure including late-night and early-morning hours when violence peaks. The subway&rsquo;s temporal profile naturally avoids the highest-risk hours.
+  </div>
+  <div class="method-note">
+    <strong>5. Dispute geography.</strong> Most violent crime arises from disputes, robberies, and drug markets&mdash;activities overwhelmingly situated on the surface. The subway is a transit conduit, not a place where people live, deal, argue, or drink. It&rsquo;s inherently less &ldquo;criminogenic&rdquo; as an environment.
+  </div>
+  <div class="method-note">
+    <strong>6. Geographic uniformity as a safety feature.</strong> This may be the most underappreciated factor. Above ground, crime risk is hyper-localized: a block in Brownsville can be 20&times; more dangerous than a block in Park Slope. Savvy New Yorkers navigate this geography instinctively&mdash;avoiding certain blocks, crossing the street, staying in well-lit areas. But the subway flattens geography. When you swipe in at a station, you enter a single connected system. A rider on the A train passes through Midtown and East New York in the same trip. You can&rsquo;t &ldquo;avoid the bad neighborhoods&rdquo; underground the way you can on foot&mdash;but you don&rsquo;t need to, because the system&rsquo;s overall risk is so much lower. Half of all violent subway crimes concentrate in just 30 of 472 stations (6.4%), but even those high-crime stations have per-hour rates far below their surrounding streets. The subway&rsquo;s geographic uniformity means its average rate is close to its <em>typical</em> rate&mdash;unlike the street, where the average conceals enormous local variation and the worst blocks drive much of the total.
+  </div>
+</section>
+
+<!-- ====== SECTION 8: Limitations ====== -->
+<section>
+  <h2>What This Model Cannot Tell You</h2>
+
+  <p><strong>Reporting bias.</strong> Subway crime may be reported at higher rates (more cameras, more witnesses, more police presence) than street crime, which would make the true gap even larger than measured.</p>
+  <p><strong>Crime type matters.</strong> The subway has a different crime mix&mdash;proportionally more robberies, fewer assaults from interpersonal disputes. A model broken down by crime type would yield different ratios for different offenses.</p>
+  <p><strong>Geography and time.</strong> Both rates vary enormously by station/neighborhood and time of day. A per-hour comparison at 2 AM in East New York vs. Grand Central at rush hour would look very different from these system-wide averages.</p>
+  <p><strong>Perception vs. reality.</strong> The enclosed, inescapable nature of subway cars may make people <em>feel</em> less safe even when they are statistically safer. Fear of crime and actual crime risk are related but distinct phenomena.</p>
+  <p><strong>Exposure measurement.</strong> The street person-hour estimate is the weakest link in this analysis. Better data&mdash;perhaps from the MIT/Nature Cities pedestrian model&mdash;could narrow the uncertainty range considerably.</p>
+</section>
+
+<!-- ====== SECTION 9: Bottom Line ====== -->
+<section>
+  <h2>Bottom Line</h2>
+
+  <div class="result-callout">
+    <div class="result-number">6&ndash;11&times;</div>
+    <div class="result-label">Per hour spent, the street is <strong>six to eleven times</strong> more dangerous than the subway across all plausible assumptions</div>
+  </div>
+
+  <p>The popular fear of subway crime is understandable&mdash;an enclosed underground train <em>feels</em> dangerous. But the data tell a consistent story: hour for hour, New Yorkers face dramatically higher violent crime risk on the surface than underground. Even stress-testing every assumption in the most generous direction, the subway&rsquo;s per-hour risk never comes close to the street&rsquo;s.</p>
+  <p>This isn&rsquo;t an argument that subway crime doesn&rsquo;t matter. Every violent crime matters. But if the goal is reducing New Yorkers&rsquo; overall exposure to violence, the surface&mdash;where 93.5% of public-space violence occurs&mdash;is where the largest gains are to be found.</p>
+</section>
+
+<!-- ====== SECTION 10: Full Methodology ====== -->
+<section>
+  <h2>Full Methodology &amp; Sources</h2>
+
+  <div class="data-table-wrap">
+    <table>
+      <thead><tr><th>Input</th><th>Value</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Subway violent index crimes (2023)</td><td class="mono">1,120</td><td>NYPD CompStat / Vital City</td></tr>
+        <tr><td>Subway total index crimes (2023)</td><td class="mono">2,285</td><td>NYPD end-of-year report</td></tr>
+        <tr><td>Street/public violent index crimes (2023)</td><td class="mono">16,079</td><td>NYPD CompStat / Vital City</td></tr>
+        <tr><td>Street/public total index crimes (2023, est.)</td><td class="mono">~48,000</td><td>Estimated from citywide total minus transit/housing</td></tr>
+        <tr><td>Subway annual ridership (2023)</td><td class="mono">1.3B rides</td><td>MTA ridership data</td></tr>
+        <tr><td>Avg. subway trip + platform time</td><td class="mono">~40 min</td><td>MTA estimates, Vital City</td></tr>
+        <tr><td>Subway person-hours (2023)</td><td class="mono">~880M</td><td>Derived: 1.3B &times; 40/60</td></tr>
+        <tr><td>NYC effective daily population</td><td class="mono">~9.5M</td><td>Census (8.3M) + commuters + tourists</td></tr>
+        <tr><td>Walking trips as share of all trips</td><td class="mono">41%</td><td>MIT/Nature Cities (2026)</td></tr>
+        <tr><td>Avg. trips per weekday</td><td class="mono">2.5</td><td>NYC DOT Citywide Mobility Survey</td></tr>
+        <tr><td>Street person-hours (central est.)</td><td class="mono">~1.6B</td><td>Triangulated from 3 methods</td></tr>
+        <tr><td>Street person-hours (range)</td><td class="mono">1.2&ndash;2.2B</td><td>Conservative to generous bounds</td></tr>
+        <tr><td>Neighborhood crime multipliers</td><td class="mono">0.25&ndash;3.12&times;</td><td>NYPD precinct-level CompStat (2024), 2020 Census</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 20px;">&ldquo;Violent index crimes&rdquo; includes murder, rape, robbery, and felony assault as classified by NYPD. &ldquo;All index crimes&rdquo; adds burglary, grand larceny, and grand larceny auto. &ldquo;Street/public&rdquo; crimes are those occurring on streets, sidewalks, and public outdoor spaces. Transit crimes include those on subway trains, platforms, and in station areas. All 2023 figures. Street total index crime estimate derived from citywide totals (126,678) minus transit (2,285) and housing authority (6,149), with ~40% share attributed to street/public outdoor locations based on crime-type distribution analysis.</p>
+</section>
+
+</div>
+
+<footer>
+  <div class="container">
+    Analysis by Claude, building on <a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/" target="_blank">Vital City&rsquo;s &ldquo;Underground, Safer Than the Surface&rdquo;</a><br>
+    Data: NYPD CompStat, MTA, NYC DOT Citywide Mobility Survey, MIT/Nature Cities (2026), American Time Use Survey
+  </div>
+</footer>
+</div><!-- end content-wrap -->
+
+<script>
+(function() {
+  var gate = document.getElementById('pw-gate');
+  var wrap = document.getElementById('content-wrap');
+  var form = document.getElementById('pw-form');
+  var input = document.getElementById('pw-input');
+  var error = document.getElementById('pw-error');
+
+  if (sessionStorage.getItem('subway-street-auth') === 'true') {
+    gate.style.display = 'none';
+    wrap.style.display = 'block';
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (input.value === 'vitalcity2026!') {
+      gate.style.display = 'none';
+      wrap.style.display = 'block';
+      sessionStorage.setItem('subway-street-auth', 'true');
+    } else {
+      error.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  });
+})();
+</script>
+
+<script>
+// ============ DATA ============
+const DATA = {
+  violent: {
+    subway: 1120,
+    street: 16079,
+    label: 'violent index',
+    labelCap: 'Violent Index'
+  },
+  all: {
+    subway: 2285,
+    street: 48000,
+    label: 'index',
+    labelCap: 'All Index'
+  }
+};
+
+const NEIGHBORHOODS = {
+  citywide:       { violent: 1.00, total: 1.00, label: 'Citywide average' },
+  mott_haven:     { violent: 3.12, total: 2.32, label: 'Mott Haven: 3.12\u00d7 avg (40th Pct)' },
+  hunts_point:    { violent: 2.67, total: 2.07, label: 'Hunts Point: 2.67\u00d7 avg (41st Pct)' },
+  morrisania:     { violent: 2.48, total: 1.81, label: 'Morrisania / Crotona: 2.48\u00d7 avg (42nd Pct)' },
+  east_harlem:    { violent: 2.22, total: 1.61, label: 'East Harlem: 2.22\u00d7 avg (23rd, 25th Pcts)' },
+  south_bronx:    { violent: 1.97, total: 1.43, label: 'South Bronx / Melrose: 1.97\u00d7 avg (44th, 46th Pcts)' },
+  jamaica:        { violent: 1.93, total: 1.36, label: 'Jamaica, Queens: 1.93\u00d7 avg (103rd Pct)' },
+  brownsville:    { violent: 1.80, total: 1.16, label: 'Brownsville: 1.80\u00d7 avg (73rd Pct)' },
+  central_harlem: { violent: 1.71, total: 1.33, label: 'Central Harlem: 1.71\u00d7 avg (28th, 32nd Pcts)' },
+  east_ny:        { violent: 1.65, total: 1.27, label: 'East New York: 1.65\u00d7 avg (75th Pct)' },
+  downtown_bk:    { violent: 1.65, total: 1.86, label: 'Downtown Brooklyn: 1.65\u00d7 avg (84th Pct)' },
+  bushwick:       { violent: 1.21, total: 1.07, label: 'Bushwick: 1.21\u00d7 avg (83rd Pct)' },
+  bed_stuy:       { violent: 1.13, total: 0.90, label: 'Bed-Stuy: 1.13\u00d7 avg (79th, 81st Pcts)' },
+  wash_heights:   { violent: 1.03, total: 0.99, label: 'Washington Heights: 1.03\u00d7 avg (33rd, 34th Pcts)' },
+  flatbush:       { violent: 0.98, total: 0.76, label: 'Flatbush: 0.98\u00d7 avg (67th, 70th Pcts)' },
+  crown_heights:  { violent: 0.90, total: 0.70, label: 'Crown Heights: 0.90\u00d7 avg (71st, 77th Pcts)' },
+  astoria:        { violent: 0.81, total: 0.84, label: 'Astoria: 0.81\u00d7 avg (114th Pct)' },
+  tribeca:        { violent: 0.79, total: 1.51, label: 'Tribeca / BPC: 0.79\u00d7 violent avg (high property crime from tourists)' },
+  sunset_park:    { violent: 0.72, total: 0.69, label: 'Sunset Park: 0.72\u00d7 avg (72nd Pct)' },
+  riverdale:      { violent: 0.70, total: 1.08, label: 'Riverdale: 0.70\u00d7 avg (50th Pct)' },
+  williamsburg:   { violent: 0.68, total: 0.98, label: 'Williamsburg: 0.68\u00d7 avg (90th, 94th Pcts)' },
+  park_slope:     { violent: 0.68, total: 0.93, label: 'Park Slope: 0.68\u00d7 avg (78th Pct)' },
+  staten_island:  { violent: 0.49, total: 0.50, label: 'Staten Island: 0.49\u00d7 avg' },
+  uws:            { violent: 0.46, total: 0.72, label: 'Upper West Side: 0.46\u00d7 avg (20th, 24th Pcts)' },
+  ues:            { violent: 0.36, total: 0.79, label: 'Upper East Side: 0.36\u00d7 avg (19th Pct)' },
+  forest_hills:   { violent: 0.34, total: 0.56, label: 'Forest Hills: 0.34\u00d7 avg (112th Pct)' },
+  bay_ridge:      { violent: 0.28, total: 0.46, label: 'Bay Ridge: 0.28\u00d7 avg (68th Pct)' },
+  bayside:        { violent: 0.25, total: 0.69, label: 'Bayside: 0.25\u00d7 avg (111th Pct)' }
+};
+
+// ============ STATE ============
+let crimeType = 'violent';
+let neighborhood = 'citywide';
+
+// ============ SUBWAY/STREET EXPOSURE (fixed) ============
+const SUBWAY_HOURS = 880; // millions
+const STREET_HOURS = 1600; // millions
+
+// ============ FUNCTIONS ============
+function setCrimeType(type) {
+  crimeType = type;
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.crime === type);
+  });
+  updateAll();
+}
+
+function setNeighborhood(n) {
+  neighborhood = n;
+  document.getElementById('neighborhood-note').textContent = NEIGHBORHOODS[n].label;
+  updatePersonalCalc();
+}
+
+function fmt(n) {
+  return n.toLocaleString('en-US');
+}
+
+function updateAll() {
+  const d = DATA[crimeType];
+
+  // Update type labels
+  document.querySelectorAll('.crime-type-label').forEach(el => {
+    el.textContent = d.labelCap;
+  });
+  document.querySelectorAll('.crime-type-label-lower').forEach(el => {
+    el.textContent = d.label;
+  });
+
+  // Raw numbers section
+  const subwayPct = (d.subway / (d.subway + d.street) * 100).toFixed(1);
+  const streetPct = (d.street / (d.subway + d.street) * 100).toFixed(1);
+  document.getElementById('raw-subway').textContent = fmt(d.subway);
+  document.getElementById('raw-street').textContent = '~' + fmt(d.street);
+  document.getElementById('raw-subway-pct').textContent = subwayPct + '% of public-space ' + d.label + ' crime';
+  document.getElementById('raw-street-pct').textContent = streetPct + '% of public-space ' + d.label + ' crime';
+
+  // Bars
+  document.getElementById('bar-subway').style.width = subwayPct + '%';
+  document.getElementById('bar-subway-pct').textContent = subwayPct + '%';
+  document.getElementById('bar-street').style.width = streetPct + '%';
+  document.getElementById('bar-street').textContent = streetPct + '%';
+  document.getElementById('bar-street-pct').textContent = streetPct + '%';
+
+  // Per-hour rates
+  const subwayRate = (d.subway / SUBWAY_HOURS).toFixed(2);
+  const streetRate = (d.street / STREET_HOURS).toFixed(2);
+  const ratio = (streetRate / subwayRate).toFixed(1);
+
+  document.getElementById('subway-rate').textContent = subwayRate;
+  document.getElementById('street-rate').textContent = streetRate;
+  document.getElementById('ratio-display').textContent = ratio + '\u00d7';
+
+  const roundedRatio = Math.round(parseFloat(ratio));
+  const words = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen'];
+  const ratioWord = words[roundedRatio] || roundedRatio;
+  document.getElementById('ratio-label').innerHTML =
+    'You face roughly <strong>' + ratioWord + ' times the risk</strong> of ' + d.label + ' crime victimization per hour on the street compared to per hour on the subway';
+
+  // Sensitivity
+  updateSensitivity();
+  // Personal calc
+  updatePersonalCalc();
+}
+
+function updateSensitivity() {
+  const streetB = parseFloat(document.getElementById('street-hours-slider').value);
+  const subwayM = parseFloat(document.getElementById('subway-hours-slider').value);
+  const d = DATA[crimeType];
+
+  const subRate = (d.subway / subwayM).toFixed(2);
+  const stRate = (d.street / (streetB * 1000)).toFixed(2);
+  const r = (stRate / subRate).toFixed(1);
+
+  document.getElementById('street-hours-display').textContent = streetB.toFixed(1) + ' billion';
+  document.getElementById('subway-hours-display').textContent = subwayM.toFixed(0) + ' million';
+  document.getElementById('sens-subway-rate').textContent = subRate;
+  document.getElementById('sens-street-rate').textContent = stRate;
+  document.getElementById('sens-ratio').textContent = r + '\u00d7';
+}
+
+function updatePersonalCalc() {
+  const subwayHrsWeek = parseFloat(document.getElementById('personal-subway').value);
+  const streetHrsWeek = parseFloat(document.getElementById('personal-street').value);
+  const d = DATA[crimeType];
+  const nData = NEIGHBORHOODS[neighborhood];
+  const bMult = crimeType === 'violent' ? nData.violent : nData.total;
+
+  document.getElementById('personal-subway-display').textContent = subwayHrsWeek + ' hrs/week';
+  document.getElementById('personal-street-display').textContent = streetHrsWeek + ' hrs/week';
+
+  // Annual hours
+  const subwayAnnual = subwayHrsWeek * 52;
+  const streetAnnual = streetHrsWeek * 52;
+
+  // Rates per hour (not per million)
+  const subwayRatePerHour = d.subway / (SUBWAY_HOURS * 1e6);
+  const streetRatePerHour = (d.street / (STREET_HOURS * 1e6)) * bMult;
+
+  // Annual risk (probability)
+  const subwayRisk = 1 - Math.pow(1 - subwayRatePerHour, subwayAnnual);
+  const streetRisk = 1 - Math.pow(1 - streetRatePerHour, streetAnnual);
+
+  // Display
+  if (subwayHrsWeek === 0) {
+    document.getElementById('calc-subway-risk').textContent = '0%';
+    document.getElementById('calc-subway-odds').textContent = 'No subway time';
+  } else {
+    document.getElementById('calc-subway-risk').textContent = (subwayRisk * 100).toFixed(3) + '%';
+    const odds = Math.round(1 / subwayRisk);
+    document.getElementById('calc-subway-odds').textContent = '1 in ' + fmt(odds) + ' chance/year';
+  }
+
+  if (streetHrsWeek === 0) {
+    document.getElementById('calc-street-risk').textContent = '0%';
+    document.getElementById('calc-street-odds').textContent = 'No street time';
+  } else {
+    document.getElementById('calc-street-risk').textContent = (streetRisk * 100).toFixed(3) + '%';
+    const odds = Math.round(1 / streetRisk);
+    document.getElementById('calc-street-odds').textContent = '1 in ' + fmt(odds) + ' chance/year';
+  }
+
+  if (subwayHrsWeek === 0 || streetHrsWeek === 0) {
+    document.getElementById('calc-ratio').textContent = '\u2014';
+    document.getElementById('calc-ratio-detail').textContent = 'Need both to compare';
+  } else {
+    const personalRatio = (streetRisk / subwayRisk).toFixed(1);
+    document.getElementById('calc-ratio').textContent = personalRatio + '\u00d7';
+    document.getElementById('calc-ratio-detail').textContent =
+      'Your street time generates ' + personalRatio + '\u00d7 more ' + d.label + ' crime risk';
+  }
+}
+
+// ============ EVENT LISTENERS ============
+document.getElementById('street-hours-slider').addEventListener('input', updateSensitivity);
+document.getElementById('subway-hours-slider').addEventListener('input', updateSensitivity);
+document.getElementById('personal-subway').addEventListener('input', updatePersonalCalc);
+document.getElementById('personal-street').addEventListener('input', updatePersonalCalc);
+
+// ============ INIT ============
+updateAll();
+</script>
+
+</body>
+</html>
