@@ -328,7 +328,10 @@ function buildSubwayGraph() {
 function buildBusGraph() {
   busGraph = {};
   for (let i = 0; i < BUS_STOPS.length; i++) busGraph[i] = [];
-  for (const [s1, s2, time] of BUS_ADJACENCY) {
+  for (const [s1, s2, rawTime] of BUS_ADJACENCY) {
+    // Scale bus times 2.5× to reflect real-world speeds (congestion, dwell time,
+    // and implicit transfer penalties at clustered stops) with 90s minimum per hop
+    const time = Math.max(Math.round(rawTime * 2.5), 90);
     if (busGraph[s1]) busGraph[s1].push({ to: s2, time });
     if (busGraph[s2]) busGraph[s2].push({ to: s1, time });
   }
