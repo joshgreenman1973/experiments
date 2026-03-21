@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The World in Dots</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #fff;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 24px 20px 4px;
+  }
+  header h1 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 8px;
+    font-weight: 300;
+    text-align: center;
+  }
+  #counter {
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 200;
+    letter-spacing: 1px;
+    color: #fff;
+    padding: 4px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  #counter span {
+    background: linear-gradient(135deg, #48dbfb, #ff9ff3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 400;
+  }
+  /* View switcher */
+  #view-switcher {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 8px 20px 2px;
+  }
+  #view-switcher a {
+    padding: 6px 20px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    text-decoration: none;
+    color: #888;
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  #view-switcher a:first-child {
+    border-radius: 16px 0 0 16px;
+  }
+  #view-switcher a:last-child {
+    border-radius: 0 16px 16px 0;
+    border-left: none;
+  }
+  #view-switcher a.active {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+    font-weight: 500;
+  }
+  #view-switcher a:not(.active):hover {
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+  }
+  /* Metric switcher */
+  #metric-switcher {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 20px 6px;
+  }
+  #metric-switcher button {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #aaa;
+    padding: 5px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+  }
+  #metric-switcher button:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+  }
+  #metric-switcher button.active {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+    font-weight: 500;
+  }
+  #canvas-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+  }
+  canvas { border-radius: 12px; max-width: 100%; }
+  #controls {
+    text-align: center;
+    padding: 8px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  #controls button {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 5px 13px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+  }
+  #controls button:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+  }
+  #controls button.active {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.45);
+  }
+  .controls-label {
+    color: #666;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+  }
+  .controls-divider {
+    width: 1px; height: 24px;
+    background: rgba(255,255,255,0.1);
+    margin: 0 6px; align-self: center;
+  }
+  /* Search */
+  #search-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 6px 20px 10px;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  #search-wrap input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.3s;
+    font-family: inherit;
+  }
+  #search-wrap input:focus { border-color: rgba(255,255,255,0.4); }
+  #search-wrap input::placeholder { color: #555; }
+  #search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(15,15,35,0.97);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+  }
+  #search-results.open { display: block; }
+  .search-result {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    transition: background 0.15s;
+  }
+  .search-result:hover { background: rgba(255,255,255,0.08); }
+  .search-result .sr-val { color: #888; font-size: 0.8rem; }
+  .search-input-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  #highlight-info {
+    font-size: 0.9rem;
+    color: #ccc;
+    min-height: 1.2em;
+    text-align: center;
+  }
+  #highlight-info .hi-name { font-weight: 600; }
+  #highlight-info .hi-pct {
+    background: linear-gradient(135deg, #48dbfb, #ff9ff3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+  #highlight-info .hi-clear {
+    display: inline-block;
+    margin-left: 14px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #ddd;
+    padding: 6px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: all 0.2s;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+  }
+  #highlight-info .hi-clear:hover {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.45);
+    color: #fff;
+    transform: scale(1.05);
+  }
+  /* Legend */
+  #legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 12px;
+    padding: 20px 30px 10px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.48rem;
+    color: #ccc;
+    opacity: 0;
+    transition: opacity 0.5s;
+    cursor: pointer;
+  }
+  .legend-item.visible { opacity: 1; }
+  .legend-item:hover { color: #fff; }
+  .legend-item.active { color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 2px 6px; margin: -2px -6px; background: rgba(255,255,255,0.05); }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #tooltip {
+    position: fixed;
+    background: rgba(15,15,35,0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    max-width: 280px;
+  }
+  #tooltip .tt-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+  #tooltip .tt-val { color: #aaa; }
+  #tooltip .tt-pct { color: #999; font-size: 0.8rem; margin-top: 2px; }
+  #tooltip .tt-region { color: #777; font-size: 0.8rem; margin-top: 2px; }
+  #region-labels {
+    position: absolute;
+    pointer-events: none;
+    top: 0; left: 0;
+  }
+  .region-label {
+    position: absolute;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: #555;
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+  footer a { color: #777; text-decoration: underline; }
+  footer a:hover { color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>The World in Dots</h1>
+</header>
+<p id="subtitle">Each dot &asymp; 2 million people &middot; every country gets at least one</p>
+<div id="counter">Population: <span>0</span></div>
+<div id="view-switcher">
+  <a class="active">Countries</a>
+  <a href="../world-cities-dots/">100 Metro Areas</a>
+</div>
+<div id="metric-switcher">
+  <button data-metric="pop" class="active">Population</button>
+  <button data-metric="gdp">GDP</button>
+  <button data-metric="gdppc">GDP per Capita</button>
+  <button data-metric="area">Land Area</button>
+</div>
+<div id="controls">
+  <span class="controls-label">Sort</span>
+  <button data-sort="largest" class="active">Largest First</button>
+  <button data-sort="smallest">Smallest First</button>
+  <button data-sort="alpha">A &rarr; Z</button>
+  <div class="controls-divider"></div>
+  <span class="controls-label">Group</span>
+  <button data-sort="continent">By Continent</button>
+  <div class="controls-divider"></div>
+  <button id="replayBtn">Replay</button>
+</div>
+<div id="search-wrap">
+  <div class="search-input-wrap">
+    <input type="text" id="search" placeholder="Search for a country..." autocomplete="off" />
+    <div id="search-results"></div>
+  </div>
+  <div id="highlight-info"></div>
+</div>
+<div id="canvas-wrap" style="position:relative">
+  <canvas id="c"></canvas>
+  <div id="region-labels"></div>
+</div>
+<div id="legend"></div>
+<div id="tooltip"><div class="tt-name"></div><div class="tt-val"></div><div class="tt-pct"></div><div class="tt-region"></div></div>
+<footer>
+  Population: <a href="https://www.worldometers.info/world-population/population-by-country/" target="_blank">UN/Worldometer 2025</a> &middot;
+  GDP: <a href="https://www.imf.org/en/Publications/WEO" target="_blank">IMF 2024 est.</a> &middot;
+  Area: <a href="https://www.cia.gov/the-world-factbook/" target="_blank">CIA World Factbook</a><br>
+  All figures approximate. GDP per capita derived from GDP &divide; population.
+</footer>
+
+<script>
+// ══════════════════════════════════════════
+// DATA — all countries with pop >= 1M
+// pop: millions, gdp: billions USD nominal, area: thousands km², co2: millions metric tons, internet: millions users
+// ══════════════════════════════════════════
+const countries = [
+  // ── ASIA ──
+  { name:"India", region:"Asia", pop:1477, gdp:3900, area:3287, co2:2800, internet:900 },
+  { name:"China", region:"Asia", pop:1413, gdp:18500, area:9597, co2:11400, internet:1100 },
+  { name:"Indonesia", region:"Asia", pop:288, gdp:1400, area:1905, co2:600, internet:210 },
+  { name:"Pakistan", region:"Asia", pop:259, gdp:350, area:882, co2:200, internet:85 },
+  { name:"Bangladesh", region:"Asia", pop:178, gdp:420, area:148, co2:100, internet:70 },
+  { name:"Japan", region:"Asia", pop:122, gdp:4200, area:378, co2:1000, internet:105 },
+  { name:"Philippines", region:"Asia", pop:118, gdp:440, area:300, co2:170, internet:85 },
+  { name:"Vietnam", region:"Asia", pop:102, gdp:400, area:331, co2:300, internet:80 },
+  { name:"Iran", region:"Asia", pop:93, gdp:400, area:1648, co2:750, internet:70 },
+  { name:"Turkey", region:"Asia", pop:88, gdp:1358, area:784, co2:420, internet:75 },
+  { name:"Thailand", region:"Asia", pop:72, gdp:500, area:513, co2:280, internet:65 },
+  { name:"Myanmar", region:"Asia", pop:55, gdp:60, area:677, co2:30, internet:22 },
+  { name:"South Korea", region:"Asia", pop:52, gdp:1800, area:100, co2:580, internet:50 },
+  { name:"Iraq", region:"Asia", pop:48, gdp:200, area:438, co2:180, internet:28 },
+  { name:"Afghanistan", region:"Asia", pop:45, gdp:15, area:652, co2:8, internet:9 },
+  { name:"Yemen", region:"Asia", pop:43, gdp:20, area:528, co2:10, internet:9 },
+  { name:"Uzbekistan", region:"Asia", pop:38, gdp:90, area:447, co2:100, internet:25 },
+  { name:"Saudi Arabia", region:"Asia", pop:35, gdp:1240, area:2150, co2:600, internet:33 },
+  { name:"Malaysia", region:"Asia", pop:36, gdp:400, area:330, co2:250, internet:33 },
+  { name:"Nepal", region:"Asia", pop:30, gdp:40, area:147, co2:12, internet:16 },
+  { name:"North Korea", region:"Asia", pop:27, gdp:18, area:121, co2:60, internet:0.1 },
+  { name:"Syria", region:"Asia", pop:26, gdp:12, area:185, co2:25, internet:8 },
+  { name:"Taiwan", region:"Asia", pop:23, gdp:760, area:36, co2:280, internet:22 },
+  { name:"Sri Lanka", region:"Asia", pop:23, gdp:80, area:66, co2:20, internet:12 },
+  { name:"Kazakhstan", region:"Asia", pop:21, gdp:260, area:2725, co2:280, internet:17 },
+  { name:"Cambodia", region:"Asia", pop:18, gdp:30, area:181, co2:15, internet:11 },
+  { name:"Jordan", region:"Asia", pop:12, gdp:50, area:89, co2:25, internet:9 },
+  { name:"UAE", region:"Asia", pop:12, gdp:552, area:84, co2:200, internet:11 },
+  { name:"Tajikistan", region:"Asia", pop:11, gdp:12, area:143, co2:8, internet:5 },
+  { name:"Azerbaijan", region:"Asia", pop:10, gdp:70, area:87, co2:35, internet:8 },
+  { name:"Israel", region:"Asia", pop:10, gdp:500, area:22, co2:60, internet:9 },
+  { name:"Laos", region:"Asia", pop:8, gdp:15, area:237, co2:25, internet:4 },
+  { name:"Turkmenistan", region:"Asia", pop:8, gdp:55, area:488, co2:70, internet:2 },
+  { name:"Kyrgyzstan", region:"Asia", pop:7, gdp:12, area:200, co2:12, internet:4 },
+  { name:"Singapore", region:"Asia", pop:6, gdp:547, area:0.7, co2:45, internet:6 },
+  { name:"Lebanon", region:"Asia", pop:6, gdp:20, area:10, co2:25, internet:5 },
+  { name:"Palestine", region:"Asia", pop:6, gdp:18, area:6, co2:3, internet:4 },
+  { name:"Oman", region:"Asia", pop:6, gdp:100, area:310, co2:70, internet:5 },
+  { name:"Kuwait", region:"Asia", pop:5, gdp:150, area:18, co2:100, internet:5 },
+  { name:"Georgia", region:"Asia", pop:4, gdp:25, area:70, co2:12, internet:3 },
+  { name:"Mongolia", region:"Asia", pop:4, gdp:18, area:1564, co2:25, internet:3 },
+  { name:"Armenia", region:"Asia", pop:3, gdp:20, area:30, co2:6, internet:2 },
+  { name:"Qatar", region:"Asia", pop:3, gdp:200, area:12, co2:95, internet:3 },
+  { name:"Bahrain", region:"Asia", pop:2, gdp:44, area:8, co2:35, internet:2 },
+  { name:"Timor-Leste", region:"Asia", pop:1, gdp:3, area:15, co2:1, internet:0.4 },
+  { name:"Cyprus", region:"Asia", pop:1, gdp:30, area:9, co2:6, internet:1 },
+  { name:"Bhutan", region:"Asia", pop:1, gdp:3, area:38, co2:1, internet:0.4 },
+  { name:"Maldives", region:"Asia", pop:1, gdp:6, area:0.3, co2:1, internet:0.4 },
+  // ── AFRICA ──
+  { name:"Nigeria", region:"Africa", pop:233, gdp:252, area:924, co2:130, internet:110 },
+  { name:"Ethiopia", region:"Africa", pop:139, gdp:160, area:1104, co2:25, internet:35 },
+  { name:"Egypt", region:"Africa", pop:120, gdp:400, area:1001, co2:240, internet:80 },
+  { name:"DR Congo", region:"Africa", pop:116, gdp:60, area:2345, co2:5, internet:25 },
+  { name:"Tanzania", region:"Africa", pop:73, gdp:80, area:945, co2:15, internet:25 },
+  { name:"South Africa", region:"Africa", pop:65, gdp:380, area:1219, co2:420, internet:42 },
+  { name:"Kenya", region:"Africa", pop:59, gdp:110, area:580, co2:20, internet:30 },
+  { name:"Sudan", region:"Africa", pop:53, gdp:30, area:1861, co2:20, internet:14 },
+  { name:"Uganda", region:"Africa", pop:53, gdp:50, area:241, co2:6, internet:15 },
+  { name:"Algeria", region:"Africa", pop:48, gdp:200, area:2382, co2:170, internet:28 },
+  { name:"Angola", region:"Africa", pop:40, gdp:80, area:1247, co2:30, internet:10 },
+  { name:"Morocco", region:"Africa", pop:39, gdp:150, area:447, co2:65, internet:28 },
+  { name:"Mozambique", region:"Africa", pop:37, gdp:20, area:801, co2:8, internet:7 },
+  { name:"Ghana", region:"Africa", pop:36, gdp:80, area:239, co2:20, internet:18 },
+  { name:"Madagascar", region:"Africa", pop:34, gdp:15, area:587, co2:4, internet:7 },
+  { name:"Ivory Coast", region:"Africa", pop:33, gdp:70, area:322, co2:12, internet:12 },
+  { name:"Cameroon", region:"Africa", pop:31, gdp:45, area:475, co2:10, internet:10 },
+  { name:"Niger", region:"Africa", pop:29, gdp:15, area:1267, co2:3, internet:4 },
+  { name:"Mali", region:"Africa", pop:26, gdp:20, area:1240, co2:5, internet:6 },
+  { name:"Burkina Faso", region:"Africa", pop:25, gdp:20, area:274, co2:5, internet:5 },
+  { name:"Malawi", region:"Africa", pop:23, gdp:12, area:118, co2:2, internet:4 },
+  { name:"Zambia", region:"Africa", pop:23, gdp:25, area:753, co2:8, internet:8 },
+  { name:"Chad", region:"Africa", pop:22, gdp:12, area:1284, co2:2, internet:3 },
+  { name:"Somalia", region:"Africa", pop:20, gdp:8, area:638, co2:1, internet:3 },
+  { name:"Senegal", region:"Africa", pop:19, gdp:30, area:197, co2:12, internet:10 },
+  { name:"Zimbabwe", region:"Africa", pop:17, gdp:25, area:391, co2:12, internet:6 },
+  { name:"Guinea", region:"Africa", pop:15, gdp:15, area:246, co2:4, internet:4 },
+  { name:"Benin", region:"Africa", pop:15, gdp:18, area:115, co2:8, internet:4 },
+  { name:"Rwanda", region:"Africa", pop:15, gdp:12, area:26, co2:1, internet:5 },
+  { name:"Burundi", region:"Africa", pop:15, gdp:3, area:28, co2:1, internet:1 },
+  { name:"South Sudan", region:"Africa", pop:12, gdp:4, area:619, co2:2, internet:1 },
+  { name:"Tunisia", region:"Africa", pop:12, gdp:50, area:164, co2:28, internet:9 },
+  { name:"Togo", region:"Africa", pop:10, gdp:8, area:57, co2:3, internet:3 },
+  { name:"Sierra Leone", region:"Africa", pop:9, gdp:4, area:72, co2:1, internet:2 },
+  { name:"Libya", region:"Africa", pop:8, gdp:40, area:1760, co2:35, internet:4 },
+  { name:"Congo", region:"Africa", pop:7, gdp:12, area:342, co2:4, internet:2 },
+  { name:"Central African Rep.", region:"Africa", pop:6, gdp:2, area:623, co2:0.4, internet:1 },
+  { name:"Liberia", region:"Africa", pop:6, gdp:4, area:111, co2:1, internet:1 },
+  { name:"Mauritania", region:"Africa", pop:5, gdp:10, area:1031, co2:4, internet:2 },
+  { name:"Eritrea", region:"Africa", pop:4, gdp:2, area:118, co2:1, internet:0.3 },
+  { name:"Gambia", region:"Africa", pop:3, gdp:2, area:11, co2:1, internet:1 },
+  { name:"Namibia", region:"Africa", pop:3, gdp:12, area:825, co2:4, internet:1.5 },
+  { name:"Botswana", region:"Africa", pop:3, gdp:20, area:582, co2:7, internet:2 },
+  { name:"Gabon", region:"Africa", pop:3, gdp:20, area:268, co2:5, internet:1.5 },
+  { name:"Lesotho", region:"Africa", pop:2, gdp:3, area:30, co2:1, internet:1 },
+  { name:"Guinea-Bissau", region:"Africa", pop:2, gdp:2, area:36, co2:0.4, internet:0.3 },
+  { name:"Equatorial Guinea", region:"Africa", pop:2, gdp:12, area:28, co2:6, internet:0.5 },
+  { name:"Mauritius", region:"Africa", pop:1, gdp:15, area:2, co2:4, internet:1 },
+  { name:"Eswatini", region:"Africa", pop:1, gdp:5, area:17, co2:1, internet:0.5 },
+  { name:"Djibouti", region:"Africa", pop:1, gdp:4, area:23, co2:1, internet:0.5 },
+  { name:"Comoros", region:"Africa", pop:1, gdp:1, area:2, co2:0.3, internet:0.2 },
+  // ── EUROPE ──
+  { name:"Russia", region:"Europe", pop:143, gdp:2000, area:17098, co2:1900, internet:130 },
+  { name:"Germany", region:"Europe", pop:84, gdp:4600, area:357, co2:600, internet:80 },
+  { name:"United Kingdom", region:"Europe", pop:70, gdp:3500, area:243, co2:310, internet:65 },
+  { name:"France", region:"Europe", pop:67, gdp:3200, area:643, co2:280, internet:60 },
+  { name:"Italy", region:"Europe", pop:59, gdp:2300, area:301, co2:300, internet:55 },
+  { name:"Spain", region:"Europe", pop:48, gdp:1725, area:506, co2:220, internet:44 },
+  { name:"Ukraine", region:"Europe", pop:40, gdp:170, area:604, co2:100, internet:30 },
+  { name:"Poland", region:"Europe", pop:38, gdp:915, area:313, co2:300, internet:33 },
+  { name:"Romania", region:"Europe", pop:19, gdp:300, area:238, co2:65, internet:15 },
+  { name:"Netherlands", region:"Europe", pop:18, gdp:1100, area:42, co2:130, internet:17 },
+  { name:"Belgium", region:"Europe", pop:12, gdp:600, area:31, co2:90, internet:11 },
+  { name:"Czech Republic", region:"Europe", pop:11, gdp:300, area:79, co2:90, internet:10 },
+  { name:"Sweden", region:"Europe", pop:11, gdp:600, area:450, co2:35, internet:10 },
+  { name:"Greece", region:"Europe", pop:10, gdp:240, area:132, co2:50, internet:9 },
+  { name:"Portugal", region:"Europe", pop:10, gdp:270, area:92, co2:40, internet:9 },
+  { name:"Hungary", region:"Europe", pop:10, gdp:200, area:93, co2:45, internet:8 },
+  { name:"Austria", region:"Europe", pop:9, gdp:500, area:84, co2:60, internet:8 },
+  { name:"Switzerland", region:"Europe", pop:9, gdp:900, area:41, co2:35, internet:8 },
+  { name:"Belarus", region:"Europe", pop:9, gdp:70, area:208, co2:55, internet:7 },
+  { name:"Serbia", region:"Europe", pop:7, gdp:65, area:88, co2:40, internet:6 },
+  { name:"Bulgaria", region:"Europe", pop:7, gdp:100, area:111, co2:35, internet:5 },
+  { name:"Denmark", region:"Europe", pop:6, gdp:400, area:43, co2:25, internet:6 },
+  { name:"Finland", region:"Europe", pop:6, gdp:300, area:338, co2:35, internet:5 },
+  { name:"Norway", region:"Europe", pop:6, gdp:500, area:324, co2:40, internet:5 },
+  { name:"Slovakia", region:"Europe", pop:5, gdp:120, area:49, co2:30, internet:5 },
+  { name:"Ireland", region:"Europe", pop:5, gdp:609, area:70, co2:35, internet:5 },
+  { name:"Croatia", region:"Europe", pop:4, gdp:70, area:57, co2:16, internet:3.5 },
+  { name:"Bosnia & Herz.", region:"Europe", pop:3, gdp:25, area:51, co2:20, internet:2.5 },
+  { name:"Moldova", region:"Europe", pop:3, gdp:15, area:34, co2:7, internet:2 },
+  { name:"Albania", region:"Europe", pop:3, gdp:20, area:29, co2:5, internet:2 },
+  { name:"Lithuania", region:"Europe", pop:3, gdp:70, area:65, co2:12, internet:2.5 },
+  { name:"North Macedonia", region:"Europe", pop:2, gdp:14, area:26, co2:7, internet:1.5 },
+  { name:"Slovenia", region:"Europe", pop:2, gdp:60, area:20, co2:12, internet:2 },
+  { name:"Latvia", region:"Europe", pop:2, gdp:40, area:65, co2:7, internet:1.5 },
+  { name:"Kosovo", region:"Europe", pop:2, gdp:10, area:11, co2:8, internet:1.5 },
+  { name:"Estonia", region:"Europe", pop:1, gdp:38, area:45, co2:10, internet:1 },
+  { name:"Montenegro", region:"Europe", pop:1, gdp:6, area:14, co2:3, internet:0.5 },
+  { name:"Luxembourg", region:"Europe", pop:1, gdp:80, area:3, co2:8, internet:0.6 },
+  // ── AMERICAS ──
+  { name:"United States", region:"Americas", pop:349, gdp:28800, area:9834, co2:4900, internet:310 },
+  { name:"Brazil", region:"Americas", pop:214, gdp:2200, area:8516, co2:450, internet:185 },
+  { name:"Mexico", region:"Americas", pop:133, gdp:1800, area:1964, co2:440, internet:100 },
+  { name:"Colombia", region:"Americas", pop:54, gdp:340, area:1142, co2:80, internet:40 },
+  { name:"Argentina", region:"Americas", pop:46, gdp:600, area:2780, co2:180, internet:40 },
+  { name:"Canada", region:"Americas", pop:42, gdp:2200, area:9985, co2:550, internet:37 },
+  { name:"Peru", region:"Americas", pop:35, gdp:280, area:1285, co2:55, internet:22 },
+  { name:"Venezuela", region:"Americas", pop:29, gdp:80, area:912, co2:80, internet:15 },
+  { name:"Chile", region:"Americas", pop:20, gdp:330, area:756, co2:85, internet:17 },
+  { name:"Guatemala", region:"Americas", pop:19, gdp:100, area:109, co2:20, internet:10 },
+  { name:"Ecuador", region:"Americas", pop:18, gdp:120, area:284, co2:35, internet:13 },
+  { name:"Bolivia", region:"Americas", pop:13, gdp:45, area:1099, co2:22, internet:7 },
+  { name:"Haiti", region:"Americas", pop:12, gdp:10, area:28, co2:3, internet:4 },
+  { name:"Dominican Republic", region:"Americas", pop:12, gdp:120, area:49, co2:25, internet:8 },
+  { name:"Cuba", region:"Americas", pop:11, gdp:100, area:110, co2:25, internet:5 },
+  { name:"Honduras", region:"Americas", pop:11, gdp:30, area:112, co2:10, internet:5 },
+  { name:"Paraguay", region:"Americas", pop:7, gdp:40, area:407, co2:12, internet:5 },
+  { name:"Nicaragua", region:"Americas", pop:7, gdp:15, area:130, co2:6, internet:3 },
+  { name:"El Salvador", region:"Americas", pop:6, gdp:30, area:21, co2:6, internet:4 },
+  { name:"Costa Rica", region:"Americas", pop:5, gdp:70, area:51, co2:8, internet:4 },
+  { name:"Panama", region:"Americas", pop:5, gdp:80, area:75, co2:12, internet:4 },
+  { name:"Uruguay", region:"Americas", pop:3, gdp:70, area:176, co2:7, internet:3 },
+  { name:"Jamaica", region:"Americas", pop:3, gdp:18, area:11, co2:8, internet:2 },
+  { name:"Trinidad & Tobago", region:"Americas", pop:2, gdp:25, area:5, co2:30, internet:1.2 },
+  { name:"Guyana", region:"Americas", pop:1, gdp:15, area:215, co2:3, internet:0.5 },
+  { name:"Suriname", region:"Americas", pop:1, gdp:4, area:164, co2:2, internet:0.4 },
+  // ── OCEANIA ──
+  { name:"Australia", region:"Oceania", pop:27, gdp:1700, area:7692, co2:380, internet:24 },
+  { name:"Papua New Guinea", region:"Oceania", pop:11, gdp:30, area:463, co2:8, internet:2 },
+  { name:"New Zealand", region:"Oceania", pop:5, gdp:250, area:268, co2:30, internet:5 },
+  { name:"Fiji", region:"Oceania", pop:1, gdp:5, area:18, co2:2, internet:0.6 },
+  { name:"Solomon Islands", region:"Oceania", pop:1, gdp:2, area:29, co2:0.5, internet:0.2 },
+  // ── OTHER ──
+  { name:"Other territories", region:"Other", pop:12, gdp:60, area:200, co2:40, internet:8 },
+];
+
+// ══════════════════════════════════════════
+// METRIC DEFINITIONS
+// ══════════════════════════════════════════
+const metricDefs = {
+  pop: {
+    key: 'pop', dotUnit: 2, label: 'Population',
+    subtitle: n => `Each dot ≈ ${n}M people · every country gets at least one`,
+    counterLabel: 'Population',
+    formatVal: v => v.toLocaleString() + 'M',
+    formatTotal: t => Math.round(t * 1_000_000).toLocaleString(),
+    formatDots: (c,n) => `${c.pop.toLocaleString()}M people (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of world population',
+  },
+  gdp: {
+    key: 'gdp', dotUnit: 20, label: 'GDP',
+    subtitle: n => `Each dot ≈ $${n}B GDP (nominal) · every country gets at least one`,
+    counterLabel: 'World GDP',
+    formatVal: v => '$' + v.toLocaleString() + 'B',
+    formatTotal: t => '$' + (t / 1000).toFixed(1) + ' trillion',
+    formatDots: (c,n) => `$${c.gdp.toLocaleString()}B GDP (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of world GDP',
+  },
+  area: {
+    key: 'area', dotUnit: 20, label: 'Land Area',
+    subtitle: n => `Each dot ≈ ${n},000 km² (total land area) · every country gets at least one`,
+    counterLabel: 'Total Land Area',
+    formatVal: v => v.toLocaleString() + 'K km²',
+    formatTotal: t => Math.round(t * 1000).toLocaleString() + ' km²',
+    formatDots: (c,n) => `${c.area.toLocaleString()}K km² (${n} dot${n>1?'s':''})`,
+    pctLabel: "of world's land area",
+  },
+  co2: {
+    key: 'co2', dotUnit: 50, label: 'CO₂ Emissions',
+    subtitle: n => `Each dot ≈ ${n}M metric tons CO₂ · every country gets at least one`,
+    counterLabel: 'Global CO₂',
+    formatVal: v => v.toLocaleString() + 'M tons',
+    formatTotal: t => Math.round(t).toLocaleString() + 'M metric tons',
+    formatDots: (c,n) => `${c.co2.toLocaleString()}M tons CO₂ (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of global CO₂ emissions',
+  },
+  gdppc: {
+    key: 'gdppc', dotUnit: 2, label: 'GDP per Capita',
+    subtitle: n => `Each dot ≈ $${n},000 per person · every country gets at least one`,
+    counterLabel: 'Weighted Avg. GDP/Capita',
+    formatVal: v => '$' + Math.round(v * 1000).toLocaleString(),
+    formatTotal: t => '$' + Math.round(t * 1000).toLocaleString(),
+    formatDots: (c,n) => `$${Math.round(c.gdppc * 1000).toLocaleString()}/person (${n} dot${n>1?'s':''})`,
+    pctLabel: 'relative GDP per capita',
+    isPerCapita: true,
+  },
+  internet: {
+    key: 'internet', dotUnit: 5, label: 'Internet Users',
+    subtitle: n => `Each dot ≈ ${n}M internet users · every country gets at least one`,
+    counterLabel: 'Global Internet Users',
+    formatVal: v => v.toLocaleString() + 'M',
+    formatTotal: t => Math.round(t * 1_000_000).toLocaleString(),
+    formatDots: (c,n) => `${c.internet.toLocaleString()}M internet users (${n} dot${n>1?'s':''})`,
+    pctLabel: 'of global internet users',
+  },
+};
+
+// Derive GDP per capita (in thousands USD)
+countries.forEach(c => {
+  c.gdppc = Math.round((c.gdp / c.pop) * 10) / 10; // thousands USD
+});
+
+// ══════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════
+const goldenAngle = 137.508;
+const palette = [], rgbColors = [];
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+}
+
+// Assign colors by population rank so the biggest countries
+// get the most visually distinct hues from each other
+const popRank = countries.map((_, i) => i);
+popRank.sort((a, b) => countries[b].pop - countries[a].pop);
+const colorSlot = new Array(countries.length);
+popRank.forEach((ci, rank) => { colorSlot[ci] = rank; });
+
+// Swap color slots to avoid similar hues for area-adjacent countries
+// Brazil (pop rank 6, hue 105°) and China (pop rank 1, hue 138°) are both green
+// Swap Brazil with a country whose hue is far from green
+const brazilIdx = countries.findIndex(c => c.name === 'Brazil');
+const swapIdx = countries.findIndex(c => c.name === 'Turkey'); // Turkey rank ~17, hue ~213° (blue)
+if (brazilIdx >= 0 && swapIdx >= 0) {
+  const tmp = colorSlot[brazilIdx];
+  colorSlot[brazilIdx] = colorSlot[swapIdx];
+  colorSlot[swapIdx] = tmp;
+}
+
+for (let i = 0; i < countries.length; i++) {
+  const rank = colorSlot[i];
+  const hue = (rank * goldenAngle) % 360;
+  const sat = 60 + (rank % 3) * 13;
+  const lit = 48 + (rank % 5) * 6;
+  palette.push(`hsl(${hue}, ${sat}%, ${lit}%)`);
+  rgbColors.push(hslToRgb(hue, sat, lit));
+}
+
+const regionColors = {
+  "Asia": "hsl(200, 70%, 60%)",
+  "Africa": "hsl(35, 80%, 55%)",
+  "Europe": "hsl(260, 60%, 65%)",
+  "Americas": "hsl(140, 60%, 50%)",
+  "Oceania": "hsl(330, 60%, 60%)",
+  "Other": "hsl(0, 0%, 50%)",
+};
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let currentMetric = 'pop';
+let currentSort = 'largest';
+let highlightCI = -1;
+let isInitialAnimation = true;
+let isTransitioning = false;
+let transitionStart = 0;
+let startTime = 0;
+const TRANSITION_DUR = 800;
+let animDuration = 8000;
+
+// Dot pool
+let dots = [];
+let totalDots = 0;
+let metricTotal = 0; // total of current metric
+
+// Per-country computed fields for current metric
+// c.dotCount, c.dotStart, c.valPerDot
+
+function rebuildDots(metricKey, animate) {
+  const def = metricDefs[metricKey];
+  const key = def.key;
+  const unit = def.dotUnit;
+
+  // Calculate dot counts
+  let newTotalDots = 0;
+  metricTotal = 0;
+  countries.forEach(c => {
+    const val = c[key] || 0;
+    const n = Math.max(1, Math.round(val / unit));
+    c.dotCount = n;
+    c.dotStart = newTotalDots;
+    c.valPerDot = val / n;
+    metricTotal += val;
+    newTotalDots += n;
+  });
+
+  // Resize dot pool
+  if (newTotalDots > dots.length) {
+    for (let i = dots.length; i < newTotalDots; i++) {
+      dots.push({ ci: 0, x: 0, y: 0, tx: 0, ty: 0, ox: 0, oy: 0, born: 0, scale: 0, dying: false, deathStart: 0 });
+    }
+  }
+  // Mark excess dots for removal
+  for (let i = newTotalDots; i < dots.length; i++) {
+    dots[i].scale = 0;
+    dots[i].dying = true;
+  }
+  totalDots = newTotalDots;
+
+  // Assign dots to countries
+  countries.forEach((c, ci) => {
+    for (let j = 0; j < c.dotCount; j++) {
+      const d = dots[c.dotStart + j];
+      d.ci = ci;
+      d.dying = false;
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+let W, H, COLS, DOT_R, GAP;
+let displayOrder = [];
+
+function resize() {
+  const maxW = Math.min(window.innerWidth - 40, 1100);
+  DOT_R = window.innerWidth < 600 ? 3.2 : 4.7;
+  GAP = DOT_R * 2.4;
+  COLS = Math.floor(maxW / GAP);
+  applySort(currentSort, false);
+}
+
+function getSortedCountryIndices(sortType) {
+  const key = metricDefs[currentMetric].key;
+  const indices = countries.map((_, i) => i);
+  switch (sortType) {
+    case 'largest': indices.sort((a, b) => (countries[b][key]||0) - (countries[a][key]||0)); break;
+    case 'smallest': indices.sort((a, b) => (countries[a][key]||0) - (countries[b][key]||0)); break;
+    case 'alpha': indices.sort((a, b) => countries[a].name.localeCompare(countries[b].name)); break;
+    case 'continent':
+      const ro = ["Asia", "Africa", "Europe", "Americas", "Oceania", "Other"];
+      indices.sort((a, b) => {
+        const d = ro.indexOf(countries[a].region) - ro.indexOf(countries[b].region);
+        return d !== 0 ? d : (countries[b][key]||0) - (countries[a][key]||0);
+      });
+      break;
+  }
+  return indices;
+}
+
+function posForSlotAt(slot) {
+  return { x: (slot % COLS) * GAP + GAP / 2, y: Math.floor(slot / COLS) * GAP + GAP / 2 };
+}
+
+function applySort(sortType, animate = true) {
+  currentSort = sortType;
+  const sorted = getSortedCountryIndices(sortType);
+
+  displayOrder = [];
+  sorted.forEach(ci => {
+    for (let j = 0; j < countries[ci].dotCount; j++) displayOrder.push(countries[ci].dotStart + j);
+  });
+
+  let totalSlots = totalDots;
+  if (sortType === 'continent') {
+    let slot = 0, lastR = null;
+    sorted.forEach(ci => {
+      const c = countries[ci];
+      if (lastR !== null && c.region !== lastR) {
+        const nr = (Math.floor(slot / COLS) + (slot % COLS === 0 ? 0 : 1)) * COLS;
+        slot = nr + COLS * 2;
+      }
+      slot += c.dotCount;
+      lastR = c.region;
+    });
+    totalSlots = slot;
+  }
+
+  const ROWS = Math.ceil(totalSlots / COLS);
+  W = COLS * GAP;
+  H = ROWS * GAP + GAP;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (sortType === 'continent') {
+    let slot = 0, lastR = null;
+    const labels = [];
+    sorted.forEach(ci => {
+      const c = countries[ci];
+      if (lastR !== null && c.region !== lastR) {
+        const nr = (Math.floor(slot / COLS) + (slot % COLS === 0 ? 0 : 1)) * COLS;
+        slot = nr + COLS * 2;
+      }
+      if (c.region !== lastR) {
+        const p = posForSlotAt(slot);
+        labels.push({ region: c.region, x: p.x - GAP/2, y: p.y - GAP * 1.5 });
+      }
+      for (let j = 0; j < c.dotCount; j++) {
+        const d = dots[c.dotStart + j], p = posForSlotAt(slot);
+        if (animate) { d.ox = d.x || p.x; d.oy = d.y || p.y; }
+        d.tx = p.x; d.ty = p.y;
+        slot++;
+      }
+      lastR = c.region;
+    });
+    showRegionLabels(labels);
+  } else {
+    hideRegionLabels();
+    for (let v = 0; v < displayOrder.length; v++) {
+      const d = dots[displayOrder[v]], p = posForSlotAt(v);
+      if (animate) { d.ox = d.x || p.x; d.oy = d.y || p.y; }
+      d.tx = p.x; d.ty = p.y;
+    }
+  }
+
+  if (animate) { transitionStart = performance.now(); isTransitioning = true; }
+  else dots.forEach((d, i) => { if (i < totalDots) { d.x = d.tx; d.y = d.ty; d.ox = d.tx; d.oy = d.ty; } });
+
+  document.querySelectorAll('#controls button[data-sort]').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === sortType);
+  });
+}
+
+const regionLabelsEl = document.getElementById('region-labels');
+function showRegionLabels(labels) {
+  regionLabelsEl.innerHTML = '';
+  labels.forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'region-label';
+    el.textContent = l.region;
+    el.style.color = regionColors[l.region] || '#888';
+    el.style.left = l.x + 'px';
+    el.style.top = l.y + 'px';
+    regionLabelsEl.appendChild(el);
+  });
+}
+function hideRegionLabels() { regionLabelsEl.innerHTML = ''; }
+
+// ══════════════════════════════════════════
+// LEGEND
+// ══════════════════════════════════════════
+const legendEl = document.getElementById('legend');
+
+function buildLegend() {
+  legendEl.innerHTML = '';
+  const def = metricDefs[currentMetric];
+  const order = getSortedCountryIndices(currentSort);
+  order.forEach(i => {
+    const c = countries[i];
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    if (!isInitialAnimation) el.classList.add('visible');
+    el.dataset.ci = i;
+    el.innerHTML = `<div class="legend-dot" style="background:${palette[i]}"></div>${c.name} <span style="color:#666">${def.formatVal(c[def.key])}</span>`;
+    el.addEventListener('click', () => highlightCountry(i));
+    legendEl.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════
+// METRIC SWITCHING
+// ══════════════════════════════════════════
+const subtitleEl = document.getElementById('subtitle');
+const counterEl = document.getElementById('counter');
+const counterSpan = counterEl.querySelector('span');
+
+function switchMetric(metricKey) {
+  currentMetric = metricKey;
+  const def = metricDefs[metricKey];
+
+  // Update UI labels
+  subtitleEl.innerHTML = def.subtitle(def.dotUnit);
+  counterEl.childNodes[0].textContent = def.counterLabel + ': ';
+
+  // Rebuild dots
+  rebuildDots(metricKey, true);
+
+  // Re-layout
+  isInitialAnimation = false;
+  dots.forEach((d, i) => { if (i < totalDots) { d.scale = 1; d.born = -Infinity; } });
+  applySort(currentSort, true);
+  buildLegend();
+  document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+
+  // Update highlight if active
+  if (highlightCI >= 0) highlightCountry(highlightCI);
+
+  // Active state
+  document.querySelectorAll('#metric-switcher button').forEach(b => {
+    b.classList.toggle('active', b.dataset.metric === metricKey);
+  });
+}
+
+// ══════════════════════════════════════════
+// SEARCH & HIGHLIGHT
+// ══════════════════════════════════════════
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+const highlightInfo = document.getElementById('highlight-info');
+
+function doSearch() {
+  const q = searchInput.value.trim().toLowerCase();
+  if (q.length === 0) { searchResults.classList.remove('open'); return; }
+  const def = metricDefs[currentMetric];
+  const matches = countries
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.name.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (matches.length === 0) { searchResults.classList.remove('open'); return; }
+  searchResults.innerHTML = matches.map(({ c, i }) =>
+    `<div class="search-result" data-ci="${i}"><span><span style="color:${palette[i]}; font-weight:600">${c.name}</span> · ${c.region}</span><span class="sr-val">${def.formatVal(c[def.key])} · ${(c[def.key] / metricTotal * 100).toFixed(2)}%</span></div>`
+  ).join('');
+  searchResults.classList.add('open');
+}
+searchInput.addEventListener('input', doSearch);
+searchInput.addEventListener('keyup', doSearch);
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const first = searchResults.querySelector('.search-result');
+    if (first) { highlightCountry(parseInt(first.dataset.ci)); searchInput.value = ''; searchResults.classList.remove('open'); }
+  }
+});
+
+let justSearched = false;
+function selectSearchResult(e) {
+  const el = e.target.closest('.search-result');
+  if (!el) return;
+  e.preventDefault();
+  e.stopPropagation();
+  justSearched = true;
+  setTimeout(() => justSearched = false, 400);
+  highlightCountry(parseInt(el.dataset.ci));
+  searchInput.value = '';
+  searchResults.classList.remove('open');
+}
+searchResults.addEventListener('mousedown', selectSearchResult);
+searchResults.addEventListener('touchstart', selectSearchResult);
+
+searchInput.addEventListener('blur', () => {
+  setTimeout(() => searchResults.classList.remove('open'), 300);
+});
+
+highlightInfo.addEventListener('click', e => {
+  if (e.target.closest('.hi-clear')) clearHighlight();
+});
+
+function highlightCountry(ci) {
+  highlightCI = ci;
+  const c = countries[ci];
+  const def = metricDefs[currentMetric];
+  const val = c[def.key];
+  const pct = (val / metricTotal * 100).toFixed(2);
+  highlightInfo.innerHTML = `<span class="hi-name" style="color:${palette[ci]}">${c.name}</span> — ${def.formatVal(val)} — <span class="hi-pct">${pct}%</span> ${def.pctLabel} <button class="hi-clear">↩ Show All Countries</button>`;
+  document.querySelectorAll('.legend-item').forEach(el => el.classList.toggle('active', parseInt(el.dataset.ci) === ci));
+}
+
+function clearHighlight() {
+  highlightCI = -1;
+  highlightInfo.innerHTML = '';
+  searchInput.value = '';
+  document.querySelectorAll('.legend-item.active').forEach(el => el.classList.remove('active'));
+}
+
+// ══════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let found = -1;
+  for (let i = totalDots - 1; i >= 0; i--) {
+    const d = dots[i];
+    if (d.scale < 0.1) continue;
+    const dx = d.x - mx, dy = d.y - my;
+    if (dx*dx + dy*dy < (DOT_R+2)*(DOT_R+2)) { found = d.ci; break; }
+  }
+  if (found >= 0) {
+    const c = countries[found];
+    const def = metricDefs[currentMetric];
+    const pct = (c[def.key] / metricTotal * 100).toFixed(2);
+    tooltip.querySelector('.tt-name').textContent = c.name;
+    tooltip.querySelector('.tt-name').style.color = palette[found];
+    tooltip.querySelector('.tt-val').textContent = def.formatDots(c, c.dotCount);
+    tooltip.querySelector('.tt-pct').textContent = `${pct}% ${def.pctLabel}`;
+    tooltip.querySelector('.tt-region').textContent = c.region;
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  } else {
+    tooltip.style.opacity = 0;
+  }
+});
+canvas.addEventListener('mouseleave', () => tooltip.style.opacity = 0);
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let found = -1;
+  for (let i = totalDots - 1; i >= 0; i--) {
+    const d = dots[i];
+    if (d.scale < 0.1) continue;
+    const dx = d.x - mx, dy = d.y - my;
+    if (dx*dx + dy*dy < (DOT_R+3)*(DOT_R+3)) { found = d.ci; break; }
+  }
+  if (found >= 0) highlightCountry(found);
+  else clearHighlight();
+});
+
+document.body.addEventListener('click', e => {
+  if (justSearched) return;
+  if (!e.target.closest('canvas, #legend, #controls, #metric-switcher, #view-switcher, #search-wrap, #highlight-info')) {
+    clearHighlight();
+  }
+});
+
+// ══════════════════════════════════════════
+// ANIMATION
+// ══════════════════════════════════════════
+function easeOutBack(t) { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+
+function startAnimation() {
+  currentMetric = 'pop';
+  currentSort = 'largest';
+  isInitialAnimation = true;
+  isTransitioning = false;
+  clearHighlight();
+
+  rebuildDots('pop', false);
+
+  dots.forEach(d => { d.scale = 0; d.born = 0; });
+
+  document.querySelectorAll('#metric-switcher button').forEach(b => b.classList.toggle('active', b.dataset.metric === 'pop'));
+  document.querySelectorAll('#controls button[data-sort]').forEach(b => b.classList.toggle('active', b.dataset.sort === 'largest'));
+  subtitleEl.innerHTML = metricDefs.pop.subtitle(metricDefs.pop.dotUnit);
+  counterEl.childNodes[0].textContent = metricDefs.pop.counterLabel + ': ';
+  hideRegionLabels();
+
+  buildLegend();
+
+  // Layout
+  displayOrder = [];
+  for (let i = 0; i < totalDots; i++) displayOrder.push(i);
+  const maxW = Math.min(window.innerWidth - 40, 1100);
+  DOT_R = window.innerWidth < 600 ? 3.2 : 4.7;
+  GAP = DOT_R * 2.4;
+  COLS = Math.floor(maxW / GAP);
+
+  const ROWS = Math.ceil(totalDots / COLS);
+  W = COLS * GAP;
+  H = ROWS * GAP + GAP;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  for (let i = 0; i < totalDots; i++) {
+    const p = posForSlotAt(i);
+    dots[i].tx = p.x; dots[i].ty = p.y; dots[i].ox = p.x; dots[i].oy = p.y;
+  }
+
+  // Stagger birth times
+  startTime = performance.now();
+  let elapsed = 0;
+  const dur = animDuration * 0.85;
+  countries.forEach(c => {
+    const frac = c.dotCount / totalDots;
+    const start = elapsed;
+    const d = dur * frac;
+    for (let j = 0; j < c.dotCount; j++) {
+      dots[c.dotStart + j].born = start + (j / Math.max(1, c.dotCount - 1)) * d * 0.6;
+    }
+    elapsed += d;
+  });
+}
+
+function render(now) {
+  const t = now - startTime;
+  ctx.clearRect(0, 0, W, H);
+
+  let tLerp = 1;
+  if (isTransitioning) {
+    tLerp = easeInOutCubic(Math.min(1, (now - transitionStart) / TRANSITION_DUR));
+    if (tLerp >= 1) isTransitioning = false;
+  }
+
+  const def = metricDefs[currentMetric];
+  let currentVal = 0, lastRevealed = -1;
+  const dimmed = highlightCI >= 0;
+
+  for (let i = 0; i < totalDots; i++) {
+    const d = dots[i];
+    if (isInitialAnimation && t < d.born) continue;
+
+    d.scale = isInitialAnimation ? Math.min(1, easeOutBack(Math.min(1, (t - d.born) / 400))) : 1;
+
+    if (isTransitioning) {
+      d.x = d.ox + (d.tx - d.ox) * tLerp;
+      d.y = d.oy + (d.ty - d.oy) * tLerp;
+    } else {
+      d.x = d.tx; d.y = d.ty; d.ox = d.tx; d.oy = d.ty;
+    }
+
+    const [r, g, b] = rgbColors[d.ci];
+    const radius = DOT_R * d.scale;
+    const isHighlighted = d.ci === highlightCI;
+    const alpha = dimmed ? (isHighlighted ? 1 : 0.12) : 1;
+
+    if (isHighlighted && dimmed) {
+      ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, radius * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (isInitialAnimation && !dimmed) {
+      const age = (t - d.born) / 400;
+      if (age < 1) {
+        ctx.fillStyle = `rgba(${r},${g},${b},${(1 - age) * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, radius * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    currentVal += countries[d.ci].valPerDot;
+    lastRevealed = d.ci;
+  }
+
+  if (isInitialAnimation && t > animDuration + 1000) {
+    isInitialAnimation = false;
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+  }
+
+  // Update counter
+  if (def.isPerCapita) {
+    // Weighted average GDP per capita
+    const wavg = countries.reduce((s, c) => s + c.gdp, 0) / countries.reduce((s, c) => s + c.pop, 0);
+    counterSpan.textContent = '$' + Math.round(wavg * 1000).toLocaleString();
+  } else {
+    counterSpan.textContent = def.formatTotal(currentVal);
+  }
+
+  // Reveal legend items during initial animation
+  if (isInitialAnimation) {
+    for (let i = 0; i <= lastRevealed; i++) {
+      const el = legendEl.children[i];
+      if (el && !el.classList.contains('visible')) el.classList.add('visible');
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+// ══════════════════════════════════════════
+// INIT & EVENTS
+// ══════════════════════════════════════════
+startAnimation();
+requestAnimationFrame(render);
+
+window.addEventListener('resize', () => resize());
+
+// Metric buttons
+document.querySelectorAll('#metric-switcher button').forEach(btn => {
+  btn.addEventListener('click', () => switchMetric(btn.dataset.metric));
+});
+
+// Sort buttons
+document.querySelectorAll('#controls button[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    isInitialAnimation = false;
+    for (let i = 0; i < totalDots; i++) { dots[i].scale = 1; dots[i].born = -Infinity; }
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+    applySort(btn.dataset.sort, true);
+    buildLegend();
+    document.querySelectorAll('.legend-item').forEach(el => el.classList.add('visible'));
+  });
+});
+
+// Replay
+document.getElementById('replayBtn').addEventListener('click', () => startAnimation());
+</script>
+</body>
+</html>

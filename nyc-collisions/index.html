@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Traffic Collisions: A Data Portrait</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-void: #06060b;
+  --bg-section: #0a0a12;
+  --bg-card: rgba(255,255,255,0.03);
+  --bg-card-hover: rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-glow: rgba(239,68,68,0.3);
+  --text-primary: #e8e6e3;
+  --text-secondary: rgba(232,230,227,0.55);
+  --text-tertiary: rgba(232,230,227,0.3);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.15);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.15);
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6,182,212,0.15);
+  --purple: #a855f7;
+  --purple-dim: rgba(168,85,247,0.15);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.15);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--red) var(--bg-void);
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Scroll progress bar */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), var(--amber), var(--cyan));
+  z-index: 9999;
+  transition: width 0.1s linear;
+}
+
+/* Navigation dots */
+.nav-dots {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.nav-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.nav-dot.active {
+  background: var(--red);
+  border-color: var(--red);
+  box-shadow: 0 0 12px var(--red);
+}
+.nav-dot:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: rgba(10,10,18,0.9);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Sections */
+section {
+  min-height: 100vh;
+  position: relative;
+  padding: 80px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.section-title {
+  font-family: var(--font-mono);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+}
+.section-subtitle {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-bottom: 48px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
+}
+
+section.visible .section-label,
+section.visible .section-title,
+section.visible .section-subtitle {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 28px;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+}
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* Grids */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+/* Loading */
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.loader::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Chart containers */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+}
+.chart-wrap canvas {
+  width: 100% !important;
+}
+
+/* ===== HERO ===== */
+#hero {
+  align-items: center;
+  text-align: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(239,68,68,0.06) 0%, transparent 70%);
+  overflow: hidden;
+}
+#hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(239,68,68,0.12) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%);
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 24px;
+  position: relative;
+}
+.hero-title {
+  font-family: var(--font-mono);
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 700;
+  line-height: 1.05;
+  margin-bottom: 20px;
+  position: relative;
+}
+.hero-title span {
+  background: linear-gradient(135deg, var(--text-primary) 0%, rgba(232,230,227,0.6) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 18px;
+  color: var(--text-secondary);
+  max-width: 540px;
+  margin: 0 auto 56px;
+  position: relative;
+  line-height: 1.7;
+}
+.hero-stats {
+  display: flex;
+  gap: 48px;
+  justify-content: center;
+  position: relative;
+  flex-wrap: wrap;
+}
+.hero-stat {
+  text-align: center;
+}
+.hero-stat-value {
+  font-family: var(--font-mono);
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.hero-stat-value.fatal { color: var(--red); }
+.hero-stat-value.injury { color: var(--amber); }
+.hero-stat-value.total { color: var(--text-primary); }
+.hero-stat-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.hero-pulse {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  animation: float 2s ease-in-out infinite;
+}
+.hero-pulse::after {
+  content: '↓';
+  font-size: 18px;
+}
+@keyframes float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* ===== MAP SECTION ===== */
+#map-section { padding: 60px 48px; }
+.map-container {
+  width: 100%;
+  height: 65vh;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  position: relative;
+}
+#crash-map { width: 100%; height: 100%; background: #0a0a12; }
+.map-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
+.map-btn {
+  background: rgba(10,10,18,0.9);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+.map-btn:hover, .map-btn.active {
+  background: rgba(239,68,68,0.15);
+  border-color: var(--red);
+  color: var(--text-primary);
+}
+.map-legend {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ===== CHART SECTIONS ===== */
+.chart-grid {
+  display: grid;
+  gap: 24px;
+}
+.chart-card-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+/* Stat pills */
+.stat-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.stat-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px 24px;
+  flex: 1;
+  min-width: 140px;
+}
+.stat-pill-value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+}
+.stat-pill-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* Intersection list */
+.intersection-list {
+  list-style: none;
+}
+.intersection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 14px;
+}
+.intersection-item:last-child { border-bottom: none; }
+.intersection-rank {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  width: 28px;
+}
+.intersection-name {
+  flex: 1;
+  color: var(--text-secondary);
+}
+.intersection-count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--red);
+}
+
+/* ===== EXPLORER ===== */
+.explorer-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.explorer-controls select,
+.explorer-controls input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  outline: none;
+  min-width: 160px;
+  transition: border-color 0.2s;
+}
+.explorer-controls select:focus,
+.explorer-controls input:focus {
+  border-color: var(--red);
+}
+.explorer-controls select option {
+  background: var(--bg-section);
+}
+.explorer-btn {
+  background: var(--red);
+  border: none;
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.explorer-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+.explorer-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.explorer-map-wrap {
+  height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+#explorer-map { width: 100%; height: 100%; }
+
+/* Timelapse bar */
+.timelapse-bar {
+  background: rgba(6,6,11,0.92);
+  border-top: 1px solid var(--border-subtle);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  backdrop-filter: blur(12px);
+}
+.timelapse-date {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 130px;
+}
+.timelapse-progress {
+  flex: 1;
+}
+.timelapse-track {
+  width: 100%;
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.timelapse-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--red), var(--amber));
+  border-radius: 2px;
+  transition: width 0.15s linear;
+}
+.timelapse-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.timelapse-counter {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--amber);
+  min-width: 100px;
+  text-align: right;
+}
+
+/* Timelapse marker pulse */
+@keyframes markerPulse {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.7; }
+}
+.tl-marker {
+  animation: markerPulse 0.3s ease-out forwards;
+}
+
+/* Leaflet dark tiles override */
+.leaflet-container { background: #0a0a12; }
+.leaflet-popup-content-wrapper {
+  background: rgba(10,10,18,0.95) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-body) !important;
+  backdrop-filter: blur(10px);
+}
+.leaflet-popup-tip { background: rgba(10,10,18,0.95) !important; }
+.leaflet-popup-content { font-size: 13px; line-height: 1.5; }
+.leaflet-popup-content strong { color: var(--red); font-family: var(--font-mono); }
+
+/* MarkerCluster overrides */
+.marker-cluster-small { background: rgba(245,158,11,0.3) !important; }
+.marker-cluster-small div { background: rgba(245,158,11,0.7) !important; color: #fff !important; font-family: var(--font-mono) !important; font-size: 12px !important; }
+.marker-cluster-medium { background: rgba(239,68,68,0.3) !important; }
+.marker-cluster-medium div { background: rgba(239,68,68,0.7) !important; color: #fff !important; font-family: var(--font-mono) !important; font-size: 12px !important; }
+.marker-cluster-large { background: rgba(239,68,68,0.4) !important; }
+.marker-cluster-large div { background: rgba(239,68,68,0.85) !important; color: #fff !important; font-family: var(--font-mono) !important; font-size: 12px !important; }
+
+/* Footer */
+footer {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  border-top: 1px solid var(--border-subtle);
+}
+footer a { color: var(--red); text-decoration: none; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  section { padding: 60px 24px; }
+  .grid-2, .grid-3, .grid-4, .explorer-results { grid-template-columns: 1fr; }
+  .hero-stats { gap: 24px; }
+  .nav-dots { display: none; }
+  .explorer-controls { flex-direction: column; }
+}
+
+/* Animations */
+.fade-up {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+section.visible .fade-up {
+  opacity: 1;
+  transform: translateY(0);
+}
+section.visible .fade-up:nth-child(1) { transition-delay: 0.1s; }
+section.visible .fade-up:nth-child(2) { transition-delay: 0.2s; }
+section.visible .fade-up:nth-child(3) { transition-delay: 0.3s; }
+section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
+
+/* Insight callouts */
+.insight-callout {
+  border-left: 3px solid var(--red);
+  padding: 16px 20px;
+  margin: 16px 0;
+  background: var(--red-dim);
+  border-radius: 0 8px 8px 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.insight-callout strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.insight-callout.amber {
+  border-left-color: var(--amber);
+  background: var(--amber-dim);
+}
+.insight-callout.cyan {
+  border-left-color: var(--cyan);
+  background: var(--cyan-dim);
+}
+.insight-callout.purple {
+  border-left-color: var(--purple);
+  background: var(--purple-dim);
+}
+.insight-number {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--red);
+}
+.insight-number.amber { color: var(--amber); }
+.insight-number.cyan { color: var(--cyan); }
+
+/* Annotation line for charts */
+.chart-annotation {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<nav class="nav-dots" id="navDots">
+  <div class="nav-dot active" data-section="hero" data-label="Overview"></div>
+  <div class="nav-dot" data-section="trends-section" data-label="Trends"></div>
+  <div class="nav-dot" data-section="map-section" data-label="The Map"></div>
+  <div class="nav-dot" data-section="when-section" data-label="When"></div>
+  <div class="nav-dot" data-section="where-section" data-label="Where"></div>
+  <div class="nav-dot" data-section="causes-section" data-label="Causes"></div>
+  <div class="nav-dot" data-section="who-section" data-label="Who"></div>
+  <div class="nav-dot" data-section="explorer-section" data-label="Explorer"></div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section id="hero">
+  <div class="hero-eyebrow">NYC Open Data · Three Datasets · 12M+ Records</div>
+  <h1 class="hero-title"><span>NYC Traffic Collisions:<br>A Data Portrait</span></h1>
+  <p class="hero-sub">Every collision reported to the NYPD since 2012—mapped, measured, and rendered visible. Three linked datasets tell the story of who crashes, why, and what happens next.</p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-value total" id="heroTotal">--</div>
+      <div class="hero-stat-label">Total Crashes</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value injury" id="heroInjured">--</div>
+      <div class="hero-stat-label">Persons Injured</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value fatal" id="heroKilled">--</div>
+      <div class="hero-stat-label">Lives Lost</div>
+    </div>
+  </div>
+  <div class="hero-pulse">SCROLL TO EXPLORE</div>
+</section>
+
+<!-- ===== TRENDS ===== -->
+<section id="trends-section" style="min-height:auto;">
+  <div class="section-label">02 — Key Findings</div>
+  <div class="section-title">What the Data Reveals</div>
+  <div class="section-subtitle">Twelve years of collision data tell a story of paradoxes—fewer crashes, deadlier outcomes, and a city reshaped by new vehicles and a pandemic.</div>
+
+  <div class="grid-2 fade-up" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="chart-card-title">The COVID Paradox: Fewer Crashes, More Death</div>
+      <div class="chart-wrap" id="trendParadoxWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout">
+        Crashes fell <strong>51%</strong> between 2018 and 2020. But fatalities <em>rose</em> from 231 to 269. The fatality rate per 1,000 crashes <strong>more than doubled</strong>—and has stayed elevated ever since. Empty streets meant higher speeds.
+      </div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Fatality Rate Per 1,000 Crashes</div>
+      <div class="chart-wrap" id="trendFatalRateWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout">
+        Pre-pandemic: roughly <span class="insight-number">1.1</span> fatal crashes per 1,000. By 2021 it hit <span class="insight-number">2.6</span> — the worst in the dataset. Even by 2024, it's <span class="insight-number">2.8</span>. <strong>Each crash is now nearly 3× as likely to kill someone.</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-up" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="chart-card-title">Vision Zero's Scorecard: Pedestrian Deaths</div>
+      <div class="chart-wrap" id="trendVisionZeroWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout amber">
+        Vision Zero launched in 2014. Pedestrian fatalities dropped from <span class="insight-number amber">176</span> in 2013 to <span class="insight-number amber">101</span> in 2020 — a 43% cut. But they've rebounded to the 120s since, <strong>erasing about half of the program's gains.</strong>
+      </div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">The E-Bike Explosion</div>
+      <div class="chart-wrap" id="trendEbikeWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout cyan">
+        E-bike and e-scooter crashes went from near-zero to <span class="insight-number cyan">4,065</span> in 2023 — a <strong>3,800% increase</strong> in four years. Tracks directly with delivery app growth and micromobility adoption.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-up" style="margin-bottom:24px;">
+    <div class="card">
+      <div class="chart-card-title">Cyclist Injuries: Structurally Higher</div>
+      <div class="chart-wrap" id="trendCyclistWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout purple">
+        Cyclist injuries rose <strong>30%</strong> — from ~4,000/year (2013–2015) to ~5,200/year (2023–2025) — even as total crashes fell by more than half. More people cycling means more exposure, and infrastructure hasn't kept pace.
+      </div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">"Unsafe Speed" Rising in the Rankings</div>
+      <div class="chart-wrap" id="trendSpeedWrap"><div class="loader">Loading…</div></div>
+      <div class="insight-callout">
+        <strong>"Unsafe Speed" entered the top 5 contributing factors post-pandemic</strong>, up from outside the top 5 before COVID. Consistent with the lethality spike — fewer cars on the road invites faster driving.
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade-up">
+    <div class="chart-card-title">The Bronx: Growing Share of Fatalities</div>
+    <div class="chart-wrap" id="trendBronxWrap"><div class="loader">Loading…</div></div>
+    <div class="insight-callout amber">
+      In 2013–2015, the Bronx had 77 fatalities vs. Brooklyn's 201 (a 2.6:1 ratio). By 2022–2024, it's 92 vs. 150 (1.6:1). <strong>The Bronx's share of traffic deaths has grown</strong> even as its crash count fell, suggesting deeper infrastructure and enforcement gaps.
+    </div>
+  </div>
+</section>
+
+<!-- ===== MAP ===== -->
+<section id="map-section">
+  <div class="section-label">03 — Geospatial</div>
+  <div class="section-title">The Map</div>
+  <div class="section-subtitle">Recent crashes plotted across the five boroughs. Each point is a police report—red marks a fatality, amber an injury.</div>
+  <div class="map-container fade-up">
+    <div class="map-controls">
+      <button class="map-btn active" id="btnClusters" onclick="toggleMapLayer('clusters')">Clusters</button>
+      <button class="map-btn" id="btnHeatmap" onclick="toggleMapLayer('heatmap')">Heatmap</button>
+      <button class="map-btn" id="btnTimelapse" onclick="toggleMapLayer('timelapse')">Time-Lapse</button>
+    </div>
+    <div id="crash-map"></div>
+    <div class="timelapse-bar" id="timelapseBar" style="display:none;">
+      <div class="timelapse-date" id="timelapseDate"></div>
+      <div class="timelapse-progress">
+        <div class="timelapse-track">
+          <div class="timelapse-fill" id="timelapseFill"></div>
+        </div>
+      </div>
+      <div class="timelapse-controls">
+        <button class="map-btn" id="btnTlPlay" onclick="tlTogglePlay()">▶ Play</button>
+        <button class="map-btn" onclick="tlChangeSpeed()">
+          <span id="tlSpeedLabel">1×</span>
+        </button>
+        <span class="timelapse-counter" id="timelapseCounter">0 crashes</span>
+      </div>
+    </div>
+  </div>
+  <div class="map-legend fade-up">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Fatality</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Injury</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div> No Injury Reported</div>
+  </div>
+</section>
+
+<!-- ===== WHEN ===== -->
+<section id="when-section">
+  <div class="section-label">04 — Temporal</div>
+  <div class="section-title">When Crashes Happen</div>
+  <div class="section-subtitle">Rush hours, late nights, weekends—the rhythm of collision risk across time.</div>
+  <div class="chart-grid grid-2 fade-up" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="chart-card-title">Crashes by Hour of Day</div>
+      <div class="chart-wrap" id="hourChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Crashes by Day of Week</div>
+      <div class="chart-wrap" id="dowChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+  </div>
+  <div class="card fade-up">
+    <div class="chart-card-title">Monthly Trend (Last 24 Months)</div>
+    <div class="chart-wrap" id="trendChartWrap"><div class="loader">Loading…</div></div>
+  </div>
+</section>
+
+<!-- ===== WHERE ===== -->
+<section id="where-section">
+  <div class="section-label">05 — Geographic</div>
+  <div class="section-title">Where It Happens</div>
+  <div class="section-subtitle">Borough breakdowns and the city's most dangerous intersections.</div>
+  <div class="chart-grid grid-2 fade-up" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="chart-card-title">Crashes by Borough</div>
+      <div class="chart-wrap" id="boroughChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Injuries by Borough &amp; Type</div>
+      <div class="chart-wrap" id="boroughInjuryChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+  </div>
+  <div class="card fade-up">
+    <div class="chart-card-title">Top 10 Most Dangerous Intersections (All Time)</div>
+    <div id="intersectionList"><div class="loader">Loading…</div></div>
+  </div>
+</section>
+
+<!-- ===== CAUSES ===== -->
+<section id="causes-section">
+  <div class="section-label">06 — Causation</div>
+  <div class="section-title">What Causes Crashes</div>
+  <div class="section-subtitle">Contributing factors, vehicle types, and what drivers were doing just before impact.</div>
+  <div class="chart-grid grid-3 fade-up">
+    <div class="card" style="grid-column: span 2;">
+      <div class="chart-card-title">Top 15 Contributing Factors</div>
+      <div class="chart-wrap" id="factorsChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Vehicle Types Involved</div>
+      <div class="chart-wrap" id="vehicleTypeChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+  </div>
+  <div class="card fade-up" style="margin-top: 24px;">
+    <div class="chart-card-title">Pre-Crash Actions</div>
+    <div class="chart-wrap" id="preCrashChartWrap"><div class="loader">Loading…</div></div>
+  </div>
+</section>
+
+<!-- ===== WHO ===== -->
+<section id="who-section">
+  <div class="section-label">07 — Human Impact</div>
+  <div class="section-title">Who Gets Hurt</div>
+  <div class="section-subtitle">Pedestrians, cyclists, and vehicle occupants—the people behind the numbers.</div>
+  <div class="chart-grid grid-3 fade-up" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="chart-card-title">Persons by Type</div>
+      <div class="chart-wrap" id="personTypeChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Injury Severity</div>
+      <div class="chart-wrap" id="injuryChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Pedestrian Action at Crash</div>
+      <div class="chart-wrap" id="pedActionChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+  </div>
+  <div class="chart-grid grid-2 fade-up">
+    <div class="card">
+      <div class="chart-card-title">Age Distribution</div>
+      <div class="chart-wrap" id="ageChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="chart-card-title">Safety Equipment Usage</div>
+      <div class="chart-wrap" id="safetyChartWrap"><div class="loader">Loading…</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== EXPLORER ===== -->
+<section id="explorer-section">
+  <div class="section-label">08 — Deep Dive</div>
+  <div class="section-title">Explorer</div>
+  <div class="section-subtitle">Filter and cross-reference all three datasets. Build your own query.</div>
+  <div class="explorer-controls fade-up">
+    <select id="expBorough">
+      <option value="">All Boroughs</option>
+      <option value="MANHATTAN">Manhattan</option>
+      <option value="BROOKLYN">Brooklyn</option>
+      <option value="QUEENS">Queens</option>
+      <option value="BRONX">Bronx</option>
+      <option value="STATEN ISLAND">Staten Island</option>
+    </select>
+    <input type="date" id="expDateFrom" title="From date">
+    <input type="date" id="expDateTo" title="To date">
+    <select id="expVehicleType">
+      <option value="">All Vehicle Types</option>
+      <option value="Sedan">Sedan</option>
+      <option value="Station Wagon/Sport Utility Vehicle">SUV/Wagon</option>
+      <option value="Taxi">Taxi</option>
+      <option value="Bus">Bus</option>
+      <option value="Bike">Bike</option>
+      <option value="E-Bike">E-Bike</option>
+      <option value="E-Scooter">E-Scooter</option>
+      <option value="Motorcycle">Motorcycle</option>
+      <option value="Pick-up Truck">Pick-up Truck</option>
+    </select>
+    <select id="expPersonType">
+      <option value="">All Person Types</option>
+      <option value="Pedestrian">Pedestrian</option>
+      <option value="Bicyclist">Bicyclist</option>
+      <option value="Occupant">Occupant</option>
+    </select>
+    <button class="explorer-btn" onclick="runExplorer()">QUERY</button>
+  </div>
+  <div class="explorer-results fade-up">
+    <div class="explorer-map-wrap">
+      <div id="explorer-map"></div>
+    </div>
+    <div>
+      <div class="stat-row" id="explorerStats">
+        <div class="stat-pill"><div class="stat-pill-value" style="color:var(--text-primary)">--</div><div class="stat-pill-label">Crashes</div></div>
+        <div class="stat-pill"><div class="stat-pill-value" style="color:var(--amber)">--</div><div class="stat-pill-label">Injured</div></div>
+        <div class="stat-pill"><div class="stat-pill-value" style="color:var(--red)">--</div><div class="stat-pill-label">Killed</div></div>
+      </div>
+      <div class="card" id="explorerDetails" style="min-height:200px;">
+        <div class="chart-card-title">Query Results</div>
+        <p style="color:var(--text-tertiary);font-size:14px;">Select filters and click <strong style="color:var(--red);">QUERY</strong> to explore the data.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Data from <a href="https://data.cityofnewyork.us" target="_blank">NYC Open Data</a> · NYPD Motor Vehicle Collision Reports · Updated Daily
+</footer>
+
+<script>
+// ===== CONFIG =====
+const CRASHES_API = 'https://data.cityofnewyork.us/resource/h9gi-nx95.json';
+const VEHICLES_API = 'https://data.cityofnewyork.us/resource/bm4k-52h4.json';
+const PERSONS_API = 'https://data.cityofnewyork.us/resource/f55k-p6yu.json';
+
+// ===== UTILITIES =====
+async function sodaQuery(base, query, limit) {
+  let fullQuery = query.trim();
+  if (typeof limit === 'number') fullQuery += ` LIMIT ${limit}`;
+  const url = `${base}?$query=${encodeURIComponent(fullQuery)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`SODA error ${res.status}: ${txt.substring(0, 200)}`);
+  }
+  return res.json();
+}
+
+async function sodaGet(base, params) {
+  const qs = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const res = await fetch(`${base}?${qs}`);
+  return res.json();
+}
+
+function formatNum(n) {
+  return Number(n).toLocaleString('en-US');
+}
+
+function animateCounter(el, target, duration = 1500) {
+  const steps = 30;
+  const interval = duration / steps;
+  let step = 0;
+  el.textContent = formatNum(0);
+  const timer = setInterval(() => {
+    step++;
+    const progress = Math.min(step / steps, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = formatNum(Math.floor(target * eased));
+    if (progress >= 1) clearInterval(timer);
+  }, interval);
+}
+
+// Chart.js global defaults
+Chart.defaults.color = 'rgba(232,230,227,0.55)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding = 16;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(10,10,18,0.95)';
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.1)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.tooltip.titleFont = { family: "'JetBrains Mono', monospace", size: 12, weight: 600 };
+Chart.defaults.plugins.tooltip.bodyFont = { family: "'DM Sans', sans-serif", size: 12 };
+Chart.defaults.plugins.tooltip.padding = 12;
+
+const COLORS = {
+  red: '#ef4444', amber: '#f59e0b', cyan: '#06b6d4',
+  purple: '#a855f7', blue: '#3b82f6', green: '#22c55e',
+  gray: '#6b7280',
+  redDim: 'rgba(239,68,68,0.15)', amberDim: 'rgba(245,158,11,0.15)',
+  cyanDim: 'rgba(6,182,212,0.15)', purpleDim: 'rgba(168,85,247,0.15)',
+  blueDim: 'rgba(59,130,246,0.15)'
+};
+
+// ===== SCROLL OBSERVER =====
+const sections = document.querySelectorAll('section');
+const navDots = document.querySelectorAll('.nav-dot');
+const loadedSections = new Set();
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // Update nav dots
+      navDots.forEach(d => d.classList.remove('active'));
+      const dot = document.querySelector(`.nav-dot[data-section="${entry.target.id}"]`);
+      if (dot) dot.classList.add('active');
+      // Lazy load data
+      if (!loadedSections.has(entry.target.id)) {
+        loadedSections.add(entry.target.id);
+        loadSectionData(entry.target.id);
+      }
+    }
+  });
+}, { threshold: 0.1 });
+
+sections.forEach(s => observer.observe(s));
+
+// Nav dot clicks
+navDots.forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.getElementById(dot.dataset.section).scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// Scroll progress
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = (scrollTop / docHeight) * 100;
+  document.getElementById('scrollProgress').style.width = progress + '%';
+});
+
+// ===== SECTION DATA LOADERS =====
+async function loadSectionData(sectionId) {
+  switch (sectionId) {
+    case 'hero': loadHero(); break;
+    case 'trends-section': loadTrends(); break;
+    case 'map-section': loadMap(); break;
+    case 'when-section': loadWhen(); break;
+    case 'where-section': loadWhere(); break;
+    case 'causes-section': loadCauses(); break;
+    case 'who-section': loadWho(); break;
+    case 'explorer-section': initExplorer(); break;
+  }
+}
+
+// ===== HERO =====
+async function loadHero() {
+  try {
+    const data = await sodaGet(CRASHES_API, {
+      '$select': 'COUNT(*) as total, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed'
+    });
+    const r = data[0];
+    animateCounter(document.getElementById('heroTotal'), parseInt(r.total));
+    animateCounter(document.getElementById('heroInjured'), parseInt(r.injured));
+    animateCounter(document.getElementById('heroKilled'), parseInt(r.killed));
+  } catch (e) {
+    console.error('Hero load error:', e);
+  }
+}
+
+// ===== TRENDS =====
+async function loadTrends() {
+  try {
+    // Yearly stats
+    const yearlyP = sodaGet(CRASHES_API, {
+      '$select': 'date_extract_y(crash_date) as year, COUNT(*) as crashes, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed, SUM(number_of_pedestrians_killed) as ped_killed, SUM(number_of_cyclist_killed) as cyc_killed',
+      '$group': 'date_extract_y(crash_date)',
+      '$order': 'year ASC'
+    });
+
+    // Pedestrian deaths by year
+    const pedP = sodaGet(CRASHES_API, {
+      '$select': 'date_extract_y(crash_date) as year, SUM(number_of_pedestrians_killed) as ped_killed, SUM(number_of_pedestrians_injured) as ped_injured',
+      '$group': 'date_extract_y(crash_date)',
+      '$order': 'year ASC'
+    });
+
+    // Cyclist injuries by year
+    const cycP = sodaGet(CRASHES_API, {
+      '$select': 'date_extract_y(crash_date) as year, SUM(number_of_cyclist_injured) as cyc_injured, SUM(number_of_cyclist_killed) as cyc_killed',
+      '$group': 'date_extract_y(crash_date)',
+      '$order': 'year ASC'
+    });
+
+    // E-bike crashes by year
+    const ebikeP = sodaGet(CRASHES_API, {
+      '$select': "date_extract_y(crash_date) as year, COUNT(*) as total",
+      '$where': "(vehicle_type_code1='E-Bike' OR vehicle_type_code1='E-Scooter' OR vehicle_type_code2='E-Bike' OR vehicle_type_code2='E-Scooter')",
+      '$group': 'date_extract_y(crash_date)',
+      '$order': 'year ASC'
+    });
+
+    // Unsafe speed factor by year
+    const speedP = sodaGet(CRASHES_API, {
+      '$select': "date_extract_y(crash_date) as year, COUNT(*) as total",
+      '$where': "contributing_factor_vehicle_1='Unsafe Speed'",
+      '$group': 'date_extract_y(crash_date)',
+      '$order': 'year ASC'
+    });
+
+    // Borough fatalities: early vs recent
+    const boroughEarlyP = sodaGet(CRASHES_API, {
+      '$select': 'borough, SUM(number_of_persons_killed) as killed',
+      '$where': "crash_date >= '2013-01-01' AND crash_date < '2016-01-01' AND borough IS NOT NULL",
+      '$group': 'borough',
+      '$order': 'borough ASC'
+    });
+    const boroughRecentP = sodaGet(CRASHES_API, {
+      '$select': 'borough, SUM(number_of_persons_killed) as killed',
+      '$where': "crash_date >= '2022-01-01' AND crash_date < '2025-01-01' AND borough IS NOT NULL",
+      '$group': 'borough',
+      '$order': 'borough ASC'
+    });
+
+    const [yearly, ped, cyc, ebike, speed, boroughEarly, boroughRecent] = await Promise.all([yearlyP, pedP, cycP, ebikeP, speedP, boroughEarlyP, boroughRecentP]);
+
+    // Filter to full years only (2013–2025)
+    const fullYears = yearly.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const labels = fullYears.map(d => d.year);
+
+    // 1. COVID Paradox — Crashes vs Fatalities dual-axis
+    const paradoxWrap = document.getElementById('trendParadoxWrap');
+    paradoxWrap.innerHTML = '<canvas></canvas>';
+    const crashCounts = fullYears.map(d => parseInt(d.crashes));
+    const deathCounts = fullYears.map(d => parseInt(d.killed));
+    const paradoxChart = new Chart(paradoxWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { type: 'bar', label: 'Total Crashes', data: crashCounts, backgroundColor: 'rgba(59,130,246,0.4)', borderColor: COLORS.blue, borderWidth: 1, borderRadius: 3, yAxisID: 'y' },
+          { type: 'line', label: 'Fatalities', data: deathCounts, borderColor: COLORS.red, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 4, pointBackgroundColor: COLORS.red, tension: 0.3, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          annotation: {}
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Crashes', color: COLORS.blue, font: { size: 11 } }, ticks: { callback: v => formatNum(v) } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Fatalities', color: COLORS.red, font: { size: 11 } } }
+        }
+      }
+    });
+
+    // 2. Fatality rate per 1,000 crashes
+    const rateWrap = document.getElementById('trendFatalRateWrap');
+    rateWrap.innerHTML = '<canvas></canvas>';
+    const fatalRates = fullYears.map(d => {
+      const crashes = parseInt(d.crashes);
+      const killed = parseInt(d.killed);
+      return crashes > 0 ? parseFloat((killed / crashes * 1000).toFixed(2)) : 0;
+    });
+    new Chart(rateWrap.querySelector('canvas'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Fatal crashes per 1,000',
+          data: fatalRates,
+          borderColor: COLORS.red,
+          backgroundColor: COLORS.redDim,
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 5,
+          pointBackgroundColor: fatalRates.map(v => v > 2.0 ? COLORS.red : COLORS.amber),
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Per 1,000 crashes', color: COLORS.red, font: { size: 11 } } }
+        }
+      }
+    });
+
+    // 3. Vision Zero — Pedestrian deaths
+    const pedYears = ped.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const vzWrap = document.getElementById('trendVisionZeroWrap');
+    vzWrap.innerHTML = '<canvas></canvas>';
+    new Chart(vzWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: pedYears.map(d => d.year),
+        datasets: [{
+          label: 'Pedestrian Fatalities',
+          data: pedYears.map(d => parseInt(d.ped_killed)),
+          backgroundColor: pedYears.map(d => parseInt(d.year) < 2014 ? 'rgba(107,114,128,0.5)' : parseInt(d.year) <= 2019 ? 'rgba(245,158,11,0.5)' : 'rgba(239,68,68,0.5)'),
+          borderColor: pedYears.map(d => parseInt(d.year) < 2014 ? COLORS.gray : parseInt(d.year) <= 2019 ? COLORS.amber : COLORS.red),
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // 4. E-bike explosion
+    const ebikeYears = ebike.filter(d => parseInt(d.year) >= 2018 && parseInt(d.year) <= 2025);
+    const ebWrap = document.getElementById('trendEbikeWrap');
+    ebWrap.innerHTML = '<canvas></canvas>';
+    new Chart(ebWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: ebikeYears.map(d => d.year),
+        datasets: [{
+          label: 'E-Bike/E-Scooter Crashes',
+          data: ebikeYears.map(d => parseInt(d.total)),
+          backgroundColor: 'rgba(6,182,212,0.5)',
+          borderColor: COLORS.cyan,
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+
+    // 5. Cyclist injuries over time
+    const cycYears = cyc.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const cycWrap = document.getElementById('trendCyclistWrap');
+    cycWrap.innerHTML = '<canvas></canvas>';
+    new Chart(cycWrap.querySelector('canvas'), {
+      type: 'line',
+      data: {
+        labels: cycYears.map(d => d.year),
+        datasets: [
+          { label: 'Cyclist Injuries', data: cycYears.map(d => parseInt(d.cyc_injured)), borderColor: COLORS.purple, backgroundColor: COLORS.purpleDim, fill: true, borderWidth: 2, pointRadius: 4, tension: 0.3 },
+          { label: 'Cyclist Deaths', data: cycYears.map(d => parseInt(d.cyc_killed)), borderColor: COLORS.red, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 4, tension: 0.3, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Injuries', color: COLORS.purple, font: { size: 11 } }, ticks: { callback: v => formatNum(v) } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Deaths', color: COLORS.red, font: { size: 11 } } }
+        }
+      }
+    });
+
+    // 6. Unsafe speed trend
+    const speedYears = speed.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const speedWrap = document.getElementById('trendSpeedWrap');
+    speedWrap.innerHTML = '<canvas></canvas>';
+    new Chart(speedWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: speedYears.map(d => d.year),
+        datasets: [{
+          label: '"Unsafe Speed" as Contributing Factor',
+          data: speedYears.map(d => parseInt(d.total)),
+          backgroundColor: speedYears.map(d => parseInt(d.year) >= 2020 ? 'rgba(239,68,68,0.5)' : 'rgba(107,114,128,0.3)'),
+          borderColor: speedYears.map(d => parseInt(d.year) >= 2020 ? COLORS.red : COLORS.gray),
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.8,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+
+    // 7. Bronx fatality share comparison
+    const boroughs = ['BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND'];
+    const earlyMap = {};
+    boroughEarly.forEach(d => { earlyMap[d.borough] = parseInt(d.killed); });
+    const recentMap = {};
+    boroughRecent.forEach(d => { recentMap[d.borough] = parseInt(d.killed); });
+
+    const bronxWrap = document.getElementById('trendBronxWrap');
+    bronxWrap.innerHTML = '<canvas></canvas>';
+    new Chart(bronxWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: boroughs,
+        datasets: [
+          { label: '2013–2015', data: boroughs.map(b => earlyMap[b] || 0), backgroundColor: 'rgba(107,114,128,0.4)', borderColor: COLORS.gray, borderWidth: 1, borderRadius: 3 },
+          { label: '2022–2024', data: boroughs.map(b => recentMap[b] || 0), backgroundColor: 'rgba(245,158,11,0.5)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 3,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Fatalities', font: { size: 11 } } }
+        }
+      }
+    });
+
+  } catch (e) {
+    console.error('Trends load error:', e);
+  }
+}
+
+// ===== MAP =====
+let crashMap, clusterGroup, heatLayer, currentMapLayer = 'clusters';
+let mapCrashData = []; // stored for timelapse
+let tlTimer = null, tlPlaying = false, tlSpeed = 1, tlDayIndex = 0, tlGrouped = {}, tlDays = [], tlLayer = null, tlCrashCount = 0;
+
+async function loadMap() {
+  crashMap = L.map('crash-map', {
+    center: [40.7128, -73.97],
+    zoom: 11,
+    zoomControl: false,
+    attributionControl: false
+  });
+
+  L.control.zoom({ position: 'bottomleft' }).addTo(crashMap);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(crashMap);
+
+  // Get last 30 days of data
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+  try {
+    const data = await sodaGet(CRASHES_API, {
+      '$where': `crash_date >= '${dateStr}' AND latitude IS NOT NULL AND latitude != 0`,
+      '$limit': 10000,
+      '$select': 'collision_id,crash_date,crash_time,latitude,longitude,borough,on_street_name,off_street_name,number_of_persons_injured,number_of_persons_killed,contributing_factor_vehicle_1'
+    });
+
+    clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false
+    });
+
+    const heatData = [];
+
+    data.forEach(crash => {
+      const lat = parseFloat(crash.latitude);
+      const lng = parseFloat(crash.longitude);
+      if (isNaN(lat) || isNaN(lng) || lat === 0) return;
+
+      const killed = parseInt(crash.number_of_persons_killed) || 0;
+      const injured = parseInt(crash.number_of_persons_injured) || 0;
+
+      let color, radius, intensity;
+      if (killed > 0) { color = COLORS.red; radius = 8; intensity = 1; }
+      else if (injured > 0) { color = COLORS.amber; radius = 5; intensity = 0.6; }
+      else { color = COLORS.gray; radius = 4; intensity = 0.3; }
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: radius,
+        fillColor: color,
+        fillOpacity: 0.7,
+        color: color,
+        weight: 1,
+        opacity: 0.9
+      });
+
+      const street = [crash.on_street_name, crash.off_street_name].filter(Boolean).join(' & ') || 'Unknown location';
+      marker.bindPopup(`
+        <div style="min-width:200px">
+          <strong>${street}</strong><br>
+          <span style="color:rgba(232,230,227,0.55)">${crash.crash_date?.split('T')[0] || ''} at ${crash.crash_time || ''}</span><br>
+          <span style="color:rgba(232,230,227,0.55)">${crash.borough || ''}</span><br><br>
+          ${killed > 0 ? `<span style="color:#ef4444">● ${killed} killed</span><br>` : ''}
+          ${injured > 0 ? `<span style="color:#f59e0b">● ${injured} injured</span><br>` : ''}
+          ${!killed && !injured ? '<span style="color:#6b7280">● No injuries reported</span><br>' : ''}
+          <br><span style="color:rgba(232,230,227,0.4);font-size:11px">${crash.contributing_factor_vehicle_1 || ''}</span>
+        </div>
+      `);
+
+      clusterGroup.addLayer(marker);
+      heatData.push([lat, lng, intensity]);
+    });
+
+    heatLayer = L.heatLayer(heatData, {
+      radius: 18,
+      blur: 20,
+      maxZoom: 15,
+      gradient: { 0.2: '#3b82f6', 0.4: '#06b6d4', 0.6: '#f59e0b', 0.8: '#ef4444', 1.0: '#dc2626' }
+    });
+
+    crashMap.addLayer(clusterGroup);
+
+    // Store data for timelapse, sorted by date+time
+    mapCrashData = data
+      .filter(c => parseFloat(c.latitude) && parseFloat(c.latitude) !== 0)
+      .sort((a, b) => {
+        const da = (a.crash_date || '') + (a.crash_time || '');
+        const db = (b.crash_date || '') + (b.crash_time || '');
+        return da.localeCompare(db);
+      });
+
+    // Group by date for timelapse
+    tlGrouped = {};
+    mapCrashData.forEach(c => {
+      const day = (c.crash_date || '').split('T')[0];
+      if (!tlGrouped[day]) tlGrouped[day] = [];
+      tlGrouped[day].push(c);
+    });
+    tlDays = Object.keys(tlGrouped).sort();
+
+  } catch (e) {
+    console.error('Map load error:', e);
+  }
+}
+
+function toggleMapLayer(layer) {
+  // Stop timelapse if switching away
+  if (currentMapLayer === 'timelapse' && layer !== 'timelapse') {
+    tlStop();
+    document.getElementById('timelapseBar').style.display = 'none';
+  }
+
+  currentMapLayer = layer;
+  document.getElementById('btnClusters').classList.toggle('active', layer === 'clusters');
+  document.getElementById('btnHeatmap').classList.toggle('active', layer === 'heatmap');
+  document.getElementById('btnTimelapse').classList.toggle('active', layer === 'timelapse');
+
+  // Remove all layers first
+  if (clusterGroup && crashMap.hasLayer(clusterGroup)) crashMap.removeLayer(clusterGroup);
+  if (heatLayer && crashMap.hasLayer(heatLayer)) crashMap.removeLayer(heatLayer);
+  if (tlLayer && crashMap.hasLayer(tlLayer)) crashMap.removeLayer(tlLayer);
+
+  if (layer === 'clusters') {
+    crashMap.addLayer(clusterGroup);
+  } else if (layer === 'heatmap') {
+    crashMap.addLayer(heatLayer);
+  } else if (layer === 'timelapse') {
+    tlInit();
+  }
+}
+
+// ===== TIMELAPSE =====
+function tlInit() {
+  document.getElementById('timelapseBar').style.display = 'flex';
+  tlLayer = L.layerGroup().addTo(crashMap);
+  tlDayIndex = 0;
+  tlCrashCount = 0;
+  document.getElementById('timelapseCounter').textContent = '0 crashes';
+  document.getElementById('timelapseFill').style.width = '0%';
+  if (tlDays.length > 0) {
+    document.getElementById('timelapseDate').textContent = formatTlDate(tlDays[0]);
+  }
+  // Auto-play
+  tlPlay();
+}
+
+function formatTlDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function tlPlay() {
+  if (tlDayIndex >= tlDays.length) {
+    tlDayIndex = 0;
+    tlCrashCount = 0;
+    if (tlLayer) tlLayer.clearLayers();
+  }
+  tlPlaying = true;
+  document.getElementById('btnTlPlay').textContent = '⏸ Pause';
+  tlAdvance();
+}
+
+function tlPause() {
+  tlPlaying = false;
+  if (tlTimer) clearTimeout(tlTimer);
+  document.getElementById('btnTlPlay').textContent = '▶ Play';
+}
+
+function tlTogglePlay() {
+  if (tlPlaying) tlPause(); else tlPlay();
+}
+
+function tlStop() {
+  tlPause();
+  tlDayIndex = 0;
+  tlCrashCount = 0;
+  if (tlLayer) { tlLayer.clearLayers(); crashMap.removeLayer(tlLayer); tlLayer = null; }
+}
+
+function tlChangeSpeed() {
+  const speeds = [1, 2, 4, 8];
+  const idx = speeds.indexOf(tlSpeed);
+  tlSpeed = speeds[(idx + 1) % speeds.length];
+  document.getElementById('tlSpeedLabel').textContent = tlSpeed + '×';
+}
+
+function tlAdvance() {
+  if (!tlPlaying || tlDayIndex >= tlDays.length) {
+    tlPause();
+    return;
+  }
+
+  const day = tlDays[tlDayIndex];
+  const crashes = tlGrouped[day] || [];
+
+  document.getElementById('timelapseDate').textContent = formatTlDate(day);
+  document.getElementById('timelapseFill').style.width = ((tlDayIndex + 1) / tlDays.length * 100) + '%';
+
+  // Add all crashes for this day at once
+  crashes.forEach(crash => {
+    const lat = parseFloat(crash.latitude);
+    const lng = parseFloat(crash.longitude);
+    const killed = parseInt(crash.number_of_persons_killed) || 0;
+    const injured = parseInt(crash.number_of_persons_injured) || 0;
+    let color = '#6b7280';
+    let radius = 3;
+    if (killed > 0) { color = COLORS.red; radius = 7; }
+    else if (injured > 0) { color = COLORS.amber; radius = 4; }
+
+    const marker = L.circleMarker([lat, lng], {
+      radius: radius,
+      fillColor: color,
+      fillOpacity: 0.85,
+      color: color,
+      weight: 1,
+      opacity: 0.9,
+      className: 'tl-marker'
+    });
+    if (tlLayer) tlLayer.addLayer(marker);
+  });
+  tlCrashCount += crashes.length;
+  document.getElementById('timelapseCounter').textContent = formatNum(tlCrashCount) + ' crashes';
+
+  tlDayIndex++;
+  tlTimer = setTimeout(tlAdvance, 600 / tlSpeed);
+}
+
+// ===== WHEN =====
+async function loadWhen() {
+  // Hour of day — crash_time is text ("H:MM" or "HH:MM"), so fetch and aggregate client-side
+  const hourRawP = sodaGet(CRASHES_API, {
+    '$select': 'crash_time, number_of_persons_injured, number_of_persons_killed',
+    '$where': "crash_date >= '2024-01-01' AND crash_time IS NOT NULL",
+    '$limit': '50000'
+  });
+
+  // Day of week — fetch crash_date and aggregate client-side
+  const dowRawP = sodaGet(CRASHES_API, {
+    '$select': 'crash_date',
+    '$where': "crash_date >= '2024-01-01'",
+    '$limit': '50000'
+  });
+
+  // Monthly trend — use date_trunc_ym which works on calendar_date
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const trendDateStr = twoYearsAgo.toISOString().split('T')[0];
+  const trendDataP = sodaGet(CRASHES_API, {
+    '$select': 'date_trunc_ym(crash_date) as month, COUNT(*) as total, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed',
+    '$where': `crash_date >= '${trendDateStr}'`,
+    '$group': 'date_trunc_ym(crash_date)',
+    '$order': 'month ASC',
+    '$limit': '50000'
+  });
+
+  try {
+    const [hourRaw, dowRaw, trendData] = await Promise.all([hourRawP, dowRawP, trendDataP]);
+
+    // Aggregate hours client-side
+    const hourTotalsRaw = new Array(24).fill(0);
+    const hourInjuredRaw = new Array(24).fill(0);
+    hourRaw.forEach(d => {
+      const parts = (d.crash_time || '').split(':');
+      const h = parseInt(parts[0]);
+      if (!isNaN(h) && h >= 0 && h < 24) {
+        hourTotalsRaw[h]++;
+        hourInjuredRaw[h] += parseInt(d.number_of_persons_injured) || 0;
+      }
+    });
+    const hourData = hourTotalsRaw.map((t, i) => ({ hour: i, total: t, injured: hourInjuredRaw[i] }));
+
+    // Aggregate DOW client-side
+    const dowTotalsRaw = new Array(7).fill(0);
+    dowRaw.forEach(d => {
+      const dt = new Date(d.crash_date);
+      if (!isNaN(dt)) dowTotalsRaw[dt.getDay()]++;
+    });
+    const dowData = dowTotalsRaw.map((t, i) => ({ dow: i, total: t }));
+
+    // Hour chart
+    const hourLabels = Array.from({length: 24}, (_, i) => {
+      if (i === 0) return '12am';
+      if (i === 12) return '12pm';
+      return i < 12 ? `${i}am` : `${i-12}pm`;
+    });
+    const hourTotals = hourData.map(d => d.total);
+    const hourInjured = hourData.map(d => d.injured);
+
+    const hourWrap = document.getElementById('hourChartWrap');
+    hourWrap.innerHTML = '<canvas></canvas>';
+    new Chart(hourWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: hourLabels,
+        datasets: [
+          { label: 'All Crashes', data: hourTotals, backgroundColor: 'rgba(59,130,246,0.5)', borderColor: COLORS.blue, borderWidth: 1, borderRadius: 3 },
+          { label: 'With Injuries', data: hourInjured, backgroundColor: 'rgba(245,158,11,0.5)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+
+    // Day of week chart
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dowTotals = dowData.map(d => d.total);
+
+    const dowWrap = document.getElementById('dowChartWrap');
+    dowWrap.innerHTML = '<canvas></canvas>';
+    new Chart(dowWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: dayNames,
+        datasets: [{
+          label: 'Crashes',
+          data: dowTotals,
+          backgroundColor: dowTotals.map((v, i) => i === 0 || i === 6 ? 'rgba(168,85,247,0.5)' : 'rgba(6,182,212,0.5)'),
+          borderColor: dowTotals.map((v, i) => i === 0 || i === 6 ? COLORS.purple : COLORS.cyan),
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+
+    // Monthly trend
+    const trendLabels = trendData.map(d => {
+      const dt = new Date(d.month);
+      return dt.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    });
+    const trendTotals = trendData.map(d => parseInt(d.total));
+    const trendInjured = trendData.map(d => parseInt(d.injured));
+    const trendKilled = trendData.map(d => parseInt(d.killed));
+
+    const trendWrap = document.getElementById('trendChartWrap');
+    trendWrap.innerHTML = '<canvas></canvas>';
+    new Chart(trendWrap.querySelector('canvas'), {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [
+          { label: 'Total Crashes', data: trendTotals, borderColor: COLORS.blue, backgroundColor: COLORS.blueDim, fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 },
+          { label: 'Injured', data: trendInjured, borderColor: COLORS.amber, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2 },
+          { label: 'Killed', data: trendKilled, borderColor: COLORS.red, backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderWidth: 2, yAxisID: 'y1' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 3,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } },
+          y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Fatalities', color: COLORS.red, font: { size: 11 } } }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('When load error:', e);
+  }
+}
+
+// ===== WHERE =====
+async function loadWhere() {
+  const boroughP = sodaGet(CRASHES_API, {
+    '$select': 'borough, COUNT(*) as total',
+    '$where': 'borough IS NOT NULL',
+    '$group': 'borough',
+    '$order': 'total DESC'
+  });
+
+  const boroughInjuryP = sodaGet(CRASHES_API, {
+    '$select': 'borough, SUM(number_of_pedestrians_injured) as ped, SUM(number_of_cyclist_injured) as cyc, SUM(number_of_motorist_injured) as mot',
+    '$where': 'borough IS NOT NULL',
+    '$group': 'borough',
+    '$order': 'borough ASC'
+  });
+
+  const intersectionP = sodaGet(CRASHES_API, {
+    '$select': "on_street_name, off_street_name, COUNT(*) as total",
+    '$where': "on_street_name IS NOT NULL AND off_street_name IS NOT NULL AND on_street_name != '' AND off_street_name != ''",
+    '$group': 'on_street_name, off_street_name',
+    '$order': 'total DESC',
+    '$limit': '10'
+  });
+
+  try {
+    const [boroughData, boroughInjury, intersectionData] = await Promise.all([boroughP, boroughInjuryP, intersectionP]);
+
+    // Borough chart
+    const bWrap = document.getElementById('boroughChartWrap');
+    bWrap.innerHTML = '<canvas></canvas>';
+    new Chart(bWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: boroughData.map(d => d.borough),
+        datasets: [{
+          label: 'Total Crashes',
+          data: boroughData.map(d => parseInt(d.total)),
+          backgroundColor: [COLORS.cyanDim, COLORS.purpleDim, COLORS.amberDim, COLORS.blueDim, COLORS.redDim],
+          borderColor: [COLORS.cyan, COLORS.purple, COLORS.amber, COLORS.blue, COLORS.red],
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.8,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { callback: v => formatNum(v) } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+
+    // Borough injury breakdown
+    const biWrap = document.getElementById('boroughInjuryChartWrap');
+    biWrap.innerHTML = '<canvas></canvas>';
+    new Chart(biWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: boroughInjury.map(d => d.borough),
+        datasets: [
+          { label: 'Pedestrians', data: boroughInjury.map(d => parseInt(d.ped)), backgroundColor: 'rgba(168,85,247,0.6)', borderColor: COLORS.purple, borderWidth: 1, borderRadius: 2 },
+          { label: 'Cyclists', data: boroughInjury.map(d => parseInt(d.cyc)), backgroundColor: 'rgba(6,182,212,0.6)', borderColor: COLORS.cyan, borderWidth: 1, borderRadius: 2 },
+          { label: 'Motorists', data: boroughInjury.map(d => parseInt(d.mot)), backgroundColor: 'rgba(59,130,246,0.6)', borderColor: COLORS.blue, borderWidth: 1, borderRadius: 2 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.8,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { stacked: true, ticks: { callback: v => formatNum(v) } },
+          y: { stacked: true, grid: { display: false } }
+        }
+      }
+    });
+
+    // Intersections
+    const list = document.getElementById('intersectionList');
+    list.innerHTML = '<ul class="intersection-list">' +
+      intersectionData.map((d, i) =>
+        `<li class="intersection-item">
+          <span class="intersection-rank">${String(i+1).padStart(2,'0')}</span>
+          <span class="intersection-name">${d.on_street_name} & ${d.off_street_name}</span>
+          <span class="intersection-count">${formatNum(d.total)} crashes</span>
+        </li>`
+      ).join('') + '</ul>';
+  } catch (e) {
+    console.error('Where load error:', e);
+  }
+}
+
+// ===== CAUSES =====
+async function loadCauses() {
+  const factorsP = sodaGet(CRASHES_API, {
+    '$select': "contributing_factor_vehicle_1 as factor, COUNT(*) as total",
+    '$where': "contributing_factor_vehicle_1 IS NOT NULL AND contributing_factor_vehicle_1 != 'Unspecified'",
+    '$group': 'contributing_factor_vehicle_1',
+    '$order': 'total DESC',
+    '$limit': '15'
+  });
+
+  const vehicleTypeP = sodaGet(VEHICLES_API, {
+    '$select': 'vehicle_type, COUNT(*) as total',
+    '$where': "vehicle_type IS NOT NULL AND vehicle_type != 'UNKNOWN'",
+    '$group': 'vehicle_type',
+    '$order': 'total DESC',
+    '$limit': '10'
+  });
+
+  const preCrashP = sodaGet(VEHICLES_API, {
+    '$select': 'pre_crash, COUNT(*) as total',
+    '$where': 'pre_crash IS NOT NULL',
+    '$group': 'pre_crash',
+    '$order': 'total DESC',
+    '$limit': '10'
+  });
+
+  try {
+    const [factors, vehicleTypes, preCrash] = await Promise.all([factorsP, vehicleTypeP, preCrashP]);
+
+    // Contributing factors
+    const fWrap = document.getElementById('factorsChartWrap');
+    fWrap.innerHTML = '<canvas></canvas>';
+    const fColors = factors.map((_, i) => {
+      const hue = (i / factors.length) * 60 + 0; // red to amber range
+      return `hsla(${hue}, 80%, 55%, 0.6)`;
+    });
+    new Chart(fWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: factors.map(d => d.factor.length > 35 ? d.factor.substring(0, 35) + '…' : d.factor),
+        datasets: [{
+          data: factors.map(d => parseInt(d.total)),
+          backgroundColor: fColors,
+          borderColor: fColors.map(c => c.replace('0.6', '1')),
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.8,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { title: (items) => factors[items[0].dataIndex].factor }
+        }},
+        scales: {
+          x: { ticks: { callback: v => formatNum(v) } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+      }
+    });
+
+    // Vehicle types donut
+    const vtWrap = document.getElementById('vehicleTypeChartWrap');
+    vtWrap.innerHTML = '<canvas></canvas>';
+    const vtColors = [COLORS.blue, COLORS.cyan, COLORS.amber, COLORS.purple, COLORS.red, COLORS.green, '#f472b6', '#818cf8', '#fb923c', '#a3e635'];
+    new Chart(vtWrap.querySelector('canvas'), {
+      type: 'doughnut',
+      data: {
+        labels: vehicleTypes.map(d => d.vehicle_type),
+        datasets: [{
+          data: vehicleTypes.map(d => parseInt(d.total)),
+          backgroundColor: vtColors.map(c => c + '99'),
+          borderColor: vtColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        cutout: '55%',
+        plugins: { legend: { position: 'right', labels: { font: { size: 10 }, padding: 8 } } }
+      }
+    });
+
+    // Pre-crash actions
+    const pcWrap = document.getElementById('preCrashChartWrap');
+    pcWrap.innerHTML = '<canvas></canvas>';
+    new Chart(pcWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: preCrash.map(d => d.pre_crash),
+        datasets: [{
+          label: 'Count',
+          data: preCrash.map(d => parseInt(d.total)),
+          backgroundColor: 'rgba(6,182,212,0.4)',
+          borderColor: COLORS.cyan,
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 3.5,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 45 } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Causes load error:', e);
+  }
+}
+
+// ===== WHO =====
+async function loadWho() {
+  const personTypeP = sodaGet(PERSONS_API, {
+    '$select': 'person_type, COUNT(*) as total',
+    '$where': 'person_type IS NOT NULL',
+    '$group': 'person_type',
+    '$order': 'total DESC'
+  });
+
+  const injuryP = sodaGet(PERSONS_API, {
+    '$select': 'person_injury, COUNT(*) as total',
+    '$where': 'person_injury IS NOT NULL',
+    '$group': 'person_injury',
+    '$order': 'total DESC'
+  });
+
+  const pedActionP = sodaGet(PERSONS_API, {
+    '$select': 'ped_action, COUNT(*) as total',
+    '$where': "ped_action IS NOT NULL AND ped_action != ''",
+    '$group': 'ped_action',
+    '$order': 'total DESC',
+    '$limit': '10'
+  });
+
+  const ageP = sodaGet(PERSONS_API, {
+    '$select': 'person_age, COUNT(*) as total',
+    '$where': 'person_age IS NOT NULL AND person_age > 0 AND person_age < 100',
+    '$group': 'person_age',
+    '$order': 'person_age ASC',
+    '$limit': '1000'
+  });
+
+  const safetyP = sodaGet(PERSONS_API, {
+    '$select': 'safety_equipment, COUNT(*) as total',
+    '$where': "safety_equipment IS NOT NULL AND safety_equipment != ''",
+    '$group': 'safety_equipment',
+    '$order': 'total DESC',
+    '$limit': '10'
+  });
+
+  try {
+    const [personType, injury, pedAction, age, safety] = await Promise.all([personTypeP, injuryP, pedActionP, ageP, safetyP]);
+
+    // Person type donut
+    const ptWrap = document.getElementById('personTypeChartWrap');
+    ptWrap.innerHTML = '<canvas></canvas>';
+    const ptColorMap = { 'Occupant': COLORS.blue, 'Pedestrian': COLORS.purple, 'Bicyclist': COLORS.cyan };
+    new Chart(ptWrap.querySelector('canvas'), {
+      type: 'doughnut',
+      data: {
+        labels: personType.map(d => d.person_type),
+        datasets: [{
+          data: personType.map(d => parseInt(d.total)),
+          backgroundColor: personType.map(d => (ptColorMap[d.person_type] || COLORS.gray) + '88'),
+          borderColor: personType.map(d => ptColorMap[d.person_type] || COLORS.gray),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.2,
+        cutout: '55%',
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    // Injury severity
+    const injWrap = document.getElementById('injuryChartWrap');
+    injWrap.innerHTML = '<canvas></canvas>';
+    const injColorMap = { 'Injured': COLORS.amber, 'Killed': COLORS.red, 'Unspecified': COLORS.gray };
+    new Chart(injWrap.querySelector('canvas'), {
+      type: 'doughnut',
+      data: {
+        labels: injury.map(d => d.person_injury),
+        datasets: [{
+          data: injury.map(d => parseInt(d.total)),
+          backgroundColor: injury.map(d => (injColorMap[d.person_injury] || COLORS.gray) + '88'),
+          borderColor: injury.map(d => injColorMap[d.person_injury] || COLORS.gray),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.2,
+        cutout: '55%',
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    // Ped action
+    const paWrap = document.getElementById('pedActionChartWrap');
+    paWrap.innerHTML = '<canvas></canvas>';
+    new Chart(paWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: pedAction.map(d => d.ped_action.length > 25 ? d.ped_action.substring(0, 25) + '…' : d.ped_action),
+        datasets: [{
+          data: pedAction.map(d => parseInt(d.total)),
+          backgroundColor: 'rgba(168,85,247,0.5)',
+          borderColor: COLORS.purple,
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.2,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { title: (items) => pedAction[items[0].dataIndex].ped_action }
+        }},
+        scales: {
+          x: { ticks: { callback: v => formatNum(v) } },
+          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+
+    // Age histogram - bucket into 5-year groups
+    const ageBuckets = {};
+    age.forEach(d => {
+      const a = parseInt(d.person_age);
+      const bucket = Math.floor(a / 5) * 5;
+      const label = `${bucket}–${bucket+4}`;
+      ageBuckets[label] = (ageBuckets[label] || 0) + parseInt(d.total);
+    });
+    const ageLabels = Object.keys(ageBuckets);
+    const ageValues = Object.values(ageBuckets);
+
+    const ageWrap = document.getElementById('ageChartWrap');
+    ageWrap.innerHTML = '<canvas></canvas>';
+    new Chart(ageWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: ageLabels,
+        datasets: [{
+          label: 'Persons',
+          data: ageValues,
+          backgroundColor: 'rgba(6,182,212,0.4)',
+          borderColor: COLORS.cyan,
+          borderWidth: 1,
+          borderRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { beginAtZero: true, ticks: { callback: v => formatNum(v) } }
+        }
+      }
+    });
+
+    // Safety equipment
+    const safeWrap = document.getElementById('safetyChartWrap');
+    safeWrap.innerHTML = '<canvas></canvas>';
+    new Chart(safeWrap.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: safety.map(d => d.safety_equipment.length > 30 ? d.safety_equipment.substring(0, 30) + '…' : d.safety_equipment),
+        datasets: [{
+          data: safety.map(d => parseInt(d.total)),
+          backgroundColor: 'rgba(34,197,94,0.4)',
+          borderColor: COLORS.green,
+          borderWidth: 1,
+          borderRadius: 3
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { title: (items) => safety[items[0].dataIndex].safety_equipment }
+        }},
+        scales: {
+          x: { ticks: { callback: v => formatNum(v) } },
+          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Who load error:', e);
+  }
+}
+
+// ===== EXPLORER =====
+let explorerMap, explorerMarkers;
+
+function initExplorer() {
+  explorerMap = L.map('explorer-map', {
+    center: [40.7128, -73.97],
+    zoom: 11,
+    zoomControl: false
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(explorerMap);
+  explorerMarkers = L.markerClusterGroup({ maxClusterRadius: 50 });
+  explorerMap.addLayer(explorerMarkers);
+
+  // Set default dates
+  const today = new Date();
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  document.getElementById('expDateTo').value = today.toISOString().split('T')[0];
+  document.getElementById('expDateFrom').value = weekAgo.toISOString().split('T')[0];
+}
+
+async function runExplorer() {
+  const borough = document.getElementById('expBorough').value;
+  const dateFrom = document.getElementById('expDateFrom').value;
+  const dateTo = document.getElementById('expDateTo').value;
+  const vehicleType = document.getElementById('expVehicleType').value;
+  const personType = document.getElementById('expPersonType').value;
+
+  // Build crash query
+  let where = ['latitude IS NOT NULL', 'latitude != 0'];
+  if (borough) where.push(`borough='${borough}'`);
+  if (dateFrom) where.push(`crash_date >= '${dateFrom}'`);
+  if (dateTo) where.push(`crash_date <= '${dateTo}'`);
+  if (vehicleType) where.push(`vehicle_type_code1='${vehicleType}'`);
+
+  const detailsEl = document.getElementById('explorerDetails');
+  detailsEl.innerHTML = '<div class="chart-card-title">Query Results</div><div class="loader">Querying…</div>';
+
+  try {
+    // Get summary stats
+    const statsData = await sodaGet(CRASHES_API, {
+      '$select': 'COUNT(*) as total, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed',
+      '$where': where.join(' AND ')
+    });
+
+    const stats = statsData[0] || {};
+    document.getElementById('explorerStats').innerHTML = `
+      <div class="stat-pill"><div class="stat-pill-value" style="color:var(--text-primary)">${formatNum(stats.total || 0)}</div><div class="stat-pill-label">Crashes</div></div>
+      <div class="stat-pill"><div class="stat-pill-value" style="color:var(--amber)">${formatNum(stats.injured || 0)}</div><div class="stat-pill-label">Injured</div></div>
+      <div class="stat-pill"><div class="stat-pill-value" style="color:var(--red)">${formatNum(stats.killed || 0)}</div><div class="stat-pill-label">Killed</div></div>
+    `;
+
+    // Get map points
+    const mapData = await sodaGet(CRASHES_API, {
+      '$where': where.join(' AND '),
+      '$limit': 5000,
+      '$select': 'collision_id,crash_date,crash_time,latitude,longitude,borough,on_street_name,off_street_name,number_of_persons_injured,number_of_persons_killed,contributing_factor_vehicle_1',
+      '$order': 'crash_date DESC'
+    });
+
+    explorerMarkers.clearLayers();
+    mapData.forEach(crash => {
+      const lat = parseFloat(crash.latitude);
+      const lng = parseFloat(crash.longitude);
+      if (isNaN(lat) || isNaN(lng) || lat === 0) return;
+      const killed = parseInt(crash.number_of_persons_killed) || 0;
+      const injured = parseInt(crash.number_of_persons_injured) || 0;
+      let color = COLORS.gray;
+      if (killed > 0) color = COLORS.red;
+      else if (injured > 0) color = COLORS.amber;
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: killed > 0 ? 8 : injured > 0 ? 5 : 4,
+        fillColor: color, fillOpacity: 0.7,
+        color: color, weight: 1, opacity: 0.9
+      });
+      const street = [crash.on_street_name, crash.off_street_name].filter(Boolean).join(' & ') || 'Unknown';
+      marker.bindPopup(`<strong>${street}</strong><br>${crash.crash_date?.split('T')[0]} ${crash.crash_time || ''}<br>${killed > 0 ? `<span style="color:#ef4444">${killed} killed</span> ` : ''}${injured > 0 ? `<span style="color:#f59e0b">${injured} injured</span>` : ''}`);
+      explorerMarkers.addLayer(marker);
+    });
+
+    if (mapData.length > 0) {
+      const bounds = explorerMarkers.getBounds();
+      if (bounds.isValid()) explorerMap.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    // Person type breakdown if personType filter used
+    let personHtml = '';
+    if (personType) {
+      let personWhere = [];
+      if (dateFrom) personWhere.push(`crash_date >= '${dateFrom}'`);
+      if (dateTo) personWhere.push(`crash_date <= '${dateTo}'`);
+      personWhere.push(`person_type='${personType}'`);
+      const personStats = await sodaGet(PERSONS_API, {
+        '$select': 'person_injury, COUNT(*) as total',
+        '$where': personWhere.join(' AND '),
+        '$group': 'person_injury',
+        '$order': 'total DESC'
+      });
+      personHtml = '<div style="margin-top:16px"><strong style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">' + personType.toUpperCase() + ' BREAKDOWN</strong><ul class="intersection-list">' +
+        personStats.map(d => `<li class="intersection-item"><span class="intersection-name">${d.person_injury}</span><span class="intersection-count">${formatNum(d.total)}</span></li>`).join('') + '</ul></div>';
+    }
+
+    // Top contributing factors for this query
+    const factorData = await sodaGet(CRASHES_API, {
+      '$select': 'contributing_factor_vehicle_1 as factor, COUNT(*) as total',
+      '$where': where.join(' AND ') + " AND contributing_factor_vehicle_1 IS NOT NULL AND contributing_factor_vehicle_1 != 'Unspecified'",
+      '$group': 'contributing_factor_vehicle_1',
+      '$order': 'total DESC',
+      '$limit': '5'
+    });
+
+    detailsEl.innerHTML = `
+      <div class="chart-card-title">Query Results</div>
+      <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">Showing ${formatNum(mapData.length)} of ${formatNum(stats.total || 0)} crashes on map (capped at 5,000 points).</p>
+      <strong style="color:var(--red);font-family:var(--font-mono);font-size:12px;">TOP CONTRIBUTING FACTORS</strong>
+      <ul class="intersection-list">
+        ${factorData.map((d, i) => `<li class="intersection-item"><span class="intersection-rank">${i+1}</span><span class="intersection-name">${d.factor}</span><span class="intersection-count">${formatNum(d.total)}</span></li>`).join('')}
+      </ul>
+      ${personHtml}
+    `;
+  } catch (e) {
+    detailsEl.innerHTML = `<div class="chart-card-title">Error</div><p style="color:var(--red)">${e.message}</p>`;
+    console.error('Explorer error:', e);
+  }
+}
+
+// Kick off hero on load (mark as loaded to prevent observer duplicate)
+loadedSections.add('hero');
+loadSectionData('hero');
+</script>
+</body>
+</html>

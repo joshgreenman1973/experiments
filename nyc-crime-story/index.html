@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Long Retreat — Three Decades of Crime in New York City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --ink: #1a1a2e;
+  --warm-white: #faf8f5;
+  --cream: #f2efe8;
+  --accent: #c0392b;
+  --accent-light: #e74c3c;
+  --blue: #2c5f7c;
+  --blue-light: #3a7ca5;
+  --teal: #1a8a7d;
+  --gold: #d4a843;
+  --muted: #7a7a8a;
+  --border: #e0ddd6;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'Inter', -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--warm-white);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+  position: relative;
+  background: var(--ink);
+  color: var(--warm-white);
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(192,57,43,0.15) 0%, transparent 60%);
+}
+
+.hero-kicker {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(3rem, 8vw, 6.5rem);
+  line-height: 1.05;
+  font-weight: 400;
+  max-width: 14ch;
+  position: relative;
+}
+
+.hero h1 em { font-style: italic; color: var(--accent-light); }
+
+.hero-sub {
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 300;
+  color: rgba(250,248,245,0.65);
+  max-width: 44ch;
+  margin-top: 1.5rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: 2.5rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(250,248,245,0.35);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 0.7; transform: translateY(4px); }
+}
+
+/* ── SECTIONS ── */
+.section { max-width: 720px; margin: 0 auto; padding: 6rem 1.5rem; }
+.section-wide { max-width: 1000px; margin: 0 auto; padding: 6rem 1.5rem; }
+.section-full { padding: 6rem 1.5rem; background: var(--cream); }
+.section-dark { background: var(--ink); color: var(--warm-white); padding: 6rem 1.5rem; }
+.section-dark .muted { color: rgba(250,248,245,0.5); }
+.section-dark .chart-label { color: rgba(250,248,245,0.5); }
+.section-dark .chart-value { color: var(--warm-white); }
+.inner { max-width: 720px; margin: 0 auto; }
+.inner-wide { max-width: 1000px; margin: 0 auto; }
+
+/* ── TYPOGRAPHY ── */
+h2 {
+  font-family: var(--serif);
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.15;
+  font-weight: 400;
+  margin-bottom: 1.5rem;
+}
+
+h2 em { font-style: italic; color: var(--accent); }
+.section-dark h2 em { color: var(--accent-light); }
+
+h3 {
+  font-family: var(--serif);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 400;
+  margin-bottom: 1rem;
+}
+
+.kicker {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+.section-dark .kicker { color: var(--accent-light); }
+
+p { font-size: 1.1rem; line-height: 1.75; margin-bottom: 1.25rem; }
+.section-dark p { color: rgba(250,248,245,0.8); }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.lead { font-size: 1.3rem; font-weight: 300; line-height: 1.6; }
+.section-dark .lead { color: rgba(250,248,245,0.75); }
+
+/* ── TABULAR NUMBERS ── */
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── BIG NUMBER ── */
+.big-number-row {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 2.5rem 0;
+  justify-content: center;
+}
+
+.big-number { text-align: center; flex: 1; min-width: 140px; }
+
+.big-number .number {
+  font-family: var(--serif);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1.1;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.big-number .label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.section-dark .big-number .label { color: rgba(250,248,245,0.45); }
+
+.number-red { color: var(--accent); }
+.number-blue { color: var(--blue); }
+.number-teal { color: var(--teal); }
+.number-gold { color: var(--gold); }
+
+/* ── ARROW CONNECTOR ── */
+.arrow-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 2.5rem 0;
+  flex-wrap: wrap;
+}
+
+.arrow-connector .from, .arrow-connector .to { text-align: center; }
+
+.arrow-connector .year {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.section-dark .arrow-connector .year { color: rgba(250,248,245,0.4); }
+
+.arrow-connector .val {
+  font-family: var(--serif);
+  font-size: clamp(2.2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.arrow-connector .arrow { font-size: 1.5rem; color: var(--muted); }
+.section-dark .arrow-connector .arrow { color: rgba(250,248,245,0.3); }
+.arrow-connector .change { font-size: 0.85rem; font-weight: 600; color: var(--teal); margin-top: 0.25rem; }
+
+/* ── CHARTS ── */
+.chart-container { margin: 2.5rem 0; position: relative; }
+.chart-title { font-family: var(--sans); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+.chart-subtitle { font-size: 0.75rem; color: var(--muted); margin-bottom: 1rem; }
+.section-dark .chart-subtitle { color: rgba(250,248,245,0.4); }
+svg.chart { width: 100%; height: auto; overflow: visible; }
+.chart-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.chart-area { opacity: 0.08; }
+.chart-label { font-family: var(--sans); font-size: 10px; fill: var(--muted); }
+.chart-value { font-family: var(--sans); font-size: 11px; font-weight: 600; fill: var(--ink); }
+.section-dark .chart-value { fill: var(--warm-white); }
+.chart-grid { stroke: var(--border); stroke-width: 0.5; }
+.section-dark .chart-grid { stroke: rgba(250,248,245,0.08); }
+.chart-annotation { font-family: var(--sans); font-size: 10px; fill: var(--muted); }
+
+/* Animated chart lines */
+.chart-line-animated {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  transition: stroke-dashoffset 2s ease-out;
+}
+.visible .chart-line-animated { stroke-dashoffset: 0; }
+
+/* ── BAR CHART ── */
+.bar-chart { margin: 2rem 0; }
+.bar-row { display: flex; align-items: center; margin-bottom: 0.75rem; gap: 0.75rem; }
+.bar-label { width: 110px; font-size: 0.8rem; font-weight: 500; text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; height: 28px; background: rgba(0,0,0,0.04); border-radius: 4px; position: relative; overflow: hidden; }
+.section-dark .bar-track { background: rgba(255,255,255,0.06); }
+.bar-fill { height: 100%; border-radius: 4px; width: 0; transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1); display: flex; align-items: center; padding-left: 0.6rem; }
+.visible .bar-fill { width: var(--bar-w); }
+.bar-fill span { font-size: 0.7rem; font-weight: 600; color: white; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bar-fill-red { background: var(--accent); }
+.bar-fill-blue { background: var(--blue); }
+.bar-fill-teal { background: var(--teal); }
+.bar-fill-gold { background: var(--gold); }
+
+/* ── PULLQUOTE ── */
+.pullquote { border-left: 3px solid var(--accent); padding: 1rem 0 1rem 1.5rem; margin: 2.5rem 0; }
+.pullquote p { font-family: var(--serif); font-size: 1.5rem; font-style: italic; line-height: 1.4; margin: 0; }
+.section-dark .pullquote { border-color: var(--accent-light); }
+.section-dark .pullquote p { color: var(--warm-white); }
+
+/* ── DIVIDER ── */
+.divider { width: 60px; height: 2px; background: var(--accent); margin: 3rem auto; }
+.section-dark .divider { background: var(--accent-light); }
+
+/* ── SMALL MULTIPLES ── */
+.small-multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin: 2.5rem 0; }
+.sm-card { background: rgba(0,0,0,0.02); border-radius: 12px; padding: 1.25rem; }
+.section-dark .sm-card { background: rgba(255,255,255,0.04); }
+.sm-card .sm-title { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.75rem; }
+
+/* ── ERA TIMELINE ── */
+.era-strip {
+  display: flex;
+  margin: 2.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 48px;
+}
+.era-strip .era {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: white;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+
+/* ── MAPS ── */
+.map-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 2rem 0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+.map-container { height: 520px; width: 100%; background: #1a1a2e; }
+.map-legend {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.7rem;
+  z-index: 1000;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+.map-legend-title { font-weight: 700; font-size: 0.7rem; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--ink); }
+.map-legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.map-legend-swatch { width: 18px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.map-toggle-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.map-toggle {
+  padding: 0.5rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+}
+.map-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(192,57,43,0.05); }
+.map-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.leaflet-container { font-family: var(--sans) !important; }
+
+/* ── FOOTER ── */
+.footer { text-align: center; padding: 4rem 1.5rem; border-top: 1px solid var(--border); }
+.footer p { font-size: 0.8rem; color: var(--muted); }
+
+/* ── SCROLL ANIMATION ── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 600px) {
+  .big-number-row { gap: 1.5rem; }
+  .bar-label { width: 80px; font-size: 0.7rem; }
+  .section, .section-wide { padding: 4rem 1.25rem; }
+  .map-container { height: 400px; }
+  .era-strip { height: auto; flex-wrap: wrap; }
+  .era-strip .era { padding: 0.5rem 0.75rem; flex: 1; min-width: 50%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ PASSWORD GATE ═══════════ -->
+<div id="password-gate" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:1.5rem;
+  font-family:var(--sans);
+">
+  <div style="text-align:center;max-width:360px;padding:0 1.5rem;">
+    <div style="font-family:var(--serif);font-size:2rem;color:var(--warm-white);margin-bottom:0.5rem;">The Long <em style="color:var(--accent-light);font-style:italic;">Retreat</em></div>
+    <div style="font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(250,248,245,0.4);margin-bottom:2rem;">Enter password to continue</div>
+    <input id="gate-input" type="password" placeholder="Password" autocomplete="off" style="
+      width:100%;padding:0.75rem 1rem;
+      border:1.5px solid rgba(250,248,245,0.15);
+      border-radius:8px;
+      background:rgba(250,248,245,0.05);
+      color:var(--warm-white);
+      font-family:var(--sans);font-size:1rem;
+      outline:none;
+      transition:border-color 0.2s;
+    " onfocus="this.style.borderColor='var(--accent-light)'" onblur="this.style.borderColor='rgba(250,248,245,0.15)'">
+    <div id="gate-error" style="color:var(--accent-light);font-size:0.8rem;margin-top:0.75rem;opacity:0;transition:opacity 0.3s;">Incorrect password</div>
+  </div>
+</div>
+<script>
+(function() {
+  // SHA-256 hash of the password
+  const HASH = '2736601cdf6599be3b82779e542e0e62c083cea16795f68c181609f8801a3a79';
+  const gate = document.getElementById('password-gate');
+  const input = document.getElementById('gate-input');
+  const error = document.getElementById('gate-error');
+
+  // Check if already authenticated this session
+  if (sessionStorage.getItem('crime-story-auth') === 'true') {
+    gate.style.display = 'none';
+  }
+
+  async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function checkPassword() {
+    const hash = await sha256(input.value);
+    if (hash === HASH) {
+      sessionStorage.setItem('crime-story-auth', 'true');
+      gate.style.opacity = '0';
+      gate.style.transition = 'opacity 0.4s ease';
+      setTimeout(() => gate.style.display = 'none', 400);
+    } else {
+      error.style.opacity = '1';
+      input.style.borderColor = 'var(--accent-light)';
+      setTimeout(() => { error.style.opacity = '0'; }, 2000);
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkPassword();
+  });
+})();
+</script>
+
+<!-- ═══════════ HERO ═══════════ -->
+<header class="hero">
+  <div class="hero-kicker">NYC Crime Data · 1993–2025</div>
+  <h1>The Long <em>Retreat</em></h1>
+  <p class="hero-sub">Three decades of crime data tell the story of a city transformed — and the complicated questions that remain.</p>
+  <div class="hero-scroll">Scroll to explore ↓</div>
+</header>
+
+<!-- ═══════════ CHAPTER 1: THE FOUR ERAS ═══════════ -->
+<section class="section fade-in">
+  <div class="kicker">Chapter 1</div>
+  <h2>Four eras, <em>one city</em></h2>
+  <p class="lead">Thirty-three years of NYPD data don’t tell a single story. They tell four — each with its own dynamics, its own winners and losers, and its own unresolved questions.</p>
+
+  <div class="era-strip" style="margin-top:2rem;">
+    <div class="era" style="flex:15;background:var(--accent);">1993–2008</div>
+    <div class="era" style="flex:11;background:var(--blue);">2009–2019</div>
+    <div class="era" style="flex:2;background:var(--gold);">2020–21</div>
+    <div class="era" style="flex:4;background:var(--teal);">2022–25</div>
+  </div>
+
+  <p><strong>Era 1: The Great Decline (1993–2008).</strong> Major felonies fell from 430,460 to 116,952 — a 73% drop in 15 years. Every category plummeted. The city became, statistically, a different place.</p>
+  <p><strong>Era 2: The Long Plateau (2009–2019).</strong> The headline numbers plateaued near historic lows. But beneath the surface, fractures were forming. Felony assault quietly reversed course. Grand larceny stopped falling.</p>
+  <p><strong>Era 3: The Pandemic Rupture (2020–2021).</strong> COVID-19 shattered the plateau. Shootings doubled. Murder surged. Car theft exploded. But not all crimes spiked equally.</p>
+  <p><strong>Era 4: The Uneven Recovery (2022–2025).</strong> Shootings and murder snapped back — then kept falling to historic lows. But assault climbed higher. Larceny remains stubbornly elevated. Two cities emerged: one safer than ever, one where certain crimes are worse than they’ve been in a generation.</p>
+</section>
+
+<!-- ═══════════ MAJOR FELONY LINE CHART ═══════════ -->
+<section class="section-wide fade-in">
+  <div class="chart-container" style="max-width:900px;margin:0 auto;">
+    <div class="chart-title">Major Felony Complaints, 1993–2025</div>
+    <div class="chart-subtitle">Seven index crimes tracked by the NYPD</div>
+    <svg class="chart" viewBox="0 0 900 340">
+      <line x1="50" y1="30" x2="50" y2="290" class="chart-grid"/>
+      <line x1="50" y1="290" x2="870" y2="290" class="chart-grid"/>
+      <line x1="50" y1="225" x2="870" y2="225" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="160" x2="870" y2="160" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="95" x2="870" y2="95" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="30" x2="870" y2="30" class="chart-grid" stroke-dasharray="3,3"/>
+      <text x="45" y="294" text-anchor="end" class="chart-label">0</text>
+      <text x="45" y="229" text-anchor="end" class="chart-label">100K</text>
+      <text x="45" y="164" text-anchor="end" class="chart-label">200K</text>
+      <text x="45" y="99" text-anchor="end" class="chart-label">300K</text>
+      <text x="45" y="34" text-anchor="end" class="chart-label">400K</text>
+      <text x="50" y="310" text-anchor="middle" class="chart-label">1993</text>
+      <text x="178" y="310" text-anchor="middle" class="chart-label">1998</text>
+      <text x="306" y="310" text-anchor="middle" class="chart-label">2003</text>
+      <text x="434" y="310" text-anchor="middle" class="chart-label">2008</text>
+      <text x="562" y="310" text-anchor="middle" class="chart-label">2013</text>
+      <text x="690" y="310" text-anchor="middle" class="chart-label">2018</text>
+      <text x="818" y="310" text-anchor="middle" class="chart-label">2023</text>
+      <!-- Era shading -->
+      <rect x="50" y="30" width="409" height="260" fill="var(--accent)" opacity="0.04"/>
+      <rect x="459" y="30" width="282" height="260" fill="var(--blue)" opacity="0.04"/>
+      <rect x="741" y="30" width="52" height="260" fill="var(--gold)" opacity="0.06"/>
+      <rect x="793" y="30" width="77" height="260" fill="var(--teal)" opacity="0.04"/>
+      <path class="chart-area" fill="var(--accent)" d="
+        M50,10.5 L75.6,44.1 L101.3,85.4 L126.9,116.1 L152.5,131.3 L178.1,148.5 L203.8,160.0 L229.4,166.8 L255.0,180.8 L280.6,186.0 L306.3,192.0 L331.9,196.1 L357.5,200.1 L383.1,203.7 L408.8,208.2 L434.4,210.3 L460.0,218.2 L485.6,218.8 L511.3,217.8 L536.9,214.9 L562.5,214.8 L588.1,217.7 L613.8,218.1 L639.4,220.5 L665.0,224.4 L690.6,225.0 L716.3,225.2 L741.9,225.2 L767.5,220.6 L793.1,200.5 L818.8,200.3 L844.4,202.2 L870.0,203.5 L870,290 L50,290 Z
+      "/>
+      <polyline class="chart-line chart-line-animated" stroke="var(--accent)" points="
+        50,10.5 75.6,44.1 101.3,85.4 126.9,116.1 152.5,131.3 178.1,148.5 203.8,160.0 229.4,166.8 255.0,180.8 280.6,186.0 306.3,192.0 331.9,196.1 357.5,200.1 383.1,203.7 408.8,208.2 434.4,210.3 460.0,218.2 485.6,218.8 511.3,217.8 536.9,214.9 562.5,214.8 588.1,217.7 613.8,218.1 639.4,220.5 665.0,224.4 690.6,225.0 716.3,225.2 741.9,225.2 767.5,220.6 793.1,200.5 L818.8,200.3 L844.4,202.2 L870.0,203.5
+      "/>
+      <circle cx="50" cy="10.5" r="4" fill="var(--accent)"/>
+      <circle cx="741.9" cy="225.2" r="4" fill="var(--blue)"/>
+      <circle cx="793.1" cy="200.5" r="4" fill="var(--gold)"/>
+      <circle cx="870" cy="203.5" r="4" fill="var(--teal)"/>
+      <text x="55" y="6" class="chart-value" fill="var(--accent)">430,460</text>
+      <text x="741.9" y="242" text-anchor="middle" class="chart-annotation">2019 low: 95,593</text>
+      <text x="793.1" y="193" text-anchor="middle" class="chart-annotation" fill="var(--gold)">COVID</text>
+      <text x="870" y="198" text-anchor="end" class="chart-value">121,756</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 2: THE GREAT DECLINE ═══════════ -->
+<section class="section-dark">
+  <div class="inner">
+    <div class="fade-in">
+      <div class="kicker">Chapter 2 · 1993–2008</div>
+      <h2>The great <em>decline</em></h2>
+      <p class="lead">In 1993, New York City recorded 430,460 major felony complaints. Fifteen years later, the number had fallen to 116,952. Every single category collapsed.</p>
+    </div>
+
+    <div class="big-number-row fade-in">
+      <div class="big-number">
+        <div class="number number-red count-up" data-target="1927">0</div>
+        <div class="label">Murders, 1993</div>
+      </div>
+      <div class="big-number">
+        <div class="number" style="color:rgba(250,248,245,0.3)">→</div>
+        <div class="label">&nbsp;</div>
+      </div>
+      <div class="big-number">
+        <div class="number number-teal count-up" data-target="523">0</div>
+        <div class="label">Murders, 2008</div>
+      </div>
+    </div>
+
+    <div class="fade-in">
+      <p>Murder fell 73%. Shootings fell 71%. Auto theft — the quintessential 1990s New York crime — plummeted an astonishing 89%, from 111,622 to 12,493. Burglary dropped 80%. Robbery dropped 74%.</p>
+      <p>This wasn’t just incremental improvement. Year after year, for 15 straight years, the numbers went down. The decline cut across boroughs, precincts, and crime types.</p>
+    </div>
+  </div>
+
+  <!-- Shootings line chart -->
+  <div class="fade-in" style="max-width:900px;margin:2.5rem auto 0;">
+    <div class="chart-container">
+      <div class="chart-title" style="color:var(--warm-white)">Shooting Incidents by Year</div>
+      <div class="chart-subtitle">From 14 per day to fewer than 2</div>
+      <svg class="chart" viewBox="0 0 900 280">
+        <line x1="50" y1="20" x2="50" y2="240" class="chart-grid"/>
+        <line x1="50" y1="240" x2="870" y2="240" class="chart-grid"/>
+        <line x1="50" y1="196" x2="870" y2="196" class="chart-grid" stroke-dasharray="3,3"/>
+        <line x1="50" y1="152" x2="870" y2="152" class="chart-grid" stroke-dasharray="3,3"/>
+        <line x1="50" y1="108" x2="870" y2="108" class="chart-grid" stroke-dasharray="3,3"/>
+        <line x1="50" y1="64" x2="870" y2="64" class="chart-grid" stroke-dasharray="3,3"/>
+        <line x1="50" y1="20" x2="870" y2="20" class="chart-grid" stroke-dasharray="3,3"/>
+        <text x="45" y="244" text-anchor="end" class="chart-label">0</text>
+        <text x="45" y="200" text-anchor="end" class="chart-label">1,000</text>
+        <text x="45" y="156" text-anchor="end" class="chart-label">2,000</text>
+        <text x="45" y="112" text-anchor="end" class="chart-label">3,000</text>
+        <text x="45" y="68" text-anchor="end" class="chart-label">4,000</text>
+        <text x="45" y="24" text-anchor="end" class="chart-label">5,000</text>
+        <text x="50" y="260" text-anchor="middle" class="chart-label">’93</text>
+        <text x="178" y="260" text-anchor="middle" class="chart-label">’98</text>
+        <text x="306" y="260" text-anchor="middle" class="chart-label">’03</text>
+        <text x="434" y="260" text-anchor="middle" class="chart-label">’08</text>
+        <text x="562" y="260" text-anchor="middle" class="chart-label">’13</text>
+        <text x="690" y="260" text-anchor="middle" class="chart-label">’18</text>
+        <text x="818" y="260" text-anchor="middle" class="chart-label">’23</text>
+        <path class="chart-area" fill="var(--accent-light)" d="
+          M50,29.4 L75.6,64.8 L101.3,109.5 L126.9,137.5 L152.5,160.7 L178.1,169.6 L203.8,169.6 L229.4,168.2 L255.0,175.7 L280.6,174.9 L306.3,176.9 L331.9,180.7 L357.5,178.7 L383.1,177.5 L408.8,182.2 L434.4,179.2 L460.0,183.2 L485.6,181.1 L511.3,180.8 L536.9,185.0 L562.5,195.9 L588.1,193.1 L613.8,194.5 L639.4,199.6 L665.0,203.3 L690.6,209.8 L716.3,210.6 L741.9,208.6 L767.5,172.7 L793.1,171.5 L818.8,201.2 L844.4,203.8 L870.0,212.5 L870,240 L50,240 Z
+        "/>
+        <polyline class="chart-line chart-line-animated" stroke="var(--accent-light)" points="
+          50,29.4 75.6,64.8 101.3,109.5 126.9,137.5 152.5,160.7 178.1,169.6 203.8,169.6 229.4,168.2 255.0,175.7 280.6,174.9 306.3,176.9 331.9,180.7 357.5,178.7 383.1,177.5 408.8,182.2 434.4,179.2 460.0,183.2 485.6,181.1 511.3,180.8 536.9,185.0 562.5,195.9 588.1,193.1 613.8,194.5 639.4,199.6 665.0,203.3 690.6,209.8 716.3,210.6 741.9,208.6 767.5,172.7 793.1,171.5 818.8,201.2 844.4,203.8 870.0,212.5
+        "/>
+        <circle cx="50" cy="29.4" r="4" fill="var(--accent-light)"/>
+        <circle cx="870" cy="212.5" r="4" fill="var(--teal)"/>
+        <text x="65" y="24" class="chart-value" fill="var(--accent-light)">5,269</text>
+        <text x="870" y="226" text-anchor="end" class="chart-value" fill="var(--teal)">688</text>
+        <line x1="767.5" y1="170" x2="767.5" y2="240" stroke="var(--gold)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+        <text x="767.5" y="165" text-anchor="middle" class="chart-annotation" fill="var(--gold)">2020: 1,531</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 3: THE HIDDEN REVERSAL ═══════════ -->
+<section class="section fade-in">
+  <div class="kicker">Chapter 3 · 2009–2025</div>
+  <h2>The assault <em>comeback</em></h2>
+  <p class="lead">Here’s the story the headline numbers obscure: while murder and shootings kept falling, felony assault quietly reversed course — and has been rising for 17 years.</p>
+
+  <p>Felony assault bottomed out at 16,002 in 2008. Then it started climbing. By 2019, it had reached 20,695 — a 29% increase that went largely unnoticed beneath the broader crime-decline narrative. After the pandemic, the rise accelerated. By 2025, felony assault stands at 29,841 — <strong>86% above its 2008 low</strong> and closing in on its 1993 level of 41,121.</p>
+</section>
+
+<!-- ASSAULT CHART -->
+<section class="section-wide fade-in">
+  <div class="chart-container" style="max-width:900px;margin:0 auto;">
+    <div class="chart-title">Felony Assault Complaints, 1993–2025</div>
+    <div class="chart-subtitle">The one major crime category that reversed its decline — and kept going</div>
+    <svg class="chart" viewBox="0 0 900 320">
+      <line x1="50" y1="20" x2="50" y2="280" class="chart-grid"/>
+      <line x1="50" y1="280" x2="870" y2="280" class="chart-grid"/>
+      <line x1="50" y1="215" x2="870" y2="215" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="150" x2="870" y2="150" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="85" x2="870" y2="85" class="chart-grid" stroke-dasharray="3,3"/>
+      <line x1="50" y1="20" x2="870" y2="20" class="chart-grid" stroke-dasharray="3,3"/>
+      <text x="45" y="284" text-anchor="end" class="chart-label">0</text>
+      <text x="45" y="219" text-anchor="end" class="chart-label">10K</text>
+      <text x="45" y="154" text-anchor="end" class="chart-label">20K</text>
+      <text x="45" y="89" text-anchor="end" class="chart-label">30K</text>
+      <text x="45" y="24" text-anchor="end" class="chart-label">40K</text>
+      <text x="50" y="300" text-anchor="middle" class="chart-label">’93</text>
+      <text x="178" y="300" text-anchor="middle" class="chart-label">’98</text>
+      <text x="306" y="300" text-anchor="middle" class="chart-label">’03</text>
+      <text x="434" y="300" text-anchor="middle" class="chart-label">’08</text>
+      <text x="562" y="300" text-anchor="middle" class="chart-label">’13</text>
+      <text x="690" y="300" text-anchor="middle" class="chart-label">’18</text>
+      <text x="818" y="300" text-anchor="middle" class="chart-label">’23</text>
+      <!-- Decline zone -->
+      <rect x="50" y="20" width="409" height="260" fill="var(--teal)" opacity="0.03"/>
+      <!-- Rise zone -->
+      <rect x="459" y="20" width="411" height="260" fill="var(--accent)" opacity="0.04"/>
+      <path class="chart-area" fill="var(--accent)" d="
+        M50,42.4 L75.6,50.2 L101.3,74.8 L126.9,103.3 L152.5,105.3 L178.1,113.6 L203.8,130.3 L229.4,130.8 L255.0,146.9 L280.6,160.3 L306.3,171.8 L331.9,175.3 L357.5,180.3 L383.1,181.3 L408.8,180.7 L434.4,187.8 L460.0,184.0 L485.6,183.7 L511.3,173.1 L536.9,168.7 L562.5,162.7 L588.1,163.1 L613.8,163.0 L639.4,159.7 L665.0,159.3 L690.6,163.3 L716.3,160.8 L741.9,161.5 L767.5,156.8 L793.1,129.2 L818.8,119.0 L844.4,109.5 L870.0,107.5 L870,280 L50,280 Z
+      "/>
+      <polyline class="chart-line chart-line-animated" stroke="var(--accent)" stroke-width="3" points="
+        50,42.4 75.6,50.2 101.3,74.8 126.9,103.3 152.5,105.3 178.1,113.6 203.8,130.3 229.4,130.8 255.0,146.9 280.6,160.3 306.3,171.8 331.9,175.3 357.5,180.3 383.1,181.3 408.8,180.7 434.4,187.8 460.0,184.0 485.6,183.7 511.3,173.1 536.9,168.7 562.5,162.7 588.1,163.1 613.8,163.0 639.4,159.7 665.0,159.3 690.6,163.3 716.3,160.8 741.9,161.5 767.5,156.8 793.1,129.2 818.8,119.0 844.4,109.5 870.0,107.5
+      "/>
+      <circle cx="50" cy="42.4" r="5" fill="var(--accent)"/>
+      <circle cx="434.4" cy="187.8" r="5" fill="var(--teal)"/>
+      <circle cx="870" cy="107.5" r="5" fill="var(--accent)"/>
+      <text x="55" y="37" class="chart-value" fill="var(--accent)">41,121</text>
+      <text x="434.4" y="203" text-anchor="middle" class="chart-value" fill="var(--teal)">16,002</text>
+      <text x="430" y="215" text-anchor="middle" class="chart-annotation" fill="var(--teal)">2008 low</text>
+      <text x="870" y="100" text-anchor="end" class="chart-value" fill="var(--accent)">29,841</text>
+      <text x="240" y="135" class="chart-annotation" fill="var(--teal)" font-size="11">↓ declining</text>
+      <text x="660" y="135" class="chart-annotation" fill="var(--accent)" font-size="11">↑ rising</text>
+    </svg>
+  </div>
+</section>
+
+<section class="section fade-in">
+  <div class="pullquote">
+    <p>“Felony assault has nearly doubled since 2008 — erasing half the gains of the great crime decline in a single category.”</p>
+  </div>
+
+  <h3>The Bronx is back to <em>1993</em></h3>
+  <p>The borough-level data makes the trend even starker. In the Bronx, felony assault complaints in 2025 (8,949) have <em>exceeded</em> their 1993 level (8,925). Brooklyn is closing in. Queens has nearly doubled from its low.</p>
+
+  <div class="bar-chart fade-in">
+    <div style="font-size:0.75rem;font-weight:600;margin-bottom:1rem;color:var(--muted);">FELONY ASSAULT BY BOROUGH: 2008 LOW VS. 2025</div>
+    <div class="bar-row">
+      <div class="bar-label">Bronx</div>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-red" style="--bar-w:100%"><span>8,949 (was 3,728 in ’08)</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Brooklyn</div>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-red" style="--bar-w:94.6%"><span>8,469 (was 4,756 in ’08)</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Queens</div>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-blue" style="--bar-w:67.2%"><span>6,016 (was 3,047 in ’08)</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Manhattan</div>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-teal" style="--bar-w:60.1%"><span>5,378 (was 2,970 in ’08)</span></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Staten Island</div>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-gold" style="--bar-w:11.5%"><span>1,029</span></div>
+      </div>
+    </div>
+  </div>
+
+  <p>This isn’t a statistical artifact. It’s a trend that has persisted through three mayoral administrations, multiple policing strategies, and a pandemic. Whatever is driving the rise in assaults — and the debate ranges from changes in reporting to social media–fueled conflicts to substance abuse — it represents the most significant counter-trend in 33 years of crime data.</p>
+</section>
+
+<!-- ═══════════ CHAPTER 4: MURDER & SHOOTINGS ═══════════ -->
+<section class="section-dark">
+  <div class="inner">
+    <div class="fade-in">
+      <div class="kicker">Chapter 4</div>
+      <h2>Murder and shootings: <em>historic lows</em></h2>
+      <p>If the assault story is sobering, the gun violence story is the opposite. Shootings in 2025 stand at 688 — the lowest figure in the entire 33-year dataset. That’s an 87% decline from 1993, and 11% below the pre-pandemic low of 776 in 2019.</p>
+    </div>
+
+    <div class="big-number-row fade-in">
+      <div class="big-number">
+        <div class="number number-red">5,269</div>
+        <div class="label">Shootings, 1993</div>
+      </div>
+      <div class="big-number">
+        <div class="number" style="color:var(--gold)">1,531</div>
+        <div class="label">Shootings, 2020</div>
+      </div>
+      <div class="big-number">
+        <div class="number number-teal">688</div>
+        <div class="label">Shootings, 2025</div>
+      </div>
+    </div>
+
+    <div class="fade-in">
+      <p>The pandemic spike was alarming — shootings doubled from 776 to 1,531 in a single year. But the recovery has been remarkably swift. Murder tells a similar story: 309 in 2025, down from 488 in 2021, and the lowest since at least 1993.</p>
+    </div>
+  </div>
+
+  <!-- Small multiples: shootings by borough -->
+  <div class="fade-in" style="max-width:1000px;margin:2.5rem auto 0;">
+    <div class="chart-title" style="color:var(--warm-white);padding:0 1.5rem;">Shootings by Borough, 1993–2025</div>
+    <div class="chart-subtitle" style="padding:0 1.5rem;">Every borough has hit new lows — note the different Y-axis scales</div>
+    <div class="small-multiples" style="padding:0 1rem;">
+      <div class="sm-card">
+        <div class="sm-title">Brooklyn <span style="color:var(--teal);font-weight:700;">−90%</span></div>
+        <svg class="chart" viewBox="0 0 280 100">
+          <line x1="10" y1="85" x2="270" y2="85" class="chart-grid"/>
+          <polyline class="chart-line chart-line-animated" stroke="var(--accent)" stroke-width="2" points="10,5 18.1,29.9 26.3,49.5 34.4,61.6 42.5,70.0 50.6,70.8 58.8,71.2 66.9,67.8 75.0,74.3 83.1,75.0 91.3,75.3 99.4,77.8 107.5,78.6 115.6,79.6 123.8,80.3 131.9,83.4 140.0,82.8 148.1,82.3 156.3,82.2 164.4,80.0 172.5,81.8 180.6,79.8 188.8,79.0 196.9,82.7 205.0,87.2 213.1,86.7 221.3,87.6 229.4,72.3 237.5,78.0 245.6,80.7 253.8,85.4 261.9,87.6 270.0,89.6"/>
+          <text x="10" y="99" class="chart-label" font-size="9">2,343</text>
+          <text x="270" y="99" text-anchor="end" class="chart-label" font-size="9">245</text>
+        </svg>
+      </div>
+      <div class="sm-card">
+        <div class="sm-title">Bronx <span style="color:var(--teal);font-weight:700;">−80%</span></div>
+        <svg class="chart" viewBox="0 0 280 100">
+          <line x1="10" y1="85" x2="270" y2="85" class="chart-grid"/>
+          <polyline class="chart-line chart-line-animated" stroke="var(--blue)" stroke-width="2" points="10,5 18.1,18.0 26.3,34.9 34.4,43.5 42.5,55.7 50.6,60.8 58.8,57.5 66.9,55.3 75.0,62.0 83.1,58.6 91.3,60.8 99.4,63.4 107.5,66.0 115.6,64.4 123.8,66.2 131.9,63.4 140.0,63.3 148.1,57.8 156.3,58.2 164.4,64.4 172.5,56.7 180.6,59.6 188.8,60.2 196.9,65.3 205.0,70.0 213.1,71.0 221.3,72.0 229.4,55.3 237.5,45.7 245.6,52.6 253.8,60.5 261.9,58.7 270.0,64.4"/>
+          <text x="10" y="99" class="chart-label" font-size="9">1,278</text>
+          <text x="270" y="99" text-anchor="end" class="chart-label" font-size="9">252</text>
+        </svg>
+      </div>
+      <div class="sm-card">
+        <div class="sm-title">Manhattan <span style="color:var(--teal);font-weight:700;">−89%</span></div>
+        <svg class="chart" viewBox="0 0 280 100">
+          <line x1="10" y1="85" x2="270" y2="85" class="chart-grid"/>
+          <polyline class="chart-line chart-line-animated" stroke="var(--teal)" stroke-width="2" points="10,5 18.1,13.7 26.3,35.1 34.4,45.2 42.5,56.5 50.6,60.5 58.8,61.4 66.9,67.0 75.0,56.9 83.1,60.9 91.3,62.0 99.4,60.7 107.5,62.0 115.6,63.9 123.8,67.0 131.9,62.0 140.0,63.9 148.1,60.0 156.3,62.0 164.4,67.0 172.5,68.0 180.6,63.0 188.8,69.4 196.9,65.0 205.0,73.7 213.1,75.5 221.3,73.6 229.4,64.8 237.5,59.8 245.6,64.8 253.8,69.5 261.9,71.1 270.0,76.4"/>
+          <text x="10" y="99" class="chart-label" font-size="9">833</text>
+          <text x="270" y="99" text-anchor="end" class="chart-label" font-size="9">90</text>
+        </svg>
+      </div>
+      <div class="sm-card">
+        <div class="sm-title">Queens <span style="color:var(--teal);font-weight:700;">−87%</span></div>
+        <svg class="chart" viewBox="0 0 280 100">
+          <line x1="10" y1="85" x2="270" y2="85" class="chart-grid"/>
+          <polyline class="chart-line chart-line-animated" stroke="var(--gold)" stroke-width="2" points="10,5 18.1,3.4 26.3,17.6 34.4,34.1 42.5,39.6 50.6,46.4 58.8,46.3 66.9,48.6 75.0,51.2 83.1,49.9 91.3,49.7 99.4,50.0 107.5,47.0 115.6,49.8 123.8,51.9 131.9,46.0 140.0,47.8 148.1,48.0 156.3,46.4 164.4,44.0 172.5,41.8 180.6,47.3 188.8,46.2 196.9,44.5 205.0,52.0 213.1,55.5 221.3,54.5 229.4,46.1 237.5,46.3 245.6,51.1 253.8,58.6 261.9,59.8 270.0,74.6"/>
+          <text x="10" y="99" class="chart-label" font-size="9">710</text>
+          <text x="270" y="99" text-anchor="end" class="chart-label" font-size="9">90</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ MAP 1: SHOOTING TRANSFORMATION ═══════════ -->
+<section class="section-wide fade-in">
+  <div class="kicker">Mapped</div>
+  <h2>The geography of <em>gunfire</em>, then and now</h2>
+  <p>Toggle between 1993 and 2025 to see how the map of shooting incidents has transformed. Darker shading means more shootings. Hover over any precinct for details.</p>
+  <div class="map-toggle-row">
+    <button class="map-toggle active" data-year="2025" onclick="showShootingYear(2025)">2025</button>
+    <button class="map-toggle" data-year="1993" onclick="showShootingYear(1993)">1993</button>
+  </div>
+  <div class="map-wrapper">
+    <div id="map-shootings" class="map-container"></div>
+    <div class="map-legend" id="legend-shootings">
+      <div class="map-legend-title">SHOOTING INCIDENTS</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#fee5d9"></div> 0–5</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#fcae91"></div> 6–15</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#fb6a4a"></div> 16–30</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#de2d26"></div> 31–50</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#67000d"></div> 50+</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 5: THE PANDEMIC ═══════════ -->
+<section class="section-dark">
+  <div class="inner">
+    <div class="fade-in">
+      <div class="kicker">Chapter 5 · 2020–2021</div>
+      <h2>The pandemic <em>fracture</em></h2>
+      <p>COVID-19 didn’t raise all crime equally. It hit specific categories with surgical force — and left others untouched or even lower.</p>
+    </div>
+
+    <div class="bar-chart fade-in">
+      <div style="font-size:0.75rem;font-weight:600;margin-bottom:1rem;color:rgba(250,248,245,0.5);">CHANGE FROM 2019 TO 2020</div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Shootings</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:97%"><span>+97%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Auto Theft</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:66%"><span>+66%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Murder</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-gold" style="--bar-w:47%"><span>+47%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Burglary</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-gold" style="--bar-w:44%"><span>+44%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Gr. Larceny</div>
+        <div class="bar-track"><div class="bar-fill" style="--bar-w:18%;background:var(--teal)"><span>−18%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label" style="color:var(--warm-white)">Harassment</div>
+        <div class="bar-track"><div class="bar-fill" style="--bar-w:7%;background:var(--teal)"><span>−7%</span></div></div>
+      </div>
+    </div>
+
+    <div class="fade-in">
+      <p>The pattern is telling. Crimes of opportunity on empty streets — burglary, auto theft — surged. Gun violence exploded as courts closed and social services contracted. But grand larceny (which requires victims present to steal from) and harassment both <em>fell</em> because fewer people were out.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 6: THE STUBBORN MIDDLE ═══════════ -->
+<section class="section fade-in">
+  <div class="kicker">Chapter 6</div>
+  <h2>The stubborn <em>middle</em></h2>
+  <p class="lead">Between the dramatic success of shootings and the troubling rise of assault, a cluster of crimes occupy an uncomfortable middle ground — substantially below their 1990s peaks, but elevated and refusing to fall further.</p>
+
+  <h3>Car theft’s V-shaped recovery</h3>
+  <p>Auto theft dropped 95% from 1993 to 2018 — from 111,622 to 5,428. It was the greatest single-category decline in the dataset. Then it reversed. By 2023, it had nearly tripled to 15,795. The Kia/Hyundai vulnerability, social media–driven theft rings, and reduced street-level deterrence all played roles. Even now, at 13,532, it sits 149% above its floor.</p>
+
+  <h3>Grand larceny’s quiet persistence</h3>
+  <p>Grand larceny — which includes phone snatching, package theft, and retail crime — dropped from 85,737 in 1993 to 37,838 in 2010. Then it started rising again, and it has stayed elevated: 48,107 in 2025. It’s now the single largest category of major felony, accounting for nearly 40% of the total.</p>
+
+  <p>Together, felony assault, grand larceny, and auto theft now represent the bulk of the city’s crime problem. The old 1990s crime mix — dominated by burglary and robbery — has been replaced by a new one.</p>
+</section>
+
+<!-- ═══════════ CHAPTER 7: WHAT FELL MOST ═══════════ -->
+<section class="section-full fade-in">
+  <div class="inner">
+    <div class="kicker">Chapter 7</div>
+    <h2>The <em>vanishing</em> crimes</h2>
+    <p>Some categories didn’t just decline — they almost disappeared.</p>
+
+    <div class="bar-chart" style="margin-top:2rem;">
+      <div style="font-size:0.75rem;font-weight:600;margin-bottom:1rem;color:var(--muted);">COMPLAINT DECLINE BY CRIME TYPE, 1993 → 2025</div>
+      <div class="bar-row">
+        <div class="bar-label">Auto Theft</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:87.9%"><span>−87.9%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Burglary</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:87.3%"><span>−87.3%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Murder</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:84.0%"><span>−84.0%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Robbery</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:82.4%"><span>−82.4%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Gr. Larceny</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-teal" style="--bar-w:43.9%"><span>−43.9%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Rape</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-teal" style="--bar-w:36.5%"><span>−36.5%</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Fel. Assault</div>
+        <div class="bar-track"><div class="bar-fill bar-fill-gold" style="--bar-w:27.4%"><span>−27.4%</span></div></div>
+      </div>
+    </div>
+
+    <p style="margin-top:1.5rem;">The gap between the top and bottom of this list captures the central tension: the city has virtually eliminated certain forms of crime while barely denting others. Burglary fell 87%. Felony assault fell only 27% — and most of that happened before 2008.</p>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 8: CONCENTRATION ═══════════ -->
+<section class="section fade-in">
+  <div class="kicker">Chapter 8</div>
+  <h2>Where the gunfire <em>concentrates</em></h2>
+  <p>Even as shootings fall citywide, they remain concentrated in a handful of precincts. In 2025, the top 10 precincts account for nearly 40% of all shooting incidents — and they’re clustered in just two boroughs.</p>
+
+  <div class="bar-chart" style="margin-top:2rem;">
+    <div style="font-size:0.75rem;font-weight:600;margin-bottom:1rem;color:var(--muted);">TOP 10 PRECINCTS BY SHOOTINGS, 2025</div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">75th <span class="muted">(Bklyn)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:100%"><span>36</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">73rd <span class="muted">(Bklyn)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:94.4%"><span>34</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">43rd <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:88.9%"><span>32</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">47th <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:88.9%"><span>32</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">42nd <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:83.3%"><span>30</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">40th <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:80.6%"><span>29</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">67th <span class="muted">(Bklyn)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-red" style="--bar-w:80.6%"><span>29</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">48th <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:77.8%"><span>28</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">44th <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:72.2%"><span>26</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label" style="width:140px;">46th <span class="muted">(Bronx)</span></div>
+      <div class="bar-track"><div class="bar-fill bar-fill-blue" style="--bar-w:63.9%"><span>23</span></div></div>
+    </div>
+  </div>
+
+  <p style="margin-top:1.5rem;">Seven of the ten are in the Bronx. Three are in Brooklyn. Zero are in Manhattan, Queens, or Staten Island. The city’s gun violence problem has narrowed geographically even as it has shrunk in volume.</p>
+</section>
+
+<!-- ═══════════ MAP 2: MAJOR FELONY DECLINE ═══════════ -->
+<section class="section-wide fade-in">
+  <div class="kicker">Mapped</div>
+  <h2>Where crime fell <em>most</em></h2>
+  <p>This map shows the percentage decline in major felony complaints by precinct from 1993 to 2025. Deeper green indicates a steeper drop. The Bronx precincts show notably shallower declines than the rest of the city.</p>
+  <div class="map-wrapper">
+    <div id="map-decline" class="map-container"></div>
+    <div class="map-legend" id="legend-decline">
+      <div class="map-legend-title">FELONY DECLINE, 1993→2025</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#edf8e9"></div> &lt;50%</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#bae4b3"></div> 50–65%</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#74c476"></div> 65–75%</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#31a354"></div> 75–85%</div>
+      <div class="map-legend-row"><div class="map-legend-swatch" style="background:#006d2c"></div> 85%+</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CHAPTER 9: ARRESTS ═══════════ -->
+<section class="section-dark">
+  <div class="inner">
+    <div class="fade-in">
+      <div class="kicker">Chapter 9</div>
+      <h2>The arrest <em>equation</em></h2>
+      <p>While crime has fallen, the arrest rate for major felonies has risen sharply. In 1993, police made arrests in roughly 16% of major felony cases. Today, that figure is 46%.</p>
+    </div>
+
+    <div class="big-number-row fade-in">
+      <div class="big-number">
+        <div class="number" style="color:rgba(250,248,245,0.4);">15.9%</div>
+        <div class="label">Arrest rate, 1993</div>
+      </div>
+      <div class="big-number">
+        <div class="number" style="color:var(--warm-white);">46.0%</div>
+        <div class="label">Arrest rate, 2025</div>
+      </div>
+    </div>
+
+    <div class="fade-in">
+      <p>Complaints plummeted from 430,460 to 121,756, while arrests fell more modestly from 68,357 to 56,039. Police are making fewer total arrests but clearing a much larger share of reported crimes. Notably, total arrests in 2024 and 2025 — over 116,000 across all categories — are at their highest levels in the dataset.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CONCLUSION ═══════════ -->
+<section class="section fade-in">
+  <div class="kicker">The picture today</div>
+  <h2>Two cities in <em>one</em></h2>
+  <p class="lead">The data doesn’t paint a simple picture of progress or decline. It reveals a city that has split into two overlapping realities.</p>
+
+  <div class="big-number-row" style="margin:3rem 0;">
+    <div class="big-number">
+      <div class="number number-teal">−87%</div>
+      <div class="label">Shootings since 1993</div>
+    </div>
+    <div class="big-number">
+      <div class="number number-red">+86%</div>
+      <div class="label">Fel. assault since 2008</div>
+    </div>
+  </div>
+
+  <p>In one New York, shootings are at a 33-year low, murder is near a historic floor, and the pandemic spike is receding into memory. Burglary and robbery — the crimes that once defined daily life — have been reduced to fractions of their former selves.</p>
+  <p>In the other New York, felony assault is approaching levels not seen since the early 1990s. Grand larceny is stubbornly elevated. Car theft remains well above its pre-pandemic floor. And the geographic concentration of gun violence means the safety dividend has not been shared equally — seven of the ten most dangerous precincts for shootings are in a single borough.</p>
+  <p>The question is no longer whether New York got safer. It did — dramatically, measurably, historically. The question is why certain forms of violence are proving resistant to 33 years of progress, and what it would take to close the gap.</p>
+
+  <div class="divider"></div>
+</section>
+
+<footer class="footer">
+  <p><strong>Source:</strong> NYPD CompStat data, 1993–2025. Includes complaint, arrest, and shooting incident data across 77 precincts.</p>
+  <p style="margin-top:0.5rem;">Analysis covers 47,000+ precinct-level records spanning 33 years and five boroughs.</p>
+</footer>
+
+<script>
+// ── SCROLL ANIMATION ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ── COUNT-UP ANIMATION ──
+const countObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !entry.target.dataset.counted) {
+      entry.target.dataset.counted = 'true';
+      const target = parseInt(entry.target.dataset.target);
+      const duration = 1500;
+      const start = performance.now();
+      function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        entry.target.textContent = Math.round(eased * target).toLocaleString();
+        if (progress < 1) requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('.count-up').forEach(el => countObserver.observe(el));
+
+// ── PRECINCT DATA ──
+const precinctData = {
+  "1":{name:"1st Precinct",borough:"Manhattan",s25:0,s93:6,mf25:1803,mf93:6757,mfChg:-73.3},
+  "5":{name:"5th Precinct",borough:"Manhattan",s25:1,s93:23,mf25:1355,mf93:3863,mfChg:-64.9},
+  "6":{name:"6th Precinct",borough:"Manhattan",s25:3,s93:11,mf25:1559,mf93:5338,mfChg:-70.8},
+  "7":{name:"7th Precinct",borough:"Manhattan",s25:5,s93:18,mf25:917,mf93:2324,mfChg:-60.5},
+  "9":{name:"9th Precinct",borough:"Manhattan",s25:2,s93:23,mf25:1336,mf93:4826,mfChg:-72.3},
+  "10":{name:"10th Precinct",borough:"Manhattan",s25:2,s93:12,mf25:1047,mf93:2880,mfChg:-63.6},
+  "13":{name:"13th Precinct",borough:"Manhattan",s25:1,s93:10,mf25:2184,mf93:7080,mfChg:-69.2},
+  "14":{name:"Midtown South",borough:"Manhattan",s25:3,s93:7,mf25:3145,mf93:15650,mfChg:-79.9},
+  "17":{name:"17th Precinct",borough:"Manhattan",s25:0,s93:2,mf25:856,mf93:4950,mfChg:-82.7},
+  "18":{name:"Midtown North",borough:"Manhattan",s25:5,s93:10,mf25:2648,mf93:12276,mfChg:-78.4},
+  "19":{name:"19th Precinct",borough:"Manhattan",s25:0,s93:2,mf25:2316,mf93:11976,mfChg:-80.7},
+  "20":{name:"20th Precinct",borough:"Manhattan",s25:1,s93:2,mf25:1115,mf93:4602,mfChg:-75.8},
+  "22":{name:"Central Park",borough:"Manhattan",s25:0,s93:0,mf25:86,mf93:475,mfChg:-81.9},
+  "23":{name:"23rd Precinct",borough:"Manhattan",s25:12,s93:92,mf25:1334,mf93:3069,mfChg:-56.5},
+  "24":{name:"24th Precinct",borough:"Manhattan",s25:3,s93:52,mf25:1100,mf93:4594,mfChg:-76.1},
+  "25":{name:"25th Precinct",borough:"Manhattan",s25:7,s93:78,mf25:1176,mf93:2942,mfChg:-60.0},
+  "26":{name:"26th Precinct",borough:"Manhattan",s25:5,s93:33,mf25:761,mf93:2749,mfChg:-72.3},
+  "28":{name:"28th Precinct",borough:"Manhattan",s25:9,s93:89,mf25:927,mf93:3206,mfChg:-71.1},
+  "30":{name:"30th Precinct",borough:"Manhattan",s25:2,s93:80,mf25:789,mf93:2952,mfChg:-73.3},
+  "32":{name:"32nd Precinct",borough:"Manhattan",s25:17,s93:117,mf25:1327,mf93:3735,mfChg:-64.5},
+  "33":{name:"33rd Precinct",borough:"Manhattan",s25:4,s93:13,mf25:1036,mf93:731,mfChg:41.7},
+  "34":{name:"34th Precinct",borough:"Manhattan",s25:8,s93:153,mf25:1496,mf93:7225,mfChg:-79.3},
+  "40":{name:"40th Precinct",borough:"Bronx",s25:29,s93:193,mf25:3411,mf93:5923,mfChg:-42.4},
+  "41":{name:"41st Precinct",borough:"Bronx",s25:12,s93:97,mf25:1633,mf93:3382,mfChg:-51.7},
+  "42":{name:"42nd Precinct",borough:"Bronx",s25:30,s93:118,mf25:2318,mf93:4305,mfChg:-46.2},
+  "43":{name:"43rd Precinct",borough:"Bronx",s25:32,s93:141,mf25:3141,mf93:7931,mfChg:-60.4},
+  "44":{name:"44th Precinct",borough:"Bronx",s25:26,s93:165,mf25:2842,mf93:7791,mfChg:-63.5},
+  "45":{name:"45th Precinct",borough:"Bronx",s25:11,s93:22,mf25:2116,mf93:4130,mfChg:-48.8},
+  "46":{name:"46th Precinct",borough:"Bronx",s25:23,s93:161,mf25:2503,mf93:7515,mfChg:-66.7},
+  "47":{name:"47th Precinct",borough:"Bronx",s25:32,s93:123,mf25:3463,mf93:6394,mfChg:-45.8},
+  "48":{name:"48th Precinct",borough:"Bronx",s25:28,s93:118,mf25:2394,mf93:4349,mfChg:-45.0},
+  "49":{name:"49th Precinct",borough:"Bronx",s25:8,s93:45,mf25:2415,mf93:5098,mfChg:-52.6},
+  "50":{name:"50th Precinct",borough:"Bronx",s25:7,s93:13,mf25:1328,mf93:4322,mfChg:-69.3},
+  "52":{name:"52nd Precinct",borough:"Bronx",s25:14,s93:82,mf25:2958,mf93:7187,mfChg:-58.8},
+  "60":{name:"60th Precinct",borough:"Brooklyn",s25:10,s93:54,mf25:1292,mf93:4729,mfChg:-72.7},
+  "61":{name:"61st Precinct",borough:"Brooklyn",s25:5,s93:30,mf25:1401,mf93:8145,mfChg:-82.8},
+  "62":{name:"62nd Precinct",borough:"Brooklyn",s25:2,s93:2,mf25:1317,mf93:5387,mfChg:-75.6},
+  "63":{name:"63rd Precinct",borough:"Brooklyn",s25:6,s93:29,mf25:1022,mf93:5608,mfChg:-81.8},
+  "66":{name:"66th Precinct",borough:"Brooklyn",s25:0,s93:21,mf25:1144,mf93:5264,mfChg:-78.3},
+  "67":{name:"67th Precinct",borough:"Brooklyn",s25:29,s93:202,mf25:2155,mf93:8717,mfChg:-75.3},
+  "68":{name:"68th Precinct",borough:"Brooklyn",s25:0,s93:6,mf25:814,mf93:4434,mfChg:-81.6},
+  "69":{name:"69th Precinct",borough:"Brooklyn",s25:11,s93:23,mf25:863,mf93:4253,mfChg:-79.7},
+  "70":{name:"70th Precinct",borough:"Brooklyn",s25:12,s93:116,mf25:1413,mf93:9606,mfChg:-85.3},
+  "71":{name:"71st Precinct",borough:"Brooklyn",s25:11,s93:99,mf25:1127,mf93:6671,mfChg:-83.1},
+  "72":{name:"72nd Precinct",borough:"Brooklyn",s25:4,s93:33,mf25:1005,mf93:4224,mfChg:-76.2},
+  "73":{name:"73rd Precinct",borough:"Brooklyn",s25:34,s93:304,mf25:2032,mf93:6008,mfChg:-66.2},
+  "75":{name:"75th Precinct",borough:"Brooklyn",s25:36,s93:283,mf25:3346,mf93:10355,mfChg:-67.7},
+  "76":{name:"76th Precinct",borough:"Brooklyn",s25:3,s93:47,mf25:515,mf93:1802,mfChg:-71.4},
+  "77":{name:"77th Precinct",borough:"Brooklyn",s25:14,s93:238,mf25:1401,mf93:6500,mfChg:-78.4},
+  "78":{name:"78th Precinct",borough:"Brooklyn",s25:5,s93:16,mf25:855,mf93:3507,mfChg:-75.6},
+  "79":{name:"79th Precinct",borough:"Brooklyn",s25:16,s93:241,mf25:1444,mf93:6032,mfChg:-76.1},
+  "81":{name:"81st Precinct",borough:"Brooklyn",s25:13,s93:156,mf25:856,mf93:4021,mfChg:-78.7},
+  "83":{name:"83rd Precinct",borough:"Brooklyn",s25:13,s93:218,mf25:1679,mf93:5373,mfChg:-68.8},
+  "84":{name:"84th Precinct",borough:"Brooklyn",s25:4,s93:31,mf25:1701,mf93:4468,mfChg:-61.9},
+  "88":{name:"88th Precinct",borough:"Brooklyn",s25:8,s93:106,mf25:838,mf93:4115,mfChg:-79.6},
+  "90":{name:"90th Precinct",borough:"Brooklyn",s25:5,s93:78,mf25:1695,mf93:4751,mfChg:-64.3},
+  "94":{name:"94th Precinct",borough:"Brooklyn",s25:4,s93:10,mf25:1121,mf93:3297,mfChg:-66.0},
+  "100":{name:"100th Precinct",borough:"Queens",s25:5,s93:11,mf25:394,mf93:1444,mfChg:-72.7},
+  "101":{name:"101st Precinct",borough:"Queens",s25:12,s93:42,mf25:837,mf93:2850,mfChg:-70.6},
+  "102":{name:"102nd Precinct",borough:"Queens",s25:3,s93:29,mf25:1235,mf93:7227,mfChg:-82.9},
+  "103":{name:"103rd Precinct",borough:"Queens",s25:9,s93:150,mf25:2213,mf93:6668,mfChg:-66.8},
+  "104":{name:"104th Precinct",borough:"Queens",s25:4,s93:28,mf25:1748,mf93:7423,mfChg:-76.5},
+  "105":{name:"105th Precinct",borough:"Queens",s25:1,s93:75,mf25:1071,mf93:7264,mfChg:-85.3},
+  "106":{name:"106th Precinct",borough:"Queens",s25:5,s93:22,mf25:1639,mf93:6482,mfChg:-74.7},
+  "107":{name:"107th Precinct",borough:"Queens",s25:4,s93:10,mf25:1596,mf93:8261,mfChg:-80.7},
+  "108":{name:"108th Precinct",borough:"Queens",s25:1,s93:14,mf25:1824,mf93:5965,mfChg:-69.4},
+  "109":{name:"109th Precinct",borough:"Queens",s25:8,s93:22,mf25:2765,mf93:9510,mfChg:-70.9},
+  "110":{name:"110th Precinct",borough:"Queens",s25:8,s93:55,mf25:2277,mf93:7848,mfChg:-71.0},
+  "111":{name:"111th Precinct",borough:"Queens",s25:3,s93:2,mf25:1336,mf93:5331,mfChg:-74.9},
+  "112":{name:"112th Precinct",borough:"Queens",s25:1,s93:8,mf25:1010,mf93:6601,mfChg:-84.7},
+  "113":{name:"113th Precinct",borough:"Queens",s25:11,s93:144,mf25:1304,mf93:9017,mfChg:-85.5},
+  "114":{name:"114th Precinct",borough:"Queens",s25:12,s93:42,mf25:2305,mf93:8690,mfChg:-73.5},
+  "115":{name:"115th Precinct",borough:"Queens",s25:1,s93:56,mf25:2023,mf93:7422,mfChg:-72.7},
+  "120":{name:"120th Precinct",borough:"Staten Island",s25:9,s93:100,mf25:1144,mf93:5525,mfChg:-79.3},
+  "122":{name:"122nd Precinct",borough:"Staten Island",s25:1,s93:2,mf25:877,mf93:5651,mfChg:-84.5},
+  "123":{name:"123rd Precinct",borough:"Staten Island",s25:0,s93:3,mf25:502,mf93:1487,mfChg:-66.2}
+};
+
+const GEOJSON_URL = 'https://raw.githubusercontent.com/ResidentMario/geoplot-data/master/nyc-police-precincts.geojson';
+
+function shootingColor(val) {
+  if (val === 0) return '#fef0e6';
+  if (val <= 5) return '#fee5d9';
+  if (val <= 15) return '#fcae91';
+  if (val <= 30) return '#fb6a4a';
+  if (val <= 50) return '#de2d26';
+  return '#67000d';
+}
+function shootingColor93(val) {
+  if (val === 0) return '#fef0e6';
+  if (val <= 20) return '#fee5d9';
+  if (val <= 60) return '#fcae91';
+  if (val <= 120) return '#fb6a4a';
+  if (val <= 200) return '#de2d26';
+  return '#67000d';
+}
+function declineColor(val) {
+  const abs = Math.abs(val);
+  if (abs < 50 || val > 0) return '#edf8e9';
+  if (abs < 65) return '#bae4b3';
+  if (abs < 75) return '#74c476';
+  if (abs < 85) return '#31a354';
+  return '#006d2c';
+}
+
+let shootingMap, declineMap, shootingLayer = null, geoJsonData = null;
+
+async function initMaps() {
+  try {
+    const resp = await fetch(GEOJSON_URL);
+    geoJsonData = await resp.json();
+  } catch (e) { console.error('GeoJSON load failed:', e); return; }
+
+  shootingMap = L.map('map-shootings', { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([40.7128, -73.97], 10.5);
+  L.control.zoom({ position: 'topleft' }).addTo(shootingMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(shootingMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 18, pane: 'overlayPane' }).addTo(shootingMap);
+  showShootingYear(2025);
+
+  declineMap = L.map('map-decline', { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([40.7128, -73.97], 10.5);
+  L.control.zoom({ position: 'topleft' }).addTo(declineMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(declineMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 18, pane: 'overlayPane' }).addTo(declineMap);
+  L.geoJSON(geoJsonData, {
+    style: function(f) {
+      const d = precinctData[f.properties.precinct];
+      return { fillColor: declineColor(d ? d.mfChg : 0), weight: 1, opacity: 0.7, color: '#666', fillOpacity: 0.8 };
+    },
+    onEachFeature: function(f, layer) {
+      const d = precinctData[f.properties.precinct];
+      if (d) {
+        layer.bindTooltip(`<strong>${d.name}</strong><br>${d.borough}<br>1993: ${d.mf93.toLocaleString()} felonies<br>2025: ${d.mf25.toLocaleString()} felonies<br><strong style="color:${d.mfChg < 0 ? '#006d2c' : '#c0392b'}">${d.mfChg > 0 ? '+' : ''}${d.mfChg}%</strong>`, { sticky: true });
+      }
+      layer.on('mouseover', function() { this.setStyle({ weight: 2.5, color: '#333' }); });
+      layer.on('mouseout', function() { this.setStyle({ weight: 1, color: '#666' }); });
+    }
+  }).addTo(declineMap);
+}
+
+function showShootingYear(year) {
+  if (!geoJsonData || !shootingMap) return;
+  document.querySelectorAll('.map-toggle').forEach(btn => btn.classList.toggle('active', parseInt(btn.dataset.year) === year));
+  const legendEl = document.getElementById('legend-shootings');
+  if (year === 1993) {
+    legendEl.innerHTML = '<div class="map-legend-title">SHOOTING INCIDENTS</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fee5d9"></div> 0–20</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fcae91"></div> 21–60</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fb6a4a"></div> 61–120</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#de2d26"></div> 121–200</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#67000d"></div> 200+</div>';
+  } else {
+    legendEl.innerHTML = '<div class="map-legend-title">SHOOTING INCIDENTS</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fee5d9"></div> 0–5</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fcae91"></div> 6–15</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#fb6a4a"></div> 16–30</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#de2d26"></div> 31–50</div><div class="map-legend-row"><div class="map-legend-swatch" style="background:#67000d"></div> 50+</div>';
+  }
+  if (shootingLayer) shootingMap.removeLayer(shootingLayer);
+  shootingLayer = L.geoJSON(geoJsonData, {
+    style: function(f) {
+      const d = precinctData[f.properties.precinct];
+      const val = d ? (year === 2025 ? d.s25 : d.s93) : 0;
+      return { fillColor: year === 2025 ? shootingColor(val) : shootingColor93(val), weight: 1, opacity: 0.8, color: 'rgba(255,255,255,0.3)', fillOpacity: 0.85 };
+    },
+    onEachFeature: function(f, layer) {
+      const d = precinctData[f.properties.precinct];
+      if (d) {
+        const val = year === 2025 ? d.s25 : d.s93;
+        const other = year === 2025 ? d.s93 : d.s25;
+        const oY = year === 2025 ? 1993 : 2025;
+        layer.bindTooltip(`<strong>${d.name}</strong><br>${d.borough}<br>${year}: <strong>${val}</strong> shootings<br>${oY}: ${other} shootings`, { sticky: true });
+      }
+      layer.on('mouseover', function() { this.setStyle({ weight: 2.5, color: '#fff' }); this.bringToFront(); });
+      layer.on('mouseout', function() { this.setStyle({ weight: 1, color: 'rgba(255,255,255,0.3)' }); });
+    }
+  }).addTo(shootingMap);
+}
+
+const mapObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !geoJsonData) { initMaps(); mapObserver.disconnect(); }
+  });
+}, { threshold: 0.1 });
+const sme = document.getElementById('map-shootings');
+if (sme) mapObserver.observe(sme);
+</script>
+</body>
+</html>

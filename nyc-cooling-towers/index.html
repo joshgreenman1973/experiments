@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Invisible Threat &mdash; NYC Cooling Towers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg-deep: #0a0c10;
+    --bg-card: rgba(14, 17, 23, 0.92);
+    --text-primary: #e8e4dc;
+    --text-secondary: #8a8679;
+    --accent-hot: #ff4d2a;
+    --accent-warm: #ff8c42;
+    --accent-glow: #ffb347;
+    --accent-cool: #4ecdc4;
+    --accent-manhattan: #ff4d2a;
+    --accent-brooklyn: #4ecdc4;
+    --accent-queens: #ffb347;
+    --accent-bronx: #a78bfa;
+    --accent-si: #f472b6;
+    --accent-unknown: #64748b;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'Instrument Sans', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ─── INTRO OVERLAY ─── */
+  #intro {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--bg-deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+  }
+  #intro.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .count-up {
+    font-family: var(--font-display);
+    font-size: clamp(4rem, 12vw, 10rem);
+    color: var(--accent-hot);
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.8s ease forwards 0.3s;
+    text-shadow: 0 0 80px rgba(255, 77, 42, 0.4);
+  }
+  .subtitle {
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 3vw, 2.2rem);
+    color: var(--text-primary);
+    margin-top: 0.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.8s;
+  }
+  .tagline {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-top: 1.5rem;
+    max-width: 480px;
+    text-align: center;
+    line-height: 1.6;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 1.3s;
+  }
+  .enter-btn {
+    margin-top: 2.5rem;
+    padding: 14px 36px;
+    background: transparent;
+    border: 1.5px solid var(--accent-hot);
+    color: var(--accent-hot);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 1.8s;
+    transition: all 0.3s ease;
+  }
+  .enter-btn:hover {
+    background: var(--accent-hot);
+    color: var(--bg-deep);
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── MAP ─── */
+  #map {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg-deep);
+  }
+  .leaflet-control-attribution { display: none !important; }
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-control-zoom a {
+    background: rgba(14, 17, 23, 0.9) !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 16px !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: rgba(30, 33, 40, 0.95) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* ─── Canvas overlay for points ─── */
+  #pointCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 450;
+    pointer-events: none;
+  }
+
+  /* ─── INFO PANEL ─── */
+  #panel {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    z-index: 600;
+    width: 380px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 28px;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.8s ease 0.3s, transform 0.8s ease 0.3s;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+  #panel.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  #panel h1 {
+    font-family: var(--font-display);
+    font-size: 1.65rem;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .accent-line {
+    width: 48px;
+    height: 3px;
+    background: var(--accent-hot);
+    border-radius: 2px;
+    margin-bottom: 18px;
+  }
+  .lead {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 20px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .stat-card .number {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--accent-glow);
+  }
+  .stat-card .label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  /* Borough bars */
+  .borough-bars { margin-bottom: 20px; }
+  .borough-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .borough-bar .name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    width: 90px;
+    text-align: right;
+    color: var(--text-secondary);
+  }
+  .borough-bar .track {
+    flex: 1;
+    height: 18px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .borough-bar .fill {
+    height: 100%;
+    border-radius: 4px;
+    width: 0;
+    transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .borough-bar .count {
+    font-size: 0.72rem;
+    font-weight: 600;
+    width: 50px;
+    color: var(--text-secondary);
+  }
+
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    margin-top: 4px;
+  }
+
+  /* Explainer blocks */
+  .explainer {
+    background: rgba(255, 77, 42, 0.06);
+    border-left: 3px solid var(--accent-hot);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .explainer h3 {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--accent-warm);
+    margin-bottom: 8px;
+  }
+  .explainer p {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .explainer .highlight {
+    color: var(--accent-hot);
+    font-weight: 600;
+  }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+  }
+  .timeline-item {
+    position: relative;
+    padding-bottom: 14px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-hot);
+    border: 2px solid var(--bg-deep);
+  }
+  .timeline-item .year {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent-warm);
+    letter-spacing: 0.05em;
+  }
+  .timeline-item .desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* Toggle buttons */
+  .view-toggles {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .view-toggle {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+  }
+  .view-toggle.active {
+    background: rgba(255, 77, 42, 0.15);
+    border-color: var(--accent-hot);
+    color: var(--accent-hot);
+  }
+  .view-toggle:hover:not(.active) {
+    border-color: rgba(255,255,255,0.15);
+    color: var(--text-primary);
+  }
+
+  .source {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.25);
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+  .source a {
+    color: rgba(255,255,255,0.35);
+    text-decoration: none;
+  }
+  .source a:hover { color: var(--accent-warm); }
+
+  @media (max-width: 768px) {
+    #panel {
+      top: auto;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      max-height: 50vh;
+      border-radius: 16px 16px 0 0;
+      transform: translateY(20px);
+    }
+    #panel.visible { transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Intro overlay -->
+<div id="intro">
+  <div class="count-up" id="counter">0</div>
+  <div class="subtitle">cooling towers on New York City rooftops</div>
+  <div class="tagline">
+    They cool massive buildings. They can also breed deadly bacteria.
+    This is where every one of them sits.
+  </div>
+  <button class="enter-btn" id="enterBtn">Explore the Map</button>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+<canvas id="pointCanvas"></canvas>
+
+<!-- Info Panel -->
+<div id="panel">
+  <h1>The Invisible Threat</h1>
+  <div class="accent-line"></div>
+  <p class="lead">
+    New York City has more than 82,000 cooling towers perched on rooftops across all five boroughs.
+    These units are essential infrastructure&mdash;but without strict maintenance, their warm, misted water
+    becomes a breeding ground for <em>Legionella pneumophila</em>, the bacterium that causes Legionnaires&rsquo; disease.
+  </p>
+
+  <!-- View toggles -->
+  <div class="section-label">View Mode</div>
+  <div class="view-toggles">
+    <button class="view-toggle active" data-view="borough">By Borough</button>
+    <button class="view-toggle" data-view="points">All Points</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="number">82,322</div>
+      <div class="label">Cooling Towers</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">5</div>
+      <div class="label">Boroughs</div>
+    </div>
+  </div>
+
+  <!-- Borough breakdown -->
+  <div class="section-label">By Borough</div>
+  <div class="borough-bars">
+    <div class="borough-bar">
+      <span class="name">Queens</span>
+      <div class="track"><div class="fill" data-target="100" style="background:var(--accent-queens)"></div></div>
+      <span class="count">23,284</span>
+    </div>
+    <div class="borough-bar">
+      <span class="name">Brooklyn</span>
+      <div class="track"><div class="fill" data-target="97.9" style="background:var(--accent-brooklyn)"></div></div>
+      <span class="count">22,796</span>
+    </div>
+    <div class="borough-bar">
+      <span class="name">Manhattan</span>
+      <div class="track"><div class="fill" data-target="67.7" style="background:var(--accent-manhattan)"></div></div>
+      <span class="count">15,765</span>
+    </div>
+    <div class="borough-bar">
+      <span class="name">Bronx</span>
+      <div class="track"><div class="fill" data-target="50.8" style="background:var(--accent-bronx)"></div></div>
+      <span class="count">11,824</span>
+    </div>
+    <div class="borough-bar">
+      <span class="name">Staten Island</span>
+      <div class="track"><div class="fill" data-target="27.2" style="background:var(--accent-si)"></div></div>
+      <span class="count">6,326</span>
+    </div>
+  </div>
+
+  <!-- What are they -->
+  <div class="section-label">What Are Cooling Towers?</div>
+  <div class="explainer">
+    <h3>Hidden in Plain Sight</h3>
+    <p>
+      Cooling towers are heat-rejection devices that sit on the rooftops of large buildings&mdash;hospitals,
+      hotels, office towers, apartment complexes. They work by evaporating water to remove excess heat
+      from air conditioning and industrial processes. Most were installed from the <span class="highlight">1950s
+      onward</span>, as central air conditioning became standard in commercial construction. In a dense city
+      like New York, they&rsquo;re essential: without them, large buildings simply cannot be cooled.
+    </p>
+  </div>
+
+  <!-- Why it matters -->
+  <div class="section-label">Why It Matters</div>
+  <div class="explainer">
+    <h3>Legionnaires&rsquo; Disease</h3>
+    <p>
+      The warm, misted water inside poorly maintained cooling towers is an ideal breeding ground for
+      <em>Legionella</em> bacteria. The tower&rsquo;s fan sprays contaminated water droplets into the air,
+      where people nearby can inhale them. The result is a severe form of pneumonia that
+      <span class="highlight">kills roughly 1 in 10</span> who contract it. Older adults and people with
+      weakened immune systems are most vulnerable.
+    </p>
+  </div>
+  <div class="explainer">
+    <h3>NYC&rsquo;s Response</h3>
+    <p>
+      After a devastating 2015 outbreak in the South Bronx killed 12 people and sickened over 120,
+      the city passed <span class="highlight">Local Law 77</span>&mdash;the nation&rsquo;s strictest cooling-tower regulation.
+      Every tower must now be registered, inspected, and tested for Legionella at least quarterly.
+    </p>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section-label">Key Events</div>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="year">July&ndash;August 2015</div>
+      <div class="desc">South Bronx outbreak: 138 cases, 16 hospitalizations at one building alone. 12 deaths citywide. Traced to cooling towers at a hotel and housing complex.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">August 2015</div>
+      <div class="desc">Mayor de Blasio signs emergency executive order requiring all cooling towers to be inspected and disinfected within 14 days.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">2016</div>
+      <div class="desc">Local Law 77 takes effect. NYC becomes first U.S. city to require registration, maintenance plans, and quarterly Legionella testing for all cooling towers.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="year">Ongoing</div>
+      <div class="desc">NYC Dept. of Health tracks clusters in real time. Each dot on this map is a potential source&mdash;and a responsibility.</div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="section-label">Legend</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-manhattan)"></div>Manhattan</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-bronx)"></div>Bronx</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-brooklyn)"></div>Brooklyn</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-queens)"></div>Queens</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent-si)"></div>Staten Island</div>
+  </div>
+
+  <div class="source">
+    Source: <a href="https://data.cityofnewyork.us/City-Government/NYC-Planimetric-Database-Cooling-Towers/kbgp-72qi" target="_blank">NYC Planimetric Database</a>,
+    Dept. of Information Technology &amp; Telecommunications.
+    82,322 cooling tower footprints mapped.
+  </div>
+</div>
+
+<script>
+const BOROUGHS = ['Manhattan', 'Bronx', 'Brooklyn', 'Queens', 'Staten Island', 'Unknown'];
+const BOROUGH_COLORS = ['#ff4d2a', '#a78bfa', '#4ecdc4', '#ffb347', '#f472b6', '#64748b'];
+
+let map, rawData, currentView = 'borough';
+const canvas = document.getElementById('pointCanvas');
+const ctx = canvas.getContext('2d');
+
+// ─── Counter animation ───
+function animateCounter(el, target, duration = 2000) {
+  const start = performance.now();
+  function update(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.floor(eased * target).toLocaleString();
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => animateCounter(document.getElementById('counter'), 82322, 2500), 400);
+});
+
+// ─── Enter button ───
+document.getElementById('enterBtn').addEventListener('click', () => {
+  document.getElementById('intro').classList.add('hidden');
+  setTimeout(() => {
+    document.getElementById('panel').classList.add('visible');
+    animateBars();
+  }, 400);
+  initMap();
+});
+
+function animateBars() {
+  document.querySelectorAll('.borough-bar .fill').forEach(fill => {
+    setTimeout(() => { fill.style.width = fill.dataset.target + '%'; }, 200);
+  });
+}
+
+// ─── Load data ───
+async function loadData() {
+  const resp = await fetch('data.json');
+  return await resp.json();
+}
+
+// ─── Initialize Map ───
+async function initMap() {
+  rawData = await loadData();
+
+  map = L.map('map', {
+    center: [40.72, -73.95],
+    zoom: 11,
+    minZoom: 10,
+    maxZoom: 18,
+    zoomControl: false
+  });
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    opacity: 0.6
+  }).addTo(map);
+
+  // Set up canvas overlay for point rendering
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  map.on('move', drawPoints);
+  map.on('zoom', drawPoints);
+  map.on('moveend', drawPoints);
+  map.on('zoomend', drawPoints);
+  drawPoints();
+}
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawPoints();
+}
+
+function drawPoints() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!map || !rawData) return;
+
+  const bounds = map.getBounds();
+  const zoom = map.getZoom();
+  const radius = zoom < 12 ? 1.2 : zoom < 14 ? 2 : zoom < 16 ? 3 : 5;
+  const useBorough = currentView === 'borough';
+  const alpha = useBorough ? 0.75 : 0.6;
+
+  // Batch by color for performance
+  const batches = {};
+  for (let i = 0; i < rawData.length; i++) {
+    const [lng, lat, bi] = rawData[i];
+    if (lat < bounds.getSouth() || lat > bounds.getNorth() ||
+        lng < bounds.getWest() || lng > bounds.getEast()) continue;
+
+    const color = useBorough ? BOROUGH_COLORS[bi] : '#ff8c42';
+    if (!batches[color]) batches[color] = [];
+    const pt = map.latLngToContainerPoint([lat, lng]);
+    batches[color].push(pt);
+  }
+
+  ctx.globalAlpha = alpha;
+  for (const [color, points] of Object.entries(batches)) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (const pt of points) {
+      ctx.moveTo(pt.x + radius, pt.y);
+      ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ─── View toggle ───
+document.querySelectorAll('.view-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('.view-toggle.active').classList.remove('active');
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    setView(currentView);
+  });
+});
+
+function setView(view) {
+  if (!map) return;
+  drawPoints();
+}
+</script>
+</body>
+</html>

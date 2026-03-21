@@ -175,6 +175,17 @@ body::before {
   margin-top: 0.3rem;
 }
 
+.stats-footnote {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.6rem 2rem 0;
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--slate);
+  line-height: 1.5;
+}
+
 /* ── MAIN CONTAINER ── */
 .container {
   max-width: 1200px;
@@ -649,6 +660,7 @@ body::before {
       <div class="stat-label">Denial rate</div>
     </div>
   </div>
+  <div class="stats-footnote" id="stats-footnote"></div>
 </div>
 
 <div class="container">
@@ -705,7 +717,7 @@ body::before {
   <div class="section-head">
     <h2>By Agency</h2>
     <div class="rule"></div>
-    <span class="count">Which agencies get the most requests?</span>
+    <span class="count" id="agency-period">Which agencies get the most requests?</span>
   </div>
 
   <div class="agency-table-wrap">
@@ -819,6 +831,23 @@ function init() {
   if (determined.length > 0) {
     const rate = ((denied.length / determined.length) * 100).toFixed(1);
     document.getElementById('stat-denial-rate').textContent = rate + '%';
+  }
+
+  // Build footnote explaining the stats
+  const dates = allData.requests.map(r => r.dateSubmitted).filter(Boolean).sort();
+  const parts = [];
+  if (dates.length > 0) {
+    parts.push(`Covering ${allData.requests.length} requests filed ${formatDate(dates[0])} \u2013 ${formatDate(dates[dates.length - 1])}.`);
+  }
+  const footParts = [];
+  if (withTime.length > 0) {
+    footParts.push(`Avg. response is the mean days from filing to final agency action across ${withTime.length} closed requests with known response dates.`);
+  }
+  if (determined.length > 0) {
+    footParts.push(`Denial rate is denials as a share of all ${determined.length} requests with a recorded determination (${denied.length} denied, ${determined.length - denied.length} fulfilled or partially granted).`);
+  }
+  if (parts.length > 0 || footParts.length > 0) {
+    document.getElementById('stats-footnote').textContent = parts.concat(footParts).join(' ');
   }
 
   // Populate agency filter
@@ -971,6 +1000,18 @@ function renderAgencyTable() {
   if (!allData?.agencyStats) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No agency data.</td></tr>';
     return;
+  }
+
+  // Show the date range these stats cover
+  const dates = allData.requests
+    .map(r => r.dateSubmitted)
+    .filter(Boolean)
+    .sort();
+  if (dates.length > 0) {
+    const oldest = formatDate(dates[0]);
+    const newest = formatDate(dates[dates.length - 1]);
+    document.getElementById('agency-period').textContent =
+      `Based on ${allData.requests.length} requests, ${oldest} – ${newest}`;
   }
 
   const entries = Object.entries(allData.agencyStats).map(([name, s]) => ({

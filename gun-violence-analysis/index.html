@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U.S. Gun Violence: A Statistical Deep Dive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #0f1419;
+    --surface: #1a2332;
+    --surface2: #243044;
+    --border: #2d4052;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --red: #ef4444;
+    --red-muted: #7f1d1d;
+    --green: #22c55e;
+    --green-muted: #14532d;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --cyan: #06b6d4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.08) 0%, transparent 70%);
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero .subtitle {
+    font-size: clamp(1rem, 2vw, 1.3rem);
+    color: var(--text-muted);
+    max-width: 700px;
+    font-weight: 300;
+    position: relative;
+  }
+
+  .big-number-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    max-width: 1200px;
+    margin: 3rem auto;
+    padding: 0 2rem;
+  }
+
+  .big-number-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .big-number-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .big-number-card .number {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .big-number-card .label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  .big-number-card .context {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    font-weight: 300;
+  }
+
+  .down { color: var(--green); }
+  .up { color: var(--red); }
+  .neutral { color: var(--accent); }
+
+  section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    font-weight: 300;
+    font-size: 1rem;
+  }
+
+  .chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chart-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .chart-source {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    font-style: italic;
+  }
+
+  .chart-source a { color: var(--accent); text-decoration: none; }
+  .chart-source a:hover { text-decoration: underline; }
+
+  canvas { max-width: 100%; }
+
+  /* Animated bar chart */
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 300px;
+    padding-top: 2rem;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar {
+    width: 100%;
+    max-width: 50px;
+    border-radius: 4px 4px 0 0;
+    transition: height 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    height: 0;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .bar:hover { filter: brightness(1.2); }
+
+  .bar .tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .bar:hover .tooltip { display: block; }
+
+  .bar-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    text-align: center;
+    writing-mode: horizontal-tb;
+  }
+
+  /* Horizontal bar for international comparison */
+  .h-bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem 0;
+  }
+
+  .h-bar-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 60px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .h-bar-country {
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: right;
+  }
+
+  .h-bar-track {
+    height: 28px;
+    background: var(--surface2);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .h-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 0;
+  }
+
+  .h-bar-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* City sparklines */
+  .city-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .city-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+
+  .city-name {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .city-stat {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+
+  .city-stat .change { font-weight: 700; }
+
+  /* Donut chart */
+  .donut-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .donut-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Key takeaways */
+  .takeaways {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .takeaway {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    padding: 1.5rem;
+  }
+
+  .takeaway.good { border-left-color: var(--green); }
+  .takeaway.bad { border-left-color: var(--red); }
+  .takeaway.mixed { border-left-color: var(--yellow); }
+
+  .takeaway h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .takeaway p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* Scroll animation */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Annotations */
+  .annotation {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .annotation strong { color: var(--text); }
+
+  /* Footer */
+  footer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1.5rem;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .tab:hover:not(.active) { color: var(--text); }
+
+  @media (max-width: 768px) {
+    .big-number-card .number { font-size: 2.5rem; }
+    .h-bar-row { grid-template-columns: 80px 1fr 50px; }
+    .h-bar-country { font-size: 0.75rem; }
+    .bar-chart { height: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>The Great <span>Crime Decline</span><br>of the 2020s</h1>
+  <p class="subtitle">U.S. cities are experiencing the fastest drop in homicides ever recorded — but the full picture is more complicated than any headline suggests.</p>
+</div>
+
+<div class="big-number-row">
+  <div class="big-number-card" data-delay="0">
+    <div class="number down" data-count="-21">0%</div>
+    <div class="label">Homicide drop, 2024→2025</div>
+    <div class="context">Largest single-year decline on record</div>
+  </div>
+  <div class="big-number-card" data-delay="150">
+    <div class="number down" data-count="-49">0%</div>
+    <div class="label">Chicago since 2021 peak</div>
+    <div class="context">From 797 to ~400 homicides</div>
+  </div>
+  <div class="big-number-card" data-delay="300">
+    <div class="number neutral">~4.0</div>
+    <div class="label">Projected 2025 rate per 100K</div>
+    <div class="context">Would be lowest since at least 1900</div>
+  </div>
+  <div class="big-number-card" data-delay="450">
+    <div class="number up">26×</div>
+    <div class="label">US vs. peer nations</div>
+    <div class="context">Gun homicide rate remains an outlier</div>
+  </div>
+</div>
+
+<!-- SECTION 1: National Historical Arc -->
+<section>
+  <h2 class="fade-in">The 30-Year Arc</h2>
+  <p class="section-subtitle fade-in">U.S. firearm homicide rate per 100,000 population, 1993–2025</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">From crack-era peak to historic low — with a pandemic detour</div>
+    <canvas id="historicalChart" height="350"></canvas>
+    <p class="chart-source">Sources: <a href="https://bjs.ojp.gov/library/publications/trends-and-patterns-firearm-violence-1993-2023">Bureau of Justice Statistics</a>, <a href="https://www.cdc.gov/nchs/fastats/homicide.htm">CDC NCHS</a>, <a href="https://counciloncj.org/crime-trends-in-u-s-cities-year-end-2025-update/">Council on Criminal Justice</a>. 2025 figure is projected.</p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>What happened:</strong> The firearm homicide rate peaked at ~7.0 per 100,000 in 1993 during the crack epidemic, then plunged over two decades to a low of ~3.5 in 2014. The pandemic-era spike in 2020–2021 drove rates back up to ~6.7 — nearly erasing 25 years of progress. But since 2022, homicides have fallen at record speed. If 2025 projections hold, the rate (~4.0) would be the lowest in over a century of record-keeping.
+  </div>
+</section>
+
+<!-- SECTION 1.5: Historical Eras Table -->
+<section>
+  <h2 class="fade-in">Four Waves of Violence</h2>
+  <p class="section-subtitle fade-in">U.S. homicide rate at key historical moments — the long view</p>
+
+  <div class="chart-container fade-in" style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border)">
+          <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-weight:600">Era</th>
+          <th style="text-align:center;padding:10px 12px;color:var(--text-muted);font-weight:600">Year</th>
+          <th style="text-align:center;padding:10px 12px;color:var(--text-muted);font-weight:600">Rate</th>
+          <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-weight:600">What was happening</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Pre-urbanization</td>
+          <td style="text-align:center;padding:10px 12px">1900</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--green)">1.2</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Limited reporting; rural population</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Prohibition Peak</td>
+          <td style="text-align:center;padding:10px 12px">1933</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--red)">9.8</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Organized crime; Great Depression</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Post-War Low</td>
+          <td style="text-align:center;padding:10px 12px">1957</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--green)">4.0</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Institutional stability; suburban boom</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Social Upheaval</td>
+          <td style="text-align:center;padding:10px 12px">1980</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--red)">10.2</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">99-year all-time peak</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Crack Epidemic</td>
+          <td style="text-align:center;padding:10px 12px">1991</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--red)">9.8</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Handgun proliferation; youth violence</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Great Decline Low</td>
+          <td style="text-align:center;padding:10px 12px">2014</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--green)">4.4</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Modern historic trough</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 12px;font-weight:500">Pandemic Surge</td>
+          <td style="text-align:center;padding:10px 12px">2021</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--red)">6.7</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">COVID-19 institutional decoupling</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;font-weight:500">The Great Cooling</td>
+          <td style="text-align:center;padding:10px 12px">2025</td>
+          <td style="text-align:center;padding:10px 12px;font-weight:700;color:var(--cyan)">~4.0</td>
+          <td style="padding:10px 12px;color:var(--text-muted)">Record CVI investment; institutional restoration</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="chart-source">Sources: <a href="https://stacks.cdc.gov/view/cdc/65093/cdc_65093_DS1.pdf">CDC Historical Homicide Trends</a>, <a href="https://bjs.ojp.gov/content/pub/pdf/htius.pdf">Bureau of Justice Statistics</a>, <a href="https://counciloncj.org/whats-driving-the-drop-in-homicide-how-low-might-it-go/">Council on Criminal Justice</a></p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>The pattern:</strong> American violence moves in waves. Each surge (Prohibition, the late '60s–'80s, crack, COVID) was followed by a decline — but this one is happening faster than any before. The 2025 projected rate of ~4.0 would match the post-WWII low of 1957, the calmest era in modern American history.
+  </div>
+</section>
+
+<!-- SECTION 2: The Pandemic Spike and Snapback -->
+<section>
+  <h2 class="fade-in">The Spike and Snapback</h2>
+  <p class="section-subtitle fade-in">Year-over-year change in U.S. homicides, 2019–2025</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">Three consecutive record-setting declines have erased the pandemic surge</div>
+    <div class="bar-chart" id="yoyChart"></div>
+    <p class="chart-source">Sources: <a href="https://jasher.substack.com/p/2025-year-in-review-a-remarkable">Jeff Asher / AH Datalytics</a>, FBI UCR, <a href="https://counciloncj.org/crime-trends-in-u-s-cities-year-end-2024-update/">Council on Criminal Justice</a></p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>Net result:</strong> ~12,000 fewer Americans were murdered in 2024–2025 combined versus 2020–2021. Annual murders are now approximately 14,000, likely the lowest total in decades relative to population.
+  </div>
+</section>
+
+<!-- SECTION 3: City-Level Data -->
+<section>
+  <h2 class="fade-in">City by City</h2>
+  <p class="section-subtitle fade-in">Homicide counts in major U.S. cities, 2019–2025</p>
+
+  <div class="city-grid">
+    <div class="city-card fade-in">
+      <div class="city-name">New York City</div>
+      <div class="city-stat">2025: Record-low shootings. <span class="change down">↓ 21% from 2024</span></div>
+      <canvas class="city-spark" data-city="nyc" height="120"></canvas>
+    </div>
+    <div class="city-card fade-in">
+      <div class="city-name">Chicago</div>
+      <div class="city-stat">2025: Down 49% from 2021 peak. <span class="change down">↓ 30% from 2024</span></div>
+      <canvas class="city-spark" data-city="chicago" height="120"></canvas>
+    </div>
+    <div class="city-card fade-in">
+      <div class="city-name">Philadelphia</div>
+      <div class="city-stat">2025: Fewest since 1966. <span class="change down">↓ ~40% from peak</span></div>
+      <canvas class="city-spark" data-city="philly" height="120"></canvas>
+    </div>
+    <div class="city-card fade-in">
+      <div class="city-name">Los Angeles</div>
+      <div class="city-stat">2025: Below pre-pandemic levels. <span class="change down">↓ 21% from 2024</span></div>
+      <canvas class="city-spark" data-city="la" height="120"></canvas>
+    </div>
+    <div class="city-card fade-in">
+      <div class="city-name">Baltimore</div>
+      <div class="city-stat">2025: Fewest since 1962. <span class="change down">↓ 60% from 2019</span></div>
+      <canvas class="city-spark" data-city="baltimore" height="120"></canvas>
+    </div>
+    <div class="city-card fade-in">
+      <div class="city-name">Detroit</div>
+      <div class="city-stat">2025: Lowest since 1964. <span class="change down">Historic decline</span></div>
+      <canvas class="city-spark" data-city="detroit" height="120"></canvas>
+    </div>
+  </div>
+
+  <p class="chart-source fade-in" style="margin-top:1.5rem">Sources: <a href="https://abcnews.com/US/us-poised-end-2025-largest-year-drop-homicides/story?id=128646976">ABC News</a>, <a href="https://counciloncj.org/crime-trends-in-u-s-cities-year-end-2025-update/">Council on Criminal Justice Year-End 2025</a>, <a href="https://jasher.substack.com/p/2025-year-in-review-a-remarkable">AH Datalytics</a>, city police departments</p>
+</section>
+
+<!-- SECTION 4: International Comparison -->
+<section>
+  <h2 class="fade-in">The Global Outlier</h2>
+  <p class="section-subtitle fade-in">Even at historic lows, the U.S. gun homicide rate dwarfs peer nations</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">Gun homicide rate per 100,000 population</div>
+    <div class="h-bar-chart" id="intlChart"></div>
+    <p class="chart-source">Sources: <a href="https://everytownresearch.org/graph/the-u-s-gun-homicide-rate-is-26-times-that-of-other-high-income-countries/">Everytown Research</a>, <a href="https://worldpopulationreview.com/country-rankings/gun-deaths-by-country">World Population Review</a>, <a href="https://ourworldindata.org/grapher/homicide-rates-from-firearms">Our World in Data</a>. Most recent available year (2022–2024).</p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>Scale matters:</strong> The U.S. rate of ~4.1–4.4 per 100,000 is 26× the average of other high-income nations. The key correlate: the U.S. has 120.5 guns per 100 residents — compared to 34.7 in Canada, 4.6 in the UK, and 0.3 in Japan. In 2024, 76% of all U.S. homicides involved a firearm, far above European or Asian averages. The U.S. rate is far below Brazil (~22) and Mexico (~17), but within the developed world, it remains a dramatic outlier.
+  </div>
+</section>
+
+<!-- SECTION 5: What gun deaths actually look like -->
+<section>
+  <h2 class="fade-in">Anatomy of Gun Deaths</h2>
+  <p class="section-subtitle fade-in">Most gun deaths in America aren't what you think</p>
+
+  <div class="chart-container fade-in">
+    <div class="donut-row">
+      <canvas id="donutChart" width="280" height="280"></canvas>
+      <div class="donut-legend">
+        <div class="donut-legend-item">
+          <div class="donut-swatch" style="background:#8b5cf6"></div>
+          <div><strong>57–58%</strong> — Suicide (27,593)</div>
+        </div>
+        <div class="donut-legend-item">
+          <div class="donut-swatch" style="background:#ef4444"></div>
+          <div><strong>35%</strong> — Homicide (15,364)</div>
+        </div>
+        <div class="donut-legend-item">
+          <div class="donut-swatch" style="background:#f97316"></div>
+          <div><strong>4%</strong> — Law enforcement / Legal intervention</div>
+        </div>
+        <div class="donut-legend-item">
+          <div class="donut-swatch" style="background:#94a3b8"></div>
+          <div><strong>3%</strong> — Accidental</div>
+        </div>
+        <div class="donut-legend-item">
+          <div class="donut-swatch" style="background:#475569"></div>
+          <div><strong>1%</strong> — Undetermined</div>
+        </div>
+      </div>
+    </div>
+    <p class="chart-source">Source: <a href="https://giffords.org/analysis/gun-violence-continues-to-drop/">Giffords / CDC 2024 data</a>. Total: ~44,447 gun deaths in 2024.</p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>The suicide paradox:</strong> In 2024, firearm homicides fell 14.3% (from 17,927 to 15,364) while gun suicides actually <em>increased</em> 1.1% (from 27,300 to 27,593). Suicides now account for 57–58% of all gun deaths, up from 55% in 2023. The headline "gun deaths are falling" masks two diverging trends: a dramatic homicide decline alongside a rising suicide toll that current policies are failing to address.
+  </div>
+</section>
+
+<!-- SECTION 5.5: Homicide vs Suicide Divergence -->
+<section>
+  <h2 class="fade-in">Two Epidemics, Diverging</h2>
+  <p class="section-subtitle fade-in">Firearm homicides vs. firearm suicides, 2019–2024</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">Homicides plummet while suicides quietly rise</div>
+    <canvas id="divergenceChart" height="300"></canvas>
+    <p class="chart-source">Sources: <a href="https://giffords.org/analysis/gun-violence-continues-to-drop/">Giffords</a>, <a href="https://www.thetrace.org/2025/07/gun-deaths-suicide-homicide-data-cdc/">The Trace / CDC</a></p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>The hidden crisis:</strong> Gun homicides dropped 14.3% in a single year (2023→2024) while gun suicides rose 1.1%. White males account for nearly 9 in 10 gun suicides, often in rural areas where community violence intervention programs don't reach. An alarming emerging trend: gun suicide rates among Black and Hispanic/Latino youth (ages 10–19) have tripled since 2014.
+  </div>
+</section>
+
+<!-- SECTION 6: Mass Shootings -->
+<section>
+  <h2 class="fade-in">Mass Shootings</h2>
+  <p class="section-subtitle fade-in">Incidents with 4+ victims shot, 2014–2025</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">Mass shootings have declined but remain far above pre-2020 levels</div>
+    <canvas id="massShootingChart" height="300"></canvas>
+    <p class="chart-source">Source: <a href="https://www.gunviolencearchive.org/past-tolls">Gun Violence Archive</a>. Definition: 4+ victims shot (injured or killed), not including the shooter.</p>
+  </div>
+</section>
+
+<!-- SECTION 7: Who is affected -->
+<section>
+  <h2 class="fade-in">Who Bears the Burden</h2>
+  <p class="section-subtitle fade-in">Gun violence is not equally distributed</p>
+
+  <div class="chart-container fade-in">
+    <div class="chart-title">Firearm homicide victimization rate by demographic (per 100,000), 2018–2022 avg</div>
+    <canvas id="demographicChart" height="300"></canvas>
+    <p class="chart-source">Source: <a href="https://bjs.ojp.gov/library/publications/trends-and-patterns-firearm-violence-1993-2023">Bureau of Justice Statistics, 2025</a></p>
+  </div>
+
+  <div class="annotation fade-in">
+    <strong>Stark disparities:</strong> In cities over 65,000, Black Americans face a gun homicide rate of 23.6 per 100,000 — a 5.5× disparity with white Americans (4.3). Young adults (18–24) face the highest risk by age. Males are victimized at 5.6× the rate of females. Despite this, Black Americans saw a 15% drop in their gun homicide rate in 2024, one of the sharpest declines. Handguns account for 90% of all firearm violence.
+  </div>
+</section>
+
+<!-- SECTION 8: Takeaways -->
+<section>
+  <h2 class="fade-in">The Bottom Line</h2>
+  <p class="section-subtitle fade-in">What the data actually tells us — and what it doesn't</p>
+
+  <div class="takeaways">
+    <div class="takeaway good fade-in">
+      <h3>The decline is real and historic</h3>
+      <p>Three consecutive years of record-breaking drops. Multiple cities at 60-year lows. This isn't noise — it's a genuine, dramatic reversal of the pandemic-era spike.</p>
+    </div>
+    <div class="takeaway good fade-in">
+      <h3>It's broad-based</h3>
+      <p>31 of 35 major cities saw declines in 2025. Robberies down 23%, carjackings down 43%. This isn't cherry-picked — nearly every category of violent crime is falling.</p>
+    </div>
+    <div class="takeaway mixed fade-in">
+      <h3>Context matters: compared to what?</h3>
+      <p>Current rates are below 2019 pre-pandemic levels and approaching the 2014 modern low. But they remain far above other wealthy democracies and the 1950s-60s baseline. "Historic low" depends on your timeframe.</p>
+    </div>
+    <div class="takeaway bad fade-in">
+      <h3>The U.S. remains an extreme outlier</h3>
+      <p>Even at projected 2025 rates, America's gun homicide rate is 26× the average of other high-income nations. The decline narrows the gap with our own past, not with our peers.</p>
+    </div>
+    <div class="takeaway bad fade-in">
+      <h3>Suicides aren't declining</h3>
+      <p>Gun suicides — the majority of gun deaths — have actually risen, even as homicides plummet. The total gun death picture is less rosy than the homicide numbers alone suggest.</p>
+    </div>
+    <div class="takeaway mixed fade-in">
+      <h3>The funding cliff looms</h3>
+      <p>The ARPA pandemic relief that funded CVI programs is expiring. Chicago invested $300M+ in community violence intervention since 2022, serving 27,000 high-risk individuals. Portland saw $5.26 return on every $1 invested. If this funding dries up in 2026, experts warn the decline could stall or reverse.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>Sources & Methodology</strong><br>
+  National rates: <a href="https://www.cdc.gov/nchs/fastats/homicide.htm">CDC National Center for Health Statistics</a> · <a href="https://bjs.ojp.gov/library/publications/trends-and-patterns-firearm-violence-1993-2023">Bureau of Justice Statistics</a><br>
+  City-level data: <a href="https://counciloncj.org/crime-trends-in-u-s-cities-year-end-2025-update/">Council on Criminal Justice</a> · <a href="https://jasher.substack.com/p/2025-year-in-review-a-remarkable">AH Datalytics / Jeff Asher</a><br>
+  Mass shootings: <a href="https://www.gunviolencearchive.org/past-tolls">Gun Violence Archive</a><br>
+  International comparisons: <a href="https://everytownresearch.org/graph/the-u-s-gun-homicide-rate-is-26-times-that-of-other-high-income-countries/">Everytown Research</a> · <a href="https://worldpopulationreview.com/country-rankings/gun-deaths-by-country">World Population Review</a> · <a href="https://ourworldindata.org/grapher/homicide-rates-from-firearms">Our World in Data</a><br>
+  Demographics: <a href="https://bjs.ojp.gov/library/publications/trends-and-patterns-firearm-violence-1993-2023">BJS Trends & Patterns in Firearm Violence 1993–2023</a><br>
+  <br>
+  2025 figures are based on year-end projections from Council on Criminal Justice (35-city sample) and AH Datalytics (Real-Time Crime Index, 570 agencies). Final FBI Uniform Crime Report data for 2025 is not yet available. City-level counts for 2025 are estimates based on reported year-to-date figures and published percentage changes.<br>
+  <br>
+  Built March 2026. Data as of January 2026.
+</footer>
+
+<script>
+// ============================================
+// DATA
+// ============================================
+const historicalData = {
+  years: [1993, 1995, 1998, 2000, 2002, 2004, 2006, 2008, 2010, 2012, 2014, 2016, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+  rates: [7.0, 6.1, 4.2, 3.8, 3.9, 3.8, 3.9, 3.8, 3.6, 3.6, 3.5, 4.0, 3.7, 4.4, 5.9, 6.7, 5.9, 5.6, 4.8, 4.0]
+};
+
+const yoyData = {
+  years: ['2019→20', '2020→21', '2021→22', '2022→23', '2023→24', '2024→25'],
+  changes: [+30, +5, -12, -12, -15, -21]
+};
+
+const intlData = [
+  { country: 'Japan', rate: 0.02, color: '#22c55e' },
+  { country: 'South Korea', rate: 0.04, color: '#22c55e' },
+  { country: 'U.K.', rate: 0.04, color: '#22c55e' },
+  { country: 'Germany', rate: 0.06, color: '#22c55e' },
+  { country: 'Australia', rate: 0.09, color: '#22c55e' },
+  { country: 'France', rate: 0.12, color: '#3b82f6' },
+  { country: 'Canada', rate: 0.60, color: '#3b82f6' },
+  { country: 'Israel', rate: 1.05, color: '#eab308' },
+  { country: 'U.S. (2025 proj.)', rate: 4.0, color: '#eab308' },
+  { country: 'U.S. (2021 peak)', rate: 6.7, color: '#ef4444' },
+  { country: 'Mexico', rate: 17.2, color: '#7f1d1d' },
+  { country: 'Brazil', rate: 21.9, color: '#7f1d1d' },
+];
+
+const massShootingData = {
+  years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+  counts: [271, 332, 383, 346, 335, 414, 610, 690, 645, 660, 503, 407]
+};
+
+const cityData = {
+  nyc: { label: 'NYC', data: [319, 462, 488, 438, 386, 340, 269], color: '#3b82f6' },
+  chicago: { label: 'Chicago', data: [495, 769, 797, 697, 617, 490, 400], color: '#ef4444' },
+  philly: { label: 'Philadelphia', data: [356, 499, 562, 516, 410, 320, 250], color: '#8b5cf6' },
+  la: { label: 'Los Angeles', data: [257, 350, 397, 382, 327, 290, 229], color: '#f97316' },
+  baltimore: { label: 'Baltimore', data: [348, 335, 337, 333, 262, 200, 140], color: '#06b6d4' },
+  detroit: { label: 'Detroit', data: [275, 327, 309, 286, 252, 210, 165], color: '#22c55e' }
+};
+const cityYears = ['2019', '2020', '2021', '2022', '2023', '2024', '2025*'];
+
+const demographicData = {
+  labels: ['Black (homicide)', 'Male (all)', 'Ages 18-24', 'Ages 25-34', 'White (homicide)', 'Female (all)'],
+  rates: [23.6, 10.6, 14.2, 11.0, 4.3, 1.9],
+  colors: ['#ef4444', '#3b82f6', '#f97316', '#eab308', '#8b5cf6', '#22c55e']
+};
+
+const divergenceData = {
+  years: ['2019', '2020', '2021', '2022', '2023', '2024'],
+  homicides: [14414, 19384, 20958, 19651, 17927, 15364],
+  suicides: [23941, 24292, 26328, 27032, 27300, 27593]
+};
+
+// ============================================
+// CHART RENDERING
+// ============================================
+
+function drawLine(canvas, data, labels, { color = '#3b82f6', fillColor, annotations = [], yLabel = '', animated = true, highlightLast = false } = {}) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  const pad = { top: 30, right: 30, bottom: 40, left: 50 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const maxVal = Math.max(...data) * 1.15;
+  const minVal = 0;
+
+  function x(i) { return pad.left + (i / (data.length - 1)) * chartW; }
+  function y(v) { return pad.top + chartH - ((v - minVal) / (maxVal - minVal)) * chartH; }
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  const gridLines = 5;
+  for (let i = 0; i <= gridLines; i++) {
+    const val = minVal + (maxVal - minVal) * (i / gridLines);
+    const yy = y(val);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), pad.left - 8, yy + 4);
+  }
+
+  // X labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(labels.length / 10));
+  for (let i = 0; i < labels.length; i += step) {
+    ctx.fillText(labels[i], x(i), H - pad.bottom + 20);
+  }
+  // Always draw last label
+  ctx.fillText(labels[labels.length - 1], x(labels.length - 1), H - pad.bottom + 20);
+
+  // Animate
+  let progress = animated ? 0 : 1;
+  function draw() {
+    // Clear line area
+    ctx.clearRect(pad.left - 1, pad.top - 1, chartW + 2, chartH + 2);
+
+    // Redraw grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= gridLines; i++) {
+      const val = minVal + (maxVal - minVal) * (i / gridLines);
+      const yy = y(val);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, yy);
+      ctx.lineTo(W - pad.right, yy);
+      ctx.stroke();
+    }
+
+    const nPoints = Math.floor(progress * data.length);
+    if (nPoints < 2) { progress += 0.03; if (progress < 1) requestAnimationFrame(draw); return; }
+
+    // Fill
+    if (fillColor) {
+      ctx.beginPath();
+      ctx.moveTo(x(0), y(data[0]));
+      for (let i = 1; i < nPoints; i++) ctx.lineTo(x(i), y(data[i]));
+      ctx.lineTo(x(nPoints - 1), y(0));
+      ctx.lineTo(x(0), y(0));
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+      grad.addColorStop(0, fillColor);
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(data[0]));
+    for (let i = 1; i < nPoints; i++) ctx.lineTo(x(i), y(data[i]));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Points
+    for (let i = 0; i < nPoints; i++) {
+      ctx.beginPath();
+      ctx.arc(x(i), y(data[i]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (i === nPoints - 1 && highlightLast) {
+        ctx.beginPath();
+        ctx.arc(x(i), y(data[i]), 7, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    // Annotations
+    for (const ann of annotations) {
+      if (ann.index < nPoints) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(ann.text, x(ann.index), y(data[ann.index]) - 14);
+      }
+    }
+
+    if (progress < 1) {
+      progress += 0.03;
+      requestAnimationFrame(draw);
+    }
+  }
+  draw();
+}
+
+function drawCitySpark(canvas, data, color) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 15, right: 10, bottom: 25, left: 10 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const maxVal = Math.max(...data) * 1.1;
+  function x(i) { return pad.left + (i / (data.length - 1)) * chartW; }
+  function y(v) { return pad.top + chartH - (v / maxVal) * chartH; }
+
+  // Area
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(x(i), y(data[i]));
+  ctx.lineTo(x(data.length - 1), y(0));
+  ctx.lineTo(x(0), y(0));
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+  grad.addColorStop(0, color + '33');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(data[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(x(i), y(data[i]));
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Points and labels
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < data.length; i++) {
+    ctx.beginPath();
+    ctx.arc(x(i), y(data[i]), 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    // Value on first, peak, and last
+    const isPeak = data[i] === Math.max(...data);
+    if (i === 0 || i === data.length - 1 || isPeak) {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(data[i], x(i), y(data[i]) - 8);
+    }
+    // Year labels
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(cityYears[i], x(i), H - 5);
+  }
+}
+
+function buildYOYChart() {
+  const container = document.getElementById('yoyChart');
+  const maxAbs = Math.max(...yoyData.changes.map(Math.abs));
+
+  yoyData.years.forEach((year, i) => {
+    const val = yoyData.changes[i];
+    const group = document.createElement('div');
+    group.className = 'bar-group';
+
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.background = val >= 0 ? 'var(--red)' : 'var(--green)';
+    bar.dataset.height = (Math.abs(val) / maxAbs * 80) + '%';
+    bar.innerHTML = `<div class="tooltip">${val >= 0 ? '+' : ''}${val}%</div>`;
+
+    const valLabel = document.createElement('div');
+    valLabel.style.cssText = `font-size:0.85rem;font-weight:700;margin-bottom:4px;color:${val >= 0 ? 'var(--red)' : 'var(--green)'}`;
+    valLabel.textContent = `${val >= 0 ? '+' : ''}${val}%`;
+
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = year;
+
+    group.appendChild(valLabel);
+    group.appendChild(bar);
+    group.appendChild(label);
+    container.appendChild(group);
+  });
+}
+
+function buildIntlChart() {
+  const container = document.getElementById('intlChart');
+  const maxRate = Math.max(...intlData.map(d => d.rate));
+
+  intlData.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'h-bar-row';
+
+    const country = document.createElement('div');
+    country.className = 'h-bar-country';
+    country.textContent = d.country;
+
+    const track = document.createElement('div');
+    track.className = 'h-bar-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'h-bar-fill';
+    fill.style.background = d.color;
+    fill.dataset.width = Math.max(1, (d.rate / maxRate) * 100) + '%';
+    track.appendChild(fill);
+
+    const value = document.createElement('div');
+    value.className = 'h-bar-value';
+    value.style.color = d.color;
+    value.textContent = d.rate.toFixed(2);
+
+    row.appendChild(country);
+    row.appendChild(track);
+    row.appendChild(value);
+    container.appendChild(row);
+  });
+}
+
+function drawDonut() {
+  const canvas = document.getElementById('donutChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 280 * dpr;
+  canvas.height = 280 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const cx = 140, cy = 140, outerR = 120, innerR = 70;
+  const slices = [
+    { pct: 0.58, color: '#8b5cf6' },
+    { pct: 0.35, color: '#ef4444' },
+    { pct: 0.04, color: '#f97316' },
+    { pct: 0.02, color: '#94a3b8' },
+    { pct: 0.01, color: '#475569' },
+  ];
+
+  let startAngle = -Math.PI / 2;
+  let progress = 0;
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, 280, 280);
+    let angle = startAngle;
+    const currentEnd = startAngle + progress * Math.PI * 2;
+
+    for (const s of slices) {
+      const sliceAngle = s.pct * Math.PI * 2;
+      const endAngle = Math.min(angle + sliceAngle, currentEnd);
+      if (angle >= currentEnd) break;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR, angle, endAngle);
+      ctx.arc(cx, cy, innerR, endAngle, angle, true);
+      ctx.closePath();
+      ctx.fillStyle = s.color;
+      ctx.fill();
+
+      angle += sliceAngle;
+    }
+
+    // Center text
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '700 22px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('44,447', cx, cy - 4);
+    ctx.font = '400 12px Inter, sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('gun deaths (2024)', cx, cy + 16);
+
+    if (progress < 1) {
+      progress += 0.02;
+      requestAnimationFrame(drawFrame);
+    }
+  }
+  drawFrame();
+}
+
+function drawMassShootings(canvas) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 20, right: 20, bottom: 40, left: 50 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const data = massShootingData.counts;
+  const labels = massShootingData.years;
+  const maxVal = Math.max(...data) * 1.1;
+  const barW = chartW / data.length * 0.7;
+  const gap = chartW / data.length * 0.3;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  for (let i = 0; i <= 4; i++) {
+    const val = (maxVal / 4) * i;
+    const yy = pad.top + chartH - (val / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(val), pad.left - 8, yy + 4);
+  }
+
+  let progress = 0;
+  function drawFrame() {
+    ctx.clearRect(pad.left, pad.top, chartW, chartH);
+
+    // Redraw grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    for (let i = 0; i <= 4; i++) {
+      const val = (maxVal / 4) * i;
+      const yy = pad.top + chartH - (val / maxVal) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, yy);
+      ctx.lineTo(W - pad.right, yy);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < data.length; i++) {
+      const barH = (data[i] / maxVal) * chartH * progress;
+      const bx = pad.left + i * (chartW / data.length) + gap / 2;
+      const by = pad.top + chartH - barH;
+
+      // Color based on value
+      const intensity = data[i] / Math.max(...data);
+      const r = Math.round(59 + (239 - 59) * intensity);
+      const g = Math.round(130 + (68 - 130) * intensity);
+      const b = Math.round(246 + (68 - 246) * intensity);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+      ctx.beginPath();
+      ctx.roundRect(bx, by, barW, barH, [4, 4, 0, 0]);
+      ctx.fill();
+
+      // Value on top
+      if (progress > 0.9) {
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(data[i], bx + barW / 2, by - 6);
+      }
+
+      // Label
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], bx + barW / 2, H - pad.bottom + 16);
+    }
+
+    if (progress < 1) {
+      progress += 0.025;
+      requestAnimationFrame(drawFrame);
+    }
+  }
+  drawFrame();
+}
+
+function drawDivergence(canvas) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 30, right: 30, bottom: 40, left: 60 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const allVals = [...divergenceData.homicides, ...divergenceData.suicides];
+  const maxVal = Math.max(...allVals) * 1.1;
+  const minVal = Math.min(...allVals) * 0.85;
+  const n = divergenceData.years.length;
+
+  function x(i) { return pad.left + (i / (n - 1)) * chartW; }
+  function y(v) { return pad.top + chartH - ((v - minVal) / (maxVal - minVal)) * chartH; }
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const val = minVal + (maxVal - minVal) * (i / 4);
+    const yy = y(val);
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText((val / 1000).toFixed(1) + 'k', pad.left - 8, yy + 4);
+  }
+
+  // X labels
+  ctx.textAlign = 'center';
+  for (let i = 0; i < n; i++) {
+    ctx.fillText(divergenceData.years[i], x(i), H - pad.bottom + 20);
+  }
+
+  let progress = 0;
+  function drawFrame() {
+    ctx.clearRect(pad.left, pad.top - 20, chartW + 2, chartH + 20);
+    // Redraw grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    for (let i = 0; i <= 4; i++) {
+      const val = minVal + (maxVal - minVal) * (i / 4);
+      const yy = y(val);
+      ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+    }
+
+    const pts = Math.floor(progress * n);
+    if (pts < 2) { progress += 0.04; if (progress < 1) requestAnimationFrame(drawFrame); return; }
+
+    // Suicide line (purple)
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(divergenceData.suicides[0]));
+    for (let i = 1; i < pts; i++) ctx.lineTo(x(i), y(divergenceData.suicides[i]));
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Homicide line (red)
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(divergenceData.homicides[0]));
+    for (let i = 1; i < pts; i++) ctx.lineTo(x(i), y(divergenceData.homicides[i]));
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Fill between (shows gap)
+    ctx.beginPath();
+    for (let i = 0; i < pts; i++) ctx.lineTo(x(i), y(divergenceData.suicides[i]));
+    for (let i = pts - 1; i >= 0; i--) ctx.lineTo(x(i), y(divergenceData.homicides[i]));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(139,92,246,0.08)';
+    ctx.fill();
+
+    // Points & labels
+    for (let i = 0; i < pts; i++) {
+      ctx.beginPath(); ctx.arc(x(i), y(divergenceData.suicides[i]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#8b5cf6'; ctx.fill();
+      ctx.beginPath(); ctx.arc(x(i), y(divergenceData.homicides[i]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#ef4444'; ctx.fill();
+    }
+
+    // Labels on last points
+    if (progress > 0.9) {
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      const lastI = pts - 1;
+      ctx.fillStyle = '#8b5cf6';
+      ctx.fillText('Suicides: ' + (divergenceData.suicides[lastI] / 1000).toFixed(1) + 'k', x(lastI) + 10, y(divergenceData.suicides[lastI]) + 4);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillText('Homicides: ' + (divergenceData.homicides[lastI] / 1000).toFixed(1) + 'k', x(lastI) + 10, y(divergenceData.homicides[lastI]) + 4);
+    }
+
+    if (progress < 1) { progress += 0.04; requestAnimationFrame(drawFrame); }
+  }
+  drawFrame();
+}
+
+function drawDemographics(canvas) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 20, right: 20, bottom: 50, left: 50 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const data = demographicData.rates;
+  const labels = demographicData.labels;
+  const colors = demographicData.colors;
+  const maxVal = Math.max(...data) * 1.15;
+  const barW = chartW / data.length * 0.65;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  for (let i = 0; i <= 4; i++) {
+    const val = (maxVal / 4) * i;
+    const yy = pad.top + chartH - (val / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, yy);
+    ctx.lineTo(W - pad.right, yy);
+    ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), pad.left - 8, yy + 4);
+  }
+
+  let progress = 0;
+  function drawFrame() {
+    ctx.clearRect(pad.left, pad.top, chartW, chartH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    for (let i = 0; i <= 4; i++) {
+      const val = (maxVal / 4) * i;
+      const yy = pad.top + chartH - (val / maxVal) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, yy);
+      ctx.lineTo(W - pad.right, yy);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < data.length; i++) {
+      const barH = (data[i] / maxVal) * chartH * progress;
+      const bx = pad.left + i * (chartW / data.length) + (chartW / data.length - barW) / 2;
+      const by = pad.top + chartH - barH;
+
+      ctx.fillStyle = colors[i];
+      ctx.beginPath();
+      ctx.roundRect(bx, by, barW, barH, [4, 4, 0, 0]);
+      ctx.fill();
+
+      if (progress > 0.9) {
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(data[i], bx + barW / 2, by - 8);
+      }
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const words = labels[i].split(' ');
+      words.forEach((w, wi) => {
+        ctx.fillText(w, bx + barW / 2, H - pad.bottom + 14 + wi * 12);
+      });
+    }
+
+    if (progress < 1) {
+      progress += 0.025;
+      requestAnimationFrame(drawFrame);
+    }
+  }
+  drawFrame();
+}
+
+// ============================================
+// SCROLL OBSERVER & INIT
+// ============================================
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const el = entry.target;
+
+      if (el.classList.contains('big-number-card')) {
+        const delay = parseInt(el.dataset.delay) || 0;
+        setTimeout(() => el.classList.add('visible'), delay);
+      } else if (el.classList.contains('fade-in')) {
+        el.classList.add('visible');
+      }
+
+      // Trigger chart animations
+      if (el.id === 'historicalChart' || el.querySelector?.('#historicalChart')) {
+        drawLine(document.getElementById('historicalChart'), historicalData.rates, historicalData.years, {
+          color: '#3b82f6',
+          fillColor: 'rgba(59,130,246,0.12)',
+          highlightLast: true,
+          annotations: [
+            { index: 0, text: '7.0 — 1993 peak' },
+            { index: 10, text: '3.5 — 2014 low' },
+            { index: 15, text: '6.7 — 2021 spike' },
+            { index: 19, text: '~4.0 — 2025' }
+          ]
+        });
+        observer.unobserve(el);
+      }
+
+      if (el.id === 'yoyChart' || el.querySelector?.('#yoyChart')) {
+        setTimeout(() => {
+          document.querySelectorAll('#yoyChart .bar').forEach(bar => {
+            bar.style.height = bar.dataset.height;
+          });
+        }, 300);
+      }
+
+      if (el.querySelector?.('#intlChart')) {
+        setTimeout(() => {
+          document.querySelectorAll('#intlChart .h-bar-fill').forEach(fill => {
+            fill.style.width = fill.dataset.width;
+          });
+        }, 300);
+      }
+
+      if (el.querySelector?.('#donutChart') || el.id === 'donutChart') {
+        drawDonut();
+        observer.unobserve(el);
+      }
+
+      if (el.querySelector?.('#massShootingChart') || el.id === 'massShootingChart') {
+        drawMassShootings(document.getElementById('massShootingChart'));
+        observer.unobserve(el);
+      }
+
+      if (el.querySelector?.('#divergenceChart') || el.id === 'divergenceChart') {
+        drawDivergence(document.getElementById('divergenceChart'));
+        observer.unobserve(el);
+      }
+
+      if (el.querySelector?.('#demographicChart') || el.id === 'demographicChart') {
+        drawDemographics(document.getElementById('demographicChart'));
+        observer.unobserve(el);
+      }
+
+      // City sparklines
+      const spark = el.querySelector?.('.city-spark');
+      if (spark) {
+        const city = spark.dataset.city;
+        if (cityData[city]) {
+          drawCitySpark(spark, cityData[city].data, cityData[city].color);
+        }
+        observer.unobserve(el);
+      }
+    }
+  });
+}, { threshold: 0.2 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildYOYChart();
+  buildIntlChart();
+
+  document.querySelectorAll('.big-number-card, .fade-in, .chart-container, .city-card').forEach(el => {
+    observer.observe(el);
+  });
+
+  // Animated counters for big numbers
+  document.querySelectorAll('.big-number-card').forEach(card => {
+    const numEl = card.querySelector('.number');
+    const target = numEl.dataset.count;
+    if (!target) return;
+
+    const targetNum = parseInt(target);
+    const observer2 = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        let current = 0;
+        const step = targetNum / 40;
+        const interval = setInterval(() => {
+          current += step;
+          if ((step > 0 && current >= targetNum) || (step < 0 && current <= targetNum)) {
+            current = targetNum;
+            clearInterval(interval);
+          }
+          numEl.textContent = (current >= 0 ? '' : '') + Math.round(current) + '%';
+        }, 30);
+        observer2.unobserve(card);
+      }
+    }, { threshold: 0.5 });
+    observer2.observe(card);
+  });
+});
+</script>
+</body>
+</html>

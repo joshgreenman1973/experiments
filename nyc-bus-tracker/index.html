@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>All Through the Town &mdash; NYC Bus Performance Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="description" content="All Through the Town: real-time animated map of every NYC bus with performance metrics, bunching detection, and gap analysis." />
+
+  <!-- Preconnect to speed up API and tile fetches -->
+  <link rel="preconnect" href="https://bustime.mta.info" crossorigin />
+  <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="dns-prefetch" href="https://bustime.mta.info" />
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Loading bus data&hellip;</div>
+    <div class="loading-brand"></div>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Map edge gradient for sidebar blend -->
+  <div class="map-vignette"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+
+    <div class="sidebar-header">
+      <div class="title-lane">
+        <h1 class="bus-title">All Through <span>the Town</span></h1>
+      </div>
+      <div class="subtitle">NYC bus performance tracker &mdash; real-time positions, bunching &amp; gap detection across all routes. Click any route to spotlight it on the map. Click wait alerts to highlight affected lines.</div>
+    </div>
+
+    <!-- System-wide stats -->
+    <div class="system-stats" id="system-stats">
+      <div class="stat-card">
+        <div class="label">Active Buses</div>
+        <div class="value accent" id="stat-buses">&mdash;</div>
+        <div class="detail" id="stat-routes-count">&mdash; routes</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Avg Speed</div>
+        <div class="value" id="stat-speed">&mdash;</div>
+        <div class="detail">mph (observed)</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Bunching</div>
+        <div class="value bad" id="stat-bunching">&mdash;</div>
+        <div class="detail">bus pairs too close</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Big Gaps</div>
+        <div class="value warn" id="stat-gaps">&mdash;</div>
+        <div class="detail">20+ min waits</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Avg Wait</div>
+        <div class="value" id="stat-wait">&mdash;</div>
+        <div class="detail">min (rider exp.)</div>
+      </div>
+    </div>
+
+    <!-- Long wait alerts (dynamically populated) -->
+    <div class="wait-alerts" id="wait-alerts" style="display:none"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="live-badge" id="live-badge" style="display:none">
+        <div class="live-dot"></div> Live
+      </div>
+      <div id="status-text">Connecting&hellip;</div>
+    </div>
+
+    <!-- Route filter -->
+    <div class="borough-filter" id="borough-filter">
+      <button class="boro-btn active" data-boro="all">All</button>
+      <button class="boro-btn" data-boro="M">Man</button>
+      <button class="boro-btn" data-boro="B">Bklyn</button>
+      <button class="boro-btn" data-boro="Bx">Bronx</button>
+      <button class="boro-btn" data-boro="Q">Queens</button>
+      <button class="boro-btn" data-boro="S">SI</button>
+      <button class="boro-btn" data-boro="top25" id="btn-top25">Top 25</button>
+      <button class="boro-btn" data-boro="nearby" id="btn-nearby" title="Find routes near you">&#x1F4CD;</button>
+    </div>
+    <div class="route-filter">
+      <input type="text" id="route-search" placeholder="Filter routes&hellip;" />
+      <button class="sort-btn active" id="sort-btn" data-sort="name">A&ndash;Z</button>
+    </div>
+
+    <!-- Route list -->
+    <div class="route-section">
+      <div class="route-list-header" id="route-list-header">
+        <div class="col-sort" data-sort="name">Route</div>
+        <div></div>
+        <div class="col-sort" data-sort="buses" style="text-align:right">Buses</div>
+        <div class="col-sort" data-sort="speed" style="text-align:right">MPH</div>
+        <div class="col-sort" data-sort="bunching" style="text-align:right">Bunch</div>
+        <div class="col-sort" data-sort="gaps" style="text-align:right">Gap</div>
+      </div>
+      <div class="route-list" id="route-list"></div>
+
+      <!-- Source credits -->
+      <div class="source-credits">
+        <p><strong>Source:</strong> <a href="https://bustime.mta.info/wiki/Developers/Index" target="_blank">MTA BusTime SIRI API</a> (real-time vehicle positions)</p>
+        <p><strong>Route shapes:</strong> <a href="https://new.mta.info/developers" target="_blank">MTA GTFS Static Data</a></p>
+        <p class="caveat">Speed estimates are derived from GPS position changes between snapshots. Gap times are estimated from bus spacing and observed speed; routes with fewer than 3 active buses in a direction are excluded from gap calculations, and estimates are capped at 60 minutes. Bunching is detected when two buses on the same route/direction are within 250m. Late-night and low-service periods will show fewer metrics. These are observational estimates, not official MTA metrics.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline" id="timeline">
+    <div class="timeline-controls">
+      <button class="timeline-btn" id="btn-live" title="Live mode">&#x25C9;</button>
+      <button class="timeline-btn" id="btn-play" title="Play/Pause">&#x25B6;</button>
+    </div>
+    <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
+    <div class="timeline-time" id="timeline-time">&mdash;:&mdash;</div>
+    <div class="timeline-speed" id="timeline-speed" title="Click to change speed">1&times;</div>
+    <div class="timeline-date" id="timeline-date"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

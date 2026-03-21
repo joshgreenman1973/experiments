@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Government Performance Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;--border-light:#484f58;
+  --text:#e6edf3;--text-dim:#8b949e;--text-muted:#6e7681;
+  --green:#3fb950;--red:#f85149;--yellow:#d29922;--blue:#58a6ff;--purple:#bc8cff;--orange:#f0883e;
+  --cyan:#39d2c0;--pink:#f778ba;
+  --font-mono:'SF Mono','Cascadia Code','Fira Code',monospace;
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+}
+html{font-size:13px}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);line-height:1.4;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+
+/* HEADER */
+.dash-header{
+  padding:16px 24px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.dash-header h1{font-size:16px;font-weight:700;letter-spacing:-0.3px}
+.dash-header .subtitle{color:var(--text-dim);font-size:11px}
+.dash-header .refresh-info{color:var(--text-muted);font-size:10px;font-family:var(--font-mono)}
+.status-bar{
+  padding:6px 24px;background:var(--surface2);border-bottom:1px solid var(--border);
+  display:flex;gap:24px;flex-wrap:wrap;font-size:10px;color:var(--text-dim);
+  font-family:var(--font-mono);
+}
+.status-bar .status-item{display:flex;align-items:center;gap:4px}
+.status-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.status-dot.live{background:var(--green);box-shadow:0 0 4px var(--green)}
+.status-dot.delayed{background:var(--yellow)}
+.status-dot.stale{background:var(--red)}
+
+/* GRID */
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:1px;background:var(--border);padding:0;
+}
+.section{background:var(--bg);padding:0}
+.section-header{
+  padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.section-header h2{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);
+}
+.section[data-accent] .section-header{border-left:3px solid transparent}
+.section[data-accent="red"] .section-header{border-left-color:var(--red)}
+.section[data-accent="orange"] .section-header{border-left-color:var(--orange)}
+.section[data-accent="yellow"] .section-header{border-left-color:var(--yellow)}
+.section[data-accent="green"] .section-header{border-left-color:var(--green)}
+.section[data-accent="blue"] .section-header{border-left-color:var(--blue)}
+.section[data-accent="purple"] .section-header{border-left-color:var(--purple)}
+.section[data-accent="cyan"] .section-header{border-left-color:var(--cyan)}
+.section[data-accent="pink"] .section-header{border-left-color:var(--pink)}
+.section-header .section-badge{
+  font-size:9px;font-family:var(--font-mono);padding:1px 6px;border-radius:3px;
+  background:var(--border);color:var(--text-muted);
+}
+.section-header .source-link{
+  font-size:9px;color:var(--text-muted);margin-left:6px;opacity:0.6;
+  transition:opacity 0.2s;
+}
+.section-header .source-link:hover{opacity:1;color:var(--blue)}
+
+/* METRICS */
+.metrics{padding:8px 12px 12px}
+.metric{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:4px 0;border-bottom:1px solid #21262d;
+}
+.metric:last-child{border-bottom:none}
+.metric-label{font-size:11px;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.metric-value{font-size:14px;font-weight:700;font-family:var(--font-mono);margin-left:8px;white-space:nowrap}
+.metric-value.large{font-size:20px}
+
+/* SECTION ACCENT COLORS */
+.section[data-accent="red"] .metric-value{color:#f85149}
+.section[data-accent="orange"] .metric-value{color:#f0883e}
+.section[data-accent="yellow"] .metric-value{color:#d29922}
+.section[data-accent="green"] .metric-value{color:#3fb950}
+.section[data-accent="blue"] .metric-value{color:#58a6ff}
+.section[data-accent="purple"] .metric-value{color:#bc8cff}
+.section[data-accent="cyan"] .metric-value{color:#39d2c0}
+.section[data-accent="pink"] .metric-value{color:#f778ba}
+.metric-trend{font-size:10px;margin-left:6px;font-family:var(--font-mono);white-space:nowrap}
+.up-good{color:var(--green)}.down-good{color:var(--green)}
+.up-bad{color:var(--red)}.down-bad{color:var(--red)}
+.neutral{color:var(--text-muted)}
+
+/* BIG STAT */
+.big-stat{text-align:center;padding:12px 12px 8px}
+.big-stat .big-number{font-size:32px;font-weight:800;font-family:var(--font-mono);line-height:1}
+.big-stat .big-label{font-size:10px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px}
+.big-stat .big-sub{font-size:11px;color:var(--text-muted);margin-top:2px;font-family:var(--font-mono)}
+
+/* MINI TABLE */
+.mini-table{width:100%;font-size:11px;border-collapse:collapse}
+.mini-table th{
+  text-align:left;font-weight:600;color:var(--text-muted);font-size:9px;
+  text-transform:uppercase;letter-spacing:0.5px;padding:3px 4px;border-bottom:1px solid var(--border);
+}
+.mini-table td{padding:3px 4px;border-bottom:1px solid #21262d;font-family:var(--font-mono);font-size:11px}
+.mini-table td:not(:first-child){text-align:right}
+.mini-table tr:last-child td{border-bottom:none}
+
+/* BAR */
+.bar-row{display:flex;align-items:center;gap:6px;padding:2px 0}
+.bar-label{font-size:10px;color:var(--text-dim);width:70px;flex-shrink:0;text-align:right}
+.bar-track{flex:1;height:10px;background:#21262d;border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width 0.6s ease}
+.bar-val{font-size:10px;font-family:var(--font-mono);color:var(--text);width:50px}
+
+/* LOADING */
+.loading{color:var(--text-muted);font-size:11px;font-style:italic;padding:8px 0;text-align:center}
+.error-msg{color:var(--red);font-size:11px;padding:8px 0;text-align:center}
+
+/* SPARKLINE */
+canvas.spark{display:block;margin:4px auto 0;image-rendering:auto}
+
+/* FOOTER */
+.dash-footer{
+  padding:12px 24px;border-top:1px solid var(--border);
+  font-size:10px;color:var(--text-muted);text-align:center;line-height:1.6;
+}
+.dash-footer a{color:var(--blue)}
+
+/* DATA DATE */
+.data-date{font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-top:4px}
+
+/* COMPARISON BADGE */
+.comp{
+  display:inline-block;font-size:10px;font-family:var(--font-mono);
+  padding:1px 5px;border-radius:3px;margin-left:4px;
+}
+.comp.up-bad{background:rgba(248,81,73,0.15);color:var(--red)}
+.comp.down-good{background:rgba(63,185,80,0.15);color:var(--green)}
+.comp.up-good{background:rgba(63,185,80,0.15);color:var(--green)}
+.comp.down-bad{background:rgba(248,81,73,0.15);color:var(--red)}
+.comp.flat{background:rgba(139,148,158,0.15);color:var(--text-dim)}
+
+/* BOROUGH BARS */
+.boro-bars{margin-top:6px}
+.boro-bar{display:flex;align-items:center;gap:4px;padding:1px 0;font-size:10px}
+.boro-bar .boro-name{width:22px;color:var(--text-muted);font-weight:600;text-align:right;flex-shrink:0}
+.boro-bar .boro-track{flex:1;height:8px;background:#21262d;border-radius:2px;overflow:hidden}
+.boro-bar .boro-fill{height:100%;border-radius:2px}
+.boro-bar .boro-val{width:40px;font-family:var(--font-mono);color:var(--text-dim);font-size:10px}
+
+/* TREND LINE LABEL */
+.trend-context{font-size:9px;color:var(--text-muted);text-align:center;margin-top:2px;font-family:var(--font-mono)}
+</style>
+</head>
+<body>
+
+<div class="dash-header">
+  <div>
+    <h1>NYC Government Performance Dashboard</h1>
+    <div class="subtitle">Live municipal data from NYC Open Data APIs &#183; Single-page Mayor&#8217;s Management Report</div>
+  </div>
+  <div class="refresh-info" id="refreshTime">Loading&#8230;</div>
+</div>
+
+<div class="status-bar" id="statusBar"></div>
+
+<div class="grid" id="dashboard">
+
+  <div class="section" id="sec-shelter" data-accent="red">
+    <div class="section-header"><h2>Homeless Services (DHS)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Social-Services/DHS-Daily-Report/k46n-sa2m" target="_blank">source</a> <span class="section-badge" id="shelter-date">&#8230;</span></div></div>
+    <div class="metrics" id="shelter-metrics"><div class="loading">Fetching shelter census&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-crime" data-accent="orange">
+    <div class="section-header"><h2>Crime (NYPD)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Current-Year-To-Date-/5uac-w243" target="_blank">source</a> <span class="section-badge" id="crime-date">&#8230;</span></div></div>
+    <div class="metrics" id="crime-metrics"><div class="loading">Fetching crime data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-traffic" data-accent="red">
+    <div class="section-header"><h2>Traffic Safety (Vision Zero)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95" target="_blank">source</a> <span class="section-badge" id="traffic-date">&#8230;</span></div></div>
+    <div class="metrics" id="traffic-metrics"><div class="loading">Fetching collision data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-ems" data-accent="yellow">
+    <div class="section-header"><h2>EMS Response</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Public-Safety/EMS-Incident-Dispatch-Data/76xm-jjuj" target="_blank">source</a> <span class="section-badge" id="ems-date">&#8230;</span></div></div>
+    <div class="metrics" id="ems-metrics"><div class="loading">Fetching EMS data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-fire" data-accent="orange">
+    <div class="section-header"><h2>Fire Response (FDNY)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Public-Safety/Fire-Incident-Dispatch-Data/8m42-w767" target="_blank">source</a> <span class="section-badge" id="fire-date">&#8230;</span></div></div>
+    <div class="metrics" id="fire-metrics"><div class="loading">Fetching fire data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-311" data-accent="blue">
+    <div class="section-header"><h2>311 Service Requests</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">source</a> <span class="section-badge" id="sr-date">&#8230;</span></div></div>
+    <div class="metrics" id="sr-metrics"><div class="loading">Fetching 311 data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-restaurant" data-accent="green">
+    <div class="section-header"><h2>Restaurant Inspections (DOHMH)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j" target="_blank">source</a> <span class="section-badge" id="restaurant-date">&#8230;</span></div></div>
+    <div class="metrics" id="restaurant-metrics"><div class="loading">Fetching inspection data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-housing" data-accent="yellow">
+    <div class="section-header"><h2>Housing (HPD)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Housing-Development/Housing-Maintenance-Code-Violations/wvxf-dwi5" target="_blank">source</a> <span class="section-badge" id="housing-date">&#8230;</span></div></div>
+    <div class="metrics" id="housing-metrics"><div class="loading">Fetching housing data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-buildings" data-accent="cyan">
+    <div class="section-header"><h2>Buildings (DOB)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Housing-Development/DOB-NOW-Build-Approved-Permits/rbx6-tga4" target="_blank">source</a> <span class="section-badge" id="buildings-date">&#8230;</span></div></div>
+    <div class="metrics" id="buildings-metrics"><div class="loading">Fetching building data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-dot" data-accent="purple">
+    <div class="section-header"><h2>Streets &amp; Potholes (DOT)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Transportation/Street-Pothole-Work-Orders-Closed-/x9wy-ing4" target="_blank">source</a> <span class="section-badge" id="dot-date">&#8230;</span></div></div>
+    <div class="metrics" id="dot-metrics"><div class="loading">Fetching DOT data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-parks" data-accent="green">
+    <div class="section-header"><h2>Parks</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/PIP-Inspections/yg3y-7juh" target="_blank">source</a> <span class="section-badge" id="parks-date">&#8230;</span></div></div>
+    <div class="metrics" id="parks-metrics"><div class="loading">Fetching parks data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-water" data-accent="cyan">
+    <div class="section-header"><h2>Water Quality (DEP)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Environment/Drinking-Water-Quality-Distribution-Monitoring-Dat/bkwf-xfky" target="_blank">source</a> <span class="section-badge" id="water-date">&#8230;</span></div></div>
+    <div class="metrics" id="water-metrics"><div class="loading">Fetching water data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-spending" data-accent="blue">
+    <div class="section-header"><h2>City Spending (Comptroller)</h2><div><a class="source-link" href="https://www.checkbooknyc.com" target="_blank">source</a> <span class="section-badge" id="spending-date">&#8230;</span></div></div>
+    <div class="metrics" id="spending-metrics"><div class="loading">Fetching CheckbookNYC&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-oath" data-accent="orange">
+    <div class="section-header"><h2>Enforcement (OATH/ECB)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/OATH-ECB-Violations/jtm6-3c6z" target="_blank">source</a> <span class="section-badge" id="oath-date">&#8230;</span></div></div>
+    <div class="metrics" id="oath-metrics"><div class="loading">Fetching OATH data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-sanitation" data-accent="green">
+    <div class="section-header"><h2>Sanitation (DSNY)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">source</a> <span class="section-badge" id="sanitation-date">&#8230;</span></div></div>
+    <div class="metrics" id="sanitation-metrics"><div class="loading">Fetching sanitation data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-response" data-accent="blue">
+    <div class="section-header"><h2>311 Response Speed</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9" target="_blank">source</a> <span class="section-badge" id="response-date">&#8230;</span></div></div>
+    <div class="metrics" id="response-metrics"><div class="loading">Fetching response times&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-mmr" data-accent="purple">
+    <div class="section-header"><h2>Agency Processing Times (MMR)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/Agency-Performance-Indicators/rbed-zzin" target="_blank">source</a> <span class="section-badge" id="mmr-date">&#8230;</span></div></div>
+    <div class="metrics" id="mmr-metrics"><div class="loading">Fetching MMR data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-capital" data-accent="cyan">
+    <div class="section-header"><h2>Capital Projects</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/Capital-Projects-Dashboard/n7gv-k5yt" target="_blank">source</a> <span class="section-badge" id="capital-date">&#8230;</span></div></div>
+    <div class="metrics" id="capital-metrics"><div class="loading">Fetching capital data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-nycha" data-accent="pink">
+    <div class="section-header"><h2>Public Housing (NYCHA)</h2><div><a class="source-link" href="https://data.cityofnewyork.us/Housing-Development/Housing-Maintenance-Code-Violations/im9z-53hg" target="_blank">source</a> <span class="section-badge" id="nycha-date">&#8230;</span></div></div>
+    <div class="metrics" id="nycha-metrics"><div class="loading">Fetching NYCHA data&#8230;</div></div>
+  </div>
+
+  <div class="section" id="sec-workforce" data-accent="purple">
+    <div class="section-header"><h2>City Workforce</h2><div><a class="source-link" href="https://data.cityofnewyork.us/City-Government/Citywide-Payroll-Data-Fiscal-Year-/k397-673e" target="_blank">source</a> <span class="section-badge" id="workforce-date">&#8230;</span></div></div>
+    <div class="metrics" id="workforce-metrics"><div class="loading">Fetching payroll data&#8230;</div></div>
+  </div>
+
+</div>
+
+<div class="dash-footer">
+  Data sourced from <a href="https://data.cityofnewyork.us" target="_blank">NYC Open Data</a> APIs.
+  All figures are the latest available. Some datasets update daily; others lag weeks or months.
+  Shelter data context: <a href="https://citylimits.org/homeless-shelter-tracker/" target="_blank">City Limits Shelter Tracker</a>.
+  <br>Built for <a href="https://www.vitalcitynyc.org" target="_blank">Vital City</a>.
+</div>
+
+<script>
+// ============================================================
+//  UTILITIES
+// ============================================================
+const BASE = 'https://data.cityofnewyork.us/resource/';
+const fmt = n => n == null ? '\u2014' : Number(n).toLocaleString('en-US');
+const fmtPct = n => n == null ? '\u2014' : Number(n).toFixed(1) + '%';
+const fmtDec = (n, d=1) => n == null ? '\u2014' : Number(n).toFixed(d);
+const fmtDate = d => {
+  if (!d) return '\u2014';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const fmtShort = d => {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+const secToMin = s => s == null ? '\u2014' : (Number(s)/60).toFixed(1) + ' min';
+const isoDate = (daysAgo=0) => {
+  const d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0,10);
+};
+const yearStart = () => new Date().getFullYear() + '-01-01';
+
+async function q(id, params='') {
+  const r = await fetch(`${BASE}${id}.json?${params}`);
+  if (!r.ok) throw new Error(`API ${r.status}`);
+  return r.json();
+}
+
+function setM(id, html) { document.getElementById(id).innerHTML = html; }
+function setBadge(id, t) { const e = document.getElementById(id); if(e) e.textContent = t; }
+
+function row(label, value, trend) {
+  let t = '';
+  if (trend) {
+    const cls = trend.class || 'neutral';
+    t = `<span class="comp ${cls}">${trend.text}</span>`;
+  }
+  return `<div class="metric"><span class="metric-label">${label}</span><span class="metric-value">${value}${t}</span></div>`;
+}
+
+function bigStat(number, label, sub='', color='') {
+  return `<div class="big-stat"><div class="big-number" style="color:${color||'var(--text)'}">${number}</div><div class="big-label">${label}</div>${sub ? `<div class="big-sub">${sub}</div>` : ''}</div>`;
+}
+
+function compBadge(current, prior, invert=false, vsLabel='') {
+  if (current == null || prior == null || prior === 0) return null;
+  const pct = ((current - prior) / Math.abs(prior) * 100);
+  const arrow = pct > 0 ? '\u25b2' : pct < 0 ? '\u25bc' : '\u25cf';
+  const cls = Math.abs(pct) < 1 ? 'flat' :
+    (pct > 0 ? (invert ? 'up-good' : 'up-bad') : (invert ? 'down-bad' : 'down-good'));
+  const suffix = vsLabel ? ` ${vsLabel}` : '';
+  return { text: `${arrow}${Math.abs(pct).toFixed(1)}%${suffix}`, class: cls };
+}
+
+function boroBars(data, maxVal, color='var(--blue)') {
+  const abbr = { BRONX:'BX', BROOKLYN:'BK', MANHATTAN:'MN', QUEENS:'QN', 'STATEN ISLAND':'SI' };
+  let html = '<div class="boro-bars">';
+  data.forEach(r => {
+    const name = abbr[r.boro] || r.boro?.slice(0,2) || '?';
+    const val = Number(r.cnt);
+    const pct = maxVal > 0 ? (val/maxVal*100) : 0;
+    html += `<div class="boro-bar"><span class="boro-name">${name}</span><span class="boro-track"><span class="boro-fill" style="width:${pct}%;background:${color}"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+const statusItems = [];
+function addStatus(label, f) {
+  statusItems.push({label, freshness:f});
+  document.getElementById('statusBar').innerHTML = statusItems.map(s =>
+    `<span class="status-item"><span class="status-dot ${s.freshness}"></span>${s.label}</span>`
+  ).join('');
+}
+
+// ============================================================
+//  SPARKLINE
+// ============================================================
+function drawSparkline(canvasId, data, color, opts={}) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !data.length) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const pad = 2;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+
+  ctx.clearRect(0,0,w,h);
+
+  // Fill area
+  ctx.beginPath();
+  data.forEach((v,i) => {
+    const x = pad + (i/(data.length-1))*(w-2*pad);
+    const y = h - pad - ((v-min)/range)*(h-2*pad);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.lineTo(w-pad, h);
+  ctx.lineTo(pad, h);
+  ctx.closePath();
+  ctx.fillStyle = color + '18';
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  data.forEach((v,i) => {
+    const x = pad + (i/(data.length-1))*(w-2*pad);
+    const y = h - pad - ((v-min)/range)*(h-2*pad);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // End dot
+  const lastX = w-pad;
+  const lastY = h - pad - ((data[data.length-1]-min)/range)*(h-2*pad);
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 2, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Min/max labels
+  if (opts.labels !== false) {
+    ctx.font = '9px system-ui';
+    ctx.fillStyle = '#6e7681';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(max), w-4, 10);
+    ctx.fillText(fmt(min), w-4, h-2);
+  }
+}
+
+// ============================================================
+//  LOADERS
+// ============================================================
+
+async function loadShelter() {
+  try {
+    const [latest] = await q('k46n-sa2m', '$order=date_of_census DESC&$limit=1');
+    const d30 = new Date(latest.date_of_census);
+    d30.setDate(d30.getDate()-30);
+    const d90 = new Date(latest.date_of_census);
+    d90.setDate(d90.getDate()-90);
+    const d365 = new Date(latest.date_of_census);
+    d365.setDate(d365.getDate()-365);
+
+    const [prev30] = await q('k46n-sa2m', `$where=date_of_census='${d30.toISOString().slice(0,10)}'&$limit=1`);
+    const [prev365] = await q('k46n-sa2m', `$where=date_of_census='${d365.toISOString().slice(0,10)}'&$limit=1`);
+
+    // 90-day sparkline
+    const sparkData = await q('k46n-sa2m', `$select=date_of_census,total_individuals_in_shelter&$order=date_of_census DESC&$limit=90`);
+
+    const total = Number(latest.total_individuals_in_shelter);
+    const prev30Total = prev30 ? Number(prev30.total_individuals_in_shelter) : null;
+    const prev365Total = prev365 ? Number(prev365.total_individuals_in_shelter) : null;
+    const change30 = prev30Total ? total - prev30Total : null;
+    const change365 = prev365Total ? total - prev365Total : null;
+
+    setBadge('shelter-date', fmtDate(latest.date_of_census));
+    addStatus('DHS Census', 'live');
+
+    let html = bigStat(fmt(total), 'Total Individuals in Shelter', '', total > 80000 ? 'var(--red)' : 'var(--text)');
+
+    // Comparison badges
+    html += '<div style="text-align:center;margin:-4px 0 8px">';
+    if (change30 !== null) {
+      const cls30 = change30 > 0 ? 'up-bad' : change30 < 0 ? 'down-good' : 'flat';
+      html += `<span class="comp ${cls30}" style="font-size:11px">${change30>0?'+':''}${fmt(change30)} vs 30d ago</span> `;
+    }
+    if (change365 !== null) {
+      const cls365 = change365 > 0 ? 'up-bad' : change365 < 0 ? 'down-good' : 'flat';
+      html += `<span class="comp ${cls365}" style="font-size:11px">${change365>0?'+':''}${fmt(change365)} vs 1yr ago</span>`;
+    }
+    html += '</div>';
+
+    html += row('Children in Shelter', fmt(latest.total_children_in_shelter));
+    html += row('Families w/ Children', fmt(latest.families_with_children_in_shelter));
+    html += row('Single Adults', fmt(latest.total_single_adults_in_shelter));
+    html += row('Adult Families', fmt(latest.adult_families_in_shelter));
+
+    html += '<canvas class="spark" id="spark-shelter" width="276" height="40"></canvas>';
+    html += '<div class="trend-context">90-day shelter census trend</div>';
+
+    setM('shelter-metrics', html);
+    drawSparkline('spark-shelter', sparkData.reverse().map(d => Number(d.total_individuals_in_shelter)), '#f85149');
+  } catch(e) {
+    setM('shelter-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('DHS Census', 'stale');
+  }
+}
+
+async function loadCrime() {
+  try {
+    // Latest data date
+    const [latest] = await q('5uac-w243', '$select=max(cmplnt_fr_dt) as latest&$limit=1');
+    const latestDate = latest?.latest;
+
+    // Use last 3 complete months of data
+    const endDate = latestDate || '2025-12-31';
+    const end = new Date(endDate);
+    const startOfPeriod = new Date(end); startOfPeriod.setMonth(end.getMonth()-3);
+    const startOfPrior = new Date(startOfPeriod); startOfPrior.setMonth(startOfPeriod.getMonth()-3);
+
+    const periodStart = startOfPeriod.toISOString().slice(0,10);
+    const priorStart = startOfPrior.toISOString().slice(0,10);
+    const periodEnd = end.toISOString().slice(0,10);
+
+    // Current period felonies by type
+    const felonies = await q('5uac-w243',
+      `$select=ofns_desc,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${periodStart}' AND cmplnt_fr_dt<='${periodEnd}'&$group=ofns_desc&$order=cnt DESC&$limit=10`);
+
+    // Prior period total felonies (same length)
+    const [priorFel] = await q('5uac-w243',
+      `$select=count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${priorStart}' AND cmplnt_fr_dt<'${periodStart}'`);
+
+    const totalFelonies = felonies.reduce((s,r) => s + Number(r.cnt), 0);
+    const priorTotal = priorFel ? Number(priorFel.cnt) : null;
+
+    // By borough
+    const byBoro = await q('5uac-w243',
+      `$select=boro_nm as boro,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${periodStart}' AND cmplnt_fr_dt<='${periodEnd}' AND boro_nm IS NOT NULL AND boro_nm != '(null)'&$group=boro_nm&$order=cnt DESC`);
+
+    // Monthly trend (last 12 months of data available)
+    const yearAgo = new Date(end); yearAgo.setFullYear(end.getFullYear()-1);
+    const monthlyTrend = await q('5uac-w243',
+      `$select=date_trunc_ym(cmplnt_fr_dt) as month,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${yearAgo.toISOString().slice(0,10)}'&$group=month&$order=month`);
+
+    const periodLabel = `${fmtShort(periodStart)}\u2013${fmtShort(periodEnd)}`;
+    setBadge('crime-date', `through ${fmtShort(endDate)}`);
+    addStatus('NYPD', 'delayed');
+
+    let html = bigStat(fmt(totalFelonies), `Felonies (${periodLabel})`);
+
+    // Comparison to prior period
+    if (priorTotal) {
+      const comp = compBadge(totalFelonies, priorTotal, false, 'vs prior 3mo');
+      if (comp) {
+        html += `<div style="text-align:center;margin:-4px 0 8px"><span class="comp ${comp.class}" style="font-size:11px">${comp.text}</span></div>`;
+      }
+    }
+
+    html += '<table class="mini-table"><tr><th>Offense</th><th>Count</th></tr>';
+    felonies.slice(0,7).forEach(r => {
+      const label = r.ofns_desc.split(' ').map(w => w.length>3 ? w.charAt(0)+w.slice(1).toLowerCase() : w.toLowerCase()).join(' ');
+      html += `<tr><td>${label}</td><td>${fmt(r.cnt)}</td></tr>`;
+    });
+    html += '</table>';
+
+    // Borough bars
+    if (byBoro.length) {
+      const maxBoro = Math.max(...byBoro.map(r => Number(r.cnt)));
+      html += boroBars(byBoro, maxBoro, 'var(--orange)');
+    }
+
+    // Monthly trend sparkline
+    if (monthlyTrend.length > 2) {
+      html += '<canvas class="spark" id="spark-crime" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly felonies (12 months)</div>';
+    }
+
+    setM('crime-metrics', html);
+    if (monthlyTrend.length > 2) {
+      drawSparkline('spark-crime', monthlyTrend.map(d => Number(d.cnt)), '#f0883e');
+    }
+  } catch(e) {
+    setM('crime-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('NYPD', 'stale');
+  }
+}
+
+async function loadTraffic() {
+  try {
+    const yr = yearStart();
+    // YTD this year
+    const [ytd] = await q('h9gi-nx95',
+      `$select=sum(number_of_persons_killed) as killed,sum(number_of_persons_injured) as injured,sum(number_of_pedestrians_killed) as ped_k,sum(number_of_cyclist_killed) as cyc_k,sum(number_of_pedestrians_injured) as ped_i,sum(number_of_cyclist_injured) as cyc_i,count(*) as crashes&$where=crash_date>='${yr}'`);
+
+    // Same YTD period last year
+    const priorYr = (new Date().getFullYear()-1) + '-01-01';
+    const priorEnd = (new Date().getFullYear()-1) + new Date().toISOString().slice(4,10);
+    const [priorYtd] = await q('h9gi-nx95',
+      `$select=sum(number_of_persons_killed) as killed,sum(number_of_persons_injured) as injured,count(*) as crashes&$where=crash_date>='${priorYr}' AND crash_date<='${priorEnd}'`);
+
+    // Monthly trend (last 12 months)
+    const weeklyTrend = await q('h9gi-nx95',
+      `$select=date_trunc_ym(crash_date) as week,count(*) as crashes,sum(number_of_persons_killed) as killed,sum(number_of_persons_injured) as injured&$where=crash_date>='${isoDate(365)}'&$group=week&$order=week`);
+
+    // By borough
+    const byBoro = await q('h9gi-nx95',
+      `$select=borough as boro,count(*) as cnt&$where=crash_date>='${yr}' AND borough IS NOT NULL AND borough!=''&$group=borough&$order=cnt DESC`);
+
+    const killed = Number(ytd.killed||0);
+    const priorKilled = Number(priorYtd?.killed||0);
+
+    setBadge('traffic-date', new Date().getFullYear() + ' YTD');
+    addStatus('Collisions', 'live');
+
+    let html = '';
+    html += row('Total Crashes (YTD)', fmt(ytd.crashes), compBadge(Number(ytd.crashes), Number(priorYtd?.crashes), false, 'vs \u201925 YTD'));
+    html += row('Persons Killed (YTD)', `<strong style="color:var(--red)">${killed}</strong>`, compBadge(killed, priorKilled, false, 'vs \u201925 YTD'));
+    html += row('Persons Injured (YTD)', fmt(ytd.injured), compBadge(Number(ytd.injured), Number(priorYtd?.injured), false, 'vs \u201925 YTD'));
+    html += row('Pedestrians Killed', fmt(ytd.ped_k||0));
+    html += row('Cyclists Killed', fmt(ytd.cyc_k||0));
+    html += row('Pedestrians Injured', fmt(ytd.ped_i||0));
+
+    // Recent fatalities
+    const recent = await q('h9gi-nx95', `$where=number_of_persons_killed>0&$order=crash_date DESC&$limit=3`);
+    if (recent.length) {
+      html += '<div style="margin-top:6px;font-size:9px;color:var(--text-muted);text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Recent Fatalities</div>';
+      recent.forEach(r => {
+        const loc = [r.on_street_name, r.cross_street_name].filter(Boolean).join(' & ') || r.borough || '';
+        html += `<div style="font-size:10px;padding:2px 0;color:var(--text-dim)">${fmtShort(r.crash_date)} \u2014 ${loc}</div>`;
+      });
+    }
+
+    // Weekly crashes sparkline
+    if (weeklyTrend.length > 2) {
+      html += '<canvas class="spark" id="spark-crashes" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly crashes (12 months)</div>';
+    }
+
+    setM('traffic-metrics', html);
+    if (weeklyTrend.length > 2) {
+      drawSparkline('spark-crashes', weeklyTrend.map(d => Number(d.crashes)), '#f0883e');
+    }
+  } catch(e) {
+    setM('traffic-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Collisions', 'stale');
+  }
+}
+
+async function loadEMS() {
+  try {
+    const [latestRec] = await q('76xm-jjuj', '$select=max(incident_datetime) as latest&$limit=1');
+    const latestDate = latestRec?.latest;
+    const end = new Date(latestDate);
+    const mStart = latestDate.slice(0,7) + '-01';
+    const priorMStart = new Date(end); priorMStart.setMonth(end.getMonth()-1);
+
+    const byLevel = await q('76xm-jjuj',
+      `$select=initial_severity_level_code,avg(incident_response_seconds_qy) as avg_resp,count(*) as cnt&$where=incident_datetime>='${mStart}' AND valid_incident_rspns_time_indc='Y'&$group=initial_severity_level_code&$order=initial_severity_level_code`);
+
+    // Prior month for comparison
+    const priorByLevel = await q('76xm-jjuj',
+      `$select=initial_severity_level_code,avg(incident_response_seconds_qy) as avg_resp&$where=incident_datetime>='${priorMStart.toISOString().slice(0,10)}' AND incident_datetime<'${mStart}' AND valid_incident_rspns_time_indc='Y'&$group=initial_severity_level_code`);
+    const priorMap = {};
+    priorByLevel.forEach(r => { priorMap[r.initial_severity_level_code] = Number(r.avg_resp); });
+
+    const [heldStats] = await q('76xm-jjuj',
+      `$select=count(*) as total,sum(case(held_indicator='Y',1,true,0)) as held&$where=incident_datetime>='${mStart}'`);
+    const heldPct = heldStats ? (Number(heldStats.held)/Number(heldStats.total)*100) : null;
+
+    // Monthly avg response (segment 1) over last 12 months
+    const yr = new Date(end); yr.setFullYear(end.getFullYear()-1);
+    const monthlyResp = await q('76xm-jjuj',
+      `$select=date_trunc_ym(incident_datetime) as month,avg(incident_response_seconds_qy) as avg_resp&$where=initial_severity_level_code='1' AND valid_incident_rspns_time_indc='Y' AND incident_datetime>='${yr.toISOString().slice(0,10)}'&$group=month&$order=month`);
+
+    setBadge('ems-date', fmtDate(latestDate));
+    addStatus('EMS', 'delayed');
+
+    const labels = {'1':'Life-Threatening (Seg 1)','2':'Serious (Seg 2)','3':'Urgent (Seg 3)','4':'Non-Urgent (Seg 4\u20138)'};
+    let html = '';
+    byLevel.forEach(r => {
+      const code = r.initial_severity_level_code;
+      if (code > 4) return;
+      const label = labels[code] || `Seg ${code}`;
+      const resp = Number(r.avg_resp);
+      const priorResp = priorMap[code];
+      const comp = priorResp ? compBadge(resp, priorResp, false, 'vs prior mo') : null;
+      html += row(label, secToMin(r.avg_resp), comp);
+    });
+
+    if (heldPct !== null) {
+      html += row('Calls Held (delayed)', fmtPct(heldPct),
+        { text: heldPct > 5 ? '\u26a0 High' : '\u2713', class: heldPct > 5 ? 'up-bad' : 'neutral' });
+    }
+
+    if (monthlyResp.length > 2) {
+      html += '<canvas class="spark" id="spark-ems" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Seg 1 avg response time (monthly)</div>';
+    }
+
+    setM('ems-metrics', html);
+    if (monthlyResp.length > 2) {
+      drawSparkline('spark-ems', monthlyResp.map(d => Number(d.avg_resp)/60), '#d29922', {labels:false});
+    }
+  } catch(e) {
+    setM('ems-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('EMS', 'stale');
+  }
+}
+
+async function loadFire() {
+  try {
+    const [latestRec] = await q('8m42-w767', '$select=max(incident_datetime) as latest&$limit=1');
+    const latestDate = latestRec?.latest;
+    const end = new Date(latestDate);
+    const mStart = latestDate.slice(0,7) + '-01';
+    const priorMStart = new Date(end); priorMStart.setMonth(end.getMonth()-1);
+
+    const byType = await q('8m42-w767',
+      `$select=incident_classification_group,avg(incident_response_seconds_qy) as avg_resp,count(*) as cnt&$where=incident_datetime>='${mStart}' AND valid_incident_rspns_time_indc='Y'&$group=incident_classification_group&$order=cnt DESC&$limit=6`);
+
+    // Prior month for structural fires comparison
+    const [firesCur] = await q('8m42-w767',
+      `$select=avg(incident_response_seconds_qy) as avg_resp,count(*) as cnt&$where=incident_classification_group='Structural Fires' AND incident_datetime>='${mStart}' AND valid_incident_rspns_time_indc='Y'`);
+    const [firesPrior] = await q('8m42-w767',
+      `$select=avg(incident_response_seconds_qy) as avg_resp&$where=incident_classification_group='Structural Fires' AND incident_datetime>='${priorMStart.toISOString().slice(0,10)}' AND incident_datetime<'${mStart}' AND valid_incident_rspns_time_indc='Y'`);
+
+    // Monthly structural fire response trend
+    const yr = new Date(end); yr.setFullYear(end.getFullYear()-1);
+    const monthlyFire = await q('8m42-w767',
+      `$select=date_trunc_ym(incident_datetime) as month,avg(incident_response_seconds_qy) as avg_resp&$where=incident_classification_group='Structural Fires' AND valid_incident_rspns_time_indc='Y' AND incident_datetime>='${yr.toISOString().slice(0,10)}'&$group=month&$order=month`);
+
+    setBadge('fire-date', fmtDate(latestDate));
+    addStatus('FDNY', 'delayed');
+
+    let html = '';
+    if (firesCur) {
+      const comp = firesPrior ? compBadge(Number(firesCur.avg_resp), Number(firesPrior.avg_resp), false, 'vs prior mo') : null;
+      html += row('Structural Fire Response', secToMin(firesCur.avg_resp), comp);
+    }
+    byType.forEach(r => {
+      if (r.incident_classification_group === 'Structural Fires') return;
+      html += row(r.incident_classification_group || 'Other', secToMin(r.avg_resp), {text: fmt(r.cnt), class:'neutral'});
+    });
+
+    if (monthlyFire.length > 2) {
+      html += '<canvas class="spark" id="spark-fire" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Structural fire response (monthly avg min)</div>';
+    }
+
+    setM('fire-metrics', html);
+    if (monthlyFire.length > 2) {
+      drawSparkline('spark-fire', monthlyFire.map(d => Number(d.avg_resp)/60), '#f85149', {labels:false});
+    }
+  } catch(e) {
+    setM('fire-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('FDNY', 'stale');
+  }
+}
+
+async function load311() {
+  try {
+    const d7 = isoDate(7), d30 = isoDate(30), d60 = isoDate(60);
+
+    const [weekVol] = await q('erm2-nwe9', `$select=count(*) as cnt&$where=created_date>='${d7}'`);
+    const [priorWeek] = await q('erm2-nwe9', `$select=count(*) as cnt&$where=created_date>='${isoDate(14)}' AND created_date<'${d7}'`);
+
+    const topTypes = await q('erm2-nwe9',
+      `$select=complaint_type,count(*) as cnt&$where=created_date>='${d30}'&$group=complaint_type&$order=cnt DESC&$limit=10`);
+
+    // Daily volume trend (last 30 days)
+    const dailyVol = await q('erm2-nwe9',
+      `$select=date_trunc_ymd(created_date) as day,count(*) as cnt&$where=created_date>='${d30}'&$group=day&$order=day`);
+
+    // Closed rate
+    const [openClosed] = await q('erm2-nwe9',
+      `$select=count(*) as total,sum(case(status='Closed',1,true,0)) as closed&$where=created_date>='${d30}'`);
+    const closedPct = openClosed ? (Number(openClosed.closed)/Number(openClosed.total)*100) : null;
+
+    setBadge('sr-date', 'Live');
+    addStatus('311', 'live');
+
+    const weekComp = compBadge(Number(weekVol?.cnt), Number(priorWeek?.cnt), false, 'vs prior wk');
+
+    let html = '';
+    html += row('Requests This Week', `<span style="font-size:18px;font-weight:800">${fmt(weekVol?.cnt)}</span>`, weekComp);
+    if (closedPct !== null) {
+      html += row('Closed Rate (30d)', fmtPct(closedPct),
+        { text: closedPct > 80 ? '\u2713' : '\u26a0', class: closedPct > 80 ? 'neutral' : 'up-bad' });
+    }
+    html += '<table class="mini-table"><tr><th>Top Complaints (30d)</th><th>Count</th></tr>';
+    topTypes.slice(0,8).forEach(r => {
+      html += `<tr><td>${r.complaint_type}</td><td>${fmt(r.cnt)}</td></tr>`;
+    });
+    html += '</table>';
+
+    if (dailyVol.length > 2) {
+      html += '<canvas class="spark" id="spark-311" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Daily 311 volume (30 days)</div>';
+    }
+
+    setM('sr-metrics', html);
+    if (dailyVol.length > 2) {
+      drawSparkline('spark-311', dailyVol.map(d => Number(d.cnt)), '#58a6ff');
+    }
+  } catch(e) {
+    setM('sr-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('311', 'stale');
+  }
+}
+
+async function loadRestaurants() {
+  try {
+    const d30 = isoDate(30), d180 = isoDate(180);
+
+    const grades = await q('43nn-pn8j',
+      `$select=grade,count(*) as cnt&$where=grade_date>='${d180}' AND grade IS NOT NULL AND grade IN('A','B','C')&$group=grade&$order=grade`);
+
+    const [recentCount] = await q('43nn-pn8j',
+      `$select=count(distinct camis) as cnt&$where=inspection_date>='${d30}'`);
+
+    const [criticals] = await q('43nn-pn8j',
+      `$select=count(*) as cnt&$where=inspection_date>='${d30}' AND critical_flag='Critical'`);
+
+    // Monthly inspection volume trend
+    const monthlyInsp = await q('43nn-pn8j',
+      `$select=date_trunc_ym(inspection_date) as month,count(distinct camis) as cnt&$where=inspection_date>='${isoDate(365)}'&$group=month&$order=month`);
+
+    setBadge('restaurant-date', 'Live');
+    addStatus('Restaurants', 'live');
+
+    const totalGraded = grades.reduce((s,r) => s + Number(r.cnt), 0);
+    const gradeA = grades.find(g => g.grade==='A');
+    const gradeB = grades.find(g => g.grade==='B');
+    const gradeC = grades.find(g => g.grade==='C');
+
+    let html = '';
+    html += row('Restaurants Inspected (30d)', fmt(recentCount?.cnt));
+    html += row('Critical Violations (30d)', fmt(criticals?.cnt));
+
+    html += '<div style="margin-top:6px;margin-bottom:4px">';
+    [['A', gradeA, 'var(--green)'], ['B', gradeB, 'var(--yellow)'], ['C', gradeC, 'var(--red)']].forEach(([g, data, color]) => {
+      const pct = data ? (Number(data.cnt)/totalGraded*100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">Grade ${g}</span><span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${color}"></span></span><span class="bar-val">${pct.toFixed(0)}% (${data ? fmt(data.cnt) : 0})</span></div>`;
+    });
+    html += '</div>';
+
+    if (monthlyInsp.length > 2) {
+      html += '<canvas class="spark" id="spark-rest" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly inspections (12 months)</div>';
+    }
+
+    setM('restaurant-metrics', html);
+    if (monthlyInsp.length > 2) {
+      drawSparkline('spark-rest', monthlyInsp.map(d => Number(d.cnt)), '#3fb950');
+    }
+  } catch(e) {
+    setM('restaurant-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Restaurants', 'stale');
+  }
+}
+
+async function loadHousing() {
+  try {
+    const d30 = isoDate(30), d90 = isoDate(90);
+
+    // Use currentstatus field
+    const [classC] = await q('wvxf-dwi5',
+      `$select=count(*) as cnt&$where=class='C' AND currentstatus='VIOLATION OPEN'`);
+
+    const [classB] = await q('wvxf-dwi5',
+      `$select=count(*) as cnt&$where=class='B' AND currentstatus='VIOLATION OPEN'`);
+
+    const [newViols] = await q('wvxf-dwi5',
+      `$select=count(*) as cnt&$where=inspectiondate>='${d30}'`);
+
+    const [priorViols] = await q('wvxf-dwi5',
+      `$select=count(*) as cnt&$where=inspectiondate>='${isoDate(60)}' AND inspectiondate<'${d30}'`);
+
+    // By borough
+    const byBoro = await q('wvxf-dwi5',
+      `$select=boro as boro,count(*) as cnt&$where=inspectiondate>='${d90}'&$group=boro&$order=cnt DESC`);
+
+    // Monthly trend
+    const monthlyViols = await q('wvxf-dwi5',
+      `$select=date_trunc_ym(inspectiondate) as month,count(*) as cnt&$where=inspectiondate>='${isoDate(365)}'&$group=month&$order=month`);
+
+    setBadge('housing-date', 'Live');
+    addStatus('HPD', 'live');
+
+    const comp = compBadge(Number(newViols?.cnt), Number(priorViols?.cnt), false, 'vs prior 30d');
+
+    let html = '';
+    html += row('Open Class C (Immed. Hazardous)', `<span style="color:var(--red)">${fmt(classC?.cnt)}</span>`);
+    html += row('Open Class B (Hazardous)', `<span style="color:var(--yellow)">${fmt(classB?.cnt)}</span>`);
+    html += row('New Violations (30d)', fmt(newViols?.cnt), comp);
+
+    // Borough bars
+    if (byBoro.length) {
+      const boroNames = {'BRONX':'BX','BROOKLYN':'BK','MANHATTAN':'MN','QUEENS':'QN','STATEN ISLAND':'SI'};
+      const maxB = Math.max(...byBoro.map(r => Number(r.cnt)));
+      html += '<div class="boro-bars">';
+      byBoro.forEach(r => {
+        const name = boroNames[r.boro] || r.boro?.slice(0,2) || '?';
+        const val = Number(r.cnt);
+        html += `<div class="boro-bar"><span class="boro-name">${name}</span><span class="boro-track"><span class="boro-fill" style="width:${val/maxB*100}%;background:var(--yellow)"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    if (monthlyViols.length > 2) {
+      html += '<canvas class="spark" id="spark-hpd" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly new violations (12 months)</div>';
+    }
+
+    setM('housing-metrics', html);
+    if (monthlyViols.length > 2) {
+      drawSparkline('spark-hpd', monthlyViols.map(d => Number(d.cnt)), '#d29922');
+    }
+  } catch(e) {
+    setM('housing-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('HPD', 'stale');
+  }
+}
+
+async function loadBuildings() {
+  try {
+    const d30 = isoDate(30), d60 = isoDate(60), yr = yearStart();
+
+    // DOB NOW approved permits
+    const [permitsMonth] = await q('rbx6-tga4',
+      `$select=count(*) as cnt&$where=issued_date>='${d30}'`);
+    const [permitsPrior] = await q('rbx6-tga4',
+      `$select=count(*) as cnt&$where=issued_date>='${d60}' AND issued_date<'${d30}'`);
+
+    // By work type YTD
+    const byType = await q('rbx6-tga4',
+      `$select=work_type,count(*) as cnt&$where=issued_date>='${yr}'&$group=work_type&$order=cnt DESC&$limit=6`);
+
+    // DOB complaints
+    const [activeComplaints] = await q('eabe-havv',
+      `$select=count(*) as cnt&$where=status='ACTIVE'`);
+
+    // Monthly permit trend - wrap in timeout to avoid blocking
+    let monthlyPermits = [];
+    const permitTrendCtrl = new AbortController();
+    const permitTimeout = setTimeout(() => permitTrendCtrl.abort(), 10000);
+    try {
+      const r = await fetch(`${BASE}rbx6-tga4.json?$select=date_trunc_ym(issued_date) as month,count(*) as cnt&$where=issued_date>='${isoDate(365)}'&$group=month&$order=month`, {signal: permitTrendCtrl.signal});
+      if (r.ok) monthlyPermits = await r.json();
+    } catch(e) { /* skip sparkline if too slow */ }
+    clearTimeout(permitTimeout);
+
+    const comp = permitsMonth && permitsPrior ? compBadge(Number(permitsMonth.cnt), Number(permitsPrior.cnt), true, 'vs prior 30d') : null;
+
+    // Permit processing time (approved to issued)
+    let avgProcessing = null;
+    try {
+      const [proc] = await q('rbx6-tga4',
+        `$select=avg(date_diff_d(issued_date,approved_date)) as avg_days&$where=issued_date>='${d30}' AND approved_date IS NOT NULL`);
+      avgProcessing = proc?.avg_days ? Number(proc.avg_days) : null;
+    } catch(e) { /* skip if unsupported */ }
+
+    setBadge('buildings-date', 'Live');
+    addStatus('DOB', 'live');
+
+    let html = '';
+    html += row('Permits Issued (30d)', fmt(permitsMonth?.cnt), comp);
+    if (avgProcessing !== null) {
+      html += row('Avg Approval \u2192 Issuance', fmtDec(avgProcessing, 0) + ' days');
+    }
+    html += row('Active Open Complaints', fmt(activeComplaints?.cnt));
+
+    if (byType.length) {
+      html += '<table class="mini-table"><tr><th>Permit Type (YTD)</th><th>Count</th></tr>';
+      byType.forEach(r => {
+        html += `<tr><td>${r.work_type||'Other'}</td><td>${fmt(r.cnt)}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    if (monthlyPermits.length > 2) {
+      html += '<canvas class="spark" id="spark-dob" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly permits issued (12 months)</div>';
+    }
+
+    setM('buildings-metrics', html);
+    if (monthlyPermits.length > 2) {
+      drawSparkline('spark-dob', monthlyPermits.map(d => Number(d.cnt)), '#39d2c0');
+    }
+  } catch(e) {
+    setM('buildings-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('DOB', 'stale');
+  }
+}
+
+async function loadDOT() {
+  try {
+    const d30 = isoDate(30), d60 = isoDate(60), d90 = isoDate(90);
+
+    const [closedMonth] = await q('x9wy-ing4', `$select=count(*) as cnt&$where=rptclosed>='${d30}'`);
+    const [closedPrior] = await q('x9wy-ing4', `$select=count(*) as cnt&$where=rptclosed>='${d60}' AND rptclosed<'${d30}'`);
+
+    const avgClose = await q('x9wy-ing4',
+      `$select=avg(date_diff_d(rptclosed,rptdate)) as avg_days&$where=rptclosed>='${d90}' AND rptdate IS NOT NULL`);
+
+    const [potholes311] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=complaint_type='Street Condition' AND descriptor='Pothole' AND created_date>='${d30}'`);
+
+    const [streetLights] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=complaint_type='Street Light Condition' AND created_date>='${d30}'`);
+
+    // Monthly pothole trend
+    const monthlyPotholes = await q('erm2-nwe9',
+      `$select=date_trunc_ym(created_date) as month,count(*) as cnt&$where=complaint_type='Street Condition' AND descriptor='Pothole' AND created_date>='${isoDate(365)}'&$group=month&$order=month`);
+
+    setBadge('dot-date', 'Live');
+    addStatus('DOT', 'live');
+
+    const comp = compBadge(Number(closedMonth?.cnt), Number(closedPrior?.cnt), true, 'vs prior 30d');
+
+    let html = '';
+    html += row('Potholes Closed (30d)', fmt(closedMonth?.cnt), comp);
+    html += row('Avg Days to Close', avgClose[0]?.avg_days ? fmtDec(avgClose[0].avg_days, 1)+' days' : '\u2014');
+    html += row('311 Pothole Complaints (30d)', fmt(potholes311?.cnt));
+    html += row('311 Street Light Issues (30d)', fmt(streetLights?.cnt));
+
+    if (monthlyPotholes.length > 2) {
+      html += '<canvas class="spark" id="spark-potholes" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly pothole complaints (12 months)</div>';
+    }
+
+    setM('dot-metrics', html);
+    if (monthlyPotholes.length > 2) {
+      drawSparkline('spark-potholes', monthlyPotholes.map(d => Number(d.cnt)), '#bc8cff');
+    }
+  } catch(e) {
+    setM('dot-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('DOT', 'stale');
+  }
+}
+
+async function loadParks() {
+  try {
+    const [latestRec] = await q('yg3y-7juh', '$select=max(date) as latest&$limit=1');
+    const latestDate = latestRec?.latest;
+    const yr = latestDate ? latestDate.slice(0,4)+'-01-01' : '2025-01-01';
+
+    const conditions = await q('yg3y-7juh',
+      `$select=overall_condition,count(*) as cnt&$where=date>='${yr}'&$group=overall_condition`);
+    const total = conditions.reduce((s,r) => s+Number(r.cnt), 0);
+    const acceptable = conditions.find(r => r.overall_condition==='A');
+    const acceptPct = acceptable ? (Number(acceptable.cnt)/total*100) : 0;
+
+    const clean = await q('yg3y-7juh',
+      `$select=cleanliness,count(*) as cnt&$where=date>='${yr}'&$group=cleanliness`);
+    const cleanTotal = clean.reduce((s,r) => s+Number(r.cnt), 0);
+    const cleanAccept = clean.find(r => r.cleanliness==='A');
+    const cleanPct = cleanAccept ? (Number(cleanAccept.cnt)/cleanTotal*100) : 0;
+
+    // Quarterly trend
+    const qtrTrend = await q('yg3y-7juh',
+      `$select=date_trunc_ym(date) as month,sum(case(overall_condition='A',1,true,0))*1.0/count(*)*100 as pct&$where=date>='2023-01-01'&$group=month&$order=month`);
+
+    setBadge('parks-date', fmtDate(latestDate));
+    addStatus('Parks', 'delayed');
+
+    let html = '';
+    html += row('Overall Acceptable', fmtPct(acceptPct));
+    html += row('Cleanliness Acceptable', fmtPct(cleanPct));
+    html += row('Inspections (YTD)', fmt(total));
+
+    // Visual bar
+    html += `<div class="bar-row" style="margin-top:6px"><span class="bar-label">Condition</span><span class="bar-track"><span class="bar-fill" style="width:${acceptPct}%;background:var(--green)"></span></span><span class="bar-val">${acceptPct.toFixed(0)}%</span></div>`;
+    html += `<div class="bar-row"><span class="bar-label">Clean</span><span class="bar-track"><span class="bar-fill" style="width:${cleanPct}%;background:var(--cyan)"></span></span><span class="bar-val">${cleanPct.toFixed(0)}%</span></div>`;
+
+    if (qtrTrend.length > 2) {
+      html += '<canvas class="spark" id="spark-parks" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly acceptability % trend</div>';
+    }
+
+    setM('parks-metrics', html);
+    if (qtrTrend.length > 2) {
+      drawSparkline('spark-parks', qtrTrend.map(d => Number(d.pct)), '#3fb950', {labels:false});
+    }
+  } catch(e) {
+    setM('parks-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Parks', 'stale');
+  }
+}
+
+async function loadWater() {
+  try {
+    const recent = await q('bkwf-xfky', '$order=sample_date DESC&$limit=200');
+    const latestDate = recent[0]?.sample_date;
+
+    const totalSamples = recent.length;
+    const ecoliDet = recent.filter(r => r.e_coli_quanti_tray_mpn_100ml && r.e_coli_quanti_tray_mpn_100ml !== '<1' && Number(r.e_coli_quanti_tray_mpn_100ml) > 0).length;
+    const coliformDet = recent.filter(r => r.coliform_quanti_tray_mpn_100ml && r.coliform_quanti_tray_mpn_100ml !== '<1' && Number(r.coliform_quanti_tray_mpn_100ml) > 0).length;
+
+    const turbVals = recent.map(r => Number(r.turbidity_ntu)).filter(v => !isNaN(v) && v > 0);
+    const avgTurb = turbVals.length ? turbVals.reduce((a,b)=>a+b,0)/turbVals.length : null;
+    const maxTurb = turbVals.length ? Math.max(...turbVals) : null;
+
+    const chlorVals = recent.map(r => Number(r.residual_free_chlorine_mg_l)).filter(v => !isNaN(v) && v > 0);
+    const avgChlor = chlorVals.length ? chlorVals.reduce((a,b)=>a+b,0)/chlorVals.length : null;
+
+    setBadge('water-date', fmtDate(latestDate));
+    addStatus('Water', 'delayed');
+
+    let html = '';
+    html += row('Samples Analyzed', fmt(totalSamples));
+    html += row('E. Coli Detections', fmt(ecoliDet),
+      {text: ecoliDet===0 ? '\u2713 Clean' : '\u26a0 Alert', class: ecoliDet===0 ? 'neutral' : 'up-bad'});
+    html += row('Coliform Detections', fmt(coliformDet));
+    html += row('Avg Turbidity (NTU)', avgTurb ? fmtDec(avgTurb,2) : '\u2014',
+      {text: avgTurb < 1 ? '\u2713 Compliant' : '\u26a0', class: avgTurb < 1 ? 'neutral' : 'up-bad'});
+    html += row('Max Turbidity (NTU)', maxTurb ? fmtDec(maxTurb,2) : '\u2014');
+    html += row('Avg Free Chlorine (mg/L)', avgChlor ? fmtDec(avgChlor,2) : '\u2014');
+
+    // Turbidity bar (relative to 1 NTU limit)
+    const turbPct = avgTurb ? Math.min(avgTurb/1*100, 100) : 0;
+    html += `<div class="bar-row" style="margin-top:6px"><span class="bar-label">Turbidity</span><span class="bar-track"><span class="bar-fill" style="width:${turbPct}%;background:${avgTurb < 0.5 ? 'var(--green)' : avgTurb < 1 ? 'var(--yellow)' : 'var(--red)'}"></span></span><span class="bar-val">${fmtDec(avgTurb,2)} / 1.0</span></div>`;
+
+    html += '<div class="data-date">EPA standard: turbidity &lt; 1 NTU, no E. coli</div>';
+
+    setM('water-metrics', html);
+  } catch(e) {
+    setM('water-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Water', 'stale');
+  }
+}
+
+async function loadNYCHA() {
+  try {
+    const [total] = await q('im9z-53hg', `$select=count(*) as cnt`);
+
+    const byHazard = await q('im9z-53hg',
+      `$select=hzrd_clas,count(*) as cnt&$group=hzrd_clas&$order=cnt DESC`);
+
+    const d90 = isoDate(90);
+    const [recentInsp] = await q('im9z-53hg',
+      `$select=count(*) as cnt&$where=insp_dt>='${d90}'`);
+
+    // Top developments by violations
+    const topDevs = await q('im9z-53hg',
+      `$select=development_name,count(*) as cnt&$group=development_name&$order=cnt DESC&$limit=5`);
+
+    setBadge('nycha-date', 'Live');
+    addStatus('NYCHA', 'live');
+
+    let html = '';
+    html += row('Total Code Violations', `<span style="font-size:18px;font-weight:800">${fmt(total?.cnt)}</span>`);
+
+    if (byHazard.length) {
+      const labels = {'A':'Class A (Non-Hazardous)','B':'Class B (Hazardous)','C':'Class C (Immed. Hazardous)'};
+      const colors = {'A':'var(--text-dim)','B':'var(--yellow)','C':'var(--red)'};
+      const totalV = byHazard.reduce((s,r)=>s+Number(r.cnt),0);
+      byHazard.forEach(r => {
+        const pct = (Number(r.cnt)/totalV*100).toFixed(0);
+        html += row(labels[r.hzrd_clas]||`Class ${r.hzrd_clas}`,
+          `<span style="color:${colors[r.hzrd_clas]||''}">${fmt(r.cnt)}</span>`,
+          {text:`${pct}%`, class:'neutral'});
+      });
+    }
+
+    html += row('Inspections (90d)', fmt(recentInsp?.cnt));
+
+    if (topDevs.length) {
+      html += '<div style="margin-top:4px"></div>';
+      html += '<table class="mini-table"><tr><th>Most Violations (Development)</th><th>Count</th></tr>';
+      topDevs.forEach(r => {
+        const name = r.development_name?.length > 28 ? r.development_name.slice(0,26)+'\u2026' : r.development_name;
+        html += `<tr><td>${name}</td><td>${fmt(r.cnt)}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    setM('nycha-metrics', html);
+  } catch(e) {
+    setM('nycha-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('NYCHA', 'stale');
+  }
+}
+
+async function loadWorkforce() {
+  try {
+    const topAgencies = await q('k397-673e',
+      `$select=agency_name,count(*) as cnt&$where=fiscal_year=2025 AND leave_status_as_of_june_30='ACTIVE'&$group=agency_name&$order=cnt DESC&$limit=10`);
+
+    const [totalHC] = await q('k397-673e',
+      `$select=count(*) as cnt&$where=fiscal_year=2025 AND leave_status_as_of_june_30='ACTIVE'`);
+
+    const [totalOT] = await q('k397-673e',
+      `$select=sum(total_ot_paid) as total_ot&$where=fiscal_year=2025`);
+
+    // Prior year for comparison
+    const [priorHC] = await q('k397-673e',
+      `$select=count(*) as cnt&$where=fiscal_year=2024 AND leave_status_as_of_june_30='ACTIVE'`);
+
+    const [priorOT] = await q('k397-673e',
+      `$select=sum(total_ot_paid) as total_ot&$where=fiscal_year=2024`);
+
+    setBadge('workforce-date', 'FY2025');
+    addStatus('Payroll', 'delayed');
+
+    const hcComp = compBadge(Number(totalHC?.cnt), Number(priorHC?.cnt), true, 'vs FY2024');
+    const otComp = compBadge(Number(totalOT?.total_ot), Number(priorOT?.total_ot), false, 'vs FY2024');
+
+    let html = '';
+    html += row('Active City Employees', `<span style="font-size:18px;font-weight:800">${fmt(totalHC?.cnt)}</span>`, hcComp);
+    html += row('Total Overtime Paid', totalOT?.total_ot ? '$'+fmt(Math.round(Number(totalOT.total_ot))) : '\u2014', otComp);
+
+    // Agency bars
+    if (topAgencies.length) {
+      const maxA = Number(topAgencies[0].cnt);
+      html += '<div class="boro-bars" style="margin-top:4px">';
+      topAgencies.slice(0,8).forEach(r => {
+        const name = r.agency_name.length > 20 ? r.agency_name.slice(0,18)+'\u2026' : r.agency_name;
+        const val = Number(r.cnt);
+        html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:140px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.agency_name}">${name}</span><span class="boro-track"><span class="boro-fill" style="width:${val/maxA*100}%;background:var(--purple)"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    setM('workforce-metrics', html);
+  } catch(e) {
+    setM('workforce-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Payroll', 'stale');
+  }
+}
+
+async function checkbookQuery(xmlBody) {
+  // Try CORS proxies in order
+  const proxies = [
+    url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+  // Direct POST through CORS proxy
+  for (const makeProxy of proxies) {
+    try {
+      const proxyUrl = makeProxy('https://www.checkbooknyc.com/api');
+      const r = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/xml'},
+        body: xmlBody,
+        signal: AbortSignal.timeout(15000),
+      });
+      if (r.ok) {
+        const text = await r.text();
+        if (text.includes('<result>success</result>')) return text;
+      }
+    } catch(e) { continue; }
+  }
+  throw new Error('CheckbookNYC unavailable (CORS)');
+}
+
+function parseXmlVal(xml, tag) {
+  const m = xml.match(new RegExp(`<${tag}>(.*?)</${tag}>`));
+  return m ? m[1] : null;
+}
+
+function parseXmlAll(xml, tag) {
+  const re = new RegExp(`<${tag}>(.*?)</${tag}>`, 'g');
+  const results = [];
+  let m;
+  while ((m = re.exec(xml)) !== null) results.push(m[1]);
+  return results;
+}
+
+async function loadSpending() {
+  try {
+    // Get spending by category for current FY
+    const spendingXml = await checkbookQuery(
+      `<request><type_of_data>Spending</type_of_data><records_from>1</records_from><max_records>20</max_records><search_criteria><criteria><name>fiscal_year</name><type>value</type><value>2025</value></criteria></search_criteria><response_columns><column>agency</column><column>payee_name</column><column>check_amount</column><column>issue_date</column><column>spending_category</column></response_columns></request>`
+    );
+
+    const totalRecords = parseXmlVal(spendingXml, 'record_count');
+
+    // Parse transactions
+    const transactions = spendingXml.match(/<transaction>[\s\S]*?<\/transaction>/g) || [];
+    const parsed = transactions.map(tx => ({
+      agency: parseXmlVal(tx, 'agency'),
+      payee: parseXmlVal(tx, 'payee_name')?.replace(/&amp;/g,'&'),
+      amount: Number(parseXmlVal(tx, 'check_amount') || 0),
+      date: parseXmlVal(tx, 'issue_date'),
+      category: parseXmlVal(tx, 'spending_category'),
+    }));
+
+    // Aggregate by spending category
+    const byCat = {};
+    parsed.forEach(t => {
+      const cat = t.category || 'Other';
+      byCat[cat] = (byCat[cat] || 0) + t.amount;
+    });
+
+    // Get most recent issue dates
+    const dates = parsed.map(t => t.date).filter(Boolean).sort().reverse();
+    const latestDate = dates[0];
+
+    // Total amount in sample
+    const totalAmount = parsed.reduce((s,t) => s + t.amount, 0);
+
+    setBadge('spending-date', 'FY2025');
+    addStatus('Checkbook', 'live');
+
+    let html = '';
+    html += row('Total FY2025 Transactions', fmt(totalRecords));
+    html += row('Latest Payment Date', fmtDate(latestDate));
+
+    // Show recent large payments
+    const sorted = parsed.sort((a,b) => b.amount - a.amount);
+    if (sorted.length) {
+      html += '<table class="mini-table"><tr><th>Recent Large Payments</th><th>Amount</th></tr>';
+      sorted.slice(0, 8).forEach(t => {
+        const name = (t.payee || t.agency || '').slice(0, 30);
+        html += `<tr><td>${name}</td><td>$${fmt(Math.round(t.amount))}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    html += '<div class="data-date">Via <a href="https://www.checkbooknyc.com" target="_blank" style="color:var(--blue)">CheckbookNYC</a> (Comptroller)</div>';
+
+    setM('spending-metrics', html);
+  } catch(e) {
+    // Fallback: show a link to CheckbookNYC
+    setBadge('spending-date', '\u2014');
+    addStatus('Checkbook', 'stale');
+    setM('spending-metrics', `<div style="padding:8px 0;font-size:11px;color:var(--text-dim)">
+      CheckbookNYC API blocked by CORS policy. Visit
+      <a href="https://www.checkbooknyc.com/spending/search/transactions" target="_blank" style="color:var(--blue)">CheckbookNYC</a>
+      directly for city spending data including nonprofit payment times.
+    </div>`);
+  }
+}
+
+async function load311Response() {
+  try {
+    const d30 = isoDate(30);
+
+    // Average days to close by agency (top agencies by volume)
+    const byAgency = await q('erm2-nwe9',
+      `$select=agency,avg(date_diff_d(closed_date,created_date)) as avg_days,count(*) as cnt&$where=closed_date IS NOT NULL AND created_date>='${d30}'&$group=agency&$order=cnt DESC&$limit=12`);
+
+    setBadge('response-date', 'Live');
+    addStatus('311 Speed', 'live');
+
+    let html = '';
+    html += '<table class="mini-table"><tr><th>Agency</th><th>Avg Days to Close</th><th>Volume</th></tr>';
+    byAgency.forEach(r => {
+      const days = Number(r.avg_days);
+      const color = days < 1 ? 'var(--green)' : days < 3 ? 'var(--text)' : days < 7 ? 'var(--yellow)' : 'var(--red)';
+      html += `<tr><td>${r.agency}</td><td style="color:${color}">${fmtDec(days, 1)}</td><td>${fmt(r.cnt)}</td></tr>`;
+    });
+    html += '</table>';
+
+    // Visual: bar chart of response times
+    const maxDays = Math.max(...byAgency.map(r => Number(r.avg_days)));
+    html += '<div class="boro-bars" style="margin-top:6px">';
+    byAgency.slice(0, 8).forEach(r => {
+      const days = Number(r.avg_days);
+      const color = days < 1 ? 'var(--green)' : days < 3 ? 'var(--blue)' : days < 7 ? 'var(--yellow)' : 'var(--red)';
+      html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:50px;font-size:9px">${r.agency}</span><span class="boro-track"><span class="boro-fill" style="width:${Math.min(days/maxDays*100,100)}%;background:${color}"></span></span><span class="boro-val">${fmtDec(days,1)}d</span></div>`;
+    });
+    html += '</div>';
+    html += '<div class="data-date">Avg calendar days from 311 request to closure (30 days)</div>';
+
+    setM('response-metrics', html);
+  } catch(e) {
+    setM('response-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('311 Speed', 'stale');
+  }
+}
+
+async function loadMMR() {
+  try {
+    // Get all "Average time" indicators with actual values for FY2025
+    const indicators = await q('rbed-zzin',
+      `$select=agency,indicator,acceptedvalue&$where=indicator like '%25Average time%25' AND fiscalyear='2025'&$limit=30`);
+
+    // Filter out NA and retired
+    const valid = indicators.filter(r =>
+      r.acceptedvalue && r.acceptedvalue !== 'NA' && !r.indicator?.includes('RETIRED')
+    );
+
+    // Also get some "processing time" indicators
+    const procIndicators = await q('rbed-zzin',
+      `$select=agency,indicator,acceptedvalue&$where=indicator like '%25processing time%25' AND fiscalyear='2025'&$limit=10`);
+    const validProc = procIndicators.filter(r => r.acceptedvalue && r.acceptedvalue !== 'NA');
+
+    // Combine and deduplicate
+    const all = [...valid, ...validProc];
+    const seen = new Set();
+    const unique = all.filter(r => {
+      const key = r.agency + r.indicator;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Sort by value (highest processing times first, treating as numbers where possible)
+    unique.sort((a, b) => {
+      const va = parseFloat(a.acceptedvalue) || 0;
+      const vb = parseFloat(b.acceptedvalue) || 0;
+      return vb - va;
+    });
+
+    setBadge('mmr-date', 'FY2025');
+    addStatus('MMR', 'delayed');
+
+    let html = '';
+    html += '<table class="mini-table"><tr><th>Indicator</th><th>Value</th></tr>';
+    unique.slice(0, 12).forEach(r => {
+      // Shorten indicator name
+      let name = r.indicator.replace('Average time to ', '').replace('Average time for ', '');
+      name = r.agency + ': ' + name.charAt(0).toUpperCase() + name.slice(1);
+      if (name.length > 55) name = name.slice(0, 53) + '\u2026';
+      const val = r.acceptedvalue;
+      const numVal = parseFloat(val);
+      const color = numVal > 30 ? 'var(--red)' : numVal > 7 ? 'var(--yellow)' : 'var(--text)';
+      html += `<tr><td style="font-family:var(--font-sans)">${name}</td><td style="color:${color}">${val}</td></tr>`;
+    });
+    html += '</table>';
+    html += '<div class="data-date">From Mayor\u2019s Management Report performance indicators</div>';
+
+    setM('mmr-metrics', html);
+  } catch(e) {
+    setM('mmr-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('MMR', 'stale');
+  }
+}
+
+async function loadCapital() {
+  try {
+    // Projects by phase
+    const byPhase = await q('n7gv-k5yt',
+      `$select=current_phase,count(*) as cnt&$group=current_phase&$order=cnt DESC&$limit=6`);
+
+    // Total project count and budget
+    const [totals] = await q('n7gv-k5yt',
+      `$select=count(*) as cnt,sum(budget_forecast) as total_budget`);
+
+    // By managing agency
+    const byAgency = await q('n7gv-k5yt',
+      `$select=managing_agency,count(*) as cnt,sum(budget_forecast) as budget&$group=managing_agency&$order=cnt DESC&$limit=8`);
+
+    // Largest projects
+    const largest = await q('n7gv-k5yt',
+      `$select=project_name,managing_agency,budget_forecast,current_phase&$order=budget_forecast DESC&$limit=5`);
+
+    setBadge('capital-date', 'Live');
+    addStatus('Capital', 'live');
+
+    const totalBudget = Number(totals?.total_budget || 0);
+
+    let html = '';
+    html += row('Active Capital Projects', fmt(totals?.cnt));
+    html += row('Total Budget Forecast', totalBudget > 0 ? '$' + fmt(Math.round(totalBudget / 1000000)) + 'M' : '\u2014');
+
+    // Phase breakdown bars
+    if (byPhase.length) {
+      const maxP = Math.max(...byPhase.filter(r=>r.current_phase).map(r => Number(r.cnt)));
+      html += '<div class="boro-bars" style="margin-top:4px">';
+      byPhase.filter(r=>r.current_phase).forEach(r => {
+        const val = Number(r.cnt);
+        const colors = {Design:'var(--blue)',Construction:'var(--green)','Construction Procurement':'var(--yellow)',IT:'var(--purple)','Close-Out':'var(--text-dim)'};
+        html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:80px;font-size:9px">${r.current_phase}</span><span class="boro-track"><span class="boro-fill" style="width:${val/maxP*100}%;background:${colors[r.current_phase]||'var(--cyan)'}"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    // Largest projects
+    if (largest.length) {
+      html += '<table class="mini-table"><tr><th>Largest Projects</th><th>Budget</th></tr>';
+      largest.forEach(r => {
+        const name = (r.project_name || '').slice(0, 35);
+        const budget = Number(r.budget_forecast || 0);
+        html += `<tr><td>${name}</td><td>$${fmt(Math.round(budget/1000000))}M</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    setM('capital-metrics', html);
+  } catch(e) {
+    setM('capital-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('Capital', 'stale');
+  }
+}
+
+async function loadOATH() {
+  try {
+    const d90 = isoDate(90), d180 = isoDate(180);
+
+    // Run simpler queries in parallel - avoid heavy date_diff on full dataset
+    const [results, agencies, penalties, recentCount] = await Promise.all([
+      q('jtm6-3c6z', `$select=hearing_result,count(*) as cnt&$where=decision_date>'${d180}'&$group=hearing_result&$order=cnt DESC&$limit=5`),
+      q('jtm6-3c6z', `$select=issuing_agency,count(*) as cnt&$where=violation_date>'${d180}'&$group=issuing_agency&$order=cnt DESC&$limit=6`),
+      q('jtm6-3c6z', `$select=sum(penalty_imposed) as total_penalty,count(*) as cnt&$where=decision_date>'${d90}' AND penalty_imposed IS NOT NULL`),
+      q('jtm6-3c6z', `$select=count(*) as cnt&$where=violation_date>'${d90}'`),
+    ]);
+
+    // Compute avg processing time on a smaller window to avoid timeout
+    let avgDays = null;
+    try {
+      const [procTime] = await q('jtm6-3c6z',
+        `$select=avg(date_diff_d(decision_date,violation_date)) as avg_days&$where=decision_date IS NOT NULL AND decision_date>'${d180}' AND violation_date>'2025-01-01'&$limit=1`);
+      avgDays = Number(procTime?.avg_days || 0);
+    } catch(e) { /* skip if too slow */ }
+
+    setBadge('oath-date', 'Live');
+    addStatus('OATH/ECB', 'live');
+
+    let html = '';
+    if (avgDays) {
+      html += row('Avg Days: Violation \u2192 Decision', fmtDec(avgDays, 0) + ' days');
+    }
+    html += row('New Violations (90d)', fmt(recentCount?.cnt));
+    html += row('Penalties Imposed (90d)', penalties[0]?.total_penalty ? '$' + fmt(Math.round(Number(penalties[0].total_penalty))) : '\u2014');
+
+    if (results.length) {
+      const totalRes = results.reduce((s,r) => s + Number(r.cnt), 0);
+      html += '<table class="mini-table"><tr><th>Hearing Outcome (6mo)</th><th>Count</th><th>%</th></tr>';
+      results.forEach(r => {
+        const pct = (Number(r.cnt)/totalRes*100).toFixed(0);
+        html += `<tr><td>${r.hearing_result||'Other'}</td><td>${fmt(r.cnt)}</td><td>${pct}%</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    if (agencies.length) {
+      const maxA = Number(agencies[0].cnt);
+      html += '<div class="boro-bars" style="margin-top:4px">';
+      agencies.forEach(r => {
+        const name = r.issuing_agency?.replace(/DEPARTMENT|DEPT\.|OF /gi,'').trim().slice(0,14);
+        const val = Number(r.cnt);
+        html += `<div class="boro-bar"><span class="boro-name" style="width:auto;max-width:100px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span><span class="boro-track"><span class="boro-fill" style="width:${val/maxA*100}%;background:var(--orange)"></span></span><span class="boro-val">${fmt(val)}</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    setM('oath-metrics', html);
+  } catch(e) {
+    setM('oath-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('OATH/ECB', 'stale');
+  }
+}
+
+async function loadSanitation() {
+  try {
+    const d30 = isoDate(30), d60 = isoDate(60);
+
+    // Missed collections via 311
+    const [missed] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=agency='DSNY' AND complaint_type='Missed Collection' AND created_date>='${d30}'`);
+    const [missedPrior] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=agency='DSNY' AND complaint_type='Missed Collection' AND created_date>='${d60}' AND created_date<'${d30}'`);
+
+    // Dirty conditions
+    const [dirty] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=agency='DSNY' AND complaint_type='Dirty Conditions' AND created_date>='${d30}'`);
+
+    // Overflowing litter baskets
+    const [litter] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=agency='DSNY' AND complaint_type='Overflowing Litter Baskets' AND created_date>='${d30}'`);
+
+    // All DSNY 311 complaints
+    const [totalDsny] = await q('erm2-nwe9',
+      `$select=count(*) as cnt&$where=agency='DSNY' AND created_date>='${d30}'`);
+
+    // Top DSNY complaint types
+    const topDsny = await q('erm2-nwe9',
+      `$select=complaint_type,count(*) as cnt&$where=agency='DSNY' AND created_date>='${d30}'&$group=complaint_type&$order=cnt DESC&$limit=6`);
+
+    // Monthly missed collection trend
+    const monthlyMissed = await q('erm2-nwe9',
+      `$select=date_trunc_ym(created_date) as month,count(*) as cnt&$where=agency='DSNY' AND complaint_type='Missed Collection' AND created_date>='${isoDate(365)}'&$group=month&$order=month`);
+
+    setBadge('sanitation-date', 'Live');
+    addStatus('DSNY', 'live');
+
+    const comp = compBadge(Number(missed?.cnt), Number(missedPrior?.cnt), false, 'vs prior 30d');
+
+    let html = '';
+    html += row('311 DSNY Complaints (30d)', fmt(totalDsny?.cnt));
+    html += row('Missed Collections (30d)', fmt(missed?.cnt), comp);
+    html += row('Dirty Conditions (30d)', fmt(dirty?.cnt));
+    html += row('Overflowing Litter Baskets (30d)', fmt(litter?.cnt));
+
+    if (topDsny.length) {
+      html += '<table class="mini-table"><tr><th>DSNY Complaint Type (30d)</th><th>Count</th></tr>';
+      topDsny.forEach(r => {
+        html += `<tr><td>${r.complaint_type}</td><td>${fmt(r.cnt)}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
+    if (monthlyMissed.length > 2) {
+      html += '<canvas class="spark" id="spark-dsny" width="276" height="36"></canvas>';
+      html += '<div class="trend-context">Monthly missed collections (12 months)</div>';
+    }
+
+    setM('sanitation-metrics', html);
+    if (monthlyMissed.length > 2) {
+      drawSparkline('spark-dsny', monthlyMissed.map(d => Number(d.cnt)), '#3fb950');
+    }
+  } catch(e) {
+    setM('sanitation-metrics', `<div class="error-msg">Error: ${e.message}</div>`);
+    addStatus('DSNY', 'stale');
+  }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+async function init() {
+  document.getElementById('refreshTime').textContent =
+    'Loaded: ' + new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+
+  await Promise.allSettled([
+    loadShelter(), loadCrime(), loadTraffic(), loadEMS(), loadFire(),
+    load311(), loadRestaurants(), loadHousing(), loadBuildings(),
+    loadDOT(), loadParks(), loadWater(), loadSpending(), loadOATH(), loadSanitation(),
+    load311Response(), loadMMR(), loadCapital(), loadNYCHA(), loadWorkforce(),
+  ]);
+}
+
+init();
+</script>
+</body>
+</html>
