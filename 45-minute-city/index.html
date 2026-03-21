@@ -65,7 +65,7 @@ body {
 }
 
 #search-bar {
-  display: flex; max-width: 480px; width: 100%; margin: 0 auto 16px;
+  display: flex; width: 100%;
   background: rgba(22, 27, 34, 0.95); border: 1px solid var(--border);
   border-radius: 12px; overflow: hidden; backdrop-filter: blur(12px);
 }
@@ -83,6 +83,24 @@ body {
   padding: 14px 22px; cursor: pointer;
 }
 #search-btn:hover { background: #1976d2; }
+
+#search-wrapper { position: relative; max-width: 480px; width: 100%; margin: 0 auto 16px; }
+
+#autocomplete {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 1100;
+  background: rgba(22, 27, 34, 0.98); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 12px 12px; overflow: hidden;
+  display: none; backdrop-filter: blur(12px);
+}
+.ac-item {
+  padding: 10px 18px; cursor: pointer; font-size: 0.88rem;
+  color: var(--text-dim); border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.selected { background: rgba(21,101,192,0.2); color: var(--text); }
+.ac-item .ac-main { color: var(--text); font-weight: 500; }
+.ac-item .ac-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
 
 #hero-cta { font-size: 0.85rem; color: var(--text-dim); animation: bob 2s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
@@ -201,9 +219,12 @@ body {
   <div id="hero-content">
     <h1>The 45-Minute City</h1>
     <p class="subtitle">How far can New York’s transit take you?</p>
-    <div id="search-bar">
-      <input id="search-input" type="text" placeholder="Search a NYC address…" />
-      <button id="search-btn" onclick="doSearch()">Search</button>
+    <div id="search-wrapper">
+      <div id="search-bar">
+        <input id="search-input" type="text" placeholder="Search a NYC address…" autocomplete="off" />
+        <button id="search-btn" onclick="doSearch()">Search</button>
+      </div>
+      <div id="autocomplete"></div>
     </div>
     <div id="mode-toggle">
       <button class="mode-btn active" onclick="setMode('subway')" id="mode-subway">Subway</button>
@@ -613,9 +634,76 @@ function goHome() {
   map.setView([40.7128, -73.97], 12);
 }
 
+// Autocomplete
+let acTimer = null, acResults = [], acIdx = -1;
+const acBox = document.getElementById('autocomplete');
+const searchInput = document.getElementById('search-input');
+
+function acSearch(q) {
+  if (q.length < 3) { acHide(); return; }
+  fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q + ', New York City') + '&limit=5&bounded=1&viewbox=-74.3,40.4,-73.7,40.95&addressdetails=1')
+    .then(r => r.json())
+    .then(data => {
+      acResults = data;
+      acIdx = -1;
+      if (!data.length) { acHide(); return; }
+      acBox.innerHTML = data.map((d, i) => {
+        const parts = d.display_name.split(',');
+        const main = parts[0].trim();
+        const sub = parts.slice(1, 3).join(',').trim();
+        return '<div class="ac-item" data-idx="' + i + '"><div class="ac-main">' + main + '</div><div class="ac-sub">' + sub + '</div></div>';
+      }).join('');
+      acBox.style.display = 'block';
+      acBox.querySelectorAll('.ac-item').forEach(el => {
+        el.addEventListener('click', function() { acSelect(parseInt(this.dataset.idx)); });
+      });
+    }).catch(() => {});
+}
+
+function acSelect(idx) {
+  const d = acResults[idx];
+  if (!d) return;
+  searchInput.value = d.display_name.split(',').slice(0, 2).join(',');
+  acHide();
+  const lat = parseFloat(d.lat), lng = parseFloat(d.lon);
+  map.setView([lat, lng], 14);
+  analyzePoint(lat, lng);
+}
+
+function acHide() { acBox.style.display = 'none'; acResults = []; acIdx = -1; }
+
+function acHighlight(idx) {
+  acBox.querySelectorAll('.ac-item').forEach((el, i) => el.classList.toggle('selected', i === idx));
+}
+
+searchInput.addEventListener('input', function() {
+  clearTimeout(acTimer);
+  acTimer = setTimeout(() => acSearch(this.value.trim()), 300);
+});
+
+searchInput.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowDown' && acResults.length) {
+    e.preventDefault();
+    acIdx = Math.min(acIdx + 1, acResults.length - 1);
+    acHighlight(acIdx);
+  } else if (e.key === 'ArrowUp' && acResults.length) {
+    e.preventDefault();
+    acIdx = Math.max(acIdx - 1, 0);
+    acHighlight(acIdx);
+  } else if (e.key === 'Enter') {
+    if (acIdx >= 0 && acResults.length) { acSelect(acIdx); }
+    else { acHide(); doSearch(); }
+  } else if (e.key === 'Escape') { acHide(); }
+});
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#search-wrapper')) acHide();
+});
+
 function doSearch() {
-  const q = document.getElementById('search-input').value.trim();
+  const q = searchInput.value.trim();
   if (!q) return;
+  acHide();
   fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q + ', New York City') + '&limit=1&bounded=1&viewbox=-74.3,40.4,-73.7,40.95')
     .then(r => r.json())
     .then(data => {
@@ -623,8 +711,6 @@ function doSearch() {
       else alert('Address not found. Try a more specific NYC address.');
     }).catch(() => alert('Geocoding failed. Please try again.'));
 }
-
-document.getElementById('search-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
 
 buildSubwayGraph();
 buildBusGraph();
