@@ -518,26 +518,30 @@ function renderIsochrones(reach) {
   clearIsochrones();
   const { origin, results } = reach;
 
+  // Draw filled walking-reach zones from origin (outermost first)
   for (let b = 4; b >= 0; b--) {
     const r = (BAND_SECONDS[b] / 60) * WALK_SPEED / GRID_FACTOR;
     walkCircles.push(L.circle([origin.lat, origin.lng], {
-      radius: r, fillColor: BAND_COLORS[b], fillOpacity: 0.03,
-      color: BAND_COLORS[b], weight: 0.5, opacity: 0.15, dashArray: '4 4'
+      radius: r, fillColor: BAND_COLORS[b], fillOpacity: 0.12,
+      color: BAND_COLORS[b], weight: 1, opacity: 0.4
     }).addTo(map));
   }
 
+  // Draw walking-reach zones from each reachable station/stop
+  // This shows the actual area you can cover after exiting transit
   for (let b = 4; b >= 0; b--) {
-    for (const s of results.filter(r => r.band === b && !r.walkOnly)) {
+    for (const s of results.filter(r => r.band === b)) {
       const rem = BAND_SECONDS[b] - s.totalTime;
-      if (rem > 60) {
-        isoLayers.push(L.circle([s.lat, s.lng], {
-          radius: Math.min((rem/60)*WALK_SPEED/GRID_FACTOR, 800),
-          fillColor: BAND_COLORS[b], fillOpacity: 0.08, color: BAND_COLORS[b], weight: 0
-        }).addTo(map));
-      }
+      const walkMin = Math.max(rem, 120) / 60; // at least 2 min walk radius for visibility
+      const walkRadius = (walkMin * WALK_SPEED) / GRID_FACTOR;
+      isoLayers.push(L.circle([s.lat, s.lng], {
+        radius: Math.min(walkRadius, 1200),
+        fillColor: BAND_COLORS[b], fillOpacity: 0.15, color: BAND_COLORS[b], weight: 0
+      }).addTo(map));
     }
   }
 
+  // Highlight reachable subway stations
   for (const m of subwayMarkers) {
     const r = results.find(x => x.id === 'S_' + m.sid);
     if (r && r.band >= 0) {
@@ -548,6 +552,7 @@ function renderIsochrones(reach) {
     }
   }
 
+  // Highlight reachable bus stops
   for (const m of busMarkers) {
     const r = results.find(x => x.id === 'B_' + m.bidx);
     if (r && r.band >= 0) {
@@ -558,10 +563,12 @@ function renderIsochrones(reach) {
     }
   }
 
+  // Origin marker on top
   isoLayers.push(L.circleMarker([origin.lat, origin.lng], {
     radius: 8, fillColor: '#fff', fillOpacity: 1, color: '#1565c0', weight: 3
   }).addTo(map));
 
+  // Fit bounds
   if (results.length > 5) {
     const lats = results.map(r => r.lat).concat([origin.lat]);
     const lngs = results.map(r => r.lng).concat([origin.lng]);
