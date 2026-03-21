@@ -5,7 +5,13 @@
  * For restaurants with a menuUrl in restaurants.json, this script:
  *   1. Fetches the menu page
  *   2. Sends the text to Claude Haiku to extract current prices
- *   3. Saves a new dated snapshot
+ *   3. Detects closures (page gone, "permanently closed" signals)
+ *   4. Saves a new dated snapshot
+ *
+ * Closure detection:
+ *   - If a page returns 404/410 or contains closure keywords, marks as closed
+ *   - 3 consecutive monthly failures → auto-flagged as closed
+ *   - Closed restaurants are excluded from averages (not carried forward)
  *
  * Restaurants without a menuUrl keep their last known price.
  *
@@ -51,12 +57,34 @@ console.log(`Last snapshot: ${snapshots[0]} (${Object.keys(lastSnapshot.prices).
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+const CLOSURE_KEYWORDS = [
+  'permanently closed',
+  'this location has closed',
+  'we have closed',
+  'no longer in business',
+  'closed permanently',
+  'this restaurant is closed',
+  'has shut down',
+  'out of business',
+];
+
+function detectClosure(html) {
+  const lower = html.toLowerCase();
+  for (const kw of CLOSURE_KEYWORDS) {
+    if (lower.includes(kw)) return kw;
+  }
+  return null;
+}
+
 function fetchPage(url, timeout = 15000) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
     const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FamilyDinnerBot/1.0)' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return fetchPage(res.headers.location, timeout).then(resolve).catch(reject);
+      }
+      if (res.statusCode === 404 || res.statusCode === 410) {
+        return reject(new Error(`GONE_${res.statusCode}`));
       }
       if (res.statusCode !== 200) {
         return reject(new Error(`HTTP ${res.statusCode}`));
@@ -158,15 +186,22 @@ async function main() {
   const today = new Date().toISOString().split('T')[0];
   console.log(`\nGenerating snapshot for ${today}\n`);
 
-  const scrapeable = registry.filter(r => r.menuUrl);
-  const noUrl = registry.filter(r => !r.menuUrl);
+  const FAIL_THRESHOLD = 3; // consecutive failures before auto-closing
 
+  const active = registry.filter(r => r.status !== 'closed');
+  const closed = registry.filter(r => r.status === 'closed');
+  const scrapeable = active.filter(r => r.menuUrl);
+  const noUrl = active.filter(r => !r.menuUrl);
+
+  console.log(`Active: ${active.length} | Already closed: ${closed.length}`);
   console.log(`Scrapeable: ${scrapeable.length} | Carry forward: ${noUrl.length}\n`);
 
-  const newSnapshot = { date: today, prices: {} };
+  const newSnapshot = { date: today, prices: {}, closures: [] };
   const changes = [];
+  const newClosures = [];
+  let registryChanged = false;
 
-  // Carry forward prices for restaurants without URLs
+  // Carry forward prices for active restaurants without URLs
   for (const r of noUrl) {
     if (lastSnapshot.prices[r.id]) {
       newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
@@ -182,11 +217,34 @@ async function main() {
 
     try {
       const html = await fetchPage(r.menuUrl);
+
+      // Check for closure keywords in the raw HTML
+      const closureSignal = detectClosure(html);
+      if (closureSignal) {
+        console.log(`⚠ CLOSED (detected: "${closureSignal}")`);
+        r.status = 'closed';
+        r.closedDate = today;
+        r.closureReason = `Detected keyword: "${closureSignal}"`;
+        r.failCount = 0;
+        registryChanged = true;
+        newClosures.push({ name: r.name, borough: r.borough, reason: closureSignal });
+        // Don't include in snapshot prices — excluded from averages
+        continue;
+      }
+
       const menuText = stripHtml(html);
 
       if (menuText.length < 50) {
         console.log('too little text, carrying forward');
-        if (lastSnapshot.prices[r.id]) {
+        r.failCount = (r.failCount || 0) + 1;
+        registryChanged = true;
+        if (r.failCount >= FAIL_THRESHOLD) {
+          console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
+          r.status = 'closed';
+          r.closedDate = today;
+          r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
+          newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
+        } else if (lastSnapshot.prices[r.id]) {
           newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
         }
         continue;
@@ -196,11 +254,25 @@ async function main() {
 
       if (!prices || prices.confidence === 'low') {
         console.log('low confidence, carrying forward');
-        if (lastSnapshot.prices[r.id]) {
+        r.failCount = (r.failCount || 0) + 1;
+        registryChanged = true;
+        if (r.failCount >= FAIL_THRESHOLD) {
+          console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
+          r.status = 'closed';
+          r.closedDate = today;
+          r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
+          newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
+        } else if (lastSnapshot.prices[r.id]) {
           newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
         }
         failed++;
         continue;
+      }
+
+      // Success — reset fail counter
+      if (r.failCount > 0) {
+        r.failCount = 0;
+        registryChanged = true;
       }
 
       // Calculate family dinner total with tax
@@ -233,12 +305,42 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
     } catch (err) {
+      // 404/410 = likely closed
+      if (err.message.startsWith('GONE_')) {
+        console.log(`⚠ CLOSED (${err.message})`);
+        r.status = 'closed';
+        r.closedDate = today;
+        r.closureReason = `Page returned ${err.message.replace('GONE_', '')}`;
+        r.failCount = 0;
+        registryChanged = true;
+        newClosures.push({ name: r.name, borough: r.borough, reason: err.message });
+        continue;
+      }
+
       console.log(`error: ${err.message}`);
-      if (lastSnapshot.prices[r.id]) {
+      r.failCount = (r.failCount || 0) + 1;
+      registryChanged = true;
+
+      if (r.failCount >= FAIL_THRESHOLD) {
+        console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
+        r.status = 'closed';
+        r.closedDate = today;
+        r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
+        newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
+      } else if (lastSnapshot.prices[r.id]) {
         newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
       }
       failed++;
     }
+  }
+
+  // Record closures in snapshot for history
+  newSnapshot.closures = newClosures.map(c => c.name);
+
+  // Save updated registry if anything changed
+  if (registryChanged) {
+    fs.writeFileSync(path.join(dataDir, 'restaurants.json'), JSON.stringify(registry, null, 2));
+    console.log(`\nRegistry updated (${newClosures.length} new closures, fail counts updated)`);
   }
 
   // Save snapshot
@@ -248,9 +350,16 @@ async function main() {
   // Summary
   console.log(`\n════════════════════════════════════════`);
   console.log(`Snapshot saved: ${snapshotPath}`);
-  console.log(`Total restaurants: ${Object.keys(newSnapshot.prices).length}`);
+  console.log(`Active restaurants in snapshot: ${Object.keys(newSnapshot.prices).length}`);
   console.log(`Scraped: ${checked} | Updated: ${updated} | Failed: ${failed}`);
   console.log(`Carried forward: ${noUrl.length + (checked - updated - failed)}`);
+
+  if (newClosures.length > 0) {
+    console.log(`\n🚫 New closures detected (${newClosures.length}):`);
+    for (const c of newClosures) {
+      console.log(`  ✕ ${c.name} (${c.borough}) — ${c.reason}`);
+    }
+  }
 
   if (changes.length > 0) {
     console.log(`\nPrice changes detected:`);
