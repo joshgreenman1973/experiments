@@ -13,7 +13,7 @@ export const backdropUrl = (path) =>
  * Strategy: find movies released in the ~6 weeks before this date,
  * sorted by popularity (so bigger films surface first).
  */
-export async function discoverMoviesInTheaters(dateStr, page = 1) {
+export async function discoverMoviesInTheaters(dateStr, { page = 1, includeLimited = true } = {}) {
   const target = new Date(dateStr)
   const windowStart = new Date(target)
   windowStart.setDate(windowStart.getDate() - 42) // 6 weeks back
@@ -22,7 +22,7 @@ export async function discoverMoviesInTheaters(dateStr, page = 1) {
     api_key: API_KEY,
     'primary_release_date.gte': fmt(windowStart),
     'primary_release_date.lte': fmt(target),
-    'with_release_type': '2|3', // theatrical + theatrical limited
+    'with_release_type': includeLimited ? '2|3' : '2', // 2 = wide, 3 = limited
     region: 'US',
     sort_by: 'popularity.desc',
     page: String(page),

@@ -21,14 +21,15 @@ export default function App() {
   const [totalResults, setTotalResults] = useState(0)
   const [selectedMovie, setSelectedMovie] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [includeLimited, setIncludeLimited] = useState(true)
   const debounceRef = useRef(null)
   const [viewKey, setViewKey] = useState(0)
 
-  const fetchMovies = useCallback(async (dateStr) => {
+  const fetchMovies = useCallback(async (dateStr, limited) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await discoverMoviesInTheaters(dateStr)
+      const data = await discoverMoviesInTheaters(dateStr, { includeLimited: limited })
       setMovies(data.results || [])
       setTotalResults(data.total_results || 0)
     } catch (err) {
@@ -43,14 +44,14 @@ export default function App() {
     if (view !== 'movies') return
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      fetchMovies(date)
+      fetchMovies(date, includeLimited)
     }, 300)
     return () => clearTimeout(debounceRef.current)
-  }, [date, view, fetchMovies])
+  }, [date, view, includeLimited, fetchMovies])
 
   useEffect(() => {
     if (view === 'movies' && movies.length === 0 && !loading) {
-      fetchMovies(date)
+      fetchMovies(date, includeLimited)
     }
   }, [view])
 
@@ -131,9 +132,21 @@ export default function App() {
         {view === 'movies' && (
           <div className="max-w-6xl mx-auto">
             {!loading && movies.length > 0 && (
-              <p className="text-xs text-film-muted text-center mb-5 uppercase tracking-widest font-light">
-                {totalResults} movies in theaters
-              </p>
+              <div className="flex items-center justify-center gap-4 mb-5">
+                <p className="text-xs text-film-muted uppercase tracking-widest font-light">
+                  {totalResults} movies in theaters
+                </p>
+                <button
+                  onClick={() => setIncludeLimited((v) => !v)}
+                  className={`text-[11px] px-2.5 py-1 rounded border transition-colors cursor-pointer
+                    ${includeLimited
+                      ? 'border-film-gold/30 text-film-gold/80 bg-film-gold/5'
+                      : 'border-film-border/50 text-film-muted/50 hover:text-film-muted'
+                    }`}
+                >
+                  {includeLimited ? 'Wide + limited' : 'Wide release only'}
+                </button>
+              </div>
             )}
             <MovieGrid
               movies={movies}
