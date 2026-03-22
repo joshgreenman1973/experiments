@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sasha's Animal Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sky: #E8F0E4;
+  --meadow: #C5D8A4;
+  --earth: #A67B5B;
+  --earth-light: #D4A574;
+  --sunset: #E8985E;
+  --berry: #C76B6B;
+  --pond: #7BA7BC;
+  --pond-light: #A8D0E0;
+  --leaf: #7BAF6E;
+  --leaf-dark: #5A8A4E;
+  --cream: #FFF8F0;
+  --bark: #5C4033;
+  --bark-light: #8B6F47;
+  --shadow: rgba(92, 64, 51, 0.12);
+  --gold: #E8C547;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Quicksand', sans-serif;
+  background: var(--sky);
+  color: var(--bark);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+h1, h2, h3, .btn-label { font-family: 'Fredoka', sans-serif; }
+
+/* ─── Background ─── */
+.scene-bg {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  background: linear-gradient(180deg, #D6ECFF 0%, #E8F0E4 40%, #C5D8A4 75%, #A8C084 100%);
+}
+.cloud { position: absolute; background: rgba(255,255,255,0.7); border-radius: 50%; filter: blur(1px); }
+.cloud::before, .cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
+.cloud-1 { width: 120px; height: 40px; top: 6%; left: 10%; animation: drift 45s linear infinite; }
+.cloud-1::before { width: 60px; height: 60px; top: -30px; left: 20px; }
+.cloud-1::after { width: 80px; height: 50px; top: -20px; left: 50px; }
+.cloud-2 { width: 90px; height: 30px; top: 12%; left: 60%; animation: drift 60s linear infinite reverse; }
+.cloud-2::before { width: 50px; height: 50px; top: -25px; left: 15px; }
+.cloud-2::after { width: 60px; height: 40px; top: -15px; left: 40px; }
+.cloud-3 { width: 100px; height: 35px; top: 4%; left: 35%; animation: drift 50s linear infinite; animation-delay: -20s; }
+.cloud-3::before { width: 55px; height: 55px; top: -28px; left: 18px; }
+.cloud-3::after { width: 70px; height: 45px; top: -18px; left: 45px; }
+@keyframes drift { from { transform: translateX(-200px); } to { transform: translateX(calc(100vw + 200px)); } }
+.hills { position: absolute; bottom: 0; width: 100%; height: 35%; }
+.hill { position: absolute; border-radius: 50%; bottom: -50%; }
+.hill-1 { width: 140%; height: 100%; left: -20%; background: #B8CF96; }
+.hill-2 { width: 80%; height: 80%; left: 50%; background: #A8C084; }
+.hill-3 { width: 60%; height: 70%; left: -10%; background: #C2D9A8; }
+
+/* ─── App ─── */
+.app { position: relative; z-index: 1; height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+
+/* ─── Top Bar ─── */
+.top-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; flex-shrink: 0; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--earth-light);
+  background: var(--cream); font-size: 20px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; box-shadow: 0 3px 8px var(--shadow); transition: transform 0.2s;
+}
+.home-btn:hover { transform: scale(1.1); }
+.home-btn:active { transform: scale(0.95); }
+.sticker-bar {
+  display: flex; gap: 4px; align-items: center; background: var(--cream);
+  padding: 5px 12px; border-radius: 30px; border: 3px solid var(--gold);
+  box-shadow: 0 3px 8px var(--shadow);
+}
+.sticker-count { font-family: 'Fredoka'; font-weight: 700; font-size: 18px; }
+.sticker-icon { font-size: 18px; }
+
+/* ─── Screens ─── */
+.screen { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ─── Home ─── */
+.home-screen { align-items: center; justify-content: center; gap: 8px; padding: 16px; }
+.home-title { font-size: clamp(26px, 6vw, 44px); font-weight: 700; text-align: center; text-shadow: 0 2px 4px rgba(255,255,255,0.5); }
+.home-subtitle { font-size: clamp(13px, 3vw, 18px); color: var(--bark-light); font-weight: 600; margin-bottom: 6px; }
+.home-animals { font-size: clamp(32px, 7vw, 52px); letter-spacing: 6px; animation: wiggle 3s ease-in-out infinite; }
+@keyframes wiggle { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+
+.activity-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  width: 100%; max-width: 460px; padding: 0 8px;
+}
+.activity-card {
+  background: var(--cream); border-radius: 22px; padding: 18px 12px; text-align: center;
+  cursor: pointer; border: 4px solid transparent; box-shadow: 0 5px 16px var(--shadow);
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), border-color 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.activity-card:hover { transform: translateY(-3px) scale(1.03); }
+.activity-card:active { transform: scale(0.97); }
+.activity-card[data-activity="math"] { border-color: var(--sunset); }
+.activity-card[data-activity="spanish"] { border-color: var(--pond); }
+.activity-card[data-activity="explore"] { border-color: var(--leaf); }
+.activity-card[data-activity="quiz"] { border-color: var(--berry); }
+.activity-icon { font-size: 40px; line-height: 1; }
+.activity-name { font-family: 'Fredoka'; font-weight: 600; font-size: 16px; }
+.activity-desc { font-size: 11px; color: var(--bark-light); font-weight: 500; }
+
+/* ─── Game Area ─── */
+.game-area {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 10px 16px; gap: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.game-title { font-size: 20px; font-weight: 700; text-align: center; }
+.streak-display { display: flex; align-items: center; gap: 5px; font-family: 'Fredoka'; font-size: 15px; font-weight: 600; color: var(--bark-light); min-height: 24px; }
+.streak-display .flame { font-size: 20px; animation: flicker 0.5s ease-in-out infinite alternate; }
+@keyframes flicker { from { transform: scale(1) rotate(-5deg); } to { transform: scale(1.15) rotate(5deg); } }
+
+/* ─── Shared Buttons ─── */
+.choice-btn {
+  font-family: 'Fredoka'; font-weight: 600; border-radius: 18px; background: var(--cream);
+  color: var(--bark); cursor: pointer; box-shadow: 0 4px 12px var(--shadow);
+  transition: transform 0.15s, background 0.2s, border-color 0.2s;
+}
+.choice-btn:hover { transform: scale(1.06); }
+.choice-btn:active { transform: scale(0.95); }
+.choice-btn.correct { background: #C5E8B0; border-color: var(--leaf); animation: correctPulse 0.5s ease; }
+.choice-btn.wrong { background: #F0C5C5; border-color: var(--berry); animation: shake 0.4s ease; }
+@keyframes correctPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* ─── Math ─── */
+.math-problem-area { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 400px; }
+.animal-display { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; min-height: 70px; }
+.animal-group {
+  display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
+  background: rgba(255,255,255,0.6); border-radius: 18px; padding: 10px 14px;
+  border: 3px dashed var(--earth-light); min-width: 50px; min-height: 50px; align-items: center;
+}
+.animal-group .animal-item { font-size: 24px; animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both; }
+@keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.math-operator { font-family: 'Fredoka'; font-size: 32px; font-weight: 700; color: var(--sunset); }
+.math-equation { font-family: 'Fredoka'; font-size: clamp(28px, 7vw, 46px); font-weight: 700; text-align: center; letter-spacing: 3px; }
+.math-equation .op { color: var(--sunset); margin: 0 4px; }
+.math-equation .equals { color: var(--bark-light); margin: 0 4px; }
+.math-equation .answer-slot { display: inline-block; min-width: 50px; border-bottom: 4px solid var(--earth-light); color: var(--pond); }
+.answer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 340px; }
+.answer-grid .choice-btn { font-size: 24px; padding: 14px; border: 4px solid var(--earth-light); }
+
+/* ─── Spanish ─── */
+.spanish-area { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; max-width: 400px; }
+.spanish-card { width: 180px; height: 180px; perspective: 600px; cursor: pointer; }
+.spanish-card-inner { width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1); transform-style: preserve-3d; }
+.spanish-card.flipped .spanish-card-inner { transform: rotateY(180deg); }
+.card-face {
+  position: absolute; inset: 0; backface-visibility: hidden; border-radius: 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; box-shadow: 0 5px 16px var(--shadow); border: 4px solid var(--pond);
+}
+.card-front { background: var(--cream); }
+.card-back { background: linear-gradient(135deg, var(--pond-light), var(--pond)); transform: rotateY(180deg); color: white; }
+.card-emoji { font-size: 56px; line-height: 1; }
+.card-english { font-family: 'Fredoka'; font-size: 18px; font-weight: 600; }
+.card-spanish { font-family: 'Fredoka'; font-size: 24px; font-weight: 700; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.card-category { font-size: 13px; font-weight: 600; opacity: 0.85; }
+.spanish-prompt { font-family: 'Fredoka'; font-size: 16px; color: var(--bark-light); text-align: center; }
+.spanish-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+.spanish-grid .choice-btn { font-size: 17px; padding: 12px 10px; border: 4px solid var(--pond-light); line-height: 1.3; }
+
+/* ─── Explore ─── */
+.explore-area { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 440px; }
+.explore-card-container {
+  width: 100%; background: var(--cream); border-radius: 24px; padding: 20px;
+  box-shadow: 0 6px 20px var(--shadow); border: 4px solid var(--leaf);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.explore-animal-emoji { font-size: 72px; line-height: 1; }
+.explore-animal-name { font-family: 'Fredoka'; font-size: 28px; font-weight: 700; }
+.explore-animal-spanish { font-family: 'Fredoka'; font-size: 18px; font-weight: 600; color: var(--pond); }
+.explore-facts {
+  width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.fact-card {
+  background: rgba(200,220,180,0.3); border-radius: 14px; padding: 10px 12px;
+  text-align: center; border: 2px solid var(--meadow);
+}
+.fact-label { font-family: 'Fredoka'; font-size: 11px; font-weight: 600; color: var(--bark-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.fact-value { font-family: 'Fredoka'; font-size: 15px; font-weight: 600; color: var(--bark); line-height: 1.3; }
+.fact-card.wide { grid-column: 1 / -1; }
+.explore-fun-fact {
+  width: 100%; background: linear-gradient(135deg, #FFF3E0, #FFECB3); border-radius: 14px;
+  padding: 12px 14px; border: 2px solid var(--gold); font-size: 14px; font-weight: 500;
+  line-height: 1.5; text-align: center;
+}
+.explore-fun-fact strong { font-family: 'Fredoka'; color: var(--sunset); }
+.explore-nav { display: flex; gap: 10px; width: 100%; }
+.explore-nav-btn {
+  flex: 1; font-family: 'Fredoka'; font-size: 16px; font-weight: 600;
+  padding: 12px; border-radius: 16px; border: 3px solid var(--leaf);
+  background: var(--cream); cursor: pointer; box-shadow: 0 3px 10px var(--shadow);
+  transition: transform 0.15s;
+}
+.explore-nav-btn:hover { transform: scale(1.05); }
+.explore-nav-btn:active { transform: scale(0.95); }
+.explore-nav-btn.quiz-me { background: var(--leaf); color: white; border-color: var(--leaf-dark); }
+
+/* ─── Explore Quiz ─── */
+.explore-quiz-area { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.explore-quiz-q { font-family: 'Fredoka'; font-size: 18px; font-weight: 600; text-align: center; line-height: 1.4; }
+.explore-quiz-emoji { font-size: 48px; }
+.explore-quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.explore-quiz-choices .choice-btn { font-size: 15px; padding: 12px 8px; border: 4px solid var(--leaf); line-height: 1.3; }
+
+/* ─── Quiz ─── */
+.quiz-area { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 400px; }
+.quiz-question { font-family: 'Fredoka'; font-size: 20px; font-weight: 600; text-align: center; line-height: 1.4; }
+.quiz-visual { font-size: 44px; text-align: center; min-height: 55px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.quiz-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
+.quiz-choices .choice-btn { font-size: 18px; padding: 14px 10px; border: 4px solid var(--berry); }
+
+/* ─── Feedback ─── */
+.feedback-overlay { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; pointer-events: none; }
+.feedback-overlay.show { display: flex; }
+.feedback-text { font-family: 'Fredoka'; font-size: clamp(44px, 11vw, 72px); font-weight: 700; animation: feedbackPop 1s cubic-bezier(0.34,1.56,0.64,1) forwards; text-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.feedback-text.correct-fb { color: var(--leaf-dark); }
+.feedback-text.wrong-fb { color: var(--berry); font-size: clamp(26px, 6vw, 40px); }
+@keyframes feedbackPop { 0% { transform: scale(0) rotate(-10deg); opacity: 0; } 50% { transform: scale(1.2) rotate(3deg); opacity: 1; } 70% { transform: scale(1) rotate(0); opacity: 1; } 100% { transform: scale(0.9); opacity: 0; } }
+
+.particle { position: fixed; z-index: 99; font-size: 26px; pointer-events: none; animation: particleFall 1.5s ease-in forwards; }
+@keyframes particleFall { 0% { transform: translateY(0) rotate(0) scale(1); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg) scale(0.3); opacity: 0; } }
+
+.sticker-earned { position: fixed; z-index: 101; font-size: 54px; pointer-events: none; animation: stickerFloat 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+@keyframes stickerFloat { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 40% { transform: scale(1.5) rotate(10deg); opacity: 1; } 70% { transform: scale(1.2) rotate(-5deg); opacity: 1; } 100% { transform: scale(0.5) translateY(-100px); opacity: 0; } }
+
+@media (max-width: 400px) {
+  .activity-grid { gap: 10px; }
+  .activity-card { padding: 14px 10px; }
+  .activity-icon { font-size: 32px; }
+  .explore-card-container { padding: 14px; }
+  .explore-animal-emoji { font-size: 56px; }
+}
+</style>
+</head>
+<body>
+
+<div class="scene-bg">
+  <div class="cloud cloud-1"></div><div class="cloud cloud-2"></div><div class="cloud cloud-3"></div>
+  <div class="hills"><div class="hill hill-1"></div><div class="hill hill-2"></div><div class="hill hill-3"></div></div>
+</div>
+
+<div class="app">
+  <div class="top-bar">
+    <button class="home-btn" onclick="showScreen('home')" aria-label="Home">🏡</button>
+    <div class="sticker-bar"><span class="sticker-icon">⭐</span><span class="sticker-count" id="stickerCount">0</span></div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen home-screen active" id="screen-home">
+    <div class="home-animals">🐱 🦁 🐧 🦊</div>
+    <h1 class="home-title">Sasha's Animal Adventure</h1>
+    <p class="home-subtitle">Pick a game to play!</p>
+    <div class="activity-grid">
+      <div class="activity-card" data-activity="math" onclick="startGame('math')">
+        <div class="activity-icon">🐾</div>
+        <div class="activity-name">Animal Math</div>
+        <div class="activity-desc">Add &amp; subtract</div>
+      </div>
+      <div class="activity-card" data-activity="spanish" onclick="startGame('spanish')">
+        <div class="activity-icon">🌎</div>
+        <div class="activity-name">Español</div>
+        <div class="activity-desc">Learn Spanish words</div>
+      </div>
+      <div class="activity-card" data-activity="explore" onclick="startGame('explore')">
+        <div class="activity-icon">🔍</div>
+        <div class="activity-name">Explore Animals</div>
+        <div class="activity-desc">Facts &amp; babies</div>
+      </div>
+      <div class="activity-card" data-activity="quiz" onclick="startGame('quiz')">
+        <div class="activity-icon">🌟</div>
+        <div class="activity-name">Mix It Up!</div>
+        <div class="activity-desc">Math + Spanish + facts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MATH -->
+  <div class="screen" id="screen-math">
+    <div class="game-area">
+      <h2 class="game-title">🐾 Animal Math</h2>
+      <div class="streak-display" id="mathStreak"></div>
+      <div class="math-problem-area">
+        <div class="animal-display" id="animalDisplay"></div>
+        <div class="math-equation" id="mathEquation"></div>
+        <div class="answer-grid" id="mathChoices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPANISH -->
+  <div class="screen" id="screen-spanish">
+    <div class="game-area">
+      <h2 class="game-title">🌎 Español</h2>
+      <div class="streak-display" id="spanishStreak"></div>
+      <div class="spanish-area">
+        <div class="spanish-card" id="spanishCard" onclick="flipCard()">
+          <div class="spanish-card-inner">
+            <div class="card-face card-front">
+              <div class="card-emoji" id="spanishEmoji"></div>
+              <div class="card-english" id="spanishEnglish"></div>
+            </div>
+            <div class="card-face card-back">
+              <div class="card-emoji" id="spanishEmojiBack"></div>
+              <div class="card-spanish" id="spanishWord"></div>
+              <div class="card-category" id="spanishCategory"></div>
+            </div>
+          </div>
+        </div>
+        <p class="spanish-prompt" id="spanishPrompt">Tap the card, then pick the Spanish word!</p>
+        <div class="spanish-grid" id="spanishChoices"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPLORE -->
+  <div class="screen" id="screen-explore">
+    <div class="game-area">
+      <h2 class="game-title">🔍 Animal Explorer</h2>
+      <div class="streak-display" id="exploreStreak"></div>
+      <div class="explore-area" id="exploreArea"></div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen" id="screen-quiz">
+    <div class="game-area">
+      <h2 class="game-title">🌟 Mix It Up!</h2>
+      <div class="streak-display" id="quizStreak"></div>
+      <div class="quiz-area">
+        <div class="quiz-visual" id="quizVisual"></div>
+        <div class="quiz-question" id="quizQuestion"></div>
+        <div class="quiz-choices" id="quizChoices"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="feedback-overlay" id="feedbackOverlay">
+  <div class="feedback-text" id="feedbackText"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// ANIMAL DATABASE — 60+ animals with rich facts
+// ═══════════════════════════════════════════
+const animalDB = [
+  // Farm
+  { emoji:'🐱', en:'cat', es:'gato', baby:'kitten', babyEs:'gatito', habitat:'Houses & farms', diet:'Meat & fish', group:'Farm', fact:'Cats sleep about 16 hours a day — more than almost any other animal!' },
+  { emoji:'🐶', en:'dog', es:'perro', baby:'puppy', babyEs:'cachorro', habitat:'Houses & farms', diet:'Meat & vegetables', group:'Farm', fact:'Dogs can smell 10,000 times better than people!' },
+  { emoji:'🐷', en:'pig', es:'cerdo', baby:'piglet', babyEs:'lechón', habitat:'Farms & forests', diet:'Almost anything! They eat plants and bugs', group:'Farm', fact:'Pigs are one of the smartest animals — smarter than most dogs!' },
+  { emoji:'🐴', en:'horse', es:'caballo', baby:'foal', babyEs:'potro', habitat:'Farms, grasslands & prairies', diet:'Grass and hay', group:'Farm', fact:'Horses can sleep standing up!' },
+  { emoji:'🐮', en:'cow', es:'vaca', baby:'calf', babyEs:'becerro', habitat:'Farms & grasslands', diet:'Grass and grain', group:'Farm', fact:'Cows have best friends and get sad when they are apart!' },
+  { emoji:'🐔', en:'chicken', es:'pollo', baby:'chick', babyEs:'pollito', habitat:'Farms', diet:'Seeds, bugs & worms', group:'Farm', fact:'There are more chickens on Earth than people!' },
+  { emoji:'🐑', en:'sheep', es:'oveja', baby:'lamb', babyEs:'cordero', habitat:'Farms & mountains', diet:'Grass', group:'Farm', fact:'Sheep can remember 50 different faces for years!' },
+  { emoji:'🐐', en:'goat', es:'cabra', baby:'kid', babyEs:'cabrito', habitat:'Farms & mountains', diet:'Grass, leaves & shrubs', group:'Farm', fact:'Goats have rectangular pupils that let them see almost all around them!' },
+  { emoji:'🦃', en:'turkey', es:'pavo', baby:'poult', babyEs:'pavito', habitat:'Farms & forests', diet:'Seeds, nuts & bugs', group:'Farm', fact:'Wild turkeys can fly up to 55 miles per hour!' },
+  { emoji:'🐇', en:'rabbit', es:'conejo', baby:'kit', babyEs:'conejito', habitat:'Meadows & burrows', diet:'Grass, hay & vegetables', group:'Farm', fact:'A rabbit\u2019s teeth never stop growing!' },
+
+  // Forest
+  { emoji:'🦊', en:'fox', es:'zorro', baby:'kit', babyEs:'zorrito', habitat:'Forests & grasslands', diet:'Mice, berries & bugs', group:'Forest', fact:'Foxes use Earth\u2019s magnetic field to help them hunt!' },
+  { emoji:'🐻', en:'bear', es:'oso', baby:'cub', babyEs:'osezno', habitat:'Forests & mountains', diet:'Fish, berries & honey', group:'Forest', fact:'Bears can smell food from 20 miles away!' },
+  { emoji:'🦌', en:'deer', es:'ciervo', baby:'fawn', babyEs:'cervatillo', habitat:'Forests & meadows', diet:'Leaves, grass & berries', group:'Forest', fact:'Baby deer (fawns) have no smell, which helps them hide from predators!' },
+  { emoji:'🐿️', en:'squirrel', es:'ardilla', baby:'kit', babyEs:'ardillita', habitat:'Forests & parks', diet:'Nuts, seeds & fruit', group:'Forest', fact:'Squirrels plant thousands of trees by forgetting where they buried their nuts!' },
+  { emoji:'🦉', en:'owl', es:'búho', baby:'owlet', babyEs:'búho bebé', habitat:'Forests', diet:'Mice & small animals', group:'Forest', fact:'Owls can turn their heads almost all the way around — 270 degrees!' },
+  { emoji:'🦡', en:'badger', es:'tejón', baby:'kit', babyEs:'tejón bebé', habitat:'Forests & grasslands', diet:'Worms, bugs & roots', group:'Forest', fact:'Badger families have used the same burrow for hundreds of years!' },
+  { emoji:'🐺', en:'wolf', es:'lobo', baby:'pup', babyEs:'lobezno', habitat:'Forests & mountains', diet:'Deer and other animals', group:'Forest', fact:'Wolves howl to talk to their family members far away!' },
+  { emoji:'🦔', en:'hedgehog', es:'erizo', baby:'hoglet', babyEs:'erizo bebé', habitat:'Forests & gardens', diet:'Bugs, snails & berries', group:'Forest', fact:'Hedgehogs have about 5,000 spines on their back!' },
+  { emoji:'🐗', en:'boar', es:'jabalí', baby:'piglet', babyEs:'jabato', habitat:'Forests', diet:'Roots, nuts & mushrooms', group:'Forest', fact:'Wild boars can run up to 30 miles per hour!' },
+  { emoji:'🦫', en:'beaver', es:'castor', baby:'kit', babyEs:'castorcito', habitat:'Rivers & forests', diet:'Bark, leaves & water plants', group:'Forest', fact:'Beavers build dams that can be seen from space!' },
+
+  // Jungle / Tropical
+  { emoji:'🦁', en:'lion', es:'león', baby:'cub', babyEs:'cachorro', habitat:'African grasslands', diet:'Zebra, antelope & buffalo', group:'Jungle', fact:'A lion\u2019s roar can be heard from 5 miles away!' },
+  { emoji:'🐘', en:'elephant', es:'elefante', baby:'calf', babyEs:'elefantito', habitat:'African grasslands & Asian forests', diet:'Grass, fruit & bark', group:'Jungle', fact:'Elephants are the only animals that can\u2019t jump!' },
+  { emoji:'🦒', en:'giraffe', es:'jirafa', baby:'calf', babyEs:'jirafita', habitat:'African grasslands', diet:'Leaves from tall trees', group:'Jungle', fact:'A giraffe\u2019s tongue is 18 inches long and purple!' },
+  { emoji:'🦓', en:'zebra', es:'cebra', baby:'foal', babyEs:'potro', habitat:'African grasslands', diet:'Grass', group:'Jungle', fact:'Every zebra has a different pattern of stripes — like fingerprints!' },
+  { emoji:'🐒', en:'monkey', es:'mono', baby:'infant', babyEs:'monito', habitat:'Tropical forests', diet:'Fruit, leaves & bugs', group:'Jungle', fact:'Some monkeys can use tools like sticks to get food!' },
+  { emoji:'🦍', en:'gorilla', es:'gorila', baby:'infant', babyEs:'gorilita', habitat:'African forests', diet:'Leaves, stems & fruit', group:'Jungle', fact:'Gorillas make a new bed out of leaves every single night!' },
+  { emoji:'🐆', en:'leopard', es:'leopardo', baby:'cub', babyEs:'cachorro', habitat:'Forests & grasslands', diet:'Deer & small animals', group:'Jungle', fact:'Leopards drag their food up into trees so no one steals it!' },
+  { emoji:'🦛', en:'hippo', es:'hipopótamo', baby:'calf', babyEs:'hipopótamo bebé', habitat:'African rivers & lakes', diet:'Grass', group:'Jungle', fact:'Hippos make their own pink sunscreen from their skin!' },
+  { emoji:'🦏', en:'rhino', es:'rinoceronte', baby:'calf', babyEs:'rinoceronte bebé', habitat:'African & Asian grasslands', diet:'Grass and bushes', group:'Jungle', fact:'A rhino\u2019s horn is made of the same stuff as your fingernails!' },
+  { emoji:'🐊', en:'crocodile', es:'cocodrilo', baby:'hatchling', babyEs:'cría', habitat:'Rivers & swamps', diet:'Fish & animals', group:'Jungle', fact:'Crocodiles have been around since the time of dinosaurs!' },
+  { emoji:'🐍', en:'snake', es:'serpiente', baby:'snakelet', babyEs:'serpiente bebé', habitat:'All over the world', diet:'Mice, frogs & eggs', group:'Jungle', fact:'Snakes smell with their tongue!' },
+  { emoji:'🦜', en:'parrot', es:'loro', baby:'chick', babyEs:'lorito', habitat:'Tropical forests', diet:'Fruit, nuts & seeds', group:'Jungle', fact:'Some parrots can live to be 80 years old!' },
+  { emoji:'🐅', en:'tiger', es:'tigre', baby:'cub', babyEs:'cachorro', habitat:'Asian forests', diet:'Deer & wild pigs', group:'Jungle', fact:'Tigers are the biggest cats in the world and they love swimming!' },
+  { emoji:'🦩', en:'flamingo', es:'flamenco', baby:'chick', babyEs:'flamenquito', habitat:'Tropical lakes & lagoons', diet:'Tiny shrimp & algae', group:'Jungle', fact:'Flamingos are born white — they turn pink from eating shrimp!' },
+
+  // Ocean
+  { emoji:'🐟', en:'fish', es:'pez', baby:'fry', babyEs:'alevín', habitat:'Oceans, rivers & lakes', diet:'Other small fish & algae', group:'Ocean', fact:'There are more fish in the ocean than stars we can see in the sky!' },
+  { emoji:'🐙', en:'octopus', es:'pulpo', baby:'larva', babyEs:'pulpito', habitat:'Ocean', diet:'Crabs, clams & fish', group:'Ocean', fact:'An octopus has three hearts and blue blood!' },
+  { emoji:'🐬', en:'dolphin', es:'delfín', baby:'calf', babyEs:'delfín bebé', habitat:'Oceans', diet:'Fish & squid', group:'Ocean', fact:'Dolphins sleep with one eye open!' },
+  { emoji:'🐳', en:'whale', es:'ballena', baby:'calf', babyEs:'ballenato', habitat:'Oceans', diet:'Tiny shrimp called krill', group:'Ocean', fact:'A blue whale\u2019s heart is as big as a small car!' },
+  { emoji:'🦈', en:'shark', es:'tiburón', baby:'pup', babyEs:'tiburoncito', habitat:'Oceans', diet:'Fish & seals', group:'Ocean', fact:'Sharks have been on Earth longer than trees!' },
+  { emoji:'🐢', en:'sea turtle', es:'tortuga marina', baby:'hatchling', babyEs:'tortuguita', habitat:'Oceans & beaches', diet:'Jellyfish & seaweed', group:'Ocean', fact:'Sea turtles can hold their breath for 5 hours!' },
+  { emoji:'🦭', en:'seal', es:'foca', baby:'pup', babyEs:'foquita', habitat:'Cold ocean shores', diet:'Fish & squid', group:'Ocean', fact:'Seals can sleep underwater and come up to breathe without waking up!' },
+  { emoji:'🐠', en:'clownfish', es:'pez payaso', baby:'fry', babyEs:'alevín', habitat:'Coral reefs', diet:'Algae & tiny animals', group:'Ocean', fact:'Clownfish live inside stinging anemones — the stings don\u2019t hurt them!' },
+  { emoji:'🦀', en:'crab', es:'cangrejo', baby:'larva', babyEs:'cangrejito', habitat:'Ocean shores & tide pools', diet:'Algae, worms & small fish', group:'Ocean', fact:'Crabs walk sideways because of the way their legs bend!' },
+  { emoji:'🐡', en:'pufferfish', es:'pez globo', baby:'fry', babyEs:'pececito', habitat:'Tropical oceans', diet:'Algae & small shellfish', group:'Ocean', fact:'Pufferfish puff up like a balloon to scare away predators!' },
+
+  // Cold / Polar
+  { emoji:'🐧', en:'penguin', es:'pingüino', baby:'chick', babyEs:'pingüinito', habitat:'Antarctica & cold coasts', diet:'Fish & krill', group:'Polar', fact:'Emperor penguins can dive deeper than any other bird — 1,800 feet!' },
+  { emoji:'🐻‍❄️', en:'polar bear', es:'oso polar', baby:'cub', babyEs:'osezno', habitat:'Arctic ice & tundra', diet:'Seals & fish', group:'Polar', fact:'Polar bear fur is not white — it\u2019s actually see-through!' },
+  { emoji:'🦌', en:'reindeer', es:'reno', baby:'calf', babyEs:'cervatillo', habitat:'Arctic tundra', diet:'Moss, grass & lichen', group:'Polar', fact:'Reindeer eyes change color from gold in summer to blue in winter!' },
+
+  // Australian
+  { emoji:'🦘', en:'kangaroo', es:'canguro', baby:'joey', babyEs:'cangurito', habitat:'Australian grasslands', diet:'Grass & shrubs', group:'Australian', fact:'A baby kangaroo is the size of a jellybean when it\u2019s born!' },
+  { emoji:'🐨', en:'koala', es:'koala', baby:'joey', babyEs:'koalita', habitat:'Australian forests', diet:'Eucalyptus leaves', group:'Australian', fact:'Koalas sleep up to 22 hours a day!' },
+
+  // Insects & small
+  { emoji:'🦋', en:'butterfly', es:'mariposa', baby:'caterpillar', babyEs:'oruga', habitat:'Gardens & meadows', diet:'Flower nectar', group:'Insects', fact:'Butterflies taste with their feet!' },
+  { emoji:'🐝', en:'bee', es:'abeja', baby:'larva', babyEs:'larva', habitat:'Gardens & meadows', diet:'Pollen & nectar', group:'Insects', fact:'Bees do a special dance to tell other bees where to find flowers!' },
+  { emoji:'🐞', en:'ladybug', es:'mariquita', baby:'larva', babyEs:'larva', habitat:'Gardens & fields', diet:'Tiny bugs called aphids', group:'Insects', fact:'A ladybug can eat up to 5,000 bugs in its lifetime!' },
+  { emoji:'🐜', en:'ant', es:'hormiga', baby:'larva', babyEs:'larva', habitat:'Everywhere on land', diet:'Seeds, leaves & other bugs', group:'Insects', fact:'Ants can carry things 50 times heavier than themselves!' },
+  { emoji:'🐌', en:'snail', es:'caracol', baby:'baby snail', babyEs:'caracolito', habitat:'Gardens & forests', diet:'Leaves & plants', group:'Insects', fact:'Snails have thousands of tiny teeth on their tongue!' },
+  { emoji:'🕷️', en:'spider', es:'araña', baby:'spiderling', babyEs:'arañita', habitat:'Everywhere', diet:'Bugs', group:'Insects', fact:'Spider silk is stronger than steel for its size!' },
+
+  // Pond / Freshwater
+  { emoji:'🐸', en:'frog', es:'rana', baby:'tadpole', babyEs:'renacuajo', habitat:'Ponds & rainforests', diet:'Bugs & flies', group:'Pond', fact:'Some frogs can freeze solid in winter and thaw out alive in spring!' },
+  { emoji:'🦆', en:'duck', es:'pato', baby:'duckling', babyEs:'patito', habitat:'Ponds & lakes', diet:'Plants, bugs & fish', group:'Pond', fact:'Ducks have waterproof feathers — water just rolls right off!' },
+  { emoji:'🦢', en:'swan', es:'cisne', baby:'cygnet', babyEs:'cisnecito', habitat:'Lakes & rivers', diet:'Water plants & small fish', group:'Pond', fact:'Swans mate for life and always stay with the same partner!' },
+
+  // Sky
+  { emoji:'🦅', en:'eagle', es:'águila', baby:'eaglet', babyEs:'aguilucho', habitat:'Mountains & forests', diet:'Fish & small animals', group:'Sky', fact:'Eagles can see a rabbit from over 2 miles away!' },
+  { emoji:'🐦', en:'bird', es:'pájaro', baby:'chick', babyEs:'pajarito', habitat:'Everywhere', diet:'Seeds, bugs & fruit', group:'Sky', fact:'Hummingbirds can fly backwards — the only birds that can!' },
+  { emoji:'🦇', en:'bat', es:'murciélago', baby:'pup', babyEs:'murciélago bebé', habitat:'Caves & forests', diet:'Bugs & fruit', group:'Sky', fact:'Bats are the only mammals that can truly fly!' },
+];
+
+const colors = [
+  { emoji:'🔴', en:'red', es:'rojo' }, { emoji:'🔵', en:'blue', es:'azul' },
+  { emoji:'🟢', en:'green', es:'verde' }, { emoji:'🟡', en:'yellow', es:'amarillo' },
+  { emoji:'🟠', en:'orange', es:'naranja' }, { emoji:'🟣', en:'purple', es:'morado' },
+  { emoji:'⚪', en:'white', es:'blanco' }, { emoji:'⚫', en:'black', es:'negro' },
+  { emoji:'🟤', en:'brown', es:'marrón' }, { emoji:'💗', en:'pink', es:'rosa' },
+];
+
+const spanishNumbers = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez',
+  'once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte'];
+
+const celebrationEmojis = ['⭐','🌟','✨','💫','🎉','🦋','🌸','🌺','🎈'];
+const groups = ['Farm','Forest','Jungle','Ocean','Polar','Australian','Insects','Pond','Sky'];
+
+let stickers = 0;
+let streaks = { math:0, spanish:0, explore:0, quiz:0 };
+let currentGame = null;
+let answering = false;
+let exploreIndex = 0;
+let exploreMode = 'card'; // 'card' or 'quiz'
+let currentExploreAnimal = null;
+
+// ─── Utilities ───
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const pickN = (a,n) => [...a].sort(()=>Math.random()-0.5).slice(0,n);
+const shuffle = a => [...a].sort(()=>Math.random()-0.5);
+const randInt = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+// ─── Screens ───
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  currentGame = name==='home' ? null : name;
+}
+
+function startGame(game) {
+  showScreen(game);
+  streaks[game] = 0;
+  updateStreak(game);
+  if (game==='math') newMathProblem();
+  else if (game==='spanish') newSpanishCard();
+  else if (game==='explore') { exploreIndex = randInt(0, animalDB.length-1); showExploreCard(); }
+  else if (game==='quiz') newQuizQuestion();
+}
+
+// ─── Stickers & Streaks ───
+function addSticker() {
+  stickers++;
+  document.getElementById('stickerCount').textContent = stickers;
+  const el = document.createElement('div');
+  el.className = 'sticker-earned';
+  el.textContent = pick(['⭐','🌟','💫']);
+  el.style.cssText = 'left:50%;top:50%;transform:translate(-50%,-50%)';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1200);
+}
+
+function updateStreak(game) {
+  const el = document.getElementById(`${game}Streak`);
+  if (!el) return;
+  el.innerHTML = streaks[game]>=3 ? `<span class="flame">🔥</span> ${streaks[game]} in a row!` : '';
+}
+
+// ─── Feedback ───
+function showFeedback(correct) {
+  const overlay = document.getElementById('feedbackOverlay');
+  const text = document.getElementById('feedbackText');
+  if (correct) {
+    text.textContent = pick(['Great!','Yes!','Awesome!','Wow!','🎉','Super!','Nice!','Yay!']);
+    text.className = 'feedback-text correct-fb';
+    spawnParticles();
+  } else {
+    text.textContent = 'Try again!';
+    text.className = 'feedback-text wrong-fb';
+  }
+  overlay.classList.add('show');
+  setTimeout(()=>overlay.classList.remove('show'), 900);
+}
+
+function spawnParticles() {
+  for (let i=0; i<8; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = pick(celebrationEmojis);
+    p.style.cssText = `left:${randInt(10,90)}%;top:${randInt(-5,20)}%;animation-duration:${1+Math.random()}s;animation-delay:${Math.random()*0.3}s`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 2500);
+  }
+}
+
+function generateChoices(correct, min, max, count) {
+  const s = new Set([correct]);
+  let tries = 0;
+  while (s.size < count && tries < 100) {
+    let c = correct + randInt(-4,4);
+    c = Math.max(min, Math.min(max, c));
+    s.add(c);
+    tries++;
+  }
+  return shuffle(Array.from(s).slice(0,count));
+}
+
+// ═══════════════════
+// MATH GAME
+// ═══════════════════
+let mathAnswer;
+
+function newMathProblem() {
+  answering = false;
+  const isAdd = Math.random() > 0.4;
+  let a, b, answer;
+  if (isAdd) { a = randInt(1,14); b = randInt(1,20-a); answer = a+b; }
+  else { a = randInt(2,20); b = randInt(1,a); answer = a-b; }
+  mathAnswer = answer;
+  const op = isAdd ? '+' : '−';
+  const animal = pick(animalDB);
+
+  const display = document.getElementById('animalDisplay');
+  display.innerHTML = '';
+  const g1 = document.createElement('div'); g1.className = 'animal-group';
+  for (let i=0;i<Math.min(a,12);i++) { const s=document.createElement('span'); s.className='animal-item'; s.textContent=animal.emoji; s.style.animationDelay=i*0.04+'s'; g1.appendChild(s); }
+  if (a>12) { const m=document.createElement('span'); m.className='animal-item'; m.textContent=`+${a-12}`; g1.appendChild(m); }
+  display.appendChild(g1);
+
+  if (isAdd) {
+    const opEl = document.createElement('span'); opEl.className='math-operator'; opEl.textContent='+'; display.appendChild(opEl);
+    const g2 = document.createElement('div'); g2.className = 'animal-group';
+    for (let i=0;i<Math.min(b,12);i++) { const s=document.createElement('span'); s.className='animal-item'; s.textContent=animal.emoji; s.style.animationDelay=(i*0.04+0.2)+'s'; g2.appendChild(s); }
+    display.appendChild(g2);
+  }
+
+  document.getElementById('mathEquation').innerHTML = `${a} <span class="op">${op}</span> ${b} <span class="equals">=</span> <span class="answer-slot">?</span>`;
+
+  const choices = generateChoices(answer, 0, 20, 6);
+  const container = document.getElementById('mathChoices');
+  container.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button'); btn.className='choice-btn'; btn.textContent=c;
+    btn.onclick = () => {
+      if (answering) return;
+      if (c===mathAnswer) {
+        answering=true; btn.classList.add('correct'); streaks.math++; updateStreak('math');
+        showFeedback(true); if(streaks.math%3===0) addSticker();
+        document.querySelector('.answer-slot').textContent=mathAnswer;
+        setTimeout(newMathProblem, 1200);
+      } else {
+        btn.classList.add('wrong'); streaks.math=0; updateStreak('math');
+        showFeedback(false); setTimeout(()=>btn.classList.remove('wrong'),500);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ═══════════════════
+// SPANISH GAME
+// ═══════════════════
+let spanishCorrectWord;
+
+function newSpanishCard() {
+  answering = false;
+  document.getElementById('spanishCard').classList.remove('flipped');
+  const useColors = Math.random() > 0.5;
+  const pool = useColors ? colors : animalDB;
+  const item = pick(pool);
+  const category = useColors ? 'Color' : item.group || 'Animal';
+
+  document.getElementById('spanishEmoji').textContent = item.emoji;
+  document.getElementById('spanishEnglish').textContent = item.en;
+  document.getElementById('spanishEmojiBack').textContent = item.emoji;
+  document.getElementById('spanishWord').textContent = item.es;
+  document.getElementById('spanishCategory').textContent = category;
+  document.getElementById('spanishPrompt').textContent = 'Tap the card to see the Spanish word!';
+  spanishCorrectWord = item.es;
+
+  const wrongPool = pool.filter(x=>x.es!==item.es);
+  const wrongs = pickN(wrongPool, 3).map(x=>x.es);
+  const choices = shuffle([item.es, ...wrongs]);
+
+  const container = document.getElementById('spanishChoices');
+  container.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button'); btn.className='choice-btn'; btn.textContent=c;
+    btn.onclick = () => {
+      if (answering) return;
+      if (c===spanishCorrectWord) {
+        answering=true; btn.classList.add('correct'); streaks.spanish++; updateStreak('spanish');
+        showFeedback(true); if(streaks.spanish%3===0) addSticker();
+        setTimeout(newSpanishCard, 1200);
+      } else {
+        btn.classList.add('wrong'); streaks.spanish=0; updateStreak('spanish');
+        showFeedback(false); setTimeout(()=>btn.classList.remove('wrong'),500);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+
+function flipCard() {
+  const card = document.getElementById('spanishCard');
+  card.classList.toggle('flipped');
+  const flipped = card.classList.contains('flipped');
+  document.getElementById('spanishPrompt').textContent = flipped ? 'Now pick the right Spanish word!' : 'Tap the card to see the Spanish word!';
+}
+
+// ═══════════════════
+// EXPLORE ANIMALS
+// ═══════════════════
+function showExploreCard() {
+  exploreMode = 'card';
+  answering = false;
+  const a = animalDB[exploreIndex];
+  currentExploreAnimal = a;
+  const area = document.getElementById('exploreArea');
+  area.innerHTML = `
+    <div class="explore-card-container">
+      <div class="explore-animal-emoji">${a.emoji}</div>
+      <div class="explore-animal-name">${a.en.charAt(0).toUpperCase()+a.en.slice(1)}</div>
+      <div class="explore-animal-spanish">${a.es} (en español)</div>
+      <div class="explore-facts">
+        <div class="fact-card"><div class="fact-label">🏠 Home</div><div class="fact-value">${a.habitat}</div></div>
+        <div class="fact-card"><div class="fact-label">🍽️ Food</div><div class="fact-value">${a.diet}</div></div>
+        <div class="fact-card"><div class="fact-label">👶 Baby</div><div class="fact-value">${a.baby}</div></div>
+        <div class="fact-card"><div class="fact-label">👶 Baby (español)</div><div class="fact-value">${a.babyEs}</div></div>
+      </div>
+      <div class="explore-fun-fact"><strong>Did you know?</strong> ${a.fact}</div>
+    </div>
+    <div class="explore-nav">
+      <button class="explore-nav-btn" onclick="prevAnimal()">⬅️ Back</button>
+      <button class="explore-nav-btn quiz-me" onclick="exploreQuiz()">Quiz Me! 🧠</button>
+      <button class="explore-nav-btn" onclick="nextAnimal()">Next ➡️</button>
+    </div>
+  `;
+}
+
+function nextAnimal() { exploreIndex = (exploreIndex+1) % animalDB.length; showExploreCard(); }
+function prevAnimal() { exploreIndex = (exploreIndex-1+animalDB.length) % animalDB.length; showExploreCard(); }
+
+function exploreQuiz() {
+  exploreMode = 'quiz';
+  answering = false;
+  const a = currentExploreAnimal;
+  const qType = randInt(0, 4);
+  const area = document.getElementById('exploreArea');
+  let question, correct, wrongPool;
+
+  switch(qType) {
+    case 0: // baby name
+      question = `What is a baby ${a.en} called?`;
+      correct = a.baby;
+      wrongPool = shuffle(animalDB.filter(x=>x.baby!==a.baby).map(x=>x.baby));
+      break;
+    case 1: // habitat
+      question = `Where does the ${a.en} live?`;
+      correct = a.habitat;
+      wrongPool = shuffle(animalDB.filter(x=>x.habitat!==a.habitat).map(x=>x.habitat));
+      break;
+    case 2: // diet
+      question = `What does the ${a.en} eat?`;
+      correct = a.diet;
+      wrongPool = shuffle(animalDB.filter(x=>x.diet!==a.diet).map(x=>x.diet));
+      break;
+    case 3: // spanish name
+      question = `What is "${a.en}" in Spanish?`;
+      correct = a.es;
+      wrongPool = shuffle(animalDB.filter(x=>x.es!==a.es).map(x=>x.es));
+      break;
+    case 4: // baby spanish
+      question = `What is a baby ${a.en} called in Spanish?`;
+      correct = a.babyEs;
+      wrongPool = shuffle(animalDB.filter(x=>x.babyEs!==a.babyEs).map(x=>x.babyEs));
+      break;
+  }
+
+  // Deduplicate wrongs
+  const uniqueWrongs = [...new Set(wrongPool)].filter(w=>w!==correct).slice(0,3);
+  const choices = shuffle([correct, ...uniqueWrongs]);
+
+  area.innerHTML = `
+    <div class="explore-card-container">
+      <div class="explore-quiz-area">
+        <div class="explore-quiz-emoji">${a.emoji}</div>
+        <div class="explore-quiz-q">${question}</div>
+        <div class="explore-quiz-choices" id="exploreQuizChoices"></div>
+      </div>
+    </div>
+    <div class="explore-nav">
+      <button class="explore-nav-btn" onclick="showExploreCard()">⬅️ Back to card</button>
+      <button class="explore-nav-btn" onclick="nextAnimal()">Next animal ➡️</button>
+    </div>
+  `;
+
+  const container = document.getElementById('exploreQuizChoices');
+  choices.forEach(c => {
+    const btn = document.createElement('button'); btn.className='choice-btn'; btn.textContent=c;
+    btn.onclick = () => {
+      if (answering) return;
+      if (c===correct) {
+        answering=true; btn.classList.add('correct'); streaks.explore++; updateStreak('explore');
+        showFeedback(true); if(streaks.explore%3===0) addSticker();
+        setTimeout(()=>{ nextAnimal(); }, 1200);
+      } else {
+        btn.classList.add('wrong'); streaks.explore=0; updateStreak('explore');
+        showFeedback(false); setTimeout(()=>btn.classList.remove('wrong'),500);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ═══════════════════
+// MIX IT UP QUIZ
+// ═══════════════════
+let quizCorrectAnswer;
+
+function newQuizQuestion() {
+  answering = false;
+  const type = randInt(0, 7);
+  switch(type) {
+    case 0: quizAnimalSpanish(); break;
+    case 1: quizColorSpanish(); break;
+    case 2: quizMathWithAnimals(); break;
+    case 3: quizCountSpanish(); break;
+    case 4: quizBabyName(); break;
+    case 5: quizHabitat(); break;
+    case 6: quizDiet(); break;
+    case 7: quizAnimalMathSpanish(); break;
+  }
+}
+
+function quizAnimalSpanish() {
+  const a = pick(animalDB);
+  document.getElementById('quizVisual').textContent = a.emoji;
+  document.getElementById('quizQuestion').textContent = `What is "${a.en}" in Spanish?`;
+  quizCorrectAnswer = a.es;
+  renderQuizChoices(shuffle([a.es, ...pickN(animalDB.filter(x=>x.es!==a.es),3).map(x=>x.es)]));
+}
+
+function quizColorSpanish() {
+  const c = pick(colors);
+  document.getElementById('quizVisual').textContent = c.emoji;
+  document.getElementById('quizQuestion').textContent = `What is "${c.en}" in Spanish?`;
+  quizCorrectAnswer = c.es;
+  renderQuizChoices(shuffle([c.es, ...pickN(colors.filter(x=>x.es!==c.es),3).map(x=>x.es)]));
+}
+
+function quizMathWithAnimals() {
+  const isAdd = Math.random()>0.4;
+  let a,b,answer;
+  if(isAdd){a=randInt(1,12);b=randInt(1,8);answer=a+b;} else{a=randInt(3,18);b=randInt(1,a-1);answer=a-b;}
+  const animal = pick(animalDB);
+  document.getElementById('quizVisual').textContent = animal.emoji.repeat(Math.min(a,8));
+  document.getElementById('quizQuestion').innerHTML = `${a} ${animal.en}s ${isAdd?'plus':'minus'} ${b} = ?`;
+  quizCorrectAnswer = String(answer);
+  renderQuizChoices(generateChoices(answer,0,20,4).map(String));
+}
+
+function quizCountSpanish() {
+  const count = randInt(1,10);
+  const a = pick(animalDB);
+  document.getElementById('quizVisual').textContent = a.emoji.repeat(count);
+  document.getElementById('quizQuestion').textContent = `How many? Answer in Spanish!`;
+  quizCorrectAnswer = spanishNumbers[count];
+  const wrongs = new Set();
+  while(wrongs.size<3){const w=spanishNumbers[randInt(1,10)];if(w!==spanishNumbers[count])wrongs.add(w);}
+  renderQuizChoices(shuffle([spanishNumbers[count],...wrongs]));
+}
+
+function quizBabyName() {
+  const a = pick(animalDB);
+  document.getElementById('quizVisual').textContent = a.emoji;
+  document.getElementById('quizQuestion').textContent = `What is a baby ${a.en} called?`;
+  quizCorrectAnswer = a.baby;
+  const wrongs = [...new Set(animalDB.filter(x=>x.baby!==a.baby).map(x=>x.baby))];
+  renderQuizChoices(shuffle([a.baby, ...pickN(wrongs,3)]));
+}
+
+function quizHabitat() {
+  const a = pick(animalDB);
+  document.getElementById('quizVisual').textContent = a.emoji;
+  document.getElementById('quizQuestion').textContent = `Where does the ${a.en} live?`;
+  quizCorrectAnswer = a.habitat;
+  const wrongs = [...new Set(animalDB.filter(x=>x.habitat!==a.habitat).map(x=>x.habitat))];
+  renderQuizChoices(shuffle([a.habitat, ...pickN(wrongs,3)]));
+}
+
+function quizDiet() {
+  const a = pick(animalDB);
+  document.getElementById('quizVisual').textContent = a.emoji;
+  document.getElementById('quizQuestion').textContent = `What does the ${a.en} eat?`;
+  quizCorrectAnswer = a.diet;
+  const wrongs = [...new Set(animalDB.filter(x=>x.diet!==a.diet).map(x=>x.diet))];
+  renderQuizChoices(shuffle([a.diet, ...pickN(wrongs,3)]));
+}
+
+function quizAnimalMathSpanish() {
+  const a=randInt(1,8),b=randInt(1,10-a),answer=a+b;
+  const animal=pick(animalDB);
+  document.getElementById('quizVisual').textContent=animal.emoji.repeat(a)+' + '+animal.emoji.repeat(b);
+  document.getElementById('quizQuestion').innerHTML=`Add the ${animal.es}s! Answer in Spanish!`;
+  quizCorrectAnswer=spanishNumbers[answer];
+  const wrongs=new Set();
+  while(wrongs.size<3){const w=spanishNumbers[randInt(1,Math.min(20,answer+4))];if(w!==spanishNumbers[answer])wrongs.add(w);}
+  renderQuizChoices(shuffle([spanishNumbers[answer],...wrongs]));
+}
+
+function renderQuizChoices(choices) {
+  const container = document.getElementById('quizChoices');
+  container.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button'); btn.className='choice-btn'; btn.textContent=c;
+    btn.onclick = () => {
+      if (answering) return;
+      if (c===quizCorrectAnswer) {
+        answering=true; btn.classList.add('correct'); streaks.quiz++; updateStreak('quiz');
+        showFeedback(true); if(streaks.quiz%3===0) addSticker();
+        setTimeout(newQuizQuestion, 1200);
+      } else {
+        btn.classList.add('wrong'); streaks.quiz=0; updateStreak('quiz');
+        showFeedback(false); setTimeout(()=>btn.classList.remove('wrong'),500);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+</script>
+</body>
+</html>
