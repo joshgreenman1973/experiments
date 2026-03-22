@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/Experiments/movie-time-machine/',
+  base: '/experiments/movie-time-machine/dist/',
   server: {
     port: 5176,
   },
