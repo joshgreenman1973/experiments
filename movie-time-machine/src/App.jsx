@@ -7,6 +7,7 @@ import TVSchedule from './components/TVSchedule'
 import MusicChart from './components/MusicChart'
 import SearchModal from './components/SearchModal'
 import { discoverMoviesInTheaters } from './lib/tmdb'
+import { getCatalogStats } from './lib/stats'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -24,6 +25,7 @@ export default function App() {
   const [includeLimited, setIncludeLimited] = useState(true)
   const debounceRef = useRef(null)
   const [viewKey, setViewKey] = useState(0)
+  const catalogStats = getCatalogStats()
 
   const fetchMovies = useCallback(async (dateStr, limited) => {
     setLoading(true)
@@ -168,6 +170,11 @@ export default function App() {
         onClose={() => setSearchOpen(false)}
         onNavigate={handleSearchNavigate}
       />
+
+      <footer className="text-center mt-20 pb-4 text-[10px] text-film-muted/30 tracking-wide space-y-1">
+        <p>{catalogStats.tvShows.toLocaleString()} TV shows · {catalogStats.tvSeasons} seasons · {catalogStats.songEntries.toLocaleString()} chart entries · {catalogStats.chartWeeks.toLocaleString()} weeks</p>
+        <p>Movies via TMDB · TV schedules via epguides.com · Charts via musicchartsarchive.com</p>
+      </footer>
     </div>
   )
 }

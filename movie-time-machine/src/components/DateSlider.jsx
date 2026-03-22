@@ -31,7 +31,7 @@ export default function DateSlider({ value, onChange }) {
 
   function handleDateInput(e) {
     const val = e.target.value
-    if (val >= minDate && val <= today) onChange(val)
+    if (val) onChange(val)
   }
 
   function randomDate() {
