@@ -7,10 +7,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "data");
 const OUTPUT_FILE = join(DATA_DIR, "requests.json");
 
+const BACKFILL = process.argv.includes("--backfill");
 const BATCH_SIZE = 50;
-const LIST_PAGES = 4; // 200 most recent requests
+const LIST_PAGES = BACKFILL ? 999 : 4; // backfill: all pages; normal: 200 most recent
 const DETAIL_CONCURRENCY = 5; // parallel detail page fetches
-const DETAIL_LIMIT = 30; // how many detail pages to scrape per run
+const DETAIL_LIMIT = BACKFILL ? 500 : 30; // how many detail pages to scrape per run
+const DATE_FROM = BACKFILL ? "01/01/2026" : ""; // backfill: all of 2026
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
@@ -84,61 +86,98 @@ async function scrapeList(page) {
 
   const allRequests = [];
   let start = 0;
+  let lastTotal = 0;
 
-  for (let i = 0; i < LIST_PAGES; i++) {
-    console.log(`  Fetching batch ${i + 1}/${LIST_PAGES} (start=${start})...`);
+  const maxPages = BACKFILL ? 999 : LIST_PAGES;
+  let consecutiveErrors = 0;
+  for (let i = 0; i < maxPages; i++) {
+    console.log(`  Fetching batch ${i + 1}${BACKFILL ? "" : `/${maxPages}`} (start=${start})...`);
 
-    const data = await page.evaluate(
-      async ({ start, size }) => {
-        const url = `/search/requests?query=&title=on&agency_request_summary=on&open=on&closed=on&date_rec_from=&date_rec_to=&agency_ein=&size=${size}&tz_name=America/New_York&start=${start}&sort_date_submitted=DESC`;
-        const resp = await fetch(url, {
-          headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            Accept: "application/json, text/javascript, */*; q=0.01",
-          },
-        });
-        const json = await resp.json();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(
-          "<table>" + json.results + "</table>",
-          "text/html"
-        );
-        const rows = doc.querySelectorAll("tr");
-        const requests = Array.from(rows)
-          .map((row) => {
-            const tds = row.querySelectorAll("td");
-            if (tds.length < 5) return null;
-            const link = tds[3]?.querySelector("a");
-            return {
-              status: tds[0]?.textContent?.trim(),
-              foilId: tds[1]?.textContent?.trim(),
-              dateSubmitted:
-                tds[2]?.querySelector(".flask-moment")?.dataset?.timestamp ||
-                "",
-              title: link?.textContent?.trim() || "",
-              url: link?.getAttribute("href") || "",
-              agency: tds[4]?.textContent?.trim(),
-              dateDue:
-                tds[5]?.querySelector(".flask-moment")?.dataset?.timestamp ||
-                "",
-            };
-          })
-          .filter(Boolean);
-        return { requests, total: json.total };
-      },
-      { start, size: BATCH_SIZE }
-    );
+    let data;
+    try {
+      data = await page.evaluate(
+        async ({ start, size, dateFrom }) => {
+          const url = `/search/requests?query=&title=on&agency_request_summary=on&open=on&closed=on&date_rec_from=${dateFrom}&date_rec_to=&agency_ein=&size=${size}&tz_name=America/New_York&start=${start}&sort_date_submitted=DESC`;
+          const resp = await fetch(url, {
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              Accept: "application/json, text/javascript, */*; q=0.01",
+            },
+          });
+          if (!resp.ok) return { requests: [], total: 0, error: `HTTP ${resp.status}` };
+          const text = await resp.text();
+          try {
+            const json = JSON.parse(text);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(
+              "<table>" + json.results + "</table>",
+              "text/html"
+            );
+            const rows = doc.querySelectorAll("tr");
+            const requests = Array.from(rows)
+              .map((row) => {
+                const tds = row.querySelectorAll("td");
+                if (tds.length < 5) return null;
+                const link = tds[3]?.querySelector("a");
+                return {
+                  status: tds[0]?.textContent?.trim(),
+                  foilId: tds[1]?.textContent?.trim(),
+                  dateSubmitted:
+                    tds[2]?.querySelector(".flask-moment")?.dataset?.timestamp ||
+                    "",
+                  title: link?.textContent?.trim() || "",
+                  url: link?.getAttribute("href") || "",
+                  agency: tds[4]?.textContent?.trim(),
+                  dateDue:
+                    tds[5]?.querySelector(".flask-moment")?.dataset?.timestamp ||
+                    "",
+                };
+              })
+              .filter(Boolean);
+            return { requests, total: json.total };
+          } catch {
+            return { requests: [], total: 0, error: "JSON parse failed" };
+          }
+        },
+        { start, size: BATCH_SIZE, dateFrom: DATE_FROM }
+      );
+    } catch (err) {
+      console.error(`    Batch failed: ${err.message}`);
+      data = { requests: [], total: 0, error: err.message };
+    }
 
+    if (data.error) {
+      consecutiveErrors++;
+      console.error(`    Error: ${data.error} (${consecutiveErrors} consecutive)`);
+      if (consecutiveErrors >= 3) {
+        console.log(`    Stopping after ${consecutiveErrors} consecutive errors. Got ${allRequests.length} requests so far.`);
+        break;
+      }
+      // Wait longer and retry — WAF challenge may need to resolve
+      console.log("    Waiting 10s before retry...");
+      await page.waitForTimeout(10000);
+      // Reload the page to reset WAF state
+      await page.goto("https://a860-openrecords.nyc.gov/request/view_all", {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+      await page.waitForTimeout(5000);
+      continue; // retry same offset
+    }
+
+    consecutiveErrors = 0;
     allRequests.push(...data.requests);
+    lastTotal = data.total || lastTotal;
     console.log(`    Got ${data.requests.length} (total in system: ${data.total})`);
 
     if (data.requests.length < BATCH_SIZE) break;
     start += BATCH_SIZE;
-    await page.waitForTimeout(800);
+    // Slower pace during backfill to avoid WAF
+    await page.waitForTimeout(BACKFILL ? 1500 : 800);
   }
 
   return {
-    totalInSystem: allRequests.length > 0 ? allRequests[0]?.totalInSystem : 0,
+    totalInSystem: lastTotal || 0,
     requests: allRequests.map((r) => ({
       ...r,
       url: r.url ? `https://a860-openrecords.nyc.gov${r.url}` : "",
@@ -252,6 +291,21 @@ async function main() {
     }
   }
 
+  // Save list data immediately so we don't lose it if detail scraping fails
+  if (BACKFILL) {
+    const listSave = Array.from(existingMap.values()).sort(
+      (a, b) => (b.dateSubmitted || "").localeCompare(a.dateSubmitted || "")
+    );
+    writeFileSync(OUTPUT_FILE, JSON.stringify({
+      lastUpdated: new Date().toISOString(),
+      totalInSystem: listData.totalInSystem || existing.totalInSystem,
+      requestsFetched: listSave.length,
+      agencyStats: {},
+      requests: listSave,
+    }, null, 2));
+    console.log(`Saved ${listSave.length} list entries to disk before detail scraping.\n`);
+  }
+
   // Step 2: Scrape detail pages for requests that need it
   // Prioritize closed requests (they have titles and determinations)
   const needsDetail = Array.from(existingMap.values())
@@ -271,78 +325,88 @@ async function main() {
     const detailPage = await c2.newPage();
 
     // Process sequentially to avoid overwhelming the server
+    let detailFailures = 0;
     for (let i = 0; i < needsDetail.length; i++) {
       const req = needsDetail[i];
       const detail = await scrapeDetail(detailPage, req.foilId);
-      const results = [{ foilId: req.foilId, detail }];
+
+      if (!detail) {
+        detailFailures++;
+        if (detailFailures >= 5) {
+          console.log(`\n  Stopping detail scraping after ${detailFailures} consecutive failures (WAF likely blocking).`);
+          break;
+        }
+      } else {
+        detailFailures = 0; // reset on success
+      }
 
       // Brief pause between requests
-      await detailPage.waitForTimeout(1000);
+      await detailPage.waitForTimeout(1500);
 
-      for (const { foilId, detail } of results) {
-        if (detail) {
-          const entry = existingMap.get(foilId);
-          if (entry) {
-            if (detail.title && detail.title !== "* Under Review") {
-              entry.title = detail.title;
-            }
-            entry.responses = detail.responses;
-            entry.detailScraped = true;
+      if (detail) {
+        const entry = existingMap.get(req.foilId);
+        if (entry) {
+          if (detail.title && detail.title !== "* Under Review") {
+            entry.title = detail.title;
+          }
+          entry.responses = detail.responses;
+          entry.detailScraped = true;
 
-            // Derive determination from responses
-            const closing = detail.responses.find((r) => r.type === "CLOSING");
-            const denial = detail.responses.find((r) => r.type === "DENIAL");
-            const partialDenial = detail.responses.find((r) =>
-              r.type.includes("PARTIAL")
-            );
-            if (denial) {
-              entry.determination = "Denied";
-              entry.determinationMessage = denial.message;
-              entry.determinationDate = denial.date;
-            } else if (partialDenial) {
-              entry.determination = "Partially Denied";
-              entry.determinationMessage = partialDenial.message;
-              entry.determinationDate = partialDenial.date;
-            } else if (closing) {
-              entry.determination = "Fulfilled";
-              entry.determinationMessage = closing.message;
-              entry.determinationDate = closing.date;
-            }
+          // Derive determination from responses
+          const closing = detail.responses.find((r) => r.type === "CLOSING");
+          const denial = detail.responses.find((r) => r.type === "DENIAL");
+          const partialDenial = detail.responses.find((r) =>
+            r.type.includes("PARTIAL")
+          );
+          if (denial) {
+            entry.determination = "Denied";
+            entry.determinationMessage = denial.message;
+            entry.determinationDate = denial.date;
+          } else if (partialDenial) {
+            entry.determination = "Partially Denied";
+            entry.determinationMessage = partialDenial.message;
+            entry.determinationDate = partialDenial.date;
+          } else if (closing) {
+            entry.determination = "Fulfilled";
+            entry.determinationMessage = closing.message;
+            entry.determinationDate = closing.date;
+          }
 
-            // Calculate response time
-            const ack = detail.responses.find(
-              (r) => r.type === "ACKNOWLEDGMENT"
-            );
-            const lastResp = detail.responses[0]; // responses are in reverse chronological
-            if (entry.dateSubmitted && lastResp?.date) {
-              try {
-                // Parse date like "Friday, 01/26/2024 at 8:53 AM"
-                const parseDate = (d) => {
-                  const match = d.match(
-                    /(\d{2})\/(\d{2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s+(AM|PM)/
-                  );
-                  if (!match) return null;
-                  let [, mm, dd, yyyy, hh, min, ampm] = match;
-                  hh = parseInt(hh);
-                  if (ampm === "PM" && hh !== 12) hh += 12;
-                  if (ampm === "AM" && hh === 12) hh = 0;
-                  return new Date(`${yyyy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${min}:00`);
-                };
-                const submitted = new Date(entry.dateSubmitted);
-                const responded = parseDate(lastResp.date);
-                if (submitted && responded) {
-                  entry.responseTimeDays = Math.round(
-                    (responded - submitted) / (1000 * 60 * 60 * 24)
-                  );
-                }
-              } catch {}
-            }
+          // Calculate response time
+          const lastResp = detail.responses[0]; // responses are in reverse chronological
+          if (entry.dateSubmitted && lastResp?.date) {
+            try {
+              const parseDate = (d) => {
+                const match = d.match(
+                  /(\d{2})\/(\d{2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s+(AM|PM)/
+                );
+                if (!match) return null;
+                let [, mm, dd, yyyy, hh, min, ampm] = match;
+                hh = parseInt(hh);
+                if (ampm === "PM" && hh !== 12) hh += 12;
+                if (ampm === "AM" && hh === 12) hh = 0;
+                return new Date(`${yyyy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${min}:00`);
+              };
+              const submitted = new Date(entry.dateSubmitted);
+              const responded = parseDate(lastResp.date);
+              if (submitted && responded) {
+                entry.responseTimeDays = Math.round(
+                  (responded - submitted) / (1000 * 60 * 60 * 24)
+                );
+              }
+            } catch {}
           }
         }
       }
 
       if ((i + 1) % 10 === 0 || i === needsDetail.length - 1) {
         console.log(`  Detail progress: ${i + 1}/${needsDetail.length}`);
+        // Save intermediate progress every 25 details
+        if ((i + 1) % 25 === 0) {
+          const intermediate = Array.from(existingMap.values());
+          writeFileSync(OUTPUT_FILE, JSON.stringify({ lastUpdated: new Date().toISOString(), requestsFetched: intermediate.length, requests: intermediate }, null, 2));
+          console.log(`  Saved intermediate progress (${intermediate.length} requests)`);
+        }
       }
     }
 
@@ -390,7 +454,7 @@ async function main() {
 
   const output = {
     lastUpdated: new Date().toISOString(),
-    totalInSystem: listData.requests.length > 0 ? "597,000+" : existing.totalInSystem,
+    totalInSystem: listData.totalInSystem || existing.totalInSystem || "597,000+",
     requestsFetched: allRequests.length,
     agencyStats,
     requests: allRequests,
