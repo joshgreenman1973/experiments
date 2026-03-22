@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NYC Menu Time Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #FAF6F0;
+      --ink: #2C2418;
+      --gold: #B8964E;
+      --gold-light: #D4B574;
+      --burgundy: #6B2D3E;
+      --sage: #5C6B54;
+      --paper: #F0E8D8;
+      --paper-dark: #E0D4C0;
+      --brown: #8B7355;
+      --rust: #A0522D;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'EB Garamond', 'Georgia', serif;
+      background: var(--cream);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* === HERO === */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(184,150,78,0.08) 0%, transparent 60%),
+        var(--cream);
+      position: relative;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(184,150,78,0.06) 39px, rgba(184,150,78,0.06) 40px);
+      pointer-events: none;
+    }
+
+    .hero-ornament {
+      font-size: 1.5rem;
+      color: var(--gold);
+      letter-spacing: 1em;
+      margin-bottom: 1.5rem;
+      opacity: 0.7;
+    }
+
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .hero h1 span {
+      display: block;
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 400;
+      font-style: italic;
+      font-size: 0.45em;
+      color: var(--burgundy);
+      letter-spacing: 0.05em;
+      margin-top: 0.3em;
+    }
+
+    .hero-subtitle {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 300;
+      color: var(--brown);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-top: 1rem;
+      max-width: 500px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 2.5rem;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hero-stat {
+      text-align: center;
+    }
+
+    .hero-stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--burgundy);
+    }
+
+    .hero-stat-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--brown);
+      margin-top: 0.2rem;
+    }
+
+    /* === DECADE SELECTOR === */
+    .decade-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--ink);
+      border-bottom: 2px solid var(--gold);
+      padding: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .decade-nav::-webkit-scrollbar { display: none; }
+
+    .decade-track {
+      display: flex;
+      min-width: max-content;
+      padding: 0 1rem;
+    }
+
+    .decade-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-family: 'Playfair Display', serif;
+      font-size: 0.9rem;
+      padding: 0.9rem 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+      position: relative;
+      letter-spacing: 0.02em;
+    }
+
+    .decade-btn:hover {
+      color: var(--gold-light);
+    }
+
+    .decade-btn.active {
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .decade-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 20%;
+      right: 20%;
+      height: 2px;
+      background: var(--gold);
+    }
+
+    .decade-btn .menu-count {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.55rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.6;
+      margin-top: 0.15rem;
+    }
+
+    /* === MAIN CONTENT === */
+    .main-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* === DECADE HEADER === */
+    .decade-header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-bottom: 1px solid var(--paper-dark);
+      margin-bottom: 2.5rem;
+    }
+
+    .decade-header h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      margin-bottom: 0.5rem;
+    }
+
+    .decade-header .era-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.2rem;
+      color: var(--burgundy);
+      margin-bottom: 1rem;
+    }
+
+    .decade-meta {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .decade-meta-item {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--brown);
+    }
+
+    .decade-meta-item strong {
+      display: block;
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      color: var(--ink);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* === CONTEXT CARDS === */
+    .context-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    @media (max-width: 600px) {
+      .context-row { grid-template-columns: 1fr; }
+    }
+
+    .context-card {
+      background: var(--paper);
+      border: 1px solid var(--paper-dark);
+      padding: 1.2rem 1.5rem;
+      border-radius: 2px;
+    }
+
+    .context-card h4 {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--brown);
+      margin-bottom: 0.8rem;
+    }
+
+    .context-card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .context-card li {
+      font-size: 0.95rem;
+      padding: 0.25rem 0;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dotted rgba(0,0,0,0.1);
+    }
+
+    .context-card li:last-child { border-bottom: none; }
+
+    .context-card li .count {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: var(--brown);
+      opacity: 0.7;
+    }
+
+    /* === MENU CARD === */
+    .menu-card {
+      background: var(--paper);
+      border: 1px solid var(--paper-dark);
+      padding: 3rem 2.5rem;
+      position: relative;
+      margin-bottom: 2rem;
+    }
+
+    .menu-card::before {
+      content: '';
+      position: absolute;
+      top: 12px; left: 12px; right: 12px; bottom: 12px;
+      border: 1px solid var(--gold);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .menu-card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--paper-dark);
+    }
+
+    .menu-card-header h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .menu-card-header p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      color: var(--burgundy);
+      font-size: 1rem;
+    }
+
+    .course-section {
+      margin-bottom: 1.8rem;
+    }
+
+    .course-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid rgba(184,150,78,0.2);
+    }
+
+    .dish-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.35rem 0;
+      cursor: pointer;
+      transition: background 0.2s;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+      border-radius: 2px;
+    }
+
+    .dish-item:hover {
+      background: rgba(184,150,78,0.08);
+    }
+
+    .dish-name {
+      font-size: 1.05rem;
+      flex: 1;
+    }
+
+    .dish-dots {
+      flex: 1;
+      border-bottom: 1px dotted rgba(0,0,0,0.15);
+      margin: 0 0.5rem;
+      min-width: 2rem;
+      height: 0.8em;
+    }
+
+    .dish-price {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: var(--brown);
+      white-space: nowrap;
+    }
+
+    .dish-popularity {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .pop-high { background: var(--burgundy); }
+    .pop-med { background: var(--gold); }
+    .pop-low { background: var(--paper-dark); }
+
+    /* === DISH DETAIL POPUP === */
+    .dish-detail {
+      display: none;
+      background: white;
+      border: 1px solid var(--paper-dark);
+      padding: 1rem 1.2rem;
+      margin-top: 0.3rem;
+      margin-bottom: 0.5rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: var(--brown);
+      border-radius: 2px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .dish-detail.show { display: block; }
+
+    .dish-detail .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.2rem 0;
+    }
+
+    .dish-detail .detail-label {
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+
+    /* === PRICE TRENDS === */
+    .price-trends {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--paper-dark);
+    }
+
+    .price-trends h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .price-trends .subtitle {
+      text-align: center;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      color: var(--brown);
+      margin-bottom: 2rem;
+    }
+
+    .trend-chart {
+      position: relative;
+      height: 250px;
+      margin: 1rem 0;
+      border-left: 1px solid var(--paper-dark);
+      border-bottom: 1px solid var(--paper-dark);
+    }
+
+    .trend-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .trend-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: var(--brown);
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .trend-legend-item.dimmed { opacity: 0.3; }
+
+    .trend-legend-swatch {
+      width: 12px;
+      height: 3px;
+      border-radius: 1px;
+    }
+
+    /* === OBSCURE DISHES === */
+    .obscure-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--paper-dark);
+      text-align: center;
+    }
+
+    .obscure-section h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .obscure-section .subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      color: var(--burgundy);
+      margin-bottom: 1.5rem;
+    }
+
+    .obscure-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .obscure-chip {
+      background: white;
+      border: 1px solid var(--paper-dark);
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .obscure-chip:hover {
+      border-color: var(--gold);
+      background: rgba(184,150,78,0.05);
+    }
+
+    /* === SAMPLE MENUS === */
+    .sample-menus {
+      margin-top: 2.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--paper-dark);
+    }
+
+    .sample-menus h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .menu-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+
+    .menu-list-item {
+      background: white;
+      border: 1px solid var(--paper-dark);
+      padding: 1rem;
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .menu-list-item:hover {
+      border-color: var(--gold);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .menu-list-item .menu-sponsor {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .menu-list-item .menu-place {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: var(--brown);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .menu-list-item .menu-date {
+      font-family: 'EB Garamond', serif;
+      font-size: 0.85rem;
+      color: var(--burgundy);
+      margin-top: 0.3rem;
+    }
+
+    .menu-link {
+      display: inline-block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      margin-top: 0.5rem;
+      text-decoration: none;
+    }
+
+    .menu-link:hover { color: var(--burgundy); }
+
+    /* === FOOTER === */
+    footer {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      border-top: 2px solid var(--gold);
+      background: var(--ink);
+      color: rgba(255,255,255,0.5);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    footer a {
+      color: var(--gold-light);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    /* === SVG CHART === */
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .chart-dot {
+      cursor: pointer;
+      transition: r 0.2s;
+    }
+
+    .chart-dot:hover { r: 5; }
+
+    .chart-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 9px;
+      fill: var(--brown);
+    }
+
+    .chart-grid {
+      stroke: var(--paper-dark);
+      stroke-width: 0.5;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      background: var(--ink);
+      color: white;
+      padding: 0.4rem 0.7rem;
+      border-radius: 2px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    /* === GENERATE MENU BUTTON === */
+    .generate-btn {
+      display: block;
+      margin: 2rem auto;
+      background: var(--ink);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      padding: 0.8rem 2rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .generate-btn:hover {
+      background: var(--gold);
+      color: var(--ink);
+    }
+
+    /* === SCROLL CTA === */
+    .scroll-cta {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: bob 2s ease-in-out infinite;
+    }
+
+    .scroll-cta span {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--brown);
+      opacity: 0.6;
+    }
+
+    .scroll-arrow {
+      display: block;
+      width: 20px;
+      height: 20px;
+      margin: 0.5rem auto 0;
+      border-right: 1.5px solid var(--brown);
+      border-bottom: 1.5px solid var(--brown);
+      transform: rotate(45deg);
+      opacity: 0.4;
+    }
+
+    @keyframes bob {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(6px); }
+    }
+
+    /* === TRANSITIONS === */
+    .fade-in {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* === LOADING === */
+    .loading {
+      text-align: center;
+      padding: 4rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.2rem;
+      color: var(--brown);
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero" id="hero">
+    <div class="hero-ornament">✦ ✦ ✦</div>
+    <h1>
+      NYC Menu
+      <br>Time Machine
+      <span>What New Yorkers Ate from 1850 to 2012</span>
+    </h1>
+    <p class="hero-subtitle">
+      Explore 170 years of dining history from the New York Public Library's
+      collection of 17,500+ menus and 428,000 dishes
+    </p>
+    <div class="hero-stats" id="hero-stats"></div>
+    <div class="scroll-cta">
+      <span>Choose a decade</span>
+      <span class="scroll-arrow"></span>
+    </div>
+  </section>
+
+  <nav class="decade-nav" id="decade-nav">
+    <div class="decade-track" id="decade-track"></div>
+  </nav>
+
+  <div class="main-content" id="main-content">
+    <div class="loading" id="loading">Consulting the archives…</div>
+  </div>
+
+  <footer>
+    <p>
+      Data from the <a href="https://nypl.github.io/menus-api/" target="_blank">NYPL "What's on the Menu?"</a> project
+      &middot; 17,500+ menus &middot; 428,000+ dishes &middot; CC0 Public Domain
+    </p>
+    <p style="margin-top: 0.5rem; opacity: 0.6;">
+      Built with the NYPL historical menu dataset. Prices shown are original historical prices.
+    </p>
+  </footer>
+
+<script>
+const ERA_LABELS = {
+  1850: 'The Antebellum Table',
+  1860: 'Civil War Era Dining',
+  1870: 'The Reconstruction Years',
+  1880: 'The Gilded Age Begins',
+  1890: 'Gay Nineties Gastronomy',
+  1900: 'The Edwardian Feast',
+  1910: 'Pre-War Elegance',
+  1920: 'Prohibition & the Jazz Age',
+  1930: 'Depression-Era Dining',
+  1940: 'Wartime & Victory Menus',
+  1950: 'The Golden Age of Dining Out',
+  1960: 'Mid-Century Modern Menus',
+  1970: 'The Eclectic Seventies',
+  1980: 'Power Lunches & New American',
+  1990: 'The Foodie Revolution',
+  2000: 'The New Millennium',
+  2010: 'Farm to Table',
+};
+
+const COURSE_LABELS = {
+  appetizers: 'Appetizers & Relishes',
+  soups: 'Soups & Consomm\u00E9s',
+  fish: 'Fish & Shellfish',
+  entrees: 'Entr\u00E9es & Roasts',
+  sides: 'Vegetables & Sides',
+  cheese: 'Cheese Course',
+  desserts: 'Desserts & Pastry',
+  drinks: 'Beverages',
+};
+
+const TREND_COLORS = [
+  '#6B2D3E', '#B8964E', '#5C6B54', '#A0522D', '#4A6FA5',
+  '#8B6B8B', '#C97B63', '#3D7A68', '#7B6B4C', '#6B4C6B'
+];
+
+let DATA = null;
+let currentDecade = null;
+let activeTrends = new Set();
+
+async function init() {
+  const res = await fetch('menu_data.json');
+  DATA = await res.json();
+
+  renderHeroStats();
+  renderDecadeNav();
+
+  // Default to 1900s (most data)
+  selectDecade('1900');
+}
+
+function renderHeroStats() {
+  const el = document.getElementById('hero-stats');
+  const stats = DATA.fun_stats;
+  el.innerHTML = `
+    <div class="hero-stat">
+      <div class="hero-stat-num">${(stats.total_menus).toLocaleString()}</div>
+      <div class="hero-stat-label">Historical Menus</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">${(stats.total_dishes).toLocaleString()}</div>
+      <div class="hero-stat-label">Unique Dishes</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">${(stats.total_items).toLocaleString()}</div>
+      <div class="hero-stat-label">Menu Appearances</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">${(stats.one_hit_wonders).toLocaleString()}</div>
+      <div class="hero-stat-label">One-Hit Wonders</div>
+    </div>
+  `;
+}
+
+function renderDecadeNav() {
+  const track = document.getElementById('decade-track');
+  const decades = Object.keys(DATA.decades).sort();
+  track.innerHTML = decades.map(d => {
+    const info = DATA.decades[d];
+    return `<button class="decade-btn" data-decade="${d}" onclick="selectDecade('${d}')">
+      ${d}s
+      <span class="menu-count">${info.total_menus} menus</span>
+    </button>`;
+  }).join('');
+}
+
+function selectDecade(decade) {
+  currentDecade = decade;
+
+  // Update nav
+  document.querySelectorAll('.decade-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.decade === decade);
+  });
+
+  // Center active button
+  const activeBtn = document.querySelector('.decade-btn.active');
+  if (activeBtn) {
+    activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  renderDecade(decade);
+}
+
+function renderDecade(decade) {
+  const d = DATA.decades[decade];
+  if (!d) return;
+
+  const main = document.getElementById('main-content');
+  const eraLabel = ERA_LABELS[parseInt(decade)] || '';
+
+  let html = `<div class="fade-in">`;
+
+  // Header
+  html += `
+    <div class="decade-header">
+      <h2>The ${decade}s</h2>
+      <div class="era-label">${eraLabel}</div>
+      <div class="decade-meta">
+        <div class="decade-meta-item">
+          <strong>${d.total_menus.toLocaleString()}</strong>
+          Menus Collected
+        </div>
+        <div class="decade-meta-item">
+          <strong>${d.total_items.toLocaleString()}</strong>
+          Dish Appearances
+        </div>
+        <div class="decade-meta-item">
+          <strong>${Object.values(d.courses).reduce((s, c) => s + c.length, 0)}</strong>
+          Distinct Dishes
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Context cards: venues + locations
+  html += `<div class="context-row">`;
+  if (d.top_sponsors.length) {
+    html += `<div class="context-card">
+      <h4>Notable Establishments</h4>
+      <ul>${d.top_sponsors.slice(0, 6).map(([name, count]) =>
+        `<li><span>${titleCase(name)}</span><span class="count">${count} menus</span></li>`
+      ).join('')}</ul>
+    </div>`;
+  }
+  if (d.top_places.length) {
+    html += `<div class="context-card">
+      <h4>Where They Dined</h4>
+      <ul>${d.top_places.slice(0, 6).map(([name, count]) =>
+        `<li><span>${titleCase(name)}</span><span class="count">${count}</span></li>`
+      ).join('')}</ul>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Menu card with courses
+  html += renderMenuCard(d, decade);
+
+  // Generate new menu button
+  html += `<button class="generate-btn" onclick="reshuffleMenu()">
+    \u2726 &nbsp; Shuffle the Menu &nbsp; \u2726
+  </button>`;
+
+  // Price trends chart
+  html += renderPriceTrends(decade);
+
+  // Obscure dishes
+  const obscure = DATA.obscure_dishes[decade];
+  if (obscure && obscure.length) {
+    html += `
+      <div class="obscure-section">
+        <h3>Lost to History</h3>
+        <div class="subtitle">Dishes that appeared on exactly one menu in the ${decade}s</div>
+        <div class="obscure-grid">
+          ${obscure.map(name => `<span class="obscure-chip">${name}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Sample menus
+  if (d.sample_menus.length) {
+    html += `
+      <div class="sample-menus">
+        <h3>From the Archives</h3>
+        <div class="menu-list">
+          ${d.sample_menus.slice(0, 8).map(m => `
+            <div class="menu-list-item">
+              <div class="menu-sponsor">${titleCase(m.sponsor || m.name || 'Unknown')}</div>
+              <div class="menu-place">${titleCase(m.place || '')}</div>
+              <div class="menu-date">${formatDate(m.date)}</div>
+              <a class="menu-link" href="http://menus.nypl.org/menus/${m.id}" target="_blank" rel="noopener">
+                View Original Menu \u2192
+              </a>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  main.innerHTML = html;
+  main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderMenuCard(d, decade) {
+  const courseOrder = ['appetizers', 'soups', 'fish', 'entrees', 'sides', 'cheese', 'desserts', 'drinks'];
+
+  let coursesHtml = '';
+  for (const course of courseOrder) {
+    const items = d.courses[course];
+    if (!items || !items.length) continue;
+
+    // Randomly select a subset for the "tasting menu" feel
+    const selected = shuffleAndPick(items, Math.min(items.length, course === 'entrees' ? 5 : 4));
+
+    coursesHtml += `
+      <div class="course-section">
+        <div class="course-title">${COURSE_LABELS[course]}</div>
+        ${selected.map(dish => {
+          const popClass = dish.count > 500 ? 'pop-high' : dish.count > 50 ? 'pop-med' : 'pop-low';
+          const priceStr = dish.avg_price ? `$${dish.avg_price.toFixed(2)}` : '';
+          return `
+            <div class="dish-item" onclick="toggleDetail(this)">
+              <span class="dish-popularity ${popClass}"></span>
+              <span class="dish-name">${dish.name}</span>
+              <span class="dish-dots"></span>
+              <span class="dish-price">${priceStr}</span>
+            </div>
+            <div class="dish-detail" data-dish='${JSON.stringify(dish).replace(/'/g, "\u2019")}'>
+              <div class="detail-row">
+                <span class="detail-label">Appearances</span>
+                <span>${dish.count} menus in this decade</span>
+              </div>
+              ${dish.price_range ? `<div class="detail-row">
+                <span class="detail-label">Price Range</span>
+                <span>$${dish.price_range[0].toFixed(2)}\u2013$${dish.price_range[1].toFixed(2)}</span>
+              </div>` : ''}
+              <div class="detail-row">
+                <span class="detail-label">Popularity</span>
+                <span>${dish.count > 500 ? 'Staple \u2014 on nearly every menu' : dish.count > 50 ? 'Popular \u2014 regularly featured' : 'Uncommon \u2014 a rare find'}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="menu-card" id="menu-card">
+      <div class="menu-card-header">
+        <h3>A ${decade}s Dinner</h3>
+        <p>A curated selection from the era\u2019s most popular dishes</p>
+      </div>
+      ${coursesHtml}
+    </div>
+  `;
+}
+
+function renderPriceTrends(highlightDecade) {
+  const trends = DATA.price_trends;
+  if (!trends || !Object.keys(trends).length) return '';
+
+  const allDecades = Object.keys(DATA.decades).map(Number).sort();
+  const minDecade = allDecades[0];
+  const maxDecade = allDecades[allDecades.length - 1];
+
+  // Chart dimensions
+  const W = 800, H = 220;
+  const PAD = { top: 15, right: 20, bottom: 30, left: 40 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+
+  // Find max price
+  let maxPrice = 0;
+  for (const [dish, decades] of Object.entries(trends)) {
+    for (const [d, p] of Object.entries(decades)) {
+      if (p.avg > maxPrice) maxPrice = p.avg;
+    }
+  }
+  maxPrice = Math.ceil(maxPrice * 1.1);
+
+  const xScale = (d) => PAD.left + ((d - minDecade) / (maxDecade - minDecade)) * plotW;
+  const yScale = (p) => PAD.top + plotH - (p / maxPrice) * plotH;
+
+  // Grid lines
+  let gridHtml = '';
+  for (let p = 0; p <= maxPrice; p += 0.5) {
+    const y = yScale(p);
+    gridHtml += `<line class="chart-grid" x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" />`;
+    if (p % 1 === 0) {
+      gridHtml += `<text class="chart-label" x="${PAD.left - 5}" y="${y + 3}" text-anchor="end">$${p.toFixed(0)}</text>`;
+    }
+  }
+
+  // X axis labels
+  let xLabels = '';
+  for (const d of allDecades) {
+    if (d % 20 === 0 || d === minDecade) {
+      xLabels += `<text class="chart-label" x="${xScale(d)}" y="${H - 5}" text-anchor="middle">${d}s</text>`;
+    }
+  }
+
+  // Highlight current decade
+  const hlX = xScale(parseInt(highlightDecade));
+  const hlBar = `<rect x="${hlX - 8}" y="${PAD.top}" width="16" height="${plotH}" fill="rgba(184,150,78,0.1)" rx="2" />`;
+
+  // Lines for each dish
+  let linesHtml = '';
+  let dotsHtml = '';
+  const dishNames = Object.keys(trends);
+
+  dishNames.forEach((dish, i) => {
+    const color = TREND_COLORS[i % TREND_COLORS.length];
+    const decades = trends[dish];
+    const points = Object.entries(decades)
+      .map(([d, p]) => [parseInt(d), p.avg])
+      .sort((a, b) => a[0] - b[0]);
+
+    if (points.length < 2) return;
+
+    const pathData = points.map((p, j) =>
+      `${j === 0 ? 'M' : 'L'} ${xScale(p[0])} ${yScale(p[1])}`
+    ).join(' ');
+
+    linesHtml += `<path class="chart-line" d="${pathData}" stroke="${color}" data-dish="${dish}" />`;
+
+    points.forEach(([d, avg]) => {
+      dotsHtml += `<circle class="chart-dot" cx="${xScale(d)}" cy="${yScale(avg)}" r="3" fill="${color}" data-dish="${dish}" data-decade="${d}" data-price="${avg.toFixed(2)}"
+        onmouseenter="showTooltip(event, '${dish}', '${d}s', '$${avg.toFixed(2)}')"
+        onmouseleave="hideTooltip()" />`;
+    });
+  });
+
+  let legendHtml = dishNames.map((dish, i) => {
+    const color = TREND_COLORS[i % TREND_COLORS.length];
+    return `<span class="trend-legend-item" data-dish="${dish}" onclick="toggleTrend('${dish}')">
+      <span class="trend-legend-swatch" style="background:${color}"></span>
+      ${dish}
+    </span>`;
+  }).join('');
+
+  return `
+    <div class="price-trends">
+      <h3>How Prices Changed</h3>
+      <div class="subtitle">Average price of iconic dishes across all decades (original historical prices, not adjusted for inflation)</div>
+      <div class="trend-chart" style="position: relative;">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+          ${gridHtml}
+          ${xLabels}
+          ${hlBar}
+          ${linesHtml}
+          ${dotsHtml}
+        </svg>
+        <div class="chart-tooltip" id="chart-tooltip"></div>
+      </div>
+      <div class="trend-legend">${legendHtml}</div>
+    </div>
+  `;
+}
+
+function toggleDetail(el) {
+  const detail = el.nextElementSibling;
+  if (detail && detail.classList.contains('dish-detail')) {
+    detail.classList.toggle('show');
+  }
+}
+
+function showTooltip(e, dish, decade, price) {
+  const tooltip = document.getElementById('chart-tooltip');
+  if (!tooltip) return;
+  tooltip.textContent = `${dish} \u00B7 ${decade} \u00B7 ${price}`;
+  tooltip.style.opacity = '1';
+  const rect = tooltip.parentElement.getBoundingClientRect();
+  tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
+  tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+}
+
+function hideTooltip() {
+  const tooltip = document.getElementById('chart-tooltip');
+  if (tooltip) tooltip.style.opacity = '0';
+}
+
+function toggleTrend(dish) {
+  const items = document.querySelectorAll(`.trend-legend-item`);
+  const lines = document.querySelectorAll('.chart-line');
+  const dots = document.querySelectorAll('.chart-dot');
+
+  if (activeTrends.has(dish)) {
+    activeTrends.delete(dish);
+  } else {
+    activeTrends.add(dish);
+  }
+
+  if (activeTrends.size === 0) {
+    // Show all
+    items.forEach(i => i.classList.remove('dimmed'));
+    lines.forEach(l => { l.style.opacity = '1'; l.style.strokeWidth = '2'; });
+    dots.forEach(d => d.style.opacity = '1');
+  } else {
+    items.forEach(i => {
+      i.classList.toggle('dimmed', !activeTrends.has(i.dataset.dish));
+    });
+    lines.forEach(l => {
+      const active = activeTrends.has(l.dataset.dish);
+      l.style.opacity = active ? '1' : '0.1';
+      l.style.strokeWidth = active ? '3' : '1';
+    });
+    dots.forEach(d => {
+      d.style.opacity = activeTrends.has(d.dataset.dish) ? '1' : '0.1';
+    });
+  }
+}
+
+function reshuffleMenu() {
+  if (!currentDecade) return;
+  const d = DATA.decades[currentDecade];
+  const card = document.getElementById('menu-card');
+  if (card) {
+    card.outerHTML = renderMenuCard(d, currentDecade);
+  }
+}
+
+function shuffleAndPick(arr, n) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+}
+
+function titleCase(str) {
+  if (!str) return '';
+  return str.toLowerCase().replace(/(?:^|\s|,\s)\S/g, c => c.toUpperCase());
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 2) return dateStr;
+  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const y = parts[0];
+  const m = parseInt(parts[1]);
+  const d = parts[2] ? parseInt(parts[2]) : null;
+  let s = months[m] || '';
+  if (d) s += ` ${d},`;
+  s += ` ${y}`;
+  return s;
+}
+
+// Init
+init();
+</script>
+
+</body>
+</html>
