@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Arts Atlas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+@font-face {
+  font-family: 'Halyard';
+  src: local('Halyard Display'), local('HalyardDisplay'), local('Halyard');
+  font-weight: 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Halyard';
+  src: local('Halyard Text Bold'), local('HalyardText-Bold');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Halyard';
+  src: local('Halyard Text'), local('HalyardText-Regular'), local('Halyard Text Book');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Halyard';
+  src: local('Halyard Text Light'), local('HalyardText-Light');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Gascogne';
+  src: local('Gascogne Extra Light'), local('Gascogne-ExtraLight'), local('Gascogne');
+  font-weight: 200;
+  font-style: normal;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* VC Primary */
+  --vc-black: #050507;
+  --vc-white: #ffffff;
+  --vc-cloud: #dddddd;
+  --vc-chartreuse: #dde44c;
+  --vc-orange: #ff7c53;
+  --vc-periwinkle: #9b9fbc;
+
+  /* VC Secondary */
+  --vc-rose: #cea9be;
+  --vc-magenta: #e7466d;
+  --vc-charcoal: #707175;
+  --vc-indigo: #394882;
+  --vc-cerulean: #217ebe;
+
+  /* Tints */
+  --vc-chartreuse-80: #e4e871;
+  --vc-chartreuse-50: #edefa8;
+  --vc-chartreuse-20: #f7f8dd;
+  --vc-orange-80: #f69577;
+  --vc-orange-50: #fabcaa;
+  --vc-magenta-80: #ec6b8a;
+  --vc-cerulean-80: #4e98cb;
+
+  /* Typography */
+  --font-primary: 'Halyard', 'Helvetica Neue', Arial, sans-serif;
+  --font-secondary: 'Gascogne', Georgia, serif;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-primary);
+  background: var(--vc-black);
+  color: var(--vc-black);
+}
+
+body { display: flex; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 340px;
+  min-width: 340px;
+  background: var(--vc-white);
+  border-right: 1px solid var(--vc-cloud);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--vc-cloud);
+}
+
+.sidebar-header h1 {
+  font-family: var(--font-primary);
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  color: var(--vc-black);
+  line-height: 1.1;
+}
+
+.sidebar-header .subtitle {
+  font-family: var(--font-secondary);
+  font-size: 14px;
+  font-weight: 200;
+  color: var(--vc-charcoal);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.venue-count-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--vc-cloud);
+}
+
+.venue-count-num {
+  font-family: var(--font-primary);
+  font-weight: 900;
+  font-size: 38px;
+  color: var(--vc-black);
+  line-height: 1;
+}
+
+.venue-count-label {
+  font-family: var(--font-primary);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vc-charcoal);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Search ── */
+.search-wrap {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--vc-cloud);
+}
+
+.search-wrap input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--vc-white);
+  border: 1.5px solid var(--vc-cloud);
+  border-radius: 4px;
+  color: var(--vc-black);
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-wrap input::placeholder { color: var(--vc-periwinkle); }
+.search-wrap input:focus { border-color: var(--vc-orange); }
+
+/* ── Categories ── */
+.categories {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px 20px;
+}
+
+.categories::-webkit-scrollbar { width: 3px; }
+.categories::-webkit-scrollbar-track { background: transparent; }
+.categories::-webkit-scrollbar-thumb { background: var(--vc-cloud); border-radius: 2px; }
+
+.cat-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--vc-charcoal);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 14px 0 8px;
+}
+
+.cat-item {
+  display: flex;
+  align-items: center;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+  user-select: none;
+  gap: 10px;
+}
+
+.cat-item:hover { background: #f5f5f5; }
+.cat-item.disabled { opacity: 0.28; }
+
+.cat-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid var(--dot-color);
+  transition: all 0.12s;
+}
+
+.cat-item:not(.disabled) .cat-dot { background: var(--dot-color); }
+.cat-item.disabled .cat-dot { background: transparent; }
+
+.cat-label {
+  font-size: 13px;
+  font-weight: 400;
+  flex: 1;
+  color: var(--vc-black);
+}
+
+.cat-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vc-charcoal);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Footer / Toggle ── */
+.sidebar-footer {
+  padding: 12px 24px 14px;
+  border-top: 1px solid var(--vc-cloud);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-footer button {
+  padding: 7px 16px;
+  background: var(--vc-white);
+  border: 1.5px solid var(--vc-cloud);
+  border-radius: 4px;
+  color: var(--vc-charcoal);
+  font-family: var(--font-primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: all 0.12s;
+}
+
+.sidebar-footer button:hover {
+  border-color: var(--vc-orange);
+  color: var(--vc-black);
+}
+
+.source-line {
+  font-size: 10px;
+  color: var(--vc-charcoal);
+  font-weight: 400;
+}
+
+.source-line a {
+  color: var(--vc-charcoal);
+  text-decoration: underline;
+}
+
+/* ── Map ── */
+.map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; background: var(--vc-black); }
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--vc-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  transition: opacity 0.5s;
+}
+
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.loading-overlay h2 {
+  font-family: var(--font-primary);
+  font-weight: 900;
+  font-size: 26px;
+  color: var(--vc-white);
+  margin-bottom: 6px;
+}
+
+.loading-overlay .loading-sub {
+  font-family: var(--font-secondary);
+  font-size: 14px;
+  font-weight: 200;
+  color: var(--vc-chartreuse);
+  margin-bottom: 20px;
+}
+
+.loading-spinner {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: var(--vc-chartreuse);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-status {
+  font-size: 11px;
+  color: var(--vc-periwinkle);
+  margin-top: 14px;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+/* ── Leaflet popups ── */
+.leaflet-popup-content-wrapper {
+  background: var(--vc-white) !important;
+  color: var(--vc-black) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 20px rgba(5,5,7,0.25) !important;
+  border: none !important;
+}
+
+.leaflet-popup-tip { background: var(--vc-white) !important; }
+
+.leaflet-popup-content {
+  margin: 14px 16px !important;
+  font-family: var(--font-primary) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+.popup-name {
+  font-family: var(--font-primary);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--vc-black);
+  margin-bottom: 2px;
+  line-height: 1.25;
+}
+
+.popup-cat {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.popup-detail {
+  font-size: 12px;
+  color: var(--vc-charcoal);
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.popup-detail a {
+  color: var(--vc-orange);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,124,83,0.3);
+  text-underline-offset: 2px;
+}
+
+.popup-detail a:hover { text-decoration-color: var(--vc-orange); }
+
+/* ── Leaflet controls ── */
+.leaflet-control-zoom a {
+  background: var(--vc-white) !important;
+  color: var(--vc-black) !important;
+  border-color: var(--vc-cloud) !important;
+  font-weight: 400 !important;
+}
+
+.leaflet-control-zoom a:hover { background: #f5f5f5 !important; }
+
+.leaflet-control-attribution {
+  background: rgba(5,5,7,0.7) !important;
+  color: var(--vc-periwinkle) !important;
+  font-size: 10px !important;
+  font-family: var(--font-primary) !important;
+}
+
+.leaflet-control-attribution a { color: var(--vc-chartreuse-80) !important; }
+
+/* ── Clusters ── */
+.marker-cluster {
+  background: rgba(5,5,7,0.45) !important;
+  border: 2px solid rgba(221,228,76,0.35) !important;
+}
+
+.marker-cluster div {
+  background: rgba(221,228,76,0.12) !important;
+  color: var(--vc-white) !important;
+  font-family: var(--font-primary) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.marker-cluster-small { background: rgba(5,5,7,0.35) !important; }
+.marker-cluster-medium { background: rgba(5,5,7,0.5) !important; }
+.marker-cluster-large { background: rgba(5,5,7,0.6) !important; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 300px; min-width: 300px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1100;
+    box-shadow: 4px 0 24px rgba(5,5,7,0.15);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .mobile-toggle {
+    display: flex;
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 1050;
+    width: 40px; height: 40px;
+    background: var(--vc-white);
+    border: 1px solid var(--vc-cloud);
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--vc-black);
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(5,5,7,0.15);
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-toggle { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="passwordGate" style="position:fixed;inset:0;z-index:9999;background:var(--vc-black);display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;max-width:320px;padding:24px;">
+    <h2 style="font-family:var(--font-primary);font-weight:900;font-size:24px;color:var(--vc-white);margin-bottom:4px;">NYC Arts Atlas</h2>
+    <p style="font-family:var(--font-secondary);font-size:14px;font-weight:200;color:var(--vc-chartreuse);margin-bottom:24px;">Every creative venue in the five boroughs</p>
+    <input type="password" id="gateInput" placeholder="Enter password" style="width:100%;padding:10px 14px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:4px;color:var(--vc-white);font-family:var(--font-primary);font-size:14px;outline:none;text-align:center;" />
+    <button id="gateBtn" style="margin-top:12px;padding:9px 28px;background:var(--vc-orange);border:none;border-radius:4px;color:var(--vc-white);font-family:var(--font-primary);font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;">Enter</button>
+    <div id="gateError" style="margin-top:12px;font-size:12px;color:var(--vc-magenta);display:none;">Incorrect password</div>
+  </div>
+</div>
+
+<div class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>NYC Arts Atlas</h1>
+    <div class="subtitle">Every creative venue in the five boroughs</div>
+    <div class="venue-count-row">
+      <span class="venue-count-num" id="totalCount">—</span>
+      <span class="venue-count-label">venues mapped</span>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="Search venues…" />
+  </div>
+
+  <div class="categories" id="categoryList"></div>
+
+  <div class="sidebar-footer">
+    <div class="source-line">Source: <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a></div>
+    <button id="toggleAllBtn" onclick="toggleAll()">Hide All</button>
+  </div>
+</aside>
+
+<div class="map-wrap">
+  <div class="loading-overlay" id="loadingOverlay">
+    <h2>NYC Arts Atlas</h2>
+    <div class="loading-sub">Every creative venue in the five boroughs</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-status">Mapping 1,454 venues…</div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="venues.js"></script>
+<script>
+// ── Category definitions — mapped to VC palette ──
+const CATEGORIES = {
+  museum:      { label: 'Museums',                      color: '#e7466d' },  // Magenta — focal highlight
+  gallery:     { label: 'Galleries',                     color: '#dde44c' },  // Chartreuse — primary fill
+  theater:     { label: 'Theaters & Performing Arts',    color: '#394882' },  // Indigo
+  cinema:      { label: 'Cinemas',                       color: '#217ebe' },  // Cerulean
+  music:       { label: 'Music Venues',                  color: '#ff7c53' },  // Safety Orange
+  arts_center: { label: 'Arts & Cultural Centers',       color: '#9b9fbc' },  // Periwinkle
+  nightlife:   { label: 'Nightlife & Performance',       color: '#cea9be' },  // Rose
+  dance:       { label: 'Dance Studios & Venues',        color: '#57aa4a' },  // Goodest Green
+  maker:       { label: 'Maker Spaces & Craft Studios',  color: '#4e98cb' },  // Cerulean 80
+};
+
+// ── State ──
+let categoryLayers = {};
+let categoryVisible = {};
+let clusterGroup;
+let searchLayer = null;
+
+// ── Map ──
+const map = L.map('map', {
+  center: [40.7128, -73.97],
+  zoom: 12,
+  zoomControl: true,
+});
+
+// Dark tiles for the data-tool treatment (per VC brand: dark background for data section)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── Popup builder ──
+function buildPopup(v) {
+  const cat = CATEGORIES[v.c];
+  let details = '';
+
+  if (v.a) details += `<div>${v.a}</div>`;
+  if (v.p) details += `<div>${v.p}</div>`;
+  if (v.w) {
+    const url = v.w.startsWith('http') ? v.w : 'https://' + v.w;
+    const display = url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+    details += `<div><a href="${url}" target="_blank" rel="noopener">${display.length > 38 ? display.slice(0, 38) + '\u2026' : display}</a></div>`;
+  }
+
+  return `
+    <div class="popup-name">${v.n}</div>
+    <div class="popup-cat" style="color:${cat.color}">${cat.label}</div>
+    ${details ? `<div class="popup-detail">${details}</div>` : ''}
+  `;
+}
+
+// ── Build layers ──
+function init() {
+  clusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 45,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    iconCreateFunction(cluster) {
+      const count = cluster.getChildCount();
+      let size = count >= 50 ? 'large' : count >= 20 ? 'medium' : 'small';
+      return L.divIcon({
+        html: '<div>' + count + '</div>',
+        className: 'marker-cluster marker-cluster-' + size,
+        iconSize: L.point(36, 36),
+      });
+    }
+  });
+
+  for (const key of Object.keys(CATEGORIES)) {
+    categoryLayers[key] = L.layerGroup();
+    categoryVisible[key] = true;
+  }
+
+  for (const v of VENUES) {
+    const cat = CATEGORIES[v.c];
+    if (!cat) continue;
+
+    // Adjust marker stroke for light-colored markers on dark map
+    const isLight = ['#dde44c', '#cea9be', '#9b9fbc'].includes(cat.color);
+
+    const marker = L.circleMarker([v.la, v.lo], {
+      radius: 5.5,
+      fillColor: cat.color,
+      color: isLight ? 'rgba(5,5,7,0.5)' : 'rgba(5,5,7,0.3)',
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 0.9,
+    });
+    marker.bindPopup(buildPopup(v), { maxWidth: 280 });
+    marker.venueData = v;
+    categoryLayers[v.c].addLayer(marker);
+  }
+
+  for (const key of Object.keys(CATEGORIES)) {
+    clusterGroup.addLayer(categoryLayers[key]);
+  }
+  clusterGroup.addTo(map);
+
+  renderCategories();
+  updateCount();
+
+  setTimeout(() => {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }, 300);
+}
+
+// ── Sidebar rendering ──
+function renderCategories() {
+  const list = document.getElementById('categoryList');
+  list.innerHTML = '<div class="cat-section-label">Categories</div>';
+
+  for (const [key, cfg] of Object.entries(CATEGORIES)) {
+    const count = VENUES.filter(v => v.c === key).length;
+    const enabled = categoryVisible[key];
+
+    const item = document.createElement('div');
+    item.className = `cat-item${enabled ? '' : ' disabled'}`;
+    item.innerHTML = `
+      <div class="cat-dot" style="--dot-color:${cfg.color}"></div>
+      <div class="cat-label">${cfg.label}</div>
+      <div class="cat-count">${count.toLocaleString()}</div>
+    `;
+    item.addEventListener('click', () => toggleCategory(key));
+    list.appendChild(item);
+  }
+}
+
+function toggleCategory(key) {
+  categoryVisible[key] = !categoryVisible[key];
+  if (categoryVisible[key]) {
+    clusterGroup.addLayer(categoryLayers[key]);
+  } else {
+    clusterGroup.removeLayer(categoryLayers[key]);
+  }
+  renderCategories();
+  updateCount();
+}
+
+function toggleAll() {
+  const anyVisible = Object.values(categoryVisible).some(v => v);
+  for (const key of Object.keys(CATEGORIES)) {
+    categoryVisible[key] = !anyVisible;
+    if (categoryVisible[key]) {
+      clusterGroup.addLayer(categoryLayers[key]);
+    } else {
+      clusterGroup.removeLayer(categoryLayers[key]);
+    }
+  }
+  document.getElementById('toggleAllBtn').textContent = anyVisible ? 'Show All' : 'Hide All';
+  renderCategories();
+  updateCount();
+}
+
+function updateCount() {
+  const visible = VENUES.filter(v => categoryVisible[v.c]).length;
+  document.getElementById('totalCount').textContent = visible.toLocaleString();
+}
+
+// ── Search ──
+document.getElementById('searchInput').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+
+  if (searchLayer) {
+    map.removeLayer(searchLayer);
+    searchLayer = null;
+  }
+
+  if (!q) {
+    clusterGroup.addTo(map);
+    return;
+  }
+
+  if (q.length < 2) return;
+
+  const matches = VENUES.filter(v =>
+    v.n.toLowerCase().includes(q) ||
+    (v.a || '').toLowerCase().includes(q)
+  );
+
+  map.removeLayer(clusterGroup);
+
+  searchLayer = L.layerGroup();
+  for (const v of matches) {
+    const cat = CATEGORIES[v.c];
+    const marker = L.circleMarker([v.la, v.lo], {
+      radius: 7,
+      fillColor: cat.color,
+      color: '#fff',
+      weight: 1.5,
+      opacity: 1,
+      fillOpacity: 0.9,
+    });
+    marker.bindPopup(buildPopup(v), { maxWidth: 280 });
+    searchLayer.addLayer(marker);
+  }
+  searchLayer.addTo(map);
+
+  if (matches.length > 0 && matches.length < 200) {
+    const bounds = L.latLngBounds(matches.map(v => [v.la, v.lo]));
+    map.fitBounds(bounds.pad(0.1));
+  }
+});
+
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    this.value = '';
+    this.dispatchEvent(new Event('input'));
+  }
+});
+
+// ── Password gate ──
+function checkGate() {
+  const pw = document.getElementById('gateInput').value;
+  if (pw === 'vitalcity2026?!') {
+    sessionStorage.setItem('arts-atlas-auth', '1');
+    document.getElementById('passwordGate').style.display = 'none';
+    init();
+  } else {
+    document.getElementById('gateError').style.display = 'block';
+    document.getElementById('gateInput').value = '';
+    document.getElementById('gateInput').focus();
+  }
+}
+
+document.getElementById('gateBtn').addEventListener('click', checkGate);
+document.getElementById('gateInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkGate();
+  document.getElementById('gateError').style.display = 'none';
+});
+
+// Auto-pass if already authed this session
+if (sessionStorage.getItem('arts-atlas-auth') === '1') {
+  document.getElementById('passwordGate').style.display = 'none';
+  init();
+} else {
+  document.getElementById('gateInput').focus();
+}
+</script>
+</body>
+</html>
