@@ -8,7 +8,7 @@ export default function MusicChart({ date }) {
       <div className="text-center py-20 text-film-muted">
         <p className="text-base">No chart data for this date</p>
         <p className="text-xs mt-1 text-film-muted/60">
-          Billboard Hot 100 data available from 1977 onward
+          Billboard Hot 100 data available from 1958 onward
         </p>
       </div>
     )
@@ -45,6 +45,12 @@ export default function MusicChart({ date }) {
               </p>
               <p className="text-sm text-film-muted mt-0.5 font-light">
                 {entry.artist}
+                {entry.weeksOnChart > 1 && (
+                  <span className="text-film-muted/40 ml-2 text-xs">
+                    · wk {entry.weeksOnChart}
+                    {entry.peakPosition === entry.rank && entry.peakPosition <= 3 ? ' · peak' : ''}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -52,7 +58,7 @@ export default function MusicChart({ date }) {
       </div>
 
       <p className="text-center text-[10px] text-film-muted/30 mt-10 tracking-wide">
-        Data from musicchartsarchive.com
+        Billboard Hot 100 data via mhollingshead/billboard-hot-100 and musicchartsarchive.com
       </p>
     </div>
   )
