@@ -754,6 +754,154 @@
       letter-spacing: 0.03em;
     }
 
+    /* ═══════════ INSIGHTS ═══════════ */
+    .insights-section {
+      margin: 2.5rem 0;
+    }
+
+    .insight {
+      display: flex;
+      gap: 1.2rem;
+      align-items: baseline;
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(201,168,76,0.06);
+    }
+
+    .insight:last-child { border-bottom: none; }
+
+    .insight-stat {
+      font-family: 'Cinzel', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gold-glow);
+      white-space: nowrap;
+      min-width: 70px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .insight-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      font-weight: 300;
+      line-height: 1.6;
+      color: rgba(245,237,220,0.7);
+      border-left: 2px solid rgba(201,168,76,0.2);
+      padding-left: 1.2rem;
+    }
+
+    /* ═══════════ REAL MENU SELECTOR ═══════════ */
+    .real-menus-header {
+      text-align: center;
+      margin-top: 3rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .real-menus-header h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--cream);
+      margin-bottom: 0.3rem;
+    }
+
+    .real-menus-header p {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      color: rgba(245,237,220,0.4);
+    }
+
+    .menu-selector {
+      display: flex;
+      gap: 0.8rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .menu-selector::-webkit-scrollbar { display: none; }
+
+    .menu-select-card {
+      flex: 0 0 auto;
+      min-width: 200px;
+      max-width: 260px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(201,168,76,0.12);
+      padding: 1rem 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .menu-select-card:hover {
+      border-color: rgba(201,168,76,0.3);
+      background: rgba(201,168,76,0.04);
+    }
+
+    .menu-select-card.active {
+      border-color: var(--gold);
+      background: rgba(201,168,76,0.08);
+      box-shadow: 0 0 20px rgba(201,168,76,0.08);
+    }
+
+    .menu-select-card .ms-sponsor {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--cream);
+      margin-bottom: 0.2rem;
+    }
+
+    .menu-select-card .ms-place {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.55rem;
+      font-weight: 300;
+      color: rgba(245,237,220,0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .menu-select-card .ms-date {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.85rem;
+      color: var(--gold-dim);
+      margin-top: 0.3rem;
+    }
+
+    .menu-select-card .ms-event {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.5rem;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--burgundy-light);
+      margin-top: 0.3rem;
+    }
+
+    .view-original-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gold-dim);
+      text-decoration: none;
+      padding: 0.6rem;
+      border: 1px solid rgba(201,168,76,0.15);
+      transition: all 0.3s;
+    }
+
+    .view-original-link:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+      background: rgba(201,168,76,0.05);
+    }
+
     /* ═══════════ OBSCURE DISHES ═══════════ */
     .obscure-section {
       margin-top: 3.5rem;
@@ -1108,11 +1256,12 @@ function renderDecade(decade) {
       <div class="decade-meta">
         <div class="decade-meta-item"><strong>${d.total_menus.toLocaleString()}</strong><span>Menus Collected</span></div>
         <div class="decade-meta-item"><strong>${d.total_items.toLocaleString()}</strong><span>Dish Appearances</span></div>
-        <div class="decade-meta-item"><strong>${Object.values(d.courses).reduce((s, c) => s + c.length, 0)}</strong><span>Distinct Dishes</span></div>
+        <div class="decade-meta-item"><strong>${d.real_menus ? d.real_menus.length : 0}</strong><span>Menus in Archives</span></div>
       </div>
     </div>
   `;
 
+  // Context cards
   html += `<div class="context-row">`;
   if (d.top_sponsors.length) {
     html += `<div class="context-card"><h4>Notable Establishments</h4><ul>${d.top_sponsors.slice(0, 6).map(([name, count]) =>
@@ -1126,8 +1275,31 @@ function renderDecade(decade) {
   }
   html += `</div>`;
 
-  html += renderMenuCard(d, decade);
-  html += `<button class="generate-btn" onclick="reshuffleMenu()">Shuffle the Menu</button>`;
+  // Insights
+  const decadeInsights = DATA.insights[decade] || [];
+  if (decadeInsights.length) {
+    html += `<div class="insights-section">${decadeInsights.map(ins =>
+      `<div class="insight">
+        <div class="insight-stat">${ins.stat}</div>
+        <div class="insight-text">${ins.text}</div>
+      </div>`
+    ).join('')}</div>`;
+  }
+
+  // Real menus
+  if (d.real_menus && d.real_menus.length) {
+    html += `<div class="real-menus-header"><h3>From the Archives</h3><p>Actual menus from real establishments</p></div>`;
+    html += `<div class="menu-selector" id="menu-selector">${d.real_menus.map((rm, i) =>
+      `<div class="menu-select-card ${i === 0 ? 'active' : ''}" onclick="selectRealMenu('${decade}', ${i})" data-idx="${i}">
+        <div class="ms-sponsor">${titleCase(rm.sponsor)}</div>
+        <div class="ms-place">${titleCase(rm.place)}</div>
+        <div class="ms-date">${formatDate(rm.date)}</div>
+        ${rm.event ? `<div class="ms-event">${rm.event}</div>` : ''}
+      </div>`
+    ).join('')}</div>`;
+    html += renderRealMenu(d.real_menus[0]);
+  }
+
   html += renderPriceTrends(decade);
 
   const obscure = DATA.obscure_dishes[decade];
@@ -1140,58 +1312,37 @@ function renderDecade(decade) {
       </div>`;
   }
 
-  if (d.sample_menus.length) {
-    html += `
-      <div class="sample-menus">
-        <h3>From the Archives</h3>
-        <div class="menu-list">${d.sample_menus.slice(0, 8).map(m => `
-          <div class="menu-list-item">
-            <div class="menu-sponsor">${titleCase(m.sponsor || m.name || 'Unknown')}</div>
-            <div class="menu-place">${titleCase(m.place || '')}</div>
-            <div class="menu-date">${formatDate(m.date)}</div>
-            <a class="menu-link" href="http://menus.nypl.org/menus/${m.id}" target="_blank" rel="noopener">View Original Menu →</a>
-          </div>`).join('')}
-        </div>
-      </div>`;
-  }
-
   html += `</div>`;
   main.innerHTML = html;
   main.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderMenuCard(d, decade) {
+function renderRealMenu(rm) {
   const courseOrder = ['appetizers', 'soups', 'fish', 'entrees', 'sides', 'cheese', 'desserts', 'drinks'];
   let coursesHtml = '';
   let delay = 0;
 
   for (const course of courseOrder) {
-    const items = d.courses[course];
+    const items = rm.courses[course];
     if (!items || !items.length) continue;
-    const selected = shuffleAndPick(items, Math.min(items.length, course === 'entrees' ? 5 : 4));
     delay += 0.08;
 
     coursesHtml += `
       <div class="course-section" style="animation-delay: ${delay}s">
         <div class="course-title">${COURSE_LABELS[course]}</div>
-        ${selected.map(dish => {
-          const popClass = dish.count > 500 ? 'pop-high' : dish.count > 50 ? 'pop-med' : 'pop-low';
-          const priceStr = dish.avg_price ? `$${dish.avg_price.toFixed(2)}` : '';
+        ${items.map(item => {
+          const priceStr = item.price ? `$${item.price.toFixed(2)}` : '';
           return `
-            <div class="dish-item" onclick="toggleDetail(this)">
-              <span class="dish-popularity ${popClass}"></span>
-              <span class="dish-name">${dish.name}</span>
+            <div class="dish-item">
+              <span class="dish-name">${item.name}</span>
               <span class="dish-dots"></span>
               <span class="dish-price">${priceStr}</span>
-            </div>
-            <div class="dish-detail">
-              <div class="detail-row"><span class="detail-label">Appearances</span><span>${dish.count} menus this decade</span></div>
-              ${dish.price_range ? `<div class="detail-row"><span class="detail-label">Price Range</span><span>$${dish.price_range[0].toFixed(2)}–$${dish.price_range[1].toFixed(2)}</span></div>` : ''}
-              <div class="detail-row"><span class="detail-label">Popularity</span><span>${dish.count > 500 ? 'Staple — on nearly every menu' : dish.count > 50 ? 'Popular — regularly featured' : 'Uncommon — a rare find'}</span></div>
             </div>`;
         }).join('')}
       </div>`;
   }
+
+  const subtitle = [titleCase(rm.place), rm.event].filter(Boolean).join(' \u2014 ');
 
   return `
     <div class="menu-card" id="menu-card">
@@ -1200,11 +1351,20 @@ function renderMenuCard(d, decade) {
       <div class="menu-corner bl">${CORNER_SVG}</div>
       <div class="menu-corner br">${CORNER_SVG}</div>
       <div class="menu-card-header">
-        <h3>A ${decade}s Dinner</h3>
-        <p>A curated selection from the era's most popular dishes</p>
+        <h3>${titleCase(rm.sponsor)}</h3>
+        <p>${subtitle ? subtitle + ' \u2014 ' : ''}${formatDate(rm.date)}</p>
       </div>
       ${coursesHtml}
+      <a class="view-original-link" href="http://menus.nypl.org/menus/${rm.id}" target="_blank" rel="noopener">View Original Menu at NYPL \u2192</a>
     </div>`;
+}
+
+function selectRealMenu(decade, idx) {
+  const d = DATA.decades[decade];
+  if (!d || !d.real_menus[idx]) return;
+  document.querySelectorAll('.menu-select-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.idx) === idx));
+  const card = document.getElementById('menu-card');
+  if (card) card.outerHTML = renderRealMenu(d.real_menus[idx]);
 }
 
 function renderPriceTrends(highlightDecade) {
@@ -1310,18 +1470,7 @@ function toggleTrend(dish) {
   }
 }
 
-function reshuffleMenu() {
-  if (!currentDecade) return;
-  const d = DATA.decades[currentDecade];
-  const card = document.getElementById('menu-card');
-  if (card) card.outerHTML = renderMenuCard(d, currentDecade);
-}
 
-function shuffleAndPick(arr, n) {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; }
-  return copy.slice(0, n);
-}
 
 function titleCase(str) {
   if (!str) return '';
