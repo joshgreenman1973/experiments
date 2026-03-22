@@ -217,6 +217,18 @@ body::before {
   align-self: center;
 }
 
+.section-head .sort-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.filter-select-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
 .section-head .count {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
@@ -644,8 +656,8 @@ body::before {
 <div class="stats-strip">
   <div class="stats-inner">
     <div class="stat-card">
-      <div class="stat-number" id="stat-total">—</div>
-      <div class="stat-label">Total in system</div>
+      <div class="stat-number" id="stat-total">\u2014</div>
+      <div class="stat-label">Filed in 2026</div>
     </div>
     <div class="stat-card">
       <div class="stat-number gold" id="stat-tracked">—</div>
@@ -667,9 +679,20 @@ body::before {
 
   <!-- REQUESTS SECTION -->
   <div class="section-head">
-    <h2>Recent Requests</h2>
+    <h2>All Requests</h2>
     <div class="rule"></div>
     <span class="count" id="results-count"></span>
+    <div class="sort-control">
+      <label class="filter-label" for="sort-select">Sort by</label>
+      <select id="sort-select" class="filter-select filter-select-sm">
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+        <option value="agency-asc">Agency A\u2013Z</option>
+        <option value="agency-desc">Agency Z\u2013A</option>
+        <option value="response-asc">Fastest response</option>
+        <option value="response-desc">Slowest response</option>
+      </select>
+    </div>
   </div>
 
   <div class="filter-bar">
@@ -757,6 +780,7 @@ const PER_PAGE = 25;
 let allData = null;
 let filtered = [];
 let currentPage = 1;
+let feedSort = 'date-desc';
 let agencySortKey = 'total';
 let agencySortDir = -1;
 
@@ -814,7 +838,10 @@ function init() {
     `Updated ${timeAgo(allData.lastUpdated)} — ${formatDate(allData.lastUpdated)}`;
 
   // Stats
-  document.getElementById('stat-total').textContent = allData.totalInSystem || '—';
+  const totalNum = typeof allData.totalInSystem === 'number'
+    ? allData.totalInSystem.toLocaleString()
+    : allData.totalInSystem || '\u2014';
+  document.getElementById('stat-total').textContent = totalNum;
   document.getElementById('stat-tracked').textContent = allData.requestsFetched?.toLocaleString() || '—';
 
   // Calculate global stats
@@ -834,10 +861,14 @@ function init() {
   }
 
   // Build footnote explaining the stats
-  const dates = allData.requests.map(r => r.dateSubmitted).filter(Boolean).sort();
+  const dates2026 = allData.requests
+    .filter(r => r.dateSubmitted && r.dateSubmitted >= '2026-01-01')
+    .map(r => r.dateSubmitted).sort();
+  const dates = dates2026.length > 0 ? dates2026
+    : allData.requests.map(r => r.dateSubmitted).filter(Boolean).sort();
   const parts = [];
   if (dates.length > 0) {
-    parts.push(`Covering ${allData.requests.length} requests filed ${formatDate(dates[0])} \u2013 ${formatDate(dates[dates.length - 1])}.`);
+    parts.push(`Covering ${allData.requests.length.toLocaleString()} requests filed ${formatDate(dates[0])} \u2013 ${formatDate(dates[dates.length - 1])}.`);
   }
   const footParts = [];
   if (withTime.length > 0) {
@@ -868,6 +899,10 @@ function init() {
   document.getElementById('status-filter').addEventListener('change', applyFilters);
   document.getElementById('determination-filter').addEventListener('change', applyFilters);
   document.getElementById('clear-filters').addEventListener('click', clearFilters);
+  document.getElementById('sort-select').addEventListener('change', (e) => {
+    feedSort = e.target.value;
+    applyFilters();
+  });
   document.getElementById('prev-page').addEventListener('click', () => { currentPage--; renderFeed(); });
   document.getElementById('next-page').addEventListener('click', () => { currentPage++; renderFeed(); });
 
@@ -900,6 +935,22 @@ function applyFilters() {
     if (status && r.status !== status) return false;
     if (determination && r.determination !== determination) return false;
     return true;
+  });
+
+  // Sort
+  const [sortField, sortDir] = feedSort.split('-');
+  const dir = sortDir === 'asc' ? 1 : -1;
+  filtered.sort((a, b) => {
+    if (sortField === 'date') {
+      return dir * ((a.dateSubmitted || '').localeCompare(b.dateSubmitted || ''));
+    } else if (sortField === 'agency') {
+      return dir * ((a.agency || '').localeCompare(b.agency || ''));
+    } else if (sortField === 'response') {
+      const av = a.responseTimeDays ?? 9999;
+      const bv = b.responseTimeDays ?? 9999;
+      return dir * (av - bv);
+    }
+    return 0;
   });
 
   currentPage = 1;
