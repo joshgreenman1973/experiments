@@ -623,8 +623,8 @@ if (sessionStorage.getItem('dinner-access') === '1') { document.body.classList.r
 <div class="header">
   <p class="diner-label">— NYC Family Dining Costs —</p>
   <h1>What Does Dinner<br>Actually Cost?</h1>
-  <p class="dek">We checked menus at 500 neighborhood restaurants across all five boroughs to find out what a family of four actually pays for a weeknight dinner in New York City — no tablecloths, no tasting menus, just the places where people eat.</p>
-  <p style="font-size:0.72rem;color:#888;max-width:640px;margin:0.8rem auto 0;line-height:1.5;text-align:center;">Two adult entrées, two kid meals, one shared app, two sodas (kids get water). Tax (8.875%) and 18% tip included. No alcohol, no dessert. Restaurants are neighborhood spots — no destination restaurants or tourist traps — distributed across boroughs roughly by population. All prices from in-restaurant menus, not delivery platforms. Verified via Google Places; re-checked monthly.</p>
+  <p class="dek">We checked menus at 250+ neighborhood restaurants across all five boroughs to find out what a family of four actually pays for a weeknight dinner in New York City — no tablecloths, no tasting menus, just the places where people eat.</p>
+  <p style="font-size:0.72rem;color:#888;max-width:640px;margin:0.8rem auto 0;line-height:1.5;text-align:center;">Two adult entrées (or a shared pie/dishes where that's how families order), two kid portions, one shared side, two sodas (kids get water). Tax (8.875%) and 18% tip included. All prices verified from in-restaurant menus, not delivery platforms.</p>
 </div>
 
 <!-- View Switcher -->
@@ -726,7 +726,7 @@ if (sessionStorage.getItem('dinner-access') === '1') { document.body.classList.r
     </div>
     <div style="padding:1rem;background:#f9f6f0;border-radius:6px;border-left:3px solid #264653;">
       <div style="font-weight:700;color:#264653;margin-bottom:0.4rem;">What $4,679 Buys in NYC</div>
-      <div id="contextDinnerCount">At our sample's median price, that metro-area dining-out budget covers about <strong><span id="contextCalc"></span> family dinners</strong> per year — about once every 5 days.</div>
+      <div id="contextDinnerCount">At our sample's median price, that metro-area dining-out budget covers about <strong><span id="contextCalc"></span> family dinners</strong> per year — about <span id="contextFreq"></span>.</div>
       <div style="font-size:0.75rem;color:#888;margin-top:0.3rem;">Calculated from BLS metro-area spending ÷ our median bill (with tax + tip)</div>
     </div>
   </div>
@@ -735,7 +735,7 @@ if (sessionStorage.getItem('dinner-access') === '1') { document.body.classList.r
 <!-- Full Table -->
 <div class="table-section">
   <div class="order-pad">
-    <div class="order-pad-header">All 500 Restaurants — Click any column to sort</div>
+    <div class="order-pad-header" id="tableHeader">All Restaurants — Click any column to sort</div>
     <div class="table-wrap">
       <table class="rankings-table" id="fullTable">
         <thead>
@@ -757,7 +757,7 @@ if (sessionStorage.getItem('dinner-access') === '1') { document.body.classList.r
 
 <div class="footer">
   <p class="signoff">Thanks for dining with us!</p>
-  <p>Prices gathered March 2026 from publicly available in-restaurant menus and restaurant websites (not delivery platform prices, which are typically 15–30% higher). Estimates assume standard portions at menu price, NYC sales tax of 8.875%, and a standard 18% tip on the pre-tax subtotal. Prices are re-checked monthly; trend data appears after the first update. Individual experiences will vary. This is not a review or recommendation — it's a price check.</p>
+  <p>All prices from in-restaurant menus, March 2026. Tax (8.875%) and 18% tip included. Re-checked monthly. This is a price check, not a review.</p>
 </div>
 
 </div><!-- /placemat -->
@@ -854,32 +854,65 @@ function renderBigNumbers() {
 // RECEIPT BUILDER
 // ══════════════════════════════════════════════
 function buildReceipt(d) {
-  const ae = d.adultEntree || 15;
-  const km = d.kidMeal || 8;
-  const app = d.appetizer || 6;
-  const drk = d.drinks || 2.50;
+  const line = (item, qty, unitPrice) =>
+    `<div class="receipt-line"><span class="item">${qty > 1 ? qty + '\u00d7 ' : ''}${item}</span><span class="price">${fmtDec(unitPrice * qty)}</span></div>`;
 
-  const foodSubtotal = (ae * 2) + (km * 2) + app + (drk * 2);
+  let lines, foodSubtotal;
+
+  if (d.largePie !== undefined) {
+    // PIZZA: 1 pie + 1 side + 2 sodas
+    const pie = d.largePie;
+    const side = d.side || 5;
+    const drk = d.drinks || 2.50;
+    foodSubtotal = pie + side + (drk * 2);
+    lines = [
+      line(d.pieItem || 'Large cheese pie', 1, pie),
+      line(d.sideItem || 'Garlic knots', 1, side),
+      line('Soda', 2, drk),
+    ].join('');
+  } else if (d.dish1 !== undefined) {
+    // CHINESE: 2 shared dishes + rice + 1 app + 2 sodas
+    const d1 = d.dish1;
+    const d2 = d.dish2;
+    const rice = d.rice || 4;
+    const app = d.appetizer || 5;
+    const drk = d.drinks || 2;
+    foodSubtotal = d1 + d2 + rice + app + (drk * 2);
+    lines = [
+      line(d.dish1Item || 'Shared dish', 1, d1),
+      line(d.dish2Item || 'Shared dish', 1, d2),
+      line('White rice', 1, rice),
+      line(d.appItem || 'Appetizer', 1, app),
+      line('Soda', 2, drk),
+    ].join('');
+  } else {
+    // STANDARD: 2 adult + 2 kid + 1 app + 2 sodas
+    const ae = d.adultEntree || 15;
+    const km = d.kidMeal || 8;
+    const app = d.appetizer || 6;
+    const drk = d.drinks || 2.50;
+    foodSubtotal = (ae * 2) + (km * 2) + app + (drk * 2);
+    const adultLabel = d.adultItem || 'Entrée';
+    const kidLabel = d.kidItem || (d.kidsMenu === 'yes' ? 'Kids meal' : 'Sm. portion');
+    const appLabel = d.appItem || 'Shared app/side';
+    lines = [
+      line(adultLabel, 2, ae),
+      line(kidLabel, 2, km),
+      app > 0 ? line(appLabel, 1, app) : '',
+      line('Soda', 2, drk),
+    ].join('');
+  }
+
   const tax = foodSubtotal * 0.08875;
   const subtotalWithTax = foodSubtotal + tax;
   const tip = foodSubtotal * TIP_RATE;
   const total = subtotalWithTax + tip;
 
-  const line = (item, qty, unitPrice) =>
-    `<div class="receipt-line"><span class="item">${qty > 1 ? qty + '× ' : ''}${item}</span><span class="price">${fmtDec(unitPrice * qty)}</span></div>`;
-
-  const adultLabel = d.adultItem || 'Entrée';
-  const kidLabel = d.kidItem || (d.kidsMenu === 'yes' ? 'Kids meal' : 'Sm. portion');
-  const appLabel = d.appItem || 'Shared app/side';
-
   return `<div class="receipt">
     <div class="receipt-name">${d.name}</div>
     <div class="receipt-cuisine">${d.cuisine} · ${d.neighborhood}, ${d.borough}</div>
     <hr class="receipt-dash">
-    ${line(adultLabel, 2, ae)}
-    ${line(kidLabel, 2, km)}
-    ${app > 0 ? line(appLabel, 1, app) : ''}
-    ${line('Soda', 2, drk)}
+    ${lines}
     <hr class="receipt-dash">
     <div class="receipt-line"><span class="item">Subtotal</span><span class="price">${fmtDec(foodSubtotal)}</span></div>
     <div class="receipt-line"><span class="item">Tax 8.875%</span><span class="price">${fmtDec(tax)}</span></div>
@@ -1163,6 +1196,8 @@ function renderNeighborhoodCharts() {
 let sortCol = 'price', sortDir = 1;
 
 function renderTable(data) {
+  const header = document.getElementById('tableHeader');
+  if (header) header.textContent = `All ${data.length} Restaurants — Click any column to sort`;
   const sorted = [...data].sort((a, b) => {
     if (sortCol === 'price') return (a.totalWithTip - b.totalWithTip) * sortDir;
     const av = a[sortCol], bv = b[sortCol];
@@ -1311,6 +1346,14 @@ function renderContextCalc() {
   const dinners = Math.floor(4679 / median);
   const el = document.getElementById('contextCalc');
   if (el) el.textContent = dinners;
+  const freqEl = document.getElementById('contextFreq');
+  if (freqEl) {
+    const perWeek = dinners / 52;
+    if (perWeek < 1.2) freqEl.textContent = 'about once a week';
+    else if (perWeek < 1.8) freqEl.textContent = 'between once and twice a week';
+    else if (perWeek < 2.3) freqEl.textContent = 'about twice a week';
+    else freqEl.textContent = Math.round(perWeek) + ' times a week';
+  }
 }
 
 // ══════════════════════════════════════════════
