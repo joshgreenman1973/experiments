@@ -786,15 +786,32 @@ function applyTip(dataset) {
 applyTip(DATA);
 
 // Cuisine datasets — loaded from external files, may not exist yet
-const DATASETS = {
-  all: DATA,
-  pizza: typeof PIZZA_DATA !== 'undefined' ? PIZZA_DATA : [],
-  diner: typeof DINER_DATA !== 'undefined' ? DINER_DATA : [],
-  chinese: typeof CHINESE_DATA !== 'undefined' ? CHINESE_DATA : [],
-};
+const PIZZA = typeof PIZZA_DATA !== 'undefined' ? PIZZA_DATA : [];
+const DINER = typeof DINER_DATA !== 'undefined' ? DINER_DATA : [];
+const CHINESE = typeof CHINESE_DATA !== 'undefined' ? CHINESE_DATA : [];
 
 // Apply tip to all loaded datasets
-Object.values(DATASETS).forEach(ds => applyTip(ds));
+[DATA, PIZZA, DINER, CHINESE].forEach(ds => applyTip(ds));
+
+// Merge all into one combined view, deduplicating by name+borough
+const allNames = new Set(DATA.map(d => d.name.toLowerCase() + '|' + d.borough));
+const ALL_COMBINED = [...DATA];
+[PIZZA, DINER, CHINESE].forEach(ds => {
+  ds.forEach(d => {
+    const key = d.name.toLowerCase() + '|' + d.borough;
+    if (!allNames.has(key)) {
+      allNames.add(key);
+      ALL_COMBINED.push(d);
+    }
+  });
+});
+
+const DATASETS = {
+  all: ALL_COMBINED,
+  pizza: PIZZA,
+  diner: DINER,
+  chinese: CHINESE,
+};
 
 let activeView = 'all';
 function getActiveData() { return DATASETS[activeView]; }
