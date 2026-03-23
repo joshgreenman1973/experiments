@@ -90,7 +90,7 @@ export default function App() {
           className="text-5xl sm:text-6xl tracking-tight text-white mb-3"
           style={{ fontFamily: 'var(--font-display)' }}
         >
-          Time Machine
+          Good Time Time Machine
         </h1>
         <p className="text-film-muted text-base tracking-wide font-light">
           Pick a date. See what was playing.
