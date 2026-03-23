@@ -159,7 +159,7 @@ I need IN-RESTAURANT dine-in prices (NOT delivery prices). Extract:
 1. adultEntree: price of a typical adult dinner entrée (like "${restaurant.adultItem}")
 2. kidMeal: price of a kid-sized meal or smaller portion (like "${restaurant.kidItem}")
 3. appetizer: price of a shared appetizer/side (like "${restaurant.appItem}")
-4. drinks: price of a soda, juice, or non-alcoholic drink
+4. drinks: price of a soda or juice (we order 2 for the adults, kids get water)
 
 Respond ONLY with a JSON object like:
 {"adultEntree": 15, "kidMeal": 8, "appetizer": 6, "drinks": 2.50, "confidence": "high"}
@@ -277,7 +277,7 @@ async function main() {
 
       // Calculate family dinner total with tax
       const subtotal = (prices.adultEntree * 2) + (prices.kidMeal * 2) +
-                       prices.appetizer + (prices.drinks * 4);
+                       prices.appetizer + (prices.drinks * 2);
       const totalWithTax = Math.round(subtotal * 1.08875 * 100) / 100;
 
       const oldPrice = lastSnapshot.prices[r.id]?.price;

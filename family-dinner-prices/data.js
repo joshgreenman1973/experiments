@@ -119,23 +119,6 @@ const DATA = [
     "appItem": "Spring rolls"
   },
   {
-    "name": "Kaew Jao Jorm",
-    "neighborhood": "Williamsburg",
-    "borough": "Brooklyn",
-    "cuisine": "Thai",
-    "price": 93.8,
-    "kidsMenu": "no",
-    "lat": 40.7117174,
-    "lng": -73.9413374,
-    "adultEntree": 20.9,
-    "kidMeal": 16.5,
-    "appetizer": 12,
-    "drinks": 3.5,
-    "adultItem": "Pad Thai",
-    "kidItem": "Chor Muang dumplings",
-    "appItem": "Crispy chive pancakes"
-  },
-  {
     "name": "Angel",
     "neighborhood": "Jackson Heights",
     "borough": "Queens",
@@ -1071,23 +1054,6 @@ const DATA = [
     "appItem": "Tostones"
   },
   {
-    "name": "Istanbul Kebab House",
-    "neighborhood": "Midtown",
-    "borough": "Manhattan",
-    "cuisine": "Middle Eastern",
-    "price": 110.75,
-    "kidsMenu": "no",
-    "lat": 40.762568,
-    "lng": -73.98941599999999,
-    "adultEntree": 28.95,
-    "kidMeal": 16.95,
-    "appetizer": 12.95,
-    "drinks": 3,
-    "adultItem": "Chicken Shish Kebab",
-    "kidItem": "Chicken Shawarma Sandwich",
-    "appItem": "Lentil Soup"
-  },
-  {
     "name": "Istanbul Bay",
     "neighborhood": "Bay Ridge",
     "borough": "Manhattan",
@@ -1579,23 +1545,6 @@ const DATA = [
     "adultItem": "Chicharron Plate",
     "kidItem": "Rice & Beans",
     "appItem": "Fried Plantains"
-  },
-  {
-    "name": "5ive Spice Tacos & Banh Mi",
-    "neighborhood": "Park Slope",
-    "borough": "Brooklyn",
-    "cuisine": "Vietnamese",
-    "price": 86,
-    "kidsMenu": "no",
-    "lat": 40.681447299999995,
-    "lng": -73.977239,
-    "adultEntree": 20,
-    "kidMeal": 13,
-    "appetizer": 13,
-    "drinks": 3.5,
-    "adultItem": "Beef Pho",
-    "kidItem": "Summer Rolls",
-    "appItem": "Spring Rolls"
   },
   {
     "name": "Pho Viet Nam",
@@ -3009,23 +2958,6 @@ const DATA = [
     "appItem": "Papa Criolla"
   },
   {
-    "name": "Tabata Ramen",
-    "neighborhood": "Upper East Side",
-    "borough": "Manhattan",
-    "cuisine": "Japanese ramen",
-    "price": 75,
-    "kidsMenu": "no",
-    "lat": 40.7706692,
-    "lng": -73.9572646,
-    "adultEntree": 21,
-    "kidMeal": 11,
-    "appetizer": 6,
-    "drinks": 2.5,
-    "adultItem": "Tonkotsu Ramen",
-    "kidItem": "Gyoza",
-    "appItem": "Edamame"
-  },
-  {
     "name": "La Cabana Salvadoreña",
     "neighborhood": "Fordham",
     "borough": "Queens",
@@ -3366,23 +3298,6 @@ const DATA = [
     "appItem": "Cositas"
   },
   {
-    "name": "Il Miglio Brick Oven Pizzeria & Italian Restaurant",
-    "neighborhood": "Astoria",
-    "borough": "Queens",
-    "cuisine": "Italian",
-    "price": 81.75,
-    "kidsMenu": "no",
-    "lat": 40.7611881,
-    "lng": -73.9396325,
-    "adultEntree": 20.95,
-    "kidMeal": 11.95,
-    "appetizer": 10.95,
-    "drinks": 2.5,
-    "adultItem": "Chicken Francese",
-    "kidItem": "Chicken Fingers (6pc)",
-    "appItem": "Mozzarella Sticks (6pc)"
-  },
-  {
     "name": "Nepali Bhanchha Ghar",
     "neighborhood": "Jackson Heights",
     "borough": "Queens",
@@ -3653,23 +3568,6 @@ const DATA = [
     "adultItem": "Jerk Chicken Meal",
     "kidItem": "Porgy Fish",
     "appItem": "Fried Plantains"
-  },
-  {
-    "name": "Williamsburg Pizza",
-    "neighborhood": "Williamsburg",
-    "borough": "Brooklyn",
-    "cuisine": "Italian",
-    "price": 68.5,
-    "kidsMenu": "no",
-    "lat": 40.708129,
-    "lng": -73.9508808,
-    "adultEntree": 24.75,
-    "kidMeal": 4.5,
-    "appetizer": 5,
-    "drinks": 2.5,
-    "adultItem": "Cheese Pizza (Round)",
-    "kidItem": "Plain Slice",
-    "appItem": "Garlic Knots"
   },
   {
     "name": "Joe & Sal's Pizza",
@@ -4146,23 +4044,6 @@ const DATA = [
     "adultItem": "Noguchi Sandwich",
     "kidItem": "Plain Bagel w/Cream Cheese",
     "appItem": "Cookie"
-  },
-  {
-    "name": "Point Brazil",
-    "neighborhood": "Astoria",
-    "borough": "Queens",
-    "cuisine": "Dominican",
-    "price": 82.47,
-    "kidsMenu": "no",
-    "lat": 40.761785499999995,
-    "lng": -73.91758850000001,
-    "adultEntree": 23,
-    "kidMeal": 11.99,
-    "appetizer": 5.49,
-    "drinks": 3.5,
-    "adultItem": "Chicken Parmegiana Plate",
-    "kidItem": "Acai Bowl",
-    "appItem": "Buffet per lb lunch"
   },
   {
     "name": "Emoji Burger",
