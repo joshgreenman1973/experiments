@@ -8,11 +8,12 @@ const DATA_DIR = join(__dirname, "data");
 const OUTPUT_FILE = join(DATA_DIR, "requests.json");
 
 const BACKFILL = process.argv.includes("--backfill");
+const BACKFILL_FULL = process.argv.includes("--backfill-full"); // windowed backfill for all of 2026
 const BATCH_SIZE = 50;
-const LIST_PAGES = BACKFILL ? 999 : 4; // backfill: all pages; normal: 200 most recent
+const LIST_PAGES = (BACKFILL || BACKFILL_FULL) ? 999 : 4;
 const DETAIL_CONCURRENCY = 5; // parallel detail page fetches
-const DETAIL_LIMIT = BACKFILL ? 500 : 30; // how many detail pages to scrape per run
-const DATE_FROM = BACKFILL ? "01/01/2026" : ""; // backfill: all of 2026
+const DETAIL_LIMIT = (BACKFILL || BACKFILL_FULL) ? 500 : 30;
+const DATE_FROM = (BACKFILL || BACKFILL_FULL) ? "01/01/2026" : "";
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
@@ -48,6 +49,102 @@ async function launchBrowser() {
         : originalQuery(params);
   });
   return { browser, context };
+}
+
+// Generate weekly date windows from start to today
+function generateWeeklyWindows(startDate) {
+  const windows = [];
+  const start = new Date(startDate);
+  const today = new Date();
+  let cursor = new Date(start);
+  while (cursor < today) {
+    const windowEnd = new Date(cursor);
+    windowEnd.setDate(windowEnd.getDate() + 6);
+    const end = windowEnd > today ? today : windowEnd;
+    const fmt = (d) =>
+      `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+    windows.push({ from: fmt(cursor), to: fmt(end) });
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return windows;
+}
+
+// Scrape one date window, paginating until all results fetched
+async function scrapeWindow(page, dateFrom, dateTo) {
+  const requests = [];
+  let start = 0;
+  let total = 0;
+  let consecutiveErrors = 0;
+
+  for (let i = 0; i < 999; i++) {
+    let data;
+    try {
+      data = await page.evaluate(
+        async ({ start, size, dateFrom, dateTo }) => {
+          const url = `/search/requests?query=&title=on&agency_request_summary=on&open=on&closed=on&date_rec_from=${dateFrom}&date_rec_to=${dateTo}&agency_ein=&size=${size}&tz_name=America/New_York&start=${start}&sort_date_submitted=DESC`;
+          const resp = await fetch(url, {
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              Accept: "application/json, text/javascript, */*; q=0.01",
+            },
+          });
+          if (!resp.ok) return { requests: [], total: 0, error: `HTTP ${resp.status}` };
+          const text = await resp.text();
+          try {
+            const json = JSON.parse(text);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString("<table>" + json.results + "</table>", "text/html");
+            const rows = doc.querySelectorAll("tr");
+            const reqs = Array.from(rows)
+              .map((row) => {
+                const tds = row.querySelectorAll("td");
+                if (tds.length < 5) return null;
+                const link = tds[3]?.querySelector("a");
+                return {
+                  status: tds[0]?.textContent?.trim(),
+                  foilId: tds[1]?.textContent?.trim(),
+                  dateSubmitted: tds[2]?.querySelector(".flask-moment")?.dataset?.timestamp || "",
+                  title: link?.textContent?.trim() || "",
+                  url: link?.getAttribute("href") || "",
+                  agency: tds[4]?.textContent?.trim(),
+                  dateDue: tds[5]?.querySelector(".flask-moment")?.dataset?.timestamp || "",
+                };
+              })
+              .filter(Boolean);
+            return { requests: reqs, total: json.total };
+          } catch {
+            return { requests: [], total: 0, error: "JSON parse failed" };
+          }
+        },
+        { start, size: BATCH_SIZE, dateFrom, dateTo }
+      );
+    } catch (err) {
+      data = { requests: [], total: 0, error: err.message };
+    }
+
+    if (data.error) {
+      consecutiveErrors++;
+      console.error(`      Error: ${data.error} (${consecutiveErrors} consecutive)`);
+      if (consecutiveErrors >= 3) break;
+      console.log("      Waiting 10s before retry...");
+      await page.waitForTimeout(10000);
+      await page.goto("https://a860-openrecords.nyc.gov/request/view_all", {
+        waitUntil: "domcontentloaded", timeout: 60000,
+      });
+      await page.waitForTimeout(5000);
+      continue;
+    }
+
+    consecutiveErrors = 0;
+    requests.push(...data.requests);
+    total = data.total || total;
+
+    if (data.requests.length < BATCH_SIZE) break;
+    start += BATCH_SIZE;
+    await page.waitForTimeout(1500);
+  }
+
+  return { requests, total };
 }
 
 // Step 1: Scrape the search results list
@@ -271,7 +368,87 @@ async function main() {
   // Step 1: Scrape the list
   const { browser: b1, context: c1 } = await launchBrowser();
   const listPage = await c1.newPage();
-  const listData = await scrapeList(listPage);
+
+  let listData;
+
+  if (BACKFILL_FULL) {
+    // Windowed backfill: break into weekly chunks to avoid 10K API cap
+    console.log("=== WINDOWED BACKFILL MODE ===\n");
+
+    // First, load the main page to establish session/cookies
+    await listPage.goto("https://a860-openrecords.nyc.gov/request/view_all", {
+      waitUntil: "domcontentloaded", timeout: 60000,
+    });
+    await listPage.waitForTimeout(5000);
+    try {
+      await listPage.waitForSelector("table tr td", { timeout: 30000 });
+    } catch {
+      console.error("Could not load initial page for windowed backfill");
+      await b1.close();
+      process.exit(1);
+    }
+
+    const windows = generateWeeklyWindows("2026-01-01");
+    console.log(`Generated ${windows.length} weekly windows\n`);
+
+    const allWindowRequests = [];
+    let overallTotal = 0;
+
+    for (let w = 0; w < windows.length; w++) {
+      const win = windows[w];
+      console.log(`  Window ${w + 1}/${windows.length}: ${win.from} – ${win.to}`);
+      const result = await scrapeWindow(listPage, win.from, win.to);
+      allWindowRequests.push(...result.requests);
+      overallTotal = Math.max(overallTotal, result.total);
+      console.log(`    Got ${result.requests.length} requests (window total: ${result.total})`);
+
+      // Save progress after each window
+      const progressRequests = [...allWindowRequests].map((r) => ({
+        ...r,
+        url: r.url ? `https://a860-openrecords.nyc.gov${r.url}` : "",
+        isUnderReview: r.title === "* Under Review",
+      }));
+      for (const r of progressRequests) {
+        if (!existingMap.has(r.foilId)) {
+          existingMap.set(r.foilId, { ...r, responses: [], detailScraped: false });
+        } else {
+          const prev = existingMap.get(r.foilId);
+          prev.status = r.status;
+          prev.dateDue = r.dateDue;
+          if (!r.isUnderReview && r.title !== "* Under Review") prev.title = r.title;
+        }
+      }
+
+      // Save intermediate to disk every 3 windows
+      if ((w + 1) % 3 === 0 || w === windows.length - 1) {
+        const intermediate = Array.from(existingMap.values()).sort(
+          (a, b) => (b.dateSubmitted || "").localeCompare(a.dateSubmitted || "")
+        );
+        writeFileSync(OUTPUT_FILE, JSON.stringify({
+          lastUpdated: new Date().toISOString(),
+          totalInSystem: overallTotal || existing.totalInSystem,
+          requestsFetched: intermediate.length,
+          agencyStats: {},
+          requests: intermediate,
+        }, null, 2));
+        console.log(`    Saved progress: ${intermediate.length} total requests on disk`);
+      }
+
+      await listPage.waitForTimeout(2000); // pause between windows
+    }
+
+    listData = {
+      totalInSystem: overallTotal,
+      requests: allWindowRequests.map((r) => ({
+        ...r,
+        url: r.url ? `https://a860-openrecords.nyc.gov${r.url}` : "",
+        isUnderReview: r.title === "* Under Review",
+      })),
+    };
+  } else {
+    listData = await scrapeList(listPage);
+  }
+
   await b1.close();
 
   console.log(`\nFetched ${listData.requests.length} requests from search.\n`);
