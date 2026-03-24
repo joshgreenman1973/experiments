@@ -1592,7 +1592,8 @@ export default function App() {
       <div className="story-header">
         <div className="header-tag">Data</div>
         <h1 className="story-title">$116 Billion and a $5.4 Billion Hole</h1>
-        <p className="story-dek">Where New York City's money comes from, where it goes, and why it's not enough. Then try closing the gap yourself.</p>
+        <p className="story-dek">See where New York City's money comes from, where it goes, and why it's not enough. Then try closing the gap yourself.</p>
+        <div className="header-accent" aria-hidden="true" />
       </div>
 
       <ActScale />
