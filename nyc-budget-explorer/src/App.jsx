@@ -880,11 +880,11 @@ function ActCliff() {
         <div className="insight-box dark">
           <div className="insight-label">Credit watch</div>
           <p>
-            In March 2026, <span className="hl" style={{ color: C.chartreuse }}>Moody’s revised NYC’s credit outlook to negative</span>,
-            citing structural budget gaps and reliance on one-time revenues. Two days later, <span className="hl" style={{ color: C.chartreuse }}>S&P warned it may downgrade</span> the
-            city’s AA rating if the budget is balanced by draining reserves. A downgrade would raise borrowing costs on
+            In March 2026, <span className="hl" style={{ color: C.chartreuse }}>three of four rating agencies revised NYC’s credit outlook to negative</span>:
+            Moody’s on March 11, S&P warning two days later, then Fitch and KBRA on March 20. The agencies cited structural
+            budget gaps, reliance on one-time revenues, and an uncertain path to balance. Days later, the city went to market
+            with a <strong>$2.65 billion bond sale</strong> under these conditions. A full downgrade would raise borrowing costs on
             the city’s ~$110 billion in outstanding debt — every basis point costs taxpayers roughly $4.7 million per year.
-            The last time NYC had its credit outlook revised was 2021, during COVID. Before that: the fiscal crisis of the 1970s.
           </p>
         </div>
         </FadeIn>
@@ -942,7 +942,7 @@ function ActCliff() {
         </div>
         </FadeIn>
 
-        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
+        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; Fitch; KBRA; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
       </div>
     </div>
   )
@@ -1092,8 +1092,10 @@ function ActProposals() {
           <div className="insight-label">Not yet funded — but on the horizon</div>
           <p>
             Two of Mamdani’s biggest campaign promises are <em>not</em> in the preliminary budget but loom over the fiscal picture.
-            <strong> Free citywide bus service</strong> would cost an estimated $800 million to $1 billion a year in lost MTA fare revenue — the city and state
-            would jointly reimburse the MTA. Requires state legislation; Gov. Hochul has not endorsed it.
+            <strong> Free citywide bus service</strong> would cost an estimated $800 million to $1 billion a year in lost MTA fare revenue.
+            MTA operations are traditionally state-funded, but the city could pick up the tab if it deems this a priority — as it has with other transit initiatives.
+            Both legislative chambers included a fare-free bus pilot in their one-house budgets, and Mamdani proposed free buses during the 2026 FIFA World Cup ($3.8 million).
+            But the MTA was not consulted, and Gov. Hochul has not endorsed the broader plan.
             <strong> A new Department of Community Safety</strong> would consolidate gun violence prevention, hate crime prevention, and
             community mental health into a single agency at an estimated $500M in new funding (plus ~$600M transferred from existing agencies).
             The administration says funding will appear in the executive budget due late April.
