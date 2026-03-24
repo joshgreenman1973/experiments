@@ -935,7 +935,7 @@ function ActCliff() {
             it would dwarf every other budget risk combined.
           </p>
           <p style={{ marginTop: 10 }}>
-            Meanwhile, the federal "One Big Beautiful Bill Act" threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
+            Meanwhile, the federal "One Big Beautiful Bill Act," signed into law in July 2025, threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
             ten years. New work requirements taking effect in 2027 could strip coverage from 500,000 to 1.2 million New Yorkers. The state Senate’s
             one-house budget (March 10, 2026) would authorize NYC to raise corporate taxes by up to <span className="hl" style={{ color: C.chartreuse }}>$1.75 billion</span> ($1.5 billion corporate + $250 million UBT) — but that requires final passage by the April 1 deadline and the governor has not endorsed it.
           </p>
@@ -1107,8 +1107,8 @@ function ActProposals() {
           <p>
             The funded initiatives above total roughly <span className="hl">$1.76 billion</span>. Add that to the $5.4B structural gap and
             Mamdani actually needs to find <span className="hl">$7.2 billion</span> — through some combination of new taxes, spending cuts
-            elsewhere, and reserve drawdowns. And that’s before free buses or the Department of Community Safety. Critics call it fiscal fantasy. Supporters say the city can’t afford
-            <em>not</em> to invest in childcare and climate. Both are right, which is what makes this so hard.
+            elsewhere, and reserve drawdowns. And that’s before free buses or the Department of Community Safety. Fiscal watchdogs question whether the math adds up. Supporters say the city can’t afford
+            <em>not</em> to invest in childcare and climate. The tension between those two positions is what makes this budget so difficult.
           </p>
         </div>
         </FadeIn>
@@ -1588,6 +1588,12 @@ export default function App() {
   return (
     <div className="story">
       <ProgressNav />
+
+      <div className="story-header">
+        <div className="header-tag">Data</div>
+        <h1 className="story-title">$116 Billion and a $5.4 Billion Hole</h1>
+        <p className="story-dek">Where New York City's money comes from, where it goes, and why it's not enough. Then try closing the gap yourself.</p>
+      </div>
 
       <ActScale />
 
