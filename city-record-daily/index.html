@@ -314,6 +314,31 @@
       line-height: 1.5;
     }
 
+    .expandable-card { cursor: pointer; }
+    .expandable-card h4::after {
+      content: ' +';
+      color: #aaa;
+      font-weight: 400;
+      font-size: 12px;
+    }
+    .expandable-card.open h4::after { content: ' −'; }
+    .expandable-card .card-details {
+      display: none;
+      margin-top: 10px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .expandable-card.open .card-details { display: block; }
+    .expandable-card .card-details ul { list-style: none; padding: 0; }
+    .expandable-card .card-details li {
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px solid #f5f5f5;
+      line-height: 1.45;
+    }
+    .expandable-card .card-details li:last-child { border-bottom: none; }
+    .expandable-card .card-details .li-meta { color: #888; font-size: 11px; }
+
     .empty-state {
       text-align: center;
       padding: 60px 20px;
@@ -385,6 +410,31 @@
       color: #434343;
       outline: none;
     }
+
+    .sort-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #888;
+    }
+
+    .sort-controls span { margin-right: 2px; font-weight: 500; }
+
+    .sort-btn {
+      background: none;
+      border: 1px solid #e8e8e8;
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sort-btn:hover { border-color: #5b8db8; color: #5b8db8; }
+    .sort-btn.active { background: #5b8db8; color: #fff; border-color: #5b8db8; }
 
     .agency-link {
       color: #5b8db8;
@@ -693,6 +743,12 @@
       <select id="filter-type"><option value="">All types</option></select>
       <input type="date" id="filter-from" title="From date">
       <input type="date" id="filter-to" title="To date">
+      <div class="sort-controls">
+        <span>Sort:</span>
+        <button class="sort-btn active" data-sort="date" onclick="setSearchSort('date')">Date</button>
+        <button class="sort-btn" data-sort="agency" onclick="setSearchSort('agency')">Agency</button>
+        <button class="sort-btn" data-sort="amount" onclick="setSearchSort('amount')">$ Amount</button>
+      </div>
     </div>
   </div>
 
@@ -750,6 +806,7 @@ const dayCache = {};
 // Available data files (populated from manifest)
 let availableDates = [];
 let currentDateIdx = 0;
+let currentDailySort = 'section';
 
 // ── Initialization ──────────────────────────────────────────
 
@@ -915,28 +972,88 @@ async function renderDaily() {
     });
   }
 
-  // All notices by section
-  const sections = {};
-  (data.notices || []).forEach(n => {
-    const sec = n.section_name || 'Other';
-    if (!sections[sec]) sections[sec] = [];
-    sections[sec].push(n);
-  });
+  // All notices — sortable
+  const allNotices = (data.notices || []);
 
-  html += '<h2>All Notices by Section</h2>';
-  for (const [secName, notices] of Object.entries(sections).sort()) {
-    html += `<div class="section-group"><h3>${escHtml(secName)} (${notices.length})</h3><ul>`;
-    notices.forEach(n => {
-      const metaParts = [];
-      if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
-      if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
-      if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
-      html += `<li>
-        <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
-        <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
-      </li>`;
+  html += `<h2 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">All Notices
+    <div class="sort-controls" id="daily-sort-controls">
+      <span>Sort:</span>
+      <button class="sort-btn${currentDailySort === 'section' ? ' active' : ''}" data-sort="section" onclick="setDailySort('section')">Section</button>
+      <button class="sort-btn${currentDailySort === 'agency' ? ' active' : ''}" data-sort="agency" onclick="setDailySort('agency')">Agency</button>
+      <button class="sort-btn${currentDailySort === 'amount' ? ' active' : ''}" data-sort="amount" onclick="setDailySort('amount')">$ Amount</button>
+    </div>
+  </h2>`;
+
+  if (currentDailySort === 'agency') {
+    const agencies = {};
+    allNotices.forEach(n => {
+      const a = n.agency_name || 'Other';
+      if (!agencies[a]) agencies[a] = [];
+      agencies[a].push(n);
     });
-    html += '</ul></div>';
+    for (const [agencyName, notices] of Object.entries(agencies).sort((a, b) => a[0].localeCompare(b[0]))) {
+      html += `<div class="section-group"><h3>${agencyHtml(agencyName)} (${notices.length})</h3><ul>`;
+      notices.forEach(n => {
+        const metaParts = [];
+        if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+        if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+        if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+        html += `<li>
+          <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+          <span class="li-meta"> — ${escHtml(n.section_name || '')}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
+        </li>`;
+      });
+      html += '</ul></div>';
+    }
+  } else if (currentDailySort === 'amount') {
+    const sorted = [...allNotices].sort((a, b) => (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0));
+    const withAmount = sorted.filter(n => parseFloat(n.contract_amount) > 0);
+    const noAmount = sorted.filter(n => !parseFloat(n.contract_amount));
+    if (withAmount.length > 0) {
+      html += '<div class="section-group"><h3>By Dollar Value</h3><ul>';
+      withAmount.forEach(n => {
+        html += `<li>
+          <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+          <span class="li-meta"> — <strong>${fmtMoney(n.contract_amount)}</strong> | ${agencyHtml(n.agency_name)} | ${escHtml(n.section_name || '')}</span>
+        </li>`;
+      });
+      html += '</ul></div>';
+    }
+    if (noAmount.length > 0) {
+      html += `<div class="section-group"><h3>No Dollar Value Listed (${noAmount.length})</h3><ul>`;
+      noAmount.forEach(n => {
+        const metaParts = [];
+        if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+        if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+        html += `<li>
+          <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+          <span class="li-meta"> — ${agencyHtml(n.agency_name)} | ${escHtml(n.section_name || '')}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
+        </li>`;
+      });
+      html += '</ul></div>';
+    }
+  } else {
+    // Default: by section
+    const sections = {};
+    allNotices.forEach(n => {
+      const sec = n.section_name || 'Other';
+      if (!sections[sec]) sections[sec] = [];
+      sections[sec].push(n);
+    });
+    for (const [secName, notices] of Object.entries(sections).sort()) {
+      html += `<div class="section-group"><h3>${escHtml(secName)} (${notices.length})</h3><ul>`;
+      notices.forEach(n => {
+        const metaParts = [];
+        if (n.contract_amount) metaParts.push(fmtMoney(n.contract_amount));
+        if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
+        if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
+        html += `<li>
+          <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+          <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' | ' + escHtml(metaParts.join(' | ')) : ''}</span>
+        </li>`;
+      });
+      html += '</ul></div>';
+    }
   }
 
   container.innerHTML = html;
@@ -1106,10 +1223,7 @@ async function renderMonthly() {
   if (topAgenciesByValue.length > 0) {
     html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
     topAgenciesByValue.forEach(([agency, value]) => {
-      html += `<div class="top-item" style="border-left-color:#2a5db0;">
-        <h4>${escHtml(agency)}</h4>
-        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
-      </div>`;
+      html += renderAgencyCard(agency, value, agencyCounts[agency], allNotices, '#2a5db0');
     });
   }
 
@@ -1251,10 +1365,7 @@ async function renderYearly() {
   if (topAgenciesByValue.length > 0) {
     html += '<h3 style="margin-top:24px;">Top Agencies by Contract Value</h3>';
     topAgenciesByValue.forEach(([agency, value]) => {
-      html += `<div class="top-item" style="border-left-color:#2a5db0;">
-        <h4>${escHtml(agency)}</h4>
-        <div class="item-meta">${fmtMoney(value)} across ${agencyCounts[agency]} notices</div>
-      </div>`;
+      html += renderAgencyCard(agency, value, agencyCounts[agency], allNotices, '#2a5db0');
     });
   }
 
@@ -1297,6 +1408,23 @@ async function renderYearly() {
 // ── Search ──────────────────────────────────────────────────
 
 let allSearchableNotices = [];
+let currentSearchSort = 'date';
+
+function setSearchSort(mode) {
+  currentSearchSort = mode;
+  document.querySelectorAll('.search-filters .sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === mode);
+  });
+  doSearch();
+}
+
+function setDailySort(mode) {
+  currentDailySort = mode;
+  document.querySelectorAll('#daily-sort-controls .sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === mode);
+  });
+  renderDaily();
+}
 let searchReady = false;
 
 async function loadAllNotices() {
@@ -1433,12 +1561,22 @@ function doSearch() {
     return terms.every(t => n._searchText.includes(t));
   });
 
-  // Sort: newest first, then by contract amount
-  results.sort((a, b) => {
-    const dateComp = (b.start_date || '').localeCompare(a.start_date || '');
-    if (dateComp !== 0) return dateComp;
-    return (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0);
-  });
+  // Sort based on active sort mode
+  if (currentSearchSort === 'agency') {
+    results.sort((a, b) => {
+      const agencyComp = (a.agency_name || '').localeCompare(b.agency_name || '');
+      if (agencyComp !== 0) return agencyComp;
+      return (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0);
+    });
+  } else if (currentSearchSort === 'amount') {
+    results.sort((a, b) => (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0));
+  } else {
+    results.sort((a, b) => {
+      const dateComp = (b.start_date || '').localeCompare(a.start_date || '');
+      if (dateComp !== 0) return dateComp;
+      return (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0);
+    });
+  }
 
   const total = results.length;
   const shown = results.slice(0, 100);
@@ -1474,6 +1612,40 @@ function doSearch() {
   });
 
   container.innerHTML = html;
+}
+
+// ── Expandable agency cards ─────────────────────────────────
+
+function toggleCard(el) {
+  el.classList.toggle('open');
+}
+
+function renderAgencyCard(agency, value, count, notices, borderColor) {
+  // Build the detail list of individual notices for this agency
+  const agencyNotices = notices
+    .filter(n => n.agency_name === agency)
+    .sort((a, b) => (parseFloat(b.contract_amount) || 0) - (parseFloat(a.contract_amount) || 0));
+
+  let detailHtml = '<ul>';
+  agencyNotices.slice(0, 25).forEach(n => {
+    const meta = [];
+    if (n.contract_amount) meta.push(fmtMoney(n.contract_amount));
+    if (n.section_name) meta.push(n.section_name);
+    if (n.type_of_notice_description) meta.push(n.type_of_notice_description);
+    if (n.start_date) meta.push(fmtShortDate(n.start_date.slice(0, 10)));
+    detailHtml += `<li>
+      <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+      ${meta.length ? '<span class="li-meta"> — ' + escHtml(meta.join(' | ')) + '</span>' : ''}
+    </li>`;
+  });
+  if (agencyNotices.length > 25) detailHtml += `<li style="color:#888;font-style:italic;">+ ${agencyNotices.length - 25} more</li>`;
+  detailHtml += '</ul>';
+
+  return `<div class="top-item expandable-card" style="border-left-color:${borderColor};" onclick="toggleCard(this)">
+    <h4>${agencyHtml(agency)}</h4>
+    <div class="item-meta">${fmtMoney(value)} across ${count} notices</div>
+    <div class="card-details">${detailHtml}</div>
+  </div>`;
 }
 
 // ── Subscribe panel ─────────────────────────────────────────
