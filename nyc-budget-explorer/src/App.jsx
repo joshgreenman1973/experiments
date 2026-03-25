@@ -343,7 +343,7 @@ const RISKS = [
   { label: 'Labor contract costs', low: 800, high: 2000, color: C.cerulean, desc: 'NYC must negotiate contracts with all major unions. Every 1% raise costs ~$450 million/year. Pattern bargaining suggests 3-4% annual increases.' },
   { label: 'Asylum seeker costs', low: 500, high: 1400, color: C.orange, desc: 'Currently ~$1.4 billion/year in FY2026, down from the FY2024 peak. Could decline further if arrivals slow, or rebound if federal work permits are revoked.' },
   { label: 'Unbudgeted overtime', low: 559, high: 800, color: C.indigo, desc: 'Comptroller estimates $559 million. Historically, NYPD alone exceeds budget by 60-80%.' },
-  { label: 'Class size mandate', low: 543, high: 1300, color: C.chartreuse, desc: 'State mandate requires hiring ~6,000 teachers over 5 years. Costs up to $1.3 billion annually when fully phased in.' },
+  { label: 'Class size mandate', low: 700, high: 1300, color: C.chartreuse, desc: 'State mandate requires hiring ~6,900 additional teachers by 2028 (IBO estimate). Cost: $700 million (IBO) to $1.3 billion (city estimate) annually when fully phased in.' },
   { label: 'Economic downturn risk', low: 0, high: 4000, color: C.rose, desc: 'A recession could cost $4 billion to $11 billion over two years. Average recession costs NYC ~$5 billion in lost revenue.' },
 ]
 
@@ -353,9 +353,9 @@ const RISKS = [
 const BASELINE_GAP = 5400
 
 const REVENUE_OPTIONS = [
-  { id: 'pit_millionaire', label: 'Tax millionaires\' income (+2% on $1M+)', amount: 1800, category: 'tax_increase', difficulty: 'hard', desc: 'Raise PIT by ~2 pts on ~33,000 filers earning $1 million+. Requires Albany. The top 1% already pay 37–48% of city income tax depending on market conditions.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Could push high earners to relocate. CBC warns economically sensitive taxes already generate ~60% of city revenue.', conflicts: [] },
+  { id: 'pit_millionaire', label: 'Tax millionaires\' income (+2% on $1M+)', amount: 3000, category: 'tax_increase', difficulty: 'hard', desc: 'Raise PIT from 3.876% to 5.876% on filers earning $1 million+. IBO estimates this would raise ~$3 billion annually. Requires Albany. The top 1% already pay 37–48% of city income tax depending on market conditions.', source: 'IBO FY2027 Preliminary Budget Analysis (March 24, 2026)', sourceUrl: 'https://www.ibo.nyc.gov/content/publications/2026-march-preliminary-budget-fy2027', risk: 'Could push high earners to relocate. CBC warns economically sensitive taxes already generate ~60% of city revenue.', conflicts: [] },
   { id: 'corporate_tax', label: 'Raise corporate tax on top firms', amount: 1500, category: 'tax_increase', difficulty: 'hard', desc: 'The state Senate\'s one-house budget (March 2026) would authorize NYC to raise corporate taxes: financial sector from 9% to 10.8%, non-finance from 8.85% to 10.62%, plus UBT from 4% to 4.4% on income over $5 million. Requires final passage in Albany by April 1.', source: 'NYS Senate one-house budget (March 10, 2026)', sourceUrl: 'https://www.nysenate.gov/newsroom/press-releases/2026/new-york-state-senate-advances-2026-one-house-budget-resolution', risk: 'Manhattan Chamber warns of competitiveness risk. Requires Albany — and the governor has not endorsed it.', conflicts: [] },
-  { id: 'property_tax', label: '9.5% property tax rate increase', amount: 3700, category: 'tax_increase', difficulty: 'medium', desc: 'The fallback in Mamdani\'s preliminary budget. Does NOT require Albany — the Council can do this on its own.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Council Speaker Menin called this a “non-starter.” Hits homeowners hard.', conflicts: ['property_tax_half'] },
+  { id: 'property_tax', label: '9.5% property tax rate increase', amount: 3800, category: 'tax_increase', difficulty: 'medium', desc: 'Raise the rate from 12.283% to 13.450%. IBO estimates this would generate ~$3.8 billion. The fallback in Mamdani\'s preliminary budget. Does NOT require Albany — the Council can do this on its own.', source: 'IBO FY2027 Preliminary Budget Analysis (March 24, 2026)', sourceUrl: 'https://www.ibo.nyc.gov/content/publications/2026-march-preliminary-budget-fy2027', risk: 'Council Speaker Menin called this a “non-starter.” Hits homeowners hard.', conflicts: ['property_tax_half'] },
   { id: 'property_tax_half', label: 'Modest property tax increase (~4.5%)', amount: 1800, category: 'tax_increase', difficulty: 'medium', desc: 'Roughly half the proposed rate hike. More politically viable.', source: 'Author estimate', risk: 'Still hits working and middle-class homeowners.', conflicts: ['property_tax'] },
   { id: 'dof_auditors', label: 'Hire 50 new DOF auditors', amount: 100, category: 'efficiency', difficulty: 'easy', desc: 'Recover revenue from uncollected taxes. Enforcement of existing law, not new taxes.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'The $100 million projection is unproven.', conflicts: [] },
   { id: 'tort_lawyers', label: 'Add 200 lawyers to cut tort liability', amount: 125, category: 'efficiency', difficulty: 'easy', desc: 'Reduce claims and settlements (the city paid $1.9 billion in FY2024) with more legal staff.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'Savings projected, not guaranteed.', conflicts: [] },
@@ -830,9 +830,8 @@ function ActCliff() {
           New York City is required by law to adopt a balanced budget every year — a rule imposed after the 1975 fiscal crisis, when the city nearly went bankrupt and the state created the Financial Control Board to oversee its finances. The FCB still exists today.
         </p>
         <p className="act-sub">
-          That’s the mayor’s number. Comptroller Levine projects a combined <strong style={{ color: C.orange }}>$10.4 billion shortfall</strong> across
-          FY2026–27 — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report (March 2026) pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
-          But the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
+          That’s the mayor’s number — and much of the gap comes from Mamdani’s decision to honestly budget for costs the Adams administration routinely understated. The IBO found that shelter costs, cash assistance, rental vouchers, and legal claims were all dramatically underfunded in Adams-era budgets. The Independent Budget Office projects a <strong style={{ color: C.orange }}>$6.5 billion combined gap</strong> for FY2026-27 ($535 million this year, $5.9 billion next year). Comptroller Levine puts the combined shortfall at <strong style={{ color: C.orange }}>$10.4 billion</strong> — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
+          Meanwhile, the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
         </p>
 
         {/* Gap bars */}
@@ -942,7 +941,7 @@ function ActCliff() {
         </div>
         </FadeIn>
 
-        <Source>Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; Fitch; KBRA; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
+        <Source>IBO FY2027 Preliminary Budget Analysis (March 24, 2026); Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; Fitch; KBRA; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
       </div>
     </div>
   )
@@ -986,7 +985,7 @@ function ActProposals() {
         </div>
 
         <p className="prose">
-          NYC employs roughly <strong>306,000 people</strong> — more than the active-duty U.S. Marine Corps. Salaries, wages, overtime, pensions, and health insurance for current and retired workers consume about <strong>70 cents of every dollar</strong> the city spends. Pensions alone cost <strong>{fmtB(SPENDING.find(s => s.id === 'pensions').amount)}</strong> per year, up from $1.5 billion in 2002.
+          NYC employs roughly <strong>292,000 people</strong> — more than the active-duty U.S. Marine Corps. Salaries, wages, overtime, pensions, and health insurance for current and retired workers consume about <strong>70 cents of every dollar</strong> the city spends. Pensions alone cost <strong>{fmtB(SPENDING.find(s => s.id === 'pensions').amount)}</strong> per year, up from $1.5 billion in 2002.
         </p>
         <p className="prose">
           The city negotiates contracts with more than <strong>150 municipal unions</strong>, led by DC 37 (the largest, representing ~150,000 members), the UFT (teachers), the PBA (police officers), and the UFA (firefighters). Pattern bargaining means that whatever the city agrees to with one major union sets the floor for the rest. Every 1% across-the-board raise costs roughly <strong>$450 million per year</strong>.
@@ -1007,7 +1006,7 @@ function ActProposals() {
           <div className="debate-col">
             <div className="debate-header for">The case for higher taxes</div>
             <ul className="debate-list">
-              <li><strong>The wealthy can absorb it.</strong> The top 1% of NYC filers contribute 37–48% of city income tax revenue. A 2-point surcharge on millionaires would affect ~33,000 filers — and raise $1.8B.</li>
+              <li><strong>The wealthy can absorb it.</strong> The top 1% of NYC filers contribute 37–48% of city income tax revenue. A 2-point surcharge on millionaires would raise an estimated $3 billion annually, per IBO.</li>
               <li><strong>Property taxes are low by national standards.</strong> NYC’s effective property tax rate (~0.9%) is below the national median. The assessment system is deeply regressive — wealthy homeowners in brownstone Brooklyn often pay lower effective rates than condo owners in the Bronx.</li>
               <li><strong>Cuts hurt the most vulnerable.</strong> The services most likely to be cut — homeless shelters, public hospitals, after-school programs — disproportionately serve low-income New Yorkers who have no private-market alternative.</li>
               <li><strong>The city has taxing authority the Council can use unilaterally.</strong> Property tax increases don’t require Albany. The Council can act on its own timeline.</li>
