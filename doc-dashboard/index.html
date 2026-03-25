@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Jail Performance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --black: #050507;
+    --white: #ffffff;
+    --cloud: #dddddd;
+    --chartreuse: #dde44c;
+    --orange: #ff7c53;
+    --orange-50: #fabcaa;
+    --periwinkle: #9b9fbc;
+    --magenta: #e7466d;
+    --charcoal: #707175;
+    --indigo: #394882;
+    --cerulean: #217ebe;
+    --rose: #cea9be;
+    --font: 'Helvetica Neue', Arial, sans-serif;
+  }
+  body { font-family: var(--font); background: var(--white); color: var(--black); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+  /* HEADER */
+  header { padding: 28px 0 20px; border-bottom: 3px solid var(--black); }
+  header h1 { font-size: 28px; font-weight: 900; letter-spacing: -0.3px; margin-bottom: 2px; }
+  header .dek { font-size: 14px; font-weight: 300; color: var(--charcoal); }
+
+  /* CARDS ROW */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--cloud); margin: 0 0 4px; border-bottom: 1px solid var(--cloud); }
+  .card { background: var(--white); padding: 16px 14px 14px; }
+  .card .c-val { font-size: 28px; font-weight: 900; line-height: 1.1; }
+  .card .c-val.up { color: var(--magenta); }
+  .card .c-val.down { color: #57aa4a; }
+  .card .c-label { font-size: 10px; color: var(--charcoal); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; font-weight: 600; }
+  .card .c-change { font-size: 11px; color: var(--charcoal); margin-top: 1px; }
+  .card .c-sparkline { height: 24px; margin-top: 6px; }
+
+  /* SECTIONS */
+  .section { padding: 28px 0 24px; border-bottom: 1px solid var(--cloud); }
+  .section h2 { font-size: 18px; font-weight: 900; margin-bottom: 2px; line-height: 1.3; }
+  .section .dek { font-size: 13px; font-weight: 300; color: var(--charcoal); margin-bottom: 16px; }
+
+  /* CHART GRID */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+  .chart-row.full { grid-template-columns: 1fr; }
+  .chart-box { position: relative; }
+  .chart-box h3 { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .chart-box .cb-dek { font-size: 11px; color: var(--charcoal); margin-bottom: 8px; }
+  .chart-box canvas { width: 100% !important; }
+
+  .source { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--cloud); font-size: 10px; color: var(--charcoal); gap: 12px; }
+  .source img { height: 11px; opacity: 0.5; flex-shrink: 0; }
+
+  /* FOOTER */
+  footer { background: var(--orange); color: var(--black); padding: 20px 0; margin-top: 4px; font-size: 12px; }
+  footer strong { font-weight: 700; }
+  footer .update-line { margin-top: 6px; font-size: 11px; opacity: 0.7; }
+
+  @media (max-width: 700px) {
+    .chart-row { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>NYC jail performance dashboard</h1>
+    <div class="dek">Key indicators from the NYC Department of Correction, January 2019 -- present</div>
+  </header>
+
+  <div class="cards" id="cardsRow"></div>
+
+  <!-- POPULATION -->
+  <div class="section">
+    <h2>The jail population is climbing again</h2>
+    <div class="dek">Monthly jail population with admissions and discharges. After plummeting during COVID, population has rebounded above 7,000.</div>
+    <div class="chart-row full">
+      <div class="chart-box"><canvas id="popChart" height="260"></canvas></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Average length of stay</h3>
+        <div class="cb-dek">Days in custody, monthly average</div>
+        <canvas id="stayChart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Admissions vs. discharges</h3>
+        <div class="cb-dek">Monthly flow in and out of custody</div>
+        <canvas id="flowChart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="source">
+      <span>Source: NYC Comptroller DOC Dashboard</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- VIOLENCE -->
+  <div class="section">
+    <h2>Violence rates remain far above pre-pandemic levels</h2>
+    <div class="dek">Per-capita rates of assaults, fights, and slashings adjusted for jail population. Use of force shown quarterly.</div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Assaults on staff per 1,000 ADP</h3>
+        <canvas id="assaultChart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Fight incidents per 1,000 ADP</h3>
+        <canvas id="fightChart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Slashing and stabbing incidents per 1,000 ADP</h3>
+        <canvas id="stabChart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Use of force per 100 ADP</h3>
+        <div class="cb-dek">Quarterly, fiscal year</div>
+        <canvas id="forceChart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="source">
+      <span>Source: NYC Comptroller DOC Dashboard. Rates calculated by author.</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- STAFFING -->
+  <div class="section">
+    <h2>The department has lost nearly a third of its officers</h2>
+    <div class="dek">Uniformed staffing has declined from over 10,000 to under 6,000, while sick rates spiked during the pandemic and never fully recovered.</div>
+    <div class="chart-row full">
+      <div class="chart-box">
+        <h3>Uniformed employees vs. average daily population</h3>
+        <canvas id="headcountChart" height="240"></canvas>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Staff sick rate</h3>
+        <div class="cb-dek">Share of uniformed staff out sick, monthly</div>
+        <canvas id="sickChart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Staff separations by year</h3>
+        <div class="cb-dek">Resignations, retirements, dismissals, terminations</div>
+        <canvas id="sepChart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="source">
+      <span>Source: NYC Comptroller DOC Dashboard</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- MEDICAL / MENTAL HEALTH -->
+  <div class="section">
+    <h2>Missed medical appointments remain a chronic problem</h2>
+    <div class="dek">Thousands of medical appointments are missed each month, primarily due to production refusals. Nearly 1 in 6 people in custody has a serious mental illness.</div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Missed medical appointments</h3>
+        <div class="cb-dek">Monthly total by reason</div>
+        <canvas id="medChart" height="200"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>People with serious mental illness</h3>
+        <div class="cb-dek">Count and share of jail population</div>
+        <canvas id="mentalChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="source">
+      <span>Source: NYC Comptroller DOC Dashboard</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- DEATHS LINK -->
+  <div class="section" style="text-align:center; padding: 32px 0;">
+    <h2 style="margin-bottom:8px;">In-custody deaths tracker</h2>
+    <div class="dek" style="margin-bottom:16px; max-width:500px; margin-left:auto; margin-right:auto;">Detailed tracking of every death in NYC DOC custody since 2000, updated daily.</div>
+    <a href="../rikers-death-tracker/" style="display:inline-block; background:var(--magenta); color:white; padding:10px 28px; border-radius:4px; text-decoration:none; font-weight:700; font-size:14px;">View the death tracker &rarr;</a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <strong>Sources</strong><br>
+    All data from the NYC Comptroller's Department of Correction Dashboard unless otherwise noted. Population data is 1st-of-month snapshots. Violence rates calculated by author from incident counts and population.
+    <div class="update-line" id="updateLine"></div>
+  </div>
+</footer>
+
+<script>
+(async function() {
+  var D;
+  try {
+    var r = await fetch('data.json');
+    D = await r.json();
+  } catch(e) { console.error('Data load failed', e); return; }
+  try {
+
+  var ff = "'Helvetica Neue', Arial, sans-serif";
+  var fObj = { family: ff };
+
+  function makeLabels(arr) { return arr.map(function(d) { return d.month; }); }
+  function q(sel) { return document.getElementById(sel); }
+
+  // ── CARDS ──
+  var cardsRow = q('cardsRow');
+  var latestPop = D.population[D.population.length - 1];
+  var latestAssault = D.assaults[D.assaults.length - 1];
+  var latestStay = D.lengthOfStay[D.lengthOfStay.length - 1];
+  var latestSick = D.staffSick[D.staffSick.length - 1];
+  var latestForce = D.useOfForce[D.useOfForce.length - 1];
+
+  var cardData = [
+    { label: 'Jail population', value: latestPop.population.toLocaleString(), asOf: latestPop.month },
+    { label: 'Assaults on staff', value: latestAssault.count, asOf: latestAssault.month },
+    { label: 'Avg. length of stay', value: latestStay.avgDays + ' days', asOf: latestStay.month },
+    { label: 'Staff sick rate', value: (latestSick.share * 100).toFixed(1) + '%', asOf: latestSick.month },
+    { label: 'Use of force / 100 ADP', value: latestForce.ratePer100, asOf: latestForce.quarter },
+    { label: 'Fight incidents', value: D.fights[D.fights.length - 1].count, asOf: D.fights[D.fights.length - 1].month }
+  ];
+
+  cardsRow.innerHTML = cardData.map(function(c) {
+    return '<div class="card"><div class="c-val">' + c.value + '</div><div class="c-label">' + c.label + '</div><div class="c-change">as of ' + c.asOf + '</div></div>';
+  }).join('');
+
+  // ── CHART HELPERS ──
+  function lineOpts(color, label) {
+    return { borderColor: color, backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.3, label: label || '' };
+  }
+  function areaOpts(color, label) {
+    return { borderColor: color, backgroundColor: color + '22', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true, label: label || '' };
+  }
+  function baseOpts(aspectRatio) {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: false },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175' } },
+        x: { grid: { display: false }, ticks: { font: { size: 8, family: ff }, color: '#707175', maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } }
+      }
+    };
+  }
+
+  // ── POPULATION CHART ──
+  var popLabels = D.population.map(function(d) { return d.month; });
+  var popData = D.population.map(function(d) { return d.population; });
+
+  new Chart(q('popChart'), {
+    type: 'bar',
+    data: {
+      labels: popLabels,
+      datasets: [{
+        label: 'Jail population',
+        data: popData,
+        backgroundColor: '#dde44c',
+        borderRadius: 1
+      }]
+    },
+    options: Object.assign({}, baseOpts(), {
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175', callback: function(v) { return v >= 1000 ? (v/1000).toFixed(0) + 'k' : v; } } },
+        x: { grid: { display: false }, ticks: { font: { size: 8, family: ff }, color: '#707175', maxRotation: 45, autoSkip: true, maxTicksLimit: 14 } }
+      }
+    })
+  });
+
+  // ── LENGTH OF STAY ──
+  new Chart(q('stayChart'), {
+    type: 'line',
+    data: {
+      labels: D.lengthOfStay.map(function(d) { return d.month; }),
+      datasets: [Object.assign({ data: D.lengthOfStay.map(function(d) { return d.avgDays; }) }, areaOpts('#ff7c53', 'Avg. days'))]
+    },
+    options: baseOpts()
+  });
+
+  // ── ADMISSIONS/DISCHARGES ──
+  new Chart(q('flowChart'), {
+    type: 'line',
+    data: {
+      labels: D.admissionDischarge.map(function(d) { return d.month; }),
+      datasets: [
+        Object.assign({ data: D.admissionDischarge.map(function(d) { return d.admissions; }) }, lineOpts('#217ebe', 'Admissions')),
+        Object.assign({ data: D.admissionDischarge.map(function(d) { return d.discharges; }) }, lineOpts('#e7466d', 'Discharges'))
+      ]
+    },
+    options: Object.assign({}, baseOpts(), { plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 10, family: ff }, usePointStyle: true, pointStyle: 'line', padding: 8 } } } })
+  });
+
+  // ── VIOLENCE CHARTS (rates per 1,000) ──
+  function rateChart(canvasId, dataset, color) {
+    var labels = dataset.map(function(d) { return d.month; });
+    var rates = dataset.map(function(d) { return Math.round(d.count / d.population * 1000 * 10) / 10; });
+    new Chart(q(canvasId), {
+      type: 'line',
+      data: { labels: labels, datasets: [Object.assign({ data: rates }, areaOpts(color))] },
+      options: baseOpts()
+    });
+  }
+  rateChart('assaultChart', D.assaults, '#ff7c53');
+  rateChart('fightChart', D.fights, '#e7466d');
+  rateChart('stabChart', D.stabbings, '#394882');
+
+  // ── USE OF FORCE ──
+  new Chart(q('forceChart'), {
+    type: 'bar',
+    data: {
+      labels: D.useOfForce.map(function(d) { return d.quarter; }),
+      datasets: [{
+        label: 'Rate per 100 ADP',
+        data: D.useOfForce.map(function(d) { return d.ratePer100; }),
+        backgroundColor: D.useOfForce.map(function(d) { return d.ratePer100 >= 35 ? '#e7466d' : '#dde44c'; }),
+        borderRadius: 1
+      }]
+    },
+    options: baseOpts()
+  });
+
+  // ── HEADCOUNT ──
+  new Chart(q('headcountChart'), {
+    type: 'bar',
+    data: {
+      labels: D.headcount.map(function(d) { return d.year; }),
+      datasets: [
+        { label: 'Uniformed staff', data: D.headcount.map(function(d) { return d.uniformed; }), backgroundColor: '#394882', borderRadius: 1, order: 2 },
+        { label: 'Avg. daily population', data: D.headcount.map(function(d) { return d.adp; }), backgroundColor: '#dde44c', borderRadius: 1, order: 3 },
+        { label: 'Borough jail capacity', data: D.headcount.map(function(d) { return d.boroCapacity; }), type: 'line', borderColor: '#e7466d', borderWidth: 2, borderDash: [5, 3], pointRadius: 0, order: 1 }
+      ]
+    },
+    options: Object.assign({}, baseOpts(), {
+      plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 10, family: ff }, usePointStyle: true, pointStyle: 'rectRounded', padding: 8 } } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175', callback: function(v) { return v >= 1000 ? (v/1000).toFixed(0) + 'k' : v; } } },
+        x: { grid: { display: false }, ticks: { font: { size: 10, family: ff }, color: '#707175' } }
+      }
+    })
+  });
+
+  // ── SICK RATE ──
+  new Chart(q('sickChart'), {
+    type: 'line',
+    data: {
+      labels: D.staffSick.map(function(d) { return d.month; }),
+      datasets: [Object.assign({ data: D.staffSick.map(function(d) { return d.share ? Math.round(d.share * 1000) / 10 : null; }) }, areaOpts('#ff7c53', 'Sick rate %'))]
+    },
+    options: Object.assign({}, baseOpts(), {
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175', callback: function(v) { return v + '%'; } } },
+        x: { grid: { display: false }, ticks: { font: { size: 8, family: ff }, color: '#707175', maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } }
+      }
+    })
+  });
+
+  // ── SEPARATIONS ──
+  new Chart(q('sepChart'), {
+    type: 'bar',
+    data: {
+      labels: D.separations.map(function(d) { return d.year; }),
+      datasets: [
+        { label: 'Resigned', data: D.separations.map(function(d) { return d.resigned; }), backgroundColor: '#ff7c53' },
+        { label: 'Retired', data: D.separations.map(function(d) { return d.retired; }), backgroundColor: '#9b9fbc' },
+        { label: 'Dismissed', data: D.separations.map(function(d) { return d.dismissed; }), backgroundColor: '#394882' },
+        { label: 'Terminated', data: D.separations.map(function(d) { return d.terminated; }), backgroundColor: '#cea9be' }
+      ]
+    },
+    options: Object.assign({}, baseOpts(), {
+      plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 9, family: ff }, usePointStyle: true, pointStyle: 'rectRounded', padding: 6 } } },
+      scales: {
+        y: { beginAtZero: true, stacked: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175' } },
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10, family: ff }, color: '#707175' } }
+      }
+    })
+  });
+
+  // ── MEDICAL MISSED ──
+  new Chart(q('medChart'), {
+    type: 'bar',
+    data: {
+      labels: D.medicalMissed.map(function(d) { return d.month; }),
+      datasets: [
+        { label: 'Production refusal', data: D.medicalMissed.map(function(d) { return d.productionRefusal; }), backgroundColor: '#ff7c53' },
+        { label: 'Court/visits/other', data: D.medicalMissed.map(function(d) { return d.courtVisits; }), backgroundColor: '#9b9fbc' },
+        { label: 'Other', data: D.medicalMissed.map(function(d) { return d.other; }), backgroundColor: '#dde44c' }
+      ]
+    },
+    options: Object.assign({}, baseOpts(), {
+      plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 9, family: ff }, usePointStyle: true, pointStyle: 'rectRounded', padding: 6 } } },
+      scales: {
+        y: { beginAtZero: true, stacked: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175' } },
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 8, family: ff }, color: '#707175', maxRotation: 45, autoSkip: true, maxTicksLimit: 12 } }
+      }
+    })
+  });
+
+  // ── MENTAL ILLNESS ──
+  new Chart(q('mentalChart'), {
+    type: 'bar',
+    data: {
+      labels: D.mentalIllness.map(function(d) { return d.month; }),
+      datasets: [
+        { label: 'Count', data: D.mentalIllness.map(function(d) { return d.count; }), backgroundColor: '#394882', borderRadius: 1, yAxisID: 'y' },
+        Object.assign({ data: D.mentalIllness.map(function(d) { return d.share ? Math.round(d.share * 1000) / 10 : null; }), yAxisID: 'y1' }, lineOpts('#e7466d', 'Share of pop. (%)'))
+      ]
+    },
+    options: Object.assign({}, baseOpts(), {
+      plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 9, family: ff }, usePointStyle: true, pointStyle: 'rectRounded', padding: 6 } } },
+      scales: {
+        y: { position: 'left', beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175' } },
+        y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { font: { size: 10, family: ff }, color: '#e7466d', callback: function(v) { return v + '%'; } } },
+        x: { grid: { display: false }, ticks: { font: { size: 8, family: ff }, color: '#707175', maxRotation: 45, autoSkip: true, maxTicksLimit: 10 } }
+      }
+    })
+  });
+
+  // ── UPDATE LINE ──
+  q('updateLine').textContent = 'Data last updated: ' + D.lastUpdated;
+
+  } catch(e) { console.error('Script error:', e); }
+})();
+</script>
+</body>
+</html>
