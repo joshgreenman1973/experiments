@@ -1207,23 +1207,6 @@ const DATA = [
     "appItem": "Pholourie"
   },
   {
-    "name": "Surrender Cafe",
-    "neighborhood": "Staten Island",
-    "borough": "Staten Island",
-    "cuisine": "Puerto Rican",
-    "price": 64.4,
-    "kidsMenu": "no",
-    "lat": 40.5633804,
-    "lng": -74.28642839999999,
-    "adultEntree": 15.95,
-    "kidMeal": 10,
-    "appetizer": 6.5,
-    "drinks": 3,
-    "adultItem": "Pernil Asado",
-    "kidItem": "Pollo Guisado",
-    "appItem": "Empanadas"
-  },
-  {
     "name": "El Lechon de Negron",
     "neighborhood": "Staten Island",
     "borough": "Staten Island",
@@ -2074,23 +2057,6 @@ const DATA = [
     "appItem": "Hummus"
   },
   {
-    "name": "Shah's Halal Food Yonkers",
-    "neighborhood": "Bronx",
-    "borough": "Bronx",
-    "cuisine": "Turkish",
-    "price": 47,
-    "kidsMenu": "no",
-    "lat": 40.981726099999996,
-    "lng": -73.8294354,
-    "adultEntree": 11,
-    "kidMeal": 7.5,
-    "appetizer": 5,
-    "drinks": 2.5,
-    "adultItem": "Chicken Over Rice",
-    "kidItem": "Chicken Gyro",
-    "appItem": "Falafel"
-  },
-  {
     "name": "Sushi Island",
     "neighborhood": "Elmhurst",
     "borough": "Queens",
@@ -2514,23 +2480,6 @@ const DATA = [
     "adultItem": "Carne Asada Plate",
     "kidItem": "Pupusa",
     "appItem": "Fried Plantains"
-  },
-  {
-    "name": "Fritaille",
-    "neighborhood": "Bronx",
-    "borough": "Bronx",
-    "cuisine": "Haitian",
-    "price": 57,
-    "kidsMenu": "no",
-    "lat": 40.7248655,
-    "lng": -74.2372132,
-    "adultEntree": 16,
-    "kidMeal": 8,
-    "appetizer": 5,
-    "drinks": 2,
-    "adultItem": "Griot (Large)",
-    "kidItem": "Wings",
-    "appItem": "Pikliz Side"
   },
   {
     "name": "Culpeppers",
@@ -4214,23 +4163,6 @@ const DATA = [
     "adultItem": "La Vecina Sampler",
     "kidItem": "Grilled Chicken Plate",
     "appItem": "Guacamole"
-  },
-  {
-    "name": "K'Bola Cuban Restaurant & Bar",
-    "neighborhood": "Brooklyn",
-    "borough": "Brooklyn",
-    "cuisine": "Cuban",
-    "price": 67.85,
-    "kidsMenu": "no",
-    "lat": 37.2792256,
-    "lng": -76.7429236,
-    "adultEntree": 15.95,
-    "kidMeal": 9,
-    "appetizer": 11.95,
-    "drinks": 3,
-    "adultItem": "Famoso Cubano",
-    "kidItem": "Kids Meal",
-    "appItem": "Empanadas"
   },
   {
     "name": "Bagelsmith - Bedford Ave.",
