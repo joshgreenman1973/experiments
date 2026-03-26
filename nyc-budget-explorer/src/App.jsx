@@ -1636,6 +1636,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      <div className="last-updated">Last updated March 26, 2026</div>
     </div>
   )
 }
