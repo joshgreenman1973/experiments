@@ -60,6 +60,7 @@ const exits_text = (e) => {
   const dirs={n:'North',s:'South',e:'East',w:'West',u:'Up',d:'Down'};
   for(const[d,r] of Object.entries(e)){
     if(d==='s' && r==='_front_doors' && !flag('act2')) continue;
+    if(r==='dreamland' && !flag('dreamlandOpen')) continue;
     const rn = rooms[r]||rooms[r.replace('_front_doors','')];
     const name = r==='_front_doors'?(flag('act2')?'Neptune Avenue':'Front Doors (SEALED)'):
       (rn?rn.name:'???');
@@ -139,9 +140,10 @@ const rooms = {
         s+=` The wooden box hangs open, empty now.`;
       }
       s+=`\n\n<span class="chr">Mr. Whiskers</span>, the night janitor, sits on an overturned bucket, polishing a wrench. He is either a man who looks remarkably like a cat, or a cat who looks remarkably like a man. Hard to say.`;
+      if(flag('dreamlandOpen'))s+=`\n\nA crumbling archway in the south wall glows with warm amber light. The passage to the Dreamland ruins stands open.`;
       return s+exits_text(this.exits);
     },
-    exits:{u:'cafeteria'}
+    exits:{u:'cafeteria',s:'dreamland'}
   },
 
   second_floor:{name:'2nd Floor Hallway',
@@ -149,6 +151,10 @@ const rooms = {
       let s=`The second floor hallway stretches east and west under buzzing fluorescents that can't commit to being on or off. A banner reads <span class="item">"MARK TWAIN IS 239 — WHERE TALENT MEETS OPPORTUNITY"</span> but someone has scrawled underneath in dripping red marker: <span class="err">"...AND OPPORTUNITY MEETS MIDNIGHT."</span>`;
       s+=` Student writing and book reports line the walls in display cases. One report appears to be rewriting itself in real time.`;
       s+=`\n\n<span class="atm">The stairs groan under your feet. Four flights a day with a fifty-pound backpack and no lockers. IS 239 doesn't build character—it builds CALVES.</span>`;
+      if(!flag('ziggy1')&&S.visited.size>=5){
+        setFlag('ziggy1');
+        s+=`\n\n<span class="atm">Wait—did you just see that? A kid, maybe your age, with curly hair and bell-bottom jeans, sprinting around the corner. You hear sneakers squeaking on linoleum and a distant laugh. On the wall, in fresh graffiti that DEFINITELY wasn't there before: <span class="item">"ZIGGY WAS HERE '76"</span></span>`;
+      }
       return s+exits_text(this.exits);
     },
     exits:{n:'cafeteria',e:'library',w:'creative_writing',s:'math_room',d:'lobby',u:'third_floor'}
@@ -227,6 +233,10 @@ const rooms = {
     desc(){
       let s=`Words float through the air like snow. Sentence fragments drift lazily: <span class="atm">"once upon a..."</span> and <span class="atm">"the night was dark and..."</span> and <span class="atm">"she never expected the..."</span>`;
       s+=` An old typewriter on the desk clacks away by itself, adding to the blizzard of floating words. This is where you and Annabel write poetry together. This is where stories come alive. Tonight, a little too literally.`;
+      if(flag('riddleSolved')&&flag('ziggy1')&&!flag('ziggy2')){
+        setFlag('ziggy2');
+        s+=`\n\n<span class="atm">A ghostly kid sits at the back desk—curly hair, a Bicentennial '76 t-shirt, bell-bottom jeans. They wave sheepishly. <span class="chr">"Hey. I'm Ziggy. Creative Writing talent, class of '76. I was here for the LAST midnight event. Fifty years ago."</span> They flicker like a bad TV signal. <span class="chr">"I never left. My science project is still down there somewhere—in the old Dreamland ruins under the school. If you ever find a way in..."</span> They fade away, leaving a faint smell of Pop Rocks and Tab cola.</span>`;
+      }
       if(!flag('riddleSolved')){
         s+=`\n\nOn the chalkboard, written in glowing silver chalk, is a riddle:\n\n<span class="item">    "I have keys but no locks,\n     space but no room,\n     and you can enter\n     but can't go inside.\n     What am I?"</span>\n\nType <span class="hint">ANSWER [your guess]</span> to solve it.`;
       } else {
@@ -298,9 +308,11 @@ const rooms = {
       let s=`Your sneakers sink into cold sand. The Atlantic Ocean rolls in under the moon, each wave edged with phosphorescent light—tiny organisms glowing blue-green in the surf. It's breathtaking.`;
       s+=`\n\nThe boardwalk rises behind you to the north. Ahead, there's nothing but water and sky and the distant lights of ships.`;
       s+=`\n\nA <span class="item">message in a bottle</span> washes up at your feet, then washes back out, then washes up again, as if it can't decide.`;
+      if(!flag('dugBeach'))s+=`\n\n<span class="hint">The sand near the waterline looks disturbed, as if something is buried just below the surface. You could DIG here...</span>`;
+      else s+=`\n\nThe hole you dug has already filled with water and sand. The beach keeps its own schedule.`;
       return s+exits_text(this.exits);
     },
-    exits:{n:'boardwalk'}
+    exits:{n:'boardwalk',e:'steeplechase_pier'}
   },
 
   luna_park:{name:'Luna Park',
@@ -315,7 +327,7 @@ const rooms = {
       }
       return s+exits_text(this.exits);
     },
-    exits:{w:'boardwalk'}
+    exits:{w:'boardwalk',s:'funhouse'}
   },
 
   nathans:{name:'Nathan\'s Famous',
@@ -367,7 +379,64 @@ const rooms = {
       s+=`\n\nType <span class="hint">BOARD TRAIN</span> to return to Coney Island.`;
       return s+exits_text(this.exits);
     },
-    exits:{}
+    exits:{n:'broadway_theater'}
+  },
+
+  // ===== HIDDEN & BONUS AREAS =====
+  dreamland:{name:'The Dreamland Ruins',
+    desc(){
+      let s=`You squeeze through the crumbling archway into something impossible. An underground cavern, vast as a cathedral, holds the ruins of <span class="item">Dreamland</span>—Coney Island's legendary amusement park, destroyed by fire in 1911. But here, preserved in amber ghost-light, it lives on.`;
+      s+=`\n\nMiniature towers rise from the cavern floor. A mechanical <span class="item">elephant</span> sways its trunk in slow motion. Tiny buildings from "Lilliputia"—Dreamland's famous miniature city—line a cobblestone path. Everything glows with warm amber light, like the whole place is trapped in a sunset that never ends.`;
+      s+=`\n\nA dusty <span class="item">display case</span> near the entrance holds forgotten student projects from decades past. One label reads: <span class="item">"ZIGGY MARTINEZ -- SCIENCE FAIR 1976 -- THE ELECTROMAGNETIC PROPERTIES OF FUN."</span>`;
+      if(!flag('projectTaken'))s+=` The project—a tangle of wires, batteries, and a small spinning wheel—sits behind the glass, still humming after fifty years.`;
+      else s+=` The glass case is open. Ziggy's project has gone home at last.`;
+      if(hasItem('science_project')&&!flag('ziggyFreed')){
+        s+=`\n\n<span class="chr">Ziggy</span> flickers into view beside the display case, eyes wide. <span class="chr">"That's... that's MY project. 'The Electromagnetic Properties of Fun.' I got an A-minus. Ms. Petrova said the title was 'not scientific enough.' Can you... GIVE it back to me?"</span>`;
+      }
+      if(flag('ziggyFreed'))s+=`\n\n<span class="atm">The cavern feels peaceful now. Warmer. Like Dreamland is finally, truly at rest.</span>`;
+      return s+exits_text(this.exits);
+    },
+    exits:{u:'basement'}
+  },
+
+  funhouse:{name:'The Funhouse',
+    desc(){
+      let s=`You push through a creaky turnstile into the Funhouse. Distorted <span class="item">mirrors</span> line the walls, but they don't show your current reflection—they show you at different ages.`;
+      s+=`\n\nIn one mirror: you at five, gap-toothed, holding a crayon drawing. In another: you at sixteen, taller, wearing a high school jacket you haven't earned yet. In a third: you at thirty, holding a book with YOUR NAME on the cover. That one makes you stop and stare.`;
+      s+=`\n\nThe floor tilts at impossible angles. A barrel rolls slowly in the corner. Somewhere, a mechanical <span class="item">clown</span> laughs—not scary, more like it just heard the world's best knock-knock joke.`;
+      if(flag('ziggy3')&&!flag('ziggyFound')){
+        s+=`\n\n<span class="chr">Ziggy</span> waves at you from behind a mirror, grinning. <span class="tw">"Wanna play? I'm hiding in one of the reflections! EXAMINE the MIRRORS to find me!"</span>`;
+      }
+      if(flag('ziggyFound'))s+=`\n\nThe mirrors show normal reflections now. Well, normal-ish. The thirty-year-old you still waves occasionally.`;
+      return s+exits_text(this.exits);
+    },
+    exits:{n:'luna_park'}
+  },
+
+  steeplechase_pier:{name:'Steeplechase Pier',
+    desc(){
+      let s=`The old pier stretches over the Atlantic, creaking with each wave. The wood is silvered by decades of salt and moonlight. Fishing poles line the <span class="item">railing</span>, their lines dangling into luminous water. Ghost fish leap and splash below, trailing bioluminescence.`;
+      s+=`\n\nAt the end of the pier stands a lone <span class="item">carousel horse</span>—a painted steed from the original Steeplechase Park, frozen mid-gallop, facing the open ocean. Its glass eye catches the moonlight. Someone has draped a garland of sea glass around its neck.`;
+      s+=`\n\nA <span class="item">plaque</span> on the railing reads: <span class="item">"STEEPLECHASE -- THE FUNNY PLACE. 1897-1964."</span> Below it, carved into the wood: dozens of initials and dates going back over a century.`;
+      s+=`\n\n<span class="atm">The wind is stronger out here. The whole pier sways like a slow dance. It feels like standing on the edge of the world—Brooklyn behind you, the Atlantic ahead, and nothing but courage in between.</span>`;
+      return s+exits_text(this.exits);
+    },
+    exits:{w:'beach'}
+  },
+
+  broadway_theater:{name:'Ghost Broadway Theater',
+    desc(){
+      let s=`A grand theater materializes around you—velvet seats in deep red, gilded balconies, a chandelier made of frozen moonlight. The marquee outside reads: <span class="item">"THE ADVENTURES OF LOLA: A MIDNIGHT MUSICAL -- ONE NIGHT ONLY"</span>`;
+      s+=`\n\nOn stage, ghost performers are acting out YOUR adventure. A ghost-actress with long dark hair plays you—and she's surprisingly good. Ghost-Conor does ghost-basketball against ghost-ghost-players (double ghost!). Ghost-Annabel pounds on a ghost-painting. Ghost-Sophia reads a ghost-book. The <span class="item">audience</span> of ghosts is absolutely riveted.`;
+      s+=`\n\nA ghost usher offers you a <span class="item">playbill</span>. It lists the cast, the crew, and a review from the Ghost New York Times: <span class="tw">"Five stars. THE FEEL-GOOD HAUNTING OF THE SEASON."</span>`;
+      if(!flag('broadwayPerformed')){
+        s+=`\n\n<span class="hint">There's an empty spotlight on stage. You could PERFORM and join the show...</span>`;
+      } else {
+        s+=`\n\nThe ghost audience is still giving you a standing ovation. They've been standing for a while now. Ghosts don't get tired, which is both impressive and slightly unnerving.`;
+      }
+      return s+exits_text(this.exits);
+    },
+    exits:{s:'times_square'}
   }
 };
 
@@ -401,6 +470,15 @@ function getExamine(target){
     return `Conor's flash drive, shaped like a tiny basketball. He says it contains "the greatest basketball simulation ever coded. Version 0.1. Known bugs: it traps you inside a gym."`;
   if(match(t,['manuscript','pages']) && hasItem('manuscript'))
     return `Three yellowed pages covered in Mark Twain's unmistakable handwriting. The text shimmers and shifts—you can make out phrases like "the moon over the water" and "the wheel turns" and "every talent, a light."`;
+  if(match(t,['dreamland token','token','coin','bronze']) && hasItem('dreamland_token'))
+    return `A tarnished bronze token stamped "DREAMLAND -- ADMIT ONE -- 1904." It glows faintly amber, warm in your palm. It's been buried in Coney Island sand for over a century. Something tells you it still works.`;
+  if(match(t,['science project','project','electromagnetic']) && hasItem('science_project'))
+    return `Ziggy's science fair project: "THE ELECTROMAGNETIC PROPERTIES OF FUN." A tangle of wires, batteries, and a small spinning wheel that still turns after fifty years. The craftsmanship is impressive. The title is perfect.`;
+  if(match(t,['ziggy','graffiti','ziggy was here']))
+    return flag('ziggyFreed')?`Ziggy Martinez, class of '76, finally free after fifty years. You hope wherever they went, there's a good science lab and plenty of Pop Rocks.`:
+      flag('ziggy2')?`Ziggy Martinez. Creative Writing talent, class of '76. Got trapped during the last midnight event fifty years ago. Their science project is somewhere in the old Dreamland ruins under the school.`:
+      flag('ziggy1')?`You've seen graffiti: "ZIGGY WAS HERE '76." Someone—or some GHOST—is leaving messages. A kid from fifty years ago?`:
+      `You don't know anyone named Ziggy. Yet.`;
 
   // Room-specific targets
   switch(r){
@@ -537,6 +615,40 @@ function getExamine(target){
     case 'times_square':
       if(match(t,['billboard','billboards','sign','signs']))return `The billboards cycle through messages:\n"LOLA — CREATIVE WRITING TALENT — MARK TWAIN IS 239"\n"FUTURE POET LAUREATE? WATCH THIS SPACE"\n"SASHA SAYS HI (SHE'S PROBABLY ASLEEP BUT SHE'D SAY HI IF SHE WERE AWAKE)"\n"YOUR CAT SPUD IS FINE. HE KNOCKED YOUR WATER GLASS OFF THE TABLE AGAIN."\n"MALCOLM IN THE MIDDLE SEASON 3 IS THE BEST SEASON (DON'T @ US)"`;
       if(match(t,['conductor','train','subway']))return `The ghost conductor waits patiently at the subway entrance. <span class="tw">"Whenever you're ready, kid. The D train runs all night. Well, tonight it does."</span>`;
+      if(match(t,['theater','theatre','broadway']))return `The Ghost Broadway Theater is to the north. The marquee glows with spectral spotlights.`;
+      break;
+    case 'dreamland':
+      if(match(t,['elephant']))return `The mechanical elephant sways its trunk in a slow, hypnotic rhythm. A plaque on its base reads: "TOPSY — DREAMLAND'S BELOVED ELEPHANT — 1903." The elephant looks content. Peaceful. It's been swaying down here for over a century, and it seems perfectly happy about it.`;
+      if(match(t,['towers','buildings','lilliputia','miniature','city']))return `The miniature city of Lilliputia stretches across the cavern floor—tiny buildings, tiny streets, tiny lamp posts that still glow. Dreamland's most famous attraction was a city-within-a-city populated by little people. Down here, the tiny buildings are empty but the lights are on, as if the residents just stepped out for a century-long coffee break.`;
+      if(match(t,['display','case','projects','student']))return !flag('projectTaken')?`The display case holds student science projects from the 1970s. Most are faded beyond recognition, but one still hums with energy: "ZIGGY MARTINEZ — SCIENCE FAIR 1976 — THE ELECTROMAGNETIC PROPERTIES OF FUN." A tangle of wires, batteries, and a small spinning wheel. The wheel still spins. You could TAKE it.`:`The display case is open, Ziggy's project gone. The other projects sit quietly, their science fair days long past.`;
+      if(match(t,['ziggy'])&&S.room==='dreamland')return hasItem('science_project')?`Ziggy flickers beside the case, staring at their old project in your hands. Their eyes are shining—can ghosts cry? <span class="chr">"That's mine. That's really mine. Fifty years..."</span>`:`Ziggy isn't here right now. But the cavern remembers them.`;
+      break;
+    case 'funhouse':
+      if(match(t,['mirrors','mirror','reflection','reflections'])){
+        if(flag('ziggy3')&&!flag('ziggyFound')){
+          setFlag('ziggyFound');addScore(3);
+          return `You peer into each mirror, searching. Five-year-old you. Sixteen-year-old you. Thirty-year-old you. And there—in the fourth mirror—not you at all. <span class="chr">Ziggy</span>, grinning, waving, bell-bottoms and all.\n\n<span class="chr">"You found me! OK, OK, you're good at this."</span> They step OUT of the mirror, flickering but solid-ish. <span class="chr">"Listen—I've been stuck here since '76. My science project is in the old Dreamland ruins, under the school. There's a way in through the basement, but you need a token. An old Dreamland admission token. Try the beach—stuff washes up there all the time."</span>\n\nThey flicker twice and vanish. <span class="atm">But for the first time, they looked... hopeful.</span>\n\n<span class="win">[Ziggy told you about the Dreamland ruins! Find a token on the beach.]</span>`;
+        }
+        if(flag('ziggyFound'))return `The mirrors show your reflections at different ages. The thirty-year-old you gives a little wave. She looks happy. She looks like she remembers tonight.`;
+        return `The mirrors show distorted reflections—you at different ages. Five, sixteen, thirty. Past, future, and further-future. It's like a funhouse designed by a time traveler.`;
+      }
+      if(match(t,['clown']))return `The mechanical clown sits in a booth, head tilted, grin painted on. It laughs: "Ha! Ha! Ha!" Then, more quietly: "Ha." Then, almost to itself: "Life is a rich tapestry." The clown has layers.`;
+      if(match(t,['barrel']))return `The barrel rolls back and forth across the tilted floor. You could try to walk across it, but your dignity has already taken enough hits tonight.`;
+      if(match(t,['floor','tilt']))return `The floor tilts about 15 degrees. Your inner ear files a formal protest. Walking is possible but your brain keeps insisting you're about to fall sideways.`;
+      break;
+    case 'steeplechase_pier':
+      if(match(t,['horse','carousel','carousel horse','steed']))return `The carousel horse is magnificent—white with a golden mane, glass eyes that catch the moonlight, frozen in a full gallop going nowhere. It's from the original Steeplechase Park, the amusement park that gave this pier its name. A hundred years of children rode horses just like this one. It stands here now, facing the ocean, as if waiting for one more ride that will never come.\n\n<span class="atm">You pat its nose. The paint is cold and smooth. You could swear it leaned into your hand, just a little.</span>`;
+      if(match(t,['plaque','sign']))return `"STEEPLECHASE — THE FUNNY PLACE. 1897-1964." George Tilyou's amusement park. Before Luna Park. Before Astroland. The original Coney Island dream. The plaque is tarnished green but the words are still clear.`;
+      if(match(t,['railing','fishing','poles','fish']))return `Fishing poles dangle lines into glowing water. Ghost fish leap and splash—translucent bluefish, phantom stripers, spectral flounders. A ghost crab waves a claw from the pilings below. The fishing is excellent tonight, if you don't mind that everything you catch is already dead.`;
+      if(match(t,['initials','carving','carvings','wood','names']))return `Carved initials cover the railing and pier posts. "J+M 1923." "TONY WAS HERE 1958." "BROOKLYN FOREVER 1971." "A.G. LOVES CONEY 2004." A century of love letters written in wood. You trace them with your finger. Every one of these people stood right where you're standing, looking at the same ocean.`;
+      if(match(t,['ocean','water','waves','sea']))return `The Atlantic stretches to infinity from this vantage point, nothing between you and Europe but water and determination. The waves glow with bioluminescent blue. A ghost ship passes on the horizon, its lights twinkling, its foghorn sounding once, low and mournful and beautiful.`;
+      break;
+    case 'broadway_theater':
+      if(match(t,['playbill','program','cast']))return `THE ADVENTURES OF LOLA: A MIDNIGHT MUSICAL\n\nCast:\nLola .............. Ghost Actress #1 (surprisingly good)\nConor ............ Ghost Actor #7 (great at basketball scenes)\nAnnabel .......... Ghost Actress #3 (method actor, actually got stuck in a painting)\nSophia ........... Ghost Actress #12 (really committed to the reading scenes)\nMark Twain ....... Himself (he insisted)\nSir Frank N. Furter ... A Hot Dog (controversial casting choice)\n\nDirector: The Ghost of Every Drama Teacher Who Ever Lived\nReviews: "SIX STARS" — Ghost New York Times`;
+      if(match(t,['audience','crowd','ghosts']))return `The ghost audience is rapt. Front row: what appears to be the ghosts of old Coney Island residents. Middle section: ghost tourists from every decade. Balcony: ghost theater critics, all of whom are giving standing ovations, which is unusual for critics of any corporeal status.`;
+      if(match(t,['stage','show','performers','actors']))return `The ghost performers are COMMITTED. Ghost-You just delivered a monologue about the enchanted library that brought three ghost audience members to ghost-tears. Ghost-Conor is doing a basketball scene with actual ghost special effects. The production values are INSANE for a show that doesn't technically exist.`;
+      if(match(t,['spotlight','light']))return `An empty spotlight waits on the left side of the stage. It pulses gently, invitingly. It's your spot, if you want it. You could PERFORM here.`;
+      if(match(t,['chandelier']))return `The chandelier is made of frozen moonlight—each crystal a tiny trapped moon. It casts silver-blue light across the theater. It's the most beautiful light fixture you've ever seen, and you've seen the one in the school lobby that flickers on Tuesdays.`;
       break;
   }
   // More global
@@ -558,7 +670,8 @@ const itemNames={
   paintbrush:'Paintbrush (from Annabel)',notebook:'Poetry Notebook (from Sophia)',
   flash_drive:'Flash Drive (from Conor)',
   pg1:'Manuscript Page 1',pg2:'Manuscript Page 2',pg3:'Manuscript Page 3',
-  manuscript:'Complete Manuscript'
+  manuscript:'Complete Manuscript',
+  dreamland_token:'Dreamland Token',science_project:'Ziggy\'s Science Project'
 };
 
 function findItem(input){
@@ -575,7 +688,9 @@ function findItem(input){
     pg1:['page 1','page one','first page','manuscript page 1'],
     pg2:['page 2','page two','second page','manuscript page 2'],
     pg3:['page 3','page three','third page','manuscript page 3'],
-    manuscript:['manuscript','pages','all pages','manuscript pages']
+    manuscript:['manuscript','pages','all pages','manuscript pages'],
+    dreamland_token:['token','dreamland token','old token','coin','bronze token'],
+    science_project:['project','science project','ziggy project','ziggys project','science fair','electromagnetic']
   };
   for(const[id,aliases] of Object.entries(map)){
     if(aliases.some(a=>input===a||input.includes(a)))return id;
@@ -784,6 +899,131 @@ function handleInput(raw){
       return print(`You think about your situation. You're in a haunted school at midnight, your friends are trapped by magic, and your phone is locked in a Yondr pouch. On the plus side: no homework tonight.`);
     case 'pray':
       return print(`You send a quick thought upward. A ghost drifts by and says, <span class="tw">"I'll put in a good word."</span>`);
+    case 'dig':
+      if(S.room==='beach'){
+        if(!flag('dugBeach')){
+          setFlag('dugBeach');addItem('dreamland_token');addScore(3);
+          printBlank();
+          print(`You drop to your knees and dig into the cold, wet sand. Your fingers scrape through shells and pebbles. About a foot down, you hit something metallic.`);
+          printBlank();
+          print(`You pull it out: a tarnished bronze token, stamped with the words <span class="item">"DREAMLAND -- ADMIT ONE -- 1904."</span> It glows faintly amber in your palm, warm despite the cold sand. Over a century old, buried by the tides, and still alive with some kind of magic.`);
+          printBlank();
+          print(`<span class="win">[Found: Dreamland Token]</span>`);
+          print(`<span class="hint">This looks like it could open something very old... maybe in the basement?</span>`);
+          return;
+        }
+        return print(`You dig some more. Just sand and shells. The beach has given up its one secret.`);
+      }
+      if(S.room==='steeplechase_pier')return print(`You can't dig through wooden planks. The ocean is right below you, though—you can hear it through the gaps.`);
+      return print(`There's nothing to dig here.`);
+    case 'perform':case 'act':case 'monologue':case 'recite':
+      if(S.room==='black_box'){
+        if(!flag('performed')){
+          setFlag('performed');addScore(3);
+          printBlank();
+          print(`You step into the spotlight. The warm circle of light wraps around you like a hug.`);
+          printBlank();
+          print(`You start talking—about tonight. About falling asleep in Ms. O'Brien's room and waking up in a haunted school. About rescuing friends from paintings and books and basketball games. About a ghost with a magnificent mustache and a cat-janitor and a talking hot dog with a monocle and an octopus with a masters degree.`);
+          printBlank();
+          print(`You don't plan the words. They just come—the way they do when you're writing your best stuff, when the pen moves faster than your brain.`);
+          printBlank();
+          print(`The drama masks listen. Comedy laughs in all the right places. Tragedy weeps at the emotional beats. When you finish, silence. Then:`);
+          printBlank();
+          print(`<span class="tw">"BRAVA! BRAVA!"</span> The masks shout in unison. <span class="tw">"A STAR IS BORN! The Drama talent would be HONORED to have you!"</span>`);
+          printBlank();
+          print(`<span class="atm">You take a bow in the spotlight. It dims slowly, gently, like a standing ovation that doesn't want to end.</span>`);
+          return;
+        }
+        return print(`You already performed. The masks still talk about it. <span class="tw">"Remember the hot dog bit? INSTANT CLASSIC."</span>`);
+      }
+      if(S.room==='broadway_theater'){
+        if(!flag('broadwayPerformed')){
+          setFlag('broadwayPerformed');addScore(3);
+          printBlank();
+          print(`You step into the empty spotlight on the Ghost Broadway stage. The ghost performers freeze mid-scene. Every ghost in the audience turns to look at you—hundreds of translucent faces, expectant, eager.`);
+          printBlank();
+          print(`You don't have a script. You don't need one.`);
+          printBlank();
+          print(`You tell the story of tonight—YOUR version. Not the ghost musical adaptation (which took some creative liberties with the cafeteria scene and gave Conor a love ballad he definitely didn't sing in real life). The REAL story. About friendship and courage and a school that wakes up every fifty years to remind its students what talent really means.`);
+          printBlank();
+          print(`The ghost audience ERUPTS. Standing ovation. Ghost roses rain from the balconies. The chandelier of frozen moonlight blazes with light. The Ghost New York Times critic is openly weeping and updating his review:`);
+          printBlank();
+          print(`<span class="win">"SIX STARS. NOT A TYPO. SHE'S THAT GOOD." -- Ghost New York Times</span>`);
+          return;
+        }
+        return print(`The ghost audience is STILL applauding. They may genuinely never stop. Ghost stamina is no joke.`);
+      }
+      return print(`This isn't the right place for a performance. Try the Black Box Theater at school, or the Broadway Theater in Times Square.`);
+    case 'argue':case 'defend':case 'object':case 'plead':case 'testify':
+      if(S.room==='courtroom'){
+        if(!flag('trialDone')){
+          setFlag('trialDone');addScore(3);
+          printBlank();
+          print(`You step up to the witness stand. The gavel BANGS.`);
+          printBlank();
+          print(`<span class="tw">"THE COURT RECOGNIZES LOLA, CREATIVE WRITING TALENT! THE CHARGE: MIDNIGHT MAGIC IS CAUSING CHAOS IN IS 239! THE DEFENDANT: MAGIC ITSELF! HOW DOES THE DEFENSE PLEAD?"</span>`);
+          printBlank();
+          print(`You take a deep breath and make your case.`);
+          printBlank();
+          print(`The magic isn't chaos—it's the talents coming ALIVE. Art that moves, writing that floats, math that talks, music that plays itself. Everything IS 239 teaches, made real for one night. Is that scary? Sure. Is it also kind of incredible? ABSOLUTELY.`);
+          printBlank();
+          print(`The ghost jury deliberates for exactly two seconds.`);
+          printBlank();
+          print(`<span class="tw">"VERDICT: NOT GUILTY! The court finds that Midnight Magic is, and I quote, 'ACTUALLY PRETTY COOL.' CASE DISMISSED!"</span>`);
+          printBlank();
+          print(`The gavel bangs triumphantly. The jury applauds. The Constitution on the wall adds a new amendment: <span class="win">"AMENDMENT 239: COOL STUFF IS HEREBY CONSTITUTIONAL."</span>`);
+          return;
+        }
+        return print(`The court has already ruled. <span class="tw">"DOUBLE JEOPARDY, COUNSELOR! YOU CAN'T TRY THE SAME MAGIC TWICE!"</span> The gavel rests, satisfied. Justice has been served.`);
+      }
+      return print(`There's nothing to argue about here. Well, nothing that requires a formal legal proceeding.`);
+    case 'wish':
+      if(S.room==='rooftop'){
+        if(!flag('wished')){
+          setFlag('wished');addScore(3);
+          printBlank();
+          print(`You close your eyes. The wind off the ocean ruffles your hair. The stars burn bright above Coney Island.`);
+          printBlank();
+          print(`You make a wish.`);
+          printBlank();
+          print(`<span class="atm">What do you wish for? That's between you and the stars. But the brightest one pulses once, warm and gold, as if to say: heard you. Noted. Working on it.</span>`);
+          printBlank();
+          print(`A shooting star streaks across the sky, trailing gold and silver. It loops once around the Wonder Wheel, spirals over the Cyclone, and disappears into the ocean with a tiny, distant splash.`);
+          printBlank();
+          print(`<span class="atm">Whether wishes come true is a question for scientists and philosophers and maybe the Math talent. But this one felt like it landed.</span>`);
+          return;
+        }
+        return print(`You already made your wish tonight. The stars don't do refunds—but they don't need to. It was a good one.`);
+      }
+      return print(`You need a sky full of stars to make a proper wish. Somewhere high up, with a view...`);
+    case 'ride':
+      if(S.room==='luna_park'&&(rest.includes('cyclone')||rest.includes('coaster')||rest.includes('roller'))){
+        if(!flag('rodeCyclone')){
+          setFlag('rodeCyclone');addScore(3);
+          printBlank();
+          print(`You approach the Cyclone. An empty car rattles to a stop at the loading platform, as if it's been waiting for you. You climb in. The lap bar lowers itself.`);
+          printBlank();
+          print(`<span class="atm">The car lurches forward. Click. Click. Click. Up the first hill. Higher. Higher. The whole of Coney Island spreads below you—the boardwalk, the beach, the school, the ocean, all of Brooklyn glittering in the distance.</span>`);
+          printBlank();
+          print(`You hit the top. For one perfect, suspended moment, you can see everything. The Wonder Wheel. The pier. Nathan's. Your school. Home.`);
+          printBlank();
+          print(`Then gravity remembers you exist.`);
+          printBlank();
+          print(`<span class="win">WHOOOOOOOOSH.</span>`);
+          printBlank();
+          print(`The Cyclone SCREAMS through its turns. Wooden tracks rattle and shake. Wind tears at your hair. You're laughing—no, you're screaming—no, you're LAUGH-SCREAMING, which is really the only appropriate response to riding a haunted roller coaster at midnight over the Atlantic Ocean.`);
+          printBlank();
+          print(`Ninety seconds of pure, unfiltered, gravitationally irresponsible joy.`);
+          printBlank();
+          print(`The car rattles back to the platform. Your hair is a disaster. Your smile is enormous. The Cyclone has been terrifying people since 1927, and it has NOT lost a step.`);
+          return;
+        }
+        return print(`You already rode the Cyclone tonight. Your hair is still recovering. Your smile hasn't faded.`);
+      }
+      if(S.room==='steeplechase_pier'&&(rest.includes('horse')||rest.includes('carousel'))){
+        return print(`You put your hand on the carousel horse's mane. For a moment, you feel it tense, ready to gallop. But it stays still. Some rides are finished. Some things are beautiful because they're frozen in time.`);
+      }
+      return print(`There's nothing to ride here.`);
     default:
       return print(`I don't understand "${escHtml(words[0])}." Type <span class="hint">HELP</span> for commands.`);
   }
@@ -804,12 +1044,16 @@ function go(dir){
     if(!flag('act2'))return print(`The front doors are sealed shut by a shimmering force field. Whatever magic is keeping this school awake is also keeping you IN. You'll need to finish the Midnight Talent Show first.`);
     dest='neptune_ave';
   }
+  // Dreamland access control
+  if(dest==='dreamland'&&!flag('dreamlandOpen'))return print(`The south wall of the basement is solid brick. But there's something odd about one section—the bricks are a slightly different color, as if they were added later, to seal something off. <span class="hint">If you had something old, something from the original Dreamland...</span>`);
 
   S.room=dest;
   showRoom();
 
   // Trigger events
   if(dest==='lobby'&&!flag('metTwain'))twainIntro();
+  if(dest==='funhouse'&&flag('ziggy2')&&!flag('ziggy3'))setFlag('ziggy3');
+  if(dest==='dreamland'&&!flag('dreamlandVisited')){setFlag('dreamlandVisited');}
 
   // Atmosphere (every ~4 turns)
   if(S.turns%4===0&&!flag('act2')){
@@ -837,6 +1081,10 @@ function take(what){
   if(S.room==='basement'&&match(id,['sneakers','shoes','old sneakers'])&&flag('boxOpened')&&!flag('sneakersTaken')){
     addItem('sneakers');setFlag('sneakersTaken');addScore(5);
     return print(`You pull the old sneakers from the box. They glow faintly and feel warm. Mr. Whiskers nods approvingly. <span class="tw">"Mrrr. Good choice. Those shoes have history."</span>\n\n<span class="win">[Taken: Old Sneakers]</span>`);
+  }
+  if(S.room==='dreamland'&&match(id,['science_project','project'])&&!flag('projectTaken')){
+    addItem('science_project');setFlag('projectTaken');addScore(3);
+    return print(`You carefully open the display case and lift out Ziggy's science project. The spinning wheel whirs faster at your touch. Wires hum. Batteries glow. After fifty years in a glass case underground, "The Electromagnetic Properties of Fun" is still working.\n\n<span class="win">[Taken: Ziggy's Science Project]</span>\n\n<span class="hint">Ziggy would probably like this back...</span>`);
   }
   if(hasItem(id))return print(`You already have that.`);
   if(S.room==='beach'&&match(what,['bottle','message']))
@@ -949,6 +1197,22 @@ function use(rest){
     return doRead('manuscript');
   }
 
+  // DREAMLAND TOKEN in Basement
+  if(itemId==='dreamland_token'&&S.room==='basement'){
+    if(!flag('dreamlandOpen')){
+      setFlag('dreamlandOpen');removeItem('dreamland_token');addScore(3);
+      printBlank();
+      print(`You hold the Dreamland token against the basement's south wall. The bronze glows bright amber. The wall SHUDDERS.`);
+      printBlank();
+      print(`Bricks shift and grind. A section of wall slides open, revealing a crumbling archway beyond—and through it, a warm amber glow, like trapped sunshine.`);
+      printBlank();
+      print(`Mr. Whiskers looks up from his wrench. <span class="tw">"Mrrr. Wondered when someone would find that. The old Dreamland ruins. Been down there since the fire of 1911. Some things survive underground."</span> He goes back to polishing, supremely unsurprised.`);
+      printBlank();
+      print(`<span class="win">[Secret passage opened! Go SOUTH to enter the Dreamland ruins.]</span>`);
+      return;
+    }
+  }
+
   print(`You can't figure out how to use that here.`);
 }
 
@@ -996,8 +1260,35 @@ function give(rest){
     return;
   }
 
+  // SCIENCE PROJECT to ZIGGY (Dreamland)
+  if(itemId==='science_project'&&match(target,['ziggy','ghost','kid'])&&S.room==='dreamland'&&!flag('ziggyFreed')){
+    removeItem('science_project');setFlag('ziggyFreed');addScore(5);
+    printBlank();
+    print(`You hold out Ziggy's science project. The spinning wheel whirs. The wires hum.`);
+    printBlank();
+    print(`Ziggy reaches for it with trembling, translucent hands. When they touch it, they become MORE solid—color flooding back into their cheeks, their '76 t-shirt brightening, their curly hair gaining definition.`);
+    printBlank();
+    print(`<span class="chr">"The Electromagnetic Properties of Fun,"</span> they whisper, reading their own title. <span class="chr">"Ms. Petrova gave me an A-minus. Said the methodology was 'creative but unorthodox.' I've been thinking about that grade for fifty years."</span>`);
+    printBlank();
+    print(`They look up at you, and for the first time, Ziggy looks fully real. Not flickering. Not fading.`);
+    printBlank();
+    print(`<span class="chr">"I've been stuck here since '76. Every midnight event, I hoped someone would find this. Find ME. And you did."</span>`);
+    printBlank();
+    print(`Ziggy hugs their project tight. Then they start to glow—not ghost-glow, something warmer. The amber light of Dreamland wraps around them.`);
+    printBlank();
+    print(`<span class="chr">"I think I can go now. Wherever you go when you're done being a ghost. Probably somewhere with a really good science lab."</span>`);
+    printBlank();
+    print(`They wave. <span class="chr">"Thanks, Lola. Creative Writing talent, right? Write about this sometime. It's a pretty good story."</span>`);
+    printBlank();
+    print(`Ziggy Martinez, class of '76, Creative Writing talent, fades into the amber light of Dreamland. Not gone—just... graduated. Finally.`);
+    printBlank();
+    print(`<span class="win">[Ziggy is free! +5 points]</span>`);
+    return;
+  }
+
   if(match(target,['conor'])&&S.room!=='gym')return print(`Conor isn't here.`);
   if(match(target,['sophia','annabel']))return print(`${target[0].toUpperCase()+target.slice(1)} doesn't need that right now.`);
+  if(match(target,['ziggy'])&&S.room!=='dreamland')return print(`Ziggy isn't here right now. They tend to show up when you least expect them.`);
   print(`You can't give that to ${escHtml(target)}.`);
 }
 
@@ -1051,10 +1342,41 @@ function talk(who){
     }
     return print(`The octopus waves. <span class="tw">"We already had our literary chat, darling. But do come back—I'm starting a book club. First pick: anything without tentacle villains."</span>`);
   }
-  // Rescued friends
-  if(match(who,['annabel'])&&flag('annabelFreed'))return print(`<span class="chr">Annabel</span> brushes paint flecks from her hair. <span class="chr">"Being inside a mural was WILD. The colors were incredible but I couldn't move my legs. Hey—when this is all over, let's write a poem about it."</span>`);
-  if(match(who,['sophia'])&&flag('sophiaFreed'))return print(`<span class="chr">Sophia</span> rubs her eyes. <span class="chr">"That book was the WORST. The plot made no sense—it was literally just 'and then another thing happened' for like 500 pages. I've read better poetry from fortune cookies."</span> She grins. <span class="chr">"YOUR poetry, however, is excellent."</span>`);
-  if(match(who,['conor'])&&flag('conorFreed'))return print(`<span class="chr">Conor</span> stretches his legs. <span class="chr">"Note to self: never beta-test a basketball simulator in a haunted school at midnight. Version 0.3 will be tested in my bedroom. During daylight. With the lights on."</span>`);
+  // Ziggy
+  if(match(who,['ziggy'])&&S.room==='dreamland'&&hasItem('science_project')&&!flag('ziggyFreed'))
+    return print(`Ziggy's eyes are locked on their science project in your hands. <span class="chr">"That's mine. Can you... GIVE PROJECT TO ZIGGY? Please?"</span>`);
+  if(match(who,['ziggy']))
+    return print(flag('ziggyFreed')?`Ziggy has moved on. But you can still feel their presence—a warm spot in the air, a faint smell of Pop Rocks.`:flag('ziggy2')?`Ziggy isn't here right now. They tend to appear and disappear. Ghost privileges.`:`You don't know anyone named Ziggy.`);
+  // Rescued friends - room-specific commentary
+  if(match(who,['annabel'])&&flag('annabelFreed')){
+    if(S.room==='art_studio')return print(`<span class="chr">Annabel</span> stares at the mural, half-fascinated, half-horrified. <span class="chr">"The proportions were all wrong in there. The Cyclone was way too small and my ARMS were painted at weird angles. As a painter, I'm offended. As a person who was trapped inside, I'm just glad to be out."</span>`);
+    if(S.room==='music_room')return print(`<span class="chr">Annabel</span> closes her eyes and listens to the ghost orchestra. <span class="chr">"I wish I could paint what this music sounds like. Swirls of gold and purple, I think. With maybe some red for the trumpet."</span>`);
+    if(S.room==='rooftop')return print(`<span class="chr">Annabel</span> looks out over Coney Island. <span class="chr">"I want to paint this. All of it. The Wheel, the ocean, the stars. But no painting could be this big. Or this beautiful."</span> She squeezes your hand.`);
+    if(S.room==='boardwalk')return print(`<span class="chr">Annabel</span> takes a deep breath of salt air. <span class="chr">"This is what it smelled like INSIDE the mural. Salt and cotton candy. Except in the mural you couldn't actually breathe, so... this is better."</span>`);
+    if(S.room==='luna_park')return print(`<span class="chr">Annabel</span> watches the rides spin. <span class="chr">"The colors! Ghost-neon is even prettier than regular neon. I'm going to need a bigger canvas."</span>`);
+    if(S.room==='funhouse')return print(`<span class="chr">Annabel</span> stares at the mirror showing her at thirty. <span class="chr">"Thirty-year-old me is wearing paint-stained overalls. Good. That means I'm still painting."</span>`);
+    if(S.room==='broadway_theater')return print(`<span class="chr">Annabel</span> watches the ghost actress playing her. <span class="chr">"She's WAY too dramatic about the mural scene. I was NOT that scared."</span> Pause. <span class="chr">"OK I was exactly that scared."</span>`);
+    return print(`<span class="chr">Annabel</span> brushes paint flecks from her hair. <span class="chr">"Being inside a mural was WILD. The colors were incredible but I couldn't move my legs. Hey—when this is all over, let's write a poem about it."</span>`);
+  }
+  if(match(who,['sophia'])&&flag('sophiaFreed')){
+    if(S.room==='library')return print(`<span class="chr">Sophia</span> glares at the closed book on the table. <span class="chr">"I am NEVER reading again."</span> She pauses for exactly one second. <span class="chr">"OK that's a lie. But I'm definitely never reading THAT book again."</span>`);
+    if(S.room==='creative_writing')return print(`<span class="chr">Sophia</span> catches a floating sentence fragment and reads it. <span class="chr">"'She never expected the—' I hate cliffhangers. Also, Ms. O'Brien would LOVE this floating words thing. Can we show her? ...After the school stops being haunted?"</span>`);
+    if(S.room==='cafeteria')return print(`<span class="chr">Sophia</span> eyes the waving pizza. <span class="chr">"You know what, I've been reading an enchanted book for hours and I'm starving. But I draw the line at food that makes eye contact."</span>`);
+    if(S.room==='beach')return print(`<span class="chr">Sophia</span> picks up a shell and holds it to her ear. <span class="chr">"In books, you can hear the ocean in shells. In real life at Coney Island, you can hear the ocean from basically everywhere. Books lied to me. AGAIN."</span>`);
+    if(S.room==='aquarium')return print(`<span class="chr">Sophia</span> is deep in conversation with the octopus about unreliable narrators. They've been at it for five minutes. You get the sense this could go on for hours.`);
+    if(S.room==='dreamland')return print(`<span class="chr">Sophia</span> runs her fingers along the miniature Dreamland buildings. <span class="chr">"There's a whole WORLD down here. A century of forgotten magic. This needs to be a book."</span> She pulls out a pen and starts taking notes.`);
+    return print(`<span class="chr">Sophia</span> rubs her eyes. <span class="chr">"That book was the WORST. The plot made no sense—it was literally just 'and then another thing happened' for like 500 pages. I've read better poetry from fortune cookies."</span> She grins. <span class="chr">"YOUR poetry, however, is excellent."</span>`);
+  }
+  if(match(who,['conor'])&&flag('conorFreed')){
+    if(S.room==='gym')return print(`<span class="chr">Conor</span> glances at the scoreboard: CONOR 100, PHANTOMS 98. <span class="chr">"Best two out of three against the ghosts?"</span> He catches your look. <span class="chr">"Yeah no. Definitely no. Bad idea. Forget I said that."</span>`);
+    if(S.room==='math_room')return print(`<span class="chr">Conor</span> high-fives the robot. Its screen shows ":D" <span class="chr">"This little guy gets me. We speak the same language. The language of MATH."</span> The robot beeps enthusiastically.`);
+    if(S.room==='science_lab')return print(`<span class="chr">Conor</span> examines the beakers. <span class="chr">"I wonder if I could code a simulation of ghost chemistry. Actually, I wonder if that's what got us INTO this mess."</span>`);
+    if(S.room==='rooftop')return print(`<span class="chr">Conor</span> looks out at the Cyclone. <span class="chr">"I could write an algorithm to optimize that track layout. Less wood, same screams. Just saying."</span>`);
+    if(S.room==='luna_park')return print(`<span class="chr">Conor</span> watches the rides. <span class="chr">"The physics of the Wonder Wheel are actually really elegant. Offset cars, counterweights, gravitational— OK nobody cares. It's a big wheel. It goes around. Cool."</span>`);
+    if(S.room==='stillwell')return print(`<span class="chr">Conor</span> checks the departure board. <span class="chr">"D train to Manhattan, operated by a ghost. Honestly, that might be MORE reliable than regular MTA service."</span>`);
+    if(S.room==='times_square')return print(`<span class="chr">Conor</span> stares at the billboards. <span class="chr">"They know about Spud?! How do ghost billboards know about your CAT?!"</span> He looks genuinely shaken by this.`);
+    return print(`<span class="chr">Conor</span> stretches his legs. <span class="chr">"Note to self: never beta-test a basketball simulator in a haunted school at midnight. Version 0.3 will be tested in my bedroom. During daylight. With the lights on."</span>`);
+  }
   // Trapped friends
   if(match(who,['annabel'])&&!flag('annabelFreed')&&S.room==='art_studio')return print(`Annabel presses her painted hands against the canvas. She mouths: "USE SOMETHING TO DISSOLVE THE PAINT!" She looks scared but determined. That's Annabel—brave even when she's literally two-dimensional.`);
   if(match(who,['sophia'])&&!flag('sophiaFreed')&&S.room==='library')return print(`Sophia's eyes scan the pages frantically. She whispers: "Can't... stop... reading... maybe... edit... the ending..." <span class="hint">She needs something that can EDIT the book's ending.</span>`);
@@ -1264,6 +1586,10 @@ function doListen(){
     aquarium:'Bubbling water, whale sounds, and an octopus turning pages.',
     stillwell:'The subway humming, the conductor whistling, the echo of a thousand morning commutes.',
     times_square:'The electric hum of a million lights and the ghost of a city that never sleeps.',
+    dreamland:'A slow, deep hum—like the earth remembering music. The mechanical elephant\'s joints creak. The spinning wheel in Ziggy\'s project whirs.',
+    funhouse:'Distorted calliope music, the creak of tilting floors, and a mechanical clown laughing at something only it finds funny.',
+    steeplechase_pier:'Wind through old wooden pilings. Waves slapping the pier supports. The creak of the carousel horse, almost imperceptible, like it\'s breathing.',
+    broadway_theater:'Applause, orchestral swells, the rustle of ghost playbills, and a critic furiously scribbling a six-star review.',
   };
   print(`<span class="atm">${sounds[S.room]||'You listen carefully. The night listens back.'}</span>`);
 }
@@ -1280,6 +1606,10 @@ function doSmell(){
     nathans:'Hot dogs. The most incredible hot dog smell in human history. Your stomach growls.',
     beach:'Salt water, seaweed, and the clean cold smell of the Atlantic.',
     aquarium:'Fish, saltwater, and inexplicably, old books. The octopus has that effect.',
+    dreamland:'Warm amber air, old wood, machine oil, and something sweet—like caramel from a century-old candy stand.',
+    funhouse:'Cotton candy, greasepaint, and the metallic tang of distorted mirrors. Also: a hint of Pop Rocks.',
+    steeplechase_pier:'Pure ocean. Salt, kelp, cold wind, and the weathered wood of a pier that\'s been breathing sea air for over a century.',
+    broadway_theater:'Velvet, stage makeup, and the electric ozone smell of spotlights. Plus ghost popcorn from the concession stand.',
   };
   print(`<span class="atm">${smells[S.room]||'The air smells like old building, ocean salt, and mild supernatural activity.'}</span>`);
 }
@@ -1297,16 +1627,19 @@ function doMap(){
                             Gymnasium (W), Front Doors (S, SEALED)
   AUDITORIUM .............. Music Room (W)
   CAFETERIA ............... Basement (Down)
-  BASEMENT ................ [below Cafeteria]
+  BASEMENT ................ [below Cafeteria]${flag('dreamlandOpen')?`\n  DREAMLAND RUINS ......... [secret, south from Basement]`:''}
 </span>
 <span class="hint">You are in: ${rooms[S.room]?.name||S.room}</span>`);
   } else {
     print(`<span class="room">═══ MAP: IS 239 & CONEY ISLAND ═══</span>
 <span class="sys">
-  SCHOOL (4 floors + roof + basement) ... see ACT 1 map
+  SCHOOL (4 floors + roof + basement) ... see ACT 1 map${flag('dreamlandOpen')?`\n  DREAMLAND RUINS ......... [secret, south from Basement]`:''}
   NEPTUNE AVENUE ........ [south of school]
   SURF AVENUE ........... Nathan's (W), Stillwell Terminal (E)
   THE BOARDWALK ......... Beach (S), Luna Park (E), Aquarium (W)
+  BEACH ................. Steeplechase Pier (E)
+  LUNA PARK ............. Funhouse (S)
+  TIMES SQUARE .......... Broadway Theater (N)
   TIMES SQUARE .......... [via D Train from Stillwell]
 </span>
 <span class="hint">You are in: ${rooms[S.room]?.name||S.room}</span>`);
@@ -1332,10 +1665,10 @@ function doHug(who){
 function doPlay(what){
   if(!what)return print(`Play what?`);
   if(S.room==='music_room'){
-    if(match(what,['piano']))return print(`You sit at the piano and play a few notes. The ghost musicians pause, impressed. The piano adds harmonies to your melody. For a moment, you're having a jam session with ghosts. The Vocal Music and Instrumental talents would be JEALOUS.`);
+    if(match(what,['piano'])){setFlag('playedPiano');checkMusicBonus();return print(`You sit at the piano and play a few notes. The ghost musicians pause, impressed. The piano adds harmonies to your melody. For a moment, you're having a jam session with ghosts. The Vocal Music and Instrumental talents would be JEALOUS.`);}
     if(match(what,['trumpet']))return print(`You reach for the floating trumpet. It dodges. You reach again. It dodges again. The trumpet is not ready to share the spotlight.`);
-    if(match(what,['drums','drum']))return print(`You grab the drumsticks and play a fill. The ghost drummer nods approvingly. You briefly consider switching from Creative Writing to Music. Then you remember you can't actually drum.`);
-    if(match(what,['violin','violins']))return print(`You pick up a violin. The bow moves on its own, guiding your hand. For ten seconds, you play something beautiful. Then the bow stops and the violin gently removes itself from your hands, as if to say: "That's enough of that."`);
+    if(match(what,['drums','drum'])){setFlag('playedDrums');checkMusicBonus();return print(`You grab the drumsticks and play a fill. The ghost drummer nods approvingly. You briefly consider switching from Creative Writing to Music. Then you remember you can't actually drum.`);}
+    if(match(what,['violin','violins'])){setFlag('playedViolin');checkMusicBonus();return print(`You pick up a violin. The bow moves on its own, guiding your hand. For ten seconds, you play something beautiful. Then the bow stops and the violin gently removes itself from your hands, as if to say: "That's enough of that."`);}
     return print(`You can try to PLAY the piano, drums, trumpet, or violin.`);
   }
   if(match(what,['basketball','ball','game'])&&S.room==='gym'){
@@ -1343,6 +1676,20 @@ function doPlay(what){
     return print(`The gym is peaceful now. You shoot a free throw. It goes in. The scoreboard briefly flashes: "NICE SHOT."`);
   }
   return print(`There's nothing to play here. Well, nothing you SHOULD play.`);
+}
+
+function checkMusicBonus(){
+  if(flag('playedPiano')&&flag('playedDrums')&&flag('playedViolin')&&!flag('musicMaster')){
+    setFlag('musicMaster');addScore(3);
+    printBlank();
+    print(`Something shifts. The three instruments you played begin harmonizing—piano, drums, violin—weaving your separate melodies into one gorgeous piece. The ghost orchestra joins in. The entire music room RESONATES.`);
+    printBlank();
+    print(`For thirty seconds, you stand in the center of the most beautiful music you've ever heard—a song made of your three imperfect attempts, transformed into something perfect by the ghost musicians.`);
+    printBlank();
+    print(`The ghosts take a bow. The music fades. The metronome ticks once, slowly, as if savoring the moment.`);
+    printBlank();
+    print(`<span class="win">[Music Master! You played piano, drums, and violin to unlock a hidden symphony.]</span>`);
+  }
 }
 
 function boardTrain(){
