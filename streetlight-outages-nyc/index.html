@@ -166,6 +166,27 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.chronic-ring {
+  border-radius: 50%;
+  border: 2px solid #f85149;
+  position: absolute;
+  animation: pulse-ring var(--pulse-speed, 2s) ease-out infinite;
+}
+.chronic-label {
+  position: absolute;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
 
 #loading-overlay .loading-text { margin-top: 16px; font-size: 13px; color: var(--text-secondary); }
 #loading-overlay .loading-count { margin-top: 6px; font-size: 20px; font-weight: 700; color: var(--amber); }
@@ -200,7 +221,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
 
 <div id="panel">
   <h1>311 light outage map</h1>
-  <p class="subtitle">Street light outage complaints since Jan. 1, 2025. Hex grid shows complaint density by area; switch to "individual spots" to see repeat locations.</p>
+  <p class="subtitle">Street light outage complaints since Jan. 2024. Hex grid shows complaint density by area; switch to "individual spots" to see repeat locations.</p>
 
   <div class="stat-grid">
     <div class="stat-card">
@@ -222,7 +243,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
   </div>
 
   <div class="note" style="font-size:11px;color:var(--text-dim);background:var(--bg);border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.5;">
-    Note: Parks, bridges, expressways, and other non-street locations are excluded to focus on streets and sidewalks.
+    Note: Parks, bridges, expressways, and other non-street locations are excluded. "Chronic" view shows spots with complaints in both 2024 and 2025 (6+ total). Pulse speed = complaint frequency.
   </div>
 
   <div class="legend">
@@ -251,7 +272,8 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
     <label>View</label>
     <div class="view-toggle">
       <button class="view-btn active" data-view="hex">Hex grid</button>
-      <button class="view-btn" data-view="points">Individual spots</button>
+      <button class="view-btn" data-view="points">All spots</button>
+      <button class="view-btn" data-view="chronic">Chronic</button>
     </div>
   </div>
 
@@ -298,7 +320,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
 })();
 
 const API_BASE = 'https://data.cityofnewyork.us/resource/erm2-nwe9.json';
-const DATE_STR = '2025-01-01T00:00:00';
+const DATE_STR = '2024-01-01T00:00:00';
 
 let allComplaints = [];
 let map, hexLayer, pointLayer;
@@ -779,16 +801,146 @@ function renderTopList(complaints, addrSorted) {
   }
 }
 
+let chronicLayer = null;
+
+function buildChronicLayer(complaints) {
+  // Find locations with complaints in BOTH 2024 and 2025
+  const locData = new Map();
+
+  for (const c of complaints) {
+    const lat = parseFloat(c.latitude);
+    const lng = parseFloat(c.longitude);
+    if (isNaN(lat) || isNaN(lng)) continue;
+
+    const key = `${(Math.round(lat * 2000) / 2000).toFixed(4)},${(Math.round(lng * 2000) / 2000).toFixed(4)}`;
+    if (!locData.has(key)) {
+      locData.set(key, { lat: 0, lng: 0, count: 0, openCount: 0, years: new Set(), addresses: new Map(), boroughs: new Map(), descriptors: new Map(), cbs: new Map() });
+    }
+    const loc = locData.get(key);
+    loc.lat += lat; loc.lng += lng; loc.count++;
+    if (c.status === 'Open') loc.openCount++;
+
+    const year = new Date(c.created_date).getFullYear();
+    loc.years.add(year);
+
+    if (c.incident_address) loc.addresses.set(c.incident_address, (loc.addresses.get(c.incident_address) || 0) + 1);
+    if (c.borough) loc.boroughs.set(c.borough, (loc.boroughs.get(c.borough) || 0) + 1);
+    loc.descriptors.set(c.descriptor, (loc.descriptors.get(c.descriptor) || 0) + 1);
+    if (c.community_board) loc.cbs.set(c.community_board, (loc.cbs.get(c.community_board) || 0) + 1);
+  }
+
+  const layer = L.layerGroup();
+
+  // Only keep locations with complaints in both years AND 4+ total
+  const chronic = [...locData.entries()]
+    .filter(([, d]) => d.years.size >= 2 && d.count >= 6)
+    .sort((a, b) => b[1].count - a[1].count);
+
+  for (const [, loc] of chronic) {
+    const avgLat = loc.lat / loc.count;
+    const avgLng = loc.lng / loc.count;
+
+    let topAddr = 'Unknown';
+    let topAddrCount = 0;
+    for (const [addr, cnt] of loc.addresses) { if (cnt > topAddrCount) { topAddr = addr; topAddrCount = cnt; } }
+
+    let topBorough = '';
+    let topBoroughCount = 0;
+    for (const [b, cnt] of loc.boroughs) { if (cnt > topBoroughCount) { topBorough = b; topBoroughCount = cnt; } }
+
+    let topCb = '';
+    let topCbCount = 0;
+    for (const [cb, cnt] of loc.cbs) { if (cnt > topCbCount) { topCb = cb; topCbCount = cnt; } }
+    const neighborhood = getNeighborhood(topCb);
+
+    const radius = Math.min(6 + loc.count * 0.6, 18);
+    // Faster pulse = more complaints. Range: 2.5s (4 complaints) down to 0.6s (30+)
+    const pulseSpeed = Math.max(0.6, 2.5 - (loc.count - 4) * 0.08);
+    const ringSize = radius * 2 + 8;
+    const fillColor = loc.count >= 15 ? '#da3633' : loc.count >= 8 ? '#f85149' : '#db6d28';
+
+    // Pulsing ring + count label
+    const iconSize = ringSize + 20;
+    const center = iconSize / 2;
+    const pulseIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:${iconSize}px;height:${iconSize}px;position:relative;">
+        <div class="chronic-ring" style="width:${ringSize}px;height:${ringSize}px;left:${center - ringSize/2}px;top:${center - ringSize/2}px;--pulse-speed:${pulseSpeed}s;border-color:${fillColor};"></div>
+        <div class="chronic-ring" style="width:${ringSize}px;height:${ringSize}px;left:${center - ringSize/2}px;top:${center - ringSize/2}px;--pulse-speed:${pulseSpeed}s;border-color:${fillColor};animation-delay:${pulseSpeed/2}s;"></div>
+        <div class="chronic-label" style="left:0;right:0;top:${center + radius + 6}px;">${loc.count}</div>
+      </div>`,
+      iconSize: [iconSize, iconSize],
+      iconAnchor: [center, center]
+    });
+
+    const pulseMarker = L.marker([avgLat, avgLng], { icon: pulseIcon, interactive: false });
+    layer.addLayer(pulseMarker);
+
+    // Inner solid circle
+    const marker = L.circleMarker([avgLat, avgLng], {
+      radius: radius,
+      fillColor: fillColor,
+      fillOpacity: 0.9,
+      color: '#fff',
+      weight: 2
+    });
+
+    const openBadge = loc.openCount > 0
+      ? `<span style="color:#db6d28;font-weight:600;">${loc.openCount} still open</span>`
+      : '<span style="color:#57aa4a;">All resolved</span>';
+
+    const yearList = [...loc.years].sort().join(', ');
+
+    marker.bindPopup(`
+      <div style="min-width:200px;">
+        <div style="margin-bottom:4px;">
+          <span style="font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:#f85149;font-weight:600;">Chronic dark spot</span>
+        </div>
+        <div style="margin-bottom:8px;">
+          <strong style="font-size:14px;">${titleCase(topAddr)}</strong><br>
+          <span style="color:#8b949e;font-size:11px;">${neighborhood ? neighborhood + ', ' : ''}${titleCase(topBorough)}</span>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;">Total</div>
+            <div style="font-size:22px;font-weight:700;color:#f85149;">${loc.count}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;">Years</div>
+            <div style="font-size:13px;margin-top:4px;font-weight:600;">${yearList}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;">Status</div>
+            <div style="font-size:13px;margin-top:4px;">${openBadge}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#6e7681;">${[...loc.descriptors.entries()].sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d} (${n})`).join(', ')}</div>
+      </div>
+    `);
+
+    layer.addLayer(marker);
+  }
+
+  // Store count for stats
+  layer._chronicCount = chronic.length;
+
+  return layer;
+}
+
 function setView(view) {
   currentView = view;
   document.querySelectorAll('.view-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
 
+  if (hexLayer) map.removeLayer(hexLayer);
+  if (pointLayer) map.removeLayer(pointLayer);
+  if (chronicLayer) map.removeLayer(chronicLayer);
+
   if (view === 'hex') {
-    if (pointLayer) map.removeLayer(pointLayer);
-    if (hexLayer) map.addLayer(hexLayer);
+    map.addLayer(hexLayer);
+  } else if (view === 'chronic') {
+    map.addLayer(chronicLayer);
   } else {
-    if (hexLayer) map.removeLayer(hexLayer);
-    if (pointLayer) map.addLayer(pointLayer);
+    map.addLayer(pointLayer);
   }
 }
 
@@ -798,11 +950,14 @@ function applyFilters() {
 
   if (hexLayer) map.removeLayer(hexLayer);
   if (pointLayer) map.removeLayer(pointLayer);
+  if (chronicLayer) map.removeLayer(chronicLayer);
 
   hexLayer = buildHexLayer(filtered);
   pointLayer = buildPointLayer(filtered);
+  chronicLayer = buildChronicLayer(filtered);
 
   if (currentView === 'hex') map.addLayer(hexLayer);
+  else if (currentView === 'chronic') map.addLayer(chronicLayer);
   else map.addLayer(pointLayer);
 
   updateStats(filtered);
@@ -836,6 +991,7 @@ async function init() {
 
   hexLayer = buildHexLayer(allComplaints);
   pointLayer = buildPointLayer(allComplaints);
+  chronicLayer = buildChronicLayer(allComplaints);
 
   map.addLayer(hexLayer);
 
