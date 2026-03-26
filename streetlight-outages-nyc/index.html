@@ -243,7 +243,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
   </div>
 
   <div class="note" style="font-size:11px;color:var(--text-dim);background:var(--bg);border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.5;">
-    Note: Parks, bridges, expressways, and other non-street locations are excluded. "Chronic" view shows spots with complaints in both 2024 and 2025 (6+ total). Pulse speed = complaint frequency.
+    Note: Parks, bridges, expressways, and other non-street locations are excluded. "Chronic" view shows the worst spots with complaints in both 2024 and 2025 (15+ total).
   </div>
 
   <div class="legend">
@@ -369,10 +369,65 @@ function getNeighborhood(communityBoard) {
   return CB_NEIGHBORHOODS[`${boro}-${num}`] || '';
 }
 
-async function fetchAll() {
+const DARK_DESCRIPTORS = new Set([
+  'Street Light Out', 'Multiple Street Lights Out', 'Street Light Lamp Dim',
+  'Street Light Lamp Missing', 'Fixture/Luminaire Out Of Position',
+  'Fixture/Luminaire Damaged', 'Fixture/Luminaire Missing', 'Flood Light Lamp Out'
+]);
+
+const EXCLUDE_PATTERNS = [
+  /\bpark\b/i, /\bplayground\b/i, /\brecreation\b/i,
+  /\bmeadows?\b/i, /\bgreenbelt\b/i, /\bbotanical\b/i,
+  /\bbridge\b/i, /\bgreenway\b/i, /\besplanade\b/i,
+  /\bpier\b/i, /\bboardwalk\b/i, /\bbeach\b/i,
+  /\briver\b/i, /\bpromenade\b/i, /\bcemetery\b/i,
+  /\bpkwy\b/i, /\bparkway\b/i, /\bexpwy\b/i, /\bexpressway\b/i, /\bexpy\b/i,
+  /\bhighway\b/i, /\bhwy\b/i, /\bturnpike\b/i, /\btpke\b/i, /\bstadium\b/i,
+  /\bisland\b/i, /\bfield\b/i, /\bgarden\b/i, /\bplaza\b/i,
+  /\bfdr\b/i, /\bdeegan\b/i, /\bbruckner\b/i, /\bbqe\b/i,
+  /\binterchange\b/i, /\boverpass\b/i, /\bramp\b/i
+];
+
+function filterComplaints(raw) {
+  return raw.filter(c => {
+    if (!DARK_DESCRIPTORS.has(c.descriptor)) return false;
+    const addr = c.incident_address || '';
+    if (EXCLUDE_PATTERNS.some(p => p.test(addr))) return false;
+    return true;
+  });
+}
+
+const CACHE_KEY = '311-streetlight-data';
+const CACHE_VERSION = '2024-v2';
+
+function loadCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    if (parsed.version !== CACHE_VERSION) return null;
+    // Cache is valid for 6 hours
+    if (Date.now() - parsed.timestamp > 6 * 60 * 60 * 1000) return null;
+    return parsed.data;
+  } catch { return null; }
+}
+
+function saveCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      version: CACHE_VERSION,
+      timestamp: Date.now(),
+      data: data
+    }));
+  } catch { /* localStorage full or unavailable */ }
+}
+
+// Progressive fetch with callback after each batch
+async function fetchAll(onBatch) {
   const limit = 5000;
   let offset = 0;
   let retries = 0;
+  const raw = [];
 
   const where = `complaint_type='Street Light Condition' AND created_date>'${DATE_STR}' AND latitude IS NOT NULL`;
 
@@ -385,13 +440,18 @@ async function fetchAll() {
       const data = await res.json();
       if (!data.length) break;
 
-      allComplaints.push(...data);
-      document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
+      raw.push(...data);
+      const filtered = filterComplaints(data);
+      if (filtered.length > 0) {
+        allComplaints.push(...filtered);
+        document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
+        if (onBatch) onBatch();
+      }
+
       offset += limit;
       retries = 0;
-
       if (data.length < limit) break;
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 150));
     } catch (err) {
       retries++;
       if (retries > 3) break;
@@ -399,34 +459,8 @@ async function fetchAll() {
     }
   }
 
-  // Filter to darkness-related descriptors
-  const darkDescriptors = new Set([
-    'Street Light Out', 'Multiple Street Lights Out', 'Street Light Lamp Dim',
-    'Street Light Lamp Missing', 'Fixture/Luminaire Out Of Position',
-    'Fixture/Luminaire Damaged', 'Fixture/Luminaire Missing', 'Flood Light Lamp Out'
-  ]);
-  allComplaints = allComplaints.filter(c => darkDescriptors.has(c.descriptor));
-
-  // Exclude non-street locations — focus on streets and sidewalks
-  const parkPatterns = [
-    /\bpark\b/i, /\bplayground\b/i, /\brecreation\b/i,
-    /\bmeadows?\b/i, /\bgreenbelt\b/i, /\bbotanical\b/i,
-    /\bbridge\b/i, /\bgreenway\b/i, /\besplanade\b/i,
-    /\bpier\b/i, /\bboardwalk\b/i, /\bbeach\b/i,
-    /\briver\b/i, /\bpromenade\b/i, /\bcemetery\b/i,
-    /\bpkwy\b/i, /\bparkway\b/i, /\bexpwy\b/i, /\bexpressway\b/i, /\bexpy\b/i,
-    /\bhighway\b/i, /\bhwy\b/i, /\bturnpike\b/i, /\btpke\b/i, /\bstadium\b/i,
-    /\bisland\b/i, /\bfield\b/i, /\bgarden\b/i, /\bplaza\b/i,
-    /\bfdr\b/i, /\bdeegan\b/i, /\bbruckner\b/i, /\bbqe\b/i,
-    /\binterchange\b/i, /\boverpass\b/i, /\bramp\b/i
-  ];
-  const beforeParkFilter = allComplaints.length;
-  allComplaints = allComplaints.filter(c => {
-    const addr = c.incident_address || '';
-    return !parkPatterns.some(p => p.test(addr));
-  });
-  const parkExcluded = beforeParkFilter - allComplaints.length;
-  console.log(`Excluded ${parkExcluded} park-related complaints`);
+  // Save full raw data to cache for fast reload
+  saveCache(raw);
 }
 
 function getHexColor(count) {
@@ -833,7 +867,7 @@ function buildChronicLayer(complaints) {
 
   // Only keep locations with complaints in both years AND 4+ total
   const chronic = [...locData.entries()]
-    .filter(([, d]) => d.years.size >= 2 && d.count >= 6)
+    .filter(([, d]) => d.years.size >= 2 && d.count >= 15)
     .sort((a, b) => b[1].count - a[1].count);
 
   for (const [, loc] of chronic) {
@@ -867,7 +901,6 @@ function buildChronicLayer(complaints) {
       html: `<div style="width:${iconSize}px;height:${iconSize}px;position:relative;">
         <div class="chronic-ring" style="width:${ringSize}px;height:${ringSize}px;left:${center - ringSize/2}px;top:${center - ringSize/2}px;--pulse-speed:${pulseSpeed}s;border-color:${fillColor};"></div>
         <div class="chronic-ring" style="width:${ringSize}px;height:${ringSize}px;left:${center - ringSize/2}px;top:${center - ringSize/2}px;--pulse-speed:${pulseSpeed}s;border-color:${fillColor};animation-delay:${pulseSpeed/2}s;"></div>
-        <div class="chronic-label" style="left:0;right:0;top:${center + radius + 6}px;">${loc.count}</div>
       </div>`,
       iconSize: [iconSize, iconSize],
       iconAnchor: [center, center]
@@ -981,22 +1014,74 @@ async function init() {
     maxZoom: 19
   }).addTo(map);
 
-  // Fetch data and precinct boundaries in parallel
-  await Promise.all([fetchAll(), loadPrecincts()]);
+  // Start loading precincts in background
+  const precinctPromise = loadPrecincts();
 
-  document.querySelector('.loading-text').textContent = 'Building map...';
+  // Check cache first
+  const cached = loadCache();
+  let mapShown = false;
 
-  // Assign precincts to complaints
+  function rebuildMap() {
+    if (hexLayer) map.removeLayer(hexLayer);
+    if (pointLayer) map.removeLayer(pointLayer);
+    if (chronicLayer) map.removeLayer(chronicLayer);
+
+    hexLayer = buildHexLayer(allComplaints);
+    pointLayer = buildPointLayer(allComplaints);
+    chronicLayer = buildChronicLayer(allComplaints);
+
+    if (currentView === 'hex') map.addLayer(hexLayer);
+    else if (currentView === 'chronic') map.addLayer(chronicLayer);
+    else map.addLayer(pointLayer);
+
+    updateStats(allComplaints);
+  }
+
+  if (cached) {
+    // Instant load from cache
+    document.querySelector('.loading-text').textContent = 'Loading from cache...';
+    allComplaints = filterComplaints(cached);
+    document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
+
+    rebuildMap();
+    document.getElementById('loading-overlay').classList.add('hidden');
+    mapShown = true;
+
+    // Refresh from API in background
+    allComplaints = [];
+    fetchAll(() => {
+      rebuildMap();
+    }).then(() => {
+      rebuildMap();
+      // Assign precincts once done
+      precinctPromise.then(() => assignPrecincts(allComplaints));
+    });
+  } else {
+    // Progressive load — show map after first batch
+    let batchCount = 0;
+    await fetchAll(() => {
+      batchCount++;
+      if (batchCount === 1 && !mapShown) {
+        // Show map immediately with first batch
+        rebuildMap();
+        document.getElementById('loading-overlay').classList.add('hidden');
+        mapShown = true;
+      } else if (batchCount % 3 === 0) {
+        // Refresh every 3 batches
+        rebuildMap();
+      }
+    });
+
+    // Final rebuild with all data
+    rebuildMap();
+    if (!mapShown) {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+  }
+
+  // Assign precincts once boundaries are loaded
+  await precinctPromise;
   assignPrecincts(allComplaints);
-
-  hexLayer = buildHexLayer(allComplaints);
-  pointLayer = buildPointLayer(allComplaints);
-  chronicLayer = buildChronicLayer(allComplaints);
-
-  map.addLayer(hexLayer);
-
-  updateStats(allComplaints);
-  document.getElementById('loading-overlay').classList.add('hidden');
 
   // Listeners
   document.getElementById('borough-filter').addEventListener('change', applyFilters);
