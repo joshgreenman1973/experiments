@@ -259,7 +259,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
     <label>Rank by</label>
     <div class="view-toggle">
       <button class="rank-btn active" data-rank="address">Address</button>
-      <button class="rank-btn" data-rank="neighborhood">Neighborhood</button>
+      <button class="rank-btn" data-rank="precinct">Precinct</button>
     </div>
   </div>
 
@@ -593,6 +593,53 @@ function buildPointLayer(complaints) {
 
 let currentRank = 'address';
 let lastFilteredComplaints = [];
+let precinctBoundaries = null;
+let complaintPrecincts = new Map(); // complaint index -> precinct number
+
+async function loadPrecincts() {
+  try {
+    const res = await fetch('https://data.cityofnewyork.us/resource/y76i-bdw7.json?$limit=100');
+    const data = await res.json();
+    precinctBoundaries = data.filter(d => d.the_geom && d.precinct);
+  } catch (err) {
+    console.warn('Failed to load precinct boundaries:', err);
+  }
+}
+
+function pointInPolygon(lat, lng, coordinates) {
+  // Ray-casting for MultiPolygon
+  for (const polygon of coordinates) {
+    for (const ring of polygon) {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][1], yi = ring[i][0]; // lat, lng
+        const xj = ring[j][1], yj = ring[j][0];
+        if (((yi > lng) !== (yj > lng)) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi)) {
+          inside = !inside;
+        }
+      }
+      if (inside) return true;
+    }
+  }
+  return false;
+}
+
+function assignPrecincts(complaints) {
+  if (!precinctBoundaries) return;
+  complaintPrecincts.clear();
+  for (let i = 0; i < complaints.length; i++) {
+    const lat = parseFloat(complaints[i].latitude);
+    const lng = parseFloat(complaints[i].longitude);
+    if (isNaN(lat) || isNaN(lng)) continue;
+    for (const p of precinctBoundaries) {
+      if (pointInPolygon(lat, lng, p.the_geom.coordinates)) {
+        // Store by a unique key for the complaint object itself
+        complaints[i]._precinct = p.precinct;
+        break;
+      }
+    }
+  }
+}
 
 function updateStats(complaints) {
   lastFilteredComplaints = complaints;
@@ -631,36 +678,50 @@ function renderTopList(complaints, addrSorted) {
   const topItems = document.getElementById('top-items');
   topItems.innerHTML = '';
 
-  if (currentRank === 'neighborhood') {
-    document.getElementById('top-list-title').textContent = 'Complaints by neighborhood';
+  if (currentRank === 'precinct') {
+    document.getElementById('top-list-title').textContent = 'Complaints by police precinct';
 
-    const hoodCounts = new Map();
-    for (const c of complaints) {
-      const hood = getNeighborhood(c.community_board);
-      if (!hood) continue;
-      const boro = c.borough || '';
-      const key = hood + '|' + boro;
-      if (!hoodCounts.has(key)) {
-        hoodCounts.set(key, { count: 0, openCount: 0, lat: 0, lng: 0 });
-      }
-      const h = hoodCounts.get(key);
-      h.count++;
-      if (c.status === 'Open') h.openCount++;
-      h.lat += parseFloat(c.latitude) || 0;
-      h.lng += parseFloat(c.longitude) || 0;
+    if (!precinctBoundaries) {
+      topItems.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">Loading precinct data...</div>';
+      return;
     }
 
-    const sorted = [...hoodCounts.entries()].sort((a, b) => b[1].count - a[1].count);
+    const pctCounts = new Map();
+    for (let i = 0; i < complaints.length; i++) {
+      const pct = complaints[i]._precinct;
+      if (!pct) continue;
+      const boro = complaints[i].borough || '';
+      const hood = getNeighborhood(complaints[i].community_board);
+      const key = pct + '|' + boro + '|' + hood;
+      if (!pctCounts.has(key)) {
+        pctCounts.set(key, { count: 0, openCount: 0, repeatLocs: new Map(), lat: 0, lng: 0 });
+      }
+      const p = pctCounts.get(key);
+      p.count++;
+      if (complaints[i].status === 'Open') p.openCount++;
+      p.lat += parseFloat(complaints[i].latitude) || 0;
+      p.lng += parseFloat(complaints[i].longitude) || 0;
+
+      // Track repeat locations
+      const lat = parseFloat(complaints[i].latitude);
+      const lng = parseFloat(complaints[i].longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const locKey = `${(Math.round(lat * 2000) / 2000).toFixed(4)},${(Math.round(lng * 2000) / 2000).toFixed(4)}`;
+        p.repeatLocs.set(locKey, (p.repeatLocs.get(locKey) || 0) + 1);
+      }
+    }
+
+    const sorted = [...pctCounts.entries()].sort((a, b) => b[1].count - a[1].count);
     sorted.slice(0, 20).forEach(([key, data]) => {
-      const [hood, boro] = key.split('|');
+      const [pct, boro, hood] = key.split('|');
+      const repeatCount = [...data.repeatLocs.values()].filter(c => c >= 2).length;
       const div = document.createElement('div');
       div.className = 'top-item';
+      const location = hood ? hood : titleCase(boro);
       const openTag = data.openCount > 0 ? ` <span style="color:#db6d28;font-size:10px;">(${data.openCount} open)</span>` : '';
-      div.innerHTML = `<span class="addr">${hood}, ${titleCase(boro)}${openTag}</span><span class="count">${data.count}</span>`;
+      div.innerHTML = `<span class="addr">Pct ${pct} - ${location}${openTag}</span><span class="count">${data.count}</span>`;
       div.addEventListener('click', () => {
-        const avgLat = data.lat / data.count;
-        const avgLng = data.lng / data.count;
-        map.flyTo([avgLat, avgLng], 14);
+        map.flyTo([data.lat / data.count, data.lng / data.count], 14);
       });
       topItems.appendChild(div);
     });
@@ -743,10 +804,13 @@ async function init() {
     maxZoom: 19
   }).addTo(map);
 
-  // Fetch data
-  await fetchAll();
+  // Fetch data and precinct boundaries in parallel
+  await Promise.all([fetchAll(), loadPrecincts()]);
 
   document.querySelector('.loading-text').textContent = 'Building map...';
+
+  // Assign precincts to complaints
+  assignPrecincts(allComplaints);
 
   hexLayer = buildHexLayer(allComplaints);
   pointLayer = buildPointLayer(allComplaints);
