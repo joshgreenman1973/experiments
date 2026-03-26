@@ -299,184 +299,428 @@
     <p class="desc">A boiler in the basement heats water into steam. Pressure pushes the steam up through risers to radiators on every floor. As the steam releases heat into the room, it condenses back into water and returns to the boiler to be reheated.</p>
 
     <div class="diagram-wrap">
-      <svg viewBox="0 0 620 380" xmlns="http://www.w3.org/2000/svg">
-        <!-- Building shell -->
-        <rect x="60" y="20" width="380" height="340" rx="3" fill="#1a1f26" stroke="#272d36" stroke-width="1"/>
+      <svg viewBox="0 0 640 440" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Brick pattern -->
+          <pattern id="bricks" width="20" height="10" patternUnits="userSpaceOnUse">
+            <rect width="20" height="10" fill="#1e2630"/>
+            <rect x="0" y="0" width="9" height="4.5" rx="0.3" fill="#242d38" stroke="#1a222b" stroke-width="0.3"/>
+            <rect x="10" y="0" width="9" height="4.5" rx="0.3" fill="#222b35" stroke="#1a222b" stroke-width="0.3"/>
+            <rect x="5" y="5" width="9" height="4.5" rx="0.3" fill="#232c36" stroke="#1a222b" stroke-width="0.3"/>
+            <rect x="15" y="5" width="5" height="4.5" rx="0.3" fill="#242d38" stroke="#1a222b" stroke-width="0.3"/>
+            <rect x="-5" y="5" width="5" height="4.5" rx="0.3" fill="#242d38" stroke="#1a222b" stroke-width="0.3"/>
+          </pattern>
+          <!-- Concrete/basement texture -->
+          <pattern id="concrete" width="30" height="30" patternUnits="userSpaceOnUse">
+            <rect width="30" height="30" fill="#161b22"/>
+            <circle cx="5" cy="8" r="0.5" fill="#1e2630" opacity="0.5"/>
+            <circle cx="18" cy="4" r="0.4" fill="#1e2630" opacity="0.4"/>
+            <circle cx="12" cy="20" r="0.6" fill="#1e2630" opacity="0.3"/>
+            <circle cx="25" cy="15" r="0.3" fill="#1e2630" opacity="0.5"/>
+            <circle cx="8" cy="26" r="0.5" fill="#1e2630" opacity="0.4"/>
+          </pattern>
+          <!-- Pipe metallic gradient (steam/supply) -->
+          <linearGradient id="pipeOrange" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#a84520"/>
+            <stop offset="30%" stop-color="#e85d2a"/>
+            <stop offset="50%" stop-color="#ff8c5a"/>
+            <stop offset="70%" stop-color="#e85d2a"/>
+            <stop offset="100%" stop-color="#a84520"/>
+          </linearGradient>
+          <linearGradient id="pipeOrangeV" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#8a3a1a"/>
+            <stop offset="25%" stop-color="#c54e22"/>
+            <stop offset="50%" stop-color="#ff7a48"/>
+            <stop offset="75%" stop-color="#c54e22"/>
+            <stop offset="100%" stop-color="#8a3a1a"/>
+          </linearGradient>
+          <!-- Pipe metallic gradient (return/water) -->
+          <linearGradient id="pipeBlue" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#2a6fa8"/>
+            <stop offset="30%" stop-color="#4da6ff"/>
+            <stop offset="50%" stop-color="#7ec4ff"/>
+            <stop offset="70%" stop-color="#4da6ff"/>
+            <stop offset="100%" stop-color="#2a6fa8"/>
+          </linearGradient>
+          <!-- Boiler body gradient -->
+          <linearGradient id="boilerBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3d2214"/>
+            <stop offset="40%" stop-color="#2a1810"/>
+            <stop offset="100%" stop-color="#1a0f0a"/>
+          </linearGradient>
+          <!-- Fire glow -->
+          <radialGradient id="fireGlow" cx="0.5" cy="0.6" r="0.5">
+            <stop offset="0%" stop-color="#ff6b35" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
+          </radialGradient>
+          <!-- Radiator heat glow -->
+          <radialGradient id="heatGlow" cx="0.5" cy="0.3" r="0.7">
+            <stop offset="0%" stop-color="#e85d2a" stop-opacity="0.12"/>
+            <stop offset="100%" stop-color="#e85d2a" stop-opacity="0"/>
+          </radialGradient>
+          <!-- Steam cloud filter -->
+          <filter id="steamBlur">
+            <feGaussianBlur stdDeviation="2.5"/>
+          </filter>
+          <filter id="softGlow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Window glass gradient -->
+          <linearGradient id="windowGlass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1a2535"/>
+            <stop offset="100%" stop-color="#121a25"/>
+          </linearGradient>
+          <!-- Subtle noise overlay -->
+          <filter id="noise">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+            <feColorMatrix type="saturate" values="0"/>
+            <feBlend in="SourceGraphic" mode="soft-light"/>
+          </filter>
+        </defs>
 
-        <!-- Floor lines -->
-        <line x1="60" y1="95" x2="440" y2="95" stroke="#272d36" stroke-width="0.8"/>
-        <line x1="60" y1="170" x2="440" y2="170" stroke="#272d36" stroke-width="0.8"/>
-        <line x1="60" y1="245" x2="440" y2="245" stroke="#272d36" stroke-width="0.8"/>
-        <line x1="60" y1="315" x2="440" y2="315" stroke="#272d36" stroke-width="0.8"/>
+        <!-- === BUILDING CROSS-SECTION === -->
+
+        <!-- Building exterior walls (brick) -->
+        <rect x="55" y="10" width="395" height="410" rx="2" fill="url(#bricks)" stroke="#2a3340" stroke-width="1.5"/>
+
+        <!-- Roof cap / cornice -->
+        <rect x="48" y="6" width="409" height="8" rx="1" fill="#2a3340"/>
+        <rect x="52" y="3" width="401" height="5" rx="1" fill="#333e4d"/>
+        <line x1="52" y1="3" x2="453" y2="3" stroke="#3d4a5c" stroke-width="0.5"/>
+
+        <!-- Basement floor (concrete) -->
+        <rect x="56" y="365" width="393" height="54" fill="url(#concrete)"/>
+        <line x1="56" y1="365" x2="449" y2="365" stroke="#2a3340" stroke-width="1.5"/>
+
+        <!-- Floor slabs (thick concrete) -->
+        <rect x="56" y="93" width="393" height="5" fill="#1a222c" stroke="#232d38" stroke-width="0.5"/>
+        <rect x="56" y="168" width="393" height="5" fill="#1a222c" stroke="#232d38" stroke-width="0.5"/>
+        <rect x="56" y="243" width="393" height="5" fill="#1a222c" stroke="#232d38" stroke-width="0.5"/>
+        <rect x="56" y="318" width="393" height="5" fill="#1a222c" stroke="#232d38" stroke-width="0.5"/>
 
         <!-- Floor labels -->
-        <text x="50" y="62" fill="#5a6270" font-size="9" font-family="DM Sans" text-anchor="end">4F</text>
-        <text x="50" y="137" fill="#5a6270" font-size="9" font-family="DM Sans" text-anchor="end">3F</text>
-        <text x="50" y="212" fill="#5a6270" font-size="9" font-family="DM Sans" text-anchor="end">2F</text>
-        <text x="50" y="283" fill="#5a6270" font-size="9" font-family="DM Sans" text-anchor="end">1F</text>
-        <text x="50" y="348" fill="#5a6270" font-size="9" font-family="DM Sans" text-anchor="end">B</text>
+        <text x="44" y="58" fill="#5a6270" font-size="8.5" font-family="DM Sans" text-anchor="end" font-weight="500">4F</text>
+        <text x="44" y="138" fill="#5a6270" font-size="8.5" font-family="DM Sans" text-anchor="end" font-weight="500">3F</text>
+        <text x="44" y="213" fill="#5a6270" font-size="8.5" font-family="DM Sans" text-anchor="end" font-weight="500">2F</text>
+        <text x="44" y="290" fill="#5a6270" font-size="8.5" font-family="DM Sans" text-anchor="end" font-weight="500">1F</text>
+        <text x="44" y="393" fill="#5a6270" font-size="8.5" font-family="DM Sans" text-anchor="end" font-weight="500">B</text>
 
-        <!-- Boiler -->
-        <rect x="130" y="325" width="120" height="26" rx="5" fill="#2a1810" stroke="#e85d2a" stroke-width="1.5"/>
-        <text x="190" y="342" fill="#e85d2a" font-size="10" font-family="DM Sans" font-weight="600" text-anchor="middle">BOILER</text>
+        <!-- Windows - each floor gets 2 windows, left side -->
+        <!-- 4th floor windows -->
+        <rect x="80" y="28" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="94" y1="28" x2="94" y2="80" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="80" y1="52" x2="108" y2="52" stroke="#2a3340" stroke-width="0.6"/>
+        <rect x="82" y="30" width="11" height="21" fill="#1e2e40" opacity="0.4"/>
+        <rect x="120" y="28" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="134" y1="28" x2="134" y2="80" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="120" y1="52" x2="148" y2="52" stroke="#2a3340" stroke-width="0.6"/>
+        <rect x="122" y="30" width="11" height="21" fill="#1e2e40" opacity="0.4"/>
 
-        <!-- Flames -->
-        <ellipse cx="165" cy="336" rx="6" ry="4" fill="#ff6b35" opacity="0.7">
-          <animate attributeName="ry" values="3;6;3" dur="0.8s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.4;0.9;0.4" dur="0.8s" repeatCount="indefinite"/>
+        <!-- 3rd floor windows -->
+        <rect x="80" y="108" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="94" y1="108" x2="94" y2="160" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="80" y1="132" x2="108" y2="132" stroke="#2a3340" stroke-width="0.6"/>
+        <rect x="82" y="110" width="11" height="21" fill="#1e2e40" opacity="0.4"/>
+        <rect x="120" y="108" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="134" y1="108" x2="134" y2="160" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="120" y1="132" x2="148" y2="132" stroke="#2a3340" stroke-width="0.6"/>
+
+        <!-- 2nd floor windows -->
+        <rect x="80" y="183" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="94" y1="183" x2="94" y2="235" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="80" y1="207" x2="108" y2="207" stroke="#2a3340" stroke-width="0.6"/>
+        <rect x="120" y="183" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="134" y1="183" x2="134" y2="235" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="120" y1="207" x2="148" y2="207" stroke="#2a3340" stroke-width="0.6"/>
+
+        <!-- 1st floor windows -->
+        <rect x="80" y="258" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="94" y1="258" x2="94" y2="310" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="80" y1="282" x2="108" y2="282" stroke="#2a3340" stroke-width="0.6"/>
+        <rect x="120" y="258" width="28" height="52" rx="1" fill="url(#windowGlass)" stroke="#2a3340" stroke-width="1"/>
+        <line x1="134" y1="258" x2="134" y2="310" stroke="#2a3340" stroke-width="0.6"/>
+        <line x1="120" y1="282" x2="148" y2="282" stroke="#2a3340" stroke-width="0.6"/>
+
+
+        <!-- === BOILER === -->
+
+        <!-- Fire glow underneath -->
+        <ellipse cx="210" cy="395" rx="65" ry="25" fill="url(#fireGlow)">
+          <animate attributeName="rx" values="60;70;60" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="ry" values="22;28;22" dur="2s" repeatCount="indefinite"/>
         </ellipse>
-        <ellipse cx="190" cy="336" rx="5" ry="3" fill="#ff9a6c" opacity="0.6">
-          <animate attributeName="ry" values="2;5;2" dur="1s" begin="0.25s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1s" begin="0.25s" repeatCount="indefinite"/>
-        </ellipse>
-        <ellipse cx="215" cy="336" rx="6" ry="4" fill="#ff6b35" opacity="0.7">
-          <animate attributeName="ry" values="3;5;3" dur="0.9s" begin="0.5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0.4;0.85;0.4" dur="0.9s" begin="0.5s" repeatCount="indefinite"/>
-        </ellipse>
+
+        <!-- Boiler body -->
+        <rect x="145" y="375" width="130" height="32" rx="6" fill="url(#boilerBody)" stroke="#e85d2a" stroke-width="1.2"/>
+        <!-- Boiler top highlight -->
+        <rect x="147" y="376" width="126" height="4" rx="2" fill="#4a2a18" opacity="0.5"/>
+        <!-- Rivets -->
+        <circle cx="158" cy="383" r="2" fill="#3a2010" stroke="#4a2a18" stroke-width="0.5"/>
+        <circle cx="158" cy="398" r="2" fill="#3a2010" stroke="#4a2a18" stroke-width="0.5"/>
+        <circle cx="262" cy="383" r="2" fill="#3a2010" stroke="#4a2a18" stroke-width="0.5"/>
+        <circle cx="262" cy="398" r="2" fill="#3a2010" stroke="#4a2a18" stroke-width="0.5"/>
+        <!-- Pressure gauge -->
+        <circle cx="235" cy="386" r="6" fill="#1a0f0a" stroke="#6b3d22" stroke-width="0.8"/>
+        <circle cx="235" cy="386" r="4" fill="#0f0906"/>
+        <line x1="235" y1="386" x2="237" y2="383" stroke="#e85d2a" stroke-width="0.6">
+          <animate attributeName="x2" values="237;239;237" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="y2" values="383;382;383" dur="3s" repeatCount="indefinite"/>
+        </line>
+        <text x="235" y="393" fill="#6b3d22" font-size="3.5" font-family="DM Sans" text-anchor="middle">PSI</text>
+        <!-- Sight glass -->
+        <rect x="185" y="380" width="4" height="18" rx="1" fill="#0a1520" stroke="#6b3d22" stroke-width="0.5"/>
+        <rect x="186" y="388" width="2" height="9" fill="#4da6ff" opacity="0.3">
+          <animate attributeName="height" values="9;7;9" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="y" values="388;390;388" dur="4s" repeatCount="indefinite"/>
+        </rect>
+        <!-- Boiler label -->
+        <text x="210" y="401" fill="#e85d2a" font-size="8" font-family="DM Sans" font-weight="700" text-anchor="middle" letter-spacing="1.5">BOILER</text>
+
+        <!-- Flames (more detailed) -->
+        <g>
+          <path d="M175 404 Q178 394 181 404" fill="#ff9a3a" opacity="0">
+            <animate attributeName="opacity" values="0.3;0.9;0.3" dur="0.6s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M175 406 Q178 400 181 406;M175 396 Q178 386 181 396" dur="0.7s" repeatCount="indefinite"/>
+          </path>
+          <path d="M190 404 Q194 392 198 404" fill="#ff6b35" opacity="0">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="0.8s" begin="0.15s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M190 406 Q194 398 198 406;M190 394 Q194 382 198 394" dur="0.9s" begin="0.15s" repeatCount="indefinite"/>
+          </path>
+          <path d="M205 404 Q209 390 213 404" fill="#ffb84d" opacity="0">
+            <animate attributeName="opacity" values="0.3;0.85;0.3" dur="0.7s" begin="0.3s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M205 406 Q209 396 213 406;M205 393 Q209 381 213 393" dur="0.85s" begin="0.3s" repeatCount="indefinite"/>
+          </path>
+          <path d="M222 404 Q226 394 230 404" fill="#ff6b35" opacity="0">
+            <animate attributeName="opacity" values="0.35;0.9;0.35" dur="0.75s" begin="0.45s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M222 406 Q226 399 230 406;M222 395 Q226 385 230 395" dur="0.8s" begin="0.45s" repeatCount="indefinite"/>
+          </path>
+          <path d="M240 404 Q243 396 246 404" fill="#ff9a3a" opacity="0">
+            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="0.65s" begin="0.6s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M240 406 Q243 400 246 406;M240 397 Q243 389 246 397" dur="0.7s" begin="0.6s" repeatCount="indefinite"/>
+          </path>
+        </g>
 
         <!-- Gas supply line -->
-        <line x1="85" y1="338" x2="130" y2="338" stroke="#4da6ff" stroke-width="2" stroke-dasharray="4,2"/>
-        <text x="78" y="334" fill="#4da6ff" font-size="7.5" font-family="DM Sans" text-anchor="end">Gas/oil</text>
-        <text x="78" y="344" fill="#4da6ff" font-size="7.5" font-family="DM Sans" text-anchor="end">supply</text>
+        <rect x="85" y="388" width="60" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.7"/>
+        <line x1="85" y1="390" x2="115" y2="390" stroke="#7ec4ff" stroke-width="0.4" stroke-dasharray="3,3" opacity="0.4"/>
+        <text x="76" y="386" fill="#4da6ff" font-size="7" font-family="DM Sans" text-anchor="end" font-weight="500">Gas/oil</text>
+        <text x="76" y="396" fill="#4da6ff" font-size="7" font-family="DM Sans" text-anchor="end" opacity="0.7">supply</text>
 
-        <!-- Supply riser (steam up - orange) -->
-        <line x1="200" y1="325" x2="200" y2="35" stroke="#e85d2a" stroke-width="3"/>
 
-        <!-- Steam particles UP -->
-        <circle r="2.5" fill="#ff8c5a" opacity="0">
-          <animate attributeName="cy" values="320;38" dur="2.5s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="200;200" dur="2.5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.85;0.8;0" dur="2.5s" repeatCount="indefinite"/>
-        </circle>
-        <circle r="2" fill="#ff8c5a" opacity="0">
-          <animate attributeName="cy" values="320;38" dur="2.5s" begin="0.65s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="200;200" dur="2.5s" begin="0.65s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.7;0.65;0" dur="2.5s" begin="0.65s" repeatCount="indefinite"/>
-        </circle>
-        <circle r="2.5" fill="#ff8c5a" opacity="0">
-          <animate attributeName="cy" values="320;38" dur="2.5s" begin="1.3s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="200;200" dur="2.5s" begin="1.3s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.8;0.75;0" dur="2.5s" begin="1.3s" repeatCount="indefinite"/>
-        </circle>
-        <circle r="2" fill="#ff8c5a" opacity="0">
-          <animate attributeName="cy" values="320;38" dur="2.5s" begin="1.9s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="200;200" dur="2.5s" begin="1.9s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.6;0.55;0" dur="2.5s" begin="1.9s" repeatCount="indefinite"/>
-        </circle>
+        <!-- === SUPPLY RISER (steam up) === -->
+        <rect x="196" y="18" width="8" height="357" fill="url(#pipeOrangeV)"/>
+        <!-- Pipe highlight -->
+        <line x1="199" y1="18" x2="199" y2="375" stroke="#ff8c5a" stroke-width="0.5" opacity="0.3"/>
+        <!-- Pipe joints at each floor -->
+        <rect x="194" y="91" width="12" height="6" rx="1.5" fill="#c54e22" stroke="#a84520" stroke-width="0.5"/>
+        <rect x="194" y="166" width="12" height="6" rx="1.5" fill="#c54e22" stroke="#a84520" stroke-width="0.5"/>
+        <rect x="194" y="241" width="12" height="6" rx="1.5" fill="#c54e22" stroke="#a84520" stroke-width="0.5"/>
+        <rect x="194" y="316" width="12" height="6" rx="1.5" fill="#c54e22" stroke="#a84520" stroke-width="0.5"/>
 
-        <!-- Supply branches to radiators -->
-        <line x1="200" y1="58" x2="270" y2="58" stroke="#e85d2a" stroke-width="2"/>
-        <line x1="200" y1="133" x2="270" y2="133" stroke="#e85d2a" stroke-width="2"/>
-        <line x1="200" y1="208" x2="270" y2="208" stroke="#e85d2a" stroke-width="2"/>
-        <line x1="200" y1="278" x2="270" y2="278" stroke="#e85d2a" stroke-width="2"/>
+        <!-- Animated steam clouds rising up the supply riser -->
+        <g filter="url(#steamBlur)">
+          <ellipse rx="5" ry="3.5" fill="#ff8c5a" opacity="0">
+            <animate attributeName="cy" values="370;22" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="200;200" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.5;0.45;0" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="rx" values="4;6;4" dur="3s" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse rx="4" ry="3" fill="#ff8c5a" opacity="0">
+            <animate attributeName="cy" values="370;22" dur="3s" begin="0.75s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="200;200" dur="3s" begin="0.75s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.4;0.35;0" dur="3s" begin="0.75s" repeatCount="indefinite"/>
+            <animate attributeName="rx" values="3;5;3" dur="3s" begin="0.75s" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse rx="5" ry="3" fill="#ff8c5a" opacity="0">
+            <animate attributeName="cy" values="370;22" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="200;200" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.45;0.4;0" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="rx" values="3.5;5.5;3.5" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse rx="4.5" ry="3" fill="#ff8c5a" opacity="0">
+            <animate attributeName="cy" values="370;22" dur="3s" begin="2.25s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="200;200" dur="3s" begin="2.25s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.38;0.33;0" dur="3s" begin="2.25s" repeatCount="indefinite"/>
+          </ellipse>
+        </g>
 
-        <!-- Radiators with heat waves -->
+        <!-- Supply branches to radiators (horizontal pipes) -->
+        <rect x="204" y="53" width="74" height="4" rx="2" fill="url(#pipeOrange)"/>
+        <rect x="204" y="133" width="74" height="4" rx="2" fill="url(#pipeOrange)"/>
+        <rect x="204" y="208" width="74" height="4" rx="2" fill="url(#pipeOrange)"/>
+        <rect x="204" y="283" width="74" height="4" rx="2" fill="url(#pipeOrange)"/>
+
+
+        <!-- === RADIATORS (cast-iron style) === -->
+
+        <!-- Radiator macro: each one has cast-iron fins, legs, valve, heat glow + waves -->
+        <!-- 4th floor radiator -->
         <g>
-          <rect x="270" y="43" width="55" height="30" rx="3" fill="none" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="280" y1="46" x2="280" y2="70" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="290" y1="46" x2="290" y2="70" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="300" y1="46" x2="300" y2="70" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="310" y1="46" x2="310" y2="70" stroke="#e85d2a" stroke-width="1.2"/>
-          <rect x="268" y="41" width="59" height="34" rx="5" fill="#e85d2a" opacity="0">
-            <animate attributeName="opacity" values="0;0.06;0" dur="4s" repeatCount="indefinite"/>
+          <rect x="275" y="30" width="68" height="38" rx="0" fill="url(#heatGlow)">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" repeatCount="indefinite"/>
           </rect>
-          <path d="M278 38 Q283 30 288 38 Q293 30 298 38" stroke="#e85d2a" stroke-width="0.8" fill="none" opacity="0">
-            <animate attributeName="opacity" values="0;0.45;0" dur="3s" repeatCount="indefinite"/>
-            <animate attributeName="d" values="M278 40 Q283 35 288 40 Q293 35 298 40;M278 28 Q283 21 288 28 Q293 21 298 28" dur="3s" repeatCount="indefinite"/>
+          <!-- Legs -->
+          <rect x="280" y="65" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="337" y="65" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <!-- Body sections (cast-iron fins) -->
+          <rect x="278" y="35" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="288" y="35" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="298" y="35" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="308" y="35" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="318" y="35" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="328" y="35" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <!-- Top rail -->
+          <rect x="276" y="33" width="62" height="4" rx="1" fill="#4a3528" stroke="#5a3d28" stroke-width="0.4"/>
+          <!-- Valve knob -->
+          <circle cx="278" cy="42" r="3" fill="#5a3d28" stroke="#7a5a3e" stroke-width="0.5"/>
+          <line x1="276" y1="42" x2="280" y2="42" stroke="#7a5a3e" stroke-width="0.5"/>
+          <!-- Heat waves -->
+          <path d="M285 28 Q290 20 295 28 Q300 20 305 28 Q310 20 315 28" stroke="#e85d2a" stroke-width="0.8" fill="none" opacity="0">
+            <animate attributeName="opacity" values="0;0.5;0" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M285 32 Q290 26 295 32 Q300 26 305 32 Q310 26 315 32;M285 16 Q290 8 295 16 Q300 8 305 16 Q310 8 315 16" dur="3s" repeatCount="indefinite"/>
           </path>
-          <path d="M305 38 Q310 30 315 38" stroke="#e85d2a" stroke-width="0.8" fill="none" opacity="0">
-            <animate attributeName="opacity" values="0;0.35;0" dur="3.5s" begin="0.4s" repeatCount="indefinite"/>
-            <animate attributeName="d" values="M305 40 Q310 35 315 40;M305 28 Q310 21 315 28" dur="3.5s" begin="0.4s" repeatCount="indefinite"/>
+          <path d="M290 28 Q295 22 300 28 Q305 22 310 28" stroke="#e85d2a" stroke-width="0.6" fill="none" opacity="0">
+            <animate attributeName="opacity" values="0;0.35;0" dur="3.5s" begin="0.5s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M290 30 Q295 25 300 30 Q305 25 310 30;M290 18 Q295 11 300 18 Q305 11 310 18" dur="3.5s" begin="0.5s" repeatCount="indefinite"/>
           </path>
         </g>
+
+        <!-- 3rd floor radiator -->
         <g>
-          <rect x="270" y="118" width="55" height="30" rx="3" fill="none" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="280" y1="121" x2="280" y2="145" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="290" y1="121" x2="290" y2="145" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="300" y1="121" x2="300" y2="145" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="310" y1="121" x2="310" y2="145" stroke="#e85d2a" stroke-width="1.2"/>
-          <rect x="268" y="116" width="59" height="34" rx="5" fill="#e85d2a" opacity="0">
-            <animate attributeName="opacity" values="0;0.06;0" dur="4s" begin="0.5s" repeatCount="indefinite"/>
+          <rect x="275" y="110" width="68" height="38" rx="0" fill="url(#heatGlow)">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" begin="0.5s" repeatCount="indefinite"/>
           </rect>
-          <path d="M285 113 Q290 105 295 113 Q300 105 305 113" stroke="#e85d2a" stroke-width="0.8" fill="none" opacity="0">
-            <animate attributeName="opacity" values="0;0.4;0" dur="3.2s" begin="0.3s" repeatCount="indefinite"/>
-            <animate attributeName="d" values="M285 115 Q290 110 295 115 Q300 110 305 115;M285 103 Q290 96 295 103 Q300 96 305 103" dur="3.2s" begin="0.3s" repeatCount="indefinite"/>
+          <rect x="280" y="145" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="337" y="145" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="278" y="115" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="288" y="115" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="298" y="115" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="308" y="115" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="318" y="115" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="328" y="115" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="276" y="113" width="62" height="4" rx="1" fill="#4a3528" stroke="#5a3d28" stroke-width="0.4"/>
+          <circle cx="278" cy="122" r="3" fill="#5a3d28" stroke="#7a5a3e" stroke-width="0.5"/>
+          <line x1="276" y1="122" x2="280" y2="122" stroke="#7a5a3e" stroke-width="0.5"/>
+          <path d="M288 108 Q293 100 298 108 Q303 100 308 108" stroke="#e85d2a" stroke-width="0.7" fill="none" opacity="0">
+            <animate attributeName="opacity" values="0;0.45;0" dur="3.2s" begin="0.3s" repeatCount="indefinite"/>
+            <animate attributeName="d" values="M288 110 Q293 104 298 110 Q303 104 308 110;M288 96 Q293 88 298 96 Q303 88 308 96" dur="3.2s" begin="0.3s" repeatCount="indefinite"/>
           </path>
         </g>
+
+        <!-- 2nd floor radiator -->
         <g>
-          <rect x="270" y="193" width="55" height="30" rx="3" fill="none" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="280" y1="196" x2="280" y2="220" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="290" y1="196" x2="290" y2="220" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="300" y1="196" x2="300" y2="220" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="310" y1="196" x2="310" y2="220" stroke="#e85d2a" stroke-width="1.2"/>
-          <rect x="268" y="191" width="59" height="34" rx="5" fill="#e85d2a" opacity="0">
-            <animate attributeName="opacity" values="0;0.06;0" dur="4s" begin="1s" repeatCount="indefinite"/>
+          <rect x="275" y="185" width="68" height="38" rx="0" fill="url(#heatGlow)">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" begin="1s" repeatCount="indefinite"/>
           </rect>
-        </g>
-        <g>
-          <rect x="270" y="263" width="55" height="30" rx="3" fill="none" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="280" y1="266" x2="280" y2="290" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="290" y1="266" x2="290" y2="290" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="300" y1="266" x2="300" y2="290" stroke="#e85d2a" stroke-width="1.2"/>
-          <line x1="310" y1="266" x2="310" y2="290" stroke="#e85d2a" stroke-width="1.2"/>
-          <rect x="268" y="261" width="59" height="34" rx="5" fill="#e85d2a" opacity="0">
-            <animate attributeName="opacity" values="0;0.06;0" dur="4s" begin="1.5s" repeatCount="indefinite"/>
-          </rect>
+          <rect x="280" y="220" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="337" y="220" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="278" y="190" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="288" y="190" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="298" y="190" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="308" y="190" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="318" y="190" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="328" y="190" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="276" y="188" width="62" height="4" rx="1" fill="#4a3528" stroke="#5a3d28" stroke-width="0.4"/>
+          <circle cx="278" cy="197" r="3" fill="#5a3d28" stroke="#7a5a3e" stroke-width="0.5"/>
+          <line x1="276" y1="197" x2="280" y2="197" stroke="#7a5a3e" stroke-width="0.5"/>
         </g>
 
-        <!-- Return connections -->
-        <line x1="325" y1="58" x2="360" y2="58" stroke="#4da6ff" stroke-width="1.5"/>
-        <line x1="325" y1="133" x2="360" y2="133" stroke="#4da6ff" stroke-width="1.5"/>
-        <line x1="325" y1="208" x2="360" y2="208" stroke="#4da6ff" stroke-width="1.5"/>
-        <line x1="325" y1="278" x2="360" y2="278" stroke="#4da6ff" stroke-width="1.5"/>
+        <!-- 1st floor radiator -->
+        <g>
+          <rect x="275" y="260" width="68" height="38" rx="0" fill="url(#heatGlow)">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="4s" begin="1.5s" repeatCount="indefinite"/>
+          </rect>
+          <rect x="280" y="295" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="337" y="295" width="3" height="5" rx="0.5" fill="#4a3528"/>
+          <rect x="278" y="265" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="288" y="265" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="298" y="265" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="308" y="265" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="318" y="265" width="8" height="30" rx="2" fill="#3a2a1e" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="328" y="265" width="8" height="30" rx="2" fill="#3e2e20" stroke="#5a3d28" stroke-width="0.6"/>
+          <rect x="276" y="263" width="62" height="4" rx="1" fill="#4a3528" stroke="#5a3d28" stroke-width="0.4"/>
+          <circle cx="278" cy="272" r="3" fill="#5a3d28" stroke="#7a5a3e" stroke-width="0.5"/>
+          <line x1="276" y1="272" x2="280" y2="272" stroke="#7a5a3e" stroke-width="0.5"/>
+        </g>
 
-        <!-- Return riser (water down - blue) -->
-        <line x1="360" y1="35" x2="360" y2="325" stroke="#4da6ff" stroke-width="2.5"/>
-        <line x1="360" y1="325" x2="250" y2="325" stroke="#4da6ff" stroke-width="2.5"/>
+
+        <!-- === RETURN CONNECTIONS + RISER === -->
+
+        <!-- Return branches (radiator to return riser) -->
+        <rect x="338" y="53" width="42" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.8"/>
+        <rect x="338" y="133" width="42" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.8"/>
+        <rect x="338" y="208" width="42" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.8"/>
+        <rect x="338" y="283" width="42" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.8"/>
+
+        <!-- Return riser (water down) -->
+        <rect x="377" y="18" width="7" height="357" fill="url(#pipeBlue)" opacity="0.85"/>
+        <line x1="380" y1="18" x2="380" y2="375" stroke="#7ec4ff" stroke-width="0.4" opacity="0.25"/>
+        <!-- Return pipe joints -->
+        <rect x="375" y="91" width="11" height="6" rx="1.5" fill="#3a7ab5" stroke="#2a6fa8" stroke-width="0.5"/>
+        <rect x="375" y="166" width="11" height="6" rx="1.5" fill="#3a7ab5" stroke="#2a6fa8" stroke-width="0.5"/>
+        <rect x="375" y="241" width="11" height="6" rx="1.5" fill="#3a7ab5" stroke="#2a6fa8" stroke-width="0.5"/>
+        <rect x="375" y="316" width="11" height="6" rx="1.5" fill="#3a7ab5" stroke="#2a6fa8" stroke-width="0.5"/>
+
+        <!-- Return horizontal to boiler -->
+        <rect x="275" y="372" width="109" height="4" rx="2" fill="url(#pipeBlue)" opacity="0.8"/>
 
         <!-- Condensate drops DOWN -->
-        <circle r="2" fill="#4da6ff" opacity="0">
-          <animate attributeName="cy" values="42;320" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="360;360" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.55;0.5;0" dur="3s" repeatCount="indefinite"/>
-        </circle>
-        <circle r="1.5" fill="#4da6ff" opacity="0">
-          <animate attributeName="cy" values="42;320" dur="3s" begin="1s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="360;360" dur="3s" begin="1s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.45;0.4;0" dur="3s" begin="1s" repeatCount="indefinite"/>
-        </circle>
-        <circle r="2" fill="#4da6ff" opacity="0">
-          <animate attributeName="cy" values="42;320" dur="3s" begin="2s" repeatCount="indefinite"/>
-          <animate attributeName="cx" values="360;360" dur="3s" begin="2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="0;0.55;0.5;0" dur="3s" begin="2s" repeatCount="indefinite"/>
-        </circle>
-
-        <!-- Annotations -->
-        <g font-family="DM Sans">
-          <circle cx="470" cy="338" r="11" fill="#e85d2a" opacity="0.12"/>
-          <text x="470" y="342" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">1</text>
-          <text x="488" y="335" fill="#e2e8f0" font-size="9.5" font-weight="600">Boiler heats water</text>
-          <text x="488" y="348" fill="#5a6270" font-size="8.5">Gas or oil creates steam</text>
-
-          <circle cx="470" cy="278" r="11" fill="#e85d2a" opacity="0.12"/>
-          <text x="470" y="282" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">2</text>
-          <text x="488" y="275" fill="#e2e8f0" font-size="9.5" font-weight="600">Steam rises through pipes</text>
-          <text x="488" y="288" fill="#5a6270" font-size="8.5">Pressure carries it to every floor</text>
-
-          <circle cx="470" cy="208" r="11" fill="#e85d2a" opacity="0.12"/>
-          <text x="470" y="212" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">3</text>
-          <text x="488" y="205" fill="#e2e8f0" font-size="9.5" font-weight="600">Radiators release heat</text>
-          <text x="488" y="218" fill="#5a6270" font-size="8.5">Steam condenses as it cools</text>
-
-          <circle cx="470" cy="133" r="11" fill="#4da6ff" opacity="0.12"/>
-          <text x="470" y="137" fill="#4da6ff" font-size="10" font-weight="700" text-anchor="middle">4</text>
-          <text x="488" y="130" fill="#e2e8f0" font-size="9.5" font-weight="600">Water returns to boiler</text>
-          <text x="488" y="143" fill="#5a6270" font-size="8.5">Cycle repeats continuously</text>
+        <g filter="url(#steamBlur)">
+          <circle r="2.5" fill="#4da6ff" opacity="0">
+            <animate attributeName="cy" values="25;370" dur="3.5s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="380;380" dur="3.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.4;0.35;0" dur="3.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="2" fill="#4da6ff" opacity="0">
+            <animate attributeName="cy" values="25;370" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="380;380" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.35;0.3;0" dur="3.5s" begin="1.2s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="2.5" fill="#4da6ff" opacity="0">
+            <animate attributeName="cy" values="25;370" dur="3.5s" begin="2.4s" repeatCount="indefinite"/>
+            <animate attributeName="cx" values="380;380" dur="3.5s" begin="2.4s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0;0.38;0.33;0" dur="3.5s" begin="2.4s" repeatCount="indefinite"/>
+          </circle>
         </g>
 
-        <!-- Pipe labels -->
-        <text x="188" y="185" fill="#e85d2a" font-size="7.5" font-family="DM Sans" opacity="0.7" transform="rotate(-90,188,185)">STEAM</text>
-        <text x="372" y="185" fill="#4da6ff" font-size="7.5" font-family="DM Sans" opacity="0.7" transform="rotate(-90,372,185)">WATER</text>
+
+        <!-- === PIPE LABELS === -->
+        <text x="185" y="200" fill="#e85d2a" font-size="7" font-family="DM Sans" font-weight="600" opacity="0.55" letter-spacing="1" transform="rotate(-90,185,200)">STEAM</text>
+        <text x="395" y="200" fill="#4da6ff" font-size="7" font-family="DM Sans" font-weight="600" opacity="0.55" letter-spacing="1" transform="rotate(-90,395,200)">WATER</text>
+
+
+        <!-- === ANNOTATIONS === -->
+        <g font-family="DM Sans">
+          <!-- Step 1 -->
+          <line x1="275" y1="391" x2="470" y2="391" stroke="#272d36" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <circle cx="480" cy="391" r="11" fill="#e85d2a" opacity="0.15"/>
+          <text x="480" y="395" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">1</text>
+          <text x="498" y="387" fill="#e2e8f0" font-size="9" font-weight="600">Boiler heats water</text>
+          <text x="498" y="400" fill="#5a6270" font-size="8">Gas or oil creates steam</text>
+
+          <!-- Step 2 -->
+          <line x1="210" y1="210" x2="470" y2="310" stroke="#272d36" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <circle cx="480" cy="310" r="11" fill="#e85d2a" opacity="0.15"/>
+          <text x="480" y="314" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">2</text>
+          <text x="498" y="306" fill="#e2e8f0" font-size="9" font-weight="600">Steam rises through pipes</text>
+          <text x="498" y="319" fill="#5a6270" font-size="8">Pressure carries it to every floor</text>
+
+          <!-- Step 3 -->
+          <line x1="340" y1="135" x2="470" y2="225" stroke="#272d36" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <circle cx="480" cy="225" r="11" fill="#e85d2a" opacity="0.15"/>
+          <text x="480" y="229" fill="#e85d2a" font-size="10" font-weight="700" text-anchor="middle">3</text>
+          <text x="498" y="221" fill="#e2e8f0" font-size="9" font-weight="600">Radiators release heat</text>
+          <text x="498" y="234" fill="#5a6270" font-size="8">Steam condenses as it cools</text>
+
+          <!-- Step 4 -->
+          <line x1="386" y1="135" x2="470" y2="145" stroke="#272d36" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <circle cx="480" cy="145" r="11" fill="#4da6ff" opacity="0.15"/>
+          <text x="480" y="149" fill="#4da6ff" font-size="10" font-weight="700" text-anchor="middle">4</text>
+          <text x="498" y="141" fill="#e2e8f0" font-size="9" font-weight="600">Water returns to boiler</text>
+          <text x="498" y="154" fill="#5a6270" font-size="8">Cycle repeats continuously</text>
+        </g>
+
       </svg>
       <p class="diagram-note">Typical two-pipe steam system in a pre-war NYC apartment building</p>
     </div>
