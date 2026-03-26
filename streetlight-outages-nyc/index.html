@@ -155,7 +155,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
 #loading-overlay {
   position: absolute;
   inset: 0;
-  background: var(--bg);
+  background: rgba(13,17,23,0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1090,28 +1090,24 @@ async function init() {
     document.getElementById('loading-overlay').classList.add('hidden');
     mapShown = true;
 
-    // Refresh from API in background
-    allComplaints = [];
-    fetchAll(() => {
+    // Refresh from API in background (don't rebuild progressively — just update when done)
+    const freshComplaints = [];
+    fetchAll(() => {}).then(() => {
+      // allComplaints was populated by fetchAll
       rebuildMap();
-    }).then(() => {
-      rebuildMap();
-      // Assign precincts once done
+      saveCache(allComplaints);
       precinctPromise.then(() => assignPrecincts(allComplaints));
     });
   } else {
-    // Progressive load — show map after first batch
-    let batchCount = 0;
+    // First visit — show map after first batch arrives
+    document.querySelector('.loading-text').textContent = 'Fetching NYC 311 data...';
+    let firstBatch = true;
     await fetchAll(() => {
-      batchCount++;
-      if (batchCount === 1 && !mapShown) {
-        // Show map immediately with first batch
+      if (firstBatch && allComplaints.length > 0) {
+        firstBatch = false;
         rebuildMap();
         document.getElementById('loading-overlay').classList.add('hidden');
         mapShown = true;
-      } else if (batchCount % 3 === 0) {
-        // Refresh every 3 batches
-        rebuildMap();
       }
     });
 
