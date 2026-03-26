@@ -56,6 +56,48 @@
   .source { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--cloud); font-size: 10px; color: var(--charcoal); gap: 12px; }
   .source img { height: 11px; opacity: 0.5; flex-shrink: 0; }
 
+  /* HEATMAP */
+  .heatmap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .heatmap { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; font-variant-numeric: tabular-nums; }
+  .heatmap th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--charcoal); padding: 6px 4px; text-align: center; border-bottom: 2px solid var(--black); }
+  .heatmap th:first-child { text-align: left; }
+  .heatmap td { text-align: center; padding: 4px 3px; border-bottom: 1px solid #f0f0f0; }
+  .heatmap td:first-child { text-align: left; font-weight: 700; font-size: 13px; color: var(--black); padding-right: 8px; }
+  .heatmap .total-col { font-weight: 900; border-left: 2px solid var(--cloud); padding-left: 8px; }
+  .heatmap .rate-col { color: var(--charcoal); font-size: 11px; padding-left: 6px; }
+  .heatmap td.h0 { color: #ccc; }
+  .heatmap td.h1 { background: #fde5dd; }
+  .heatmap td.h2 { background: #fabcaa; }
+  .heatmap td.h3 { background: #f69577; color: var(--white); }
+  .heatmap td.h4 { background: #ff7c53; color: var(--white); }
+  .heatmap td.h5 { background: #fb693c; color: var(--white); }
+  .heatmap td.h6 { background: #ed5236; color: var(--white); }
+
+  /* TRACKER */
+  .tracker-item { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .tracker-item .t-num { font-weight: 900; color: var(--magenta); min-width: 20px; }
+  .tracker-item .t-date { font-size: 11px; color: var(--charcoal); font-weight: 500; min-width: 70px; }
+  .tracker-item .t-name { font-weight: 600; }
+  .tracker-item .t-detail { font-size: 12px; color: var(--charcoal); margin-left: auto; }
+  .tracker-empty { padding: 20px 0; text-align: center; color: var(--charcoal); font-size: 13px; font-style: italic; }
+
+  /* NAMES */
+  .names-year-block { margin-bottom: 16px; }
+  .names-year-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid var(--cloud); }
+  .names-year-header h3 { font-size: 14px; font-weight: 900; }
+  .names-year-header .badge { font-size: 11px; font-weight: 700; background: var(--magenta); color: white; padding: 1px 7px; border-radius: 9px; }
+  .names-year-header .meta { font-size: 11px; color: var(--charcoal); margin-left: auto; }
+  .names-list { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 13px; }
+  .names-list .person { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+  .names-list .person .pname { font-weight: 600; }
+  .names-list .person .page { color: var(--charcoal); font-size: 11px; }
+  .names-list .person .pcause { font-size: 10px; padding: 0 4px; border-radius: 3px; font-weight: 500; }
+  .pcause-medical { background: var(--cloud); color: var(--charcoal); }
+  .pcause-suicide { background: var(--indigo); color: white; }
+  .pcause-overdose { background: var(--orange); color: white; }
+  .pcause-accident { background: var(--periwinkle); color: white; }
+  .pcause-unknown { background: #eee; color: #999; }
+
   /* FOOTER */
   footer { background: var(--orange); color: var(--black); padding: 20px 0; margin-top: 4px; font-size: 12px; }
   footer strong { font-weight: 700; }
@@ -183,11 +225,60 @@
     </div>
   </div>
 
-  <!-- DEATHS LINK -->
-  <div class="section" style="text-align:center; padding: 32px 0;">
-    <h2 style="margin-bottom:8px;">In-custody deaths tracker</h2>
-    <div class="dek" style="margin-bottom:16px; max-width:500px; margin-left:auto; margin-right:auto;">Detailed tracking of every death in NYC DOC custody since 2000, updated daily.</div>
-    <a href="../rikers-death-tracker/" style="display:inline-block; background:var(--magenta); color:white; padding:10px 28px; border-radius:4px; text-decoration:none; font-weight:700; font-size:14px;">View the death tracker &rarr;</a>
+  <!-- DEATHS -->
+  <div class="section">
+    <h2>Deaths spiked even as the jail population fell by half</h2>
+    <div class="dek">Annual deaths (magenta labels) over average daily population (chartreuse bars). Rate per 1,000 ADP shown as orange line. Data from 2000 to present, updated daily.</div>
+    <div class="chart-row full">
+      <div class="chart-box"><canvas id="deathChart" height="280"></canvas></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Death rate per 1,000 people in custody</h3>
+        <div class="cb-dek">2022 was the highest in a generation</div>
+        <canvas id="deathRateChart" height="180"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3 id="trackerTitle">2026 deaths</h3>
+        <div class="cb-dek" id="trackerDek">Checked daily via news monitoring.</div>
+        <div id="trackerList"></div>
+      </div>
+    </div>
+    <div class="source">
+      <span>Source: FOIL request to NYC Board of Correction (2000-2022); Comptroller DOC Dashboard; author's compilation (2023-present)</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- MONTHLY HEATMAP -->
+  <div class="section">
+    <h2>Number and rate of in-custody deaths by month</h2>
+    <div class="dek">Annual and year-to-date rates per 1,000 ADP, January 2000 - present</div>
+    <div class="heatmap-scroll">
+      <table class="heatmap">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+            <th class="total-col">Total</th>
+            <th class="rate-col">Rate</th>
+          </tr>
+        </thead>
+        <tbody id="heatmapBody"></tbody>
+      </table>
+    </div>
+    <div class="source">
+      <span>Source: FOIL request to NYC Board of Correction (2000-2022); author's compilation (2023-2025)</span>
+      <img src="vc-logo-black.png" alt="Vital City">
+    </div>
+  </div>
+
+  <!-- NAMED INDIVIDUALS -->
+  <div class="section">
+    <h2>Their names</h2>
+    <div class="dek">Every person who died in NYC DOC custody since 2019, compiled from the Comptroller's DOC Dashboard and the Vera Institute of Justice.</div>
+    <div id="namesContainer"></div>
   </div>
 </div>
 
@@ -201,10 +292,11 @@
 
 <script>
 (async function() {
-  var D;
+  var D, DD;
   try {
-    var r = await fetch('data.json');
-    D = await r.json();
+    var results = await Promise.all([fetch('data.json'), fetch('deaths-data.json')]);
+    D = await results[0].json();
+    DD = await results[1].json();
   } catch(e) { console.error('Data load failed', e); return; }
   try {
 
@@ -425,8 +517,146 @@
     })
   });
 
+  // ── DEATH CHARTS (from deaths-data.json) ──
+  var hist = DD.historical;
+  var deathYears = hist.map(function(h) { return h.year; });
+  var deaths = hist.map(function(h) { return h.deaths; });
+  var adps = hist.map(function(h) { return h.adp || null; });
+  var rates = hist.map(function(h) { return h.rate; });
+  var currentYearDeaths = (DD.currentYear && DD.currentYear.deaths) || [];
+
+  // Death labels plugin
+  var deathLabelsPlugin = {
+    id: 'deathLabels',
+    afterDatasetsDraw: function(chart) {
+      var ctx = chart.ctx;
+      var meta = chart.getDatasetMeta(0);
+      ctx.save();
+      ctx.font = 'bold 11px ' + ff;
+      ctx.fillStyle = '#e7466d';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      meta.data.forEach(function(bar, i) {
+        ctx.fillText(deaths[i], bar.x, bar.y - 4);
+      });
+      ctx.restore();
+    }
+  };
+  var rateLabelsPlugin = {
+    id: 'rateLabels',
+    afterDatasetsDraw: function(chart) {
+      var ctx = chart.ctx;
+      var meta = chart.getDatasetMeta(1);
+      ctx.save();
+      ctx.font = '600 9px ' + ff;
+      ctx.fillStyle = '#ff7c53';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      meta.data.forEach(function(pt, i) {
+        var show = i === 0 || i === rates.length - 1 || rates[i] >= 2.5 || (i > 0 && Math.abs(rates[i] - rates[i-1]) >= 0.8);
+        if (show) ctx.fillText(rates[i].toFixed(1), pt.x, pt.y - 6);
+      });
+      ctx.restore();
+    }
+  };
+
+  new Chart(q('deathChart'), {
+    type: 'bar',
+    data: {
+      labels: deathYears,
+      datasets: [
+        { label: 'Avg. daily population', data: adps, backgroundColor: '#dde44c', borderRadius: 1, order: 2, yAxisID: 'y' },
+        { label: 'Rate per 1,000 ADP', data: rates, type: 'line', borderColor: '#ff7c53', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#ff7c53', pointBorderColor: '#fff', pointBorderWidth: 1.5, tension: 0.25, order: 1, yAxisID: 'y1' }
+      ]
+    },
+    plugins: [deathLabelsPlugin, rateLabelsPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 24 } },
+      plugins: { legend: { position: 'top', align: 'start', labels: { font: { size: 11, family: ff }, usePointStyle: true, pointStyle: 'rectRounded', padding: 12 } } },
+      scales: {
+        y: { position: 'left', beginAtZero: true, max: 16000, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175', callback: function(v) { return v >= 1000 ? (v/1000).toFixed(0) + 'k' : v; } },
+          title: { display: true, text: 'Avg. daily population', font: { size: 11, weight: '600', family: ff }, color: '#707175' } },
+        y1: { position: 'right', beginAtZero: true, max: 4, grid: { display: false }, ticks: { font: { size: 10, family: ff }, color: '#ff7c53' },
+          title: { display: true, text: 'Rate per 1,000 ADP', font: { size: 11, weight: '600', family: ff }, color: '#ff7c53' } },
+        x: { grid: { display: false }, ticks: { font: { size: 9, family: ff }, color: '#707175', maxRotation: 45 } }
+      }
+    }
+  });
+
+  // Death rate chart
+  var rateOnlyLabels = {
+    id: 'rateOnlyLabels2',
+    afterDatasetsDraw: function(chart) {
+      var ctx = chart.ctx; var meta = chart.getDatasetMeta(0);
+      ctx.save(); ctx.font = 'bold 10px ' + ff; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      meta.data.forEach(function(pt, i) {
+        var show = rates[i] >= 2.5 || rates[i] <= 0.5 || i === 0 || i === rates.length - 1;
+        if (show) { ctx.fillStyle = rates[i] >= 2.5 ? '#e7466d' : '#ff7c53'; ctx.fillText(rates[i].toFixed(1), pt.x, pt.y - 6); }
+      });
+      ctx.restore();
+    }
+  };
+  new Chart(q('deathRateChart'), {
+    type: 'line',
+    data: { labels: deathYears, datasets: [{ data: rates, borderColor: '#ff7c53', backgroundColor: 'rgba(255,124,83,0.08)', borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: rates.map(function(r) { return r >= 2.5 ? '#e7466d' : '#ff7c53'; }), pointBorderColor: '#fff', pointBorderWidth: 2, fill: true, tension: 0.25 }] },
+    plugins: [rateOnlyLabels],
+    options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 16 } }, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10, family: ff }, color: '#707175' } }, x: { grid: { display: false }, ticks: { font: { size: 9, family: ff }, color: '#707175', maxRotation: 45 } } } }
+  });
+
+  // 2026 tracker
+  var trackerList = q('trackerList');
+  q('trackerTitle').textContent = (DD.currentYear ? DD.currentYear.year : 2026) + ' deaths';
+  if (currentYearDeaths.length > 0) {
+    q('trackerDek').textContent = currentYearDeaths.length + ' death' + (currentYearDeaths.length !== 1 ? 's' : '') + ' reported so far. Checked daily.';
+    trackerList.innerHTML = currentYearDeaths.map(function(d, i) {
+      var dt = new Date(d.date + 'T12:00:00');
+      var dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return '<div class="tracker-item"><span class="t-num">' + (i+1) + '</span><span class="t-date">' + dateStr + '</span><span class="t-name">' + d.name + (d.age ? ', ' + d.age : '') + '</span><span class="t-detail">' + [d.facility, d.cause].filter(Boolean).join(' - ') + '</span></div>';
+    }).join('');
+  } else {
+    trackerList.innerHTML = '<div class="tracker-empty">No deaths reported so far. Checked daily.</div>';
+  }
+
+  // Heatmap
+  var monthlyDeaths = DD.monthlyDeaths || {};
+  var heatYears = Object.keys(monthlyDeaths).map(Number).sort();
+  var heatClass = function(v) { return v === 0 ? 'h0' : v === 1 ? 'h1' : v === 2 ? 'h2' : v === 3 ? 'h3' : v === 4 ? 'h4' : v === 5 ? 'h5' : v >= 6 ? 'h6' : 'h0'; };
+  var heatBody = q('heatmapBody');
+  heatYears.forEach(function(yr) {
+    var months = monthlyDeaths[yr];
+    var total = months.reduce(function(s, v) { return s + v; }, 0);
+    var h = hist.find(function(x) { return x.year === yr; });
+    var rate = h ? h.rate.toFixed(1) : '--';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + yr + '</td>' + months.map(function(v) { return '<td class="' + heatClass(v) + '">' + v + '</td>'; }).join('') + '<td class="total-col">' + total + '</td><td class="rate-col">' + rate + '</td>';
+    heatBody.appendChild(tr);
+  });
+
+  // Named individuals
+  var individuals = DD.individuals || [];
+  var namesContainer = q('namesContainer');
+  var byYear = {};
+  individuals.forEach(function(d) { var yr = +d.date.substring(0, 4); (byYear[yr] = byYear[yr] || []).push(d); });
+  var causeClass = function(c) { if (!c) return 'pcause-unknown'; var l = c.toLowerCase(); if (l.indexOf('suicide') >= 0) return 'pcause-suicide'; if (l.indexOf('overdose') >= 0 || l.indexOf('drug') >= 0) return 'pcause-overdose'; if (l.indexOf('medical') >= 0) return 'pcause-medical'; if (l.indexOf('accident') >= 0) return 'pcause-accident'; return 'pcause-unknown'; };
+  var causeShort = function(c) { if (!c || c === 'Unknown') return 'Unk'; var l = c.toLowerCase(); if (l.indexOf('suicide') >= 0) return 'Suicide'; if (l.indexOf('overdose') >= 0 || l.indexOf('drug') >= 0) return 'OD'; if (l.indexOf('medical') >= 0) return 'Med'; if (l.indexOf('accident') >= 0) return 'Acc'; return 'Unk'; };
+  Object.keys(byYear).map(Number).sort(function(a, b) { return b - a; }).forEach(function(yr) {
+    var ppl = byYear[yr].sort(function(a, b) { return a.date.localeCompare(b.date); });
+    var h = hist.find(function(x) { return x.year === yr; });
+    var div = document.createElement('div');
+    div.className = 'names-year-block';
+    div.innerHTML = '<div class="names-year-header"><h3>' + yr + '</h3><span class="badge">' + ppl.length + '</span>' +
+      (h ? '<span class="meta">' + (h.adp ? 'ADP ' + h.adp.toLocaleString() + ' - ' : '') + 'Rate ' + h.rate + '</span>' : '') +
+      '</div><div class="names-list">' +
+      ppl.map(function(d) {
+        return '<span class="person"><span class="pname">' + d.name + '</span>' + (d.age ? '<span class="page">' + d.age + '</span>' : '') + '<span class="pcause ' + causeClass(d.cause) + '">' + causeShort(d.cause) + '</span></span>';
+      }).join('') + '</div>';
+    namesContainer.appendChild(div);
+  });
+
   // ── UPDATE LINE ──
-  q('updateLine').textContent = 'Data last updated: ' + D.lastUpdated;
+  q('updateLine').textContent = 'Data last updated: ' + D.lastUpdated + ' | Deaths data last checked: ' + (DD.lastChecked || DD.lastUpdated);
 
   } catch(e) { console.error('Script error:', e); }
 })();
