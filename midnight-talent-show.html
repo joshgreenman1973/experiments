@@ -1805,37 +1805,115 @@ function doRestart(){
 }
 
 // ===== INIT =====
-function init(){
-  print(`<span class="room">╔═══════════════════════════════════════════════════════╗
-║     T H E   M I D N I G H T   T A L E N T   S H O W ║
-║                                                       ║
-║         A Text Adventure at Mark Twain IS 239         ║
-║              Coney Island, Brooklyn                   ║
-╚═══════════════════════════════════════════════════════╝</span>`);
-  printBlank();
-  print(`<span class="sys">It's 4:47 PM on a Friday at Mark Twain IS 239.</span>`);
-  printBlank();
-  print(`You stayed late after school to finish a creative writing piece in Ms. Obrien's room. You must have dozed off—waking up at dawn to catch the bus from across Brooklyn and then hauling a fifty-pound backpack up four flights of stairs will do that to you.`);
-  printBlank();
-  print(`When you open your eyes, the room is dark. The hallway is silent. Your phone is locked in its <span class="item">Yondr pouch</span> (of course). And the clock on the wall reads... <span class="err">midnight?</span>`);
-  printBlank();
-  print(`That can't be right.`);
-  printBlank();
-  print(`You grab your <span class="item">flashlight</span> and step into the hallway. The fluorescent lights have turned a sickly green. The clocks are running backwards. And from somewhere deep in the building comes a sound that makes your skin prickle:`);
-  printBlank();
-  print(`<span class="atm">A typewriter. Clacking away. In a school that hasn't owned a typewriter since 1987.</span>`);
-  printBlank();
-  print(`You are <span class="chr">Lola</span>. You have long dark hair, a very heavy backpack, and a really bad feeling about this.`);
-  printBlank();
-  print(`Type <span class="hint">HELP</span> for a list of commands, or just start exploring.`);
-  printBlank();
+// ===== ANIMATED BOOT SEQUENCE =====
+function typeLine(text,cls,delay){
+  return new Promise(resolve=>{
+    setTimeout(()=>{
+      const p=document.createElement('p');
+      if(cls)p.className=cls;
+      p.style.opacity='0';
+      p.innerHTML=text;
+      out.appendChild(p);
+      // Fade in
+      requestAnimationFrame(()=>{p.style.transition='opacity 0.15s';p.style.opacity='1';});
+      out.scrollTop=out.scrollHeight;
+      resolve();
+    },delay);
+  });
+}
+
+async function bootSequence(){
+  document.getElementById('bar').style.visibility='hidden';
+  document.getElementById('in').style.visibility='hidden';
+  const d=80;
+
+  await typeLine(`<span class="sys">IS-239 BUILDING MANAGEMENT SYSTEM v4.7.1</span>`,'',0);
+  await typeLine(`<span class="sys">COPYRIGHT (C) 1987 MARK TWAIN INTERMEDIATE SCHOOL</span>`,'',d*4);
+  await typeLine(`<span class="sys">CONEY ISLAND, BROOKLYN, NEW YORK 11224</span>`,'',d*3);
+  await typeLine(`&nbsp;`,'',d*2);
+  await typeLine(`<span class="sys">PERFORMING SYSTEM CHECK...</span>`,'',d*5);
+  await typeLine(`<span class="sys">  FLUORESCENT LIGHTS ........... <span class="win">OK</span></span>`,'',d*4);
+  await typeLine(`<span class="sys">  HALLWAY MONITORS ............. <span class="win">OK</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  CAFETERIA EQUIPMENT .......... <span class="win">OK</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  YONDR POUCH SYSTEM ........... <span class="win">LOCKED</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  ELEVATOR (OUT OF ORDER) ...... <span class="item">SKIP</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  CLOCK SYNCHRONIZATION ........ <span class="err">ERROR</span></span>`,'',d*5);
+  await typeLine(`<span class="sys">  CLOCK SYNCHRONIZATION ........ <span class="err">ERROR</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  CLOCK SYNCHRONIZATION ........ <span class="err">REVERSED?!</span></span>`,'',d*3);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`<span class="err">*** WARNING: MIDNIGHT EVENT DETECTED ***</span>`,'',d*6);
+  await typeLine(`<span class="err">*** THIS OCCURS ONCE EVERY 50 YEARS ***</span>`,'',d*4);
+  await typeLine(`<span class="err">*** LAST OCCURRENCE: 1976 ***</span>`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`<span class="sys">SCANNING FOR LIFE SIGNS...</span>`,'',d*5);
+  await typeLine(`<span class="sys">  BASEMENT .................... <span class="chr">1 (UNIDENTIFIED - FELINE?)</span></span>`,'',d*4);
+  await typeLine(`<span class="sys">  GYMNASIUM ................... <span class="chr">1 (STUDENT: CONOR)</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  LIBRARY ..................... <span class="chr">1 (STUDENT: SOPHIA)</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  ART STUDIO .................. <span class="chr">1 (STUDENT: ANNABEL) (2D?!)</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  MS. O'BRIEN'S ROOM .......... <span class="chr">1 (STUDENT: LOLA)</span></span>`,'',d*3);
+  await typeLine(`<span class="sys">  AUDITORIUM .................. <span class="err">1 (DECEASED: S. CLEMENS, 1910)</span></span>`,'',d*5);
+  await typeLine(`&nbsp;`,'',d*4);
+  await typeLine(`<span class="err">*** SUPERNATURAL ACTIVITY: EXTREME ***</span>`,'',d*4);
+  await typeLine(`<span class="err">*** ALL EXITS SEALED ***</span>`,'',d*3);
+  await typeLine(`<span class="err">*** GOOD LUCK ***</span>`,'',d*5);
+  await typeLine(`&nbsp;`,'',d*6);
+
+  // Clear the boot text
+  await new Promise(r=>setTimeout(r,800));
+  // Fade out boot text
+  const bootLines=out.querySelectorAll('p');
+  bootLines.forEach(p=>{p.style.transition='opacity 0.6s';p.style.opacity='0';});
+  await new Promise(r=>setTimeout(r,700));
+  out.innerHTML='';
+
+  // Title card with dramatic reveal
+  await typeLine(`&nbsp;`,'',0);
+  await typeLine(`<span class="room" style="font-size:1.1em;letter-spacing:2px">
+         ___  _  _  ___
+        |_ _|| || ||_ _|
+         | | | __ | | |
+         |_| |_||_| |_|
+
+  M I D N I G H T   T A L E N T   S H O W</span>`,'',100);
+  await typeLine(`&nbsp;`,'',d*4);
+  await typeLine(`<span class="room">      A Text Adventure at Mark Twain IS 239</span>`,'',d*4);
+  await typeLine(`<span class="room">           Coney Island, Brooklyn</span>`,'',d*3);
+  await typeLine(`&nbsp;`,'',d*5);
+
+  // Dramatic pause, then story
+  await typeLine(`<span class="sys">It's 4:47 PM on a Friday at Mark Twain IS 239.</span>`,'',d*6);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`You stayed late after school to finish a creative writing piece in Ms. O'Brien's room. You must have dozed off—waking up at dawn to catch the bus from across Brooklyn and then hauling a fifty-pound backpack up four flights of stairs will do that to you.`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`When you open your eyes, the room is dark. The hallway is silent. Your phone is locked in its <span class="item">Yondr pouch</span> (of course). And the clock on the wall reads... <span class="err">midnight?</span>`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`That can't be right.`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`You grab your <span class="item">flashlight</span> and step into the hallway. The fluorescent lights have turned a sickly green. The clocks are running backwards. And from somewhere deep in the building comes a sound that makes your skin prickle:`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`<span class="atm">A typewriter. Clacking away. In a school that hasn't owned a typewriter since 1987.</span>`,'',d*5);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`You are <span class="chr">Lola</span>. You have long dark hair, a very heavy backpack, and a really bad feeling about this.`,'',d*4);
+  await typeLine(`&nbsp;`,'',d*3);
+  await typeLine(`Type <span class="hint">HELP</span> for a list of commands, or just start exploring.`,'',d*3);
+  await typeLine(`&nbsp;`,'',d*2);
+
+  // Show UI and first room
+  document.getElementById('bar').style.visibility='visible';
+  document.getElementById('in').style.visibility='visible';
+  cmdInput.focus();
   showRoom();
   updateBar();
+}
+
+function init(){
+  bootSequence();
 }
 
 // ===== EVENT LISTENERS =====
 cmdInput.addEventListener('keydown',function(e){
   if(e.key==='Enter'){
+    if(document.getElementById('in').style.visibility==='hidden')return;
     const val=cmdInput.value;
     cmdInput.value='';
     handleInput(val);
