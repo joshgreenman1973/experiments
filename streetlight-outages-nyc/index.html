@@ -1039,22 +1039,43 @@ function buildChronicLayer(complaints, minCount = 20) {
   return layer;
 }
 
+let baseView = 'hex'; // tracks hex vs points independently
+
 function setView(view) {
-  currentView = view;
-  // Clear active from all view buttons in both toggles
-  document.querySelectorAll('.view-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
+  const isChronic = view === 'chronic10' || view === 'chronic20';
+
+  if (isChronic) {
+    if (currentView === view) {
+      // Toggle off: return to base view
+      currentView = baseView;
+    } else {
+      currentView = view;
+    }
+  } else {
+    baseView = view;
+    currentView = view;
+  }
+
+  // Update base view buttons (hex/points)
+  document.querySelectorAll('.view-toggle:not(.chronic-toggle) .view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === baseView);
+  });
+  // Update chronic buttons
+  document.querySelectorAll('.chronic-toggle .view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === currentView);
+  });
 
   if (hexLayer) map.removeLayer(hexLayer);
   if (pointLayer) map.removeLayer(pointLayer);
   if (chronicLayer10) map.removeLayer(chronicLayer10);
   if (chronicLayer20) map.removeLayer(chronicLayer20);
 
-  if (view === 'hex') {
-    map.addLayer(hexLayer);
-  } else if (view === 'chronic10') {
+  if (currentView === 'chronic10') {
     map.addLayer(chronicLayer10);
-  } else if (view === 'chronic20') {
+  } else if (currentView === 'chronic20') {
     map.addLayer(chronicLayer20);
+  } else if (currentView === 'hex') {
+    map.addLayer(hexLayer);
   } else {
     map.addLayer(pointLayer);
   }
