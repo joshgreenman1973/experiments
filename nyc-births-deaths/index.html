@@ -418,6 +418,18 @@
     color: var(--vc-black);
   }
 
+  /* ---- MAP SECTION ---- */
+  .map-controls { display:flex; align-items:center; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
+  .map-controls label { font-size:0.78rem; font-weight:600; color:var(--vc-charcoal); }
+  .map-controls label strong { color:var(--vc-black); font-size:0.95rem; }
+  .map-controls input[type="range"] { width:180px; accent-color:var(--vc-cerulean); }
+  .map-svg { width:100%; max-width:460px; display:block; }
+  .map-svg path { stroke:#fff; stroke-width:0.5; cursor:pointer; transition:fill 0.3s,stroke-width 0.15s; }
+  .map-svg path:hover { stroke-width:1.5; stroke:var(--vc-black); }
+  .map-legend-bar { display:flex; align-items:center; gap:4px; margin-top:8px; font-size:0.68rem; color:var(--vc-charcoal); }
+  .map-legend-bar .bar { display:flex; height:10px; border-radius:2px; overflow:hidden; flex:1; max-width:200px; }
+  .map-legend-bar .bar span { flex:1; }
+
   /* ---- DARK CHART ERA ANNOTATIONS ---- */
   .era-line { stroke: rgba(255,255,255,0.12); stroke-dasharray: 3,4; }
   .era-label { font-size: 10px; fill: var(--vc-periwinkle); text-anchor: middle; }
@@ -540,6 +552,26 @@
     <p class="dek">Births minus deaths each year — the "natural increase." This doesn't count migration, which has been at least as powerful a force. In 2020, COVID nearly erased the surplus entirely.</p>
     <div id="naturalChangeChart"></div>
     <div class="source-line">Source: <a href="https://www.nyc.gov/site/doh/data/data-sets/vital-statistics-data-archive.page">NYC DOHMH Annual Summary of Vital Statistics</a></div>
+  </div>
+
+  <div class="section" id="cdMapSection">
+    <h2>Where New Yorkers are born — and where they die</h2>
+    <p class="dek">Birth and death rates per 1,000 residents by community district. Rates vary dramatically across the city's 59 neighborhoods. Hover for details.</p>
+    <div class="map-controls">
+      <label>Year: <strong id="mapYearLabel">2021</strong></label>
+      <input type="range" id="mapYearSlider" min="2000" max="2021" value="2021" step="1">
+    </div>
+    <div class="section-row">
+      <div>
+        <div class="sub-heading births">Birth rate per 1,000</div>
+        <div id="birthMap"></div>
+      </div>
+      <div>
+        <div class="sub-heading deaths">Death rate per 1,000</div>
+        <div id="deathMap"></div>
+      </div>
+    </div>
+    <div class="source-line">Source: <a href="https://www.nyc.gov/site/doh/data/data-sets/public-use-birth-datasets.page">NYC DOHMH Community District Vital Statistics</a>; U.S. Census Bureau ACS 2020 5-year estimates (population denominators)</div>
   </div>
 
 </div>
@@ -1433,6 +1465,73 @@ function animate(chart) {
   step();
 }
 
+// ---- COMMUNITY DISTRICT MAPS ----
+async function buildCDMaps() {
+  const [cdData, cdGeo] = await Promise.all([
+    fetchJSON('cd_vital_data.json'),
+    fetchJSON('cd_boundaries.json')
+  ]);
+  const W = 460, H = 520;
+  const proj = d3.geoMercator().fitSize([W, H], cdGeo);
+  const pathGen = d3.geoPath().projection(proj);
+  const cdBoro = cd => ({1:'Manhattan',2:'Bronx',3:'Brooklyn',4:'Queens',5:'Staten Island'})[cd[0]];
+  const bSteps = ['#f7f8dd','#edefa8','#d5db6e','#b8c035','#8a9020'];
+  const dSteps = ['#fde8e0','#fabcaa','#f69577','#e86040','#b8402a'];
+
+  function buildMap(id, metric, colors) {
+    const el = d3.select('#' + id);
+    el.selectAll('*').remove();
+    const svg = el.append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'map-svg');
+    svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#eef3f8').attr('rx', 4);
+    const scale = d3.scaleQuantize().domain([0, metric === 'b' ? 28 : 14]).range(colors);
+
+    function getRates(year) {
+      const yd = cdData.years[year] || {};
+      const r = {};
+      for (const cd of Object.keys(cdData.pop)) {
+        const p = cdData.pop[cd], rec = yd[cd];
+        if (rec && p > 0) r[cd] = (metric === 'b' ? (rec.b||0) : (rec.d||0)) / p * 1000;
+      }
+      return r;
+    }
+
+    svg.selectAll('path.cd').data(cdGeo.features).join('path').attr('class', 'cd')
+      .attr('d', pathGen).attr('data-cd', d => d.properties.cd)
+      .on('mousemove', function(event, d) {
+        const cd = d.properties.cd, year = document.getElementById('mapYearSlider').value;
+        const name = cdData.names[cd] || cd, pop = cdData.pop[cd];
+        const rec = (cdData.years[year]||{})[cd], count = rec ? (metric==='b' ? (rec.b||0) : (rec.d||0)) : 0;
+        const rate = pop > 0 ? (count/pop*1000).toFixed(1) : '?';
+        showTip(event, `<strong>${name}</strong><br>${cdBoro(cd)} CD ${cd.slice(1)}<br>${metric==='b'?'Births':'Deaths'}: ${fmt(count)}<br>Rate: ${rate}/1,000<br><span style="opacity:0.6">Pop: ${fmt(pop)}</span>`);
+      })
+      .on('mouseleave', hideTip);
+
+    const leg = el.append('div').attr('class', 'map-legend-bar');
+    leg.append('span').text('0');
+    const bar = leg.append('div').attr('class', 'bar');
+    colors.forEach(c => bar.append('span').style('background', c));
+    leg.append('span').text(metric === 'b' ? '28+' : '14+');
+
+    return { svg, scale, getRates };
+  }
+
+  const bMap = buildMap('birthMap', 'b', bSteps);
+  const dMap = buildMap('deathMap', 'd', dSteps);
+
+  function paint(year) {
+    [['b', bMap], ['d', dMap]].forEach(([m, map]) => {
+      const rates = map.getRates(year);
+      map.svg.selectAll('path.cd').transition().duration(250)
+        .attr('fill', function() { const cd = d3.select(this).attr('data-cd'); return rates[cd] !== undefined ? map.scale(rates[cd]) : '#e0e0e0'; });
+    });
+  }
+  paint('2021');
+
+  const slider = document.getElementById('mapYearSlider');
+  const label = document.getElementById('mapYearLabel');
+  slider.addEventListener('input', () => { label.textContent = slider.value; paint(slider.value); });
+}
+
 // ---- MAIN ----
 (async function main() {
   try {
@@ -1447,6 +1546,7 @@ function animate(chart) {
     buildCauseChart(data.deathsByYearCause);
     buildRaceChart(data.birthsByYearRace);
     buildNaturalChangeChart(data.birthsByYear, data.deathsByYear);
+    buildCDMaps();
     buildJokeChart(data.birthsByYear);
 
     // Re-observe sections that may have rendered
