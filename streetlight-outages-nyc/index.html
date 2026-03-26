@@ -316,7 +316,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
     <label>Rank by</label>
     <div class="view-toggle">
       <button class="rank-btn active" data-rank="address">Address</button>
-      <button class="rank-btn" data-rank="precinct">Precinct</button>
+      <button class="rank-btn" data-rank="tract">Census tract</button>
       <button class="rank-btn" data-rank="density">Per sq mi</button>
     </div>
   </div>
@@ -335,7 +335,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Excluded locations:</strong> Parks, playgrounds, bridges, expressways, parkways, highways, cemeteries, greenways and other non-street infrastructure are filtered out by address pattern matching.</p>
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Repeat locations:</strong> Complaints are grouped to roughly 50-meter blocks. A "repeat location" has two or more complaints at the same spot.</p>
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Chronic dark spots:</strong> Locations with 10 or more (or 20 or more) total outage complaints since Jan. 2024, depending on the view selected.</p>
-      <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Per square mile:</strong> Total complaints divided by the NYPD precinct's geographic area in square miles, using precinct boundary data from NYC Open Data.</p>
+      <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Per square mile:</strong> Total complaints divided by the census tract's geographic area in square miles, using 2020 census tract boundary data from NYC Open Data.</p>
       <p><strong style="color:var(--text-secondary);">Neighborhoods:</strong> Derived from NYC community board boundaries mapped to common neighborhood names.</p>
     </details>
   </div>
@@ -447,7 +447,7 @@ function filterComplaints(raw) {
 }
 
 const CACHE_KEY = '311-streetlight-data';
-const CACHE_VERSION = '2024-v2';
+const CACHE_VERSION = '2024-v3';
 
 function loadCache() {
   try {
@@ -701,16 +701,32 @@ function buildPointLayer(complaints) {
 
 let currentRank = 'address';
 let lastFilteredComplaints = [];
-let precinctBoundaries = null;
-let complaintPrecincts = new Map(); // complaint index -> precinct number
+let censusTractData = null;
 
-async function loadPrecincts() {
+async function loadCensusTracts() {
   try {
-    const res = await fetch('https://data.cityofnewyork.us/resource/y76i-bdw7.json?$limit=100');
+    // Fetch 2020 census tracts with NTA names for better labels
+    const res = await fetch('https://data.cityofnewyork.us/resource/weqx-t5xr.json?$limit=3000&$select=the_geom,ctlabel,boroname,borocode,ct2020,ntaname,shape_area');
     const data = await res.json();
-    precinctBoundaries = data.filter(d => d.the_geom && d.precinct);
+    // Pre-compute bounding boxes for fast spatial indexing
+    censusTractData = data.filter(d => d.the_geom && d.ctlabel).map(tract => {
+      let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+      const coords = tract.the_geom.coordinates;
+      for (const polygon of coords) {
+        for (const ring of polygon) {
+          for (const [lng, lat] of ring) {
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+          }
+        }
+      }
+      return { ...tract, bbox: { minLat, maxLat, minLng, maxLng } };
+    });
+    console.log(`Loaded ${censusTractData.length} census tracts`);
   } catch (err) {
-    console.warn('Failed to load precinct boundaries:', err);
+    console.warn('Failed to load census tract boundaries:', err);
   }
 }
 
@@ -732,17 +748,21 @@ function pointInPolygon(lat, lng, coordinates) {
   return false;
 }
 
-function assignPrecincts(complaints) {
-  if (!precinctBoundaries) return;
-  complaintPrecincts.clear();
+function assignCensusTracts(complaints) {
+  if (!censusTractData) return;
   for (let i = 0; i < complaints.length; i++) {
     const lat = parseFloat(complaints[i].latitude);
     const lng = parseFloat(complaints[i].longitude);
     if (isNaN(lat) || isNaN(lng)) continue;
-    for (const p of precinctBoundaries) {
-      if (pointInPolygon(lat, lng, p.the_geom.coordinates)) {
-        // Store by a unique key for the complaint object itself
-        complaints[i]._precinct = p.precinct;
+    // Use bounding box to narrow candidates
+    for (const tract of censusTractData) {
+      const bb = tract.bbox;
+      if (lat < bb.minLat || lat > bb.maxLat || lng < bb.minLng || lng > bb.maxLng) continue;
+      if (pointInPolygon(lat, lng, tract.the_geom.coordinates)) {
+        complaints[i]._tract = tract.ctlabel;
+        complaints[i]._tractBoro = tract.boroname;
+        complaints[i]._tractNta = tract.ntaname;
+        complaints[i]._tractArea = parseFloat(tract.shape_area) || 0;
         break;
       }
     }
@@ -786,71 +806,66 @@ function renderTopList(complaints, addrSorted) {
   const topItems = document.getElementById('top-items');
   topItems.innerHTML = '';
 
-  if (currentRank === 'precinct' || currentRank === 'density') {
+  if (currentRank === 'tract' || currentRank === 'density') {
     const isDensity = currentRank === 'density';
     document.getElementById('top-list-title').textContent = isDensity
-      ? 'Outages per square mile (by precinct)'
-      : 'Complaints by police precinct';
+      ? 'Outages per square mile (by census tract)'
+      : 'Complaints by census tract';
 
-    if (!precinctBoundaries) {
-      topItems.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">Loading precinct data...</div>';
+    if (!censusTractData) {
+      topItems.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px 0;">Loading census tract data...</div>';
       return;
     }
 
-    // Build area lookup: shape_area is in sq feet, convert to sq miles
     const SQ_FT_PER_SQ_MI = 27878400;
-    const precinctAreas = new Map();
-    for (const p of precinctBoundaries) {
-      precinctAreas.set(p.precinct, parseFloat(p.shape_area) / SQ_FT_PER_SQ_MI);
-    }
 
-    const pctCounts = new Map();
+    const tractCounts = new Map();
     for (let i = 0; i < complaints.length; i++) {
-      const pct = complaints[i]._precinct;
-      if (!pct) continue;
-      const boro = complaints[i].borough || '';
-      const hood = getNeighborhood(complaints[i].community_board);
-      const key = pct + '|' + boro + '|' + hood;
-      if (!pctCounts.has(key)) {
-        pctCounts.set(key, { count: 0, openCount: 0, lat: 0, lng: 0 });
+      const tract = complaints[i]._tract;
+      if (!tract) continue;
+      const boro = complaints[i]._tractBoro || complaints[i].borough || '';
+      const nta = complaints[i]._tractNta || '';
+      const area = complaints[i]._tractArea || 0;
+      const key = tract + '|' + boro + '|' + nta + '|' + area;
+      if (!tractCounts.has(key)) {
+        tractCounts.set(key, { count: 0, openCount: 0, lat: 0, lng: 0 });
       }
-      const p = pctCounts.get(key);
-      p.count++;
-      if (complaints[i].status === 'Open') p.openCount++;
-      p.lat += parseFloat(complaints[i].latitude) || 0;
-      p.lng += parseFloat(complaints[i].longitude) || 0;
+      const t = tractCounts.get(key);
+      t.count++;
+      if (complaints[i].status === 'Open') t.openCount++;
+      t.lat += parseFloat(complaints[i].latitude) || 0;
+      t.lng += parseFloat(complaints[i].longitude) || 0;
     }
 
     let sorted;
     if (isDensity) {
-      sorted = [...pctCounts.entries()]
+      sorted = [...tractCounts.entries()]
         .map(([key, data]) => {
-          const pct = key.split('|')[0];
-          const area = precinctAreas.get(pct) || 1;
+          const area = parseFloat(key.split('|')[3]) / SQ_FT_PER_SQ_MI || 0.01;
           return [key, data, data.count / area];
         })
+        .filter(([, data]) => data.count >= 3) // filter noise from tiny tracts
         .sort((a, b) => b[2] - a[2]);
     } else {
-      sorted = [...pctCounts.entries()].map(([key, data]) => {
-        const pct = key.split('|')[0];
-        const area = precinctAreas.get(pct) || 1;
+      sorted = [...tractCounts.entries()].map(([key, data]) => {
+        const area = parseFloat(key.split('|')[3]) / SQ_FT_PER_SQ_MI || 0.01;
         return [key, data, data.count / area];
       }).sort((a, b) => b[1].count - a[1].count);
     }
 
     sorted.slice(0, 20).forEach(([key, data, perSqMi]) => {
-      const [pct, boro, hood] = key.split('|');
+      const [tract, boro, nta] = key.split('|');
       const div = document.createElement('div');
       div.className = 'top-item';
-      const location = hood ? hood : titleCase(boro);
+      const location = nta || titleCase(boro);
       const openTag = data.openCount > 0 ? ` <span style="color:#db6d28;font-size:10px;">(${data.openCount} open)</span>` : '';
       if (isDensity) {
-        div.innerHTML = `<span class="addr">Pct ${pct} - ${location}${openTag}</span><span class="count">${Math.round(perSqMi)}/mi²</span>`;
+        div.innerHTML = `<span class="addr">Tract ${tract}, ${location}${openTag}</span><span class="count">${Math.round(perSqMi)}/mi²</span>`;
       } else {
-        div.innerHTML = `<span class="addr">Pct ${pct} - ${location}${openTag}</span><span class="count">${data.count}</span>`;
+        div.innerHTML = `<span class="addr">Tract ${tract}, ${location}${openTag}</span><span class="count">${data.count}</span>`;
       }
       div.addEventListener('click', () => {
-        map.flyTo([data.lat / data.count, data.lng / data.count], 14);
+        map.flyTo([data.lat / data.count, data.lng / data.count], 15);
       });
       topItems.appendChild(div);
     });
@@ -1073,8 +1088,8 @@ async function init() {
     maxZoom: 19
   }).addTo(map);
 
-  // Start loading precincts in background
-  const precinctPromise = loadPrecincts();
+  // Start loading census tracts in background
+  const tractPromise = loadCensusTracts();
 
   // Check cache first
   const cached = loadCache();
@@ -1113,7 +1128,7 @@ async function init() {
     allComplaints = [];
     fetchAll(() => {}).then(() => {
       rebuildMap();
-      precinctPromise.then(() => assignPrecincts(allComplaints));
+      tractPromise.then(() => assignCensusTracts(allComplaints));
     });
   } else {
     // First visit — show map after first batch arrives
@@ -1135,9 +1150,9 @@ async function init() {
     }
   }
 
-  // Assign precincts once boundaries are loaded
-  await precinctPromise;
-  assignPrecincts(allComplaints);
+  // Assign census tracts once boundaries are loaded
+  await tractPromise;
+  assignCensusTracts(allComplaints);
 
   // Listeners
   document.getElementById('borough-filter').addEventListener('change', applyFilters);

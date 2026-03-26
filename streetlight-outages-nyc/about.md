@@ -13,8 +13,8 @@ The map offers several views:
 Rankings can be viewed three ways:
 
 - **By address** shows the individual locations with the most repeat complaints.
-- **By precinct** shows total complaints per NYPD precinct.
-- **Per square mile** normalizes by precinct area, revealing which precincts have the highest concentration of outages relative to their size.
+- **By census tract** shows total complaints per 2020 census tract.
+- **Per square mile** normalizes by census tract area, revealing which tracts have the highest concentration of outages relative to their size.
 
 Clicking any dot or hex cell shows details including address, neighborhood, complaint count and how many are still open.
 
@@ -49,7 +49,7 @@ The map is a single HTML file with no build step or server-side code. It runs en
 
 **Chronic dark spots:** Locations are clustered to approximately 50-meter blocks by rounding coordinates. The 10+ and 20+ views show locations exceeding those complaint thresholds.
 
-**Precinct assignment:** NYPD precinct boundaries are loaded from NYC Open Data (`y76i-bdw7`) and each complaint is assigned to a precinct using a ray-casting point-in-polygon algorithm. Per-square-mile rates are calculated from the precinct boundary's `shape_area` field (converted from square feet).
+**Census tract assignment:** 2020 census tract boundaries are loaded from NYC Open Data (`weqx-t5xr`) and each complaint is assigned to a tract using a bounding-box-accelerated ray-casting point-in-polygon algorithm. Per-square-mile rates are calculated from the tract boundary's `shape_area` field (converted from square feet). Tracts with fewer than three complaints are filtered from the density view to reduce noise from small or low-population tracts.
 
 **Neighborhoods:** Mapped from NYC community board codes to common neighborhood names using a built-in lookup table covering all 59 community boards.
 
@@ -59,7 +59,7 @@ The map is a single HTML file with no build step or server-side code. It runs en
 
 - **More than 50,000 streetlight outage complaints** have been filed since Jan. 2024.
 - **Bedford-Stuyvesant, Brownsville and East New York** dominate the list of worst individual repeat locations, with some addresses logging 20 to 33 complaints.
-- **Staten Island precincts** lead in raw complaint totals because their precincts cover large geographic areas. When normalized per square mile, **Manhattan and dense urban neighborhoods** in the Bronx and Brooklyn have the highest outage concentrations.
+- Normalizing by census tract area reveals the **highest outage concentrations** in dense neighborhoods across Manhattan, the Bronx and Brooklyn, rather than the sprawling tracts that dominate raw counts.
 - Roughly **900 complaints remain open** at any given time.
 
 ## Tools and libraries
