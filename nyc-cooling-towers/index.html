@@ -432,7 +432,7 @@
   <div class="section-label">View Mode</div>
   <div class="view-toggles">
     <button class="view-toggle active" data-view="borough">By Borough</button>
-    <button class="view-toggle" data-view="points">All Points</button>
+    <button class="view-toggle" data-view="density">Density</button>
   </div>
 
   <!-- Stats -->
@@ -442,8 +442,8 @@
       <div class="label">Cooling Towers</div>
     </div>
     <div class="stat-card">
-      <div class="number">5</div>
-      <div class="label">Boroughs</div>
+      <div class="number">12</div>
+      <div class="label">Deaths in 2015 Outbreak</div>
     </div>
   </div>
 
@@ -645,26 +645,29 @@ function drawPoints() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!map || !rawData) return;
 
+  if (currentView === 'density') {
+    drawDensity();
+    return;
+  }
+
   const bounds = map.getBounds();
   const zoom = map.getZoom();
   const radius = zoom < 12 ? 1.2 : zoom < 14 ? 2 : zoom < 16 ? 3 : 5;
-  const useBorough = currentView === 'borough';
-  const alpha = useBorough ? 0.75 : 0.6;
 
-  // Batch by color for performance
+  // Batch by borough color for performance
   const batches = {};
   for (let i = 0; i < rawData.length; i++) {
     const [lng, lat, bi] = rawData[i];
     if (lat < bounds.getSouth() || lat > bounds.getNorth() ||
         lng < bounds.getWest() || lng > bounds.getEast()) continue;
 
-    const color = useBorough ? BOROUGH_COLORS[bi] : '#ff8c42';
+    const color = BOROUGH_COLORS[bi];
     if (!batches[color]) batches[color] = [];
     const pt = map.latLngToContainerPoint([lat, lng]);
     batches[color].push(pt);
   }
 
-  ctx.globalAlpha = alpha;
+  ctx.globalAlpha = 0.75;
   for (const [color, points] of Object.entries(batches)) {
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -675,6 +678,57 @@ function drawPoints() {
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+function drawDensity() {
+  const bounds = map.getBounds();
+  const zoom = map.getZoom();
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+
+  // Grid cell size adapts to zoom level
+  const cellSize = zoom < 12 ? 8 : zoom < 14 ? 6 : zoom < 16 ? 5 : 4;
+  const cols = Math.ceil(w / cellSize);
+  const rows = Math.ceil(h / cellSize);
+  const grid = new Float32Array(cols * rows);
+
+  // Accumulate counts into grid
+  for (let i = 0; i < rawData.length; i++) {
+    const [lng, lat] = rawData[i];
+    if (lat < bounds.getSouth() || lat > bounds.getNorth() ||
+        lng < bounds.getWest() || lng > bounds.getEast()) continue;
+
+    const pt = map.latLngToContainerPoint([lat, lng]);
+    const col = Math.floor(pt.x / cellSize);
+    const row = Math.floor(pt.y / cellSize);
+    if (col >= 0 && col < cols && row >= 0 && row < rows) {
+      grid[row * cols + col]++;
+    }
+  }
+
+  // Find max for normalization
+  let maxCount = 0;
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] > maxCount) maxCount = grid[i];
+  }
+  if (maxCount === 0) return;
+
+  // Draw density cells with a hot color ramp
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const count = grid[row * cols + col];
+      if (count === 0) continue;
+
+      const t = Math.pow(count / maxCount, 0.4); // gamma curve for better contrast
+      const r = Math.round(20 + t * 235);
+      const g = Math.round(t < 0.5 ? 10 + t * 140 : 80 + (1 - t) * 60);
+      const b = Math.round(t < 0.3 ? 60 - t * 150 : 5);
+      const a = 0.15 + t * 0.8;
+
+      ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+      ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+    }
+  }
 }
 
 // ─── View toggle ───
