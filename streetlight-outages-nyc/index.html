@@ -705,14 +705,16 @@ let censusTractData = null;
 
 async function loadCensusTracts() {
   try {
-    // Fetch 2020 census tracts with NTA names for better labels
-    const res = await fetch('https://data.cityofnewyork.us/resource/weqx-t5xr.json?$limit=3000&$select=the_geom,ctlabel,boroname,borocode,ct2020,ntaname,shape_area');
-    const data = await res.json();
+    // Load pre-simplified census tract boundaries from static file
+    const res = await fetch('census-tracts.json');
+    const geojson = await res.json();
     // Pre-compute bounding boxes for fast spatial indexing
-    censusTractData = data.filter(d => d.the_geom && d.ctlabel).map(tract => {
+    censusTractData = geojson.features.filter(f => f.properties.ctlabel && f.geometry).map(f => {
       let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-      const coords = tract.the_geom.coordinates;
-      for (const polygon of coords) {
+      const coords = f.geometry.coordinates;
+      // GeoJSON is [lng, lat]; handle MultiPolygon wrapping
+      const polys = f.geometry.type === 'MultiPolygon' ? coords : [coords];
+      for (const polygon of polys) {
         for (const ring of polygon) {
           for (const [lng, lat] of ring) {
             if (lat < minLat) minLat = lat;
@@ -722,7 +724,17 @@ async function loadCensusTracts() {
           }
         }
       }
-      return { ...tract, bbox: { minLat, maxLat, minLng, maxLng } };
+      // Normalize coordinates to Socrata-style format for pointInPolygon
+      // Socrata stores as [lng, lat], same as GeoJSON
+      const normalizedCoords = f.geometry.type === 'MultiPolygon' ? coords : [coords];
+      return {
+        the_geom: { coordinates: normalizedCoords },
+        ctlabel: f.properties.ctlabel,
+        boroname: f.properties.boroname,
+        ntaname: f.properties.ntaname,
+        shape_area: f.properties.shape_area,
+        bbox: { minLat, maxLat, minLng, maxLng }
+      };
     });
     console.log(`Loaded ${censusTractData.length} census tracts`);
   } catch (err) {
