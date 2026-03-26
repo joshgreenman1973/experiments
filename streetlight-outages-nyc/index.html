@@ -74,7 +74,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
 .legend-gradient {
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(to right, rgba(240,180,41,0.25), rgba(219,109,40,0.5), rgba(248,81,73,0.65), rgba(218,54,51,0.8), rgba(180,20,20,0.95));
+  background: linear-gradient(to right, rgba(80,80,50,0.15), rgba(170,85,30,0.45), rgba(210,55,50,0.7), rgba(200,25,25,0.85), rgba(220,15,15,0.95));
   margin-bottom: 4px;
 }
 
@@ -180,6 +180,16 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
 </head>
 <body>
 
+<div id="password-gate" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;width:320px;text-align:center;">
+    <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;">311 light outage map</h2>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:20px;">Enter password to view</p>
+    <input type="password" id="pw-input" placeholder="Password" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:12px;outline:none;" autofocus>
+    <button id="pw-btn" style="width:100%;padding:10px;background:var(--amber);color:#000;border:none;border-radius:6px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;">Enter</button>
+    <div id="pw-error" style="margin-top:10px;font-size:12px;color:var(--red);display:none;">Incorrect password</div>
+  </div>
+</div>
+
 <div id="loading-overlay">
   <div class="loader-ring"></div>
   <div class="loading-text">Loading 311 street light complaints...</div>
@@ -245,13 +255,47 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
     </div>
   </div>
 
+  <div class="filter-section" style="margin-top:4px;">
+    <label>Rank by</label>
+    <div class="view-toggle">
+      <button class="rank-btn active" data-rank="address">Address</button>
+      <button class="rank-btn" data-rank="neighborhood">Neighborhood</button>
+    </div>
+  </div>
+
   <div class="top-list">
-    <div class="top-list-title">Worst repeat locations</div>
+    <div class="top-list-title" id="top-list-title">Worst repeat locations</div>
     <div id="top-items"></div>
   </div>
 </div>
 
 <script>
+// Password gate
+(function() {
+  const gate = document.getElementById('password-gate');
+  const input = document.getElementById('pw-input');
+  const btn = document.getElementById('pw-btn');
+  const err = document.getElementById('pw-error');
+
+  if (sessionStorage.getItem('311-auth') === '1') {
+    gate.style.display = 'none';
+  }
+
+  function checkPassword() {
+    if (input.value === 'vitalcity2026!') {
+      sessionStorage.setItem('311-auth', '1');
+      gate.style.display = 'none';
+    } else {
+      err.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  btn.addEventListener('click', checkPassword);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
+})();
+
 const API_BASE = 'https://data.cityofnewyork.us/resource/erm2-nwe9.json';
 const DATE_STR = '2025-01-01T00:00:00';
 
@@ -363,12 +407,12 @@ async function fetchAll() {
 }
 
 function getHexColor(count) {
-  if (count >= 50) return { fill: 'rgba(180,20,20,0.85)', stroke: 'rgba(218,54,51,0.6)' };
-  if (count >= 30) return { fill: 'rgba(218,54,51,0.7)', stroke: 'rgba(218,54,51,0.5)' };
-  if (count >= 15) return { fill: 'rgba(248,81,73,0.55)', stroke: 'rgba(248,81,73,0.4)' };
-  if (count >= 5) return { fill: 'rgba(219,109,40,0.45)', stroke: 'rgba(219,109,40,0.35)' };
-  if (count >= 2) return { fill: 'rgba(240,180,41,0.35)', stroke: 'rgba(240,180,41,0.25)' };
-  return { fill: 'rgba(240,180,41,0.2)', stroke: 'rgba(240,180,41,0.15)' };
+  if (count >= 50) return { fill: 'rgba(220,15,15,0.95)', stroke: 'rgba(255,50,50,0.8)' };
+  if (count >= 30) return { fill: 'rgba(200,25,25,0.85)', stroke: 'rgba(240,45,45,0.65)' };
+  if (count >= 15) return { fill: 'rgba(210,55,50,0.7)', stroke: 'rgba(240,70,65,0.5)' };
+  if (count >= 5) return { fill: 'rgba(170,85,30,0.4)', stroke: 'rgba(190,100,40,0.3)' };
+  if (count >= 2) return { fill: 'rgba(120,110,55,0.18)', stroke: 'rgba(140,130,60,0.12)' };
+  return { fill: 'rgba(80,80,50,0.08)', stroke: 'rgba(100,100,60,0.05)' };
 }
 
 function getPointColor(count) {
@@ -547,7 +591,11 @@ function buildPointLayer(complaints) {
   return layer;
 }
 
+let currentRank = 'address';
+let lastFilteredComplaints = [];
+
 function updateStats(complaints) {
+  lastFilteredComplaints = complaints;
   document.getElementById('stat-total').textContent = complaints.length.toLocaleString();
   document.getElementById('stat-open').textContent = complaints.filter(c => c.status === 'Open').length.toLocaleString();
 
@@ -576,21 +624,76 @@ function updateStats(complaints) {
     document.getElementById('stat-worst').textContent = `${titleCase(addr)}${hood ? ', ' + hood : ''} (${cnt})`;
   }
 
+  renderTopList(complaints, sorted);
+}
+
+function renderTopList(complaints, addrSorted) {
   const topItems = document.getElementById('top-items');
   topItems.innerHTML = '';
-  sorted.slice(0, 15).forEach(([key, cnt]) => {
-    if (cnt < 2) return;
-    const [addr, boro, hood] = key.split('|');
-    const location = hood || titleCase(boro);
-    const div = document.createElement('div');
-    div.className = 'top-item';
-    div.innerHTML = `<span class="addr">${titleCase(addr)}, ${location}</span><span class="count">${cnt}</span>`;
-    div.addEventListener('click', () => {
-      const match = complaints.find(c => c.incident_address === addr);
-      if (match) map.flyTo([parseFloat(match.latitude), parseFloat(match.longitude)], 16);
+
+  if (currentRank === 'neighborhood') {
+    document.getElementById('top-list-title').textContent = 'Complaints by neighborhood';
+
+    const hoodCounts = new Map();
+    for (const c of complaints) {
+      const hood = getNeighborhood(c.community_board);
+      if (!hood) continue;
+      const boro = c.borough || '';
+      const key = hood + '|' + boro;
+      if (!hoodCounts.has(key)) {
+        hoodCounts.set(key, { count: 0, openCount: 0, lat: 0, lng: 0 });
+      }
+      const h = hoodCounts.get(key);
+      h.count++;
+      if (c.status === 'Open') h.openCount++;
+      h.lat += parseFloat(c.latitude) || 0;
+      h.lng += parseFloat(c.longitude) || 0;
+    }
+
+    const sorted = [...hoodCounts.entries()].sort((a, b) => b[1].count - a[1].count);
+    sorted.slice(0, 20).forEach(([key, data]) => {
+      const [hood, boro] = key.split('|');
+      const div = document.createElement('div');
+      div.className = 'top-item';
+      const openTag = data.openCount > 0 ? ` <span style="color:#db6d28;font-size:10px;">(${data.openCount} open)</span>` : '';
+      div.innerHTML = `<span class="addr">${hood}, ${titleCase(boro)}${openTag}</span><span class="count">${data.count}</span>`;
+      div.addEventListener('click', () => {
+        const avgLat = data.lat / data.count;
+        const avgLng = data.lng / data.count;
+        map.flyTo([avgLat, avgLng], 14);
+      });
+      topItems.appendChild(div);
     });
-    topItems.appendChild(div);
-  });
+  } else {
+    document.getElementById('top-list-title').textContent = 'Worst repeat locations';
+
+    if (!addrSorted) {
+      addrSorted = [];
+      const addrCounts = new Map();
+      for (const c of complaints) {
+        if (c.incident_address) {
+          const hood = getNeighborhood(c.community_board);
+          const key = c.incident_address + '|' + (c.borough || '') + '|' + hood;
+          addrCounts.set(key, (addrCounts.get(key) || 0) + 1);
+        }
+      }
+      addrSorted = [...addrCounts.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    addrSorted.slice(0, 15).forEach(([key, cnt]) => {
+      if (cnt < 2) return;
+      const [addr, boro, hood] = key.split('|');
+      const location = hood || titleCase(boro);
+      const div = document.createElement('div');
+      div.className = 'top-item';
+      div.innerHTML = `<span class="addr">${titleCase(addr)}, ${location}</span><span class="count">${cnt}</span>`;
+      div.addEventListener('click', () => {
+        const match = complaints.find(c => c.incident_address === addr);
+        if (match) map.flyTo([parseFloat(match.latitude), parseFloat(match.longitude)], 16);
+      });
+      topItems.appendChild(div);
+    });
+  }
 }
 
 function setView(view) {
@@ -657,6 +760,13 @@ async function init() {
   document.getElementById('borough-filter').addEventListener('change', applyFilters);
   document.querySelectorAll('.view-btn').forEach(btn => {
     btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+  document.querySelectorAll('.rank-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentRank = btn.dataset.rank;
+      document.querySelectorAll('.rank-btn').forEach(b => b.classList.toggle('active', b.dataset.rank === currentRank));
+      renderTopList(lastFilteredComplaints);
+    });
   });
 }
 
