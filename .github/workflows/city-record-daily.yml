@@ -1,0 +1,45 @@
+name: City Record daily fetch
+
+on:
+  schedule:
+    # Weekdays at 14:00 UTC (10 AM EDT / 9 AM EST)
+    - cron: '0 14 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Override date (YYYY-MM-DD). Leave blank for today.'
+        required: false
+        type: string
+
+jobs:
+  fetch-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch City Record data
+        working-directory: city-record-daily
+        run: node fetch-daily.mjs ${{ github.event.inputs.date }}
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add city-record-daily/data/ city-record-daily/feed.xml city-record-daily/feed-index.json city-record-daily/feeds/
+          if git diff --staged --quiet; then
+            echo "No new data -- skipping commit"
+          else
+            DATE_LABEL="${{ github.event.inputs.date }}"
+            if [ -z "$DATE_LABEL" ]; then
+              DATE_LABEL=$(date -u +%Y-%m-%d)
+            fi
+            git commit -m "City Record digest: ${DATE_LABEL}"
+            git push
+          fi
