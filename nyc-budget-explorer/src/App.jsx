@@ -133,9 +133,9 @@ const REVENUE = [
 ]
 
 const SPENDING = [
-  { id: 'education', label: 'Education (DOE)', amount: 34.5, color: C.indigo,
-    workers: 150000, personnel: 20.5, otps: 14.0,
-    desc: 'The city\'s largest expenditure. Operates ~1,800 schools serving 906,000 students. The DOE expense budget is ~$34.5 billion; all-in per-pupil spending exceeds $43,000 when centrally allocated fringe benefits are included. The class size mandate requires reducing class sizes over 5 years at an estimated cost of $1.3 billion annually when fully phased in.',
+  { id: 'education', label: 'Education (DOE)', amount: 35.0, color: C.indigo,
+    workers: 150000, personnel: 21.0, otps: 14.0,
+    desc: 'The city\'s largest expenditure. Operates ~1,800 schools serving 906,000 students. The DOE adopted budget is ~$35 billion; all-in per-pupil spending exceeds $43,000 when centrally allocated fringe benefits are included. The class size mandate requires hiring ~6,900 additional teachers by 2028 at an estimated cost of $700 million (IBO) to $1.3 billion (city estimate) annually when fully phased in. CBC recommends repealing the mandate entirely.',
     subs: [
       { label: 'Instruction & classroom', amount: 14.5 },
       { label: 'Special education', amount: 6.2 },
@@ -935,13 +935,16 @@ function ActCliff() {
           </p>
           <p style={{ marginTop: 10 }}>
             Meanwhile, the federal "One Big Beautiful Bill Act," signed into law in July 2025, threatens <span className="hl" style={{ color: C.chartreuse }}>$90 billion to $150 billion in Medicaid cuts to New York State</span> over
-            ten years. New work requirements taking effect in 2027 could strip coverage from 500,000 to 1.2 million New Yorkers. The state Senate’s
+            ten years. New work requirements taking effect in 2027 could strip coverage from 500,000 to 1.2 million New Yorkers. On the brighter side, federal approval of the state’s Essential Plan-to-Basic Health Plan transition frees up $2.25 billion in the state budget for FY2027; CBC recommends directing it to reserves rather than spending.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            At the state level, the $262.7 billion executive budget drives spending growth of 7.9% — more than twice inflation — with a structural gap CBC estimates at $20 billion by FY2030. The state Senate’s
             one-house budget (March 10, 2026) would authorize NYC to raise corporate taxes by up to <span className="hl" style={{ color: C.chartreuse }}>$1.75 billion</span> ($1.5 billion corporate + $250 million UBT) — but that requires final passage by the April 1 deadline and the governor has not endorsed it.
           </p>
         </div>
         </FadeIn>
 
-        <Source>IBO FY2027 Preliminary Budget Analysis (March 24, 2026); Comptroller FY2027 Budget Preview (March 2026); OMB Financial Plan; CBC "False Choice" (March 2026); City Council Economic Forecast (March 10, 2026); Moody’s; Fitch; KBRA; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
+        <Source>IBO FY2027 Preliminary Budget Analysis (March 24, 2026); CBC "Strong Receipts, Greater Risks" (March 26, 2026); CBC "False Choice" (March 2026); Comptroller FY2027 Budget Preview; OMB Financial Plan; City Council Economic Forecast and Budget Dashboard; Moody’s; Fitch; KBRA; CUNY ISLG Fiscal Flow Report; NYS Senate one-house budget; Fiscal Policy Institute</Source>
       </div>
     </div>
   )
@@ -1016,9 +1019,10 @@ function ActProposals() {
             <div className="debate-header against">The case against</div>
             <ul className="debate-list">
               <li><strong>The tax base is already dangerously volatile.</strong> CBC estimates ~60% of city revenue comes from economically sensitive sources. A recession or Wall Street downturn could erase $4 billion to $5 billion in a single year.</li>
-              <li><strong>High earners can leave.</strong> Remote work has weakened the geographic lock-in. NYC saw elevated outmigration of high-income tax filers during and after COVID. Every departing millionaire takes ~$55,000 a year in city income tax revenue.</li>
-              <li><strong>It doesn’t fix the structural problem.</strong> If spending grows 4–5% annually and revenue grows 2–3%, new taxes buy time but don’t close the gap permanently. FY2028's hole ($6.7B) will be even bigger.</li>
-              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The governor and state Senate have shown little appetite for NYC-specific tax increases in an election year.</li>
+              <li><strong>High earners are already leaving.</strong> New York’s share of the nation’s millionaires dropped 31% between 2010 and 2022, per CBC — costing the state and city an estimated $13 billion in foregone income tax revenue. Remote work has further weakened the geographic lock-in.</li>
+              <li><strong>Combined rates would be nation-leading.</strong> Under the Assembly’s corporate tax proposal, NYC’s combined city-state business tax rate would reach 21.37% — nearly double New Jersey’s 11.5% top rate.</li>
+              <li><strong>It doesn’t fix the structural problem.</strong> If spending grows 4–5% annually and revenue grows 2–3%, new taxes buy time but don’t close the gap. State spending grew 7.9% last year — more than twice inflation — and even state-level gaps are projected at $20 billion by FY2030.</li>
+              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The governor opposes most tax increases. The state budget deadline is April 1 and Hochul has not delivered an on-time budget since taking office.</li>
             </ul>
           </div>
         </div>
