@@ -279,10 +279,10 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
     <div class="legend-gradient"></div>
     <div class="legend-labels">
       <span>1</span>
-      <span>5</span>
-      <span>15</span>
-      <span>30</span>
-      <span>50+</span>
+      <span>20</span>
+      <span>40</span>
+      <span>90</span>
+      <span>120+</span>
     </div>
   </div>
 
@@ -510,11 +510,13 @@ async function fetchAll(onBatch) {
 }
 
 function getHexColor(count) {
-  if (count >= 50) return { fill: 'rgba(220,15,15,0.95)', stroke: 'rgba(255,50,50,0.8)' };
-  if (count >= 30) return { fill: 'rgba(200,25,25,0.85)', stroke: 'rgba(240,45,45,0.65)' };
-  if (count >= 15) return { fill: 'rgba(210,55,50,0.7)', stroke: 'rgba(240,70,65,0.5)' };
-  if (count >= 5) return { fill: 'rgba(170,85,30,0.4)', stroke: 'rgba(190,100,40,0.3)' };
-  if (count >= 2) return { fill: 'rgba(120,110,55,0.18)', stroke: 'rgba(140,130,60,0.12)' };
+  // Distribution: p10=7, p25=20, p50=42, p75=68, p90=94, max=189
+  if (count >= 120) return { fill: 'rgba(220,10,10,0.95)', stroke: 'rgba(255,40,40,0.85)' };
+  if (count >= 90) return { fill: 'rgba(200,20,20,0.85)', stroke: 'rgba(240,40,40,0.7)' };
+  if (count >= 65) return { fill: 'rgba(190,40,35,0.7)', stroke: 'rgba(220,55,50,0.55)' };
+  if (count >= 40) return { fill: 'rgba(180,70,30,0.5)', stroke: 'rgba(200,80,40,0.4)' };
+  if (count >= 20) return { fill: 'rgba(160,100,30,0.35)', stroke: 'rgba(180,110,40,0.25)' };
+  if (count >= 8) return { fill: 'rgba(130,115,50,0.2)', stroke: 'rgba(150,130,60,0.15)' };
   return { fill: 'rgba(80,80,50,0.08)', stroke: 'rgba(100,100,60,0.05)' };
 }
 
@@ -934,10 +936,10 @@ function buildChronicLayer(complaints, minCount = 20) {
     for (const [cb, cnt] of loc.cbs) { if (cnt > topCbCount) { topCb = cb; topCbCount = cnt; } }
     const neighborhood = getNeighborhood(topCb);
 
-    const radius = Math.min(6 + loc.count * 0.6, 18);
+    const radius = Math.min(3 + loc.count * 0.3, 10);
     // Faster pulse = more complaints. Range: 2.5s (4 complaints) down to 0.6s (30+)
     const pulseSpeed = Math.max(0.6, 2.5 - (loc.count - 4) * 0.08);
-    const ringSize = radius * 2 + 8;
+    const ringSize = radius * 2 + 4;
     const fillColor = loc.count >= 15 ? '#da3633' : loc.count >= 8 ? '#f85149' : '#db6d28';
 
     // Pulsing ring + count label
