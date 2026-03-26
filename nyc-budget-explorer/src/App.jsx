@@ -370,8 +370,8 @@ const REVENUE_OPTIONS = [
 const SPENDING_OPTIONS = [
   { id: 'class_size', label: 'Seek state relief from class size mandate', amount: 1300, category: 'education', difficulty: 'hard', desc: 'CBC\'s top recommendation. Save up to $1.3 billion otherwise spent hiring ~6,000 teachers.', source: 'CBC; Chalkbeat', sourceUrl: 'https://www.chalkbeat.org/newyork/2026/02/17/nyc-mamdani-preliminary-budget-class-size-funding-school-program-cuts/', risk: 'Parents and unions support smaller classes. Requires Albany.', conflicts: [] },
   { id: 'enrollment', label: 'Adjust DOE funding for declining enrollment', amount: 400, category: 'education', difficulty: 'medium', desc: 'NYC public school enrollment has declined by ~120,000 students since pre-pandemic.', source: 'CBC “False Choice” (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Would require closing or consolidating schools.', conflicts: [] },
-  { id: 'cso_savings', label: 'Agency Chief Savings Officers (2.5%)', amount: 1770, category: 'efficiency', difficulty: 'medium', desc: 'Mamdani\'s EO 12 requires every agency to target 2.5% savings. $1.77 billion total.', source: 'Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-releases-balanced-fiscal-year-2027-preliminary-bud', risk: 'CBC: There\'s much more to be saved. But this is a target, not a plan.', conflicts: ['cso_half'] },
-  { id: 'cso_half', label: 'Agency savings (conservative estimate)', amount: 900, category: 'efficiency', difficulty: 'medium', desc: 'Half the administration\'s target — what might actually materialize.', source: 'Author estimate', risk: 'Even this may be optimistic without concrete operational changes.', conflicts: ['cso_savings'] },
+  { id: 'cso_savings', label: 'Agency Chief Savings Officers (2.5%)', amount: 1770, category: 'efficiency', difficulty: 'medium', desc: 'Mamdani\'s EO 12 requires every agency to target 2.5% savings. Agencies identified $1.7 billion in potential cuts, but as of March 25 only ~$200 million has been verified as bookable — the largest item being $100 million from removing ineligible dependents from employee health plans.', source: 'NY1 (March 25, 2026); Mayor\'s FY2027 Preliminary Budget', sourceUrl: 'https://ny1.com/nyc/all-boroughs/politics/2026/03/25/mayor-mamdani-budget-cuts', risk: 'IBO: targets $710 million in FY26, $1.1 billion in FY27. Only a fraction verified so far. CBC calls targets aspirational, not operational.', conflicts: ['cso_half'] },
+  { id: 'cso_half', label: 'Agency savings (conservative estimate)', amount: 900, category: 'efficiency', difficulty: 'medium', desc: 'Half the administration\'s target. As of March 25, only ~$200 million in CSO savings have been verified. This assumes additional proposals are confirmed over the coming weeks.', source: 'NY1 (March 25, 2026)', sourceUrl: 'https://ny1.com/nyc/all-boroughs/politics/2026/03/25/mayor-mamdani-budget-cuts', risk: 'The gap between $1.7 billion identified and $200 million verified raises questions about achievability.', conflicts: ['cso_savings'] },
   { id: 'overtime', label: 'Reduce uniformed overtime spending', amount: 300, category: 'uniformed', difficulty: 'hard', desc: 'Comptroller estimates $559 million in unbudgeted overtime. NYPD alone exceeds by 60-80%.', source: 'Comptroller FY2027 Budget Preview', sourceUrl: 'https://comptroller.nyc.gov/newsroom/comptroller-levine-projects-2-2-billion-budget-shortfall-in-fiscal-year-2026-and-10-4-billion-in-fiscal-year-2027/', risk: 'Overtime reform has failed repeatedly.', conflicts: [] },
   { id: 'procurement', label: 'Procurement and contract reform', amount: 400, category: 'efficiency', difficulty: 'medium', desc: 'City registered $32 billion+ in contracts in FY2024 alone. Documented waste and cost overruns in CBC and Comptroller reports.', source: 'CBC; NYC Comptroller', sourceUrl: 'https://comptroller.nyc.gov/reports/annual-summary-contracts-report-for-the-city-of-new-york-fiscal-year-2024/', risk: 'Reform is slow. Savings may not materialize in a single fiscal year.', conflicts: [] },
   { id: 'vacancies', label: 'Reduce funded vacancies and headcount', amount: 600, category: 'efficiency', difficulty: 'easy', desc: '~5.8% vacancy rate against funded positions. 2-for-1 hiring freeze already in effect.', source: 'Comptroller FY2026 Comments', sourceUrl: 'https://comptroller.nyc.gov/reports/comments-on-new-york-citys-fiscal-year-2025-adopted-budget/', risk: 'Services may degrade. Some vacancies are in hard-to-fill roles.', conflicts: [] },
@@ -862,7 +862,7 @@ function ActCliff() {
           The plan proposes <strong style={{ color: C.chartreuse }}>$3.7 billion in new property taxes</strong> (a 9.5% rate increase),
           a <strong style={{ color: C.chartreuse }}>millionaire income tax surcharge</strong> requiring Albany approval,
           and <strong style={{ color: C.chartreuse }}>$1.77 billion in agency savings</strong> through Executive Order 12,
-          which installed Chief Savings Officers in every city agency with a mandate to find 2.5% cuts.
+          which installed Chief Savings Officers in every city agency with a mandate to find 2.5% cuts. On March 25, the administration reported agencies had identified $1.7 billion in potential savings — but only ~$200 million has been verified as bookable so far.
         </p>
         <p className="prose">
           The plan also draws down <strong style={{ color: C.chartreuse }}>$980 million from the Rainy Day Fund</strong> and
@@ -1176,13 +1176,13 @@ function ActProposals() {
             Mamdani’s first budget leans heavily on <strong>new revenue and aspirational savings targets</strong>. The property tax increase is the backstop if Albany rejects the income and corporate tax proposals.
           </p>
           <div className="proposal-items">
-            <div className="proposal-item"><span className="proposal-amount">{fmtM(3700)}</span> 9.5% property tax increase (Council authority)</div>
-            <div className="proposal-item"><span className="proposal-amount">{fmtM(1800)}</span> Millionaire income tax surcharge (requires Albany)</div>
+            <div className="proposal-item"><span className="proposal-amount">{fmtM(3800)}</span> 9.5% property tax increase (Council authority; IBO est.)</div>
+            <div className="proposal-item"><span className="proposal-amount">{fmtM(3000)}</span> Millionaire income tax surcharge (requires Albany; IBO est.)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1500)}</span> Corporate tax increase on top firms (requires Albany; Senate one-house supports)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1770)}</span> Agency savings via EO 12 Chief Savings Officers (2.5%)</div>
             <div className="proposal-item"><span className="proposal-amount">{fmtM(980)}</span> Rainy Day Fund drawdown (one-time)</div>
           </div>
-          <p className="proposal-note">Council Speaker Menin called the property tax hike a "non-starter." CBC warned the savings targets are aspirational, not operational. The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
+          <p className="proposal-note">Council Speaker Menin called the property tax hike a "non-starter." Of the $1.77 billion in savings targets, only ~$200 million has been verified (as of March 25). The plan’s total exceeds the gap — but much of it requires Albany or is one-time money.</p>
         </div>
         </FadeIn>
 
@@ -1636,7 +1636,7 @@ export default function App() {
           </div>
         </div>
       </footer>
-      <div className="last-updated">Last updated March 26, 2026</div>
+      <div className="last-updated">Last updated March 27, 2026</div>
     </div>
   )
 }
