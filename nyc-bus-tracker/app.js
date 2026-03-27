@@ -507,8 +507,14 @@ function computeSpeeds(prevSnap, currSnap) {
   for (const v of currSnap.vehicles) {
     const prev = prevMap.get(v.id);
     if (!prev) continue;
+    // Skip if bus changed routes between snapshots
+    if (prev.route !== v.route) continue;
 
-    const distMeters = haversine(prev.lat, prev.lon, v.lat, v.lon);
+    // Prefer route-distance (along the polyline) over straight-line haversine.
+    // Route-distance is consistent with MTA methodology, which measures speed
+    // along actual route geometry rather than as-the-crow-flies.
+    const routeDist = routeDistance(prev.lat, prev.lon, v.lat, v.lon, v.route);
+    const distMeters = routeDist != null ? routeDist : haversine(prev.lat, prev.lon, v.lat, v.lon);
     const distMiles = distMeters / 1609.34;
     const speed = distMiles / dtHours;
 
@@ -596,7 +602,13 @@ function computeMetrics(snapshot) {
       // Only estimate gaps when 3+ buses — fewer gives unreliable spacing
       let maxGapThisDir = 0;
       for (let i = 0; i < sorted.length - 1; i++) {
-        const dist = haversine(
+        // Prefer route-distance for gap estimation when available
+        const rDist = routeDistance(
+          sorted[i].lat, sorted[i].lon,
+          sorted[i + 1].lat, sorted[i + 1].lon,
+          route
+        );
+        const dist = rDist != null ? rDist : haversine(
           sorted[i].lat, sorted[i].lon,
           sorted[i + 1].lat, sorted[i + 1].lon
         );
@@ -702,6 +714,9 @@ function computeMetrics(snapshot) {
     if (systemAvgSpeed != null) {
       speedEl.textContent = `${systemAvgSpeed}`;
       speedEl.className = `value ${systemAvgSpeed < 6 ? 'bad' : systemAvgSpeed < 8 ? 'warn' : 'accent'}`;
+      // Hide the "needs two snapshots" hint once speed is available
+      const hint = document.getElementById('speed-hint');
+      if (hint) hint.style.display = 'none';
     } else {
       speedEl.textContent = '\u2014';
     }
@@ -1137,6 +1152,85 @@ function haversine(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Compute distance along a route shape between two GPS points.
+ * Snaps each point to the nearest segment on the route polyline,
+ * then sums the along-route distance between the two snap locations.
+ * Returns distance in meters, or null if route shape is unavailable.
+ */
+function routeDistance(lat1, lon1, lat2, lon2, routeId) {
+  if (!routeShapes) return null;
+  const feature = routeShapes.features.find(f =>
+    f.properties.route === routeId || f.properties.routeId === routeId
+  );
+  if (!feature || feature.geometry.type !== 'LineString') return null;
+
+  const coords = feature.geometry.coordinates; // [lon, lat] pairs
+  if (coords.length < 2) return null;
+
+  // Find nearest segment index and fractional position for a point
+  function snapToLine(lat, lon) {
+    let bestDist = Infinity;
+    let bestIdx = 0;
+    let bestFrac = 0;
+
+    for (let i = 0; i < coords.length - 1; i++) {
+      const ax = coords[i][0], ay = coords[i][1];
+      const bx = coords[i + 1][0], by = coords[i + 1][1];
+      const dx = bx - ax, dy = by - ay;
+      const lenSq = dx * dx + dy * dy;
+      let t = lenSq > 0 ? ((lon - ax) * dx + (lat - ay) * dy) / lenSq : 0;
+      t = Math.max(0, Math.min(1, t));
+      const px = ax + t * dx, py = ay + t * dy;
+      const d = (lon - px) ** 2 + (lat - py) ** 2;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+        bestFrac = t;
+      }
+    }
+    return { idx: bestIdx, frac: bestFrac };
+  }
+
+  const snap1 = snapToLine(lat1, lon1);
+  const snap2 = snapToLine(lat2, lon2);
+
+  // Ensure we measure from the earlier point along the line to the later
+  let startSnap = snap1, endSnap = snap2;
+  if (snap1.idx > snap2.idx || (snap1.idx === snap2.idx && snap1.frac > snap2.frac)) {
+    startSnap = snap2;
+    endSnap = snap1;
+  }
+
+  // Sum haversine distances along the polyline from startSnap to endSnap
+  let dist = 0;
+
+  // Partial first segment: from snap point to end of segment
+  const s0 = coords[startSnap.idx], s1 = coords[startSnap.idx + 1];
+  const startLon = s0[0] + startSnap.frac * (s1[0] - s0[0]);
+  const startLat = s0[1] + startSnap.frac * (s1[1] - s0[1]);
+  if (startSnap.idx === endSnap.idx) {
+    // Both on same segment
+    const eLon = s0[0] + endSnap.frac * (s1[0] - s0[0]);
+    const eLat = s0[1] + endSnap.frac * (s1[1] - s0[1]);
+    return haversine(startLat, startLon, eLat, eLon);
+  }
+  dist += haversine(startLat, startLon, s1[1], s1[0]);
+
+  // Full intermediate segments
+  for (let i = startSnap.idx + 1; i < endSnap.idx; i++) {
+    dist += haversine(coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
+  }
+
+  // Partial last segment: from start of segment to snap point
+  const e0 = coords[endSnap.idx], e1 = coords[endSnap.idx + 1];
+  const endLon = e0[0] + endSnap.frac * (e1[0] - e0[0]);
+  const endLat = e0[1] + endSnap.frac * (e1[1] - e0[1]);
+  dist += haversine(e0[1], e0[0], endLat, endLon);
+
+  return dist;
 }
 
 function formatTime(d) {

@@ -52,22 +52,23 @@
       <div class="stat-card">
         <div class="label">Avg Speed</div>
         <div class="value" id="stat-speed">&mdash;</div>
-        <div class="detail">mph (observed)</div>
+        <div class="detail" id="speed-detail">miles per hour, observed</div>
+        <div class="speed-hint" id="speed-hint">Needs two data snapshots to calculate &mdash; available in ~30s</div>
       </div>
       <div class="stat-card">
         <div class="label">Bunching</div>
         <div class="value bad" id="stat-bunching">&mdash;</div>
-        <div class="detail">bus pairs too close</div>
+        <div class="detail">bus pairs within 250m</div>
       </div>
       <div class="stat-card">
         <div class="label">Big Gaps</div>
         <div class="value warn" id="stat-gaps">&mdash;</div>
-        <div class="detail">20+ min waits</div>
+        <div class="detail">routes with 20+ minute waits</div>
       </div>
       <div class="stat-card">
         <div class="label">Avg Wait</div>
         <div class="value" id="stat-wait">&mdash;</div>
-        <div class="detail">min (rider exp.)</div>
+        <div class="detail">expected minutes a rider waits</div>
       </div>
     </div>
 
@@ -110,11 +111,51 @@
       </div>
       <div class="route-list" id="route-list"></div>
 
-      <!-- Source credits -->
+      <!-- Sources and methodology -->
       <div class="source-credits">
         <p><strong>Source:</strong> <a href="https://bustime.mta.info/wiki/Developers/Index" target="_blank">MTA BusTime SIRI API</a> (real-time vehicle positions)</p>
         <p><strong>Route shapes:</strong> <a href="https://new.mta.info/developers" target="_blank">MTA GTFS Static Data</a></p>
-        <p class="caveat">Speed estimates are derived from GPS position changes between snapshots. Gap times are estimated from bus spacing and observed speed; routes with fewer than 3 active buses in a direction are excluded from gap calculations, and estimates are capped at 60 minutes. Bunching is detected when two buses on the same route/direction are within 250m. Late-night and low-service periods will show fewer metrics. These are observational estimates, not official MTA metrics.</p>
+
+        <details class="methodology">
+          <summary><strong>Methodology and comparison to MTA official metrics</strong></summary>
+
+          <p>These are <strong>observational estimates</strong> derived in real time from the MTA BusTime SIRI API, not official MTA metrics. The numbers shown here are approximations that use a different data pipeline and calculation method than the MTA's published performance data. They should be treated as directional indicators, not authoritative measurements.</p>
+
+          <h4>Speed</h4>
+          <p><strong>What we measure:</strong> Every 30 seconds, we record each bus's GPS position. For any bus seen in consecutive snapshots, we calculate the distance traveled and divide by elapsed time. When route shape data is available, distance is measured <em>along the route polyline</em> (snapping each GPS point to the nearest point on the route and summing the along-route path). When route shapes are unavailable, we fall back to great-circle (haversine) distance, which underestimates actual road distance. Speeds above 60 mph are discarded as GPS noise. A rolling average over the last 3 poll cycles smooths jitter.</p>
+
+          <p><strong>How the MTA measures it:</strong> The MTA's <a href="https://www.mta.info/article/beyond-route-introducing-granular-mta-bus-speed-data" target="_blank">Bus Route Segment Speeds dataset</a> calculates speed between "timepoints" (major scheduled stops) using the known route-geometry distance and GPS-derived travel time. Their speed <em>includes</em> dwell time at stops, traffic delays, signal waits, operator reliefs, and all other in-service time&mdash;representing the actual travel speed a rider experiences.</p>
+
+          <p><strong>Key similarities:</strong> Our route-distance calculation mirrors the MTA approach of measuring along actual route geometry rather than straight-line distance. Like the MTA, our speeds inherently include dwell time, traffic, and signal delays because we measure wall-clock time between snapshots.</p>
+
+          <p><strong>Key differences:</strong> (1) The MTA measures between <em>scheduled timepoints</em> with known inter-stop distances, while we snap GPS points to route shapes, introducing some positional error. (2) The MTA aggregates by hour across many trips for statistical reliability; we show real-time snapshots of individual buses. (3) Our 30-second polling interval means short segments may produce noisy speed readings. (4) When route shapes aren't loaded yet, we fall back to haversine distance, which underestimates by 10&ndash;40% on winding routes. (5) Buses at layover points or waiting at terminals may register near-zero speeds, pulling our averages down.</p>
+
+          <h4>Bunching</h4>
+          <p><strong>What we measure:</strong> Two buses on the same route traveling in the same direction are flagged as "bunched" if they are within 250 meters of each other. This is a simple <em>proximity-based</em> measure.</p>
+
+          <p><strong>How the MTA/Comptroller measures it:</strong> The NYC Comptroller's <a href="https://comptroller.nyc.gov/reports/behind-schedule-how-new-york-citys-bus-system-slow-rolls-riders/" target="_blank">"Behind Schedule" report</a> defines bunching as when the actual headway between two buses is less than 25% of the <em>scheduled</em> headway. For example, on a route scheduled every 8 minutes, buses arriving 2 minutes apart would be bunched. This headway-based definition is more precise because it accounts for how frequently buses are supposed to run.</p>
+
+          <p><strong>Key difference:</strong> Our 250m threshold is a rough spatial proxy. On a route with 5 mph average speed, 250m is about 1.8 minutes of travel time. On a fast limited-stop route, 250m might be just 30 seconds of headway. A headway-based definition would require access to GTFS schedule data (planned headways), which this tracker does not currently incorporate.</p>
+
+          <h4>Gap estimation</h4>
+          <p><strong>What we measure:</strong> We sort buses along a route by position (using route-distance when available, otherwise by latitude for north-south routes or longitude for east-west routes), compute the distance between consecutive buses, and divide by observed route speed to estimate the time gap a rider at the midpoint would experience. Routes with fewer than 3 active buses per direction are excluded (too few data points). Gaps are capped at 60 minutes (longer likely reflects a route terminus, not a real service gap).</p>
+
+          <p><strong>Key limitation:</strong> This is a spatial interpolation, not a measurement of actual bus arrival times at stops. The MTA measures gaps using actual arrival data at stops. Our method can overestimate gaps on routes where buses cluster near the ends (terminals, turnarounds) and underestimate gaps if buses are evenly spaced but moving at different speeds.</p>
+
+          <h4>Average rider wait time</h4>
+          <p><strong>What we measure:</strong> Uses the standard queuing-theory formula: E[wait] = E[gap&sup2;] / (2 &times; E[gap]). If buses were perfectly evenly spaced, your expected wait would be half the headway. Irregular spacing increases wait time because some gaps are disproportionately long. This formula captures that effect.</p>
+
+          <p><strong>How the MTA measures it:</strong> The MTA publishes "Additional Bus Stop Time," defined as the average time customers spend waiting beyond their scheduled wait time. This requires schedule data to compute the excess. Our figure is a theoretical expected wait based on observed spacing, not a comparison to any schedule.</p>
+
+          <h4>General caveats</h4>
+          <ul>
+            <li>All metrics are derived from 30-second GPS snapshots, not stop-level arrival/departure data.</li>
+            <li>Late-night and low-service periods produce fewer data points and less reliable metrics.</li>
+            <li>Express/limited-stop and Select Bus Service routes may show different speed characteristics than local routes.</li>
+            <li>The MTA's SIRI API occasionally drops buses from a poll or introduces GPS jitter; we mitigate this by caching recent positions and smoothing over multiple cycles.</li>
+            <li>This tracker does not use GTFS schedule data, so it cannot compute schedule adherence, on-time performance, or scheduled-headway-based bunching.</li>
+          </ul>
+        </details>
       </div>
     </div>
   </div>
