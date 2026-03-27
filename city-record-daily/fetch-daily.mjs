@@ -75,11 +75,17 @@ function extractNotice(raw) {
 
 // --- Flagging logic ---
 
-const KEY_AGENCIES_RE = /\b(nycha|housing authority|housing preservation|hpd|dept\.?\s*of\s*education|doe|police|nypd|correction\b|doc\b|homeless services|dhs|children.s services|acs|management and budget|omb|mocj|criminal justice|city planning)\b/i;
+const KEY_AGENCIES_RE = /\b(nycha|housing authority|housing preservation|hpd|dept\.?\s*of\s*education|doe|police|nypd|correction\b|doc\b|homeless services|dhs|children.s services|acs|management and budget|omb|mocj|criminal justice|city planning|office of the mayor|mayor.s office)\b/i;
 
 const POLICY_TERMS_RE = /\b(shelter|jail|rikers|rezoning|affordable housing|charter school|homelessness|public safety|eviction|supportive housing|mental health|opioid|overdose|gun violence|youth program)\b/i;
 
 const SOLE_SOURCE_RE = /\b(sole source|negotiated acquisition|non-competitive|single source)\b/i;
+
+// Special Materials patterns
+const EXECUTIVE_ORDER_RE = /executive\s+order/i;
+const CEQR_RE = /\b(ceqr|positive declaration|negative declaration|rezoning|environmental\s+(impact|review))\b/i;
+const CONCEPT_PAPER_RE = /concept\s+paper/i;
+const ROUTINE_SPECIAL_RE = /\b(weekly fuel price|monthly index|LL63)\b/i;
 
 function parseAmount(raw) {
   if (!raw) return 0;
@@ -120,6 +126,48 @@ function flagNotice(notice, raw) {
   const vendor = notice.vendor_name || '';
   const category = notice.category_description || '';
   const allText = `${title} ${desc} ${type} ${category}`.toLowerCase();
+
+  // --- Highest priority: executive orders and special materials ---
+
+  // Executive orders from the Mayor
+  if (EXECUTIVE_ORDER_RE.test(title)) {
+    const isEmergency = /emergency/i.test(title);
+    const orderNum = title.match(/No\.?\s*(\d+(\.\d+)?)/i);
+    const label = orderNum ? `No. ${orderNum[1]}` : '';
+    return {
+      priority: 'notable',
+      summary: `${isEmergency ? 'Emergency executive' : 'Executive'} order ${label} from the Mayor. Executive orders carry the force of law and can reshape city policy, agency operations, and enforcement priorities.`
+    };
+  }
+
+  // CEQR environmental reviews and rezonings in Special Materials
+  if (section === 'Special Materials' && CEQR_RE.test(title)) {
+    return {
+      priority: 'notable',
+      summary: `Environmental review or rezoning action: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Land use and environmental reviews signal major development or infrastructure changes.`
+    };
+  }
+
+  // Concept papers (early signals of new programs)
+  if (section === 'Special Materials' && CONCEPT_PAPER_RE.test(title)) {
+    return {
+      priority: 'notable',
+      summary: `Concept paper from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Concept papers are the earliest public signal of a new program or contract -- the city is seeking feedback before procurement.`
+    };
+  }
+
+  // Skip routine Special Materials (fuel prices, monthly index, LL63)
+  if (section === 'Special Materials' && ROUTINE_SPECIAL_RE.test(title)) {
+    return null;
+  }
+
+  // Other non-routine Special Materials (comptroller reports, NYCHA intents, etc.)
+  if (section === 'Special Materials') {
+    return {
+      priority: 'notable',
+      summary: `Special notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Special Materials often contain significant policy actions, legal notices, or procurement intents that don't fit standard categories.`
+    };
+  }
 
   // --- High-priority checks ---
 
@@ -257,6 +305,17 @@ async function main() {
       else watching.push(flagged);
     }
   }
+
+  // Sort notable: executive orders first, then by contract amount descending
+  notable.sort((a, b) => {
+    const aExec = EXECUTIVE_ORDER_RE.test(a.short_title) ? 0 : 1;
+    const bExec = EXECUTIVE_ORDER_RE.test(b.short_title) ? 0 : 1;
+    if (aExec !== bExec) return aExec - bExec;
+    const aSpecial = a.section_name === 'Special Materials' ? 0 : 1;
+    const bSpecial = b.section_name === 'Special Materials' ? 0 : 1;
+    if (aSpecial !== bSpecial) return aSpecial - bSpecial;
+    return parseAmount(b.contract_amount) - parseAmount(a.contract_amount);
+  });
 
   console.log(`Flagged: ${notable.length} notable, ${watching.length} watching`);
 
