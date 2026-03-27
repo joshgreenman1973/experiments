@@ -667,6 +667,15 @@
 
         <div class="slider-group">
           <div class="slider-label">
+            <span>Average occupancy rate</span>
+            <span class="val" id="var-occ-val">50%</span>
+          </div>
+          <input type="range" id="var-occ" min="10" max="100" step="5" value="50">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Accounts for low-demand areas (outer-borough residential streets, overnight hours, etc.)</div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
             <span>Operating days / year (excl. Sundays, holidays)</span>
             <span class="val" id="var-days-val">300</span>
           </div>
@@ -675,19 +684,19 @@
 
         <div class="result-box">
           <div class="result-row">
-            <span>Spaces metered</span>
-            <span class="rv blue">3,000,000</span>
+            <span>Effective spaces generating revenue</span>
+            <span class="rv blue" id="var-eff-spaces">1,500,000</span>
           </div>
           <div class="result-row">
             <span>Daily revenue</span>
-            <span class="rv blue" id="var-daily">$60.0M</span>
+            <span class="rv blue" id="var-daily">$30.0M</span>
           </div>
           <div class="result-row total">
             <span>Annual revenue</span>
-            <span class="rv green" id="var-total">$18.0B</span>
+            <span class="rv green" id="var-total">$9.0B</span>
           </div>
           <div class="vs-current">
-            <span id="var-mult">69.8x</span> current revenue
+            <span id="var-mult">34.9x</span> current revenue
           </div>
         </div>
       </div>
@@ -1006,14 +1015,18 @@ function updateFlat() {
 function updateVariable() {
   const rate = parseFloat(document.getElementById('var-rate').value);
   const hours = parseInt(document.getElementById('var-hours').value);
+  const occ = parseInt(document.getElementById('var-occ').value);
   const days = parseInt(document.getElementById('var-days').value);
   document.getElementById('var-rate-val').textContent = '$' + rate.toFixed(2);
   document.getElementById('var-hours-val').textContent = hours;
+  document.getElementById('var-occ-val').textContent = occ + '%';
   document.getElementById('var-days-val').textContent = days;
 
-  const daily = TOTAL_SPACES * rate * hours;
+  const effSpaces = Math.round(TOTAL_SPACES * occ / 100);
+  const daily = effSpaces * rate * hours;
   const annual = daily * days;
 
+  document.getElementById('var-eff-spaces').textContent = fmtN(effSpaces);
   document.getElementById('var-daily').textContent = fmt(daily);
   document.getElementById('var-total').textContent = fmt(annual);
   document.getElementById('var-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
@@ -1066,8 +1079,9 @@ function getScenarioValues() {
   // Variable
   const varRate = parseFloat(document.getElementById('var-rate').value);
   const varHours = parseInt(document.getElementById('var-hours').value);
+  const varOcc = parseInt(document.getElementById('var-occ').value);
   const varDays = parseInt(document.getElementById('var-days').value);
-  const varTotal = TOTAL_SPACES * varRate * varHours * varDays;
+  const varTotal = TOTAL_SPACES * (varOcc / 100) * varRate * varHours * varDays;
 
   // Auction
   const auctionMonthly = parseInt(document.getElementById('auction-monthly').value);
@@ -1115,6 +1129,7 @@ document.getElementById('flat-fee').addEventListener('input', updateFlat);
 document.getElementById('flat-pct').addEventListener('input', updateFlat);
 document.getElementById('var-rate').addEventListener('input', updateVariable);
 document.getElementById('var-hours').addEventListener('input', updateVariable);
+document.getElementById('var-occ').addEventListener('input', updateVariable);
 document.getElementById('var-days').addEventListener('input', updateVariable);
 document.getElementById('auction-monthly').addEventListener('input', updateAuction);
 document.getElementById('auction-pct').addEventListener('input', updateAuction);
