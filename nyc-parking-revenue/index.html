@@ -904,14 +904,6 @@
       </div>
     </div>
 
-    <!-- COMPARISON CHART -->
-    <div class="comparison-section">
-      <h3>Side-by-side comparison</h3>
-      <div class="bar-chart" id="bar-chart">
-        <!-- filled by JS -->
-      </div>
-    </div>
-
     <!-- METHODOLOGY -->
     <div class="methodology">
       <h3>Methodology and sources</h3>
@@ -1348,7 +1340,7 @@ function updateFlat() {
   document.getElementById('flat-total').textContent = fmt(total);
   document.getElementById('flat-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
 
-  updateChart();
+
 }
 
 function updateVariable() {
@@ -1370,7 +1362,7 @@ function updateVariable() {
   document.getElementById('var-total').textContent = fmt(annual);
   document.getElementById('var-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
 
-  updateChart();
+
 }
 
 function updateAuction() {
@@ -1386,7 +1378,7 @@ function updateAuction() {
   document.getElementById('auction-total').textContent = fmt(annual);
   document.getElementById('auction-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
 
-  updateChart();
+
 }
 
 function updatePermit() {
@@ -1406,61 +1398,7 @@ function updatePermit() {
   document.getElementById('permit-total').textContent = fmt(total);
   document.getElementById('permit-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
 
-  updateChart();
-}
 
-function getScenarioValues() {
-  // Flat
-  const flatFee = parseInt(document.getElementById('flat-fee').value);
-  const flatPct = parseInt(document.getElementById('flat-pct').value);
-  const flatTotal = (FREE_SPACES * flatPct / 100 * flatFee) + CURRENT_REVENUE;
-
-  // Variable
-  const varRate = parseFloat(document.getElementById('var-rate').value);
-  const varHours = parseInt(document.getElementById('var-hours').value);
-  const varOcc = parseInt(document.getElementById('var-occ').value);
-  const varDays = parseInt(document.getElementById('var-days').value);
-  const varTotal = TOTAL_SPACES * (varOcc / 100) * varRate * varHours * varDays;
-
-  // Auction
-  const auctionMonthly = parseInt(document.getElementById('auction-monthly').value);
-  const auctionPct = parseInt(document.getElementById('auction-pct').value);
-  const auctionTotal = TOTAL_SPACES * auctionPct / 100 * auctionMonthly * 12;
-
-  // Permit
-  const permitCost = parseInt(document.getElementById('permit-cost').value);
-  const permitSpaces = parseInt(document.getElementById('permit-spaces').value);
-  const permitUptake = parseInt(document.getElementById('permit-uptake').value);
-  const permitTotal = (permitSpaces * permitUptake / 100 * permitCost) + CURRENT_REVENUE;
-
-  return [
-    { label: 'Current (meters only)', value: CURRENT_REVENUE, cls: 'current' },
-    { label: 'Residential permits', value: permitTotal, cls: 'permit' },
-    { label: 'Flat annual fee', value: flatTotal, cls: 'flat' },
-    { label: 'Market-rate auction', value: auctionTotal, cls: 'auction' },
-    { label: 'Demand-based metering', value: varTotal, cls: 'variable' },
-  ];
-}
-
-function updateChart() {
-  const scenarios = getScenarioValues();
-  scenarios.sort((a, b) => a.value - b.value);
-  const maxVal = Math.max(...scenarios.map(s => s.value));
-
-  const chart = document.getElementById('bar-chart');
-  chart.innerHTML = scenarios.map(s => {
-    const pct = Math.max((s.value / maxVal) * 100, 8);
-    return `
-      <div class="bar-row">
-        <div class="bar-label">${s.label}</div>
-        <div class="bar-track">
-          <div class="bar-fill ${s.cls}" style="width: ${pct}%">
-            ${fmt(s.value)}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
 // Event listeners
