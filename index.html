@@ -809,6 +809,27 @@ const STATE = [
 // CHART DEFAULTS
 // ============================================
 
+Chart.defaults.animation = false;
+
+// Fix: Chart.js BarController.updateElements can produce NaN base/height
+// in some environments. Patch updateElements to fix values after default runs.
+const OrigBarController = Chart.registry.controllers.items.bar;
+const origUpdateElements = OrigBarController.prototype.updateElements;
+OrigBarController.prototype.updateElements = function(bars, start, count, mode) {
+  origUpdateElements.call(this, bars, start, count, mode);
+  const yScale = this._cachedMeta.vScale;
+  if (!yScale) return;
+  const basePixel = yScale.getPixelForValue(0);
+  if (!isFinite(basePixel)) return;
+  for (let i = start; i < start + count; i++) {
+    const bar = bars[i];
+    if (!bar) continue;
+    if (!isFinite(bar.base)) bar.base = basePixel;
+    if (!isFinite(bar.height)) bar.height = Math.abs(bar.y - bar.base);
+  }
+};
+
+
 Chart.defaults.font.family = "'DM Sans', sans-serif";
 Chart.defaults.font.size = 11;
 Chart.defaults.color = '#5a5f69';
@@ -1138,7 +1159,7 @@ new Chart(document.getElementById('chartStateComponents'), {
     maintainAspectRatio: false,
     interaction: { intersect: false, mode: 'index' },
     scales: {
-      x: { stacked: true, grid: { display: false }, ticks: { callback: stateTickYears } },
+      x: { stacked: true, grid: { display: false }, ticks: { callback: stateTickYears, maxRotation: 0 } },
       y: { stacked: true, ticks: { callback: v => fmt(v), maxTicksLimit: 8 } }
     },
     plugins: {
@@ -1282,88 +1303,9 @@ new Chart(document.getElementById('chartBoroChange'), {
   }
 });
 
-// ============================================
-// SCROLL-TRIGGERED ANIMATIONS
-// ============================================
-
-// Animate sections on scroll -- use visibility/clip instead of opacity
-// so Chart.js canvas rendering is not suppressed by opacity:0
-const sections = document.querySelectorAll('.section, .big-numbers');
-const style = document.createElement('style');
-style.textContent = `
-  .section, .big-numbers {
-    opacity: 0;
-    transform: translateY(32px);
-    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .section.visible, .big-numbers.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .hero {
-    animation: heroFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  }
-  @keyframes heroFadeIn {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .big-num-value {
-    transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .anno-card {
-    opacity: 0;
-    transform: translateY(16px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
-  }
-  .annotation-strip.visible .anno-card {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .annotation-strip.visible .anno-card:nth-child(2) { transition-delay: 0.12s; }
-  .annotation-strip.visible .anno-card:nth-child(3) { transition-delay: 0.24s; }
-  .borough-card {
-    opacity: 0;
-    transform: translateY(12px);
-    transition: opacity 0.4s ease, transform 0.4s ease;
-  }
-  .borough-grid.visible .borough-card {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .borough-grid.visible .borough-card:nth-child(2) { transition-delay: 0.08s; }
-  .borough-grid.visible .borough-card:nth-child(3) { transition-delay: 0.16s; }
-  .borough-grid.visible .borough-card:nth-child(4) { transition-delay: 0.24s; }
-  .borough-grid.visible .borough-card:nth-child(5) { transition-delay: 0.32s; }
-`;
-document.head.appendChild(style);
-
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      // Force Chart.js to redraw canvases that were hidden during opacity:0
-      entry.target.querySelectorAll('canvas').forEach(canvas => {
-        const chartInstance = Chart.getChart(canvas);
-        if (chartInstance) {
-          requestAnimationFrame(() => {
-            chartInstance.resize();
-            chartInstance.update('none');
-          });
-        }
-      });
-    }
-  });
-}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-
-sections.forEach(s => observer.observe(s));
-document.querySelectorAll('.annotation-strip, .borough-grid').forEach(s => observer.observe(s));
-
-// Also force all charts to redraw after page load in case some were missed
+// Force all charts to resize properly after page load
 window.addEventListener('load', () => {
-  Object.values(Chart.instances).forEach(chart => {
-    chart.resize();
-    chart.update('none');
-  });
+  Chart.helpers.each(Chart.instances, chart => chart.resize());
 });
 </script>
 
