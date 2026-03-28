@@ -1,677 +1,1281 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Experiments | Vital City</title>
-  <meta name="description" content="A gallery of creative urban data tools and maps built by independent developers and small teams.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!--
-    DEVELOPER NOTE: Vital City uses "Gascogne" as their primary serif.
-    We use Source Serif 4 as a stand-in. Swap for Gascogne when
-    integrating into the Ghost theme.
-  -->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,300;1,8..60,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* ─────────────────────────────────────────────
-       VITAL CITY — EXPERIMENTS PAGE
-       Matches the section-page pattern used by
-       Commentary, Policy, and Data Explorer.
-       ───────────────────────────────────────────── */
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New York City's population, pulled apart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root {
+  --bg: #0c0f14;
+  --card: #151a22;
+  --card-border: #1e2530;
+  --text: #e8e6e1;
+  --text-muted: #8a8f99;
+  --text-dim: #5a5f69;
+  --accent-intl: #4db8ff;
+  --accent-domestic: #ff6b6b;
+  --accent-natural: #7ecf8e;
+  --accent-pop: #f0c948;
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', -apple-system, sans-serif;
+}
 
-    :root {
-      --vc-black: #000000;
-      --vc-dark: #1a1a1a;
-      --vc-charcoal: #434343;
-      --vc-medium: #6b6b6b;
-      --vc-light: #999;
-      --vc-rule: #d9d9d9;
-      --vc-bg: #fafafa;
-      --vc-white: #ffffff;
-      --vc-accent: #c94c24;       /* coral/orange used for category labels */
-      --vc-accent-hover: #a83d1c;
-      /* Swap these when integrating into Ghost: */
-      --vc-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
-      --vc-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;  /* stand-in for Gascogne */
-      --vc-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
 
-    body {
-      font-family: var(--vc-sans);
-      color: var(--vc-charcoal);
-      background: var(--vc-white);
-      -webkit-font-smoothing: antialiased;
-    }
+.container {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
 
-    /* ── Site Nav (placeholder — Ghost provides the real one) ── */
-    .site-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 18px 40px;
-      border-bottom: 1px solid var(--vc-rule);
-    }
+.hero {
+  padding: 80px 0 48px;
+  position: relative;
+  overflow: hidden;
+}
 
-    .site-nav .logo {
-      font-family: var(--vc-sans);
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--vc-black);
-      text-decoration: none;
-    }
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(77,184,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
 
-    .site-nav .logo .tagline {
-      font-weight: 400;
-      font-size: 14px;
-      letter-spacing: 0;
-      text-transform: none;
-      color: var(--vc-charcoal);
-      margin-left: 10px;
-    }
+.hero-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--accent-intl);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-    .site-nav nav {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-    }
+.hero-kicker::before {
+  content: '';
+  width: 24px;
+  height: 2px;
+  background: var(--accent-intl);
+  display: block;
+}
 
-    .site-nav nav a {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: var(--vc-dark);
-      text-decoration: none;
-    }
+h1 {
+  font-family: var(--serif);
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1.08;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  margin-bottom: 24px;
+  max-width: 700px;
+}
 
-    .site-nav nav a:hover {
-      text-decoration: underline;
-      text-underline-offset: 4px;
-    }
+h1 em { font-style: italic; color: var(--accent-intl); }
 
-    .site-nav nav a.active {
-      text-decoration: underline;
-      text-underline-offset: 4px;
-    }
+.hero-deck {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--text-muted);
+  max-width: 620px;
+}
 
-    .site-nav .nav-donate {
-      background: var(--vc-black);
-      color: var(--vc-white) !important;
-      padding: 8px 18px;
-      border-radius: 2px;
-      text-decoration: none !important;
-      font-size: 12px;
-      letter-spacing: 1px;
-    }
+.hero-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
 
-    /* ── Page Header (matches Commentary / Policy / Data Explorer) ── */
-    .page-header {
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 48px 40px 0;
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 40px;
-    }
+/* BIG NUMBERS */
+.big-numbers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 56px;
+}
 
-    .page-header h1 {
-      font-family: var(--vc-display);
-      font-size: clamp(52px, 7vw, 80px);
-      font-weight: 400;
-      font-style: italic;
-      color: var(--vc-black);
-      line-height: 1.0;
-      flex-shrink: 0;
-    }
+.big-num {
+  background: var(--card);
+  padding: 24px 16px;
+  text-align: center;
+}
 
-    .page-header .page-description {
-      font-family: var(--vc-serif);
-      font-size: clamp(15px, 1.4vw, 17px);
-      font-weight: 300;
-      color: var(--vc-medium);
-      line-height: 1.55;
-      max-width: 400px;
-      text-align: right;
-    }
+.big-num-value {
+  font-family: var(--serif);
+  font-size: clamp(22px, 3.5vw, 34px);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
 
-    /* ── Orange rule (matches the thin colored line on VC pages) ── */
-    .section-rule {
-      max-width: 1340px;
-      margin: 24px auto 0;
-      padding: 0 40px;
-    }
+.big-num-value.positive { color: var(--accent-natural); }
+.big-num-value.negative { color: var(--accent-domestic); }
+.big-num-value.neutral { color: var(--accent-pop); }
+.big-num-value.intl { color: var(--accent-intl); }
 
-    .section-rule hr {
-      border: none;
-      height: 2px;
-      background: var(--vc-accent);
-    }
+.big-num-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
 
-    /* ── Disclaimer ── */
-    .disclaimer {
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 28px 40px 0;
-    }
+/* SECTIONS */
+.section { margin-bottom: 64px; }
+.section-header { margin-bottom: 28px; }
 
-    .disclaimer-inner {
-      background: #f7f5f3;
-      border-left: 3px solid var(--vc-accent);
-      padding: 16px 20px;
-      max-width: 880px;
-    }
+h2 {
+  font-family: var(--serif);
+  font-size: clamp(22px, 3.5vw, 30px);
+  font-weight: 400;
+  margin-bottom: 8px;
+}
 
-    .disclaimer-inner p {
-      font-family: var(--vc-serif);
-      font-size: 14.5px;
-      color: var(--vc-medium);
-      line-height: 1.65;
-    }
+.section-intro {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 620px;
+  line-height: 1.6;
+}
 
-    .disclaimer-inner strong {
-      color: var(--vc-charcoal);
-      font-weight: 600;
-    }
+/* CHART CARDS */
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 28px 24px 20px;
+  margin-bottom: 20px;
+}
 
-    /* ── Gallery Grid ── */
-    .gallery {
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 36px 40px 80px;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 32px;
-    }
+.chart-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
 
-    /* ── Card ── */
-    .card {
-      background: var(--vc-white);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
+.chart-wrap { position: relative; width: 100%; }
+.chart-wrap canvas { width: 100% !important; }
 
-    /* ── Preview Window ── */
-    .card-preview {
-      position: relative;
-      width: 100%;
-      height: 300px;
-      background: #f0eeed;
-      overflow: hidden;
-    }
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
 
-    .card-preview iframe {
-      width: 200%;
-      height: 200%;
-      border: none;
-      transform: scale(0.5);
-      transform-origin: top left;
-      pointer-events: none;
-    }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
-    .card-preview.interactive iframe {
-      pointer-events: auto;
-      width: 100%;
-      height: 100%;
-      transform: none;
-    }
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
 
-    .card-preview .preview-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0);
-      transition: background 0.2s;
-      cursor: pointer;
-      z-index: 2;
-    }
+/* ANNOTATION CARDS */
+.annotation-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
 
-    .card-preview.interactive .preview-overlay {
-      display: none;
-    }
+.anno-card {
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 3px solid var(--accent-intl);
+}
 
-    .card-preview .preview-overlay:hover {
-      background: rgba(0,0,0,0.3);
-    }
+.anno-card.domestic { border-left-color: var(--accent-domestic); }
+.anno-card.natural { border-left-color: var(--accent-natural); }
+.anno-card.pop { border-left-color: var(--accent-pop); }
 
-    .card-preview .preview-overlay .interact-prompt {
-      opacity: 0;
-      transition: opacity 0.2s;
-      background: var(--vc-white);
-      color: var(--vc-dark);
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 500;
-    }
+.anno-year {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
 
-    .card-preview .preview-overlay:hover .interact-prompt {
-      opacity: 1;
-    }
+.anno-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 
-    /* Fallback for blocked iframes */
-    .card-preview .fallback {
-      display: none;
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      color: white;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-    }
+/* BOROUGH GRID */
+.borough-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+}
 
-    .card-preview .fallback.visible {
-      display: flex;
-    }
+.borough-card {
+  background: var(--card);
+  padding: 20px 16px;
+}
 
-    .card-preview .fallback .fallback-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
+.borough-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
 
-    .card-preview .fallback .fallback-text {
-      font-size: 15px;
-      opacity: 0.8;
-    }
+.borough-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 3px 0;
+  color: var(--text-muted);
+}
 
-    /* ── Card Body ── */
-    .card-body {
-      padding: 16px 0 24px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
+.borough-stat .val { font-variant-numeric: tabular-nums; }
+.borough-stat .val.pos { color: var(--accent-natural); }
+.borough-stat .val.neg { color: var(--accent-domestic); }
+.borough-stat .val.hi { color: var(--accent-intl); }
 
-    .card-tag {
-      font-family: var(--vc-sans);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: var(--vc-accent);
-      margin-bottom: 6px;
-    }
+/* DATA TABLE */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+}
 
-    .card-body h3 {
-      font-family: var(--vc-serif);
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--vc-black);
-      margin-bottom: 8px;
-      line-height: 1.25;
-    }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 680px;
+}
 
-    .card-body h3 a {
-      color: inherit;
-      text-decoration: none;
-    }
+thead th {
+  background: var(--card);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 14px 12px;
+  text-align: right;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
 
-    .card-body h3 a:hover {
-      text-decoration: underline;
-      text-underline-offset: 3px;
-    }
+thead th:first-child { text-align: left; padding-left: 16px; }
 
-    .card-desc {
-      font-family: var(--vc-sans);
-      font-size: 14px;
-      color: var(--vc-medium);
-      line-height: 1.6;
-      flex: 1;
-      margin-bottom: 12px;
-    }
+tbody td {
+  padding: 10px 12px;
+  text-align: right;
+  border-top: 1px solid var(--card-border);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
 
-    .card-creator {
-      font-family: var(--vc-sans);
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--vc-charcoal);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+tbody td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  padding-left: 16px;
+}
 
-    /* ── Archive Section ── */
-    .archive-section {
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 0 40px 40px;
-    }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
 
-    .archive-toggle {
-      font-family: var(--vc-sans);
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--vc-medium);
-      background: none;
-      border: 1px solid var(--vc-rule);
-      padding: 10px 20px;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      transition: all 0.2s;
-    }
+td.pos { color: var(--accent-natural); }
+td.neg { color: var(--accent-domestic); }
+td.hi { color: var(--accent-intl); }
 
-    .archive-toggle:hover {
-      border-color: var(--vc-charcoal);
-      color: var(--vc-charcoal);
-    }
+/* DIVIDER */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--card-border);
+  margin: 72px 0;
+}
 
-    .archive-list {
-      display: none;
-      margin-top: 20px;
-    }
+.state-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  padding: 6px 14px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+}
 
-    .archive-list.visible {
-      display: block;
-    }
+/* METHODOLOGY */
+.methodology {
+  padding: 40px 0 64px;
+  border-top: 1px solid var(--card-border);
+  margin-top: 32px;
+}
 
-    .archive-list p {
-      font-size: 14px;
-      color: var(--vc-light);
-      font-style: italic;
-    }
+.methodology h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
 
-    /* ── Footer ── */
-    .page-footer {
-      max-width: 1340px;
-      margin: 0 auto;
-      padding: 24px 40px 60px;
-      border-top: 1px solid var(--vc-rule);
-    }
+.methodology p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  max-width: 680px;
+  margin-bottom: 8px;
+}
 
-    .page-footer p {
-      font-family: var(--vc-sans);
-      font-size: 13px;
-      color: var(--vc-light);
-      line-height: 1.7;
-    }
+.methodology a { color: var(--accent-intl); text-decoration: none; }
 
-    .page-footer a {
-      color: var(--vc-accent);
-      text-decoration: none;
-    }
-
-    .page-footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 900px) {
-      .site-nav { padding: 14px 20px; }
-      .site-nav nav { display: none; } /* hamburger in Ghost */
-
-      .page-header {
-        flex-direction: column;
-        padding: 32px 20px 0;
-        gap: 16px;
-      }
-
-      .page-header .page-description {
-        text-align: left;
-        max-width: 100%;
-      }
-
-      .section-rule { padding: 0 20px; }
-      .disclaimer { padding: 24px 20px 0; }
-
-      .gallery {
-        grid-template-columns: 1fr;
-        padding: 28px 20px 60px;
-        gap: 36px;
-      }
-
-      .card-preview { height: 240px; }
-
-      .archive-section { padding: 0 20px 40px; }
-      .page-footer { padding: 24px 20px 40px; }
-    }
-  </style>
+@media (max-width: 600px) {
+  .hero { padding: 48px 0 32px; }
+  .big-numbers { grid-template-columns: repeat(2, 1fr); }
+  .chart-card { padding: 20px 14px 16px; }
+  .annotation-strip { grid-template-columns: 1fr; }
+  .borough-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
 </head>
 <body>
 
-  <!--
-    ┌──────────────────────────────────────────────────────┐
-    │  DEVELOPER NOTE                                      │
-    │                                                      │
-    │  This nav is a placeholder that mirrors Vital City's │
-    │  existing nav structure. When integrating into Ghost, │
-    │  remove this <header class="site-nav"> entirely —    │
-    │  Ghost will inject the real site nav.                 │
-    │                                                      │
-    │  Similarly, swap "Source Serif 4" for "Gascogne"     │
-    │  in the CSS custom properties above.                 │
-    └──────────────────────────────────────────────────────┘
-  -->
-  <header class="site-nav">
-    <a href="https://www.vitalcitynyc.org/" class="logo">
-      VITAL CITY <span class="tagline">New ideas.</span>
-    </a>
-    <nav>
-      <a href="#">The Journal</a>
-      <a href="#">Commentary</a>
-      <a href="#">Data</a>
-      <a href="#">Policy</a>
-      <a href="#">About Us</a>
-      <a href="#" class="nav-donate">DONATE</a>
-    </nav>
+<div class="container">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-kicker">Census Bureau population estimates &middot; March 2026</div>
+    <h1>New York City's population, pulled <em>apart</em></h1>
+    <p class="hero-deck">
+      For over a decade, New York City has been caught in a tug-of-war: residents leaving for other parts of the country, immigrants arriving from abroad, and a slowly shrinking natural advantage of births over deaths. New Census estimates released in March 2026 show how a drop in international migration brought the city's growth to a halt -- and into reverse.
+    </p>
+    <div class="hero-meta">
+      Data: U.S. Census Bureau, 2010-2020 Intercensal Estimates and Vintage 2025 Population Estimates, county-level, for the five boroughs (Bronx, Kings, New York, Queens, Richmond counties)
+    </div>
   </header>
 
-  <!-- Page header: matches Commentary / Policy / Data Explorer layout -->
-  <div class="page-header">
-    <h1>Experiments</h1>
-    <p class="page-description">
-      Creative urban data tools and maps built by
-      independent developers and small teams on the
-      new frontier of civic technology
-    </p>
+  <!-- BIG NUMBERS -->
+  <div class="big-numbers">
+    <div class="big-num">
+      <div class="big-num-value negative">-12,196</div>
+      <div class="big-num-label">Net change<br>2024-2025</div>
+    </div>
+    <div class="big-num">
+      <div class="big-num-value negative">-113,718</div>
+      <div class="big-num-label">Domestic<br>migration</div>
+    </div>
+    <div class="big-num">
+      <div class="big-num-value intl">+65,824</div>
+      <div class="big-num-label">International<br>migration</div>
+    </div>
+    <div class="big-num">
+      <div class="big-num-value positive">+36,101</div>
+      <div class="big-num-label">Natural<br>change</div>
+    </div>
   </div>
 
-  <div class="section-rule"><hr></div>
-
-  <!-- Disclaimer -->
-  <div class="disclaimer">
-    <div class="disclaimer-inner">
-      <p>
-        <strong>A note:</strong> These tools are built by independent developers and small teams, not by Vital City. Think of them as the equivalent of beta software — creative, illuminating, and occasionally imperfect. We share them because they represent some of the best work happening on the new frontier of civic technology, but we encourage you to double-check any data or findings before relying on them. Inclusion here is not an endorsement of every conclusion. If you want to recommend an experiment for us to feature, email us at <a href="mailto:info@vitalcitynyc.org?subject=Data%20gallery">info@vitalcitynyc.org</a> with subject line "Data gallery."
+  <!-- CHART 1: NYC Population -->
+  <section class="section">
+    <div class="section-header">
+      <h2>A COVID crash, an immigration rebound, and a sharp reversal</h2>
+      <p class="section-intro">
+        NYC lost over 300,000 people in a single year during COVID. A wave of international migration -- asylum seekers, visa backlogs clearing -- brought it most of the way back. Then in 2025, international arrivals fell by 70%, and the city lost population again.
       </p>
     </div>
-  </div>
-
-  <!-- Gallery -->
-  <div class="gallery" id="gallery"></div>
-
-  <!-- Archive -->
-  <div class="archive-section">
-    <button class="archive-toggle" onclick="toggleArchive()">View previously featured tools</button>
-    <div class="archive-list" id="archive-list">
-      <p>No archived tools yet. As we rotate the gallery each month, previously featured tools will appear here.</p>
+    <div class="chart-card">
+      <div class="chart-card-title">New York City population, 2011-2025</div>
+      <div class="chart-wrap" style="height: 280px;">
+        <canvas id="chartPop"></canvas>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Footer -->
-  <footer class="page-footer">
+  <!-- CHART 2: Components -->
+  <section class="section">
+    <div class="section-header">
+      <h2>Three forces, one city</h2>
+      <p class="section-intro">
+        Every year, NYC's population is shaped by three competing forces. Domestic outflow (red) has been consistently negative. International inflow (blue) has varied sharply from year to year. And natural change (green) has been slowly shrinking.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Annual components of population change, NYC</div>
+      <div class="chart-wrap" style="height: 380px;">
+        <canvas id="chartComponents"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-natural)"></div> Natural change (births - deaths)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-intl)"></div> International migration</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-domestic)"></div> Domestic migration</div>
+      </div>
+    </div>
+    <div class="annotation-strip">
+      <div class="anno-card domestic">
+        <div class="anno-year">2020-2021</div>
+        <div class="anno-text">330,000 people left NYC for elsewhere in the U.S. during COVID -- more than the entire population of Cincinnati.</div>
+      </div>
+      <div class="anno-card">
+        <div class="anno-year">2023-2024</div>
+        <div class="anno-text">International migration reached 220,000, the highest level in the dataset. Asylum seekers accounted for a significant share of arrivals.</div>
+      </div>
+      <div class="anno-card pop">
+        <div class="anno-year">2024-2025</div>
+        <div class="anno-text">International arrivals fell by 70% from the prior year. The city lost 12,000 people.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHART 3: Migration -->
+  <section class="section">
+    <div class="section-header">
+      <h2>The migration seesaw</h2>
+      <p class="section-intro">
+        NYC has always lost people to other parts of the U.S. and gained them from abroad. When international migration is strong enough to offset domestic losses, the city grows. When it isn't, the city shrinks. In 2025, it wasn't.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Net domestic vs. net international migration, NYC</div>
+      <div class="chart-wrap" style="height: 340px;">
+        <canvas id="chartMigration"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-intl)"></div> International migration</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-domestic)"></div> Domestic migration</div>
+        <div class="legend-item"><div class="legend-dot" style="border: 2px solid var(--accent-pop); background: transparent;"></div> Net migration (combined)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHART 4: Natural change -->
+  <section class="section">
+    <div class="section-header">
+      <h2>The shrinking buffer</h2>
+      <p class="section-intro">
+        Births have declined steadily while deaths rose through COVID. The natural increase that once added nearly 70,000 New Yorkers per year now adds just 36,000 -- and the gap keeps closing.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Births, deaths, and natural change, NYC</div>
+      <div class="chart-wrap" style="height: 320px;">
+        <canvas id="chartNatural"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-natural)"></div> Births</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-domestic)"></div> Deaths</div>
+        <div class="legend-item"><div class="legend-dot" style="border: 2px solid rgba(126,207,142,0.5); background: rgba(126,207,142,0.15);"></div> Natural change (shaded area)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOROUGH BREAKDOWN -->
+  <section class="section">
+    <div class="section-header">
+      <h2>How each borough fared</h2>
+      <p class="section-intro">
+        Every borough except Staten Island and the Bronx lost population in 2025. Queens and Brooklyn bore the brunt of the domestic outflow.
+      </p>
+    </div>
+    <div class="borough-grid" id="boroughGrid"></div>
+  </section>
+
+  <!-- BOROUGH TRAJECTORIES -->
+  <section class="section">
+    <div class="section-header">
+      <h2>Five boroughs, five trajectories</h2>
+      <p class="section-intro">
+        Population indexed to 2011 = 100, so boroughs of different sizes can be compared on equal footing. Manhattan's COVID collapse and partial rebound stands out; Staten Island barely budged.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Population change by borough, indexed (2011 = 100)</div>
+      <div class="chart-wrap" style="height: 340px;">
+        <canvas id="chartBoroIndex"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#e06666"></div> Manhattan</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4db8ff"></div> Brooklyn</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f0c948"></div> Queens</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7ecf8e"></div> Bronx</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#b08cd8"></div> Staten Island</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOROUGH NET CHANGE -->
+  <section class="section">
+    <div class="section-header">
+      <h2>Annual net population change by borough</h2>
+      <p class="section-intro">
+        The raw numbers: how many people each borough gained or lost in each year. Manhattan's 2021 loss of 117,000 was the single worst borough-year in the dataset.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Annual net population change by borough</div>
+      <div class="chart-wrap" style="height: 360px;">
+        <canvas id="chartBoroChange"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#e06666"></div> Manhattan</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4db8ff"></div> Brooklyn</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f0c948"></div> Queens</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7ecf8e"></div> Bronx</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#b08cd8"></div> Staten Island</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NYC DATA TABLE -->
+  <section class="section">
+    <div class="section-header">
+      <h2>NYC: the full picture</h2>
+      <p class="section-intro">Every component of population change for the five boroughs combined, year by year.</p>
+    </div>
+    <div class="table-wrap">
+      <table id="nycTable">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Population</th>
+            <th>Births</th>
+            <th>Deaths</th>
+            <th>Natural change</th>
+            <th>Intl. migration</th>
+            <th>Domestic migration</th>
+            <th>Net change</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== STATE SECTION ========== -->
+  <hr class="section-divider">
+
+  <section class="section">
+    <div class="section-header">
+      <span class="state-label">New York state</span>
+      <h2>The state picture: net gain of 1,008</h2>
+      <p class="section-intro">
+        New York state added 1,008 people in 2025. The state has been losing residents to domestic migration for over two decades. In years when international migration is high enough to offset those losses plus the declining natural increase, the state grows; in 2025, it was nearly a wash. Here are the full state-level components going back to 2003.
+      </p>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Annual components of population change, New York state, 2003-2025</div>
+      <div class="chart-wrap" style="height: 360px;">
+        <canvas id="chartStateComponents"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-natural)"></div> Natural change</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-intl)"></div> International migration</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-domestic)"></div> Domestic migration</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">
+      <h2>State data table</h2>
+      <p class="section-intro">All components, 2003-2025, for New York state.</p>
+    </div>
+    <div class="table-wrap">
+      <table id="stateTable">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Population</th>
+            <th>Births</th>
+            <th>Deaths</th>
+            <th>Natural change</th>
+            <th>Intl. migration</th>
+            <th>Domestic migration</th>
+            <th>Net change</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- METHODOLOGY -->
+  <footer class="methodology">
+    <h3>Sources and methodology</h3>
     <p>
-      Know of a tool that belongs here? <a href="mailto:tips@vitalcitynyc.org">Send us a tip</a>.<br>
-      Gallery updated monthly. Last updated March 2026.
+      <strong>Data sources:</strong> This project follows the approach used by the
+      <a href="https://www.nyc.gov/site/planning/planning-level/nyc-population/population-estimates.page">NYC Department of City Planning, Population Division</a>:
+      intercensal estimates for completed decades, and the latest postcensal vintage for the current decade.
+    </p>
+    <p>
+      <strong>Population figures:</strong> 2011-2019 population values use the Census Bureau's
+      <a href="https://www2.census.gov/programs-surveys/popest/tables/2010-2020/intercensal/county/">2010-2020 Intercensal Estimates</a>,
+      which distribute the gap between postcensal estimates and the 2020 Census count across the decade.
+      2020-2025 population values use
+      <a href="https://www.census.gov/data/tables/time-series/demo/popest/2020s-counties-total.html">Vintage 2025</a>
+      postcensal estimates. State-level population follows the same approach, with 2003-2009 from the
+      <a href="https://www2.census.gov/programs-surveys/popest/tables/2000-2010/intercensal/state/">2000-2010 Intercensal Estimates</a>.
+    </p>
+    <p>
+      <strong>Components of change (births, deaths, migration):</strong> The Census Bureau does not publish intercensal components at the county level. Following DCP's practice, components for 2011-2020 come from Vintage 2020 (CO-EST2020-ALLDATA) and components for 2021-2025 come from Vintage 2025 (CO-EST2025-ALLDATA). Components may not sum to the population change shown, because the population and component figures come from different census series.
+    </p>
+    <p>
+      <strong>Why this matters:</strong> Different census vintages can produce substantially different estimates for the same year. Each new vintage revises the entire series with updated methodology and data. Using a single postcensal vintage for a completed decade ignores corrections made possible by the subsequent census. Intercensal estimates are the Census Bureau's most accurate mid-decade figures because they incorporate both the opening and closing census counts.
+    </p>
+    <p>
+      <strong>Definitions:</strong> NYC totals are the sum of the five boroughs (Bronx, Kings/Brooklyn, New York/Manhattan, Queens, and Richmond/Staten Island counties). "Natural change" = births minus deaths. "International migration" = net movement from abroad. "Domestic migration" = net movement to/from other U.S. counties. All population estimates are as of July 1.
+    </p>
+    <p>
+      <strong>Limitations:</strong> Census population estimates are modeled from administrative records (IRS data, Medicare, immigration files), not direct counts. International migration estimates were substantially revised upward in recent vintages. Domestic migration is derived from IRS and other address-change records and may undercount certain populations.
     </p>
   </footer>
 
-  <script>
-    // ── Tool Data ──────────────────────────────────────
-    // Edit this array to add, remove, or reorder tools.
-    // Set "archived: true" to move a tool to the archive.
+</div>
 
-    const tools = [
-      {
-        id: "bikemap",
-        name: "bikemap.nyc",
-        tag: "Transit",
-        url: "https://bikemap.nyc/",
-        description: "Every one of the 291 million Citi Bike trips ever taken, animated on a map in real time. Search by date, station, or even paste a Citi Bike receipt to find your own ride. No backend server — it runs entirely in your browser.",
-        creator: "Freeman Jiang",
-        icon: "🚲",
-        archived: false
-      },
-      {
-        id: "subway-stories",
-        name: "Subway Stories",
-        tag: "Transit",
-        url: "https://subwaystories.nyc/",
-        description: "A 3D visualization of MTA ridership that turns raw turnstile data into narrative \"stories\" — following fans to Flushing Meadows, tracing nightlife along the L, and revealing how the city's rhythms shift hour by hour.",
-        creator: "Jediah Katz, Marc Zitelli & Julia Han",
-        icon: "🚇",
-        archived: false
-      },
-      {
-        id: "311-wrapped",
-        name: "311 Wrapped",
-        tag: "Civic Data",
-        url: "https://311wrapped.com/",
-        description: "Your city's year in complaints, Spotify Wrapped-style. Breaks down 311 data into digestible, shareable visualizations that reveal what neighborhoods are calling about — from noise to rodents to potholes.",
-        creator: "Khaled Eltokhy",
-        icon: "📞",
-        archived: false
-      },
-      {
-        id: "rent-heatmap",
-        name: "NYC Rent Heat Map",
-        tag: "Housing",
-        url: "https://eshaghoff.github.io/nyc-rent-map/",
-        description: "An interactive heat map of real asking rents across the five boroughs, built from thousands of StreetEasy listings. Toggle between bedroom counts, overlay subway stations and crime data, and hover anywhere to see estimated rent.",
-        creator: "Sam Eshaghoff",
-        icon: "🏠",
-        archived: false
-      },
-      {
-        id: "permit-pulse",
-        name: "PermitPulse NYC",
-        tag: "Development",
-        url: "https://www.permitpulse.nyc/",
-        description: "Track where New York is building, in real time. Every new DOB-issued permit is plotted on an isometric 3D map of the city, revealing construction booms and neighborhood-level development patterns.",
-        creator: "Built on Isometric NYC",
-        icon: "🏗️",
-        archived: false
-      },
-      {
-        id: "isometric-nyc",
-        name: "Isometric NYC",
-        tag: "Mapping",
-        url: "https://cannoneyed.com/isometric-nyc/",
-        description: "A beautiful isometric 3D rendering of every building footprint in New York City. Zoom, pan, and explore the city's skyline from an architectural bird's-eye view. The open-source engine behind PermitPulse and other tools.",
-        creator: "cannoneyed",
-        icon: "🏙️",
-        archived: false
-      },
-      {
-        id: "art-off-rails",
-        name: "Art Off the Rails",
-        tag: "Culture",
-        url: "https://artworkmta.pages.dev/",
-        description: "An interactive map of the MTA's permanent art collection — mosaics, sculptures, and installations across subway, Metro-North, and LIRR stations. Click any station to discover what you've been walking past. Winner of the 2024 MTA Open Data Challenge.",
-        creator: "Stephanie Dang",
-        icon: "🎨",
-        archived: false
-      },
-      {
-        id: "language-map",
-        name: "Languages of NYC",
-        tag: "Community",
-        url: "https://languagemap.nyc/",
-        description: "Over 700 language varieties mapped across the five boroughs — the product of more than a decade of fieldwork. From Gottscheerisch to Newari, this map reveals the staggering linguistic diversity that makes New York the world's most multilingual city.",
-        creator: "Endangered Language Alliance",
-        icon: "🗣️",
-        archived: false
-      },
-      {
-        id: "sidewalk-widths",
-        name: "Sidewalk Widths NYC",
-        tag: "Infrastructure",
-        url: "https://sidewalkwidths.nyc/",
-        description: "How wide is the sidewalk under your feet? This map color-codes every sidewalk in all five boroughs by width — originally built for social distancing, now a useful lens on walkability and urban design.",
-        creator: "Meli Harvey",
-        icon: "🚶",
-        archived: false
-      },
-      {
-        id: "civic-calendar",
-        name: "NYC Civic Calendar",
-        tag: "Civic Engagement",
-        url: "https://nyc-civic-calendar.vercel.app/",
-        description: "Subscribe to your local government's meetings — community boards, council hearings, precinct meetings — delivered straight to your Google, Apple, or Outlook calendar. Automatically refreshed weekly from official NYC sources.",
-        creator: "Laeo Crnkovic-Rubsamen",
-        icon: "📅",
-        archived: false
+<script>
+// ============================================
+// NYC DATA (Census county-level, 5 boroughs summed)
+// Following NYC DCP practice: intercensal estimates for completed decades,
+// latest vintage for current decade. Components from postcensal vintages
+// (no intercensal components exist at county level).
+// ============================================
+
+const NYC = [
+  // 2011-2019: Population from 2010-2020 Intercensal Estimates; components from Vintage 2020
+  { year: '2011', pop: 8337907, births: 120511, deaths: 52303, natural: 68208, intl: 63067, domestic: -48668, total: 82759 },
+  { year: '2012', pop: 8463961, births: 118504, deaths: 50826, natural: 67678, intl: 63943, domestic: -57413, total: 73851 },
+  { year: '2013', pop: 8565517, births: 119147, deaths: 53245, natural: 65902, intl: 55387, domestic: -71610, total: 49492 },
+  { year: '2014', pop: 8655238, births: 117035, deaths: 52835, natural: 64200, intl: 59649, domestic: -86263, total: 37660 },
+  { year: '2015', pop: 8736590, births: 117615, deaths: 53963, natural: 63652, intl: 58620, domestic: -93172, total: 29290 },
+  { year: '2016', pop: 8794592, births: 115844, deaths: 53180, natural: 62664, intl: 61914, domestic: -118964, total: 5797 },
+  { year: '2017', pop: 8815395, births: 113418, deaths: 53828, natural: 59590, intl: 48030, domestic: -139091, total: -31259 },
+  { year: '2018', pop: 8826377, births: 110954, deaths: 54288, natural: 56666, intl: 39188, domestic: -136990, total: -41081 },
+  { year: '2019', pop: 8824751, births: 106802, deaths: 59387, natural: 47415, intl: 30610, domestic: -131367, total: -53689 },
+  // 2020: Population from Vintage 2025; components from Vintage 2020 (full-year July 2019-July 2020)
+  { year: '2020', pop: 8751188, births: 105091, deaths: 66992, natural: 38099, intl: 24784, domestic: -151899, total: -89712 },
+  // 2021-2025: Vintage 2025 county data (CO-EST2025-ALLDATA)
+  { year: '2021', pop: 8447958, births: 91969, deaths: 62178, natural: 29791, intl: 19997, domestic: -329532, total: -303230 },
+  { year: '2022', pop: 8362665, births: 94076, deaths: 60358, natural: 33718, intl: 83564, domestic: -212791, total: -85293 },
+  { year: '2023', pop: 8433834, births: 92402, deaths: 56755, natural: 35647, intl: 155131, domestic: -120939, total: 71169 },
+  { year: '2024', pop: 8596825, births: 91465, deaths: 54559, natural: 36906, intl: 219578, domestic: -93867, total: 162991 },
+  { year: '2025', pop: 8584629, births: 90084, deaths: 53983, natural: 36101, intl: 65824, domestic: -113718, total: -12196 },
+];
+
+// Borough data for 2025
+const BOROUGHS = [
+  { name: 'Manhattan', pop: 1664862, natural: 2898, intl: 13270, domestic: -16852, total: -648 },
+  { name: 'Brooklyn', pop: 2653963, natural: 16835, intl: 17564, domestic: -38847, total: -4694 },
+  { name: 'Queens', pop: 2358182, natural: 9150, intl: 20672, domestic: -38449, total: -8852 },
+  { name: 'Bronx', pop: 1406332, natural: 6220, intl: 12760, domestic: -18685, total: 280 },
+  { name: 'Staten Island', pop: 501290, natural: 998, intl: 1558, domestic: -885, total: 1718 },
+];
+
+// Borough time series: annual net change
+// 2011-2019: derived from intercensal population differences
+// 2020: seam year (Vintage 2025 pop minus intercensal 2019 pop)
+// 2021-2025: Vintage 2025
+const BORO_YEARS = ['2011','2012','2013','2014','2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+const BORO_CHANGE = {
+  'Manhattan':      [27255,23455,11387,10933,13173,6994,3195,7636,7512,-15438,-117252,24138,37615,33976,-648],
+  'Brooklyn':       [49860,46568,38117,32664,26166,18297,5107,4627,1138,-14950,-87683,-33825,11142,46764,-4694],
+  'Queens':         [37691,33709,31871,28449,24021,18047,5980,-2936,-4341,-25763,-57021,-37157,23384,52287,-8852],
+  'Bronx':          [16620,20746,17006,15571,15601,10811,2873,-1045,-7534,-17989,-40253,-36927,-3575,25574,280],
+  'Staten Island':  [3397,1576,3175,2104,2391,3853,3648,2700,1599,577,-1021,-1522,2603,4390,1718],
+};
+// Borough populations: intercensal (2011-2019), Vintage 2025 (2020-2025)
+const BORO_POP = {
+  'Manhattan':      [1618186,1641641,1653028,1663961,1677134,1684128,1687323,1694959,1702471,1687033,1569781,1593919,1631534,1665510,1664862],
+  'Brooklyn':       [2564525,2611093,2649210,2681874,2708040,2726337,2731444,2736071,2737209,2722259,2634576,2600751,2611893,2658657,2653963],
+  'Queens':         [2276504,2310213,2342084,2370533,2394554,2412601,2418581,2415645,2411304,2385541,2328520,2291363,2314747,2367034,2358182],
+  'Bronx':          [1405193,1425939,1442945,1458516,1474117,1484928,1487801,1486756,1479222,1461233,1420980,1384053,1380478,1406052,1406332],
+  'Staten Island':  [473499,475075,478250,480354,482745,486598,490246,492946,494545,495122,494101,492579,495182,499572,501290],
+};
+
+// ============================================
+// STATE DATA
+// Population: 2000-2010 Intercensal for 2003-2009, 2010-2020 Intercensal for 2011-2019,
+// Vintage 2025 for 2020-2025. Components from postcensal vintages.
+// ============================================
+
+const STATE = [
+  // 2003-2009: Population from 2000-2010 Intercensal; components from Vintage 2010
+  { year: '2003', pop: 19175939, births: 253133, deaths: 163489, natural: 89644, intl: 136185, domestic: -170041, total: 55822 },
+  { year: '2004', pop: 19171567, births: 255913, deaths: 155729, natural: 100184, intl: 129260, domestic: -214855, total: 14663 },
+  { year: '2005', pop: 19132610, births: 253695, deaths: 154935, natural: 98760, intl: 108811, domestic: -232638, total: -26097 },
+  { year: '2006', pop: 19104631, births: 247783, deaths: 156561, natural: 91222, intl: 124371, domestic: -225766, total: -9538 },
+  { year: '2007', pop: 19132335, births: 249203, deaths: 153730, natural: 95473, intl: 111607, domestic: -189765, total: 15741 },
+  { year: '2008', pop: 19212436, births: 251952, deaths: 153852, natural: 98100, intl: 94797, domestic: -126209, total: 60981 },
+  { year: '2009', pop: 19307066, births: 249132, deaths: 154116, natural: 95016, intl: 75099, domestic: -98178, total: 73664 },
+  // 2011-2019: Population from 2010-2020 Intercensal; components from Vintage 2020
+  { year: '2011', pop: 19602134, births: 243117, deaths: 149781, natural: 93336, intl: 87332, domestic: -80685, total: 99965 },
+  { year: '2012', pop: 19758616, births: 239907, deaths: 146887, natural: 93020, intl: 90304, domestic: -108325, total: 74441 },
+  { year: '2013', pop: 19892558, births: 239882, deaths: 152565, natural: 87317, intl: 78010, domestic: -112510, total: 52126 },
+  { year: '2014', pop: 20001317, births: 237033, deaths: 148863, natural: 88170, intl: 84452, domestic: -145557, total: 26943 },
+  { year: '2015', pop: 20087023, births: 239348, deaths: 153901, natural: 85447, intl: 84301, domestic: -166054, total: 3890 },
+  { year: '2016', pop: 20148134, births: 235792, deaths: 151604, natural: 84188, intl: 88805, domestic: -194135, total: -20930 },
+  { year: '2017', pop: 20187407, births: 231207, deaths: 155117, natural: 76090, intl: 69336, domestic: -188058, total: -42542 },
+  { year: '2018', pop: 20219472, births: 229316, deaths: 156755, natural: 72561, intl: 57774, domestic: -180043, total: -49751 },
+  { year: '2019', pop: 20220321, births: 223378, deaths: 162158, natural: 61220, intl: 41869, domestic: -183857, total: -80967 },
+  // 2020: Population from Vintage 2025; components from Vintage 2020 (full-year)
+  { year: '2020', pop: 20122262, births: 220375, deaths: 177602, natural: 42773, intl: 35181, domestic: -203893, total: -126355 },
+  // 2021-2025: Vintage 2025 (NST-EST2025-ALLDATA)
+  { year: '2021', pop: 19835345, births: 205539, deaths: 177237, natural: 28302, intl: 28772, domestic: -326190, total: -286917 },
+  { year: '2022', pop: 19713025, births: 209944, deaths: 176586, natural: 33358, intl: 121570, domestic: -284910, total: -122320 },
+  { year: '2023', pop: 19786543, births: 205879, deaths: 166689, natural: 39190, intl: 211383, domestic: -177852, total: 73518 },
+  { year: '2024', pop: 20001419, births: 205405, deaths: 161811, natural: 43594, intl: 290637, domestic: -119231, total: 214876 },
+  { year: '2025', pop: 20002427, births: 203078, deaths: 160263, natural: 42815, intl: 95634, domestic: -137586, total: 1008 },
+];
+
+// ============================================
+// CHART DEFAULTS
+// ============================================
+
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#5a5f69';
+Chart.defaults.plugins.tooltip.backgroundColor = '#1e2530';
+Chart.defaults.plugins.tooltip.titleColor = '#e8e6e1';
+Chart.defaults.plugins.tooltip.bodyColor = '#8a8f99';
+Chart.defaults.plugins.tooltip.borderColor = '#2a3040';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.cornerRadius = 6;
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.displayColors = true;
+Chart.defaults.plugins.tooltip.boxPadding = 4;
+Chart.defaults.plugins.legend.display = false;
+Chart.defaults.scale.grid = { color: 'rgba(255,255,255,0.04)', drawBorder: false };
+Chart.defaults.scale.ticks = { padding: 6 };
+
+function fmt(n) {
+  const abs = Math.abs(n);
+  const prefix = n < 0 ? '-' : '+';
+  if (abs >= 1000000) return prefix + (abs / 1000000).toFixed(1) + 'M';
+  if (abs >= 1000) return prefix + Math.round(abs / 1000) + 'k';
+  return prefix + abs;
+}
+
+function fmtPop(n) { return (n / 1000000).toFixed(2) + 'M'; }
+function fmtNum(n) { return n.toLocaleString('en-US'); }
+function fmtCell(n) { return (n > 0 ? '+' : '') + n.toLocaleString('en-US'); }
+
+const tickYears = (labels) => function(val) {
+  const label = this.getLabelForValue(val);
+  const show = ['2011','2013','2015','2017','2019','2021','2023','2025'];
+  return show.includes(label) ? label : '';
+};
+
+const stateTickYears = function(val) {
+  const label = this.getLabelForValue(val);
+  return ['2003','2006','2009','2012','2015','2018','2021','2025'].includes(label) ? label : '';
+};
+
+// ============================================
+// CHART 1: NYC POPULATION
+// ============================================
+
+new Chart(document.getElementById('chartPop'), {
+  type: 'line',
+  data: {
+    labels: NYC.map(d => d.year),
+    datasets: [{
+      data: NYC.map(d => d.pop),
+      borderColor: '#f0c948',
+      backgroundColor: 'rgba(240,201,72,0.08)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: '#f0c948',
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(NYC.map(d=>d.year)) } },
+      y: {
+        min: 0, max: 9000000,
+        ticks: { callback: v => (v / 1000000).toFixed(1) + 'M', maxTicksLimit: 6 }
       }
-    ];
-
-    // ── Render ─────────────────────────────────────────
-    function renderGallery() {
-      const gallery = document.getElementById('gallery');
-      const active = tools.filter(t => !t.archived);
-
-      gallery.innerHTML = active.map(tool => `
-        <article class="card" data-tool-id="${tool.id}">
-          <div class="card-preview" id="preview-${tool.id}">
-            <iframe
-              src="${tool.url}"
-              loading="lazy"
-              sandbox="allow-scripts allow-same-origin allow-popups"
-              title="Preview of ${tool.name}"
-              onerror="showFallback('${tool.id}')"
-            ></iframe>
-            <div class="preview-overlay" onclick="activatePreview('${tool.id}')">
-              <span class="interact-prompt">Click to interact</span>
-            </div>
-            <div class="fallback" id="fallback-${tool.id}">
-              <div class="fallback-icon">${tool.icon}</div>
-              <div class="fallback-text">${tool.name}</div>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="card-tag">${tool.tag}</div>
-            <h3><a href="${tool.url}" target="_blank" rel="noopener noreferrer">${tool.name}</a></h3>
-            <p class="card-desc">${tool.description}</p>
-            <div class="card-creator">${tool.creator}</div>
-          </div>
-        </article>
-      `).join('');
-    }
-
-    function showFallback(id) {
-      const el = document.getElementById('fallback-' + id);
-      if (el) el.classList.add('visible');
-    }
-
-    function activatePreview(id) {
-      const el = document.getElementById('preview-' + id);
-      if (el) el.classList.add('interactive');
-    }
-
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.card-preview')) {
-        document.querySelectorAll('.card-preview.interactive').forEach(el =>
-          el.classList.remove('interactive')
-        );
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          title: ctx => 'July ' + ctx[0].label,
+          label: ctx => '  Population: ' + fmtPop(ctx.parsed.y)
+        }
+      },
+      annotation: {
+        annotations: {
+          peak: {
+            type: 'point',
+            xValue: '2018',
+            yValue: 8826377,
+            backgroundColor: 'rgba(240,201,72,0.3)',
+            borderColor: '#f0c948',
+            borderWidth: 1.5,
+            radius: 5
+          },
+          peakLabel: {
+            type: 'label',
+            xValue: '2018',
+            yValue: 8826377,
+            content: ['Peak: 8.83M'],
+            color: '#f0c948',
+            font: { size: 10, weight: 500 },
+            backgroundColor: 'transparent',
+            position: 'start',
+            yAdjust: -16
+          }
+        }
       }
-    });
-
-    function toggleArchive() {
-      document.getElementById('archive-list').classList.toggle('visible');
     }
+  }
+});
 
-    renderGallery();
-  </script>
+// ============================================
+// CHART 2: NYC COMPONENTS
+// ============================================
+
+new Chart(document.getElementById('chartComponents'), {
+  type: 'bar',
+  data: {
+    labels: NYC.map(d => d.year),
+    datasets: [
+      {
+        label: 'Domestic migration',
+        data: NYC.map(d => d.domestic),
+        backgroundColor: '#ff6b6b',
+        borderRadius: 2, barPercentage: 0.85, categoryPercentage: 0.8,
+      },
+      {
+        label: 'International migration',
+        data: NYC.map(d => d.intl),
+        backgroundColor: '#4db8ff',
+        borderRadius: 2, barPercentage: 0.85, categoryPercentage: 0.8,
+      },
+      {
+        label: 'Natural change',
+        data: NYC.map(d => d.natural),
+        backgroundColor: '#7ecf8e',
+        borderRadius: 2, barPercentage: 0.85, categoryPercentage: 0.8,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(NYC.map(d=>d.year)) } },
+      y: { ticks: { callback: v => fmt(v), maxTicksLimit: 8 } }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => '  ' + ctx.dataset.label + ': ' + fmtCell(ctx.parsed.y),
+          afterBody: function(ctx) {
+            const d = NYC[ctx[0].dataIndex];
+            return ['\n  Net change: ' + fmtCell(d.total)];
+          }
+        }
+      },
+      annotation: { annotations: { zero: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.3)', borderWidth: 1 } } }
+    }
+  }
+});
+
+// ============================================
+// CHART 3: NYC MIGRATION
+// ============================================
+
+new Chart(document.getElementById('chartMigration'), {
+  type: 'bar',
+  data: {
+    labels: NYC.map(d => d.year),
+    datasets: [
+      {
+        label: 'International migration',
+        data: NYC.map(d => d.intl),
+        backgroundColor: 'rgba(77,184,255,0.7)', borderRadius: 2, barPercentage: 0.8, categoryPercentage: 0.8,
+      },
+      {
+        label: 'Domestic migration',
+        data: NYC.map(d => d.domestic),
+        backgroundColor: 'rgba(255,107,107,0.7)', borderRadius: 2, barPercentage: 0.8, categoryPercentage: 0.8,
+      },
+      {
+        type: 'line', label: 'Net migration',
+        data: NYC.map(d => d.intl + d.domestic),
+        borderColor: '#f0c948', backgroundColor: 'transparent', borderWidth: 2.5,
+        pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#f0c948', tension: 0.3, order: 0
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(NYC.map(d=>d.year)) } },
+      y: { ticks: { callback: v => fmt(v), maxTicksLimit: 8 } }
+    },
+    plugins: {
+      tooltip: { callbacks: { label: ctx => '  ' + ctx.dataset.label + ': ' + fmtCell(Math.round(ctx.parsed.y)) } },
+      annotation: { annotations: { zero: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1 } } }
+    }
+  }
+});
+
+// ============================================
+// CHART 4: NYC BIRTHS/DEATHS
+// ============================================
+
+new Chart(document.getElementById('chartNatural'), {
+  type: 'line',
+  data: {
+    labels: NYC.map(d => d.year),
+    datasets: [
+      {
+        label: 'Births', data: NYC.map(d => d.births),
+        borderColor: '#7ecf8e', backgroundColor: 'rgba(126,207,142,0.08)', borderWidth: 2,
+        fill: '+1', tension: 0.3, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#7ecf8e', order: 1
+      },
+      {
+        label: 'Deaths', data: NYC.map(d => d.deaths),
+        borderColor: '#ff6b6b', backgroundColor: 'transparent', borderWidth: 2,
+        fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ff6b6b', order: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(NYC.map(d=>d.year)) } },
+      y: { min: 40000, max: 130000, ticks: { callback: v => Math.round(v / 1000) + 'k', maxTicksLimit: 6 } }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: ctx => '  ' + ctx.dataset.label + ': ' + fmtNum(ctx.parsed.y),
+          afterBody: function(ctx) {
+            const d = NYC[ctx[0].dataIndex];
+            return ['\n  Natural change: ' + fmtCell(d.natural)];
+          }
+        }
+      }
+    }
+  }
+});
+
+// ============================================
+// BOROUGH CARDS
+// ============================================
+
+const grid = document.getElementById('boroughGrid');
+BOROUGHS.forEach(b => {
+  const cls = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+  const card = document.createElement('div');
+  card.className = 'borough-card';
+  card.innerHTML = `
+    <div class="borough-name">${b.name}</div>
+    <div class="borough-stat"><span>Population</span><span class="val">${fmtNum(b.pop)}</span></div>
+    <div class="borough-stat"><span>Net change</span><span class="val ${cls(b.total)}">${fmtCell(b.total)}</span></div>
+    <div class="borough-stat"><span>Intl. migration</span><span class="val hi">${fmtCell(b.intl)}</span></div>
+    <div class="borough-stat"><span>Domestic migration</span><span class="val ${cls(b.domestic)}">${fmtCell(b.domestic)}</span></div>
+    <div class="borough-stat"><span>Natural change</span><span class="val ${cls(b.natural)}">${fmtCell(b.natural)}</span></div>
+  `;
+  grid.appendChild(card);
+});
+
+// ============================================
+// STATE COMPONENTS CHART
+// ============================================
+
+new Chart(document.getElementById('chartStateComponents'), {
+  type: 'bar',
+  data: {
+    labels: STATE.map(d => d.year),
+    datasets: [
+      {
+        label: 'International migration', data: STATE.map(d => d.intl),
+        backgroundColor: '#4db8ff', borderRadius: 2, barPercentage: 0.65, categoryPercentage: 0.85,
+      },
+      {
+        label: 'Natural change', data: STATE.map(d => d.natural),
+        backgroundColor: '#7ecf8e', borderRadius: 2, barPercentage: 0.65, categoryPercentage: 0.85,
+      },
+      {
+        label: 'Domestic migration', data: STATE.map(d => d.domestic),
+        backgroundColor: '#ff6b6b', borderRadius: 2, barPercentage: 0.65, categoryPercentage: 0.85,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { stacked: true, grid: { display: false }, ticks: { callback: stateTickYears } },
+      y: { stacked: true, ticks: { callback: v => fmt(v), maxTicksLimit: 8 } }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => '  ' + ctx.dataset.label + ': ' + fmtCell(ctx.parsed.y),
+          afterBody: function(ctx) {
+            const d = STATE[ctx[0].dataIndex];
+            return ['\n  Net change: ' + fmtCell(d.total)];
+          }
+        }
+      },
+      annotation: { annotations: { zero: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1 } } }
+    }
+  }
+});
+
+// ============================================
+// DATA TABLES
+// ============================================
+
+function buildTable(tableId, data) {
+  const tbody = document.querySelector('#' + tableId + ' tbody');
+  [...data].reverse().forEach(d => {
+    const tr = document.createElement('tr');
+    const cls = n => n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+    const hi = n => n > 200000 ? ' hi' : '';
+    tr.innerHTML = `
+      <td>${d.year}</td>
+      <td>${fmtNum(d.pop)}</td>
+      <td>${fmtNum(d.births)}</td>
+      <td>${fmtNum(d.deaths)}</td>
+      <td class="${cls(d.natural)}">${fmtCell(d.natural)}</td>
+      <td class="${cls(d.intl)}${hi(d.intl)}">${fmtCell(d.intl)}</td>
+      <td class="${cls(d.domestic)}">${fmtCell(d.domestic)}</td>
+      <td class="${cls(d.total)}">${fmtCell(d.total)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+buildTable('nycTable', NYC);
+buildTable('stateTable', STATE);
+
+// ============================================
+// CHART: BOROUGH INDEX (2011 = 100)
+// ============================================
+
+const boroColors = {
+  'Manhattan': '#e06666',
+  'Brooklyn': '#4db8ff',
+  'Queens': '#f0c948',
+  'Bronx': '#7ecf8e',
+  'Staten Island': '#b08cd8',
+};
+
+new Chart(document.getElementById('chartBoroIndex'), {
+  type: 'line',
+  data: {
+    labels: BORO_YEARS,
+    datasets: Object.keys(BORO_POP).map(name => ({
+      label: name,
+      data: BORO_POP[name].map(v => (v / BORO_POP[name][0]) * 100),
+      borderColor: boroColors[name],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: boroColors[name],
+    }))
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(BORO_YEARS) } },
+      y: {
+        ticks: { callback: v => v.toFixed(0), maxTicksLimit: 6 },
+      }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: ctx => '  ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1)
+        }
+      },
+      annotation: {
+        annotations: {
+          baseline: { type: 'line', yMin: 100, yMax: 100, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [4,4],
+            label: { display: true, content: '2011 baseline', position: 'start', color: '#5a5f69', font: { size: 10 }, backgroundColor: 'transparent', yAdjust: -8 }
+          }
+        }
+      }
+    }
+  }
+});
+
+// ============================================
+// CHART: BOROUGH ANNUAL CHANGE
+// ============================================
+
+new Chart(document.getElementById('chartBoroChange'), {
+  type: 'line',
+  data: {
+    labels: BORO_YEARS,
+    datasets: Object.keys(BORO_CHANGE).map(name => ({
+      label: name,
+      data: BORO_CHANGE[name],
+      borderColor: boroColors[name],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHoverBackgroundColor: boroColors[name],
+    }))
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    scales: {
+      x: { grid: { display: false }, ticks: { callback: tickYears(BORO_YEARS) } },
+      y: { ticks: { callback: v => fmt(v), maxTicksLimit: 8 } }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: ctx => '  ' + ctx.dataset.label + ': ' + fmtCell(Math.round(ctx.parsed.y))
+        }
+      },
+      annotation: {
+        annotations: {
+          zero: { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1 }
+        }
+      }
+    }
+  }
+});
+
+// ============================================
+// SCROLL-TRIGGERED ANIMATIONS
+// ============================================
+
+// Animate sections on scroll
+const sections = document.querySelectorAll('.section, .big-numbers');
+const style = document.createElement('style');
+style.textContent = `
+  .section, .big-numbers {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .section.visible, .big-numbers.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .hero {
+    animation: heroFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @keyframes heroFadeIn {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .big-num-value {
+    transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .anno-card {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .annotation-strip.visible .anno-card {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .annotation-strip.visible .anno-card:nth-child(2) { transition-delay: 0.12s; }
+  .annotation-strip.visible .anno-card:nth-child(3) { transition-delay: 0.24s; }
+  .borough-card {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .borough-grid.visible .borough-card {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .borough-grid.visible .borough-card:nth-child(2) { transition-delay: 0.08s; }
+  .borough-grid.visible .borough-card:nth-child(3) { transition-delay: 0.16s; }
+  .borough-grid.visible .borough-card:nth-child(4) { transition-delay: 0.24s; }
+  .borough-grid.visible .borough-card:nth-child(5) { transition-delay: 0.32s; }
+`;
+document.head.appendChild(style);
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+sections.forEach(s => observer.observe(s));
+document.querySelectorAll('.annotation-strip, .borough-grid').forEach(s => observer.observe(s));
+</script>
 
 </body>
 </html>
