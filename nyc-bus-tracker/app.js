@@ -29,21 +29,42 @@ let isPlaying = false;
 let playSpeed = 1;
 let playTimer = null;
 let routeShapes = null;
+let routeShapeIndex = null; // routeId → GeoJSON feature (built once on shape load)
 let selectedRoute = null;
 let sortMode = 'name'; // 'name', 'bunching', 'gaps', 'buses'
 let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S', 'top25', 'nearby'
 let userLocation = null; // {lat, lon} from geolocation
 let busSpeedCache = {}; // busId → speed in mph
 
-// Rolling-average buffers (smooth out poll-to-poll jitter)
-const SMOOTH_WINDOW = 3;
-let speedHistory = [];   // last N system avg speeds
-let waitHistory = [];     // last N avg rider wait times
-let gapCountHistory = []; // last N {g30, g20} objects
+// Rolling-average smoothing (dampens poll-to-poll jitter)
+const speedSmooth = createRollingAvg(3);
+const waitSmooth = createRollingAvg(3);
+const gap30Smooth = createRollingAvg(3);
+const gap20Smooth = createRollingAvg(3);
+
 let busPositionCache = {}; // busId → {lat, lon, ts, route, dir} — persists across polls
+
+// ═══ DOM CACHE ═══
+// Populated once after DOMContentLoaded; avoids repeated getElementById calls
+const dom = {};
+function cacheDomElements() {
+  const ids = [
+    'stat-buses', 'stat-routes-count', 'stat-speed', 'stat-bunching',
+    'stat-gaps', 'stat-wait', 'speed-hint', 'speed-detail',
+    'wait-alerts', 'live-badge', 'status-text', 'loading-overlay',
+    'loading-text', 'route-list', 'route-search', 'sort-btn',
+    'timeline-slider', 'timeline-time', 'timeline-date', 'timeline-speed',
+    'btn-live', 'btn-play', 'borough-filter', 'route-list-header',
+  ];
+  for (const id of ids) {
+    dom[id] = document.getElementById(id);
+  }
+}
 
 // ═══ INIT ═══
 async function init() {
+  cacheDomElements();
+
   // Prompt for API key if not provided
   if (!CONFIG.apiKey) {
     CONFIG.apiKey = prompt(
@@ -51,7 +72,7 @@ async function init() {
       'Get one free at https://register.developer.obanyc.com/'
     );
     if (!CONFIG.apiKey) {
-      document.getElementById('loading-text').textContent =
+      dom['loading-text'].textContent =
         'API key required. Reload and enter your key.';
       return;
     }
@@ -88,7 +109,7 @@ async function init() {
     if (cached) {
       processLiveData(cached, true);
       hideLoading();
-      document.getElementById('live-badge').style.display = 'flex';
+      dom['live-badge'].style.display = 'flex';
     }
 
     // Now await the fresh API data (was fetching in parallel with map)
@@ -102,7 +123,7 @@ async function init() {
     }
 
     hideLoading();
-    document.getElementById('live-badge').style.display = 'flex';
+    dom['live-badge'].style.display = 'flex';
 
     // Load route shapes in background — doesn't block initial render
     loadRouteShapes();
@@ -135,6 +156,13 @@ async function loadRouteShapes() {
   try {
     const res = await fetch('data/routes/routes.geojson');
     routeShapes = await res.json();
+
+    // Build lookup index: routeId → feature (O(1) instead of linear scan)
+    routeShapeIndex = new Map();
+    for (const f of routeShapes.features) {
+      const id = f.properties.route || f.properties.routeId;
+      if (id) routeShapeIndex.set(id, f);
+    }
 
     map.addSource('routes', {
       type: 'geojson',
@@ -231,10 +259,14 @@ function processLiveData(vehicleActivity, isCached = false) {
   }
 
   // Merge: include cached buses missing from this poll (stale < 2 min)
+  // and evict entries older than 3 min in the same pass
   const vehicleIds = new Set(vehicles.map(v => v.id));
-  let mergedVehicles = [...vehicles];
+  const mergedVehicles = [...vehicles];
   for (const [id, cached] of Object.entries(busPositionCache)) {
-    if (!vehicleIds.has(id) && (now - cached.ts) < 120000) {
+    const age = now - cached.ts;
+    if (age > 180000) {
+      delete busPositionCache[id];
+    } else if (!vehicleIds.has(id) && age < 120000) {
       mergedVehicles.push({
         id, route: cached.route, dir: cached.dir,
         lat: cached.lat, lon: cached.lon, bearing: cached.bearing || 0,
@@ -242,11 +274,6 @@ function processLiveData(vehicleActivity, isCached = false) {
         routeFull: '', bunched: 0,
       });
     }
-  }
-
-  // Evict stale entries (> 3 min)
-  for (const [id, cached] of Object.entries(busPositionCache)) {
-    if (now - cached.ts > 180000) delete busPositionCache[id];
   }
 
   const snapshot = {
@@ -263,11 +290,10 @@ function processLiveData(vehicleActivity, isCached = false) {
   snapshots.push(snapshot);
   if (snapshots.length > 200) snapshots.shift();
 
-  renderBuses(snapshot);
   computeMetrics(snapshot);
   updateTimeline();
 
-  document.getElementById('status-text').textContent =
+  dom['status-text'].textContent =
     `Updated ${formatTime(new Date(snapshot.ts))}`;
 }
 
@@ -279,8 +305,7 @@ async function fetchLiveData() {
     cacheLiveData(activity);
   } catch (e) {
     console.error('Fetch failed:', e);
-    document.getElementById('status-text').textContent =
-      `Error: ${e.message}`;
+    dom['status-text'].textContent = `Error: ${e.message}`;
     hideLoading();
   }
 }
@@ -329,7 +354,7 @@ function renderBuses(snapshot) {
         distFromStop: v.distFromStop,
         stopsAway: v.stopsAway,
         phase: v.phase,
-        bunched: 0, // will be set by computeMetrics
+        bunched: v.bunched || 0,
       },
     })),
   };
@@ -513,14 +538,12 @@ function computeSpeeds(prevSnap, currSnap) {
     // Prefer route-distance (along the polyline) over straight-line haversine.
     // Route-distance is consistent with MTA methodology, which measures speed
     // along actual route geometry rather than as-the-crow-flies.
-    const routeDist = routeDistance(prev.lat, prev.lon, v.lat, v.lon, v.route);
-    const distMeters = routeDist != null ? routeDist : haversine(prev.lat, prev.lon, v.lat, v.lon);
-    const distMiles = distMeters / 1609.34;
-    const speed = distMiles / dtHours;
+    const distMeters = measureDistance(prev.lat, prev.lon, v.lat, v.lon, v.route);
+    const speed = (distMeters / 1609.34) / dtHours;
 
     // Filter out unrealistic speeds (GPS glitches, layovers)
     if (speed >= 0 && speed < 60) {
-      busSpeedCache[v.id] = Math.round(speed * 10) / 10;
+      busSpeedCache[v.id] = round1(speed);
     }
   }
 }
@@ -528,229 +551,207 @@ function computeSpeeds(prevSnap, currSnap) {
 // ═══ METRICS ═══
 function computeMetrics(snapshot) {
   const { vehicles } = snapshot;
-  const routeGroups = {};
-
-  // Group by route + direction
-  for (const v of vehicles) {
-    const key = `${v.route}_${v.dir}`;
-    if (!routeGroups[key]) routeGroups[key] = [];
-    routeGroups[key].push(v);
-  }
-
-  let totalBunching = 0;
-  let gapRoutes = 0;
+  const routeGroups = groupByRouteDir(vehicles);
   const routeMetrics = {};
+  let totalBunching = 0;
+  const bunchedIds = new Set();
 
-  for (const [key, buses] of Object.entries(routeGroups)) {
-    const route = key.split('_')[0];
+  for (const [key, buses] of routeGroups) {
+    const [route, dirStr] = key.split('_');
+    const dir = parseInt(dirStr, 10);
+
     if (!routeMetrics[route]) {
-      routeMetrics[route] = { buses: 0, bunching: 0, gaps: 0, dest: '', speeds: [] };
+      routeMetrics[route] = { buses: 0, bunching: 0, gaps: 0, dest: '', speeds: [], gapMinutes: [], dirGaps: {} };
     }
-    routeMetrics[route].buses += buses.length;
-    if (buses.length > 0) {
-      routeMetrics[route].dest = buses[0].dest;
-    }
+    const rm = routeMetrics[route];
+    rm.buses += buses.length;
+    if (buses.length > 0 && !rm.dest) rm.dest = buses[0].dest;
 
     // Collect speeds for this route
     for (const b of buses) {
       const spd = busSpeedCache[b.id];
-      if (spd != null && spd > 0) {
-        routeMetrics[route].speeds.push(spd);
-      }
+      if (spd != null && spd > 0) rm.speeds.push(spd);
     }
 
     // Detect bunching: find pairs of buses very close together
-    for (let i = 0; i < buses.length; i++) {
-      for (let j = i + 1; j < buses.length; j++) {
-        const dist = haversine(
-          buses[i].lat, buses[i].lon,
-          buses[j].lat, buses[j].lon
-        );
-        if (dist < CONFIG.bunchingDistanceMeters) {
-          totalBunching++;
-          routeMetrics[route].bunching++;
-          // Mark both buses as bunched for visual indicator
-          markBusBunched(snapshot, buses[i].id);
-          markBusBunched(snapshot, buses[j].id);
-        }
-      }
-    }
+    detectBunching(buses, rm, bunchedIds);
 
-    // Estimate gaps in minutes between consecutive buses
-    // Sort buses by latitude (rough proxy for position along route)
-    // Use longitude for east-west routes
-    const isEastWest = buses.length >= 2 &&
-      Math.abs(buses[0].lon - buses[1].lon) > Math.abs(buses[0].lat - buses[1].lat);
-    const sorted = [...buses].sort((a, b) =>
-      isEastWest ? a.lon - b.lon : a.lat - b.lat
-    );
-
-    // Default speed assumption if no observed speed: 8 mph
-    const routeSpeed = routeMetrics[route].speeds.length > 0
-      ? routeMetrics[route].speeds.reduce((a, b) => a + b, 0) / routeMetrics[route].speeds.length
-      : 8;
-    const speedMps = (routeSpeed * 1609.34) / 3600; // convert mph to meters per second
-
-    if (!routeMetrics[route].gapMinutes) routeMetrics[route].gapMinutes = [];
-    if (!routeMetrics[route].dirGaps) routeMetrics[route].dirGaps = {};
-
-    const dir = parseInt(key.split('_')[1], 10);
-
-    if (sorted.length <= 1) {
-      routeMetrics[route].gaps++;
-    } else if (sorted.length >= 3) {
-      // Only estimate gaps when 3+ buses — fewer gives unreliable spacing
-      let maxGapThisDir = 0;
-      for (let i = 0; i < sorted.length - 1; i++) {
-        // Prefer route-distance for gap estimation when available
-        const rDist = routeDistance(
-          sorted[i].lat, sorted[i].lon,
-          sorted[i + 1].lat, sorted[i + 1].lon,
-          route
-        );
-        const dist = rDist != null ? rDist : haversine(
-          sorted[i].lat, sorted[i].lon,
-          sorted[i + 1].lat, sorted[i + 1].lon
-        );
-        const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
-        // Cap at 60 min — anything higher is likely a route terminus gap, not a real wait
-        const rounded = Math.min(60, Math.round(gapMin));
-        routeMetrics[route].gapMinutes.push(rounded);
-        maxGapThisDir = Math.max(maxGapThisDir, rounded);
-      }
-      // Track max gap per direction (0 or 1)
-      routeMetrics[route].dirGaps[dir] = maxGapThisDir;
-    }
+    // Estimate gaps between consecutive buses
+    estimateGaps(buses, route, dir, rm);
   }
 
-  // Compute max gap per route and identify long waits with direction info
-  const longWaits20 = []; // 20-30 min
-  const longWaits30 = []; // 30+ min
-  for (const [route, rm] of Object.entries(routeMetrics)) {
-    rm.maxGap = rm.gapMinutes && rm.gapMinutes.length > 0
-      ? Math.max(...rm.gapMinutes) : null;
-
-    if (rm.maxGap != null && rm.maxGap >= 20) {
-      // Check which directions have long gaps
-      const dirs = rm.dirGaps || {};
-      const dir0bad = (dirs[0] || 0) >= 20;
-      const dir1bad = (dirs[1] || 0) >= 20;
-      // both = \u2194, one direction = \u2192 or \u2190
-      const dirLabel = (dir0bad && dir1bad) ? '\u2194' : '\u2192';
-
-      const entry = { route, gap: rm.maxGap, bothDirs: dir0bad && dir1bad, dirLabel };
-      if (rm.maxGap >= 30) {
-        longWaits30.push(entry);
-      } else {
-        longWaits20.push(entry);
-      }
-    }
-    if (rm.gaps > 0) gapRoutes++;
+  // Apply bunching flags to snapshot vehicles
+  for (const v of vehicles) {
+    v.bunched = bunchedIds.has(v.id) ? 1 : 0;
   }
-  longWaits30.sort((a, b) => b.gap - a.gap);
-  longWaits20.sort((a, b) => b.gap - a.gap);
+  totalBunching = countBunchPairs(routeMetrics);
 
-  // Compute system-wide average speed and rider wait time
+  // Identify long waits
+  const { longWaits20, longWaits30 } = identifyLongWaits(routeMetrics);
+
+  // Compute system-wide averages
   const allSpeeds = [];
   const allGaps = [];
   for (const rm of Object.values(routeMetrics)) {
     if (rm.speeds.length > 0) {
-      rm.avgSpeed = Math.round(rm.speeds.reduce((a, b) => a + b, 0) / rm.speeds.length * 10) / 10;
+      rm.avgSpeed = round1(avg(rm.speeds));
       allSpeeds.push(...rm.speeds);
     } else {
       rm.avgSpeed = null;
     }
-    if (rm.gapMinutes) allGaps.push(...rm.gapMinutes);
+    allGaps.push(...rm.gapMinutes);
   }
-  const rawSpeed = allSpeeds.length > 0
-    ? Math.round(allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length * 10) / 10
-    : null;
+
+  const systemAvgSpeed = allSpeeds.length > 0 ? speedSmooth.push(round1(avg(allSpeeds))) : speedSmooth.current();
 
   // Average rider wait time = E[gap^2] / (2 * E[gap])
-  let rawWait = null;
+  let avgRiderWait = null;
   if (allGaps.length > 0) {
-    const meanGap = allGaps.reduce((a, b) => a + b, 0) / allGaps.length;
+    const meanGap = avg(allGaps);
     const meanGapSq = allGaps.reduce((a, b) => a + b * b, 0) / allGaps.length;
-    rawWait = meanGap > 0 ? Math.round(meanGapSq / (2 * meanGap) * 10) / 10 : null;
+    const rawWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
+    if (rawWait != null) avgRiderWait = waitSmooth.push(rawWait);
+  } else {
+    avgRiderWait = waitSmooth.current();
   }
 
-  // Rolling-average smoothing to dampen poll-to-poll jitter
-  if (rawSpeed != null) {
-    speedHistory.push(rawSpeed);
-    if (speedHistory.length > SMOOTH_WINDOW) speedHistory.shift();
-  }
-  if (rawWait != null) {
-    waitHistory.push(rawWait);
-    if (waitHistory.length > SMOOTH_WINDOW) waitHistory.shift();
-  }
-  gapCountHistory.push({ g30: longWaits30.length, g20: longWaits20.length });
-  if (gapCountHistory.length > SMOOTH_WINDOW) gapCountHistory.shift();
+  // Smoothed gap counts
+  const smoothG30 = Math.round(gap30Smooth.push(longWaits30.length));
+  const smoothG20 = Math.round(gap20Smooth.push(longWaits20.length));
 
-  const systemAvgSpeed = speedHistory.length > 0
-    ? Math.round(speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length * 10) / 10
-    : null;
-  const avgRiderWait = waitHistory.length > 0
-    ? Math.round(waitHistory.reduce((a, b) => a + b, 0) / waitHistory.length * 10) / 10
-    : null;
-  // Smoothed gap counts for display
-  const smoothG30 = Math.round(gapCountHistory.reduce((a, b) => a + b.g30, 0) / gapCountHistory.length);
-  const smoothG20 = Math.round(gapCountHistory.reduce((a, b) => a + b.g20, 0) / gapCountHistory.length);
-
-  // Update system stats
-  document.getElementById('stat-buses').textContent = vehicles.length.toLocaleString();
-  document.getElementById('stat-routes-count').textContent =
-    `${Object.keys(routeMetrics).length} routes`;
-
-  document.getElementById('stat-bunching').textContent = totalBunching;
-  const bunchEl = document.getElementById('stat-bunching');
-  bunchEl.className = `value ${totalBunching > 50 ? 'bad' : totalBunching > 20 ? 'warn' : 'good'}`;
-
-  document.getElementById('stat-gaps').textContent =
-    smoothG30 + smoothG20;
-
-  // Update speed stat
-  const speedEl = document.getElementById('stat-speed');
-  if (speedEl) {
-    if (systemAvgSpeed != null) {
-      speedEl.textContent = `${systemAvgSpeed}`;
-      speedEl.className = `value ${systemAvgSpeed < 6 ? 'bad' : systemAvgSpeed < 8 ? 'warn' : 'accent'}`;
-      // Hide the "needs two snapshots" hint once speed is available
-      const hint = document.getElementById('speed-hint');
-      if (hint) hint.style.display = 'none';
-    } else {
-      speedEl.textContent = '\u2014';
-    }
-  }
-
-  // Update wait time stat
-  const waitEl = document.getElementById('stat-wait');
-  if (waitEl) {
-    if (avgRiderWait != null) {
-      waitEl.textContent = `${avgRiderWait}`;
-      waitEl.className = `value ${avgRiderWait > 15 ? 'bad' : avgRiderWait > 10 ? 'warn' : 'accent'}`;
-    } else {
-      waitEl.textContent = '\u2014';
-    }
-  }
-
-  // Render long wait alerts
+  // ── Update DOM ──
+  updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed, avgRiderWait, smoothG30, smoothG20);
   renderWaitAlerts(longWaits20, longWaits30);
-
-  // Re-render bus layer with bunching flags
   renderBuses(snapshot);
-
-  // Update route list
   renderRouteList(routeMetrics);
 }
 
-function markBusBunched(snapshot, busId) {
-  const bus = snapshot.vehicles.find(v => v.id === busId);
-  if (bus) bus.bunched = 1;
+/** Group vehicles by "route_dir" key */
+function groupByRouteDir(vehicles) {
+  const groups = new Map();
+  for (const v of vehicles) {
+    const key = `${v.route}_${v.dir}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
+  }
+  return groups;
+}
+
+/** Detect bunching within a direction group */
+function detectBunching(buses, rm, bunchedIds) {
+  for (let i = 0; i < buses.length; i++) {
+    for (let j = i + 1; j < buses.length; j++) {
+      const dist = haversine(
+        buses[i].lat, buses[i].lon,
+        buses[j].lat, buses[j].lon
+      );
+      if (dist < CONFIG.bunchingDistanceMeters) {
+        rm.bunching++;
+        bunchedIds.add(buses[i].id);
+        bunchedIds.add(buses[j].id);
+      }
+    }
+  }
+}
+
+/** Count total bunched pairs across all routes */
+function countBunchPairs(routeMetrics) {
+  let total = 0;
+  for (const rm of Object.values(routeMetrics)) total += rm.bunching;
+  return total;
+}
+
+/** Estimate time gaps between consecutive buses on a route/direction */
+function estimateGaps(buses, route, dir, rm) {
+  if (buses.length <= 1) {
+    rm.gaps++;
+    return;
+  }
+  if (buses.length < 3) return; // fewer than 3 gives unreliable spacing
+
+  // Sort buses by position along route
+  const isEastWest = Math.abs(buses[0].lon - buses[1].lon) > Math.abs(buses[0].lat - buses[1].lat);
+  const sorted = [...buses].sort((a, b) =>
+    isEastWest ? a.lon - b.lon : a.lat - b.lat
+  );
+
+  // Default speed assumption if no observed speed: 8 mph
+  const routeSpeed = rm.speeds.length > 0 ? avg(rm.speeds) : 8;
+  const speedMps = (routeSpeed * 1609.34) / 3600;
+
+  let maxGapThisDir = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const dist = measureDistance(
+      sorted[i].lat, sorted[i].lon,
+      sorted[i + 1].lat, sorted[i + 1].lon,
+      route
+    );
+    const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
+    // Cap at 60 min — anything higher is likely a route terminus gap, not a real wait
+    const rounded = Math.min(60, Math.round(gapMin));
+    rm.gapMinutes.push(rounded);
+    maxGapThisDir = Math.max(maxGapThisDir, rounded);
+  }
+  rm.dirGaps[dir] = maxGapThisDir;
+}
+
+/** Identify routes with 20+ and 30+ minute waits */
+function identifyLongWaits(routeMetrics) {
+  const longWaits20 = [];
+  const longWaits30 = [];
+
+  for (const [route, rm] of Object.entries(routeMetrics)) {
+    rm.maxGap = rm.gapMinutes.length > 0 ? Math.max(...rm.gapMinutes) : null;
+
+    if (rm.maxGap != null && rm.maxGap >= 20) {
+      const dirs = rm.dirGaps;
+      const dir0bad = (dirs[0] || 0) >= 20;
+      const dir1bad = (dirs[1] || 0) >= 20;
+      const dirLabel = (dir0bad && dir1bad) ? '\u2194' : '\u2192';
+      const entry = { route, gap: rm.maxGap, bothDirs: dir0bad && dir1bad, dirLabel };
+      if (rm.maxGap >= 30) longWaits30.push(entry);
+      else longWaits20.push(entry);
+    }
+    if (rm.gaps > 0) { /* gapRoutes++ if needed later */ }
+  }
+
+  longWaits30.sort((a, b) => b.gap - a.gap);
+  longWaits20.sort((a, b) => b.gap - a.gap);
+  return { longWaits20, longWaits30 };
+}
+
+/** Update the system-wide stat cards in the DOM */
+function updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed, avgRiderWait, smoothG30, smoothG20) {
+  dom['stat-buses'].textContent = vehicles.length.toLocaleString();
+  dom['stat-routes-count'].textContent = `${Object.keys(routeMetrics).length} routes`;
+
+  dom['stat-bunching'].textContent = totalBunching;
+  dom['stat-bunching'].className = `value ${totalBunching > 50 ? 'bad' : totalBunching > 20 ? 'warn' : 'good'}`;
+
+  dom['stat-gaps'].textContent = smoothG30 + smoothG20;
+
+  const speedEl = dom['stat-speed'];
+  if (systemAvgSpeed != null) {
+    speedEl.textContent = `${systemAvgSpeed}`;
+    speedEl.className = `value ${systemAvgSpeed < 6 ? 'bad' : systemAvgSpeed < 8 ? 'warn' : 'accent'}`;
+    const hint = dom['speed-hint'];
+    if (hint) hint.style.display = 'none';
+  } else {
+    speedEl.textContent = '\u2014';
+  }
+
+  const waitEl = dom['stat-wait'];
+  if (avgRiderWait != null) {
+    waitEl.textContent = `${avgRiderWait}`;
+    waitEl.className = `value ${avgRiderWait > 15 ? 'bad' : avgRiderWait > 10 ? 'warn' : 'accent'}`;
+  } else {
+    waitEl.textContent = '\u2014';
+  }
 }
 
 // ═══ LONG WAIT ALERTS ═══
 function renderWaitAlerts(waits20, waits30) {
-  const container = document.getElementById('wait-alerts');
+  const container = dom['wait-alerts'];
 
   if (waits30.length === 0 && waits20.length === 0) {
     container.style.display = 'none';
@@ -831,8 +832,8 @@ function renderWaitAlerts(waits20, waits30) {
 
 // ═══ ROUTE LIST ═══
 function renderRouteList(metrics) {
-  const list = document.getElementById('route-list');
-  const filter = document.getElementById('route-search').value.toLowerCase();
+  const list = dom['route-list'];
+  const filter = dom['route-search'].value.toLowerCase();
 
   let routes = Object.entries(metrics).map(([route, m]) => ({
     route, ...m,
@@ -923,7 +924,6 @@ function renderRouteList(metrics) {
       } else {
         selectedRoute = route;
         highlightRoute(route);
-        // Zoom to route
         zoomToRoute(route);
       }
       // Re-render to update selected state
@@ -973,10 +973,10 @@ function setupBusClickHandler() {
 
 // ═══ TIMELINE CONTROLS ═══
 function setupControls() {
-  const slider = document.getElementById('timeline-slider');
-  const btnLive = document.getElementById('btn-live');
-  const btnPlay = document.getElementById('btn-play');
-  const speedEl = document.getElementById('timeline-speed');
+  const slider = dom['timeline-slider'];
+  const btnLive = dom['btn-live'];
+  const btnPlay = dom['btn-play'];
+  const speedEl = dom['timeline-speed'];
 
   btnLive.addEventListener('click', () => {
     isLive = true;
@@ -984,7 +984,7 @@ function setupControls() {
     clearInterval(playTimer);
     btnLive.classList.add('active');
     btnPlay.classList.remove('active');
-    document.getElementById('live-badge').style.display = 'flex';
+    dom['live-badge'].style.display = 'flex';
     slider.value = slider.max;
     if (currentSnapshot) {
       renderBuses(currentSnapshot);
@@ -997,7 +997,7 @@ function setupControls() {
     isLive = false;
     isPlaying = !isPlaying;
     btnLive.classList.remove('active');
-    document.getElementById('live-badge').style.display = 'none';
+    dom['live-badge'].style.display = 'none';
 
     if (isPlaying) {
       btnPlay.classList.add('active');
@@ -1014,7 +1014,7 @@ function setupControls() {
     if (snapshots.length === 0) return;
     isLive = false;
     btnLive.classList.remove('active');
-    document.getElementById('live-badge').style.display = 'none';
+    dom['live-badge'].style.display = 'none';
 
     const idx = Math.round((slider.value / 100) * (snapshots.length - 1));
     showSnapshot(idx);
@@ -1032,17 +1032,17 @@ function setupControls() {
   });
 
   // Route search
-  document.getElementById('route-search').addEventListener('input', () => {
+  dom['route-search'].addEventListener('input', () => {
     if (currentSnapshot) computeMetrics(currentSnapshot);
   });
 
   // Sort button (cycles through modes)
-  document.getElementById('sort-btn').addEventListener('click', () => {
+  dom['sort-btn'].addEventListener('click', () => {
     const modes = ['name', 'buses', 'speed', 'bunching', 'gaps'];
     const labels = ['A\u2013Z', 'Buses', 'Speed', 'Bunch', 'Gaps'];
     const idx = modes.indexOf(sortMode);
     sortMode = modes[(idx + 1) % modes.length];
-    document.getElementById('sort-btn').textContent = labels[(idx + 1) % labels.length];
+    dom['sort-btn'].textContent = labels[(idx + 1) % labels.length];
     updateSortHighlight();
     if (currentSnapshot) computeMetrics(currentSnapshot);
   });
@@ -1105,7 +1105,7 @@ function updateSortHighlight() {
 
 function startPlayback() {
   let idx = Math.round(
-    (document.getElementById('timeline-slider').value / 100) * (snapshots.length - 1)
+    (dom['timeline-slider'].value / 100) * (snapshots.length - 1)
   );
 
   playTimer = setInterval(() => {
@@ -1114,7 +1114,7 @@ function startPlayback() {
       idx = 0; // loop
     }
     showSnapshot(idx);
-    document.getElementById('timeline-slider').value =
+    dom['timeline-slider'].value =
       (idx / (snapshots.length - 1)) * 100;
   }, 1000 / playSpeed);
 }
@@ -1124,26 +1124,24 @@ function showSnapshot(idx) {
   const snap = snapshots[idx];
   renderBuses(snap);
   computeMetrics(snap);
-  document.getElementById('timeline-time').textContent =
-    formatTime(new Date(snap.ts));
-  document.getElementById('status-text').textContent =
-    `Snapshot ${idx + 1} of ${snapshots.length}`;
+  dom['timeline-time'].textContent = formatTime(new Date(snap.ts));
+  dom['status-text'].textContent = `Snapshot ${idx + 1} of ${snapshots.length}`;
 }
 
 function updateTimeline() {
   if (!isLive) return;
-  const slider = document.getElementById('timeline-slider');
+  const slider = dom['timeline-slider'];
   slider.max = 100;
   slider.value = 100;
   if (currentSnapshot) {
-    document.getElementById('timeline-time').textContent =
-      formatTime(new Date(currentSnapshot.ts));
-    document.getElementById('timeline-date').textContent =
-      formatDate(new Date(currentSnapshot.ts));
+    dom['timeline-time'].textContent = formatTime(new Date(currentSnapshot.ts));
+    dom['timeline-date'].textContent = formatDate(new Date(currentSnapshot.ts));
   }
 }
 
 // ═══ UTILITIES ═══
+
+/** Haversine great-circle distance in meters */
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1155,47 +1153,57 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Measure distance between two GPS points, preferring along-route distance.
+ * Falls back to haversine when route shape is unavailable.
+ */
+function measureDistance(lat1, lon1, lat2, lon2, routeId) {
+  const rd = routeDistance(lat1, lon1, lat2, lon2, routeId);
+  return rd != null ? rd : haversine(lat1, lon1, lat2, lon2);
+}
+
+/**
+ * Snap a GPS point to the nearest segment on a polyline.
+ * Returns { idx: segment index, frac: fractional position along segment }.
+ */
+function snapToPolyline(lat, lon, coords) {
+  let bestDist = Infinity;
+  let bestIdx = 0;
+  let bestFrac = 0;
+
+  for (let i = 0; i < coords.length - 1; i++) {
+    const ax = coords[i][0], ay = coords[i][1];
+    const bx = coords[i + 1][0], by = coords[i + 1][1];
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    let t = lenSq > 0 ? ((lon - ax) * dx + (lat - ay) * dy) / lenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    const px = ax + t * dx, py = ay + t * dy;
+    const d = (lon - px) ** 2 + (lat - py) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = i;
+      bestFrac = t;
+    }
+  }
+  return { idx: bestIdx, frac: bestFrac };
+}
+
+/**
  * Compute distance along a route shape between two GPS points.
  * Snaps each point to the nearest segment on the route polyline,
  * then sums the along-route distance between the two snap locations.
  * Returns distance in meters, or null if route shape is unavailable.
  */
 function routeDistance(lat1, lon1, lat2, lon2, routeId) {
-  if (!routeShapes) return null;
-  const feature = routeShapes.features.find(f =>
-    f.properties.route === routeId || f.properties.routeId === routeId
-  );
+  if (!routeShapeIndex) return null;
+  const feature = routeShapeIndex.get(routeId);
   if (!feature || feature.geometry.type !== 'LineString') return null;
 
   const coords = feature.geometry.coordinates; // [lon, lat] pairs
   if (coords.length < 2) return null;
 
-  // Find nearest segment index and fractional position for a point
-  function snapToLine(lat, lon) {
-    let bestDist = Infinity;
-    let bestIdx = 0;
-    let bestFrac = 0;
-
-    for (let i = 0; i < coords.length - 1; i++) {
-      const ax = coords[i][0], ay = coords[i][1];
-      const bx = coords[i + 1][0], by = coords[i + 1][1];
-      const dx = bx - ax, dy = by - ay;
-      const lenSq = dx * dx + dy * dy;
-      let t = lenSq > 0 ? ((lon - ax) * dx + (lat - ay) * dy) / lenSq : 0;
-      t = Math.max(0, Math.min(1, t));
-      const px = ax + t * dx, py = ay + t * dy;
-      const d = (lon - px) ** 2 + (lat - py) ** 2;
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = i;
-        bestFrac = t;
-      }
-    }
-    return { idx: bestIdx, frac: bestFrac };
-  }
-
-  const snap1 = snapToLine(lat1, lon1);
-  const snap2 = snapToLine(lat2, lon2);
+  const snap1 = snapToPolyline(lat1, lon1, coords);
+  const snap2 = snapToPolyline(lat2, lon2, coords);
 
   // Ensure we measure from the earlier point along the line to the later
   let startSnap = snap1, endSnap = snap2;
@@ -1233,6 +1241,38 @@ function routeDistance(lat1, lon1, lat2, lon2, routeId) {
   return dist;
 }
 
+/** Round to 1 decimal place */
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+/** Average of an array of numbers */
+function avg(arr) {
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+/**
+ * Simple rolling average with a fixed window size.
+ * push(value) adds a value and returns the current smoothed average.
+ * current() returns the latest average without adding a new value.
+ */
+function createRollingAvg(windowSize) {
+  const buffer = [];
+  function compute() {
+    return buffer.length > 0 ? buffer.reduce((a, b) => a + b, 0) / buffer.length : null;
+  }
+  return {
+    push(value) {
+      buffer.push(value);
+      if (buffer.length > windowSize) buffer.shift();
+      return compute();
+    },
+    current() {
+      return compute();
+    },
+  };
+}
+
 function formatTime(d) {
   return d.toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit',
@@ -1256,13 +1296,17 @@ const ROUTE_COLORS = [
   '#778ca3', '#a5b1c2', '#d1d8e0', '#f8b500',
 ];
 
+const routeColorCache = new Map();
 function routeColor(route) {
-  // Consistent color per route from curated palette
+  let color = routeColorCache.get(route);
+  if (color) return color;
   let hash = 0;
   for (let i = 0; i < route.length; i++) {
     hash = route.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return ROUTE_COLORS[Math.abs(hash) % ROUTE_COLORS.length];
+  color = ROUTE_COLORS[Math.abs(hash) % ROUTE_COLORS.length];
+  routeColorCache.set(route, color);
+  return color;
 }
 
 function naturalSort(a, b) {
@@ -1270,11 +1314,11 @@ function naturalSort(a, b) {
 }
 
 function updateLoadingText(text) {
-  document.getElementById('loading-text').textContent = text;
+  dom['loading-text'].textContent = text;
 }
 
 function hideLoading() {
-  const overlay = document.getElementById('loading-overlay');
+  const overlay = dom['loading-overlay'];
   overlay.style.opacity = '0';
   overlay.style.transition = 'opacity 0.5s';
   setTimeout(() => overlay.style.display = 'none', 500);
