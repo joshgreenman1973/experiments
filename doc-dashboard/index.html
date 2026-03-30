@@ -56,13 +56,14 @@
   .source { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--cloud); font-size: 10px; color: var(--charcoal); gap: 12px; }
   .source img { height: 11px; opacity: 0.5; flex-shrink: 0; }
 
-  /* BREAKDOWN BARS */
-  .bd-row { display: flex; align-items: center; margin-bottom: 6px; gap: 8px; }
-  .bd-label { font-size: 11px; width: 180px; flex-shrink: 0; color: var(--charcoal); text-align: right; }
-  .bd-bar-wrap { flex: 1; height: 20px; background: #f5f5f5; border-radius: 2px; overflow: hidden; }
-  .bd-bar { height: 100%; border-radius: 2px; display: flex; align-items: center; padding-left: 6px; }
-  .bd-bar span { font-size: 10px; font-weight: 700; color: var(--white); }
-  .bd-pct { font-size: 11px; width: 40px; flex-shrink: 0; color: var(--charcoal); font-weight: 600; }
+  /* BREAKDOWN STACKED BAR */
+  .bd-stack { display: flex; height: 32px; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+  .bd-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; transition: flex 0.3s; }
+  .bd-seg span { font-size: 10px; font-weight: 700; color: var(--white); white-space: nowrap; }
+  .bd-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .bd-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--charcoal); }
+  .bd-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .bd-legend-item strong { font-weight: 700; color: var(--black); }
 
   /* HEATMAP */
   .heatmap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -417,14 +418,22 @@
     bdBox.style.display = '';
     var total = bd.categories.reduce(function(s, c) { return s + c.count; }, 0);
     var colors = { 'DE': '#394882', 'DEP': '#9b9fbc', 'DPV': '#cea9be', 'CS': '#e7466d', 'CSP': '#ff7c53', 'SSR': '#dde44c', 'DNS': '#707175' };
-    bdBars.innerHTML = bd.categories.map(function(c) {
-      var pct = Math.round(c.count / total * 1000) / 10;
-      var w = Math.max(pct, 2);
+    var stackHtml = '<div class="bd-stack">';
+    bd.categories.forEach(function(c) {
+      var pct = c.count / total * 100;
       var col = colors[c.code] || '#394882';
-      return '<div class="bd-row"><span class="bd-label">' + c.label + '</span>' +
-        '<div class="bd-bar-wrap"><div class="bd-bar" style="width:' + w + '%;background:' + col + '"><span>' + c.count.toLocaleString() + '</span></div></div>' +
-        '<span class="bd-pct">' + pct + '%</span></div>';
-    }).join('');
+      stackHtml += '<div class="bd-seg" style="flex:' + pct + ';background:' + col + '">' +
+        (pct > 8 ? '<span>' + c.count.toLocaleString() + '</span>' : '') + '</div>';
+    });
+    stackHtml += '</div><div class="bd-legend">';
+    bd.categories.forEach(function(c) {
+      var pct = Math.round(c.count / total * 1000) / 10;
+      var col = colors[c.code] || '#394882';
+      stackHtml += '<div class="bd-legend-item"><span class="bd-swatch" style="background:' + col + '"></span>' +
+        c.label + ' <strong>' + c.count.toLocaleString() + '</strong> (' + pct + '%)</div>';
+    });
+    stackHtml += '</div>';
+    bdBars.innerHTML = stackHtml;
     bdAsOf.textContent = 'Source: NYC Open Data, Daily Inmates In Custody. As of ' + bd.asOf;
   }
 
