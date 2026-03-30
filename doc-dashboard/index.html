@@ -56,6 +56,14 @@
   .source { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--cloud); font-size: 10px; color: var(--charcoal); gap: 12px; }
   .source img { height: 11px; opacity: 0.5; flex-shrink: 0; }
 
+  /* BREAKDOWN BARS */
+  .bd-row { display: flex; align-items: center; margin-bottom: 6px; gap: 8px; }
+  .bd-label { font-size: 11px; width: 180px; flex-shrink: 0; color: var(--charcoal); text-align: right; }
+  .bd-bar-wrap { flex: 1; height: 20px; background: #f5f5f5; border-radius: 2px; overflow: hidden; }
+  .bd-bar { height: 100%; border-radius: 2px; display: flex; align-items: center; padding-left: 6px; }
+  .bd-bar span { font-size: 10px; font-weight: 700; color: var(--white); }
+  .bd-pct { font-size: 11px; width: 40px; flex-shrink: 0; color: var(--charcoal); font-weight: 600; }
+
   /* HEATMAP */
   .heatmap-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .heatmap { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; font-variant-numeric: tabular-nums; }
@@ -136,6 +144,14 @@
         <h3>Admissions vs. discharges</h3>
         <div class="cb-dek">Monthly flow in and out of custody</div>
         <div style="position:relative;height:200px"><canvas id="flowChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box" id="breakdownBox" style="display:none">
+        <h3>Who is in custody</h3>
+        <div class="cb-dek">Current population by legal status. Most people in NYC jails have not been convicted and are awaiting trial.</div>
+        <div id="breakdownBars"></div>
+        <div class="cb-dek" id="breakdownAsOf" style="margin-top:6px;font-style:italic"></div>
       </div>
     </div>
     <div class="source">
@@ -391,6 +407,26 @@
     },
     options: Object.assign({}, baseOpts(), { plugins: { legend: { display: true, position: 'top', align: 'start', labels: { font: { size: 10, family: ff }, usePointStyle: true, pointStyle: 'line', padding: 8 } } } })
   });
+
+  // ── POPULATION BREAKDOWN ──
+  var bd = D.populationBreakdown;
+  if (bd && bd.categories && bd.categories.length > 0) {
+    var bdBox = q('breakdownBox');
+    var bdBars = q('breakdownBars');
+    var bdAsOf = q('breakdownAsOf');
+    bdBox.style.display = '';
+    var total = bd.categories.reduce(function(s, c) { return s + c.count; }, 0);
+    var colors = { 'DE': '#394882', 'DEP': '#9b9fbc', 'DPV': '#cea9be', 'CS': '#e7466d', 'CSP': '#ff7c53', 'SSR': '#dde44c', 'DNS': '#707175' };
+    bdBars.innerHTML = bd.categories.map(function(c) {
+      var pct = Math.round(c.count / total * 1000) / 10;
+      var w = Math.max(pct, 2);
+      var col = colors[c.code] || '#394882';
+      return '<div class="bd-row"><span class="bd-label">' + c.label + '</span>' +
+        '<div class="bd-bar-wrap"><div class="bd-bar" style="width:' + w + '%;background:' + col + '"><span>' + c.count.toLocaleString() + '</span></div></div>' +
+        '<span class="bd-pct">' + pct + '%</span></div>';
+    }).join('');
+    bdAsOf.textContent = 'Source: NYC Open Data, Daily Inmates In Custody. As of ' + bd.asOf;
+  }
 
   // ── VIOLENCE CHARTS (rates per 1,000) ──
   function rateChart(canvasId, dataset, color) {
