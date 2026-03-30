@@ -720,6 +720,16 @@
       </div>
     </div>
 
+    <div class="calc-intro" style="margin-bottom: 20px;">
+      <h2>Two kinds of curb space, two kinds of pricing</h2>
+      <p>
+        Not all 3 million curb spaces are alike. <strong>Metered zones</strong> make sense for commercial corridors, transit hubs and high-traffic streets — the kinds of blocks where drivers circle for spots and turnover matters. Today's ~85,000 meters are concentrated in Manhattan below 96th Street, downtown Brooklyn, Long Island City and commercial strips in the Bronx and Staten Island. Expanding metering to all major commercial and mixed-use streets citywide could cover roughly 300,000 to 500,000 spaces.
+      </p>
+      <p style="margin-top: 10px;">
+        <strong>Residential permits</strong> target a different problem: the vast majority of curb space sits on neighborhood streets, occupied overnight and on weekends by local residents. These spaces — estimated at 1.5 million to 2.5 million — are not candidates for hourly meters, but a modest annual permit fee could generate revenue and deter commuters from storing cars in residential neighborhoods. The two policies are not mutually exclusive: a city could meter commercial streets and charge residential permits at the same time. The first four cards below model each approach independently; the fifth shows what combining metering with residential permits could raise.
+      </p>
+    </div>
+
     <div class="scenario-grid">
 
       <!-- SCENARIO 1: Flat annual fee -->
@@ -900,6 +910,89 @@
           <div class="vs-current">
             <span id="permit-mult">1.6x</span> current revenue
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENARIO 5: Combined -->
+    <div class="scenario-card" style="max-width: 700px; margin: 0 auto 32px; border: 1px solid var(--accent);">
+      <h3>5. Combined: metering + residential permits</h3>
+      <p class="scenario-desc">Meter commercial and high-traffic streets while charging annual permits on residential blocks. These target different spaces and can run simultaneously.</p>
+
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Metered zones</div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Average hourly rate</span>
+          <span class="val" id="combo-rate-val">$3.00</span>
+        </div>
+        <input type="range" id="combo-rate" min="0.50" max="8" step="0.25" value="3.00">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Metered spaces</span>
+          <span class="val" id="combo-meter-spaces-val">400,000</span>
+        </div>
+        <input type="range" id="combo-meter-spaces" min="85000" max="1000000" step="25000" value="400000">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Currently ~85,000. Expanding to all commercial/mixed-use streets could reach 300,000-500,000.</div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Average hours occupied per day</span>
+          <span class="val" id="combo-hours-val">8</span>
+        </div>
+        <input type="range" id="combo-hours" min="4" max="14" step="1" value="8">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Operating days per year</span>
+          <span class="val" id="combo-days-val">300</span>
+        </div>
+        <input type="range" id="combo-days" min="250" max="365" step="5" value="300">
+      </div>
+
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px;">Residential permits</div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Annual permit cost</span>
+          <span class="val" id="combo-permit-cost-val">$150</span>
+        </div>
+        <input type="range" id="combo-permit-cost" min="25" max="500" step="25" value="150">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Residential spaces covered</span>
+          <span class="val" id="combo-permit-spaces-val">1,500,000</span>
+        </div>
+        <input type="range" id="combo-permit-spaces" min="500000" max="2500000" step="100000" value="1500000">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Uptake rate</span>
+          <span class="val" id="combo-uptake-val">70%</span>
+        </div>
+        <input type="range" id="combo-uptake" min="30" max="100" step="5" value="70">
+      </div>
+
+      <div class="result-box">
+        <div class="result-row">
+          <span>Metering revenue</span>
+          <span class="rv blue" id="combo-meter-rev">$2.9B</span>
+        </div>
+        <div class="result-row">
+          <span>Permit revenue</span>
+          <span class="rv blue" id="combo-permit-rev">$157.5M</span>
+        </div>
+        <div class="result-row total" style="font-size: 18px;">
+          <span>Combined annual revenue</span>
+          <span class="rv green" id="combo-total">$3.1B</span>
+        </div>
+        <div class="vs-current" style="font-size: 14px;">
+          <span id="combo-mult">11.9x</span> current revenue ($258 million)
         </div>
       </div>
     </div>
@@ -1401,6 +1494,33 @@ function updatePermit() {
 
 }
 
+function updateCombo() {
+  const rate = parseFloat(document.getElementById('combo-rate').value);
+  const mSpaces = parseInt(document.getElementById('combo-meter-spaces').value);
+  const hours = parseInt(document.getElementById('combo-hours').value);
+  const days = parseInt(document.getElementById('combo-days').value);
+  const pCost = parseInt(document.getElementById('combo-permit-cost').value);
+  const pSpaces = parseInt(document.getElementById('combo-permit-spaces').value);
+  const uptake = parseInt(document.getElementById('combo-uptake').value);
+
+  document.getElementById('combo-rate-val').textContent = '$' + rate.toFixed(2);
+  document.getElementById('combo-meter-spaces-val').textContent = fmtN(mSpaces);
+  document.getElementById('combo-hours-val').textContent = hours;
+  document.getElementById('combo-days-val').textContent = days;
+  document.getElementById('combo-permit-cost-val').textContent = '$' + pCost;
+  document.getElementById('combo-permit-spaces-val').textContent = fmtN(pSpaces);
+  document.getElementById('combo-uptake-val').textContent = uptake + '%';
+
+  const meterRev = mSpaces * rate * hours * days;
+  const permitRev = Math.round(pSpaces * uptake / 100) * pCost;
+  const total = meterRev + permitRev;
+
+  document.getElementById('combo-meter-rev').textContent = fmt(meterRev);
+  document.getElementById('combo-permit-rev').textContent = fmt(permitRev);
+  document.getElementById('combo-total').textContent = fmt(total);
+  document.getElementById('combo-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
+}
+
 // Event listeners
 document.getElementById('flat-fee').addEventListener('input', updateFlat);
 document.getElementById('flat-pct').addEventListener('input', updateFlat);
@@ -1413,12 +1533,16 @@ document.getElementById('auction-pct').addEventListener('input', updateAuction);
 document.getElementById('permit-cost').addEventListener('input', updatePermit);
 document.getElementById('permit-spaces').addEventListener('input', updatePermit);
 document.getElementById('permit-uptake').addEventListener('input', updatePermit);
+['combo-rate','combo-meter-spaces','combo-hours','combo-days','combo-permit-cost','combo-permit-spaces','combo-uptake'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateCombo);
+});
 
 // Initialize
 updateFlat();
 updateVariable();
 updateAuction();
 updatePermit();
+updateCombo();
 
 // CITIES TAB DATA
 const cities = [
