@@ -732,7 +732,7 @@ function updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed
 
   const speedEl = dom['stat-speed'];
   if (systemAvgSpeed != null) {
-    speedEl.textContent = `${systemAvgSpeed}`;
+    speedEl.textContent = systemAvgSpeed.toFixed(1);
     speedEl.className = `value ${systemAvgSpeed < 6 ? 'bad' : systemAvgSpeed < 8 ? 'warn' : 'accent'}`;
     const hint = dom['speed-hint'];
     if (hint) hint.style.display = 'none';
@@ -742,7 +742,7 @@ function updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed
 
   const waitEl = dom['stat-wait'];
   if (avgRiderWait != null) {
-    waitEl.textContent = `${avgRiderWait}`;
+    waitEl.textContent = avgRiderWait.toFixed(1);
     waitEl.className = `value ${avgRiderWait > 15 ? 'bad' : avgRiderWait > 10 ? 'warn' : 'accent'}`;
   } else {
     waitEl.textContent = '\u2014';
