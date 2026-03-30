@@ -1347,14 +1347,14 @@ function renderTrends(data) {
 
   const cards = [];
 
-  // Speed: this week vs last week
-  const thisWeek = data.thisWeek;
-  const lastWeek = data.lastWeek;
+  // Only show weekly data when we have a full week (7 days)
+  const thisWeek = data.thisWeek?.days >= 7 ? data.thisWeek : null;
+  const lastWeek = data.lastWeek?.days >= 7 ? data.lastWeek : null;
   if (thisWeek?.avgSpeed != null) {
     const change = lastWeek?.avgSpeed != null
       ? round1(thisWeek.avgSpeed - lastWeek.avgSpeed) : null;
     cards.push(trendCard('Avg speed', thisWeek.avgSpeed, 'mph', change, 'higher is better',
-      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgSpeed)));
+      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgSpeed')));
   }
 
   // Reliability: this week vs last week
@@ -1362,7 +1362,7 @@ function renderTrends(data) {
     const change = lastWeek?.avgReliability != null
       ? round1(thisWeek.avgReliability - lastWeek.avgReliability) : null;
     cards.push(trendCard('Reliability', thisWeek.avgReliability, '%', change, 'higher is better',
-      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgReliability)));
+      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgReliability')));
   }
 
   // Bunching rate: this week vs last week (lower is better)
@@ -1370,37 +1370,45 @@ function renderTrends(data) {
     const change = lastWeek?.avgBunchingRate != null
       ? round1(thisWeek.avgBunchingRate - lastWeek.avgBunchingRate) : null;
     cards.push(trendCard('Bunching', thisWeek.avgBunchingRate, '/snap', change, 'lower is better',
-      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgBunchingRate)));
+      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgBunchingRate')));
   }
 
-  // Monthly row
-  const thisMonth = data.thisMonth;
-  const lastMonth = data.lastMonth;
+  // Only show monthly data when we have a full month (28+ days)
+  const thisMonth = data.thisMonth?.days >= 28 ? data.thisMonth : null;
+  const lastMonth = data.lastMonth?.days >= 28 ? data.lastMonth : null;
   if (thisMonth?.avgSpeed != null) {
     const change = lastMonth?.avgSpeed != null
       ? round1(thisMonth.avgSpeed - lastMonth.avgSpeed) : null;
     cards.push(trendCard('Monthly speed', thisMonth.avgSpeed, 'mph', change, 'higher is better',
-      thisMonth.period, data.monthlyHistory?.map(m => m.avgSpeed)));
+      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgSpeed')));
   }
 
   if (thisMonth?.avgReliability != null) {
     const change = lastMonth?.avgReliability != null
       ? round1(thisMonth.avgReliability - lastMonth.avgReliability) : null;
     cards.push(trendCard('Monthly reliability', thisMonth.avgReliability, '%', change, 'higher is better',
-      thisMonth.period, data.monthlyHistory?.map(m => m.avgReliability)));
+      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgReliability')));
   }
 
   if (thisMonth?.avgBunchingRate != null) {
     const change = lastMonth?.avgBunchingRate != null
       ? round1(thisMonth.avgBunchingRate - lastMonth.avgBunchingRate) : null;
     cards.push(trendCard('Monthly bunching', thisMonth.avgBunchingRate, '/snap', change, 'lower is better',
-      thisMonth.period, data.monthlyHistory?.map(m => m.avgBunchingRate)));
+      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgBunchingRate')));
   }
 
   if (cards.length === 0) return;
 
   grid.innerHTML = cards.join('');
   panel.style.display = 'block';
+}
+
+/** Filter history arrays to only include full periods */
+function fullWeeksField(history, field) {
+  return history?.filter(w => w.days >= 7).map(w => w[field]) || [];
+}
+function fullMonthsField(history, field) {
+  return history?.filter(m => m.days >= 28).map(m => m[field]) || [];
 }
 
 function trendCard(label, value, unit, change, direction, period, sparkData) {
