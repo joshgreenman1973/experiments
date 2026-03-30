@@ -271,22 +271,26 @@ async function main() {
   if (raw.length === 0) {
     const fallback = prevBusinessDay(targetDate);
     console.log(`No data for ${targetDate}, trying ${fallback}...`);
+
+    // Only try fallback if we don't already have that date's data
+    const fallbackPath = join(DATA_DIR, `${fallback}.json`);
+    if (existsSync(fallbackPath)) {
+      console.log(`${fallback}.json already exists and no new data for ${targetDate}. Nothing to do.`);
+      process.exit(0);
+    }
+
     raw = await fetchNotices(fallback);
     date = fallback;
   }
 
   if (raw.length === 0) {
-    console.error('No City Record data found. Exiting.');
-    process.exit(1);
+    console.log('No City Record data found. Nothing to do.');
+    process.exit(0);
   }
 
   console.log(`Found ${raw.length} notices for ${date}`);
 
-  // Check if file already exists
   const outPath = join(DATA_DIR, `${date}.json`);
-  if (existsSync(outPath)) {
-    console.log(`${date}.json already exists — overwriting with fresh data.`);
-  }
 
   // Process notices
   const notices = [];
