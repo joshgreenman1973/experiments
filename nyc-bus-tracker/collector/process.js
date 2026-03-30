@@ -2,10 +2,11 @@
 /**
  * NYC Bus Tracker — Daily Processor
  * Reads a day's JSONL snapshots and computes:
- * - Per-route headways (time between consecutive buses)
+ * - Per-route average speed (route-weighted, consistent with MTA methodology)
  * - Bunching events (buses within 250m on same route/direction)
  * - Gap events (long intervals without buses)
  * - Route reliability scores
+ * - System-wide summary stats for historical tracking
  *
  * Usage: node process.js [YYYY-MM-DD]
  * Defaults to yesterday if no date provided.
@@ -20,7 +21,6 @@ const SNAPSHOTS_DIR = join(__dirname, '..', 'data', 'snapshots');
 const DAILY_DIR = join(__dirname, '..', 'data', 'daily');
 
 const BUNCHING_DISTANCE_M = 250;
-const GAP_THRESHOLD_MIN = 20;
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -30,6 +30,14 @@ function haversine(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+function avg(arr) {
+  return arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 }
 
 function getDate(offsetDays = -1) {
@@ -52,15 +60,64 @@ function loadSnapshots(date) {
   }).filter(Boolean);
 }
 
+/**
+ * Compute per-bus speeds between two consecutive snapshots.
+ * Returns Map of routeId -> [speed1, speed2, ...] in mph.
+ */
+function computeSpeedsBetween(prevSnap, currSnap) {
+  const prevMap = new Map();
+  for (const v of prevSnap.vehicles) {
+    prevMap.set(v.id, v);
+  }
+
+  const prevTime = new Date(prevSnap.ts).getTime();
+  const currTime = new Date(currSnap.ts).getTime();
+  const dtHours = (currTime - prevTime) / 3600000;
+
+  // Skip if bad interval (negative, zero, or >30 min gap)
+  if (dtHours <= 0 || dtHours > 0.5) return new Map();
+
+  const routeSpeeds = new Map();
+
+  for (const v of currSnap.vehicles) {
+    const prev = prevMap.get(v.id);
+    if (!prev) continue;
+    if (prev.route !== v.route) continue;
+
+    const distMeters = haversine(prev.lat, prev.lon, v.lat, v.lon);
+    const speed = (distMeters / 1609.34) / dtHours;
+
+    // Filter unrealistic speeds (GPS glitches, layovers)
+    if (speed >= 0.5 && speed < 60) {
+      if (!routeSpeeds.has(v.route)) routeSpeeds.set(v.route, []);
+      routeSpeeds.get(v.route).push(speed);
+    }
+  }
+
+  return routeSpeeds;
+}
+
 function processDay(date) {
   const snapshots = loadSnapshots(date);
   console.log(`Processing ${date}: ${snapshots.length} snapshots`);
 
   const routeStats = {};
   let totalBunchingEvents = 0;
-  let totalGapRoutes = new Set();
+  const totalGapRoutes = new Set();
 
-  // Process each snapshot
+  // Accumulate per-route speeds across all snapshot pairs
+  const routeSpeedAccum = {}; // route -> [all speeds across the day]
+
+  // Process consecutive snapshot pairs for speed
+  for (let s = 1; s < snapshots.length; s++) {
+    const speedsByRoute = computeSpeedsBetween(snapshots[s - 1], snapshots[s]);
+    for (const [route, speeds] of speedsByRoute) {
+      if (!routeSpeedAccum[route]) routeSpeedAccum[route] = [];
+      routeSpeedAccum[route].push(...speeds);
+    }
+  }
+
+  // Process each snapshot for bunching and gaps
   for (const snap of snapshots) {
     const ts = new Date(snap.ts);
     const hour = ts.getHours();
@@ -75,7 +132,6 @@ function processDay(date) {
 
     for (const [key, buses] of Object.entries(groups)) {
       const route = key.split('_')[0];
-      const dir = parseInt(key.split('_')[1], 10);
 
       if (!routeStats[route]) {
         routeStats[route] = {
@@ -87,7 +143,6 @@ function processDay(date) {
           gapSnapshots: 0,
           maxBusCount: 0,
           minBusCount: Infinity,
-          directions: {},
         };
       }
 
@@ -120,25 +175,29 @@ function processDay(date) {
     }
   }
 
-  // Compute summary stats
+  // Compute per-route summaries including speed
   const routeSummaries = Object.values(routeStats).map(rs => {
     const avgBuses = rs.snapshotCount > 0 ? rs.totalBuses / rs.snapshotCount : 0;
     const gapPct = rs.snapshotCount > 0 ? (rs.gapSnapshots / rs.snapshotCount) * 100 : 0;
-    // Reliability: % of snapshots with more than 1 bus (not in gap state)
     const reliability = rs.snapshotCount > 0
       ? ((rs.snapshotCount - rs.gapSnapshots) / rs.snapshotCount) * 100
       : 0;
 
+    // Per-route average speed
+    const speeds = routeSpeedAccum[rs.route];
+    const routeAvgSpeed = speeds && speeds.length > 0 ? round1(avg(speeds)) : null;
+
     return {
       route: rs.route,
-      avgBuses: Math.round(avgBuses * 10) / 10,
+      avgSpeed: routeAvgSpeed,
+      avgBuses: round1(avgBuses),
       maxBuses: rs.maxBusCount,
       minBuses: rs.minBusCount === Infinity ? 0 : rs.minBusCount,
       bunchingEvents: rs.bunchingEvents,
       bunchingByHour: rs.bunchingByHour,
       gapSnapshots: rs.gapSnapshots,
-      gapPct: Math.round(gapPct * 10) / 10,
-      reliability: Math.round(reliability * 10) / 10,
+      gapPct: round1(gapPct),
+      reliability: round1(reliability),
       snapshotCount: rs.snapshotCount,
     };
   });
@@ -146,16 +205,28 @@ function processDay(date) {
   // Sort by reliability ascending (worst first)
   routeSummaries.sort((a, b) => a.reliability - b.reliability);
 
+  // System-wide average speed: mean of per-route averages (each route weighted equally)
+  const routeAvgSpeeds = routeSummaries
+    .filter(r => r.avgSpeed != null)
+    .map(r => r.avgSpeed);
+  const systemAvgSpeed = routeAvgSpeeds.length > 0 ? round1(avg(routeAvgSpeeds)) : null;
+
+  // System-wide bunching rate: bunching events per snapshot per route
+  const totalSnapshots = snapshots.length;
+  const bunchingRate = totalSnapshots > 0 && routeSummaries.length > 0
+    ? round1(totalBunchingEvents / totalSnapshots)
+    : null;
+
   const dailySummary = {
     date,
     snapshotCount: snapshots.length,
     totalRoutes: routeSummaries.length,
+    systemAvgSpeed,
+    bunchingRate,
     totalBunchingEvents,
     routesWithGaps: totalGapRoutes.size,
     systemReliability: routeSummaries.length > 0
-      ? Math.round(
-          routeSummaries.reduce((s, r) => s + r.reliability, 0) / routeSummaries.length * 10
-        ) / 10
+      ? round1(avg(routeSummaries.map(r => r.reliability)))
       : 0,
     worstRoutes: routeSummaries.slice(0, 20),
     bestRoutes: routeSummaries.slice(-10).reverse(),
@@ -175,14 +246,16 @@ function main() {
   console.log(`\nDaily summary written to ${outFile}`);
   console.log(`  Snapshots: ${summary.snapshotCount}`);
   console.log(`  Routes: ${summary.totalRoutes}`);
+  console.log(`  System avg speed: ${summary.systemAvgSpeed ?? 'N/A'} mph`);
   console.log(`  System reliability: ${summary.systemReliability}%`);
+  console.log(`  Bunching rate: ${summary.bunchingRate ?? 'N/A'} per snapshot`);
   console.log(`  Total bunching events: ${summary.totalBunchingEvents}`);
   console.log(`  Routes with gaps: ${summary.routesWithGaps}`);
 
   if (summary.worstRoutes.length > 0) {
     console.log('\n  Worst routes by reliability:');
     for (const r of summary.worstRoutes.slice(0, 5)) {
-      console.log(`    ${r.route}: ${r.reliability}% reliable, ${r.bunchingEvents} bunching events`);
+      console.log(`    ${r.route}: ${r.reliability}% reliable, avg ${r.avgSpeed ?? 'N/A'} mph, ${r.bunchingEvents} bunching events`);
     }
   }
 }

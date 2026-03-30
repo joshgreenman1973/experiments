@@ -117,6 +117,12 @@
       </div>
       <div class="route-list" id="route-list"></div>
 
+      <!-- Historical trends (loaded from summary data) -->
+      <div class="trends-panel" id="trends-panel" style="display:none">
+        <div class="trends-header">Trends</div>
+        <div class="trends-grid" id="trends-grid"></div>
+      </div>
+
       <!-- Sources and methodology -->
       <div class="source-credits">
         <p><strong>Source:</strong> <a href="https://bustime.mta.info/wiki/Developers/Index" target="_blank">MTA BusTime SIRI API</a> (real-time vehicle positions)</p>
@@ -129,6 +135,8 @@
 
           <h4>Speed</h4>
           <p><strong>What we measure:</strong> Every 30 seconds, we record each bus's GPS position. For any bus seen in consecutive snapshots, we calculate the distance traveled and divide by elapsed time. When route shape data is available, distance is measured <em>along the route polyline</em> (snapping each GPS point to the nearest point on the route and summing the along-route path). When route shapes are unavailable, we fall back to great-circle (haversine) distance, which underestimates actual road distance. Speeds above 60 mph are discarded as GPS noise. A rolling average over the last 3 poll cycles smooths jitter.</p>
+
+          <p><strong>System-wide averaging:</strong> Each route's average speed is computed first (mean of all individual bus speeds on that route), then the system-wide average is the mean of all route-level averages. This gives equal weight to each route regardless of how many buses it runs, consistent with MTA route-level reporting. Without this, high-frequency routes (M15, B46, etc.) would dominate the system average.</p>
 
           <p><strong>How the MTA measures it:</strong> The MTA's <a href="https://www.mta.info/article/beyond-route-introducing-granular-mta-bus-speed-data" target="_blank">Bus Route Segment Speeds dataset</a> calculates speed between "timepoints" (major scheduled stops) using the known route-geometry distance and GPS-derived travel time. Their speed <em>includes</em> dwell time at stops, traffic delays, signal waits, operator reliefs, and all other in-service time&mdash;representing the actual travel speed a rider experiences.</p>
 

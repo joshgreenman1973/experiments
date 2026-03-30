@@ -55,6 +55,7 @@ function cacheDomElements() {
     'loading-text', 'route-list', 'route-search', 'sort-btn',
     'timeline-slider', 'timeline-time', 'timeline-date', 'timeline-speed',
     'btn-live', 'btn-play', 'borough-filter', 'route-list-header',
+    'trends-panel', 'trends-grid',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -125,8 +126,9 @@ async function init() {
     hideLoading();
     dom['live-badge'].style.display = 'flex';
 
-    // Load route shapes in background — doesn't block initial render
+    // Load route shapes and historical trends in background
     loadRouteShapes();
+    loadTrends();
 
     // Set title animation endpoint based on actual container width, then start
     const lane = document.querySelector('.title-lane');
@@ -590,19 +592,21 @@ function computeMetrics(snapshot) {
   const { longWaits20, longWaits30 } = identifyLongWaits(routeMetrics);
 
   // Compute system-wide averages
-  const allSpeeds = [];
+  // Compute per-route averages, then system-wide as mean of route averages
+  // (each route weighted equally, consistent with MTA route-level reporting)
+  const routeAvgSpeeds = [];
   const allGaps = [];
   for (const rm of Object.values(routeMetrics)) {
     if (rm.speeds.length > 0) {
       rm.avgSpeed = round1(avg(rm.speeds));
-      allSpeeds.push(...rm.speeds);
+      routeAvgSpeeds.push(rm.avgSpeed);
     } else {
       rm.avgSpeed = null;
     }
     allGaps.push(...rm.gapMinutes);
   }
 
-  const systemAvgSpeed = allSpeeds.length > 0 ? speedSmooth.push(round1(avg(allSpeeds))) : speedSmooth.current();
+  const systemAvgSpeed = routeAvgSpeeds.length > 0 ? speedSmooth.push(round1(avg(routeAvgSpeeds))) : speedSmooth.current();
 
   // Average rider wait time = E[gap^2] / (2 * E[gap])
   let avgRiderWait = null;
@@ -1322,6 +1326,119 @@ function hideLoading() {
   overlay.style.opacity = '0';
   overlay.style.transition = 'opacity 0.5s';
   setTimeout(() => overlay.style.display = 'none', 500);
+}
+
+// ═══ HISTORICAL TRENDS ═══
+async function loadTrends() {
+  try {
+    const res = await fetch('data/summary/latest.json');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderTrends(data);
+  } catch (e) {
+    // No trend data yet — that's fine, panel stays hidden
+  }
+}
+
+function renderTrends(data) {
+  const panel = dom['trends-panel'];
+  const grid = dom['trends-grid'];
+  if (!panel || !grid) return;
+
+  const cards = [];
+
+  // Speed: this week vs last week
+  const thisWeek = data.thisWeek;
+  const lastWeek = data.lastWeek;
+  if (thisWeek?.avgSpeed != null) {
+    const change = lastWeek?.avgSpeed != null
+      ? round1(thisWeek.avgSpeed - lastWeek.avgSpeed) : null;
+    cards.push(trendCard('Avg speed', thisWeek.avgSpeed, 'mph', change, 'higher is better',
+      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgSpeed)));
+  }
+
+  // Reliability: this week vs last week
+  if (thisWeek?.avgReliability != null) {
+    const change = lastWeek?.avgReliability != null
+      ? round1(thisWeek.avgReliability - lastWeek.avgReliability) : null;
+    cards.push(trendCard('Reliability', thisWeek.avgReliability, '%', change, 'higher is better',
+      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgReliability)));
+  }
+
+  // Bunching rate: this week vs last week (lower is better)
+  if (thisWeek?.avgBunchingRate != null) {
+    const change = lastWeek?.avgBunchingRate != null
+      ? round1(thisWeek.avgBunchingRate - lastWeek.avgBunchingRate) : null;
+    cards.push(trendCard('Bunching', thisWeek.avgBunchingRate, '/snap', change, 'lower is better',
+      `Week of ${thisWeek.startDate}`, data.weeklyHistory?.map(w => w.avgBunchingRate)));
+  }
+
+  // Monthly row
+  const thisMonth = data.thisMonth;
+  const lastMonth = data.lastMonth;
+  if (thisMonth?.avgSpeed != null) {
+    const change = lastMonth?.avgSpeed != null
+      ? round1(thisMonth.avgSpeed - lastMonth.avgSpeed) : null;
+    cards.push(trendCard('Monthly speed', thisMonth.avgSpeed, 'mph', change, 'higher is better',
+      thisMonth.period, data.monthlyHistory?.map(m => m.avgSpeed)));
+  }
+
+  if (thisMonth?.avgReliability != null) {
+    const change = lastMonth?.avgReliability != null
+      ? round1(thisMonth.avgReliability - lastMonth.avgReliability) : null;
+    cards.push(trendCard('Monthly reliability', thisMonth.avgReliability, '%', change, 'higher is better',
+      thisMonth.period, data.monthlyHistory?.map(m => m.avgReliability)));
+  }
+
+  if (thisMonth?.avgBunchingRate != null) {
+    const change = lastMonth?.avgBunchingRate != null
+      ? round1(thisMonth.avgBunchingRate - lastMonth.avgBunchingRate) : null;
+    cards.push(trendCard('Monthly bunching', thisMonth.avgBunchingRate, '/snap', change, 'lower is better',
+      thisMonth.period, data.monthlyHistory?.map(m => m.avgBunchingRate)));
+  }
+
+  if (cards.length === 0) return;
+
+  grid.innerHTML = cards.join('');
+  panel.style.display = 'block';
+}
+
+function trendCard(label, value, unit, change, direction, period, sparkData) {
+  // Determine change direction and formatting
+  let changeHtml = '';
+  if (change != null && change !== 0) {
+    const isGood = direction === 'higher is better' ? change > 0 : change < 0;
+    const arrow = change > 0 ? '\u25B2' : '\u25BC';
+    const cls = isGood ? 'up' : 'down';
+    changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(change).toFixed(1)} vs prior</div>`;
+  } else if (change === 0) {
+    changeHtml = `<div class="trend-change flat">\u2014 no change</div>`;
+  }
+
+  // Sparkline bars
+  let sparkHtml = '';
+  if (sparkData && sparkData.filter(v => v != null).length > 1) {
+    const valid = sparkData.filter(v => v != null);
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    const range = max - min || 1;
+    sparkHtml = `<div class="trend-sparkline">${
+      sparkData.map(v => {
+        if (v == null) return '<div class="bar" style="height:2px;background:var(--border)"></div>';
+        const pct = ((v - min) / range) * 100;
+        const h = Math.max(2, Math.round(pct * 22 / 100) + 2);
+        return `<div class="bar" style="height:${h}px;background:var(--vc-chartreuse)"></div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  return `<div class="trend-card">
+    <div class="trend-label">${label}</div>
+    <div class="trend-value">${value}<span style="font-size:10px;font-weight:500;color:var(--text-tertiary);margin-left:3px">${unit}</span></div>
+    ${changeHtml}
+    <div class="trend-period">${period || ''}</div>
+    ${sparkHtml}
+  </div>`;
 }
 
 // ═══ BUS DIRECTION ARROW ICON (SDF) ═══
