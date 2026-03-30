@@ -519,11 +519,24 @@
 
   // ── DEATH CHARTS (from deaths-data.json) ──
   var hist = DD.historical;
-  var deathYears = hist.map(function(h) { return h.year; });
+  var currentYearData = DD.currentYear || { year: 2026, deaths: [] };
+  var currentYearDeaths = currentYearData.deaths || [];
+
+  // Append current year YTD to historical for chart display
+  if (currentYearDeaths.length > 0 && (!hist.length || hist[hist.length - 1].year < currentYearData.year)) {
+    hist.push({
+      year: currentYearData.year,
+      deaths: currentYearDeaths.length,
+      adp: currentYearData.adpSnapshot || null,
+      rate: currentYearData.adpSnapshot ? Math.round((currentYearDeaths.length / currentYearData.adpSnapshot) * 1000 * 10) / 10 : null,
+      _ytd: true
+    });
+  }
+
+  var deathYears = hist.map(function(h) { return h._ytd ? h.year + '*' : h.year; });
   var deaths = hist.map(function(h) { return h.deaths; });
   var adps = hist.map(function(h) { return h.adp || null; });
   var rates = hist.map(function(h) { return h.rate; });
-  var currentYearDeaths = (DD.currentYear && DD.currentYear.deaths) || [];
 
   // Death labels plugin
   var deathLabelsPlugin = {

@@ -430,27 +430,40 @@
   const currentYearData = DATA.currentYear || { year: 2026, deaths: [] };
   const currentYearDeaths = currentYearData.deaths || [];
   const monthlyDeaths = DATA.monthlyDeaths || {};
+
+  // Append current year YTD to historical for chart display
+  if (currentYearDeaths.length > 0 && (!hist.length || hist[hist.length - 1].year < currentYearData.year)) {
+    hist.push({
+      year: currentYearData.year,
+      deaths: currentYearDeaths.length,
+      adp: currentYearData.adpSnapshot || null,
+      rate: currentYearData.adpSnapshot ? Math.round((currentYearDeaths.length / currentYearData.adpSnapshot) * 1000 * 10) / 10 : null,
+      _ytd: true
+    });
+  }
+
   const latestHist = hist[hist.length - 1];
 
   // ── HERO STATS ──
   const heroRow = document.getElementById('heroRow');
-  const totalAll = hist.reduce((s, h) => s + h.deaths, 0) + currentYearDeaths.length;
+  const lastCompleteYear = hist.filter(h => !h._ytd).slice(-1)[0];
+  const totalAll = hist.reduce((s, h) => s + h.deaths, 0);
   const avgAge = individuals.filter(d => d.age).length > 0
     ? Math.round(individuals.filter(d => d.age).reduce((s, d) => s + d.age, 0) / individuals.filter(d => d.age).length)
     : '—';
 
   heroRow.innerHTML =
-    '<div class="hero-stat"><span class="num accent">' + latestHist.deaths + '</span>' +
-    '<span class="label">deaths in <strong>' + latestHist.year + '</strong><br>Rate: ' + latestHist.rate + ' per 1,000 ADP</span></div>' +
+    '<div class="hero-stat"><span class="num accent">' + lastCompleteYear.deaths + '</span>' +
+    '<span class="label">deaths in <strong>' + lastCompleteYear.year + '</strong><br>Rate: ' + lastCompleteYear.rate + ' per 1,000 ADP</span></div>' +
     '<div class="hero-stat hero-stat-sm"><span class="num">' + currentYearDeaths.length + '</span>' +
     '<span class="label">deaths in <strong>' + currentYearData.year + '</strong> so far</span></div>' +
     '<div class="hero-stat hero-stat-sm"><span class="num">' + totalAll + '</span>' +
     '<span class="label">total since <strong>2000</strong></span></div>' +
-    '<div class="hero-stat hero-stat-sm"><span class="num">' + (currentYearData.adpSnapshot || latestHist.adp || 0).toLocaleString() + '</span>' +
+    '<div class="hero-stat hero-stat-sm"><span class="num">' + (currentYearData.adpSnapshot || lastCompleteYear.adp || 0).toLocaleString() + '</span>' +
     '<span class="label">current <strong>jail pop.</strong></span></div>';
 
   // ── MAIN CHART ──
-  const years = hist.map(function(h) { return h.year; });
+  const years = hist.map(function(h) { return h._ytd ? h.year + '*' : h.year; });
   const deaths = hist.map(function(h) { return h.deaths; });
   const adps = hist.map(function(h) { return h.adp || null; });
   const rates = hist.map(function(h) { return h.rate; });
