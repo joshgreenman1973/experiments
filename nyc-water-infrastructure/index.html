@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC water infrastructure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f5f7fa;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+/* ===== Header ===== */
+.header {
+  background: #fff;
+  border-bottom: 3px solid #1a6fc4;
+  padding: 32px 32px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.header .subtitle {
+  font-size: 15px;
+  color: #6b6b6b;
+  margin-bottom: 20px;
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ===== Tabs (underline style) ===== */
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 22px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #6b6b6b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px 6px 0 0;
+}
+
+.tab-btn:first-child { border-radius: 6px 6px 0 0; }
+.tab-btn:last-child { border-radius: 6px 6px 0 0; }
+.tab-btn + .tab-btn { border-left: none; }
+
+.tab-btn.active {
+  background: #eef4fb;
+  color: #1a6fc4;
+  border-bottom-color: #1a6fc4;
+  font-weight: 600;
+}
+
+.tab-btn:hover:not(.active) {
+  background: #f5f7fa;
+  color: #1a6fc4;
+  border-bottom-color: #c8ddf0;
+}
+
+/* ===== Filters ===== */
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-group label {
+  font-size: 13px;
+  color: #6b6b6b;
+  font-weight: 500;
+}
+
+.filter-group select {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.filter-group select:hover {
+  border-color: #1a6fc4;
+}
+
+/* ===== Main content ===== */
+.main-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.panel-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.panel-layout.full-width {
+  grid-template-columns: 1fr;
+}
+
+/* ===== Map ===== */
+.map-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  overflow: hidden;
+  min-height: 500px;
+}
+
+.map-container .map {
+  width: 100%;
+  height: 500px;
+}
+
+.map-legend {
+  padding: 14px 20px;
+  border-top: 2px solid #eef2f6;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #6b6b6b;
+  background: #fafbfc;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== Stats ===== */
+.stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 24px;
+}
+
+.stat-card h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 14px;
+}
+
+/* ===== Headline stats ===== */
+.headline-stat {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #1a6fc4;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+
+.headline-label {
+  font-size: 14px;
+  color: #6b6b6b;
+  line-height: 1.4;
+}
+
+/* ===== Charts ===== */
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  max-height: 220px;
+}
+
+.chart-wrapper canvas {
+  max-height: 220px;
+}
+
+/* ===== Tables ===== */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid #d0d5dd;
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #f8f9fb;
+}
+
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.data-table tbody tr:hover {
+  background: #eef4fb;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .danger {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+/* ===== Loading ===== */
+.loading-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #6b6b6b;
+  font-size: 14px;
+  gap: 16px;
+}
+
+.loading-overlay .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e8edf2;
+  border-top-color: #1a6fc4;
+  border-radius: 50%;
+  animation: spin 0.9s ease-in-out infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-msg {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #c0392b;
+  font-size: 14px;
+}
+
+/* ===== Water quality summary cards ===== */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.summary-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 24px 20px;
+  text-align: center;
+  border-top: 3px solid #e8edf2;
+  transition: box-shadow 0.2s;
+}
+
+.summary-card:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+}
+
+.summary-card .value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+
+.summary-card .param-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.summary-card .param-status {
+  font-size: 12px;
+  color: #6b6b6b;
+  font-weight: 500;
+}
+
+.summary-card .value.safe { color: #2d8a4e; }
+.summary-card .value.warning { color: #b8860b; }
+.summary-card .value.danger { color: #c0392b; }
+
+/* Color-coded top borders for summary cards */
+.summary-card.tint-safe {
+  border-top-color: #2d8a4e;
+  background: linear-gradient(180deg, #f0faf4 0%, #fff 40%);
+}
+.summary-card.tint-warning {
+  border-top-color: #d4a017;
+  background: linear-gradient(180deg, #fdf8ec 0%, #fff 40%);
+}
+.summary-card.tint-danger {
+  border-top-color: #c0392b;
+  background: linear-gradient(180deg, #fef2f2 0%, #fff 40%);
+}
+
+/* ===== Water quality charts grid ===== */
+.wq-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.wq-chart-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 24px;
+}
+
+.wq-chart-card h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.wq-chart-card .context {
+  font-size: 12px;
+  color: #6b6b6b;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.wq-chart-card .chart-wrapper {
+  height: 200px;
+  max-height: 200px;
+}
+
+.wq-chart-card .chart-wrapper canvas {
+  max-height: 200px;
+}
+
+/* ===== Date filter buttons ===== */
+.date-filter-row {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.date-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #6b6b6b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-btn:first-child { border-radius: 6px 0 0 6px; }
+.date-btn:last-child { border-radius: 0 6px 6px 0; }
+.date-btn + .date-btn { border-left: none; }
+.date-btn.active { background: #1a6fc4; color: #fff; border-color: #1a6fc4; }
+.date-btn:hover:not(.active) { background: #eef4fb; color: #1a6fc4; }
+
+/* ===== Popups ===== */
+.maplibregl-popup-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+}
+
+.popup-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+.popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 3px;
+}
+
+.popup-label { color: #6b6b6b; }
+.popup-value { font-weight: 500; }
+
+/* ===== Footer ===== */
+.site-footer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+  border-top: 1px solid #e2e6ea;
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.6;
+}
+
+.site-footer a {
+  color: #1a6fc4;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+.footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .header { padding: 20px 16px 16px; }
+  .header h1 { font-size: 1.8rem; }
+  .main-content { padding: 16px; }
+  .panel-layout { grid-template-columns: 1fr; }
+  .wq-charts-grid { grid-template-columns: 1fr; }
+  .nav-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .filter-group { margin-left: 0; }
+  .map-container .map { height: 350px; }
+  .footer-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>NYC water infrastructure</h1>
+  <p class="subtitle">Lead testing, water main breaks, and drinking water quality</p>
+  <div class="nav-row">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="lead">Lead testing</button>
+      <button class="tab-btn" data-tab="breaks">Water main breaks</button>
+      <button class="tab-btn" data-tab="quality">Water quality</button>
+    </div>
+    <div class="filter-group">
+      <label for="borough-filter">Borough:</label>
+      <select id="borough-filter">
+        <option value="all">All boroughs</option>
+        <option value="Bronx">Bronx</option>
+        <option value="Brooklyn">Brooklyn</option>
+        <option value="Manhattan">Manhattan</option>
+        <option value="Queens">Queens</option>
+        <option value="Staten Island">Staten Island</option>
+      </select>
+    </div>
+    <div class="filter-group date-filter-group" style="display:none;">
+      <div class="date-filter-row">
+        <button class="date-btn" data-range="1">Last year</button>
+        <button class="date-btn" data-range="2">Last 2 years</button>
+        <button class="date-btn active" data-range="5">Last 5 years</button>
+        <button class="date-btn" data-range="all">All time</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  <!-- Lead testing tab -->
+  <div class="tab-panel active" id="panel-lead">
+    <div class="loading-overlay" id="lead-loading">
+      <div class="spinner"></div> Loading lead testing data...
+    </div>
+    <div class="error-msg" id="lead-error" style="display:none;"></div>
+    <div class="panel-layout" id="lead-content" style="display:none;">
+      <div>
+        <div class="map-container">
+          <div id="lead-map" class="map"></div>
+          <div class="map-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#2d8a4e;"></div> Below 5 ppb</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#d4a017;"></div> 5-14 ppb (elevated)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#c0392b;"></div> 15+ ppb (at/above EPA action level)</div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-container">
+        <div class="stat-card">
+          <div class="headline-stat" id="lead-headline-pct">--</div>
+          <div class="headline-label" id="lead-headline-label">of samples below EPA action level (15 ppb)</div>
+        </div>
+        <div class="stat-card">
+          <h3>Distribution of lead levels</h3>
+          <div class="chart-wrapper"><canvas id="lead-dist-chart"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <h3>Results by borough</h3>
+          <div class="chart-wrapper"><canvas id="lead-borough-chart"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <h3>Top 10 ZIP codes by percentage above action level</h3>
+          <table class="data-table" id="lead-zip-table">
+            <thead><tr><th>ZIP code</th><th>Samples</th><th>Above 15 ppb</th><th>% above</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Water main breaks tab -->
+  <div class="tab-panel" id="panel-breaks">
+    <div class="loading-overlay" id="breaks-loading">
+      <div class="spinner"></div> Loading water main break reports...
+    </div>
+    <div class="error-msg" id="breaks-error" style="display:none;"></div>
+    <div class="panel-layout" id="breaks-content" style="display:none;">
+      <div>
+        <div class="map-container">
+          <div id="breaks-map" class="map"></div>
+          <div class="map-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#c0392b;"></div> Recent reports (larger = more recent)</div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-container">
+        <div class="stat-card">
+          <div class="headline-stat" id="breaks-headline-count">--</div>
+          <div class="headline-label" id="breaks-headline-label">water main break reports</div>
+        </div>
+        <div class="stat-card">
+          <h3>Monthly reports over time</h3>
+          <div class="chart-wrapper"><canvas id="breaks-trend-chart"></canvas></div>
+        </div>
+        <div class="stat-card">
+          <h3>Reports by borough</h3>
+          <div class="chart-wrapper"><canvas id="breaks-borough-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Water quality tab -->
+  <div class="tab-panel" id="panel-quality">
+    <div class="loading-overlay" id="quality-loading">
+      <div class="spinner"></div> Loading water quality data...
+    </div>
+    <div class="error-msg" id="quality-error" style="display:none;"></div>
+    <div class="panel-layout full-width" id="quality-content" style="display:none;">
+      <div>
+        <div class="summary-cards" id="quality-summary-cards"></div>
+        <div class="wq-charts-grid">
+          <div class="wq-chart-card">
+            <h3>Turbidity over time</h3>
+            <p class="context">Measures water clarity in nephelometric turbidity units (NTU). EPA limit: 1 NTU. Below 0.5 NTU is excellent.</p>
+            <div class="chart-wrapper"><canvas id="wq-turbidity-chart"></canvas></div>
+          </div>
+          <div class="wq-chart-card">
+            <h3>Residual free chlorine over time</h3>
+            <p class="context">Chlorine added to kill pathogens. EPA minimum: 0.2 mg/L throughout distribution. Typical range: 0.2-1.5 mg/L.</p>
+            <div class="chart-wrapper"><canvas id="wq-chlorine-chart"></canvas></div>
+          </div>
+          <div class="wq-chart-card">
+            <h3>Total coliform over time</h3>
+            <p class="context">Indicator bacteria (MPN/100mL). "<1" means none detected. No more than 5% of monthly samples should test positive.</p>
+            <div class="chart-wrapper"><canvas id="wq-coliform-chart"></canvas></div>
+          </div>
+          <div class="wq-chart-card">
+            <h3>Fluoride over time</h3>
+            <p class="context">Added for dental health. Recommended level: 0.7 mg/L. EPA maximum: 4.0 mg/L.</p>
+            <div class="chart-wrapper"><canvas id="wq-fluoride-chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<footer class="site-footer">
+  <div class="footer-row">
+    <span>Data: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC Open Data</a> (Department of Environmental Protection). Updated as published by the city.</span>
+    <span><a href="methodology.md">Methodology and data sources</a></span>
+  </div>
+</footer>
+
+<script>
+// ===== State =====
+let leadData = null;
+let breaksData = null;
+let qualityData = null;
+let leadMap = null;
+let breaksMap = null;
+let activeTab = 'lead';
+let selectedBorough = 'all';
+let selectedDateRange = 5;
+let charts = {};
+
+// ZIP code centroids for NYC (approximate lat/lng for mapping)
+const ZIP_CENTROIDS = {};
+
+// ===== Tab navigation =====
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + activeTab).classList.add('active');
+
+    // Show date filter only for breaks tab
+    document.querySelector('.date-filter-group').style.display = activeTab === 'breaks' ? '' : 'none';
+
+    // Initialize maps when tab becomes visible
+    if (activeTab === 'lead' && leadData && !leadMap) initLeadMap();
+    if (activeTab === 'breaks' && breaksData && !breaksMap) initBreaksMap();
+  });
+});
+
+// ===== Borough filter =====
+document.getElementById('borough-filter').addEventListener('change', (e) => {
+  selectedBorough = e.target.value;
+  if (activeTab === 'lead' && leadData) renderLeadStats();
+  if (activeTab === 'breaks' && breaksData) renderBreaksStats();
+  if (activeTab === 'lead' && leadMap) updateLeadMap();
+  if (activeTab === 'breaks' && breaksMap) updateBreaksMap();
+});
+
+// ===== Date range filter =====
+document.querySelectorAll('.date-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedDateRange = btn.dataset.range === 'all' ? 'all' : parseInt(btn.dataset.range);
+    if (breaksData) {
+      renderBreaksStats();
+      updateBreaksMap();
+    }
+  });
+});
+
+// ===== Utility =====
+function filterByBorough(data, boroughField) {
+  if (selectedBorough === 'all') return data;
+  return data.filter(d => {
+    const b = (d[boroughField] || '').toUpperCase();
+    const sel = selectedBorough.toUpperCase();
+    // Handle variations: "QUEENS" vs "Queens", "STATEN ISLAND" vs "Staten Island"
+    return b === sel || b.includes(sel);
+  });
+}
+
+function filterByDateRange(data, dateField) {
+  if (selectedDateRange === 'all') return data;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - selectedDateRange);
+  return data.filter(d => new Date(d[dateField]) >= cutoff);
+}
+
+function normBorough(b) {
+  if (!b) return 'Unknown';
+  const u = b.toUpperCase().trim();
+  if (u === 'BRONX' || u === 'THE BRONX') return 'Bronx';
+  if (u === 'BROOKLYN' || u === 'KINGS') return 'Brooklyn';
+  if (u === 'MANHATTAN' || u === 'NEW YORK') return 'Manhattan';
+  if (u === 'QUEENS') return 'Queens';
+  if (u === 'STATEN ISLAND' || u === 'RICHMOND') return 'Staten Island';
+  return b;
+}
+
+function destroyChart(key) {
+  if (charts[key]) { charts[key].destroy(); charts[key] = null; }
+}
+
+function formatNum(n) {
+  return n.toLocaleString('en-US');
+}
+
+// ===== Data fetching =====
+async function fetchJSON(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('API returned status ' + resp.status);
+  return resp.json();
+}
+
+// ===== Lead data =====
+async function loadLeadData() {
+  try {
+    const url = 'https://data.cityofnewyork.us/resource/k5us-nav4.json?$limit=50000&$order=date_collected DESC';
+    leadData = await fetchJSON(url);
+    document.getElementById('lead-loading').style.display = 'none';
+    document.getElementById('lead-content').style.display = '';
+    renderLeadStats();
+    initLeadMap();
+  } catch (err) {
+    document.getElementById('lead-loading').style.display = 'none';
+    const el = document.getElementById('lead-error');
+    el.style.display = '';
+    el.textContent = 'Failed to load lead testing data. Please try again later. (' + err.message + ')';
+  }
+}
+
+function getLeadPPB(d) {
+  const val = parseFloat(d.lead_first_draw_mg_l);
+  return isNaN(val) ? null : val * 1000; // mg/L to ppb
+}
+
+function renderLeadStats() {
+  const filtered = filterByBorough(leadData, 'borough');
+  const withLead = filtered.filter(d => getLeadPPB(d) !== null);
+  const belowAction = withLead.filter(d => getLeadPPB(d) < 15);
+  const pct = withLead.length > 0 ? ((belowAction.length / withLead.length) * 100).toFixed(1) : '--';
+
+  document.getElementById('lead-headline-pct').textContent = pct + '%';
+  document.getElementById('lead-headline-label').textContent =
+    'of ' + formatNum(withLead.length) + ' samples below EPA action level (15 ppb)';
+
+  // Distribution chart
+  const buckets = [0, 0, 0, 0, 0, 0];
+  const bucketLabels = ['0-1', '1-5', '5-10', '10-15', '15-25', '25+'];
+  withLead.forEach(d => {
+    const ppb = getLeadPPB(d);
+    if (ppb <= 1) buckets[0]++;
+    else if (ppb <= 5) buckets[1]++;
+    else if (ppb <= 10) buckets[2]++;
+    else if (ppb <= 15) buckets[3]++;
+    else if (ppb <= 25) buckets[4]++;
+    else buckets[5]++;
+  });
+
+  destroyChart('leadDist');
+  const distCtx = document.getElementById('lead-dist-chart').getContext('2d');
+  charts.leadDist = new Chart(distCtx, {
+    type: 'bar',
+    data: {
+      labels: bucketLabels.map(l => l + ' ppb'),
+      datasets: [{
+        data: buckets,
+        backgroundColor: ['#2d8a4e', '#2d8a4e', '#d4a017', '#d4a017', '#c0392b', '#c0392b']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Borough chart
+  const boroughs = ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'Staten Island'];
+  const boroughAbove = [];
+  const boroughBelow = [];
+  boroughs.forEach(bor => {
+    const borData = leadData.filter(d => normBorough(d.borough) === bor).filter(d => getLeadPPB(d) !== null);
+    const above = borData.filter(d => getLeadPPB(d) >= 15).length;
+    boroughAbove.push(above);
+    boroughBelow.push(borData.length - above);
+  });
+
+  destroyChart('leadBorough');
+  const borCtx = document.getElementById('lead-borough-chart').getContext('2d');
+  charts.leadBorough = new Chart(borCtx, {
+    type: 'bar',
+    data: {
+      labels: boroughs,
+      datasets: [
+        { label: 'Below 15 ppb', data: boroughBelow, backgroundColor: '#2d8a4e' },
+        { label: 'At/above 15 ppb', data: boroughAbove, backgroundColor: '#c0392b' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 11 } } },
+        y: { stacked: true, beginAtZero: true, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // ZIP table
+  const zipMap = {};
+  withLead.forEach(d => {
+    const zip = d.zipcode;
+    if (!zip) return;
+    if (!zipMap[zip]) zipMap[zip] = { total: 0, above: 0 };
+    zipMap[zip].total++;
+    if (getLeadPPB(d) >= 15) zipMap[zip].above++;
+  });
+
+  const zipArr = Object.entries(zipMap)
+    .filter(([, v]) => v.total >= 10) // Minimum sample size
+    .map(([zip, v]) => ({ zip, total: v.total, above: v.above, pct: (v.above / v.total * 100) }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 10);
+
+  const tbody = document.querySelector('#lead-zip-table tbody');
+  tbody.innerHTML = zipArr.map(z =>
+    '<tr><td>' + z.zip + '</td><td>' + formatNum(z.total) + '</td><td>' + z.above +
+    '</td><td class="' + (z.pct > 0 ? 'danger' : '') + '">' + z.pct.toFixed(1) + '%</td></tr>'
+  ).join('');
+}
+
+function initLeadMap() {
+  if (leadMap) return;
+  leadMap = new maplibregl.Map({
+    container: 'lead-map',
+    style: {
+      version: 8,
+      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+      sources: { 'carto': { type: 'raster', tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: 'CARTO' } },
+      layers: [{ id: 'carto-tiles', type: 'raster', source: 'carto' }]
+    },
+    center: [-73.95, 40.73],
+    zoom: 11
+  });
+  leadMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+  leadMap.on('load', () => updateLeadMap());
+}
+
+function updateLeadMap() {
+  if (!leadMap) return;
+
+  // Build GeoJSON from ZIP centroids
+  const filtered = filterByBorough(leadData, 'borough');
+  // Aggregate by ZIP
+  const zipAgg = {};
+  filtered.forEach(d => {
+    const zip = d.zipcode;
+    if (!zip) return;
+    const ppb = getLeadPPB(d);
+    if (ppb === null) return;
+    if (!zipAgg[zip]) zipAgg[zip] = { samples: [], borough: normBorough(d.borough) };
+    zipAgg[zip].samples.push(ppb);
+  });
+
+  // We need ZIP centroids. We will use a rough lookup.
+  // For simplicity, place each sample as a point using jittered ZIP centroid positions.
+  const features = [];
+  filtered.forEach(d => {
+    const ppb = getLeadPPB(d);
+    if (ppb === null) return;
+    const zip = d.zipcode;
+    if (!zip) return;
+    const centroid = getZipCentroid(zip, normBorough(d.borough));
+    if (!centroid) return;
+    // Jitter slightly so dots don't stack perfectly
+    const jitter = () => (Math.random() - 0.5) * 0.008;
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [centroid[0] + jitter(), centroid[1] + jitter()] },
+      properties: {
+        ppb: ppb,
+        zip: zip,
+        borough: normBorough(d.borough),
+        date: d.date_collected ? d.date_collected.split('T')[0] : 'N/A',
+        color: ppb < 5 ? '#2d8a4e' : ppb < 15 ? '#d4a017' : '#c0392b',
+        category: ppb < 5 ? 'safe' : ppb < 15 ? 'elevated' : 'danger'
+      }
+    });
+  });
+
+  const geojson = { type: 'FeatureCollection', features };
+
+  // Remove old source/layers if present
+  if (leadMap.getSource('lead-points')) {
+    leadMap.removeLayer('lead-clusters');
+    leadMap.removeLayer('lead-cluster-count');
+    leadMap.removeLayer('lead-unclustered');
+    leadMap.removeSource('lead-points');
+  }
+
+  leadMap.addSource('lead-points', {
+    type: 'geojson',
+    data: geojson,
+    cluster: true,
+    clusterMaxZoom: 13,
+    clusterRadius: 40
+  });
+
+  leadMap.addLayer({
+    id: 'lead-clusters',
+    type: 'circle',
+    source: 'lead-points',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': '#1a6fc4',
+      'circle-radius': ['step', ['get', 'point_count'], 14, 50, 20, 200, 26],
+      'circle-opacity': 0.7,
+      'circle-stroke-width': 1,
+      'circle-stroke-color': '#fff'
+    }
+  });
+
+  leadMap.addLayer({
+    id: 'lead-cluster-count',
+    type: 'symbol',
+    source: 'lead-points',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-font': ['Open Sans Semibold'],
+      'text-size': 12
+    },
+    paint: { 'text-color': '#fff' }
+  });
+
+  leadMap.addLayer({
+    id: 'lead-unclustered',
+    type: 'circle',
+    source: 'lead-points',
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': ['get', 'color'],
+      'circle-radius': 5,
+      'circle-opacity': 0.75,
+      'circle-stroke-width': 0.5,
+      'circle-stroke-color': '#fff'
+    }
+  });
+
+  // Click popup
+  leadMap.on('click', 'lead-unclustered', (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup({ offset: 10 })
+      .setLngLat(e.lngLat)
+      .setHTML(
+        '<div class="popup-title">Lead test result</div>' +
+        '<div class="popup-row"><span class="popup-label">Lead level:</span><span class="popup-value" style="color:' + p.color + '">' + parseFloat(p.ppb).toFixed(1) + ' ppb</span></div>' +
+        '<div class="popup-row"><span class="popup-label">ZIP code:</span><span class="popup-value">' + p.zip + '</span></div>' +
+        '<div class="popup-row"><span class="popup-label">Borough:</span><span class="popup-value">' + p.borough + '</span></div>' +
+        '<div class="popup-row"><span class="popup-label">Date:</span><span class="popup-value">' + p.date + '</span></div>'
+      )
+      .addTo(leadMap);
+  });
+
+  leadMap.on('mouseenter', 'lead-unclustered', () => { leadMap.getCanvas().style.cursor = 'pointer'; });
+  leadMap.on('mouseleave', 'lead-unclustered', () => { leadMap.getCanvas().style.cursor = ''; });
+
+  // Click on cluster to zoom
+  leadMap.on('click', 'lead-clusters', (e) => {
+    const features = leadMap.queryRenderedFeatures(e.point, { layers: ['lead-clusters'] });
+    const clusterId = features[0].properties.cluster_id;
+    leadMap.getSource('lead-points').getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      leadMap.easeTo({ center: features[0].geometry.coordinates, zoom });
+    });
+  });
+}
+
+// Rough ZIP centroid lookup using borough-based center + hash offset
+function getZipCentroid(zip, borough) {
+  if (ZIP_CENTROIDS[zip]) return ZIP_CENTROIDS[zip];
+  // Borough centers
+  const centers = {
+    'Manhattan': [-73.97, 40.78],
+    'Brooklyn': [-73.95, 40.65],
+    'Queens': [-73.82, 40.73],
+    'Bronx': [-73.87, 40.85],
+    'Staten Island': [-74.15, 40.58]
+  };
+  const center = centers[borough] || centers['Manhattan'];
+  // Use ZIP as a seed for offset
+  const hash = parseInt(zip) || 0;
+  const offsetLng = ((hash * 137) % 100 - 50) * 0.0006;
+  const offsetLat = ((hash * 251) % 100 - 50) * 0.0004;
+  const coords = [center[0] + offsetLng, center[1] + offsetLat];
+  ZIP_CENTROIDS[zip] = coords;
+  return coords;
+}
+
+// ===== Water main breaks =====
+async function loadBreaksData() {
+  try {
+    // Fetch from 311 - possible water main breaks
+    const url = "https://data.cityofnewyork.us/resource/erm2-nwe9.json?$where=agency='DEP' AND descriptor like '%25Water Main Break%25' AND latitude IS NOT NULL&$limit=50000&$order=created_date DESC&$select=unique_key,created_date,borough,incident_zip,latitude,longitude,incident_address,intersection_street_1,intersection_street_2,status,resolution_description";
+    breaksData = await fetchJSON(url);
+    document.getElementById('breaks-loading').style.display = 'none';
+    document.getElementById('breaks-content').style.display = '';
+    renderBreaksStats();
+    if (activeTab === 'breaks') initBreaksMap();
+  } catch (err) {
+    document.getElementById('breaks-loading').style.display = 'none';
+    const el = document.getElementById('breaks-error');
+    el.style.display = '';
+    el.textContent = 'Failed to load water main break data. Please try again later. (' + err.message + ')';
+  }
+}
+
+function renderBreaksStats() {
+  let filtered = filterByBorough(breaksData, 'borough');
+  filtered = filterByDateRange(filtered, 'created_date');
+
+  document.getElementById('breaks-headline-count').textContent = formatNum(filtered.length);
+
+  const rangeLabel = selectedDateRange === 'all' ? '(all time)' :
+    selectedDateRange === 1 ? 'in the last year' :
+    'in the last ' + selectedDateRange + ' years';
+  document.getElementById('breaks-headline-label').textContent = 'water main break reports ' + rangeLabel;
+
+  // Monthly trend
+  const monthMap = {};
+  filtered.forEach(d => {
+    const date = new Date(d.created_date);
+    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+    monthMap[key] = (monthMap[key] || 0) + 1;
+  });
+  const months = Object.keys(monthMap).sort();
+  const monthCounts = months.map(m => monthMap[m]);
+
+  destroyChart('breaksTrend');
+  const trendCtx = document.getElementById('breaks-trend-chart').getContext('2d');
+  charts.breaksTrend = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        data: monthCounts,
+        borderColor: '#c0392b',
+        backgroundColor: 'rgba(192,57,43,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: months.length > 36 ? 0 : 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 10 }, maxTicksLimit: 12, maxRotation: 45 } }
+      }
+    }
+  });
+
+  // Borough bar chart
+  const boroughs = ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'Staten Island'];
+  const boroughCounts = boroughs.map(bor => {
+    return breaksData.filter(d => {
+      const nb = normBorough(d.borough);
+      return nb === bor;
+    }).filter(d => {
+      if (selectedDateRange === 'all') return true;
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - selectedDateRange);
+      return new Date(d.created_date) >= cutoff;
+    }).length;
+  });
+
+  destroyChart('breaksBorough');
+  const borCtx = document.getElementById('breaks-borough-chart').getContext('2d');
+  charts.breaksBorough = new Chart(borCtx, {
+    type: 'bar',
+    data: {
+      labels: boroughs,
+      datasets: [{ data: boroughCounts, backgroundColor: '#c0392b' }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 11 } } },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function initBreaksMap() {
+  if (breaksMap) return;
+  breaksMap = new maplibregl.Map({
+    container: 'breaks-map',
+    style: {
+      version: 8,
+      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+      sources: { 'carto': { type: 'raster', tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: 'CARTO' } },
+      layers: [{ id: 'carto-tiles', type: 'raster', source: 'carto' }]
+    },
+    center: [-73.95, 40.73],
+    zoom: 11
+  });
+  breaksMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+  breaksMap.on('load', () => updateBreaksMap());
+}
+
+function updateBreaksMap() {
+  if (!breaksMap || !breaksMap.loaded()) return;
+
+  let filtered = filterByBorough(breaksData, 'borough');
+  filtered = filterByDateRange(filtered, 'created_date');
+
+  const now = Date.now();
+  const features = filtered.filter(d => d.latitude && d.longitude).map(d => {
+    const ageMs = now - new Date(d.created_date).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    const recencySize = Math.max(4, 12 - (ageDays / 365) * 2);
+    const location = d.incident_address ||
+      ((d.intersection_street_1 && d.intersection_street_2) ? d.intersection_street_1 + ' & ' + d.intersection_street_2 : 'N/A');
+    return {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [parseFloat(d.longitude), parseFloat(d.latitude)] },
+      properties: {
+        date: d.created_date ? d.created_date.split('T')[0] : 'N/A',
+        borough: normBorough(d.borough),
+        location: location,
+        status: d.status || 'N/A',
+        size: recencySize
+      }
+    };
+  });
+
+  const geojson = { type: 'FeatureCollection', features };
+
+  if (breaksMap.getSource('breaks-points')) {
+    breaksMap.removeLayer('breaks-clusters');
+    breaksMap.removeLayer('breaks-cluster-count');
+    breaksMap.removeLayer('breaks-unclustered');
+    breaksMap.removeSource('breaks-points');
+  }
+
+  breaksMap.addSource('breaks-points', {
+    type: 'geojson',
+    data: geojson,
+    cluster: true,
+    clusterMaxZoom: 13,
+    clusterRadius: 40
+  });
+
+  breaksMap.addLayer({
+    id: 'breaks-clusters',
+    type: 'circle',
+    source: 'breaks-points',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': '#c0392b',
+      'circle-radius': ['step', ['get', 'point_count'], 14, 30, 20, 100, 26],
+      'circle-opacity': 0.7,
+      'circle-stroke-width': 1,
+      'circle-stroke-color': '#fff'
+    }
+  });
+
+  breaksMap.addLayer({
+    id: 'breaks-cluster-count',
+    type: 'symbol',
+    source: 'breaks-points',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-font': ['Open Sans Semibold'],
+      'text-size': 12
+    },
+    paint: { 'text-color': '#fff' }
+  });
+
+  breaksMap.addLayer({
+    id: 'breaks-unclustered',
+    type: 'circle',
+    source: 'breaks-points',
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': '#c0392b',
+      'circle-radius': ['get', 'size'],
+      'circle-opacity': 0.6,
+      'circle-stroke-width': 0.5,
+      'circle-stroke-color': '#fff'
+    }
+  });
+
+  breaksMap.on('click', 'breaks-unclustered', (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup({ offset: 10 })
+      .setLngLat(e.lngLat)
+      .setHTML(
+        '<div class="popup-title">Water main break report</div>' +
+        '<div class="popup-row"><span class="popup-label">Date:</span><span class="popup-value">' + p.date + '</span></div>' +
+        '<div class="popup-row"><span class="popup-label">Location:</span><span class="popup-value">' + p.location + '</span></div>' +
+        '<div class="popup-row"><span class="popup-label">Borough:</span><span class="popup-value">' + p.borough + '</span></div>' +
+        '<div class="popup-row"><span class="popup-label">Status:</span><span class="popup-value">' + p.status + '</span></div>'
+      )
+      .addTo(breaksMap);
+  });
+
+  breaksMap.on('mouseenter', 'breaks-unclustered', () => { breaksMap.getCanvas().style.cursor = 'pointer'; });
+  breaksMap.on('mouseleave', 'breaks-unclustered', () => { breaksMap.getCanvas().style.cursor = ''; });
+
+  breaksMap.on('click', 'breaks-clusters', (e) => {
+    const features = breaksMap.queryRenderedFeatures(e.point, { layers: ['breaks-clusters'] });
+    const clusterId = features[0].properties.cluster_id;
+    breaksMap.getSource('breaks-points').getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      breaksMap.easeTo({ center: features[0].geometry.coordinates, zoom });
+    });
+  });
+}
+
+// ===== Water quality =====
+async function loadQualityData() {
+  try {
+    const url = 'https://data.cityofnewyork.us/resource/bkwf-xfky.json?$limit=50000&$order=sample_date DESC';
+    qualityData = await fetchJSON(url);
+    document.getElementById('quality-loading').style.display = 'none';
+    document.getElementById('quality-content').style.display = '';
+    renderQualityStats();
+  } catch (err) {
+    document.getElementById('quality-loading').style.display = 'none';
+    const el = document.getElementById('quality-error');
+    el.style.display = '';
+    el.textContent = 'Failed to load water quality data. Please try again later. (' + err.message + ')';
+  }
+}
+
+function parseWQValue(val) {
+  if (!val) return null;
+  if (val === '<1') return 0;
+  const n = parseFloat(val);
+  return isNaN(n) ? null : n;
+}
+
+function renderQualityStats() {
+  const data = qualityData;
+
+  // Latest readings
+  const latestTurbidity = data.find(d => parseWQValue(d.turbidity_ntu) !== null);
+  const latestChlorine = data.find(d => parseWQValue(d.residual_free_chlorine_mg_l) !== null);
+  const latestColiform = data.find(d => d.coliform_quanti_tray_mpn_100ml !== undefined);
+  const latestFluoride = data.find(d => parseWQValue(d.fluoride_mg_l) !== null);
+
+  const summaryEl = document.getElementById('quality-summary-cards');
+  const cards = [];
+
+  if (latestTurbidity) {
+    const v = parseWQValue(latestTurbidity.turbidity_ntu);
+    const cls = v <= 0.5 ? 'safe' : v <= 1 ? 'warning' : 'danger';
+    cards.push({ name: 'Turbidity', value: v.toFixed(2) + ' NTU', cls, status: v <= 0.5 ? 'Excellent' : v <= 1 ? 'Within limits' : 'Above limit' });
+  }
+
+  if (latestChlorine) {
+    const v = parseWQValue(latestChlorine.residual_free_chlorine_mg_l);
+    const cls = v >= 0.2 ? 'safe' : 'danger';
+    cards.push({ name: 'Residual free chlorine', value: v.toFixed(2) + ' mg/L', cls, status: v >= 0.2 ? 'Adequate' : 'Below minimum' });
+  }
+
+  if (latestColiform) {
+    const raw = latestColiform.coliform_quanti_tray_mpn_100ml;
+    const v = parseWQValue(raw);
+    const cls = v === 0 ? 'safe' : 'danger';
+    cards.push({ name: 'Total coliform', value: raw, cls, status: v === 0 ? 'Not detected' : 'Detected' });
+  }
+
+  if (latestFluoride) {
+    const v = parseWQValue(latestFluoride.fluoride_mg_l);
+    const cls = v <= 4 ? 'safe' : 'danger';
+    cards.push({ name: 'Fluoride', value: v.toFixed(2) + ' mg/L', cls, status: v >= 0.5 && v <= 1.0 ? 'Optimal range' : v <= 4 ? 'Within limits' : 'Above limit' });
+  }
+
+  summaryEl.innerHTML = cards.map(c =>
+    '<div class="summary-card tint-' + c.cls + '">' +
+    '<div class="value ' + c.cls + '">' + c.value + '</div>' +
+    '<div class="param-name">' + c.name + '</div>' +
+    '<div class="param-status">' + c.status + '</div>' +
+    '</div>'
+  ).join('');
+
+  // Time series charts
+  renderWQTimeSeries('wq-turbidity-chart', data, 'turbidity_ntu', '#1a6fc4', 'Turbidity (NTU)');
+  renderWQTimeSeries('wq-chlorine-chart', data, 'residual_free_chlorine_mg_l', '#2d8a4e', 'Chlorine (mg/L)');
+  renderWQTimeSeriesColiform('wq-coliform-chart', data);
+  renderWQTimeSeries('wq-fluoride-chart', data, 'fluoride_mg_l', '#d4a017', 'Fluoride (mg/L)');
+}
+
+function renderWQTimeSeries(canvasId, data, field, color, label) {
+  // Aggregate monthly averages
+  const monthMap = {};
+  data.forEach(d => {
+    const val = parseWQValue(d[field]);
+    if (val === null) return;
+    const date = new Date(d.sample_date);
+    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+    if (!monthMap[key]) monthMap[key] = { sum: 0, count: 0 };
+    monthMap[key].sum += val;
+    monthMap[key].count++;
+  });
+
+  const months = Object.keys(monthMap).sort();
+  const avgs = months.map(m => (monthMap[m].sum / monthMap[m].count).toFixed(3));
+
+  const chartKey = canvasId.replace(/-/g, '_');
+  destroyChart(chartKey);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[chartKey] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: label,
+        data: avgs,
+        borderColor: color,
+        backgroundColor: color + '1a',
+        fill: true,
+        tension: 0.3,
+        pointRadius: months.length > 24 ? 0 : 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+        x: { ticks: { font: { size: 10 }, maxTicksLimit: 10, maxRotation: 45 } }
+      }
+    }
+  });
+}
+
+function renderWQTimeSeriesColiform(canvasId, data) {
+  // For coliform, show % of samples positive per month
+  const monthMap = {};
+  data.forEach(d => {
+    const raw = d.coliform_quanti_tray_mpn_100ml;
+    if (raw === undefined) return;
+    const val = parseWQValue(raw);
+    if (val === null) return;
+    const date = new Date(d.sample_date);
+    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+    if (!monthMap[key]) monthMap[key] = { total: 0, positive: 0 };
+    monthMap[key].total++;
+    if (val > 0) monthMap[key].positive++;
+  });
+
+  const months = Object.keys(monthMap).sort();
+  const pcts = months.map(m => ((monthMap[m].positive / monthMap[m].total) * 100).toFixed(1));
+
+  const chartKey = 'wq_coliform_chart';
+  destroyChart(chartKey);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[chartKey] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: '% positive',
+        data: pcts,
+        borderColor: '#c0392b',
+        backgroundColor: 'rgba(192,57,43,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: months.length > 24 ? 0 : 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => v + '%' } },
+        x: { ticks: { font: { size: 10 }, maxTicksLimit: 10, maxRotation: 45 } }
+      }
+    }
+  });
+}
+
+// ===== Init =====
+loadLeadData();
+loadBreaksData();
+loadQualityData();
+</script>
+</body>
+</html>
