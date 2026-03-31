@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC vacant storefronts</title>
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+@font-face {
+  font-family: 'GascogneTS';
+  src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --vc-black: #050507;
+  --vc-white: #ffffff;
+  --vc-cloud: #dddddd;
+  --vc-chartreuse: #dde44c;
+  --vc-orange: #ff7c53;
+  --vc-periwinkle: #9b9fbc;
+  --vc-charcoal: #707175;
+  --vc-indigo: #394882;
+  --vc-cerulean: #217ebe;
+  --vc-magenta: #e7466d;
+  --vc-baddest-red: #d2232a;
+  --vc-goodest-green: #57aa4a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-weight: 300;
+  background: #f8f7f5;
+  color: var(--vc-black);
+  line-height: 1.5;
+}
+
+.top-accent-bar {
+  height: 3px;
+  background: var(--vc-orange);
+  width: 100%;
+}
+
+header {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e0ddd8;
+  background: #fff;
+}
+
+header h1 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 900;
+  font-style: normal;
+  color: var(--vc-black);
+}
+
+header p.subtitle {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 200;
+  color: var(--vc-charcoal);
+  margin-top: 4px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 32px;
+  background: #fff;
+  border-bottom: 1px solid #e0ddd8;
+}
+
+.controls label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #444;
+}
+
+.controls select {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.controls .toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #444;
+  cursor: pointer;
+}
+
+.controls .toggle-label input {
+  cursor: pointer;
+}
+
+.main-content {
+  display: flex;
+  height: calc(100vh - 130px);
+}
+
+#map-container {
+  flex: 0 0 60%;
+  position: relative;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+.stats-panel {
+  flex: 0 0 40%;
+  overflow-y: auto;
+  padding: 24px;
+  background: #fff;
+  border-left: 1px solid #e0ddd8;
+}
+
+.stat-card {
+  background: #f8f7f5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.stat-card h2 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--vc-black);
+  margin-bottom: 12px;
+}
+
+.big-number {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--vc-magenta);
+  line-height: 1;
+}
+
+.big-number-label {
+  font-size: 0.85rem;
+  color: var(--vc-charcoal);
+  margin-top: 4px;
+}
+
+.stat-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-row .stat-card {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.stat-row .big-number {
+  font-size: 2rem;
+}
+
+.chart-container {
+  position: relative;
+  height: 220px;
+  margin-top: 8px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #444;
+  padding: 8px 12px;
+  border-bottom: 2px solid #e0ddd8;
+}
+
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  color: #333;
+}
+
+.data-table tr:hover td {
+  background: #f0eeea;
+}
+
+#loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#loading-overlay .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0ddd8;
+  border-top-color: var(--vc-magenta);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#loading-overlay p {
+  margin-top: 16px;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+#error-banner {
+  display: none;
+  padding: 12px 32px;
+  background: #fdf0ed;
+  color: var(--vc-magenta);
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f0c4bc;
+}
+
+.methodology-link {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 8px;
+}
+
+.methodology-link a {
+  color: #666;
+  text-decoration: underline;
+}
+
+footer {
+  padding: 20px 32px;
+  font-size: 0.78rem;
+  color: #999;
+  border-top: 1px solid #e0ddd8;
+  background: #fff;
+  line-height: 1.7;
+}
+
+footer a {
+  color: var(--vc-cerulean);
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+.neighborhood-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid #e0ddd8;
+  overflow-y: auto;
+  z-index: 10;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  box-shadow: -2px 0 12px rgba(0,0,0,0.08);
+}
+
+.neighborhood-panel.open {
+  transform: translateX(0);
+}
+
+.neighborhood-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0ddd8;
+  background: #f8f7f5;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.neighborhood-panel-header h3 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--vc-black);
+}
+
+.neighborhood-panel-close {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 0.8rem;
+  color: var(--vc-charcoal);
+  cursor: pointer;
+}
+
+.neighborhood-panel-close:hover {
+  background: #eee;
+  color: #333;
+}
+
+.neighborhood-panel-body {
+  padding: 20px;
+}
+
+.neighborhood-panel-body .panel-address {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.neighborhood-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.neighborhood-summary .ns-card {
+  flex: 1;
+  background: #f8f7f5;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.neighborhood-summary .ns-card .ns-number {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.neighborhood-summary .ns-card .ns-number.vacant-color {
+  color: var(--vc-magenta);
+}
+
+.neighborhood-summary .ns-card .ns-number.occupied-color {
+  color: var(--vc-goodest-green);
+}
+
+.neighborhood-summary .ns-card .ns-number.rate-color {
+  color: var(--vc-orange);
+}
+
+.neighborhood-summary .ns-card .ns-label {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.neighborhood-section {
+  margin-bottom: 20px;
+}
+
+.neighborhood-section h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e0ddd8;
+}
+
+.business-type-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.business-type-bar .bt-label {
+  flex: 0 0 160px;
+  color: #444;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-type-bar .bt-bar-wrap {
+  flex: 1;
+  height: 14px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0 8px;
+}
+
+.business-type-bar .bt-bar {
+  height: 100%;
+  background: var(--vc-indigo);
+  border-radius: 3px;
+  min-width: 2px;
+}
+
+.business-type-bar .bt-count {
+  flex: 0 0 30px;
+  text-align: right;
+  color: #666;
+  font-weight: 500;
+}
+
+.underrepresented-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fdf0ed;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: #333;
+}
+
+.underrepresented-item .ur-name {
+  font-weight: 500;
+}
+
+.underrepresented-item .ur-detail {
+  color: #888;
+  font-size: 0.75rem;
+}
+
+.no-data-message {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    flex-direction: column;
+    height: auto;
+  }
+  #map-container {
+    flex: none;
+    height: 50vh;
+  }
+  .stats-panel {
+    flex: none;
+    border-left: none;
+    border-top: 1px solid #e0ddd8;
+  }
+  .controls {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+  header { padding: 16px; }
+  .stats-panel { padding: 16px; }
+  .stat-row { flex-direction: column; }
+  .neighborhood-panel { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-accent-bar"></div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Loading storefront data...</p>
+</div>
+
+<div id="error-banner"></div>
+
+<header>
+  <h1>NYC vacant storefronts</h1>
+  <p class="subtitle">Commercial vacancy patterns across New York City, from the Storefront Registry (Local Law 157 of 2019)</p>
+</header>
+
+<div class="controls">
+  <label for="borough-filter">Borough:</label>
+  <select id="borough-filter">
+    <option value="All">All boroughs</option>
+    <option value="MANHATTAN">Manhattan</option>
+    <option value="BROOKLYN">Brooklyn</option>
+    <option value="QUEENS">Queens</option>
+    <option value="BRONX">Bronx</option>
+    <option value="STATEN ISLAND">Staten Island</option>
+  </select>
+  <label class="toggle-label">
+    <input type="checkbox" id="show-occupied"> Show occupied storefronts
+  </label>
+</div>
+
+<div class="main-content">
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="neighborhood-panel" class="neighborhood-panel">
+      <div class="neighborhood-panel-header">
+        <h3>Neighborhood analysis</h3>
+        <button class="neighborhood-panel-close" id="close-neighborhood-panel">Close</button>
+      </div>
+      <div class="neighborhood-panel-body" id="neighborhood-panel-body">
+      </div>
+    </div>
+  </div>
+  <div class="stats-panel">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="big-number" id="vacant-count">--</div>
+        <div class="big-number-label">Vacant storefronts</div>
+      </div>
+      <div class="stat-card">
+        <div class="big-number" id="vacancy-rate" style="color: #e7466d;">--</div>
+        <div class="big-number-label">Vacancy rate</div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="big-number" id="total-count" style="font-size: 2rem; color: #333;">--</div>
+        <div class="big-number-label">Total registered storefronts</div>
+      </div>
+      <div class="stat-card">
+        <div class="big-number" id="reporting-year" style="font-size: 2rem; color: #333;">--</div>
+        <div class="big-number-label">Most recent reporting year</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <h2>Vacant storefronts by borough</h2>
+      <div class="chart-container">
+        <canvas id="borough-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <h2>Top 10 community districts by vacancy</h2>
+      <div class="chart-container" style="height: 280px;">
+        <canvas id="cd-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <h2>Top 10 ZIP codes by vacancy</h2>
+      <table class="data-table">
+        <thead>
+          <tr><th>ZIP code</th><th>Borough</th><th>Vacant</th></tr>
+        </thead>
+        <tbody id="zip-table-body"></tbody>
+      </table>
+    </div>
+
+    <p class="methodology-link"><a href="methodology.md">Methodology and data notes</a></p>
+  </div>
+</div>
+
+<footer style="display: flex; align-items: center; justify-content: space-between;">
+  <div>Data source: <a href="https://data.cityofnewyork.us/City-Government/Storefronts-Reported-Vacant-or-Not/92iy-9c3n" target="_blank" rel="noopener">NYC Department of Finance, Storefront Registry</a> (Storefronts Reported Vacant or Not). Updated annually per Local Law 157 of 2019. | <a href="methodology.md">Methodology and data notes</a></div>
+  <img src="assets/vc-logo-black.png" alt="Vital City" height="18">
+</footer>
+
+<script>
+const SRVN_URL = 'https://data.cityofnewyork.us/resource/92iy-9c3n.json';
+const BOROUGH_NAMES = {
+  'MANHATTAN': 'Manhattan',
+  'BROOKLYN': 'Brooklyn',
+  'QUEENS': 'Queens',
+  'BRONX': 'Bronx',
+  'STATEN ISLAND': 'Staten Island'
+};
+const CHART_COLORS = ['#e7466d', '#e03a30', '#ff7c53', '#fb693c', '#f69577'];
+
+let allData = [];
+let map;
+let boroughChart, cdChart;
+
+async function fetchData() {
+  try {
+    const url = `${SRVN_URL}?$limit=50000&$order=reporting_year%20DESC`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const data = await response.json();
+    if (!data || data.length === 0) throw new Error('No data returned from API');
+    return data;
+  } catch (err) {
+    showError(`Failed to load storefront data: ${err.message}. Try refreshing the page.`);
+    throw err;
+  }
+}
+
+function showError(msg) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = msg;
+  banner.style.display = 'block';
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+function isVacant(record) {
+  // Check both vacancy fields depending on reporting period
+  if (record.vacant_on_12_31) return record.vacant_on_12_31.toUpperCase() === 'YES';
+  if (record.vacant_6_30_or_date_sold) return record.vacant_6_30_or_date_sold.toUpperCase() === 'YES';
+  return false;
+}
+
+function getLatestData(data) {
+  // Use only the most recent reporting year for each property (by BBL)
+  const byBBL = {};
+  for (const r of data) {
+    const key = r.bbl || r.borough_block_lot || (r.property_street_address_or + r.zip_code);
+    const year = parseInt(r.reporting_year) || 0;
+    if (!byBBL[key] || year > (parseInt(byBBL[key].reporting_year) || 0)) {
+      byBBL[key] = r;
+    }
+  }
+  return Object.values(byBBL);
+}
+
+function getCommunityDistrictLabel(record) {
+  const cd = record.community_board || '';
+  if (!cd || cd.length < 2) return cd;
+  const boro = cd.charAt(0);
+  const dist = parseInt(cd.substring(1));
+  const boroNames = { '1': 'MN', '2': 'BX', '3': 'BK', '4': 'QN', '5': 'SI' };
+  return (boroNames[boro] || boro) + ' ' + dist;
+}
+
+function filterByBorough(data, borough) {
+  if (borough === 'All') return data;
+  return data.filter(r => r.borough && r.borough.toUpperCase() === borough);
+}
+
+function computeStats(data) {
+  const vacant = data.filter(r => isVacant(r));
+  const total = data.length;
+  const vacantCount = vacant.length;
+  const rate = total > 0 ? ((vacantCount / total) * 100).toFixed(1) : '--';
+
+  // By borough
+  const byBorough = {};
+  for (const b of Object.keys(BOROUGH_NAMES)) {
+    byBorough[b] = { vacant: 0, total: 0 };
+  }
+  for (const r of data) {
+    const b = (r.borough || '').toUpperCase();
+    if (byBorough[b]) {
+      byBorough[b].total++;
+      if (isVacant(r)) byBorough[b].vacant++;
+    }
+  }
+
+  // By community district
+  const byCD = {};
+  for (const r of data) {
+    if (!isVacant(r)) continue;
+    const cd = getCommunityDistrictLabel(r);
+    if (!cd) continue;
+    byCD[cd] = (byCD[cd] || 0) + 1;
+  }
+  const topCDs = Object.entries(byCD).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // By ZIP
+  const byZip = {};
+  const zipBorough = {};
+  for (const r of data) {
+    if (!isVacant(r)) continue;
+    const z = r.zip_code || r.postcode || '';
+    if (!z) continue;
+    byZip[z] = (byZip[z] || 0) + 1;
+    if (!zipBorough[z]) zipBorough[z] = BOROUGH_NAMES[(r.borough || '').toUpperCase()] || r.borough || '';
+  }
+  const topZips = Object.entries(byZip).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  // Most recent reporting year
+  let maxYear = 0;
+  for (const r of data) {
+    const y = parseInt(r.reporting_year) || 0;
+    if (y > maxYear) maxYear = y;
+  }
+
+  return { vacantCount, total, rate, byBorough, topCDs, topZips, zipBorough, maxYear };
+}
+
+function updateStats(stats) {
+  document.getElementById('vacant-count').textContent = stats.vacantCount.toLocaleString();
+  document.getElementById('vacancy-rate').textContent = stats.rate === '--' ? '--' : stats.rate + '%';
+  document.getElementById('total-count').textContent = stats.total.toLocaleString();
+  document.getElementById('reporting-year').textContent = stats.maxYear || '--';
+
+  // Borough chart
+  const boroughLabels = Object.keys(BOROUGH_NAMES).map(k => BOROUGH_NAMES[k]);
+  const boroughVacant = Object.keys(BOROUGH_NAMES).map(k => stats.byBorough[k]?.vacant || 0);
+
+  if (boroughChart) boroughChart.destroy();
+  boroughChart = new Chart(document.getElementById('borough-chart'), {
+    type: 'bar',
+    data: {
+      labels: boroughLabels,
+      datasets: [{
+        data: boroughVacant,
+        backgroundColor: CHART_COLORS,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { font: { family: 'halyard-text, Inter, sans-serif', size: 11 }, color: '#707175' },
+          grid: { color: '#eee' }
+        },
+        x: {
+          ticks: { font: { family: 'halyard-text, Inter, sans-serif', size: 11 }, color: '#707175' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // Community district chart
+  if (cdChart) cdChart.destroy();
+  cdChart = new Chart(document.getElementById('cd-chart'), {
+    type: 'bar',
+    data: {
+      labels: stats.topCDs.map(c => c[0]),
+      datasets: [{
+        data: stats.topCDs.map(c => c[1]),
+        backgroundColor: '#394882',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { font: { family: 'halyard-text, Inter, sans-serif', size: 11 }, color: '#707175' },
+          grid: { color: '#eee' }
+        },
+        y: {
+          ticks: { font: { family: 'halyard-text, Inter, sans-serif', size: 11 }, color: '#707175' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // ZIP table
+  const tbody = document.getElementById('zip-table-body');
+  tbody.innerHTML = '';
+  for (const [zip, count] of stats.topZips) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + zip + '</td><td>' + (stats.zipBorough[zip] || '') + '</td><td>' + count + '</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+function initMap() {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      sources: {
+        'carto': {
+          type: 'raster',
+          tiles: ['https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'],
+          tileSize: 256,
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }
+      },
+      layers: [{
+        id: 'carto-tiles',
+        type: 'raster',
+        source: 'carto',
+        minzoom: 0,
+        maxzoom: 19
+      }]
+    },
+    center: [-73.95, 40.73],
+    zoom: 11
+  });
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+}
+
+function updateMap(data, showOccupied) {
+  const vacant = data.filter(r => isVacant(r) && r.latitude && r.longitude);
+  const occupied = data.filter(r => !isVacant(r) && r.latitude && r.longitude);
+
+  const vacantGeoJSON = {
+    type: 'FeatureCollection',
+    features: vacant.map(r => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)]
+      },
+      properties: {
+        address: r.property_street_address_or || '',
+        borough: BOROUGH_NAMES[(r.borough || '').toUpperCase()] || r.borough || '',
+        zip: r.zip_code || r.postcode || '',
+        cd: getCommunityDistrictLabel(r),
+        neighborhood: r.nbhd || '',
+        status: 'Vacant',
+        year: r.reporting_year || '',
+        activity: r.primary_business_activity || ''
+      }
+    }))
+  };
+
+  const occupiedGeoJSON = {
+    type: 'FeatureCollection',
+    features: occupied.map(r => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [parseFloat(r.longitude), parseFloat(r.latitude)]
+      },
+      properties: {
+        address: r.property_street_address_or || '',
+        borough: BOROUGH_NAMES[(r.borough || '').toUpperCase()] || r.borough || '',
+        zip: r.zip_code || r.postcode || '',
+        cd: getCommunityDistrictLabel(r),
+        neighborhood: r.nbhd || '',
+        status: 'Occupied',
+        year: r.reporting_year || '',
+        activity: r.primary_business_activity || ''
+      }
+    }))
+  };
+
+  // Remove existing layers/sources
+  for (const id of ['vacant-points', 'occupied-points']) {
+    if (map.getLayer(id)) map.removeLayer(id);
+  }
+  if (map.getSource('vacant')) map.removeSource('vacant');
+  if (map.getSource('occupied')) map.removeSource('occupied');
+
+  // Vacant source - individual dots, no clustering
+  map.addSource('vacant', {
+    type: 'geojson',
+    data: vacantGeoJSON
+  });
+
+  map.addLayer({
+    id: 'vacant-points',
+    type: 'circle',
+    source: 'vacant',
+    paint: {
+      'circle-color': '#e7466d',
+      'circle-radius': 4,
+      'circle-stroke-width': 0,
+      'circle-opacity': 0.6
+    }
+  });
+
+  // Occupied source (no clustering, small dots)
+  map.addSource('occupied', {
+    type: 'geojson',
+    data: occupiedGeoJSON
+  });
+
+  map.addLayer({
+    id: 'occupied-points',
+    type: 'circle',
+    source: 'occupied',
+    paint: {
+      'circle-color': '#57aa4a',
+      'circle-radius': 3,
+      'circle-stroke-width': 0.5,
+      'circle-stroke-color': '#fff',
+      'circle-opacity': 0.6
+    },
+    layout: {
+      visibility: showOccupied ? 'visible' : 'none'
+    }
+  });
+
+  // Click handlers
+  map.on('click', 'vacant-points', function(e) {
+    showPopup(e);
+  });
+
+  map.on('click', 'occupied-points', function(e) {
+    showPopup(e);
+  });
+
+  map.on('mouseenter', 'vacant-points', function() { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'vacant-points', function() { map.getCanvas().style.cursor = ''; });
+  map.on('mouseenter', 'occupied-points', function() { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'occupied-points', function() { map.getCanvas().style.cursor = ''; });
+}
+
+// Haversine distance in meters between two [lng, lat] points
+function haversineDistance(coord1, coord2) {
+  var R = 6371000;
+  var lat1 = coord1[1] * Math.PI / 180;
+  var lat2 = coord2[1] * Math.PI / 180;
+  var dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
+  var dLng = (coord2[0] - coord1[0]) * Math.PI / 180;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1) * Math.cos(lat2) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Generate a GeoJSON polygon circle with ~64 points
+function createCirclePolygon(center, radiusMeters) {
+  var points = 64;
+  var coords = [];
+  var R = 6371000;
+  var lat = center[1] * Math.PI / 180;
+  var lng = center[0] * Math.PI / 180;
+  for (var i = 0; i <= points; i++) {
+    var bearing = (i * 360 / points) * Math.PI / 180;
+    var newLat = Math.asin(Math.sin(lat) * Math.cos(radiusMeters / R) +
+                 Math.cos(lat) * Math.sin(radiusMeters / R) * Math.cos(bearing));
+    var newLng = lng + Math.atan2(Math.sin(bearing) * Math.sin(radiusMeters / R) * Math.cos(lat),
+                 Math.cos(radiusMeters / R) - Math.sin(lat) * Math.sin(newLat));
+    coords.push([newLng * 180 / Math.PI, newLat * 180 / Math.PI]);
+  }
+  return {
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [coords] },
+    properties: {}
+  };
+}
+
+function normalizeBusinessActivity(activity) {
+  if (!activity || activity.trim() === '' || activity.toUpperCase() === 'NO BUSINESS ACTIVITY IDENTIFIED') {
+    return 'Unknown/not reported';
+  }
+  // Title-case the activity for cleaner display
+  var s = activity.trim();
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+function clearNeighborhoodAnalysis() {
+  var panel = document.getElementById('neighborhood-panel');
+  panel.classList.remove('open');
+  if (map.getLayer('radius-circle-fill')) map.removeLayer('radius-circle-fill');
+  if (map.getLayer('radius-circle-outline')) map.removeLayer('radius-circle-outline');
+  if (map.getSource('radius-circle')) map.removeSource('radius-circle');
+}
+
+function computeNeighborhoodAnalysis(center, address) {
+  var RADIUS = 805; // half mile in meters
+  var nearby = [];
+  for (var i = 0; i < allData.length; i++) {
+    var r = allData[i];
+    if (!r.latitude || !r.longitude) continue;
+    var coord = [parseFloat(r.longitude), parseFloat(r.latitude)];
+    if (haversineDistance(center, coord) <= RADIUS) {
+      nearby.push(r);
+    }
+  }
+
+  var vacantCount = 0;
+  var occupiedCount = 0;
+  var businessCounts = {};
+  for (var j = 0; j < nearby.length; j++) {
+    var rec = nearby[j];
+    if (isVacant(rec)) {
+      vacantCount++;
+    } else {
+      occupiedCount++;
+      var cat = normalizeBusinessActivity(rec.primary_business_activity);
+      businessCounts[cat] = (businessCounts[cat] || 0) + 1;
+    }
+  }
+
+  var localRate = (vacantCount + occupiedCount) > 0
+    ? ((vacantCount / (vacantCount + occupiedCount)) * 100).toFixed(1)
+    : '0.0';
+
+  // Sort business types by count descending
+  var businessTypes = Object.entries(businessCounts).sort(function(a, b) { return b[1] - a[1]; });
+  var maxCount = businessTypes.length > 0 ? businessTypes[0][1] : 1;
+
+  // Compute citywide business category percentages for underrepresentation check
+  var citywideOccupied = 0;
+  var citywideCounts = {};
+  for (var k = 0; k < allData.length; k++) {
+    var cr = allData[k];
+    if (!isVacant(cr)) {
+      citywideOccupied++;
+      var ccat = normalizeBusinessActivity(cr.primary_business_activity);
+      citywideCounts[ccat] = (citywideCounts[ccat] || 0) + 1;
+    }
+  }
+
+  var underrepresented = [];
+  if (citywideOccupied > 0 && occupiedCount > 0) {
+    for (var catName in citywideCounts) {
+      if (catName === 'Unknown/not reported') continue;
+      var citywidePct = (citywideCounts[catName] / citywideOccupied) * 100;
+      var localPct = ((businessCounts[catName] || 0) / occupiedCount) * 100;
+      if (citywidePct >= 15 && localPct < 5) {
+        underrepresented.push({
+          name: catName,
+          citywidePct: citywidePct.toFixed(1),
+          localPct: localPct.toFixed(1),
+          localCount: businessCounts[catName] || 0
+        });
+      }
+    }
+    underrepresented.sort(function(a, b) { return parseFloat(b.citywidePct) - parseFloat(a.citywidePct); });
+  }
+
+  return {
+    address: address,
+    vacantCount: vacantCount,
+    occupiedCount: occupiedCount,
+    localRate: localRate,
+    total: vacantCount + occupiedCount,
+    businessTypes: businessTypes,
+    maxCount: maxCount,
+    underrepresented: underrepresented
+  };
+}
+
+function showNeighborhoodPanel(center, address) {
+  // Clear any previous radius circle
+  clearNeighborhoodAnalysis();
+
+  var RADIUS = 805;
+  var circlePoly = createCirclePolygon(center, RADIUS);
+
+  map.addSource('radius-circle', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [circlePoly] }
+  });
+
+  map.addLayer({
+    id: 'radius-circle-fill',
+    type: 'fill',
+    source: 'radius-circle',
+    paint: {
+      'fill-color': '#217ebe',
+      'fill-opacity': 0.12
+    }
+  }, 'vacant-points');
+
+  map.addLayer({
+    id: 'radius-circle-outline',
+    type: 'line',
+    source: 'radius-circle',
+    paint: {
+      'line-color': '#217ebe',
+      'line-width': 2,
+      'line-opacity': 0.5
+    }
+  }, 'vacant-points');
+
+  var analysis = computeNeighborhoodAnalysis(center, address);
+
+  var html = '<div class="panel-address">' + analysis.address + '</div>';
+
+  // Summary cards
+  html += '<div class="neighborhood-summary">';
+  html += '<div class="ns-card"><div class="ns-number vacant-color">' + analysis.vacantCount + '</div><div class="ns-label">Vacant</div></div>';
+  html += '<div class="ns-card"><div class="ns-number occupied-color">' + analysis.occupiedCount + '</div><div class="ns-label">Occupied</div></div>';
+  html += '<div class="ns-card"><div class="ns-number rate-color">' + analysis.localRate + '%</div><div class="ns-label">Vacancy rate</div></div>';
+  html += '</div>';
+
+  html += '<div style="font-size:0.78rem;color:#888;margin-bottom:16px;">' + analysis.total + ' registered storefronts within half mile</div>';
+
+  // Business types bar chart
+  html += '<div class="neighborhood-section">';
+  html += '<h4>Occupied storefronts by business type</h4>';
+  if (analysis.businessTypes.length === 0) {
+    html += '<div class="no-data-message">No occupied storefronts found in this radius.</div>';
+  } else {
+    var typesToShow = analysis.businessTypes.slice(0, 15);
+    for (var t = 0; t < typesToShow.length; t++) {
+      var name = typesToShow[t][0];
+      var count = typesToShow[t][1];
+      var barWidth = Math.round((count / analysis.maxCount) * 100);
+      html += '<div class="business-type-bar">';
+      html += '<div class="bt-label" title="' + name + '">' + name + '</div>';
+      html += '<div class="bt-bar-wrap"><div class="bt-bar" style="width:' + barWidth + '%;"></div></div>';
+      html += '<div class="bt-count">' + count + '</div>';
+      html += '</div>';
+    }
+    if (analysis.businessTypes.length > 15) {
+      html += '<div style="font-size:0.75rem;color:#888;margin-top:4px;">+ ' + (analysis.businessTypes.length - 15) + ' more categories</div>';
+    }
+  }
+  html += '</div>';
+
+  // Underrepresented categories
+  html += '<div class="neighborhood-section">';
+  html += '<h4>Potentially underrepresented</h4>';
+  if (analysis.underrepresented.length === 0) {
+    html += '<div class="no-data-message">No categories appear significantly underrepresented compared to the citywide average.</div>';
+  } else {
+    for (var u = 0; u < analysis.underrepresented.length; u++) {
+      var ur = analysis.underrepresented[u];
+      html += '<div class="underrepresented-item">';
+      html += '<div><span class="ur-name">' + ur.name + '</span><br>';
+      html += '<span class="ur-detail">' + ur.citywidePct + '% citywide vs. ' + ur.localPct + '% locally (' + ur.localCount + ' nearby)</span>';
+      html += '</div></div>';
+    }
+  }
+  html += '</div>';
+
+  document.getElementById('neighborhood-panel-body').innerHTML = html;
+  document.getElementById('neighborhood-panel').classList.add('open');
+}
+
+function showPopup(e) {
+  var p = e.features[0].properties;
+  var coords = e.features[0].geometry.coordinates.slice();
+  var statusColor = p.status === 'Vacant' ? '#e7466d' : '#57aa4a';
+  var neighborhoodLink = p.status === 'Vacant'
+    ? '<br><a href="#" class="neighborhood-link" style="color:#217ebe;font-size:12px;text-decoration:underline;cursor:pointer;">View neighborhood analysis</a>'
+    : '';
+  var html = '<div style="font-family:halyard-text,Inter,sans-serif;font-size:13px;line-height:1.5;max-width:240px;">' +
+    '<strong>' + p.address + '</strong><br>' +
+    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + statusColor + ';margin-right:4px;"></span>' +
+    p.status + '<br>' +
+    (p.neighborhood ? p.neighborhood + ', ' : '') + p.borough + '<br>' +
+    'Community district: ' + p.cd + '<br>' +
+    'ZIP: ' + p.zip + '<br>' +
+    'Reporting year: ' + p.year +
+    (p.activity && p.activity !== 'NO BUSINESS ACTIVITY IDENTIFIED' ? '<br>Business: ' + p.activity : '') +
+    neighborhoodLink +
+    '</div>';
+  var popup = new maplibregl.Popup({ offset: 10 })
+    .setLngLat(coords)
+    .setHTML(html)
+    .addTo(map);
+
+  // After popup is added, attach click handler for the neighborhood link
+  if (p.status === 'Vacant') {
+    setTimeout(function() {
+      var link = popup.getElement().querySelector('.neighborhood-link');
+      if (link) {
+        link.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          popup.remove();
+          showNeighborhoodPanel(coords, p.address);
+        });
+      }
+    }, 0);
+  }
+}
+
+function applyFilters() {
+  const borough = document.getElementById('borough-filter').value;
+  const showOccupied = document.getElementById('show-occupied').checked;
+  const filtered = filterByBorough(allData, borough);
+  const stats = computeStats(filtered);
+  updateStats(stats);
+  updateMap(filtered, showOccupied);
+}
+
+async function init() {
+  try {
+    initMap();
+    const raw = await fetchData();
+    allData = getLatestData(raw);
+    hideLoading();
+
+    map.on('load', function() {
+      applyFilters();
+    });
+
+    if (map.loaded()) {
+      applyFilters();
+    }
+
+    document.getElementById('borough-filter').addEventListener('change', function() {
+      clearNeighborhoodAnalysis();
+      applyFilters();
+    });
+    document.getElementById('show-occupied').addEventListener('change', function() {
+      if (map.getLayer('occupied-points')) {
+        map.setLayoutProperty('occupied-points', 'visibility', this.checked ? 'visible' : 'none');
+      }
+    });
+
+    document.getElementById('close-neighborhood-panel').addEventListener('click', function() {
+      clearNeighborhoodAnalysis();
+    });
+
+    // Close neighborhood panel when clicking on empty map area
+    map.on('click', function(e) {
+      var features = map.queryRenderedFeatures(e.point, { layers: ['vacant-points', 'occupied-points'] });
+      if (features.length === 0) {
+        clearNeighborhoodAnalysis();
+      }
+    });
+
+  } catch (err) {
+    hideLoading();
+    console.error('Initialization error:', err);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
