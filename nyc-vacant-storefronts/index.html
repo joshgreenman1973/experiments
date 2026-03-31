@@ -493,6 +493,7 @@ footer a:hover {
 <header>
   <h1>NYC vacant storefronts</h1>
   <p class="subtitle">Commercial vacancy patterns across New York City, from the Storefront Registry (Local Law 157 of 2019)</p>
+  <p class="data-freshness" id="data-freshness" style="font-size:0.8rem;color:var(--vc-charcoal);margin-top:6px;line-height:1.5;max-width:800px;"></p>
 </header>
 
 <div class="controls">
@@ -691,14 +692,17 @@ function computeStats(data) {
   }
   const topZips = Object.entries(byZip).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-  // Most recent reporting year
+  // Reporting year breakdown
   let maxYear = 0;
+  const yearCounts = {};
   for (const r of data) {
-    const y = parseInt(r.reporting_year) || 0;
-    if (y > maxYear) maxYear = y;
+    const y = r.reporting_year || 'Unknown';
+    yearCounts[y] = (yearCounts[y] || 0) + 1;
+    const yn = parseInt(y) || 0;
+    if (yn > maxYear) maxYear = yn;
   }
 
-  return { vacantCount, total, rate, byBorough, topCDs, topZips, zipBorough, maxYear };
+  return { vacantCount, total, rate, byBorough, topCDs, topZips, zipBorough, maxYear, yearCounts };
 }
 
 function updateStats(stats) {
@@ -706,6 +710,19 @@ function updateStats(stats) {
   document.getElementById('vacancy-rate').textContent = stats.rate === '--' ? '--' : stats.rate + '%';
   document.getElementById('total-count').textContent = stats.total.toLocaleString();
   document.getElementById('reporting-year').textContent = stats.maxYear || '--';
+
+  // Data freshness note
+  var freshEl = document.getElementById('data-freshness');
+  if (freshEl && stats.yearCounts) {
+    var years = Object.entries(stats.yearCounts).sort((a, b) => b[0].localeCompare(a[0]));
+    var parts = years.slice(0, 3).map(([y, c]) => c.toLocaleString() + ' from ' + y);
+    freshEl.innerHTML = '<strong>Data freshness:</strong> This registry is self-reported by property owners under Local Law 157. ' +
+      'Each record reflects vacancy status as of the owner\'s most recent filing. ' +
+      'Of ' + stats.total.toLocaleString() + ' storefronts shown: ' + parts.join(', ') +
+      (years.length > 3 ? ', plus older filings.' : '.') +
+      ' The registry does not capture all commercial spaces -- only those where owners have filed. ' +
+      'Vacancy status may lag actual conditions by months.';
+  }
 
   // Borough chart
   const boroughLabels = Object.keys(BOROUGH_NAMES).map(k => BOROUGH_NAMES[k]);

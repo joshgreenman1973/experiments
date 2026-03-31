@@ -734,6 +734,39 @@ header .subtitle {
     "STATEN ISLAND": "SI"
   };
 
+  var CD_NAMES = {
+    "MN 01": "Financial District", "MN 02": "Greenwich Village", "MN 03": "Lower East Side",
+    "MN 04": "Clinton/Chelsea", "MN 05": "Midtown", "MN 06": "Stuyvesant Town",
+    "MN 07": "Upper West Side", "MN 08": "Upper East Side", "MN 09": "Morningside Heights",
+    "MN 10": "Central Harlem", "MN 11": "East Harlem", "MN 12": "Washington Heights",
+    "BK 01": "Greenpoint/Williamsburg", "BK 02": "Fort Greene/Brooklyn Heights",
+    "BK 03": "Bedford-Stuyvesant", "BK 04": "Bushwick", "BK 05": "East New York",
+    "BK 06": "Park Slope/Carroll Gardens", "BK 07": "Sunset Park", "BK 08": "Crown Heights",
+    "BK 09": "Crown Heights South", "BK 10": "Bay Ridge", "BK 11": "Bensonhurst",
+    "BK 12": "Borough Park", "BK 13": "Coney Island", "BK 14": "Flatbush",
+    "BK 15": "Sheepshead Bay", "BK 16": "Brownsville", "BK 17": "East Flatbush",
+    "BK 18": "Canarsie/Flatlands",
+    "QN 01": "Astoria", "QN 02": "Sunnyside/Woodside", "QN 03": "Jackson Heights",
+    "QN 04": "Elmhurst/Corona", "QN 05": "Ridgewood/Maspeth", "QN 06": "Forest Hills/Rego Park",
+    "QN 07": "Flushing", "QN 08": "Fresh Meadows", "QN 09": "Kew Gardens/Woodhaven",
+    "QN 10": "South Ozone Park", "QN 11": "Bayside", "QN 12": "Jamaica",
+    "QN 13": "Queens Village", "QN 14": "Far Rockaway",
+    "BX 01": "Mott Haven/Melrose", "BX 02": "Hunts Point", "BX 03": "Morrisania",
+    "BX 04": "Highbridge/Concourse", "BX 05": "Fordham", "BX 06": "Belmont/East Tremont",
+    "BX 07": "Kingsbridge", "BX 08": "Riverdale", "BX 09": "Soundview",
+    "BX 10": "Throgs Neck/Co-op City", "BX 11": "Pelham Parkway", "BX 12": "Williamsbridge",
+    "SI 01": "St. George/Stapleton", "SI 02": "South Beach", "SI 03": "Tottenville"
+  };
+
+  function cdDisplayName(cdKey) {
+    var name = CD_NAMES[cdKey];
+    return name ? name + " (" + cdKey + ")" : cdKey;
+  }
+
+  function cdShortName(cdKey) {
+    return CD_NAMES[cdKey] || cdKey;
+  }
+
   function parseCommunityBoard(cb) {
     if (!cb) return null;
     var cleaned = cb.trim();
@@ -872,7 +905,7 @@ header .subtitle {
         var f = e.features[0];
         var key = f.properties._cd_key;
         var districtData = currentDistricts.find(function(d) { return d.district === key; });
-        var html = '<div class="popup-district">' + key + '</div>';
+        var html = '<div class="popup-district">' + cdDisplayName(key) + '</div>';
         if (districtData) {
           html += '<div class="popup-time">Median: ' + formatDays(districtData.median) + '</div>';
           html += '<div class="popup-count">' + formatNumber(districtData.total) + ' complaints</div>';
@@ -926,7 +959,7 @@ header .subtitle {
     if (!d) return;
     selectedDistrict = key;
     selectedBanner.style.display = "flex";
-    selectedText.textContent = "Showing data for " + key + " -- median " + formatDays(d.median) + " (" + formatNumber(d.total) + " complaints)";
+    selectedText.textContent = "Showing data for " + cdDisplayName(key) + " -- median " + formatDays(d.median) + " (" + formatNumber(d.total) + " complaints)";
 
     if (map && map.getLayer("district-highlight")) {
       map.setFilter("district-highlight", ["==", "_cd_key", key]);
@@ -1096,7 +1129,7 @@ header .subtitle {
 
   function renderDistrictChart(districts) {
     var top10 = districts.slice(0, 10).reverse();
-    var labels = top10.map(function(d) { return d.district; });
+    var labels = top10.map(function(d) { return cdShortName(d.district); });
     var values = top10.map(function(d) { return Math.round(d.median * 100) / 100; });
     var colors = top10.map(function(d) { return barColor(d.median); });
 
@@ -1192,20 +1225,32 @@ header .subtitle {
         agencies.push({ agency: k, label: a.label, median: calcMedian(a.times), total: a.times.length });
       });
       agencies.sort(function(a, b) { return b.median - a.median; });
-      document.getElementById("agency-chart-title").textContent = "Agency response times in " + districtKey;
+      document.getElementById("agency-chart-title").textContent = "Agency response times in " + cdShortName(districtKey);
     } else {
       agencies = currentAgencies;
       document.getElementById("agency-chart-title").textContent = "Median response time by agency";
     }
 
     var top = agencies.slice(0, 8).reverse();
-    var labels = top.map(function(a) { return a.agency; });
+    var labels = top.map(function(a) { return a.label || a.agency; });
     var values = top.map(function(a) { return Math.round(a.median * 100) / 100; });
     var colors = top.map(function(a) { return barColor(a.median); });
 
     var container = document.getElementById("agency-chart").parentElement;
     if (agencyChart) agencyChart.destroy();
     container.innerHTML = "";
+
+    if (agencies.length <= 1) {
+      var note = document.createElement("div");
+      note.style.cssText = "padding:1.5rem 0;color:#707175;font-size:0.9rem;line-height:1.6;";
+      if (agencies.length === 1) {
+        note.innerHTML = "All complaints of this type go to <strong>" + (agencies[0].label || agencies[0].agency) + "</strong> (median " + formatDays(agencies[0].median) + ", " + formatNumber(agencies[0].total) + " complaints). Select a different complaint type to compare agencies.";
+      } else {
+        note.textContent = "No agency data available for this selection.";
+      }
+      container.appendChild(note);
+      return;
+    }
     var canvas = document.createElement("canvas");
     container.appendChild(canvas);
 
@@ -1263,13 +1308,13 @@ header .subtitle {
 
     var html = '<div class="fs-col"><h4>5 fastest districts</h4>';
     fastest.forEach(function(d) {
-      html += '<div class="fs-row"><span class="fs-district">' + d.district + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
+      html += '<div class="fs-row"><span class="fs-district">' + cdShortName(d.district) + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
     });
     html += '</div>';
 
     html += '<div class="fs-col"><h4>5 slowest districts</h4>';
     slowest.forEach(function(d) {
-      html += '<div class="fs-row"><span class="fs-district">' + d.district + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
+      html += '<div class="fs-row"><span class="fs-district">' + cdShortName(d.district) + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
     });
     html += '</div>';
 
