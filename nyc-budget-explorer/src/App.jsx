@@ -831,7 +831,7 @@ function ActCliff() {
         </p>
         <p className="act-sub">
           That’s the mayor’s number — and much of the gap comes from Mamdani’s decision to honestly budget for costs the Adams administration routinely understated. The IBO found that shelter costs, cash assistance, rental vouchers, and legal claims were all dramatically underfunded in Adams-era budgets. The Independent Budget Office projects a <strong style={{ color: C.orange }}>$6.5 billion combined gap</strong> for FY2026-27 ($535 million this year, $5.9 billion next year). Comptroller Levine puts the combined shortfall at <strong style={{ color: C.orange }}>$10.4 billion</strong> — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
-          Meanwhile, the Council found $1.7 billion in resources the administration missed, arguing the Rainy Day Fund doesn’t need to be tapped at all.
+          On April 1, the Council released its own alternative: <strong style={{ color: C.chartreuse }}>$6 billion in identified resources</strong> — $3.5 billion from re-estimations (unfilled positions, fee adjustments), $2 billion from efficiencies (competitive DOE contracting, debt service savings), and $462 million in revenue enhancements — closing the gap without property tax increases, service cuts, or reserve drawdowns.
         </p>
 
         {/* Gap bars */}
@@ -1102,6 +1102,13 @@ function ActProposals() {
             <strong> A new Department of Community Safety</strong> would consolidate gun violence prevention, hate crime prevention, and
             community mental health into a single agency at an estimated $500M in new funding (plus ~$600M transferred from existing agencies).
             The administration says funding will appear in the executive budget due late April.
+          </p>
+        </div>
+
+        <div className="insight-box" style={{ marginTop: 16 }}>
+          <div className="insight-label">The Council's priorities</div>
+          <p>
+            The Council's April 1 alternative would restore <strong>$1.1 billion</strong> in funding for cultural institutions ($30 million), libraries ($30.7 million), housing and domestic violence legal services ($16.9 million), student mental health ($5 million), and CUNY Reconnect ($7.8 million). The Council is also pushing three new initiatives in budget negotiations: <strong>Fair Fares expansion</strong> (free transit for households under 150% of the federal poverty line), <strong>NYC Kids RISE</strong> (up to $3,000 college savings accounts for every child), and <strong>paraprofessional wage increases</strong>.
           </p>
         </div>
 
