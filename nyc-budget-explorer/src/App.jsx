@@ -368,7 +368,7 @@ const REVENUE_OPTIONS = [
 ]
 
 const SPENDING_OPTIONS = [
-  { id: 'class_size', label: 'Seek state relief from class size mandate', amount: 1300, category: 'education', difficulty: 'hard', desc: 'CBC\'s top recommendation. Save up to $1.3 billion otherwise spent hiring ~6,000 teachers.', source: 'CBC; Chalkbeat', sourceUrl: 'https://www.chalkbeat.org/newyork/2026/02/17/nyc-mamdani-preliminary-budget-class-size-funding-school-program-cuts/', risk: 'Parents and unions support smaller classes. Requires Albany.', conflicts: [] },
+  { id: 'class_size', label: 'Seek state relief from class size mandate', amount: 1200, category: 'education', difficulty: 'hard', desc: 'CBC\'s top recommendation. Permanent relief would save ~$1.2 billion (CBC estimate, March 2026). IBO estimates 6,900 additional teachers at $700 million. But CBC warns that simply delaying the mandate — as Mamdani is pursuing — yields little long-term savings.', source: 'CBC statement (March 31, 2026); IBO (Dec 2025)', sourceUrl: 'https://www.chalkbeat.org/newyork/2026/02/17/nyc-mamdani-preliminary-budget-class-size-funding-school-program-cuts/', risk: 'Parents and unions support smaller classes. Requires Albany. A delay alone is a short-term fix.', conflicts: [] },
   { id: 'enrollment', label: 'Adjust DOE funding for declining enrollment', amount: 400, category: 'education', difficulty: 'medium', desc: 'NYC public school enrollment has declined by ~120,000 students since pre-pandemic.', source: 'CBC “False Choice” (March 2026)', sourceUrl: 'https://cbcny.org/research/false-choice', risk: 'Would require closing or consolidating schools.', conflicts: [] },
   { id: 'cso_savings', label: 'Agency Chief Savings Officers (2.5%)', amount: 1770, category: 'efficiency', difficulty: 'medium', desc: 'Mamdani\'s EO 12 requires every agency to target 2.5% savings ($1.77 billion). As of March 25, ~$250 million in specific cuts have been approved — the largest being $100 million from removing ineligible dependents from health plans. The administration has also quietly identified another $1.3 billion in potential savings from delaying the class size mandate and scaling back CityFHEPS.', source: 'NYT; NY1 (March 25, 2026)', sourceUrl: 'https://ny1.com/nyc/all-boroughs/politics/2026/03/25/mayor-mamdani-budget-cuts', risk: 'Governor Hochul demands real savings before she\'ll consider tax increases. The $1.3 billion in additional cuts reverses Mamdani campaign commitments and requires Albany or court approval.', conflicts: ['cso_half'] },
   { id: 'cso_half', label: 'Agency savings (conservative estimate)', amount: 900, category: 'efficiency', difficulty: 'medium', desc: 'Half the administration\'s target. Only ~$250 million has been formally approved so far.', source: 'NYT (March 25, 2026)', sourceUrl: 'https://ny1.com/nyc/all-boroughs/politics/2026/03/25/mayor-mamdani-budget-cuts', risk: 'The gap between targets and verified savings is large. The additional $1.3 billion requires Albany or court action.', conflicts: ['cso_savings'] },
@@ -862,7 +862,7 @@ function ActCliff() {
           The plan proposes <strong style={{ color: C.chartreuse }}>$3.7 billion in new property taxes</strong> (a 9.5% rate increase),
           a <strong style={{ color: C.chartreuse }}>millionaire income tax surcharge</strong> requiring Albany approval,
           and <strong style={{ color: C.chartreuse }}>$1.77 billion in agency savings</strong> through Executive Order 12,
-          which installed Chief Savings Officers in every city agency with a mandate to find 2.5% cuts. As of March 25, the administration has approved ~$250 million in specific cuts and quietly identified another $1.3 billion in potential savings — from delaying the class size mandate and scaling back CityFHEPS rental assistance — that have not been made public. Governor Hochul has demanded the city identify real savings before she'll consider tax increases.
+          which installed Chief Savings Officers in every city agency with a mandate to find 2.5% cuts. As of March 25, the administration has approved ~$250 million in specific cuts and quietly identified another $1.3 billion in potential savings — from delaying the class size mandate and scaling back CityFHEPS rental assistance — that have not been made public. But CBC warns that simply delaying the class size mandate yields little long-term savings; permanent relief is needed. Governor Hochul has demanded the city identify real savings before she'll consider tax increases.
         </p>
         <p className="prose">
           The plan also draws down <strong style={{ color: C.chartreuse }}>$980 million from the Rainy Day Fund</strong> and
@@ -1022,7 +1022,7 @@ function ActProposals() {
               <li><strong>High earners are already leaving.</strong> New York’s share of the nation’s millionaires dropped 31% between 2010 and 2022, per CBC — costing the state and city an estimated $13 billion in foregone income tax revenue. Remote work has further weakened the geographic lock-in.</li>
               <li><strong>Combined rates would be nation-leading.</strong> Under the Assembly’s corporate tax proposal, NYC’s combined city-state business tax rate would reach 21.37% — nearly double New Jersey’s 11.5% top rate.</li>
               <li><strong>It doesn’t fix the structural problem.</strong> If spending grows 4–5% annually and revenue grows 2–3%, new taxes buy time but don’t close the gap. State spending grew 7.9% last year — more than twice inflation — and even state-level gaps are projected at $20 billion by FY2030.</li>
-              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The governor opposes most tax increases. The state budget deadline is April 1 and Hochul has not delivered an on-time budget since taking office.</li>
+              <li><strong>Albany is unreliable.</strong> The millionaire and corporate tax proposals require state legislation. The governor opposes most tax increases. The state budget is now late for the fifth straight year — the April 1 deadline has been missed again — and the Legislature is proposing $5 billion in new spending that expands the state's own gaps.</li>
             </ul>
           </div>
         </div>
@@ -1636,7 +1636,7 @@ export default function App() {
           </div>
         </div>
       </footer>
-      <div className="last-updated">Last updated March 27, 2026</div>
+      <div className="last-updated">Last updated April 1, 2026</div>
     </div>
   )
 }
