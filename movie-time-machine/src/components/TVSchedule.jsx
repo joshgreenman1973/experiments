@@ -22,7 +22,7 @@ export default function TVSchedule({ date }) {
   }
 
   const dayLabel = schedule.day.charAt(0).toUpperCase() + schedule.day.slice(1)
-  const seasonLabel = schedule.season.replace('-', '\u2013')
+  const seasonLabel = schedule.season.replace('-', '–')
 
   return (
     <div className="max-w-4xl mx-auto px-5">

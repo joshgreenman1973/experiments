@@ -6,6 +6,7 @@ import MovieModal from './components/MovieModal'
 import TVSchedule from './components/TVSchedule'
 import MusicChart from './components/MusicChart'
 import SearchModal from './components/SearchModal'
+import SourcesModal from './components/SourcesModal'
 import { discoverMoviesInTheaters } from './lib/tmdb'
 import { getCatalogStats } from './lib/stats'
 
@@ -22,6 +23,7 @@ export default function App() {
   const [totalResults, setTotalResults] = useState(0)
   const [selectedMovie, setSelectedMovie] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   const [includeLimited, setIncludeLimited] = useState(true)
   const debounceRef = useRef(null)
   const [viewKey, setViewKey] = useState(0)
@@ -174,7 +176,18 @@ export default function App() {
       <footer className="text-center mt-20 pb-4 text-[10px] text-film-muted/30 tracking-wide space-y-1">
         <p>{catalogStats.tvShows.toLocaleString()} TV shows · {catalogStats.tvSeasons} seasons · {catalogStats.songEntries.toLocaleString()} chart entries · {catalogStats.chartWeeks.toLocaleString()} weeks</p>
         <p>Movies via TMDB · TV schedules via epguides.com · Charts via musicchartsarchive.com</p>
+        <p>
+          <button
+            onClick={() => setSourcesOpen(true)}
+            className="text-film-muted/40 hover:text-film-muted/60 underline underline-offset-2
+                       transition-colors cursor-pointer"
+          >
+            About this data
+          </button>
+        </p>
       </footer>
+
+      <SourcesModal open={sourcesOpen} onClose={() => setSourcesOpen(false)} />
     </div>
   )
 }

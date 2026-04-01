@@ -51,11 +51,11 @@ export default function MovieModal({ movieId, onClose }) {
       >
         {loading ? (
           <div className="p-16 text-center text-film-muted animate-pulse text-sm">
-            Loading\u2026
+            Loading...
           </div>
         ) : !movie ? (
           <div className="p-16 text-center text-red-400/70 text-sm">
-            Couldn\u2019t load movie details
+            Couldn't load movie details
           </div>
         ) : (
           <>
