@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saint-Sernin-du-Plain — A village portrait in data</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --burgundy-deep: #5B1A28;
+      --burgundy: #7B2D3F;
+      --burgundy-light: #A24258;
+      --gold: #C7A84E;
+      --gold-light: #E8D48B;
+      --cream: #FAF6F0;
+      --parchment: #F0EAE0;
+      --forest: #3A5A40;
+      --forest-light: #6B8F71;
+      --earth: #8B7355;
+      --charcoal: #2D2D2D;
+      --warm-gray: #6B6560;
+      --white: #FFFFFF;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--charcoal);
+      background: var(--cream);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page-wrap {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ---- HERO ---- */
+    .hero {
+      background: var(--burgundy-deep);
+      color: var(--cream);
+      padding: clamp(48px, 8vw, 96px) 24px clamp(40px, 6vw, 72px);
+      text-align: center;
+    }
+    .hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      letter-spacing: 0.02em;
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+    .hero .subtitle {
+      font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+      color: var(--gold);
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .hero-stat {
+      border: 1.5px solid var(--gold);
+      border-radius: 28px;
+      padding: 8px 24px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .hero-stat .num {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: var(--gold);
+    }
+    .hero-stat .label {
+      font-size: 0.8rem;
+      color: var(--gold-light);
+      font-weight: 400;
+    }
+    .hero .coords {
+      font-size: 0.78rem;
+      color: var(--earth);
+      letter-spacing: 0.04em;
+    }
+
+    /* ---- SECTIONS ---- */
+    section {
+      padding: clamp(32px, 5vw, 56px) 24px;
+    }
+    section:nth-child(even) { background: var(--white); }
+    section:nth-child(odd) { background: var(--cream); }
+
+    .section-rule {
+      width: 48px;
+      height: 2px;
+      background: var(--gold);
+      border: none;
+      margin-bottom: 12px;
+    }
+    section h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: clamp(1.4rem, 3vw, 1.9rem);
+      color: var(--burgundy-deep);
+      margin-bottom: 24px;
+      line-height: 1.25;
+    }
+
+    /* ---- ADMIN GRID ---- */
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .admin-item .admin-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+      margin-bottom: 2px;
+    }
+    .admin-item .admin-value {
+      font-size: 0.95rem;
+      color: var(--charcoal);
+    }
+
+    /* ---- GEO LAYOUT ---- */
+    .geo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .geo-block h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 1.15rem;
+      color: var(--burgundy);
+      margin-bottom: 16px;
+    }
+    .donut-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ---- POPULATION CHART ---- */
+    .chart-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+    .chart-container svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ---- DEMOGRAPHICS ---- */
+    .demo-grid {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .gender-bar-wrap { margin-top: 8px; }
+    .gender-bar {
+      height: 32px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+    .gender-bar .male {
+      background: var(--burgundy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cream);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .gender-bar .female {
+      background: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--burgundy-deep);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .gender-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--warm-gray);
+      margin-top: 4px;
+    }
+    .age-cohorts { margin-top: 8px; }
+    .cohort-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .cohort-label {
+      width: 56px;
+      font-size: 0.78rem;
+      text-align: right;
+      color: var(--warm-gray);
+      flex-shrink: 0;
+    }
+    .cohort-bar-track {
+      flex: 1;
+      height: 22px;
+      background: var(--parchment);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .cohort-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--white);
+      min-width: fit-content;
+    }
+
+    /* ---- STAT CARDS ---- */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+    }
+    .stat-card {
+      background: var(--parchment);
+      border-radius: 10px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    section:nth-child(odd) .stat-card {
+      background: var(--white);
+    }
+    .stat-card .stat-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      color: var(--burgundy);
+      line-height: 1.1;
+    }
+    .stat-card .stat-label {
+      font-size: 0.75rem;
+      color: var(--warm-gray);
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+    .stat-aside {
+      margin-top: 20px;
+      font-size: 0.88rem;
+      color: var(--burgundy);
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* ---- HOUSING DONUT ROW ---- */
+    .housing-layout {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* ---- COMMUTE VIZ ---- */
+    .commute-bar-wrap {
+      margin-top: 24px;
+      max-width: 480px;
+    }
+    .commute-bar-label {
+      font-size: 0.8rem;
+      color: var(--warm-gray);
+      margin-bottom: 6px;
+    }
+    .commute-bar {
+      height: 28px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+    .commute-bar .out {
+      background: var(--burgundy);
+      color: var(--cream);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .commute-bar .local {
+      background: var(--gold-light);
+      color: var(--burgundy-deep);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .commute-note {
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+      margin-top: 6px;
+    }
+
+    /* ---- CLIMATE ---- */
+    .climate-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .climate-card {
+      background: var(--parchment);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .climate-card .stat-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 1.8rem;
+      line-height: 1.1;
+    }
+    .climate-card .stat-label {
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+      margin-top: 4px;
+    }
+    .climate-card.warm .stat-num { color: var(--burgundy); }
+    .climate-card.cool .stat-num { color: var(--forest); }
+
+    /* ---- TIMELINE ---- */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: var(--gold-light);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .timeline-item:last-child { margin-bottom: 0; }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      background: var(--burgundy);
+      border: 2px solid var(--gold);
+      border-radius: 50%;
+    }
+    .timeline-year {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--gold);
+    }
+    .timeline-desc {
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      line-height: 1.5;
+    }
+
+    /* ---- FOOTER ---- */
+    footer {
+      padding: 32px 24px;
+      background: var(--burgundy-deep);
+      color: var(--earth);
+      font-size: 0.75rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+    footer hr {
+      border: none;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.4;
+      margin-bottom: 16px;
+      max-width: 200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ---- ELEVATION ---- */
+    .elevation-wrap {
+      position: relative;
+      margin-top: 8px;
+    }
+    .elevation-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+      margin-top: 8px;
+    }
+    .elevation-mean {
+      font-size: 0.78rem;
+      color: var(--forest);
+      margin-top: 4px;
+    }
+
+    /* ---- REGIONAL MAP ---- */
+    .map-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+    .map-container svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .map-caption {
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+      margin-top: 12px;
+      text-align: center;
+    }
+    .map-legend {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+    }
+    .map-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ---- RESPONSIVE ---- */
+    @media (max-width: 700px) {
+      .geo-grid, .demo-grid, .housing-layout, .climate-grid {
+        grid-template-columns: 1fr;
+      }
+      .admin-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .hero-stats { gap: 12px; }
+      .hero-stat { padding: 6px 16px; }
+    }
+
+    @media print {
+      .hero { background: var(--white); color: var(--charcoal); }
+      .hero h1 { color: var(--burgundy-deep); }
+      .hero .subtitle { color: var(--burgundy); }
+      section { break-inside: avoid; }
+      footer { background: var(--white); color: var(--charcoal); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="page-wrap">
+      <h1>Saint-Sernin-du-Plain</h1>
+      <div class="subtitle">Commune de Bourgogne, Saone-et-Loire</div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="num">613</span>
+          <span class="label">habitants</span>
+        </div>
+        <div class="hero-stat">
+          <span class="num">14.45</span>
+          <span class="label">km²</span>
+        </div>
+        <div class="hero-stat">
+          <span class="num">542 m</span>
+          <span class="label">summit</span>
+        </div>
+      </div>
+      <div class="coords">46.89° N, 4.62° E</div>
+    </div>
+  </header>
+
+  <!-- ADMINISTRATIVE IDENTITY -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Administrative identity</h2>
+      <div class="admin-grid">
+        <div class="admin-item">
+          <div class="admin-label">INSEE code</div>
+          <div class="admin-value">71480</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Postal code</div>
+          <div class="admin-value">71510</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Departement</div>
+          <div class="admin-value">Saone-et-Loire (71)</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Arrondissement</div>
+          <div class="admin-value">Chalon-sur-Saone</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Canton</div>
+          <div class="admin-value">Chagny</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Intercommunalite</div>
+          <div class="admin-value">CA Le Grand Chalon</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Commune type</div>
+          <div class="admin-value">Rural</div>
+        </div>
+        <div class="admin-item">
+          <div class="admin-label">Habitat</div>
+          <div class="admin-value">Dispersed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGIONAL MAP -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Nearby communes and towns</h2>
+      <div class="chart-container" id="region-map"></div>
+      <div class="map-legend">
+        <div class="map-legend-item">
+          <div class="map-legend-dot" style="background: #C7A84E; width: 14px; height: 14px; border: 2px solid #5B1A28;"></div>
+          <span>Saint-Sernin-du-Plain</span>
+        </div>
+        <div class="map-legend-item">
+          <div class="map-legend-dot" style="background: #7B2D3F;"></div>
+          <span>Neighboring commune</span>
+        </div>
+        <div class="map-legend-item">
+          <div class="map-legend-dot" style="background: #3A5A40; width: 12px; height: 12px;"></div>
+          <span>Wine village</span>
+        </div>
+        <div class="map-legend-item">
+          <div class="map-legend-dot" style="background: #6B6560; width: 14px; height: 14px;"></div>
+          <span>Larger town / city</span>
+        </div>
+      </div>
+      <div class="map-caption">Approximate positions based on geographic coordinates. Circle size indicates relative population.</div>
+    </div>
+  </section>
+
+  <!-- GEOGRAPHY + LAND USE -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Geography and land use</h2>
+      <div class="geo-grid">
+        <div class="geo-block">
+          <h3>Elevation profile</h3>
+          <div class="elevation-wrap">
+            <svg viewBox="0 0 400 180" role="img" aria-label="Elevation profile showing range from 230 meters to 542 meters with mean at 359 meters">
+              <!-- Mountain silhouette -->
+              <defs>
+                <linearGradient id="mtn-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#3A5A40" stop-opacity="0.7"/>
+                  <stop offset="100%" stop-color="#6B8F71" stop-opacity="0.2"/>
+                </linearGradient>
+              </defs>
+              <path d="M0,160 L30,140 L70,120 L100,90 L130,70 L160,55 L190,30 L210,18 L230,30 L260,50 L290,75 L310,65 L330,80 L350,100 L380,130 L400,160 Z"
+                    fill="url(#mtn-grad)" stroke="#3A5A40" stroke-width="2"/>
+              <!-- Mean line -->
+              <line x1="0" y1="96" x2="400" y2="96" stroke="#C7A84E" stroke-width="1.5" stroke-dasharray="6,4"/>
+              <text x="404" y="100" font-size="11" fill="#C7A84E" font-family="Inter, sans-serif" font-weight="500">359 m mean</text>
+              <!-- Peak label -->
+              <text x="210" y="12" font-size="11" fill="#5B1A28" font-family="Inter, sans-serif" font-weight="600" text-anchor="middle">542 m</text>
+              <text x="210" y="178" font-size="10" fill="#6B6560" font-family="Inter, sans-serif" text-anchor="middle">Mont Rome</text>
+            </svg>
+          </div>
+          <div class="elevation-labels">
+            <span>Low: 230 m</span>
+            <span>High: 542 m</span>
+          </div>
+        </div>
+        <div class="geo-block">
+          <h3>Land use</h3>
+          <div class="donut-container">
+            <div id="land-use-donut"></div>
+            <div class="donut-legend">
+              <div class="legend-item">
+                <div class="legend-swatch" style="background: var(--gold)"></div>
+                <span>Agricultural — 83%</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-swatch" style="background: var(--forest)"></div>
+                <span>Forest — 13%</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-swatch" style="background: var(--burgundy)"></div>
+                <span>Urbanized — 4%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POPULATION HISTORY -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Population history, 1793-2023</h2>
+      <div class="chart-container" id="pop-chart"></div>
+    </div>
+  </section>
+
+  <!-- DEMOGRAPHICS -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Demographics (2022)</h2>
+      <div class="demo-grid">
+        <div>
+          <h3 style="font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.15rem; color: var(--burgundy); margin-bottom: 12px;">Gender</h3>
+          <div class="gender-bar-wrap">
+            <div class="gender-bar">
+              <div class="male" style="width: 50.8%">50.8%</div>
+              <div class="female" style="width: 49.2%">49.2%</div>
+            </div>
+            <div class="gender-labels">
+              <span>Male</span>
+              <span>Female</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 1.15rem; color: var(--burgundy); margin-bottom: 12px;">Age distribution</h3>
+          <div class="age-cohorts">
+            <div class="cohort-row">
+              <span class="cohort-label">0-14</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 15%; background: var(--gold-light); color: var(--burgundy-deep);">15%</div>
+              </div>
+            </div>
+            <div class="cohort-row">
+              <span class="cohort-label">15-29</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 12%; background: var(--gold);">12%</div>
+              </div>
+            </div>
+            <div class="cohort-row">
+              <span class="cohort-label">30-44</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 17%; background: var(--earth); color: var(--white);">17%</div>
+              </div>
+            </div>
+            <div class="cohort-row">
+              <span class="cohort-label">45-59</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 24.1%; background: var(--burgundy-light);">24.1%</div>
+              </div>
+            </div>
+            <div class="cohort-row">
+              <span class="cohort-label">60-74</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 20%; background: var(--burgundy);">20%</div>
+              </div>
+            </div>
+            <div class="cohort-row">
+              <span class="cohort-label">75+</span>
+              <div class="cohort-bar-track">
+                <div class="cohort-bar-fill" style="width: 12%; background: var(--burgundy-deep);">12%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOUSING -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Housing</h2>
+      <div class="housing-layout">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-num">462</div>
+            <div class="stat-label">Total dwellings</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">60.8%</div>
+            <div class="stat-label">Primary residences</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">19.7%</div>
+            <div class="stat-label">Secondary / vacation</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">19.7%</div>
+            <div class="stat-label">Vacant</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">87.5%</div>
+            <div class="stat-label">Owner-occupied</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">63.3%</div>
+            <div class="stat-label">Built before 1919</div>
+          </div>
+        </div>
+        <div class="donut-container" style="padding-top: 8px;">
+          <div id="housing-donut"></div>
+          <div class="donut-legend">
+            <div class="legend-item">
+              <div class="legend-swatch" style="background: var(--burgundy)"></div>
+              <span>Primary — 60.8%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-swatch" style="background: var(--gold)"></div>
+              <span>Secondary — 19.7%</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-swatch" style="background: var(--warm-gray)"></div>
+              <span>Vacant — 19.7%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-aside">97.6% of dwellings are houses, not apartments</div>
+    </div>
+  </section>
+
+  <!-- ECONOMY -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Economy</h2>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num">18</div>
+          <div class="stat-label">Establishments</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">8</div>
+          <div class="stat-label">Farms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">101</div>
+          <div class="stat-label">Local jobs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">9.9%</div>
+          <div class="stat-label">Unemployment</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">&euro;22,580</div>
+          <div class="stat-label">Median income</div>
+        </div>
+      </div>
+      <div class="commute-bar-wrap">
+        <div class="commute-bar-label">Worker commuting patterns</div>
+        <div class="commute-bar">
+          <div class="out" style="width: 81%">81% commute out</div>
+          <div class="local" style="width: 19%">19%</div>
+        </div>
+        <div class="commute-note">90% of commuters travel by car</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLIMATE -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Climate</h2>
+      <div class="climate-grid">
+        <div class="climate-card warm">
+          <div class="stat-num">11.5 °C</div>
+          <div class="stat-label">Mean annual temperature</div>
+        </div>
+        <div class="climate-card cool">
+          <div class="stat-num">803.5 mm</div>
+          <div class="stat-label">Annual precipitation</div>
+        </div>
+        <div class="climate-card warm">
+          <div class="stat-num">40.4 °C</div>
+          <div class="stat-label">Record high (August 2003)</div>
+        </div>
+        <div class="climate-card cool">
+          <div class="stat-num">-16.7 °C</div>
+          <div class="stat-label">Record low (December 2009)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOTABLE HISTORY -->
+  <section>
+    <div class="page-wrap">
+      <hr class="section-rule">
+      <h2>Notable history and landmarks</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-year">1807-1853</div>
+          <div class="timeline-desc">Chappe optical telegraph station, part of the national semaphore network</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-year">1855-1911</div>
+          <div class="timeline-desc">Schneider iron mines at Mazenay, driving the commune's population peak</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-year">Medieval</div>
+          <div class="timeline-desc">Seigneury at Cromey, a feudal estate within the commune</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-year">Since 2001</div>
+          <div class="timeline-desc">Mont Rome classical music festival, held annually at the summit</div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-year">AOC</div>
+          <div class="timeline-desc">Bourgogne cote-du-couchois wine appellation, covering the commune's vineyards</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="page-wrap">
+      <hr>
+      Data sources: INSEE (population census, demographics, housing, economy), IGN (geography, land use), Meteo-France (climate records), Code officiel geographique (administrative data). All figures reflect the most recent available data as of 2023.
+    </div>
+  </footer>
+
+  <script>
+    // --- Donut Chart Renderer ---
+    function renderDonut(containerId, segments, size) {
+      size = size || 160;
+      var r = size / 2 - 10;
+      var circumference = 2 * Math.PI * r;
+      var cx = size / 2;
+      var cy = size / 2;
+      var svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="Donut chart">';
+
+      var offset = 0;
+      for (var i = 0; i < segments.length; i++) {
+        var seg = segments[i];
+        var dash = circumference * seg.pct / 100;
+        var gap = circumference - dash;
+        var rotation = -90 + (offset / 100) * 360;
+        svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + seg.color + '" stroke-width="24" ' +
+               'stroke-dasharray="' + dash + ' ' + gap + '" ' +
+               'transform="rotate(' + rotation + ' ' + cx + ' ' + cy + ')"/>';
+        offset += seg.pct;
+      }
+
+      // Center circle for donut hole
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r - 18) + '" fill="white"/>';
+      svg += '</svg>';
+
+      document.getElementById(containerId).innerHTML = svg;
+    }
+
+    // --- Population Chart ---
+    function renderPopulationChart() {
+      var data = [
+        [1793, 900], [1821, 1200], [1846, 1800], [1872, 2361],
+        [1901, 1500], [1936, 900], [1962, 650], [1990, 539],
+        [2008, 570], [2017, 595], [2023, 613]
+      ];
+
+      var W = 900, H = 400;
+      var pad = { left: 65, right: 30, top: 40, bottom: 55 };
+      var plotW = W - pad.left - pad.right;
+      var plotH = H - pad.top - pad.bottom;
+      var yMax = 2500;
+      var xMin = 1793, xMax = 2023;
+
+      function xScale(year) {
+        return pad.left + ((year - xMin) / (xMax - xMin)) * plotW;
+      }
+      function yScale(pop) {
+        return pad.top + plotH - (pop / yMax) * plotH;
+      }
+
+      var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Population of Saint-Sernin-du-Plain from 1793 to 2023, peaking at 2361 in 1872 and reaching a low of 539 in 1990">';
+
+      // Grid lines
+      svg += '<defs><linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">';
+      svg += '<stop offset="0%" stop-color="#7B2D3F" stop-opacity="0.25"/>';
+      svg += '<stop offset="100%" stop-color="#7B2D3F" stop-opacity="0.03"/>';
+      svg += '</linearGradient></defs>';
+
+      for (var g = 0; g <= yMax; g += 500) {
+        var gy = yScale(g);
+        svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (W - pad.right) + '" y2="' + gy + '" stroke="#E0D8CF" stroke-width="1"/>';
+        svg += '<text x="' + (pad.left - 10) + '" y="' + (gy + 4) + '" text-anchor="end" font-size="11" fill="#6B6560" font-family="Inter, sans-serif">' + g.toLocaleString() + '</text>';
+      }
+
+      // Area fill
+      var areaPath = 'M' + xScale(data[0][0]) + ',' + yScale(data[0][1]);
+      for (var i = 1; i < data.length; i++) {
+        areaPath += ' L' + xScale(data[i][0]) + ',' + yScale(data[i][1]);
+      }
+      areaPath += ' L' + xScale(data[data.length - 1][0]) + ',' + yScale(0);
+      areaPath += ' L' + xScale(data[0][0]) + ',' + yScale(0) + ' Z';
+      svg += '<path d="' + areaPath + '" fill="url(#area-grad)"/>';
+
+      // Line
+      var linePath = 'M' + xScale(data[0][0]) + ',' + yScale(data[0][1]);
+      for (var i = 1; i < data.length; i++) {
+        linePath += ' L' + xScale(data[i][0]) + ',' + yScale(data[i][1]);
+      }
+      svg += '<path d="' + linePath + '" fill="none" stroke="#7B2D3F" stroke-width="2.5" stroke-linejoin="round"/>';
+
+      // Data points + x labels
+      for (var i = 0; i < data.length; i++) {
+        var dx = xScale(data[i][0]);
+        var dy = yScale(data[i][1]);
+        svg += '<circle cx="' + dx + '" cy="' + dy + '" r="5" fill="#7B2D3F" stroke="#FAF6F0" stroke-width="2">';
+        svg += '<title>' + data[i][0] + ': ' + data[i][1].toLocaleString() + ' inhabitants</title>';
+        svg += '</circle>';
+        // X label
+        var rotate = data.length > 8 ? ' transform="rotate(-45 ' + dx + ' ' + (H - pad.bottom + 20) + ')"' : '';
+        svg += '<text x="' + dx + '" y="' + (H - pad.bottom + 20) + '" text-anchor="' + (rotate ? 'end' : 'middle') + '" font-size="10" fill="#6B6560" font-family="Inter, sans-serif"' + rotate + '>' + data[i][0] + '</text>';
+      }
+
+      // Peak annotation
+      var peakX = xScale(1872), peakY = yScale(2361);
+      svg += '<line x1="' + peakX + '" y1="' + (peakY - 8) + '" x2="' + (peakX + 60) + '" y2="' + (peakY - 30) + '" stroke="#C7A84E" stroke-width="1"/>';
+      svg += '<text x="' + (peakX + 64) + '" y="' + (peakY - 34) + '" font-size="11" fill="#5B1A28" font-family="Inter, sans-serif" font-weight="600">Peak: 2,361</text>';
+      svg += '<text x="' + (peakX + 64) + '" y="' + (peakY - 20) + '" font-size="10" fill="#6B6560" font-family="Inter, sans-serif">Iron mines + viticulture boom</text>';
+
+      // Trough annotation
+      var troughX = xScale(1990), troughY = yScale(539);
+      svg += '<line x1="' + troughX + '" y1="' + (troughY + 8) + '" x2="' + (troughX - 70) + '" y2="' + (troughY + 35) + '" stroke="#C7A84E" stroke-width="1"/>';
+      svg += '<text x="' + (troughX - 74) + '" y="' + (troughY + 32) + '" font-size="11" fill="#5B1A28" font-family="Inter, sans-serif" font-weight="600" text-anchor="end">Low: 539</text>';
+      svg += '<text x="' + (troughX - 74) + '" y="' + (troughY + 46) + '" font-size="10" fill="#6B6560" font-family="Inter, sans-serif" text-anchor="end">Post-industrial decline</text>';
+
+      svg += '</svg>';
+      document.getElementById('pop-chart').innerHTML = svg;
+    }
+
+    // --- Regional Map ---
+    function renderRegionMap() {
+      var towns = [
+        // Neighboring communes
+        { name: 'Paris-l\'Hopital', lat: 46.90, lon: 4.59, pop: 200, type: 'neighbor' },
+        { name: 'St-Gervais-sur-Couches', lat: 46.91, lon: 4.57, pop: 150, type: 'neighbor' },
+        { name: 'Couches', lat: 46.87, lon: 4.57, pop: 1500, type: 'neighbor' },
+        { name: 'Dracy-les-Couches', lat: 46.87, lon: 4.60, pop: 250, type: 'neighbor' },
+        { name: 'Change', lat: 46.87, lon: 4.64, pop: 400, type: 'neighbor' },
+        { name: 'Remigny', lat: 46.90, lon: 4.66, pop: 450, type: 'neighbor' },
+        { name: 'Dezize-les-Maranges', lat: 46.90, lon: 4.63, pop: 200, type: 'neighbor' },
+        { name: 'Cheilly-les-Maranges', lat: 46.895, lon: 4.655, pop: 300, type: 'neighbor' },
+        { name: 'Sampigny-les-Maranges', lat: 46.905, lon: 4.645, pop: 100, type: 'neighbor' },
+        { name: 'St-Jean-de-Trezy', lat: 46.86, lon: 4.58, pop: 200, type: 'neighbor' },
+        { name: 'St-Leger-sur-Dheune', lat: 46.85, lon: 4.63, pop: 1600, type: 'neighbor' },
+        { name: 'Nolay', lat: 46.95, lon: 4.63, pop: 1500, type: 'neighbor' },
+        // Wine villages
+        { name: 'Santenay', lat: 46.91, lon: 4.69, pop: 850, type: 'wine' },
+        { name: 'Chassagne-Montrachet', lat: 46.93, lon: 4.73, pop: 400, type: 'wine' },
+        { name: 'Puligny-Montrachet', lat: 46.95, lon: 4.75, pop: 400, type: 'wine' },
+        { name: 'Meursault', lat: 46.98, lon: 4.77, pop: 1500, type: 'wine' },
+        // Larger towns
+        { name: 'Chagny', lat: 46.91, lon: 4.75, pop: 5800, type: 'city' },
+        { name: 'Beaune', lat: 47.02, lon: 4.84, pop: 22000, type: 'city' },
+        { name: 'Chalon-sur-Saone', lat: 46.78, lon: 4.85, pop: 45000, type: 'city' },
+        { name: 'Le Creusot', lat: 46.80, lon: 4.43, pop: 22000, type: 'city' },
+        { name: 'Autun', lat: 46.95, lon: 4.30, pop: 14000, type: 'city' }
+      ];
+
+      var center = { lat: 46.89, lon: 4.62 };
+
+      // Map bounds
+      var latMin = 46.75, latMax = 47.05;
+      var lonMin = 4.25, lonMax = 4.90;
+
+      var W = 900, H = 520;
+      var pad = { left: 40, right: 40, top: 30, bottom: 30 };
+      var plotW = W - pad.left - pad.right;
+      var plotH = H - pad.top - pad.bottom;
+
+      function xScale(lon) {
+        return pad.left + ((lon - lonMin) / (lonMax - lonMin)) * plotW;
+      }
+      function yScale(lat) {
+        // Invert: higher lat = higher on screen (lower y)
+        return pad.top + plotH - ((lat - latMin) / (latMax - latMin)) * plotH;
+      }
+      function radius(pop, type) {
+        if (type === 'city') return Math.max(7, Math.min(18, Math.sqrt(pop) * 0.09));
+        if (type === 'wine') return 5;
+        return Math.max(4, Math.min(10, Math.sqrt(pop) * 0.15));
+      }
+
+      var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Map showing Saint-Sernin-du-Plain and nearby communes in Burgundy">';
+
+      // Subtle background
+      svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#F0EAE0" rx="8"/>';
+
+      // Grid lines (subtle)
+      for (var glat = 46.80; glat <= 47.05; glat += 0.05) {
+        var gy = yScale(glat);
+        svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (W - pad.right) + '" y2="' + gy + '" stroke="#E0D8CF" stroke-width="0.5"/>';
+        svg += '<text x="' + (pad.left - 4) + '" y="' + (gy + 3) + '" text-anchor="end" font-size="8" fill="#B0A89E" font-family="Inter, sans-serif">' + glat.toFixed(2) + '</text>';
+      }
+      for (var glon = 4.30; glon <= 4.90; glon += 0.10) {
+        var gx = xScale(glon);
+        svg += '<line x1="' + gx + '" y1="' + pad.top + '" x2="' + gx + '" y2="' + (H - pad.bottom) + '" stroke="#E0D8CF" stroke-width="0.5"/>';
+        svg += '<text x="' + gx + '" y="' + (H - pad.bottom + 14) + '" text-anchor="middle" font-size="8" fill="#B0A89E" font-family="Inter, sans-serif">' + glon.toFixed(1) + ' E</text>';
+      }
+
+      // Distance rings from center (5km, 10km, 20km)
+      // 1 degree lat ~ 111 km, 1 degree lon ~ 73 km at this latitude
+      var kmPerDegLat = 111;
+      var kmPerDegLon = 73;
+      var rings = [5, 10, 20];
+      for (var ri = 0; ri < rings.length; ri++) {
+        var km = rings[ri];
+        var rx = (km / kmPerDegLon) / (lonMax - lonMin) * plotW;
+        var ry = (km / kmPerDegLat) / (latMax - latMin) * plotH;
+        var cx = xScale(center.lon);
+        var cy = yScale(center.lat);
+        svg += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" fill="none" stroke="#C7A84E" stroke-width="0.7" stroke-dasharray="4,3" opacity="0.5"/>';
+        svg += '<text x="' + (cx + rx + 3) + '" y="' + (cy - 3) + '" font-size="9" fill="#C7A84E" font-family="Inter, sans-serif" opacity="0.7">' + km + ' km</text>';
+      }
+
+      // Draw connection lines from center to neighbors
+      var cx = xScale(center.lon);
+      var cy = yScale(center.lat);
+      for (var i = 0; i < towns.length; i++) {
+        var t = towns[i];
+        if (t.type === 'neighbor') {
+          var tx = xScale(t.lon);
+          var ty = yScale(t.lat);
+          svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + tx + '" y2="' + ty + '" stroke="#E8D48B" stroke-width="0.8" opacity="0.4"/>';
+        }
+      }
+
+      // Color map
+      var colors = { neighbor: '#7B2D3F', wine: '#3A5A40', city: '#6B6560' };
+
+      // Draw towns (cities first so smaller dots overlay)
+      var order = ['city', 'wine', 'neighbor'];
+      for (var oi = 0; oi < order.length; oi++) {
+        for (var i = 0; i < towns.length; i++) {
+          var t = towns[i];
+          if (t.type !== order[oi]) continue;
+          var tx = xScale(t.lon);
+          var ty = yScale(t.lat);
+          var tr = radius(t.pop, t.type);
+          var col = colors[t.type];
+
+          svg += '<circle cx="' + tx + '" cy="' + ty + '" r="' + tr + '" fill="' + col + '" opacity="0.85" stroke="' + (t.type === 'city' ? '#FAF6F0' : 'none') + '" stroke-width="' + (t.type === 'city' ? '1.5' : '0') + '">';
+          svg += '<title>' + t.name + ' (pop. ~' + t.pop.toLocaleString() + ')</title>';
+          svg += '</circle>';
+
+          // Label positioning
+          var labelX = tx;
+          var labelY = ty - tr - 4;
+          var anchor = 'middle';
+          var fontSize = t.type === 'city' ? '10' : '9';
+          var fontWeight = t.type === 'city' ? '600' : '400';
+          var labelColor = t.type === 'city' ? '#2D2D2D' : '#6B6560';
+
+          // Adjust label positions to avoid overlaps for known clusters
+          if (t.name === 'Cheilly-les-Maranges') { labelX = tx + tr + 3; labelY = ty + 12; anchor = 'start'; }
+          if (t.name === 'Sampigny-les-Maranges') { labelX = tx + tr + 3; labelY = ty - 6; anchor = 'start'; }
+          if (t.name === 'Dezize-les-Maranges') { labelX = tx - tr - 3; labelY = ty + 14; anchor = 'end'; }
+          if (t.name === 'Remigny') { labelX = tx + tr + 3; labelY = ty + 3; anchor = 'start'; }
+          if (t.name === 'Chalon-sur-Saone') { labelY = ty + tr + 14; }
+          if (t.name === 'Beaune') { labelY = ty - tr - 4; }
+          if (t.name === 'Chagny') { labelX = tx + tr + 3; labelY = ty + 4; anchor = 'start'; }
+          if (t.name === 'Couches') { labelY = ty + tr + 14; }
+          if (t.name === 'St-Leger-sur-Dheune') { labelY = ty + tr + 14; }
+          if (t.name === 'Change') { labelY = ty + tr + 14; }
+          if (t.name === 'Paris-l\'Hopital') { labelX = tx - tr - 3; labelY = ty - 2; anchor = 'end'; }
+          if (t.name === 'St-Gervais-sur-Couches') { labelY = ty - tr - 4; }
+          if (t.name === 'Dracy-les-Couches') { labelY = ty + tr + 14; }
+
+          svg += '<text x="' + labelX + '" y="' + labelY + '" text-anchor="' + anchor + '" font-size="' + fontSize + '" fill="' + labelColor + '" font-family="Inter, sans-serif" font-weight="' + fontWeight + '">' + t.name + '</text>';
+        }
+      }
+
+      // Draw Saint-Sernin-du-Plain (center, on top)
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="10" fill="#C7A84E" stroke="#5B1A28" stroke-width="2.5">';
+      svg += '<title>Saint-Sernin-du-Plain (pop. 613)</title>';
+      svg += '</circle>';
+      svg += '<text x="' + cx + '" y="' + (cy - 16) + '" text-anchor="middle" font-size="12" fill="#5B1A28" font-family="\'Cormorant Garamond\', serif" font-weight="700">Saint-Sernin-du-Plain</text>';
+
+      // Compass rose (simple N arrow)
+      var compassX = W - pad.right - 25;
+      var compassY = pad.top + 30;
+      svg += '<line x1="' + compassX + '" y1="' + (compassY + 15) + '" x2="' + compassX + '" y2="' + (compassY - 15) + '" stroke="#8B7355" stroke-width="1.5"/>';
+      svg += '<polygon points="' + compassX + ',' + (compassY - 15) + ' ' + (compassX - 5) + ',' + (compassY - 5) + ' ' + (compassX + 5) + ',' + (compassY - 5) + '" fill="#8B7355"/>';
+      svg += '<text x="' + compassX + '" y="' + (compassY - 20) + '" text-anchor="middle" font-size="11" fill="#8B7355" font-family="Inter, sans-serif" font-weight="600">N</text>';
+
+      svg += '</svg>';
+      document.getElementById('region-map').innerHTML = svg;
+    }
+
+    // --- Init ---
+    document.addEventListener('DOMContentLoaded', function() {
+      renderDonut('land-use-donut', [
+        { pct: 83, color: '#C7A84E' },
+        { pct: 13, color: '#3A5A40' },
+        { pct: 4, color: '#7B2D3F' }
+      ], 160);
+
+      renderDonut('housing-donut', [
+        { pct: 60.8, color: '#7B2D3F' },
+        { pct: 19.7, color: '#C7A84E' },
+        { pct: 19.7, color: '#6B6560' }
+      ], 160);
+
+      renderPopulationChart();
+      renderRegionMap();
+    });
+  </script>
+
+</body>
+</html>
