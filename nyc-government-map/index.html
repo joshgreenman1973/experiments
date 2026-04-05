@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Government Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f172a;
+  --bg-panel: #1e293b;
+  --bg-panel-hover: #334155;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-muted: #64748b;
+  --border: #334155;
+  --accent: #38bdf8;
+  --official: #f59e0b;
+  --elected: #3b82f6;
+  --department: #14b8a6;
+  --authority: #a855f7;
+  --board: #f97316;
+  --other-color: #6b7280;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+canvas {
+  display: block;
+  cursor: grab;
+}
+canvas:active { cursor: grabbing; }
+
+/* Header */
+#header {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0) 100%);
+  pointer-events: none;
+  z-index: 10;
+}
+#header > * { pointer-events: auto; }
+#header h1 {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -0.02em;
+}
+#header .subtitle {
+  font-size: 12px; color: var(--text-dim);
+  margin-top: 2px;
+}
+#header-right {
+  display: flex; gap: 8px; align-items: center;
+}
+
+/* Search */
+#search-container {
+  position: relative;
+}
+#search-input {
+  width: 240px; padding: 8px 12px 8px 32px;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-family: inherit; font-size: 13px;
+  outline: none; transition: border-color 0.2s;
+}
+#search-input:focus { border-color: var(--accent); }
+#search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-size: 14px; pointer-events: none;
+}
+#search-results {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 8px; margin-top: 4px;
+  max-height: 300px; overflow-y: auto;
+  display: none; z-index: 100;
+}
+#search-results.visible { display: block; }
+.search-result {
+  padding: 8px 12px; cursor: pointer;
+  font-size: 13px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.search-result:last-child { border-bottom: none; }
+.search-result:hover { background: var(--bg-panel-hover); }
+.search-result .dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.search-result .name { font-weight: 500; }
+.search-result .type { color: var(--text-muted); font-size: 11px; margin-left: auto; }
+
+/* Toolbar */
+#toolbar {
+  position: fixed; top: 60px; right: 20px;
+  display: flex; gap: 6px; z-index: 10;
+}
+.toolbar-btn {
+  padding: 6px 12px; background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: inherit; font-size: 12px;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 4px;
+}
+.toolbar-btn:hover { background: var(--bg-panel-hover); }
+
+/* Tooltip */
+#tooltip {
+  position: fixed; pointer-events: none;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: 12px; font-weight: 500;
+  z-index: 20; display: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+#tooltip .tooltip-type {
+  font-size: 10px; color: var(--text-muted);
+  font-weight: 400; margin-top: 2px;
+}
+
+/* Legend */
+#legend {
+  position: fixed; bottom: 20px; left: 20px;
+  background: rgba(30,41,59,0.9); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 18px;
+  z-index: 10; backdrop-filter: blur(8px);
+  max-width: 520px;
+}
+#legend h3 {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+#legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 16px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-dim);
+  cursor: pointer; padding: 2px 4px; border-radius: 4px;
+  transition: background 0.15s;
+}
+.legend-item:hover { background: var(--bg-panel-hover); color: var(--text); }
+.legend-shape {
+  width: 10px; height: 10px; flex-shrink: 0;
+}
+
+/* Detail panel */
+#detail-panel {
+  position: fixed; top: 0; right: -380px; bottom: 0;
+  width: 380px; background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  z-index: 30; transition: right 0.3s ease;
+  overflow-y: auto; padding: 0;
+}
+#detail-panel.open { right: 0; }
+
+#detail-close {
+  position: absolute; top: 12px; right: 12px;
+  background: none; border: none; color: var(--text-muted);
+  font-size: 20px; cursor: pointer; padding: 4px 8px;
+  border-radius: 4px; line-height: 1;
+}
+#detail-close:hover { color: var(--text); background: var(--bg-panel-hover); }
+
+#detail-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+#detail-name {
+  font-size: 20px; font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.3;
+  padding-right: 30px;
+}
+#detail-badge {
+  display: inline-block; margin-top: 8px;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+#detail-body { padding: 16px 20px; }
+#detail-body section {
+  margin-bottom: 16px;
+}
+#detail-body section h4 {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+#detail-body .holder {
+  font-size: 14px; font-weight: 500;
+}
+#detail-body .description {
+  font-size: 13px; line-height: 1.5;
+  color: var(--text-dim);
+}
+.relation-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin: 4px 0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; font-size: 13px;
+  transition: background 0.15s;
+}
+.relation-link:hover { background: var(--bg-panel-hover); }
+.relation-link .rel-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.relation-link .rel-type {
+  font-size: 10px; color: var(--text-muted);
+  margin-left: auto; text-transform: uppercase;
+}
+#detail-url {
+  display: inline-block; margin-top: 8px;
+  color: var(--accent); font-size: 13px;
+  text-decoration: none;
+}
+#detail-url:hover { text-decoration: underline; }
+
+/* Hint bar */
+#hint {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px; color: var(--text-muted);
+  z-index: 5; pointer-events: none;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="header">
+  <div>
+    <h1>NYC Government Map</h1>
+    <div class="subtitle">Explore the organization and relationships within New York City government</div>
+  </div>
+  <div id="header-right">
+    <div id="search-container">
+      <span id="search-icon">&#x1F50D;</span>
+      <input type="text" id="search-input" placeholder="Search agencies, officials...">
+      <div id="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toolbar">
+  <button class="toolbar-btn" id="btn-recenter" title="Re-center on Mayor">&#x21BA; Reset</button>
+  <button class="toolbar-btn" id="btn-random" title="Random entity">&#x1F3B2;</button>
+  <button class="toolbar-btn" id="btn-legend-toggle" title="Toggle legend">Legend</button>
+</div>
+
+<div id="tooltip">
+  <div class="tooltip-name"></div>
+  <div class="tooltip-type"></div>
+</div>
+
+<div id="legend">
+  <h3>Entity types</h3>
+  <div id="legend-grid"></div>
+</div>
+
+<div id="detail-panel">
+  <button id="detail-close">&times;</button>
+  <div id="detail-header">
+    <div id="detail-name"></div>
+    <span id="detail-badge"></span>
+  </div>
+  <div id="detail-body"></div>
+</div>
+
+<div id="hint">Hover to explore &middot; Click to select &middot; Scroll to zoom</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const nodes = [
+  // Ring 0 - Mayor
+  { id: "mayor", name: "Mayor", subtitle: "Eric Adams", category: "official", type: "mayor", ring: 0, branch: "executive", description: "The chief executive of the City of New York, responsible for the administration of all city agencies and the enforcement of city, state, and federal laws within the city.", parentId: null, tags: ["executive", "citywide"] },
+
+  // Ring 1 - Deputy Mayors
+  { id: "first-deputy-mayor", name: "First Deputy Mayor", subtitle: "", category: "official", type: "first-deputy-mayor", ring: 1, branch: "executive", description: "The second-highest ranking official in city government, serving as acting mayor in the mayor's absence and overseeing cross-agency coordination.", parentId: "mayor", tags: ["executive"] },
+  { id: "dm-public-safety", name: "Deputy Mayor for Public Safety", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Oversees the city's public safety agencies, including police, fire, correction, and emergency management.", parentId: "mayor", tags: ["executive", "public safety"] },
+  { id: "dm-health", name: "Deputy Mayor for Health and Human Services", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Coordinates health, social services, and human services agencies to improve outcomes for vulnerable New Yorkers.", parentId: "mayor", tags: ["executive", "health"] },
+  { id: "dm-housing", name: "Deputy Mayor for Housing, Economic Development and Workforce", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Oversees housing policy, economic development, workforce development, and related agencies.", parentId: "mayor", tags: ["executive", "housing", "economic development"] },
+  { id: "dm-operations", name: "Deputy Mayor for Operations", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Manages the city's operational agencies including transportation, sanitation, environmental protection, and infrastructure.", parentId: "mayor", tags: ["executive", "operations"] },
+  { id: "dm-strategic", name: "Deputy Mayor for Strategic Initiatives", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Leads strategic planning, budget, and cross-cutting policy initiatives for the administration.", parentId: "mayor", tags: ["executive", "strategy"] },
+  { id: "dm-communications", name: "Deputy Mayor for Communications", subtitle: "", category: "official", type: "deputy-mayor", ring: 1, branch: "executive", description: "Oversees the city's public communications, media relations, and community engagement.", parentId: "mayor", tags: ["executive", "communications"] },
+
+  // Ring 1 - Independently Elected
+  { id: "comptroller", name: "Comptroller", subtitle: "Brad Lander", category: "elected", type: "comptroller", ring: 1, branch: "independent", description: "The city's chief fiscal officer, responsible for auditing city agencies, managing pension funds, reviewing city contracts, and issuing reports on the city's financial health.", parentId: null, tags: ["fiscal", "independent", "citywide"] },
+  { id: "public-advocate", name: "Public Advocate", subtitle: "Jumaane Williams", category: "elected", type: "public-advocate", ring: 1, branch: "independent", description: "A citywide elected watchdog who investigates citizen complaints, monitors agency performance, and serves as next in line to the mayor.", parentId: null, tags: ["oversight", "independent", "citywide"] },
+  { id: "city-council", name: "City Council", subtitle: "51 members", category: "elected", type: "council-speaker", ring: 1, branch: "legislative", description: "The legislative body of New York City, consisting of 51 members representing districts across the five boroughs. Passes local laws, approves the city budget, and oversees city agencies.", parentId: null, tags: ["legislative", "citywide"] },
+
+  // Ring 2 - Public Safety agencies
+  { id: "nypd", name: "New York City Police Department", subtitle: "NYPD", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The largest municipal police force in the United States, responsible for law enforcement, public safety, and crime prevention across the five boroughs.", parentId: "dm-public-safety", tags: ["public safety", "law enforcement"] },
+  { id: "fdny", name: "Fire Department", subtitle: "FDNY", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Provides fire suppression, emergency medical services, and technical rescue operations. Also responsible for fire prevention and investigation.", parentId: "dm-public-safety", tags: ["public safety", "emergency services"] },
+  { id: "doc", name: "Department of Correction", subtitle: "DOC", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Operates the city's jail system, including facilities on Rikers Island and borough-based jails, housing individuals awaiting trial or serving short sentences.", parentId: "dm-public-safety", tags: ["public safety", "correction"] },
+  { id: "nycem", name: "NYC Emergency Management", subtitle: "NYCEM", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Coordinates the city's emergency planning, preparedness, response, and recovery efforts for natural disasters, severe weather, and other emergencies.", parentId: "dm-public-safety", tags: ["public safety", "emergency management"] },
+  { id: "probation", name: "Department of Probation", subtitle: "DOP", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Supervises people on probation, provides programming and services to reduce recidivism, and promotes community safety through neighborhood-based supervision.", parentId: "dm-public-safety", tags: ["public safety", "criminal justice"] },
+  { id: "mocj", name: "Mayor's Office of Criminal Justice", subtitle: "MOCJ", category: "department", type: "office", ring: 2, branch: "executive", description: "Advises the mayor on criminal justice policy and coordinates among law enforcement, courts, district attorneys, public defense, and community organizations.", parentId: "dm-public-safety", tags: ["public safety", "criminal justice", "policy"] },
+
+  // Ring 2 - Health and Human Services agencies
+  { id: "dohmh", name: "Department of Health and Mental Hygiene", subtitle: "DOHMH", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Protects and promotes public health through disease surveillance, environmental health inspections, health promotion, and mental health and substance use services.", parentId: "dm-health", tags: ["health", "public health"] },
+  { id: "acs", name: "Administration for Children's Services", subtitle: "ACS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Protects children from abuse and neglect, provides preventive services to families, and oversees the city's foster care and juvenile justice systems.", parentId: "dm-health", tags: ["health", "children", "social services"] },
+  { id: "dss", name: "Department of Social Services", subtitle: "DSS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The umbrella agency overseeing the Human Resources Administration and Department of Homeless Services, providing public benefits, employment support, and shelter services.", parentId: "dm-health", tags: ["social services"] },
+  { id: "hra", name: "Human Resources Administration", subtitle: "HRA", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Administers public assistance programs including SNAP, cash assistance, Medicaid, and employment services for low-income New Yorkers.", parentId: "dss", tags: ["social services", "public assistance"] },
+  { id: "dhs", name: "Department of Homeless Services", subtitle: "DHS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Operates the city's shelter system and provides outreach, prevention, and housing placement services to people experiencing homelessness.", parentId: "dss", tags: ["social services", "homelessness"] },
+  { id: "dfta", name: "Department for the Aging", subtitle: "DFTA", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Provides services and advocacy for older New Yorkers, including senior centers, home-delivered meals, case management, and caregiver support.", parentId: "dm-health", tags: ["health", "aging", "social services"] },
+  { id: "dycd", name: "Department of Youth and Community Development", subtitle: "DYCD", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Funds and oversees youth development programs, after-school activities, summer jobs, community development, and immigrant services.", parentId: "dm-health", tags: ["youth", "community development"] },
+  { id: "ocme", name: "Office of the Chief Medical Examiner", subtitle: "OCME", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Investigates deaths that are sudden, violent, or suspicious, and provides forensic science services to the criminal justice system.", parentId: "dm-health", tags: ["health", "forensics"] },
+  { id: "veterans", name: "Department of Veterans' Services", subtitle: "DVS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Connects veterans and their families with benefits, services, and programs at the city, state, and federal levels.", parentId: "dm-health", tags: ["veterans", "social services"] },
+
+  // Ring 2 - Housing, Economic Development and Workforce agencies
+  { id: "hpd", name: "Department of Housing Preservation and Development", subtitle: "HPD", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The nation's largest municipal housing agency, responsible for affordable housing development, housing code enforcement, and preservation of the city's housing stock.", parentId: "dm-housing", tags: ["housing", "development"] },
+  { id: "sbs", name: "Department of Small Business Services", subtitle: "SBS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Supports small businesses and employers through business education, financial assistance, navigating regulations, and workforce development programs.", parentId: "dm-housing", tags: ["economic development", "small business"] },
+  { id: "dcla", name: "Department of Cultural Affairs", subtitle: "DCLA", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The largest municipal funder of culture in the United States, supporting nonprofit arts and cultural organizations across the five boroughs.", parentId: "dm-housing", tags: ["culture", "arts"] },
+  { id: "moia", name: "Mayor's Office of Immigrant Affairs", subtitle: "MOIA", category: "department", type: "office", ring: 2, branch: "executive", description: "Promotes the well-being of immigrant communities by recommending policies and programs, and connecting immigrants to city services regardless of status.", parentId: "dm-housing", tags: ["immigration", "policy"] },
+  { id: "parks", name: "Department of Parks and Recreation", subtitle: "NYC Parks", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Maintains over 30,000 acres of parkland, operates recreation centers, pools, playgrounds, and manages the city's urban forest and natural areas.", parentId: "dm-housing", tags: ["parks", "recreation", "open space"] },
+  { id: "hdc", name: "Housing Development Corporation", subtitle: "HDC", category: "authority", type: "public-authority", ring: 2, branch: "executive", description: "The nation's largest municipal housing finance agency, issuing bonds to finance affordable housing development and preservation.", parentId: "dm-housing", tags: ["housing", "finance"] },
+
+  // Ring 2 - Operations agencies
+  { id: "dot", name: "Department of Transportation", subtitle: "DOT", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Manages the city's transportation infrastructure, including streets, bridges, traffic signals, bike lanes, ferries, and pedestrian safety programs.", parentId: "dm-operations", tags: ["transportation", "infrastructure"] },
+  { id: "dep", name: "Department of Environmental Protection", subtitle: "DEP", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Manages the city's water supply, wastewater treatment, and stormwater systems, and enforces environmental regulations including air quality and noise control.", parentId: "dm-operations", tags: ["environment", "water", "infrastructure"] },
+  { id: "dsny", name: "Department of Sanitation", subtitle: "DSNY", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Collects more than 10,000 tons of residential and institutional refuse daily, clears snow from city streets, and enforces recycling and waste reduction programs.", parentId: "dm-operations", tags: ["sanitation", "waste", "infrastructure"] },
+  { id: "dob", name: "Department of Buildings", subtitle: "DOB", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Regulates the construction, alteration, and demolition of buildings, enforces building codes, and issues permits and certificates of occupancy.", parentId: "dm-operations", tags: ["buildings", "construction", "regulation"] },
+  { id: "ddc", name: "Department of Design and Construction", subtitle: "DDC", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Manages the design and construction of city facilities and infrastructure, including schools, libraries, firehouses, courthouses, and streetscapes.", parentId: "dm-operations", tags: ["construction", "capital projects"] },
+  { id: "dcas", name: "Department of Citywide Administrative Services", subtitle: "DCAS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Provides shared services to city agencies including human resources, civil service exams, fleet management, building management, and procurement.", parentId: "dm-operations", tags: ["administration", "civil service"] },
+  { id: "oti", name: "Office of Technology and Innovation", subtitle: "OTI", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Manages the city's technology infrastructure, cybersecurity, broadband expansion, and digital services for residents and agencies.", parentId: "dm-operations", tags: ["technology", "digital"] },
+  { id: "tlc", name: "Taxi and Limousine Commission", subtitle: "TLC", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Licenses and regulates for-hire vehicles including yellow taxis, green cabs, black cars, livery vehicles, and app-based services like Uber and Lyft.", parentId: "dm-operations", tags: ["transportation", "regulation"] },
+
+  // Ring 2 - Strategic Initiatives agencies
+  { id: "omb", name: "Office of Management and Budget", subtitle: "OMB", category: "department", type: "office", ring: 2, branch: "executive", description: "Prepares the city's annual budget, monitors agency spending, and provides fiscal analysis to support the mayor's policy priorities.", parentId: "dm-strategic", tags: ["budget", "fiscal", "management"] },
+  { id: "mocs", name: "Mayor's Office of Contract Services", subtitle: "MOCS", category: "department", type: "office", ring: 2, branch: "executive", description: "Oversees the city's procurement process, ensuring that contracts are awarded fairly, efficiently, and in compliance with applicable rules.", parentId: "dm-strategic", tags: ["procurement", "contracts"] },
+  { id: "dof", name: "Department of Finance", subtitle: "DOF", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Collects city revenues including property taxes, business taxes, and fines, and administers property valuation and tax exemption programs.", parentId: "dm-strategic", tags: ["finance", "revenue", "taxes"] },
+  { id: "law", name: "Law Department", subtitle: "NYC Law", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Serves as legal counsel to the mayor, city agencies, and the City Council, and represents the city in all litigation matters.", parentId: "dm-strategic", tags: ["legal"] },
+  { id: "doi", name: "Department of Investigation", subtitle: "DOI", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The city's inspector general, responsible for investigating fraud, corruption, and misconduct involving city employees, contractors, and those doing business with the city.", parentId: "dm-strategic", tags: ["investigation", "oversight", "anti-corruption"] },
+
+  // Ring 2 - Under First Deputy Mayor / Mayor's Office
+  { id: "doe", name: "Department of Education", subtitle: "DOE", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "The largest school system in the United States, serving approximately 1 million students in over 1,800 schools across the five boroughs.", parentId: "first-deputy-mayor", tags: ["education"] },
+  { id: "dcp", name: "Department of City Planning", subtitle: "DCP", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Shapes the city's physical development through land use and zoning policy, environmental review, and long-range planning for neighborhoods and infrastructure.", parentId: "first-deputy-mayor", tags: ["planning", "zoning", "land use"] },
+  { id: "oath", name: "Office of Administrative Trials and Hearings", subtitle: "OATH", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "An independent tribunal that conducts administrative hearings for city agencies, including environmental control board violations and employee disciplinary cases.", parentId: "first-deputy-mayor", tags: ["administrative law", "hearings"] },
+  { id: "olr", name: "Office of Labor Relations", subtitle: "OLR", category: "department", type: "office", ring: 2, branch: "executive", description: "Negotiates collective bargaining agreements with municipal labor unions, administers employee health benefits, and manages labor-management relations.", parentId: "first-deputy-mayor", tags: ["labor", "unions"] },
+  { id: "doris", name: "Department of Records and Information Services", subtitle: "DORIS", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Preserves and provides access to the city's historical and municipal records, including the Municipal Archives and the City Hall Library.", parentId: "first-deputy-mayor", tags: ["records", "archives"] },
+  { id: "cchr", name: "Commission on Human Rights", subtitle: "CCHR", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Enforces the city's Human Rights Law, one of the most comprehensive civil rights laws in the nation, and investigates complaints of discrimination.", parentId: "first-deputy-mayor", tags: ["civil rights", "discrimination"] },
+  { id: "civic-engagement", name: "Civic Engagement Commission", subtitle: "CEC", category: "board", type: "independent-board", ring: 2, branch: "executive", description: "Established by voter referendum in 2018 to enhance civic participation through citywide participatory budgeting, poll site language assistance, and community engagement.", parentId: "mayor", tags: ["civic engagement", "democracy"] },
+  { id: "dcwp", name: "Department of Consumer and Worker Protection", subtitle: "DCWP", category: "department", type: "mayoral-agency", ring: 2, branch: "executive", description: "Licenses businesses, enforces consumer protection laws, and protects workers' rights including paid sick leave, fair scheduling, and wage enforcement.", parentId: "first-deputy-mayor", tags: ["consumer protection", "worker rights"] },
+
+  // Ring 2 - Borough Presidents
+  { id: "bp-manhattan", name: "Manhattan Borough President", subtitle: "Mark Levine", category: "elected", type: "borough-president", ring: 2, branch: "independent", description: "Elected executive of Manhattan, with responsibilities including land use review, budget recommendations, and appointment of community board members.", parentId: null, tags: ["borough", "Manhattan"] },
+  { id: "bp-brooklyn", name: "Brooklyn Borough President", subtitle: "Antonio Reynoso", category: "elected", type: "borough-president", ring: 2, branch: "independent", description: "Elected executive of Brooklyn, the city's most populous borough, with responsibilities including land use review and community board appointments.", parentId: null, tags: ["borough", "Brooklyn"] },
+  { id: "bp-bronx", name: "Bronx Borough President", subtitle: "Vanessa Gibson", category: "elected", type: "borough-president", ring: 2, branch: "independent", description: "Elected executive of the Bronx, with responsibilities including land use review, budget recommendations, and appointment of community board members.", parentId: null, tags: ["borough", "Bronx"] },
+  { id: "bp-queens", name: "Queens Borough President", subtitle: "Donovan Richards", category: "elected", type: "borough-president", ring: 2, branch: "independent", description: "Elected executive of Queens, the city's largest borough by area, with responsibilities including land use review and community board appointments.", parentId: null, tags: ["borough", "Queens"] },
+  { id: "bp-staten-island", name: "Staten Island Borough President", subtitle: "Vito Fossella", category: "elected", type: "borough-president", ring: 2, branch: "independent", description: "Elected executive of Staten Island, with responsibilities including land use review, budget recommendations, and appointment of community board members.", parentId: null, tags: ["borough", "Staten Island"] },
+
+  // Ring 2 - District Attorneys
+  { id: "da-manhattan", name: "Manhattan District Attorney", subtitle: "Alvin Bragg", category: "elected", type: "district-attorney", ring: 2, branch: "independent", description: "The elected chief prosecutor for New York County (Manhattan), responsible for investigating and prosecuting criminal cases.", parentId: null, tags: ["criminal justice", "prosecution", "Manhattan"] },
+  { id: "da-brooklyn", name: "Brooklyn District Attorney", subtitle: "Eric Gonzalez", category: "elected", type: "district-attorney", ring: 2, branch: "independent", description: "The elected chief prosecutor for Kings County (Brooklyn), responsible for investigating and prosecuting criminal cases.", parentId: null, tags: ["criminal justice", "prosecution", "Brooklyn"] },
+  { id: "da-bronx", name: "Bronx District Attorney", subtitle: "Darcel Clark", category: "elected", type: "district-attorney", ring: 2, branch: "independent", description: "The elected chief prosecutor for Bronx County, responsible for investigating and prosecuting criminal cases.", parentId: null, tags: ["criminal justice", "prosecution", "Bronx"] },
+  { id: "da-queens", name: "Queens District Attorney", subtitle: "Melinda Katz", category: "elected", type: "district-attorney", ring: 2, branch: "independent", description: "The elected chief prosecutor for Queens County, responsible for investigating and prosecuting criminal cases.", parentId: null, tags: ["criminal justice", "prosecution", "Queens"] },
+  { id: "da-staten-island", name: "Staten Island District Attorney", subtitle: "Michael McMahon", category: "elected", type: "district-attorney", ring: 2, branch: "independent", description: "The elected chief prosecutor for Richmond County (Staten Island), responsible for investigating and prosecuting criminal cases.", parentId: null, tags: ["criminal justice", "prosecution", "Staten Island"] },
+
+  // Ring 2 - Public Authorities
+  { id: "nycha", name: "NYC Housing Authority", subtitle: "NYCHA", category: "authority", type: "public-authority", ring: 2, branch: "executive", description: "The largest public housing authority in North America, providing homes for approximately 339,000 residents in 335 developments across the city.", parentId: "mayor", tags: ["housing", "public housing"] },
+  { id: "hhc", name: "NYC Health + Hospitals", subtitle: "H+H", category: "authority", type: "public-corporation", ring: 2, branch: "executive", description: "The largest public health care system in the United States, operating 11 acute care hospitals, five long-term care facilities, and more than 70 community health centers.", parentId: "mayor", tags: ["health", "hospitals"] },
+  { id: "sca", name: "School Construction Authority", subtitle: "SCA", category: "authority", type: "public-authority", ring: 2, branch: "executive", description: "Designs and constructs new public school buildings and manages capital improvements to existing school facilities across the five boroughs.", parentId: "doe", tags: ["education", "construction"] },
+  { id: "edc", name: "NYC Economic Development Corporation", subtitle: "NYCEDC", category: "authority", type: "public-corporation", ring: 2, branch: "executive", description: "A nonprofit corporation that manages city-owned properties, administers tax incentive programs, and drives economic growth across the five boroughs.", parentId: "dm-housing", tags: ["economic development"] },
+
+  // Ring 2/3 - Independent Bodies
+  { id: "ccrb", name: "Civilian Complaint Review Board", subtitle: "CCRB", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "An independent agency that investigates, mediates, and prosecutes complaints of excessive force, abuse of authority, discourtesy, and offensive language by NYPD officers.", parentId: null, tags: ["oversight", "police", "accountability"] },
+  { id: "cfb", name: "Campaign Finance Board", subtitle: "CFB", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "Administers the city's public campaign finance matching funds program, enforces contribution and spending limits, and publishes the official NYC Voter Guide.", parentId: null, tags: ["elections", "campaign finance", "democracy"] },
+  { id: "coib", name: "Conflicts of Interest Board", subtitle: "COIB", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "Administers and enforces the city's conflicts of interest law, provides ethics guidance to city employees, and conducts financial disclosure reviews.", parentId: null, tags: ["ethics", "oversight"] },
+  { id: "bsa", name: "Board of Standards and Appeals", subtitle: "BSA", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "An independent board that hears appeals of agency decisions regarding building and zoning regulations and grants variances and special permits.", parentId: null, tags: ["zoning", "appeals"] },
+  { id: "lpc", name: "Landmarks Preservation Commission", subtitle: "LPC", category: "board", type: "independent-board", ring: 2, branch: "executive", description: "Designates and regulates landmarks and historic districts, reviewing proposed changes to designated properties to preserve the city's architectural heritage.", parentId: "mayor", tags: ["landmarks", "historic preservation"] },
+  { id: "ibo", name: "Independent Budget Office", subtitle: "IBO", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "A nonpartisan public agency that provides objective analysis of the city's budget, tax revenues, and public policy proposals independent of the mayor and City Council.", parentId: null, tags: ["budget", "fiscal analysis", "independent"] },
+  { id: "boe", name: "Board of Elections", subtitle: "BOE", category: "board", type: "independent-board", ring: 2, branch: "independent", description: "Administers elections in New York City, including voter registration, poll site management, ballot design, and vote counting. Governed by commissioners from each borough.", parentId: null, tags: ["elections", "voting"] },
+  { id: "bic", name: "Business Integrity Commission", subtitle: "BIC", category: "board", type: "independent-board", ring: 2, branch: "executive", description: "Regulates the trade waste hauling and wholesale food market industries to prevent corruption and organized crime activity.", parentId: "mayor", tags: ["regulation", "integrity"] },
+
+  // Ring 3 - Community Boards (grouped)
+  { id: "community-boards", name: "Community Boards", subtitle: "59 boards across 5 boroughs", category: "board", type: "community-board", ring: 3, branch: "independent", description: "59 local representative bodies that advise on land use, zoning, city budget priorities, and municipal services within their districts. Members are appointed by borough presidents and City Council members.", parentId: null, tags: ["community", "land use", "local"] },
+
+  // Additional agencies
+  { id: "fisa", name: "Financial Information Services Agency", subtitle: "FISA", category: "department", type: "mayoral-agency", ring: 3, branch: "executive", description: "Provides information technology services for the city's financial management systems, including payroll and accounting.", parentId: "dof", tags: ["technology", "finance"] },
+  { id: "opa", name: "Office of Payroll Administration", subtitle: "OPA", category: "department", type: "office", ring: 3, branch: "executive", description: "Administers payroll for city employees, managing pay distribution, tax withholding, and employee self-service systems.", parentId: "dcas", tags: ["payroll", "administration"] },
+  { id: "mocej", name: "Mayor's Office of Climate and Environmental Justice", subtitle: "MOCEJ", category: "department", type: "office", ring: 2, branch: "executive", description: "Coordinates citywide climate policy, sustainability initiatives, environmental justice programs, and the city's response to climate change.", parentId: "dm-operations", tags: ["climate", "environment", "sustainability"] },
+  { id: "mome", name: "Mayor's Office of Media and Entertainment", subtitle: "MOME", category: "department", type: "office", ring: 2, branch: "executive", description: "Supports the city's media and entertainment industries, including film and television production, music, advertising, digital content, and publishing.", parentId: "dm-communications", tags: ["media", "entertainment", "film"] },
+  { id: "mopd", name: "Mayor's Office for People with Disabilities", subtitle: "MOPD", category: "department", type: "office", ring: 2, branch: "executive", description: "Ensures that city programs, services, and facilities are accessible to people with disabilities, and advocates for disability rights.", parentId: "dm-health", tags: ["disability", "accessibility"] },
+  { id: "endgbv", name: "Mayor's Office to End Domestic and Gender-Based Violence", subtitle: "ENDGBV", category: "department", type: "office", ring: 2, branch: "executive", description: "Coordinates the city's response to domestic violence, gender-based violence, and human trafficking through policy, programs, and partnerships.", parentId: "dm-health", tags: ["domestic violence", "gender-based violence"] },
+  { id: "m-ydp", name: "Mayor's Office of Youth Employment and Development", subtitle: "", category: "department", type: "office", ring: 3, branch: "executive", description: "Coordinates youth employment programs and workforce development initiatives for young New Yorkers.", parentId: "dycd", tags: ["youth", "employment"] },
+];
+
+// Build edges from parentId relationships
+const edges = [];
+nodes.forEach(node => {
+  if (node.parentId) {
+    edges.push({ source: node.parentId, target: node.id, type: "oversees" });
+  }
+});
+
+// ============================================================
+// CATEGORY CONFIG
+// ============================================================
+const categoryConfig = {
+  official:   { label: "Official",  color: "#f59e0b", shape: "circle" },
+  elected:    { label: "Elected",   color: "#3b82f6", shape: "circle" },
+  department: { label: "Agency",    color: "#14b8a6", shape: "roundedRect" },
+  authority:  { label: "Authority", color: "#a855f7", shape: "diamond" },
+  board:      { label: "Board",     color: "#f97316", shape: "hexagon" },
+  other:      { label: "Other",     color: "#6b7280", shape: "triangle" },
+};
+
+const typeLabels = {
+  "mayor": "Mayor",
+  "first-deputy-mayor": "First Deputy Mayor",
+  "deputy-mayor": "Deputy Mayor",
+  "comptroller": "Comptroller",
+  "public-advocate": "Public Advocate",
+  "council-speaker": "City Council",
+  "borough-president": "Borough President",
+  "district-attorney": "District Attorney",
+  "mayoral-agency": "Mayoral Agency",
+  "office": "Mayor's Office",
+  "public-authority": "Public Authority",
+  "public-corporation": "Public Corporation",
+  "independent-board": "Independent Board",
+  "community-board": "Community Board",
+};
+
+// ============================================================
+// LAYOUT
+// ============================================================
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const hitCanvas = document.createElement("canvas");
+const hitCtx = hitCanvas.getContext("2d", { willReadFrequently: true });
+
+let W, H, cx, cy;
+const ringRadii = [0, 120, 300, 460, 580];
+const nodeSize = 10;
+let currentTransform = d3.zoomIdentity;
+let selectedNode = null;
+let hoveredNode = null;
+
+// Node map for quick lookup
+const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+// Build children map
+const childrenMap = new Map();
+nodes.forEach(n => {
+  if (n.parentId && nodeMap.has(n.parentId)) {
+    if (!childrenMap.has(n.parentId)) childrenMap.set(n.parentId, []);
+    childrenMap.get(n.parentId).push(n.id);
+  }
+});
+
+// Assign hit colors
+nodes.forEach((n, i) => {
+  const r = (i + 1) >> 16 & 255;
+  const g = (i + 1) >> 8 & 255;
+  const b = (i + 1) & 255;
+  n.hitColor = `rgb(${r},${g},${b})`;
+  n.hitKey = (r << 16) | (g << 8) | b;
+});
+const hitKeyToNode = new Map(nodes.map(n => [n.hitKey, n]));
+
+function computeLayout() {
+  // Group nodes by ring
+  const rings = [[], [], [], [], []];
+  nodes.forEach(n => {
+    const r = Math.min(n.ring, 4);
+    rings[r].push(n);
+  });
+
+  // Ring 0: center
+  rings[0].forEach(n => { n.x = 0; n.y = 0; });
+
+  // For rings 1+, group by branch and parent for angular coherence
+  for (let r = 1; r <= 4; r++) {
+    const ring = rings[r];
+    if (!ring.length) continue;
+
+    // Sort: executive first, then independent, then legislative
+    // Within executive, group by parentId
+    const branchOrder = { executive: 0, independent: 1, legislative: 2 };
+    ring.sort((a, b) => {
+      const bo = (branchOrder[a.branch] || 0) - (branchOrder[b.branch] || 0);
+      if (bo !== 0) return bo;
+      // Group by parent
+      const pa = a.parentId || "";
+      const pb = b.parentId || "";
+      if (pa !== pb) return pa.localeCompare(pb);
+      return a.name.localeCompare(b.name);
+    });
+
+    const count = ring.length;
+    const angleStep = (2 * Math.PI) / count;
+    const startAngle = -Math.PI / 2; // top
+
+    ring.forEach((n, i) => {
+      const angle = startAngle + i * angleStep;
+      n.x = Math.cos(angle) * ringRadii[r];
+      n.y = Math.sin(angle) * ringRadii[r];
+      n.angle = angle;
+    });
+  }
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  hitCanvas.width = W * dpr;
+  hitCanvas.height = H * dpr;
+  hitCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  cx = W / 2;
+  cy = H / 2;
+}
+
+function drawShape(c, shape, x, y, size, color, stroke, strokeWidth) {
+  c.beginPath();
+  switch (shape) {
+    case "circle":
+      c.arc(x, y, size, 0, 2 * Math.PI);
+      break;
+    case "roundedRect": {
+      const s = size * 1.6;
+      const r = s * 0.25;
+      c.moveTo(x - s/2 + r, y - s/2);
+      c.lineTo(x + s/2 - r, y - s/2);
+      c.quadraticCurveTo(x + s/2, y - s/2, x + s/2, y - s/2 + r);
+      c.lineTo(x + s/2, y + s/2 - r);
+      c.quadraticCurveTo(x + s/2, y + s/2, x + s/2 - r, y + s/2);
+      c.lineTo(x - s/2 + r, y + s/2);
+      c.quadraticCurveTo(x - s/2, y + s/2, x - s/2, y + s/2 - r);
+      c.lineTo(x - s/2, y - s/2 + r);
+      c.quadraticCurveTo(x - s/2, y - s/2, x - s/2 + r, y - s/2);
+      break;
+    }
+    case "diamond": {
+      const d = size * 1.4;
+      c.moveTo(x, y - d);
+      c.lineTo(x + d, y);
+      c.lineTo(x, y + d);
+      c.lineTo(x - d, y);
+      break;
+    }
+    case "hexagon": {
+      const h = size * 1.2;
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const px = x + h * Math.cos(a);
+        const py = y + h * Math.sin(a);
+        i === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
+      }
+      break;
+    }
+    case "triangle": {
+      const t = size * 1.4;
+      c.moveTo(x, y - t);
+      c.lineTo(x + t * 0.87, y + t * 0.5);
+      c.lineTo(x - t * 0.87, y + t * 0.5);
+      break;
+    }
+  }
+  c.closePath();
+  if (color) { c.fillStyle = color; c.fill(); }
+  if (stroke) {
+    c.strokeStyle = stroke;
+    c.lineWidth = strokeWidth || 2;
+    c.stroke();
+  }
+}
+
+function render() {
+  const t = currentTransform;
+  ctx.clearRect(0, 0, W, H);
+  hitCtx.clearRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(t.x + cx, t.y + cy);
+  ctx.scale(t.k, t.k);
+
+  hitCtx.save();
+  hitCtx.translate(t.x + cx, t.y + cy);
+  hitCtx.scale(t.k, t.k);
+
+  // Draw ring guides
+  ctx.globalAlpha = 0.06;
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1 / t.k;
+  for (let i = 1; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.arc(0, 0, ringRadii[i], 0, 2 * Math.PI);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Determine related nodes if something is selected or hovered
+  const activeNode = selectedNode || hoveredNode;
+  let relatedIds = null;
+  if (activeNode) {
+    relatedIds = new Set([activeNode.id]);
+    // Add parent chain
+    let cur = activeNode;
+    while (cur.parentId && nodeMap.has(cur.parentId)) {
+      relatedIds.add(cur.parentId);
+      cur = nodeMap.get(cur.parentId);
+    }
+    // Add direct children
+    const children = childrenMap.get(activeNode.id);
+    if (children) children.forEach(cid => relatedIds.add(cid));
+  }
+
+  // Draw edges
+  edges.forEach(e => {
+    const src = nodeMap.get(e.source);
+    const tgt = nodeMap.get(e.target);
+    if (!src || !tgt) return;
+
+    const isRelated = relatedIds && (relatedIds.has(e.source) && relatedIds.has(e.target));
+    ctx.globalAlpha = relatedIds ? (isRelated ? 0.5 : 0.03) : 0.08;
+    ctx.strokeStyle = isRelated && relatedIds ? categoryConfig[tgt.category].color : "#64748b";
+    ctx.lineWidth = (isRelated && relatedIds ? 1.5 : 0.5) / t.k;
+
+    ctx.beginPath();
+    // Curved edge via midpoint pulled toward center
+    const mx = (src.x + tgt.x) * 0.3;
+    const my = (src.y + tgt.y) * 0.3;
+    ctx.moveTo(src.x, src.y);
+    ctx.quadraticCurveTo(mx, my, tgt.x, tgt.y);
+    ctx.stroke();
+  });
+
+  ctx.globalAlpha = 1;
+
+  // Draw nodes
+  const sizeScale = Math.max(nodeSize / t.k, 3);
+  const mayorSize = sizeScale * 2;
+
+  nodes.forEach(n => {
+    const cat = categoryConfig[n.category] || categoryConfig.other;
+    const isActive = activeNode && n.id === activeNode.id;
+    const isRelated = relatedIds && relatedIds.has(n.id);
+    const dim = relatedIds && !isRelated;
+
+    const s = n.id === "mayor" ? mayorSize : sizeScale;
+    const alpha = dim ? 0.15 : 1;
+
+    ctx.globalAlpha = alpha;
+    drawShape(ctx, cat.shape, n.x, n.y, s, cat.color, null, 0);
+
+    // Selection/hover ring
+    if (isActive) {
+      drawShape(ctx, cat.shape, n.x, n.y, s + 3/t.k, null, "#ffffff", 2/t.k);
+    } else if (hoveredNode && n.id === hoveredNode.id) {
+      drawShape(ctx, cat.shape, n.x, n.y, s + 2/t.k, null, "rgba(255,255,255,0.6)", 1.5/t.k);
+    }
+
+    // Hit canvas - always full opacity, unique color
+    hitCtx.globalAlpha = 1;
+    drawShape(hitCtx, cat.shape, n.x, n.y, s + 4/t.k, n.hitColor, null, 0);
+  });
+
+  // Labels - show at higher zoom or for active/related nodes
+  const showAllLabels = t.k > 2.5;
+  const showSomeLabels = t.k > 1.2;
+
+  ctx.globalAlpha = 1;
+  nodes.forEach(n => {
+    const isActive = activeNode && n.id === activeNode.id;
+    const isRelated = relatedIds && relatedIds.has(n.id);
+    const dim = relatedIds && !isRelated;
+
+    if (dim) return;
+
+    const shouldLabel = isActive || (isRelated && relatedIds) ||
+      showAllLabels ||
+      (showSomeLabels && (n.ring <= 1 || n.id === "mayor"));
+
+    if (!shouldLabel) return;
+
+    const s = n.id === "mayor" ? mayorSize : sizeScale;
+    const label = n.subtitle && n.subtitle.length < 12 ? n.subtitle : n.name;
+    const fontSize = Math.min(11 / t.k, 14);
+
+    ctx.font = `${isActive ? "600" : "500"} ${fontSize}px Inter, sans-serif`;
+    ctx.fillStyle = isActive ? "#ffffff" : "rgba(226,232,240,0.85)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(label, n.x, n.y + s + 4/t.k);
+  });
+
+  ctx.restore();
+  hitCtx.restore();
+}
+
+// ============================================================
+// ZOOM
+// ============================================================
+const zoom = d3.zoom()
+  .scaleExtent([0.3, 12])
+  .on("zoom", (event) => {
+    currentTransform = event.transform;
+    render();
+  });
+
+function initZoom() {
+  d3.select(canvas).call(zoom);
+}
+
+function zoomToNode(node, duration = 600) {
+  const scale = 3;
+  const tx = -node.x * scale;
+  const ty = -node.y * scale;
+  d3.select(canvas)
+    .transition()
+    .duration(duration)
+    .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+function resetView() {
+  d3.select(canvas)
+    .transition()
+    .duration(600)
+    .call(zoom.transform, d3.zoomIdentity);
+}
+
+// ============================================================
+// HIT DETECTION
+// ============================================================
+function getNodeAtPixel(mx, my) {
+  const dpr = window.devicePixelRatio || 1;
+  const pixel = hitCtx.getImageData(mx * dpr, my * dpr, 1, 1).data;
+  const key = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+  if (key === 0) return null;
+  return hitKeyToNode.get(key) || null;
+}
+
+// ============================================================
+// INTERACTION
+// ============================================================
+const tooltipEl = document.getElementById("tooltip");
+const detailPanel = document.getElementById("detail-panel");
+
+canvas.addEventListener("mousemove", (e) => {
+  const node = getNodeAtPixel(e.clientX, e.clientY);
+  if (node !== hoveredNode) {
+    hoveredNode = node;
+    canvas.style.cursor = node ? "pointer" : "grab";
+    if (node) {
+      tooltipEl.querySelector(".tooltip-name").textContent = node.name;
+      tooltipEl.querySelector(".tooltip-type").textContent =
+        typeLabels[node.type] || categoryConfig[node.category]?.label || "";
+      tooltipEl.style.display = "block";
+    } else {
+      tooltipEl.style.display = "none";
+    }
+    render();
+  }
+  if (hoveredNode) {
+    tooltipEl.style.left = (e.clientX + 14) + "px";
+    tooltipEl.style.top = (e.clientY - 10) + "px";
+  }
+});
+
+canvas.addEventListener("mouseleave", () => {
+  hoveredNode = null;
+  tooltipEl.style.display = "none";
+  render();
+});
+
+canvas.addEventListener("click", (e) => {
+  const node = getNodeAtPixel(e.clientX, e.clientY);
+  if (node) {
+    selectNode(node);
+  }
+});
+
+function selectNode(node) {
+  selectedNode = node;
+  showDetailPanel(node);
+  render();
+}
+
+function deselectNode() {
+  selectedNode = null;
+  detailPanel.classList.remove("open");
+  render();
+}
+
+document.getElementById("detail-close").addEventListener("click", deselectNode);
+
+function showDetailPanel(node) {
+  const cat = categoryConfig[node.category] || categoryConfig.other;
+  document.getElementById("detail-name").textContent = node.name;
+
+  const badge = document.getElementById("detail-badge");
+  badge.textContent = typeLabels[node.type] || cat.label;
+  badge.style.background = cat.color + "22";
+  badge.style.color = cat.color;
+
+  let html = "";
+
+  if (node.subtitle) {
+    html += `<section><h4>Current holder</h4><div class="holder">${node.subtitle}</div></section>`;
+  }
+
+  html += `<section><h4>Description</h4><div class="description">${node.description}</div></section>`;
+
+  // Parent
+  if (node.parentId && nodeMap.has(node.parentId)) {
+    const parent = nodeMap.get(node.parentId);
+    const pcat = categoryConfig[parent.category] || categoryConfig.other;
+    html += `<section><h4>Reports to</h4>`;
+    html += `<div class="relation-link" data-id="${parent.id}">
+      <span class="rel-dot" style="background:${pcat.color}"></span>
+      <span>${parent.name}</span>
+      <span class="rel-type">${typeLabels[parent.type] || pcat.label}</span>
+    </div></section>`;
+  }
+
+  // Children
+  const children = childrenMap.get(node.id);
+  if (children && children.length) {
+    html += `<section><h4>Oversees (${children.length})</h4>`;
+    children.forEach(cid => {
+      const child = nodeMap.get(cid);
+      if (!child) return;
+      const ccat = categoryConfig[child.category] || categoryConfig.other;
+      html += `<div class="relation-link" data-id="${child.id}">
+        <span class="rel-dot" style="background:${ccat.color}"></span>
+        <span>${child.name}</span>
+        <span class="rel-type">${typeLabels[child.type] || ccat.label}</span>
+      </div>`;
+    });
+    html += `</section>`;
+  }
+
+  // Tags
+  if (node.tags && node.tags.length) {
+    html += `<section><h4>Tags</h4><div style="display:flex;flex-wrap:wrap;gap:4px">`;
+    node.tags.forEach(tag => {
+      html += `<span style="padding:2px 8px;background:rgba(255,255,255,0.06);border-radius:10px;font-size:11px;color:var(--text-dim)">${tag}</span>`;
+    });
+    html += `</div></section>`;
+  }
+
+  document.getElementById("detail-body").innerHTML = html;
+
+  // Add click handlers for relation links
+  detailPanel.querySelectorAll(".relation-link").forEach(el => {
+    el.addEventListener("click", () => {
+      const target = nodeMap.get(el.dataset.id);
+      if (target) {
+        selectNode(target);
+        zoomToNode(target);
+      }
+    });
+  });
+
+  detailPanel.classList.add("open");
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) {
+    searchResults.classList.remove("visible");
+    return;
+  }
+  const matches = nodes.filter(n =>
+    n.name.toLowerCase().includes(q) ||
+    (n.subtitle && n.subtitle.toLowerCase().includes(q)) ||
+    n.tags.some(t => t.toLowerCase().includes(q))
+  ).slice(0, 12);
+
+  if (!matches.length) {
+    searchResults.innerHTML = '<div class="search-result" style="color:var(--text-muted)">No results</div>';
+  } else {
+    searchResults.innerHTML = matches.map(n => {
+      const cat = categoryConfig[n.category] || categoryConfig.other;
+      return `<div class="search-result" data-id="${n.id}">
+        <span class="dot" style="background:${cat.color}"></span>
+        <span class="name">${n.name}</span>
+        <span class="type">${typeLabels[n.type] || cat.label}</span>
+      </div>`;
+    }).join("");
+
+    searchResults.querySelectorAll(".search-result[data-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        const node = nodeMap.get(el.dataset.id);
+        if (node) {
+          selectNode(node);
+          zoomToNode(node);
+          searchInput.value = "";
+          searchResults.classList.remove("visible");
+        }
+      });
+    });
+  }
+  searchResults.classList.add("visible");
+});
+
+searchInput.addEventListener("blur", () => {
+  setTimeout(() => searchResults.classList.remove("visible"), 200);
+});
+searchInput.addEventListener("focus", () => {
+  if (searchInput.value.trim()) {
+    searchInput.dispatchEvent(new Event("input"));
+  }
+});
+
+// Keyboard shortcut
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+  if (e.key === "Escape") {
+    if (document.activeElement === searchInput) {
+      searchInput.blur();
+      searchInput.value = "";
+      searchResults.classList.remove("visible");
+    } else if (selectedNode) {
+      deselectNode();
+    }
+  }
+});
+
+// ============================================================
+// LEGEND
+// ============================================================
+const legendGrid = document.getElementById("legend-grid");
+let legendVisible = true;
+
+function buildLegend() {
+  const items = [
+    { label: "Mayor", color: "#f59e0b", shape: "circle" },
+    { label: "Deputy mayor", color: "#f59e0b", shape: "circle" },
+    { label: "Comptroller / Public advocate", color: "#3b82f6", shape: "circle" },
+    { label: "Borough president", color: "#3b82f6", shape: "circle" },
+    { label: "District attorney", color: "#3b82f6", shape: "circle" },
+    { label: "City Council", color: "#3b82f6", shape: "circle" },
+    { label: "Mayoral agency", color: "#14b8a6", shape: "roundedRect" },
+    { label: "Mayor's office", color: "#14b8a6", shape: "roundedRect" },
+    { label: "Public authority", color: "#a855f7", shape: "diamond" },
+    { label: "Independent board", color: "#f97316", shape: "hexagon" },
+    { label: "Community board", color: "#f97316", shape: "hexagon" },
+  ];
+
+  legendGrid.innerHTML = items.map(item => {
+    const svg = makeLegendShape(item.shape, item.color);
+    return `<div class="legend-item">${svg}<span>${item.label}</span></div>`;
+  }).join("");
+}
+
+function makeLegendShape(shape, color) {
+  const s = 10;
+  let path;
+  switch (shape) {
+    case "circle":
+      path = `<circle cx="5" cy="5" r="4" fill="${color}"/>`;
+      break;
+    case "roundedRect":
+      path = `<rect x="1" y="1" width="8" height="8" rx="2" fill="${color}"/>`;
+      break;
+    case "diamond":
+      path = `<polygon points="5,0 10,5 5,10 0,5" fill="${color}"/>`;
+      break;
+    case "hexagon":
+      path = `<polygon points="5,0 9.33,2.5 9.33,7.5 5,10 0.67,7.5 0.67,2.5" fill="${color}"/>`;
+      break;
+    case "triangle":
+      path = `<polygon points="5,0 10,10 0,10" fill="${color}"/>`;
+      break;
+  }
+  return `<svg class="legend-shape" viewBox="0 0 10 10" width="10" height="10">${path}</svg>`;
+}
+
+document.getElementById("btn-legend-toggle").addEventListener("click", () => {
+  legendVisible = !legendVisible;
+  document.getElementById("legend").style.display = legendVisible ? "block" : "none";
+});
+
+// ============================================================
+// TOOLBAR
+// ============================================================
+document.getElementById("btn-recenter").addEventListener("click", () => {
+  deselectNode();
+  resetView();
+});
+
+document.getElementById("btn-random").addEventListener("click", () => {
+  const node = nodes[Math.floor(Math.random() * nodes.length)];
+  selectNode(node);
+  zoomToNode(node);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  resize();
+  computeLayout();
+  buildLegend();
+  initZoom();
+  render();
+}
+
+window.addEventListener("resize", () => {
+  resize();
+  render();
+});
+
+init();
+</script>
+</body>
+</html>
