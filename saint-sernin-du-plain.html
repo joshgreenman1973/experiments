@@ -450,6 +450,94 @@
       margin-top: 4px;
     }
 
+    /* ---- TOWN CARDS ---- */
+    .town-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .town-card {
+      background: var(--white);
+      border-radius: 10px;
+      padding: 20px;
+      border-left: 4px solid var(--burgundy);
+      transition: box-shadow 0.2s ease;
+      scroll-margin-top: 20px;
+    }
+    .town-card:target {
+      box-shadow: 0 0 0 2px var(--gold), 0 4px 16px rgba(91, 26, 40, 0.15);
+    }
+    .town-card.type-wine { border-left-color: var(--forest); }
+    .town-card.type-city { border-left-color: var(--warm-gray); }
+    .town-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .town-card-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--burgundy-deep);
+      line-height: 1.2;
+    }
+    .town-card.type-wine .town-card-name { color: var(--forest); }
+    .town-card.type-city .town-card-name { color: var(--charcoal); }
+    .town-card-distance {
+      font-size: 0.72rem;
+      color: var(--warm-gray);
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+    .town-card-stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .town-card-stat {
+      font-size: 0.78rem;
+      color: var(--charcoal);
+    }
+    .town-card-stat strong {
+      color: var(--burgundy);
+      font-weight: 600;
+    }
+    .town-card.type-wine .town-card-stat strong { color: var(--forest); }
+    .town-card.type-city .town-card-stat strong { color: var(--warm-gray); }
+    .town-card-notable {
+      font-size: 0.82rem;
+      color: var(--charcoal);
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+    .town-card-history {
+      font-size: 0.78rem;
+      color: var(--warm-gray);
+      line-height: 1.45;
+      font-style: italic;
+    }
+    .town-cards-group-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      font-size: 1.15rem;
+      color: var(--burgundy);
+      margin-top: 32px;
+      margin-bottom: 16px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--gold-light);
+    }
+    .town-cards-group-title:first-child { margin-top: 0; }
+    .town-cards-group-title.wine { color: var(--forest); }
+    .town-cards-group-title.city { color: var(--warm-gray); }
+
+    /* clickable map dots */
+    .map-dot-link { cursor: pointer; }
+    .map-dot-link:hover circle { opacity: 1; }
+    .map-dot-link:hover text { fill: var(--burgundy-deep) !important; }
+
     /* ---- REGIONAL MAP ---- */
     .map-container {
       width: 100%;
@@ -489,7 +577,7 @@
 
     /* ---- RESPONSIVE ---- */
     @media (max-width: 700px) {
-      .geo-grid, .demo-grid, .housing-layout, .climate-grid {
+      .geo-grid, .demo-grid, .housing-layout, .climate-grid, .town-cards-grid {
         grid-template-columns: 1fr;
       }
       .admin-grid {
@@ -599,7 +687,8 @@
           <span>Larger town / city</span>
         </div>
       </div>
-      <div class="map-caption">Approximate positions based on geographic coordinates. Circle size indicates relative population.</div>
+      <div class="map-caption">Click any dot to jump to its profile below. Circle size indicates relative population.</div>
+      <div id="town-cards-container"></div>
     </div>
   </section>
 
@@ -997,34 +1086,79 @@
       document.getElementById('pop-chart').innerHTML = svg;
     }
 
+    // --- Town Data (enriched) ---
+    var TOWNS = [
+      // Neighboring communes
+      { name: 'Paris-l\'Hopital', slug: 'paris-lhopital', lat: 46.90, lon: 4.59, pop: 297, type: 'neighbor', area: 2.74, elev: '~300 m', insee: '71343', dist: '~4 km',
+        notable: 'Founded in the 13th century by the Knights Hospitaller (Order of Saint John of Jerusalem). Nestled in the Cozanne valley in the heart of the Hautes Cotes de Beaune vineyard. Popular base for gites and rural tourism.',
+        history: 'The village name literally means "Paris the Hospital," referring not to Paris the city but to a local place name combined with the Hospitaller order\'s presence.' },
+      { name: 'Saint-Gervais-sur-Couches', slug: 'st-gervais', lat: 46.91, lon: 4.57, pop: 211, type: 'neighbor', area: 20.47, elev: '367-510 m', insee: '71424', dist: '~8 km',
+        notable: 'Remarkable 13th-century Gothic church of Saint-Gervais-et-Saint-Prothais, classified as a Historic Monument since 1911. The former bishop of Autun called it "this little cathedral." Mont Reme (513 m) offers panoramic views.',
+        history: 'The church was built continuously between 1200 and 1260, creating an intimate mixture of Gothic and Romanesque styles -- unusual for such a small village.' },
+      { name: 'Couches', slug: 'couches', lat: 46.87, lon: 4.57, pop: 1248, type: 'neighbor', area: 19.52, elev: '~320 m', insee: '71149', dist: '~8 km',
+        notable: 'Chateau de Couches (aka Chateau de Marguerite de Bourgogne), a medieval fortress dating to the 11th century with a 12th-century keep, 13th-century towers, and a 1460 Gothic flamboyant chapel. Wine tasting, restaurant, and guest rooms on site.',
+        history: 'Legend holds that Queen Marguerite de Bourgogne, repudiated wife of King Louis X, did not actually die in 1315 but lived on at this castle -- unproven but the name stuck.' },
+      { name: 'Dracy-les-Couches', slug: 'dracy', lat: 46.87, lon: 4.60, pop: 153, type: 'neighbor', area: 8.27, elev: '285-448 m', insee: '71183', dist: '~6 km',
+        notable: 'Tiny, quiet hilltop village in rolling vineyard countryside. Part of the Couchois wine region. Good starting point for walks through the forested hills between the Cote de Beaune and the Couchois.',
+        history: 'The name "Dracy" derives from the Gallo-Roman personal name Draccius, indicating settlement since antiquity.' },
+      { name: 'Change', slug: 'change', lat: 46.87, lon: 4.64, pop: 222, type: 'neighbor', area: 6.56, elev: '274-513 m', insee: '71085', dist: '~5 km',
+        notable: 'Small rural hamlet set in hilly, wooded terrain on the boundary between the Cote de Beaune vineyards and the Couchois. Traditional Burgundian stone houses.',
+        history: 'Despite its Saone-et-Loire department classification, Change\'s postal code (21340) places it in Cote-d\'Or postal territory -- a quirk of French administrative geography.' },
+      { name: 'Remigny', slug: 'remigny', lat: 46.90, lon: 4.66, pop: 411, type: 'neighbor', area: 2.45, elev: '208-340 m', insee: '71369', dist: '~6 km',
+        notable: 'Sits on the Canal du Centre (opened 1792, the first watershed canal in France). Historic port where stone from local quarries was loaded onto barges. The EuroVelo 6 cycling route passes through on the canal towpath.',
+        history: 'The Canal du Centre was the engineering marvel that first connected the Loire and Saone river basins, enabling boats to cross from northern to southern France.' },
+      { name: 'Dezize-les-Maranges', slug: 'dezize', lat: 46.90, lon: 4.63, pop: 164, type: 'neighbor', area: 5.10, elev: '270-520 m', insee: '71174', dist: '~4 km',
+        notable: 'One of three villages in the Maranges AOC wine appellation (the southernmost of the Cote de Beaune). Produces mainly Pinot Noir reds and some Chardonnay whites. Premier Cru vineyards on the slopes.',
+        history: 'In 1895, the village changed its name from "Dezize" to "Dezize-les-Maranges" to avoid confusion with the town of Decize in the Nievre department.' },
+      { name: 'Cheilly-les-Maranges', slug: 'cheilly', lat: 46.895, lon: 4.655, pop: 557, type: 'neighbor', area: 7.00, elev: '216-400 m', insee: '71122', dist: '~5 km',
+        notable: 'Second of the three Maranges AOC villages. Premier Cru vineyards include Les Clos Roussots, La Fussiere, and Clos de la Boutiere. Lighter, gravelly soils produce tender, elegant wines.',
+        history: 'Before the 1989 creation of the unified Maranges AOC, each of the three villages had its own separate appellation dating to 1937.' },
+      { name: 'Sampigny-les-Maranges', slug: 'sampigny', lat: 46.905, lon: 4.645, pop: 134, type: 'neighbor', area: 2.70, elev: '229-390 m', insee: '71496', dist: '~5 km',
+        notable: 'Third of the Maranges AOC trio. Premier Cru sites include Le Clos des Rois and Le Clos des Loyeres. Brown calcareous soils produce firmer, more structured wines.',
+        history: '"Le Clos des Rois" (the King\'s Enclosure) vineyard dates to when these slopes belonged to the Dukes of Burgundy, among the most powerful rulers in medieval Europe.' },
+      { name: 'Saint-Jean-de-Trezy', slug: 'st-jean', lat: 46.86, lon: 4.58, pop: 382, type: 'neighbor', area: 11.00, elev: '233-390 m', insee: '71431', dist: '~5 km',
+        notable: 'Romanesque church of Saint-Jean-Baptiste (12th century) with characteristic narrow exterior windows flared on the interior. Rolling landscape with hiking trails through AOC vineyards of the Cote Chalonnaise.',
+        history: 'The 12th-century church retains its original Romanesque window design -- very narrow on the outside, dramatically flared inside -- a defensive and light-management technique.' },
+      { name: 'Saint-Leger-sur-Dheune', slug: 'st-leger', lat: 46.85, lon: 4.63, pop: 1570, type: 'neighbor', area: 12.24, elev: '~240 m', insee: '71442', dist: '~7 km',
+        notable: 'Pleasure port on the Canal du Centre. Major stop on the EuroVelo 6 (Nantes-Budapest) cycling greenway. 12th-century Romanesque parish church with a remarkable 15th-century polychrome wooden altarpiece of the Passion.',
+        history: 'The 31-km greenway from Chalon-sur-Saone to Saint-Leger-sur-Dheune follows the original canal towpath, once trodden by horses pulling barges.' },
+      { name: 'Nolay', slug: 'nolay', lat: 46.95, lon: 4.63, pop: 1409, type: 'neighbor', area: 14.00, elev: '~330 m', insee: '21461', dist: '~10 km',
+        notable: '14th-century medieval grain market halls (Halles, built 1388), classified as a Historic Monument -- one of the oldest timber-frame market halls still standing in France. Cirque du Bout du Monde, a dramatic limestone cliff amphitheater with a 25-meter waterfall.',
+        history: 'Birthplace of Lazare Carnot (1753-1823), mathematician, military strategist, and "Organizer of Victory" during the French Revolutionary Wars. His grandson Sadi Carnot became President of France.' },
+      // Wine villages
+      { name: 'Santenay', slug: 'santenay', lat: 46.91, lon: 4.69, pop: 820, type: 'wine', area: 10.36, elev: '211-522 m', insee: '21582', dist: '~7 km',
+        notable: 'Wine village at the southern tip of the Cote de Beaune with its own AOC. Thermal spa town (Santenay-les-Bains) with hot springs used since Gallo-Roman times. Casino with roulette, blackjack, and 150 slot machines.',
+        history: 'The Fontaine Salee (salt spring) has been in continuous therapeutic use for approximately 2,000 years, from the Gallo-Roman period to today.' },
+      { name: 'Chassagne-Montrachet', slug: 'chassagne', lat: 46.93, lon: 4.73, pop: 305, type: 'wine', area: 6.50, elev: '209-410 m', insee: '21150', dist: '~10 km',
+        notable: 'Home to some of the world\'s most famous white wines. Shares the Grand Cru vineyards of Montrachet and Batard-Montrachet with neighboring Puligny, and contains the entirety of Grand Cru Criots-Batard-Montrachet.',
+        history: 'Alexandre Dumas reportedly said Montrachet should be drunk "on one\'s knees, with head bowed."' },
+      { name: 'Puligny-Montrachet', slug: 'puligny', lat: 46.95, lon: 4.75, pop: 366, type: 'wine', area: 7.28, elev: '200-435 m', insee: '21512', dist: '~12 km',
+        notable: 'Shares the legendary Montrachet Grand Cru vineyard, often called the greatest white wine vineyard on Earth. 100 hectares of Premier Cru vineyards. Also home to Grand Cru Chevalier-Montrachet and Bienvenues-Batard-Montrachet.',
+        history: 'The name "Montrachet" derives from "Mont Rachaz" meaning "bare/bald mount" -- the hill was too precious for trees, devoted entirely to vines since at least the Middle Ages.' },
+      { name: 'Meursault', slug: 'meursault', lat: 46.98, lon: 4.77, pop: 1376, type: 'wine', area: 16.22, elev: '~240 m', insee: '21412', dist: '~15 km',
+        notable: 'Famous Chardonnay white wine village. Chateau de Meursault (origins 11th century) hosts La Paulee de Meursault. Part of Les Trois Glorieuses, the three glorious days of Burgundy wine each November.',
+        history: 'La Paulee (created 1923) is the world\'s most prestigious BYOB dinner -- every guest brings their own bottles to share.' },
+      // Larger towns
+      { name: 'Chagny', slug: 'chagny', lat: 46.91, lon: 4.75, pop: 5350, type: 'city', area: 18.90, elev: '201-315 m', insee: '71073', dist: '~8 km',
+        notable: 'Home to Maison Lameloise, a 3-star Michelin restaurant since 1979 (one of only ~30 in France). Led by chef Eric Pras (Meilleur Ouvrier de France 2004). Gateway between the Cote de Beaune and Cote Chalonnaise. Weekly market.',
+        history: 'The Lameloise family took over the Hotel du Commerce in 1921. Grandfather Pierre earned the second Michelin star in 1931; the third came in 1979 -- a multi-generational culinary dynasty.' },
+      { name: 'Beaune', slug: 'beaune', lat: 47.02, lon: 4.84, pop: 20352, type: 'city', area: 31.30, elev: '193-407 m', insee: '21054', dist: '~20 km',
+        notable: 'The "Capital of Burgundy Wines." Hotel-Dieu / Hospices de Beaune (founded 1443), a masterpiece of Franco-Flemish architecture with polychrome tile roof. Annual charity wine auction. UNESCO World Heritage Climats (2015). 34 listed historic monuments.',
+        history: 'The Hospices de Beaune still owns ~61 hectares of donated vineyard land, much of it Grand and Premier Cru. The annual auction sets benchmark prices for the entire Burgundy market.' },
+      { name: 'Chalon-sur-Saone', slug: 'chalon', lat: 46.78, lon: 4.85, pop: 45102, type: 'city', area: 15.22, elev: '172-192 m', insee: '71076', dist: '~22 km',
+        notable: 'Birthplace of Nicephore Niepce (1765-1833), inventor of photography. Musee Nicephore Niepce (free admission) houses 3 million images and 10,000 cameras. Major commercial center and TGV-accessible rail hub.',
+        history: 'Niepce took the world\'s first photograph ("Le Point de vue du Gras") from his studio window in 1826/1827. His laboratory in Chalon is considered the world\'s oldest photographic lab.' },
+      { name: 'Le Creusot', slug: 'le-creusot', lat: 46.80, lon: 4.43, pop: 20731, type: 'city', area: 18.06, elev: '316-516 m', insee: '71153', dist: '~25 km',
+        notable: 'France\'s great industrial city. Chateau de la Verrerie, built in 1787 as Queen Marie-Antoinette\'s crystal factory, later became the Schneider family\'s residence. Now houses the Musee de l\'Homme et de l\'Industrie.',
+        history: 'The Schneider dynasty transformed Le Creusot from a small town into France\'s industrial powerhouse, manufacturing locomotives, armor plate, and the machinery of modern France.' },
+      { name: 'Autun', slug: 'autun', lat: 46.95, lon: 4.30, pop: 12738, type: 'city', area: 61.52, elev: '280-642 m', insee: '71014', dist: '~30 km',
+        notable: 'Founded by Emperor Augustus as Augustodunum. Roman gates (Porte d\'Arroux, Porte Saint-Andre) still standing. Temple of Janus. Cathedral Saint-Lazare (1130) with Gislebertus\'s masterpiece Last Judgment tympanum. Roman theater (one of the largest in Gaul).',
+        history: 'Autun was founded to be a "sister city of Rome." At its peak, the Roman city had 100,000 inhabitants -- vastly more than today -- and its schools of rhetoric attracted students from across the Empire.' }
+    ];
+
     // --- Regional Map ---
     function renderRegionMap() {
-      var towns = [
-        // Neighboring communes
-        { name: 'Paris-l\'Hopital', lat: 46.90, lon: 4.59, pop: 200, type: 'neighbor' },
-        { name: 'St-Gervais-sur-Couches', lat: 46.91, lon: 4.57, pop: 150, type: 'neighbor' },
-        { name: 'Couches', lat: 46.87, lon: 4.57, pop: 1500, type: 'neighbor' },
-        { name: 'Dracy-les-Couches', lat: 46.87, lon: 4.60, pop: 250, type: 'neighbor' },
-        { name: 'Change', lat: 46.87, lon: 4.64, pop: 400, type: 'neighbor' },
-        { name: 'Remigny', lat: 46.90, lon: 4.66, pop: 450, type: 'neighbor' },
-        { name: 'Dezize-les-Maranges', lat: 46.90, lon: 4.63, pop: 200, type: 'neighbor' },
-        { name: 'Cheilly-les-Maranges', lat: 46.895, lon: 4.655, pop: 300, type: 'neighbor' },
-        { name: 'Sampigny-les-Maranges', lat: 46.905, lon: 4.645, pop: 100, type: 'neighbor' },
-        { name: 'St-Jean-de-Trezy', lat: 46.86, lon: 4.58, pop: 200, type: 'neighbor' },
-        { name: 'St-Leger-sur-Dheune', lat: 46.85, lon: 4.63, pop: 1600, type: 'neighbor' },
-        { name: 'Nolay', lat: 46.95, lon: 4.63, pop: 1500, type: 'neighbor' },
-        // Wine villages
-        { name: 'Santenay', lat: 46.91, lon: 4.69, pop: 850, type: 'wine' },
-        { name: 'Chassagne-Montrachet', lat: 46.93, lon: 4.73, pop: 400, type: 'wine' },
-        { name: 'Puligny-Montrachet', lat: 46.95, lon: 4.75, pop: 400, type: 'wine' },
-        { name: 'Meursault', lat: 46.98, lon: 4.77, pop: 1500, type: 'wine' },
-        // Larger towns
-        { name: 'Chagny', lat: 46.91, lon: 4.75, pop: 5800, type: 'city' },
-        { name: 'Beaune', lat: 47.02, lon: 4.84, pop: 22000, type: 'city' },
-        { name: 'Chalon-sur-Saone', lat: 46.78, lon: 4.85, pop: 45000, type: 'city' },
-        { name: 'Le Creusot', lat: 46.80, lon: 4.43, pop: 22000, type: 'city' },
-        { name: 'Autun', lat: 46.95, lon: 4.30, pop: 14000, type: 'city' }
-      ];
+      var towns = TOWNS;
 
       var center = { lat: 46.89, lon: 4.62 };
 
@@ -1108,8 +1242,17 @@
           var tr = radius(t.pop, t.type);
           var col = colors[t.type];
 
+          // Wrap in clickable link
+          var mapLabel = t.name;
+          // Use short display names for map labels
+          if (t.name === 'Saint-Gervais-sur-Couches') mapLabel = 'St-Gervais-sur-Couches';
+          if (t.name === 'Saint-Jean-de-Trezy') mapLabel = 'St-Jean-de-Trezy';
+          if (t.name === 'Saint-Leger-sur-Dheune') mapLabel = 'St-Leger-sur-Dheune';
+
+          svg += '<a href="#card-' + t.slug + '" class="map-dot-link">';
+          svg += '<circle cx="' + tx + '" cy="' + ty + '" r="' + (tr + 4) + '" fill="transparent"/>';
           svg += '<circle cx="' + tx + '" cy="' + ty + '" r="' + tr + '" fill="' + col + '" opacity="0.85" stroke="' + (t.type === 'city' ? '#FAF6F0' : 'none') + '" stroke-width="' + (t.type === 'city' ? '1.5' : '0') + '">';
-          svg += '<title>' + t.name + ' (pop. ~' + t.pop.toLocaleString() + ')</title>';
+          svg += '<title>' + t.name + ' (pop. ~' + t.pop.toLocaleString() + ') -- click for details</title>';
           svg += '</circle>';
 
           // Label positioning
@@ -1121,21 +1264,22 @@
           var labelColor = t.type === 'city' ? '#2D2D2D' : '#6B6560';
 
           // Adjust label positions to avoid overlaps for known clusters
-          if (t.name === 'Cheilly-les-Maranges') { labelX = tx + tr + 3; labelY = ty + 12; anchor = 'start'; }
-          if (t.name === 'Sampigny-les-Maranges') { labelX = tx + tr + 3; labelY = ty - 6; anchor = 'start'; }
-          if (t.name === 'Dezize-les-Maranges') { labelX = tx - tr - 3; labelY = ty + 14; anchor = 'end'; }
-          if (t.name === 'Remigny') { labelX = tx + tr + 3; labelY = ty + 3; anchor = 'start'; }
-          if (t.name === 'Chalon-sur-Saone') { labelY = ty + tr + 14; }
-          if (t.name === 'Beaune') { labelY = ty - tr - 4; }
-          if (t.name === 'Chagny') { labelX = tx + tr + 3; labelY = ty + 4; anchor = 'start'; }
-          if (t.name === 'Couches') { labelY = ty + tr + 14; }
-          if (t.name === 'St-Leger-sur-Dheune') { labelY = ty + tr + 14; }
-          if (t.name === 'Change') { labelY = ty + tr + 14; }
-          if (t.name === 'Paris-l\'Hopital') { labelX = tx - tr - 3; labelY = ty - 2; anchor = 'end'; }
-          if (t.name === 'St-Gervais-sur-Couches') { labelY = ty - tr - 4; }
-          if (t.name === 'Dracy-les-Couches') { labelY = ty + tr + 14; }
+          if (t.slug === 'cheilly') { labelX = tx + tr + 3; labelY = ty + 12; anchor = 'start'; }
+          if (t.slug === 'sampigny') { labelX = tx + tr + 3; labelY = ty - 6; anchor = 'start'; }
+          if (t.slug === 'dezize') { labelX = tx - tr - 3; labelY = ty + 14; anchor = 'end'; }
+          if (t.slug === 'remigny') { labelX = tx + tr + 3; labelY = ty + 3; anchor = 'start'; }
+          if (t.slug === 'chalon') { labelY = ty + tr + 14; }
+          if (t.slug === 'beaune') { labelY = ty - tr - 4; }
+          if (t.slug === 'chagny') { labelX = tx + tr + 3; labelY = ty + 4; anchor = 'start'; }
+          if (t.slug === 'couches') { labelY = ty + tr + 14; }
+          if (t.slug === 'st-leger') { labelY = ty + tr + 14; }
+          if (t.slug === 'change') { labelY = ty + tr + 14; }
+          if (t.slug === 'paris-lhopital') { labelX = tx - tr - 3; labelY = ty - 2; anchor = 'end'; }
+          if (t.slug === 'st-gervais') { labelY = ty - tr - 4; }
+          if (t.slug === 'dracy') { labelY = ty + tr + 14; }
 
-          svg += '<text x="' + labelX + '" y="' + labelY + '" text-anchor="' + anchor + '" font-size="' + fontSize + '" fill="' + labelColor + '" font-family="Inter, sans-serif" font-weight="' + fontWeight + '">' + t.name + '</text>';
+          svg += '<text x="' + labelX + '" y="' + labelY + '" text-anchor="' + anchor + '" font-size="' + fontSize + '" fill="' + labelColor + '" font-family="Inter, sans-serif" font-weight="' + fontWeight + '" style="pointer-events:none">' + mapLabel + '</text>';
+          svg += '</a>';
         }
       }
 
@@ -1156,6 +1300,42 @@
       document.getElementById('region-map').innerHTML = svg;
     }
 
+    // --- Town Cards ---
+    function renderTownCards() {
+      var groups = [
+        { title: 'Neighboring communes', type: 'neighbor', cssClass: '' },
+        { title: 'Cote de Beaune wine villages', type: 'wine', cssClass: 'wine' },
+        { title: 'Nearby towns and cities', type: 'city', cssClass: 'city' }
+      ];
+      var html = '';
+      for (var gi = 0; gi < groups.length; gi++) {
+        var g = groups[gi];
+        var groupTowns = TOWNS.filter(function(t) { return t.type === g.type; });
+        if (groupTowns.length === 0) continue;
+        html += '<h3 class="town-cards-group-title ' + g.cssClass + '">' + g.title + '</h3>';
+        html += '<div class="town-cards-grid">';
+        for (var i = 0; i < groupTowns.length; i++) {
+          var t = groupTowns[i];
+          html += '<div class="town-card type-' + t.type + '" id="card-' + t.slug + '">';
+          html += '<div class="town-card-header">';
+          html += '<div class="town-card-name">' + t.name + '</div>';
+          html += '<div class="town-card-distance">' + t.dist + '</div>';
+          html += '</div>';
+          html += '<div class="town-card-stats">';
+          html += '<div class="town-card-stat"><strong>' + t.pop.toLocaleString() + '</strong> pop.</div>';
+          html += '<div class="town-card-stat"><strong>' + t.area + '</strong> km2</div>';
+          html += '<div class="town-card-stat"><strong>' + t.elev + '</strong> elev.</div>';
+          html += '<div class="town-card-stat">INSEE ' + t.insee + '</div>';
+          html += '</div>';
+          html += '<div class="town-card-notable">' + t.notable + '</div>';
+          html += '<div class="town-card-history">' + t.history + '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+      document.getElementById('town-cards-container').innerHTML = html;
+    }
+
     // --- Init ---
     document.addEventListener('DOMContentLoaded', function() {
       renderDonut('land-use-donut', [
@@ -1172,6 +1352,7 @@
 
       renderPopulationChart();
       renderRegionMap();
+      renderTownCards();
     });
   </script>
 
