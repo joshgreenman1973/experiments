@@ -59,7 +59,7 @@
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+        const { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
 
         const compositionData = [
             { year: 1940, public: 980000, charter: 0, religious: 250000, nonReligious: 20000, homeschool: 0 },
@@ -167,6 +167,19 @@
             { year: 2025, preK: 52000, threeK: 38000 }
         ];
 
+        // Chronic absenteeism: students missing 10%+ of school days
+        // Uses NYSED-aligned definition (excludes suspensions and extended medical absences)
+        // Sources: NYC DOE InfoHub, Manhattan Institute, Chalkbeat, Empire Center
+        const absenteeismData = [
+            { year: '2018-19', rate: 26.5, era: 'pre' },
+            { year: '2019-20', rate: null, era: 'covid', note: 'No data: schools closed March 2020' },
+            { year: '2020-21', rate: 30, era: 'covid', note: '61% of students fully remote; attendance tracking inconsistent' },
+            { year: '2021-22', rate: 40.2, era: 'post' },
+            { year: '2022-23', rate: 36, era: 'post' },
+            { year: '2023-24', rate: 34.8, era: 'post' },
+            { year: '2024-25', rate: 33, era: 'post', note: 'Preliminary (Mayor\'s Management Report, Sept. 2025)' },
+        ];
+
         const gradeData = [
             { grade: 'K',  y2019: 72000, y2025: 56000 },
             { grade: '1',  y2019: 74000, y2025: 59000 },
@@ -193,6 +206,9 @@
             threeK: '#cea9be',
             y2019: '#dddddd',
             y2025: '#e7466d',
+            absentPre: '#217ebe',
+            absentCovid: '#cea9be',
+            absentPost: '#e7466d',
         };
 
         const formatYAxis = (v) => {
@@ -299,6 +315,8 @@
                 { id: 'composition', label: 'Total K-12 Composition' },
                 { id: 'prek', label: 'Early Childhood (Pre-K / 3-K)' },
                 { id: 'grades', label: 'Public Enrollment by Grade' },
+                { id: 'absenteeism', label: 'Chronic Absenteeism' },
+                { id: 'methodology', label: 'Methodology' },
             ];
 
 
@@ -451,6 +469,148 @@
 
                         <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                             <div><span style={{ fontWeight: 600 }}>Source:</span>{' '}<a href="https://infohub.nyced.org/" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE InfoHub</a></div>
+                        </div>
+                    </div>}
+
+                    {/* TAB 4: CHRONIC ABSENTEEISM */}
+                    {activeTab === 'absenteeism' && <div>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                            Chronic absenteeism surged after the pandemic and hasn't recovered
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '28px' }}>
+                            Share of NYC public school students missing 10% or more of school days
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                            <StatCard label="Pre-pandemic" value="26.5%" detail="2018-19 (last full year)" color="#217ebe" />
+                            <StatCard label="Post-pandemic peak" value="40.2%" detail="2021-22 (first full year back)" color="#e7466d" />
+                            <StatCard label="Latest" value="~33%" detail="2024-25 (preliminary)" color="#e7466d" />
+                            <StatCard label="Gap vs. baseline" value="+6.5 pts" detail="Still well above pre-pandemic" color="#707175" />
+                        </div>
+
+                        <div style={{ height: '400px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={absenteeismData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                    <XAxis dataKey="year" tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tickFormatter={(v) => v + '%'} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={40} domain={[0, 50]} />
+                                    <Tooltip content={({ active, payload, label }) => {
+                                        if (!active || !payload || !payload.length) return null;
+                                        var d = absenteeismData.find(r => r.year === label);
+                                        return (
+                                            <div style={{ background: '#050507', color: '#fff', padding: '16px 20px', minWidth: '220px', fontFamily: 'var(--font-primary)', boxShadow: '0 8px 32px rgba(0,0,0,0.24)' }}>
+                                                <div style={{ fontWeight: 900, fontSize: '20px', letterSpacing: '-0.02em', marginBottom: '8px' }}>{label}</div>
+                                                {d && d.rate !== null ? (
+                                                    <div>
+                                                        <div style={{ fontSize: '13px', marginBottom: '4px' }}>
+                                                            <span style={{ color: 'rgba(255,255,255,0.7)' }}>Chronic absenteeism rate: </span>
+                                                            <span style={{ fontWeight: 700 }}>{d.rate}%</span>
+                                                        </div>
+                                                        {d.note && <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '6px', fontStyle: 'italic' }}>{d.note}</div>}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>{d && d.note}</div>
+                                                )}
+                                            </div>
+                                        );
+                                    }} />
+                                    <Bar isAnimationActive={false} dataKey="rate" radius={[3, 3, 0, 0]}>
+                                        {absenteeismData.map((entry, index) => (
+                                            <Cell key={index} fill={
+                                                entry.era === 'pre' ? '#217ebe' :
+                                                entry.era === 'covid' ? '#cea9be' :
+                                                '#e7466d'
+                                            } />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#707175' }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#217ebe' }} /> Pre-pandemic
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#707175' }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#cea9be' }} /> COVID-disrupted (not comparable)
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#707175' }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#e7466d' }} /> Post-pandemic
+                            </div>
+                        </div>
+
+                        <div style={{ background: '#f8f8f8', border: '1px solid #ddd', padding: '16px 20px', marginTop: '8px', fontSize: '12px', color: '#707175', lineHeight: 1.6 }}>
+                            <div style={{ fontWeight: 700, marginBottom: '6px', color: '#050507', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Important caveats</div>
+                            <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                                <li><strong>2019-20:</strong> No end-of-year data. Schools closed mid-March 2020.</li>
+                                <li><strong>2020-21:</strong> 61% of students were fully remote. How "present" was defined varied by school (logging into a virtual class, completing assignments, etc.). This year's rate is not meaningfully comparable to in-person years.</li>
+                                <li><strong>Definition:</strong> Uses NYSED's chronic absenteeism measure (attendance rate of 90% or less). NYS excludes suspensions and extended medical absences, so these figures are not directly comparable to federal chronic absenteeism data from the U.S. Department of Education.</li>
+                                <li><strong>2024-25:</strong> Preliminary figure from the Mayor's Management Report (September 2025). Final school-level data not yet published by DOE.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175' }}>
+                            <span style={{ fontWeight: 600 }}>Sources:</span>{' '}
+                            <a href="https://infohub.nyced.org/reports/students-and-schools/school-quality/information-and-data-overview" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE InfoHub</a>,{' '}
+                            <a href="https://manhattan.institute/article/chronic-absenteeism-hampering-school-improvement-efforts-new-york-city" style={{ color: '#707175', textDecoration: 'underline' }}>Manhattan Institute</a>,{' '}
+                            <a href="https://www.chalkbeat.org/newyork/2025/09/17/nyc-public-schools-chronic-absenteeism-remains-high/" style={{ color: '#707175', textDecoration: 'underline' }}>Chalkbeat</a>,{' '}
+                            <a href="https://www.empirecenter.org/publications/schools-out-forever/" style={{ color: '#707175', textDecoration: 'underline' }}>Empire Center</a>
+                        </div>
+                    </div>}
+
+                    {/* TAB 5: METHODOLOGY */}
+                    {activeTab === 'methodology' && <div>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '20px' }}>
+                            Methodology and data notes
+                        </h2>
+
+                        <div style={{ fontSize: '14px', color: '#050507', lineHeight: 1.7, fontFamily: 'var(--font-secondary)' }}>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>K-12 composition (1940-2025)</h3>
+                                <p style={{ marginBottom: '10px' }}>This chart shows estimated total K-12 enrollment across five sectors: traditional public schools (NYC DOE), charter schools, religious/parochial schools, independent secular private schools, and homeschool.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Post-2000 data</strong> for public and charter schools comes from NYC DOE enrollment reports published on InfoHub and the NYS Education Department. These are audited enrollment counts taken on the official BEDS (Basic Educational Data System) Day each fall.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Pre-2000 data are historical estimates.</strong> There is no single dataset covering all NYC school sectors back to 1940. Pre-2000 figures are assembled from historical DOE reports, NYC Independent Budget Office analyses, NYSED archives, and academic sources. Figures for the 1940s-1960s are rounded approximations and should be understood as showing broad trends, not precise counts.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Private school enrollment</strong> (both religious and secular) is always an estimate. Private schools in New York State file basic enrollment data with NYSED, but reporting completeness varies. The Archdiocese of New York and Diocese of Brooklyn publish enrollment figures for Catholic schools; other religious school networks (yeshivas, Islamic schools, etc.) are harder to count precisely. The "religious/parochial" category includes all religiously affiliated schools.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Homeschool numbers</strong> are the most uncertain. New York State requires families to file an Individualized Home Instruction Plan (IHIP) with their local school district. The DOE publishes some counts, but compliance with filing requirements is uneven, and actual homeschooling likely exceeds filed IHIPs. The spike during 2020-2021 reflects both increased filing and media-reported estimates.</p>
+                                <p><strong>Charter schools</strong> first appeared in NYC in 1999 following the NYS Charter Schools Act of 1998. Charter students are publicly funded but shown separately from DOE-operated schools.</p>
+                            </div>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>Early childhood (Pre-K / 3-K)</h3>
+                                <p style={{ marginBottom: '10px' }}>Pre-K data begins in 2012, covering both DOE-operated and community-based organization (CBO) seats. Universal Pre-K launched citywide in fall 2014 under Mayor de Blasio. 3-K for All began in 2017 in select districts and expanded citywide.</p>
+                                <p style={{ marginBottom: '10px' }}>Enrollment figures come from NYC DOE Demographic Snapshots published on InfoHub. These count filled seats, not available seats -- the gap between capacity and enrollment has widened in recent years, particularly for 3-K.</p>
+                                <p>The decline in both Pre-K and 3-K enrollment since their respective peaks reflects falling birth rates in NYC (births dropped from ~123,000 in 2016 to ~99,000 in 2022) as well as competition from private early childhood providers.</p>
+                            </div>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>Public enrollment by grade</h3>
+                                <p style={{ marginBottom: '10px' }}>The grade-level comparison shows DOE-operated public school enrollment only (not charter schools) for 2019 vs. 2025. Source: DOE InfoHub enrollment reports.</p>
+                                <p>The pattern of steeper declines in lower grades reflects both the ongoing birth rate decline and pandemic-era departures that hit younger cohorts hardest. As these smaller cohorts age up, the enrollment wave will continue moving through upper grades.</p>
+                            </div>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>Chronic absenteeism</h3>
+                                <p style={{ marginBottom: '10px' }}>Chronic absenteeism is defined as a student missing 10% or more of enrolled school days in a given year (typically 18+ days out of 180). This chart uses the NYSED-aligned definition, which excludes suspensions and extended medical absences from the absence count.</p>
+                                <p style={{ marginBottom: '10px' }}>The DOE formally adopted the NYSED definition starting in 2020-21 but retroactively applied it to data from 2016-17 onward. Only 2018-19 is shown as the pre-pandemic baseline because it is the last full school year with reliable data and is widely cited in published analyses.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>2019-20 is excluded entirely</strong> because schools closed in mid-March 2020 and the DOE did not publish end-of-year attendance data. <strong>2020-21 is shown but flagged</strong>: with 61% of students fully remote, attendance tracking was inconsistent across schools, and the reported 30% rate likely understates actual disengagement.</p>
+                                <p>Because NYS excludes suspensions from its definition, these rates are not directly comparable to federal chronic absenteeism data from the U.S. Department of Education, which counts all absences regardless of reason.</p>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #ddd', paddingTop: '20px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>Sources</h3>
+                                <ul style={{ margin: 0, paddingLeft: '18px', color: '#707175', fontSize: '13px' }}>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://infohub.nyced.org/" style={{ color: '#394882' }}>NYC DOE InfoHub</a> -- enrollment reports, demographic snapshots, attendance data</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://data.nysed.gov/" style={{ color: '#394882' }}>NYS Education Department</a> -- BEDS enrollment, accountability data</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://ibo.nyc.ny.us/" style={{ color: '#394882' }}>NYC Independent Budget Office</a> -- historical enrollment analyses</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://data.cityofnewyork.us/Education/2016-17-2020-23-Citywide-End-of-Year-Attendance-an/sgsi-66kk" style={{ color: '#394882' }}>NYC Open Data</a> -- school-level attendance and chronic absenteeism, 2016-17 through 2022-23</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://manhattan.institute/article/chronic-absenteeism-hampering-school-improvement-efforts-new-york-city" style={{ color: '#394882' }}>Manhattan Institute</a> -- chronic absenteeism analysis</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://www.empirecenter.org/publications/schools-out-forever/" style={{ color: '#394882' }}>Empire Center</a> -- attendance and enrollment analysis</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://steinhardt.nyu.edu/research-alliance/research/spotlight-nyc-schools/how-has-attendance-nyc-schools-changed-over-time" style={{ color: '#394882' }}>NYU Research Alliance for NYC Schools</a> -- historical attendance trends (2000-2018)</li>
+                                    <li style={{ marginBottom: '6px' }}><a href="https://www.chalkbeat.org/newyork/" style={{ color: '#394882' }}>Chalkbeat New York</a> -- reporting on 2022-23 through 2024-25 chronic absenteeism data</li>
+                                </ul>
+                            </div>
+
                         </div>
                     </div>}
 
