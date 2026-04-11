@@ -253,6 +253,13 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
   <h1>311 streetlight <span class="flicker">outage</span> map</h1>
   <p class="subtitle">Streetlight outage complaints since Jan. 2024. Hex grid shows complaint density by area; switch to "all spots" to see repeat locations.</p>
 
+  <div id="address-search" style="margin-bottom:14px;position:relative;">
+    <input type="text" id="search-input" placeholder="Search an address..." style="width:100%;padding:9px 36px 9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;" />
+    <button id="search-btn" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:6px;font-size:14px;" title="Search">&#x1F50D;</button>
+    <div id="search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:100;"></div>
+    <div id="search-status" style="display:none;font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
+  </div>
+
   <div class="stat-grid">
     <div class="stat-card">
       <div class="label">Total complaints</div>
@@ -331,6 +338,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); backgroun
   <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;">
     <details style="font-size:11px;color:var(--text-dim);line-height:1.6;">
       <summary style="cursor:pointer;color:var(--text-secondary);font-size:11px;margin-bottom:8px;">Methodology and definitions</summary>
+      <p style="margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-left:2px solid var(--text-dim);border-radius:2px;"><strong style="color:var(--text-secondary);">A note on 311 data:</strong> Complaint volume reflects who has called 311, not an objective measure of where streetlight problems exist. Neighborhoods differ in their propensity for using the 311 system, and some outages are never reported. This data is an important signal of where residents see a problem, but it is subject to reporting bias and should not be treated as a complete inventory of dark streets.</p>
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Source:</strong> NYC 311 complaints filed as "Street Light Condition" via the NYC Open Data API, starting Jan. 1, 2024.</p>
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Included complaint types:</strong> Street Light Out, Multiple Street Lights Out, Street Light Lamp Dim, Street Light Lamp Missing, Fixture/Luminaire Out of Position, Fixture/Luminaire Damaged, Fixture/Luminaire Missing and Flood Light Lamp Out.</p>
       <p style="margin-bottom:8px;"><strong style="color:var(--text-secondary);">Not included:</strong> Traffic signals, pedestrian signals or any non-streetlight complaints. These have separate 311 categories.</p>
@@ -449,34 +457,30 @@ function filterComplaints(raw) {
   });
 }
 
-const CACHE_KEY = '311-streetlight-data';
-const CACHE_VERSION = '2024-v3';
+// Load pre-built static data file (fast, from CDN)
+async function loadStaticData() {
+  const res = await fetch('complaints.json');
+  if (!res.ok) throw new Error(`Static file: HTTP ${res.status}`);
+  const data = await res.json();
 
-function loadCache() {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const parsed = JSON.parse(cached);
-    if (parsed.version !== CACHE_VERSION) return null;
-    // Cache is valid for 6 hours
-    if (Date.now() - parsed.timestamp > 6 * 60 * 60 * 1000) return null;
-    return parsed.data;
-  } catch { return null; }
+  // Expand compact format back to full objects
+  const descriptors = data.d;
+  const boroMap = data.b;
+  return data.c.map(r => ({
+    latitude: String(r[0]),
+    longitude: String(r[1]),
+    descriptor: descriptors[r[2]],
+    created_date: r[3],
+    incident_address: r[4],
+    borough: boroMap[r[5]] || r[5],
+    community_board: r[6],
+    status: r[7] === 1 ? 'Open' : 'Closed'
+  }));
 }
 
-function saveCache(data) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-      data: data
-    }));
-  } catch { /* localStorage full or unavailable */ }
-}
-
-// Progressive fetch with callback after each batch
-async function fetchAll(onBatch) {
-  const limit = 5000;
+// Background API refresh to catch new complaints since static file was built
+async function fetchFromAPI() {
+  const limit = 50000;
   let offset = 0;
   let retries = 0;
   const raw = [];
@@ -484,7 +488,7 @@ async function fetchAll(onBatch) {
   const where = `complaint_type='Street Light Condition' AND created_date>'${DATE_STR}' AND latitude IS NOT NULL`;
 
   while (true) {
-    const url = `${API_BASE}?$where=${encodeURIComponent(where)}&$select=descriptor,created_date,latitude,longitude,incident_address,borough,community_board,status&$limit=${limit}&$offset=${offset}&$order=created_date DESC`;
+    const url = `${API_BASE}?$where=${encodeURIComponent(where)}&$select=descriptor,created_date,latitude,longitude,incident_address,borough,community_board,status&$limit=${limit}&$offset=${offset}&$order=created_date+DESC`;
 
     try {
       const res = await fetch(url);
@@ -493,17 +497,10 @@ async function fetchAll(onBatch) {
       if (!data.length) break;
 
       raw.push(...data);
-      const filtered = filterComplaints(data);
-      if (filtered.length > 0) {
-        allComplaints.push(...filtered);
-        document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
-        if (onBatch) onBatch();
-      }
-
       offset += limit;
       retries = 0;
       if (data.length < limit) break;
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, 50));
     } catch (err) {
       retries++;
       if (retries > 3) break;
@@ -511,8 +508,7 @@ async function fetchAll(onBatch) {
     }
   }
 
-  // Save full raw data to cache for fast reload
-  saveCache(raw);
+  return filterComplaints(raw);
 }
 
 function getHexColor(count) {
@@ -1127,10 +1123,6 @@ async function init() {
   // Start loading census tracts in background
   const tractPromise = loadCensusTracts();
 
-  // Check cache first
-  const cached = loadCache();
-  let mapShown = false;
-
   function rebuildMap() {
     if (hexLayer) map.removeLayer(hexLayer);
     if (pointLayer) map.removeLayer(pointLayer);
@@ -1150,45 +1142,36 @@ async function init() {
     updateStats(allComplaints);
   }
 
-  if (cached) {
-    // Instant load from cache
-    document.querySelector('.loading-text').textContent = 'Loading from cache...';
-    allComplaints = filterComplaints(cached);
+  // Step 1: Load static file (fast, ~600KB gzipped from CDN)
+  document.querySelector('.loading-text').textContent = 'Loading complaint data...';
+  try {
+    const staticData = await loadStaticData();
+    allComplaints = staticData;
     document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
-
     rebuildMap();
     document.getElementById('loading-overlay').classList.add('hidden');
-    mapShown = true;
-
-    // Refresh from API in background
-    allComplaints = [];
-    fetchAll(() => {}).then(() => {
-      rebuildMap();
-      tractPromise.then(() => assignCensusTracts(allComplaints));
-    });
-  } else {
-    // First visit — show map after first batch arrives
+  } catch (err) {
+    console.warn('Static file failed, falling back to API:', err);
     document.querySelector('.loading-text').textContent = 'Fetching NYC 311 data...';
-    let firstBatch = true;
-    await fetchAll(() => {
-      if (firstBatch && allComplaints.length > 0) {
-        firstBatch = false;
-        rebuildMap();
-        document.getElementById('loading-overlay').classList.add('hidden');
-        mapShown = true;
-      }
-    });
-
-    // Final rebuild with all data
+    allComplaints = await fetchFromAPI();
+    document.getElementById('load-count').textContent = allComplaints.length.toLocaleString();
     rebuildMap();
-    if (!mapShown) {
-      document.getElementById('loading-overlay').classList.add('hidden');
-    }
+    document.getElementById('loading-overlay').classList.add('hidden');
   }
 
-  // Assign census tracts once boundaries are loaded
+  // Step 2: Assign census tracts
   await tractPromise;
   assignCensusTracts(allComplaints);
+
+  // Step 3: Background API refresh for any newer complaints
+  fetchFromAPI().then(fresh => {
+    if (fresh.length > allComplaints.length + 10) {
+      // Meaningful new data — rebuild
+      allComplaints = fresh;
+      rebuildMap();
+      assignCensusTracts(allComplaints);
+    }
+  }).catch(() => { /* silent — static data is good enough */ });
 
   // Listeners
   document.getElementById('borough-filter').addEventListener('change', applyFilters);
@@ -1203,6 +1186,150 @@ async function init() {
     });
   });
 }
+
+// Address search with NYC GeoSearch autocomplete
+(function() {
+  const input = document.getElementById('search-input');
+  const btn = document.getElementById('search-btn');
+  const resultsDiv = document.getElementById('search-results');
+  const statusDiv = document.getElementById('search-status');
+  let searchMarker = null;
+  let debounceTimer = null;
+  let selectedIndex = -1;
+
+  // NYC GeoSearch API — free, no key, covers all five boroughs
+  async function fetchSuggestions(query) {
+    if (query.length < 3) { resultsDiv.style.display = 'none'; return; }
+    try {
+      const url = `https://geosearch.planninglabs.nyc/v2/autocomplete?text=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const features = (data.features || []).slice(0, 8);
+      if (!features.length) { resultsDiv.style.display = 'none'; return; }
+
+      selectedIndex = -1;
+      resultsDiv.style.display = 'block';
+      resultsDiv.innerHTML = '';
+      features.forEach((f, i) => {
+        const props = f.properties;
+        const label = props.label || props.name || '';
+        const borough = props.borough || '';
+        const neighborhood = props.neighbourhood || '';
+        const sublabel = [neighborhood, borough].filter(Boolean).join(', ');
+
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);border-bottom:1px solid var(--border);';
+        div.dataset.index = i;
+        div.innerHTML = `<div style="color:var(--text);font-size:12px;">${label}</div>${sublabel ? `<div style="color:var(--text-dim);font-size:10px;margin-top:2px;">${sublabel}</div>` : ''}`;
+        div.addEventListener('mouseenter', () => { div.style.background = 'var(--surface-hover)'; selectedIndex = i; highlightItem(); });
+        div.addEventListener('mouseleave', () => { div.style.background = 'none'; });
+        div.addEventListener('click', () => selectResult(f));
+        resultsDiv.appendChild(div);
+      });
+    } catch (err) {
+      resultsDiv.style.display = 'none';
+    }
+  }
+
+  function highlightItem() {
+    resultsDiv.querySelectorAll('div[data-index]').forEach(d => {
+      d.style.background = parseInt(d.dataset.index) === selectedIndex ? 'var(--surface-hover)' : 'none';
+    });
+  }
+
+  function selectResult(feature) {
+    const [lng, lat] = feature.geometry.coordinates;
+    const props = feature.properties;
+    const label = props.label || props.name || '';
+
+    input.value = label;
+    resultsDiv.style.display = 'none';
+
+    if (searchMarker) map.removeLayer(searchMarker);
+
+    searchMarker = L.circleMarker([lat, lng], {
+      radius: 10,
+      fillColor: '#dde44c',
+      fillOpacity: 0.9,
+      color: '#fff',
+      weight: 2
+    }).addTo(map);
+
+    // Count nearby complaints (within ~100m)
+    let nearbyCount = 0;
+    let nearbyOpen = 0;
+    for (const c of allComplaints) {
+      const clat = parseFloat(c.latitude);
+      const clng = parseFloat(c.longitude);
+      const dlat = clat - lat;
+      const dlng = (clng - lng) * Math.cos(lat * Math.PI / 180);
+      const dist = Math.sqrt(dlat * dlat + dlng * dlng) * 111320; // meters
+      if (dist <= 100) {
+        nearbyCount++;
+        if (c.status === 'Open') nearbyOpen++;
+      }
+    }
+
+    const borough = props.borough || '';
+    const neighborhood = props.neighbourhood || '';
+    const sublabel = [neighborhood, borough].filter(Boolean).join(', ');
+    const nearbyHtml = nearbyCount > 0
+      ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;"><span style="color:var(--amber);font-weight:600;">${nearbyCount} complaint${nearbyCount !== 1 ? 's' : ''}</span> within 100m${nearbyOpen > 0 ? ` <span style="color:var(--orange);">(${nearbyOpen} open)</span>` : ''}</div>`
+      : `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim);">No complaints within 100m</div>`;
+
+    searchMarker.bindPopup(`<div style="min-width:180px;"><strong style="font-size:13px;">${label}</strong><br><span style="color:var(--text-dim);font-size:11px;">${sublabel}</span>${nearbyHtml}</div>`).openPopup();
+
+    map.flyTo([lat, lng], 17, { duration: 1 });
+
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = `<a href="#" id="clear-search" style="color:var(--text-secondary);text-decoration:underline;font-size:11px;">Clear search</a>`;
+    document.getElementById('clear-search').addEventListener('click', (e) => {
+      e.preventDefault();
+      if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+      input.value = '';
+      statusDiv.style.display = 'none';
+      resultsDiv.style.display = 'none';
+    });
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    selectedIndex = -1;
+    debounceTimer = setTimeout(() => fetchSuggestions(input.value.trim()), 200);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = resultsDiv.querySelectorAll('div[data-index]');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+      highlightItem();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, 0);
+      highlightItem();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && items.length > 0) {
+        items[selectedIndex].click();
+      } else if (resultsDiv.style.display === 'block' && items.length > 0) {
+        items[0].click();
+      }
+    } else if (e.key === 'Escape') {
+      resultsDiv.style.display = 'none';
+    }
+  });
+
+  btn.addEventListener('click', () => {
+    const items = resultsDiv.querySelectorAll('div[data-index]');
+    if (items.length > 0) items[0].click();
+    else fetchSuggestions(input.value.trim());
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#address-search')) resultsDiv.style.display = 'none';
+  });
+})();
 
 init().catch(err => {
   console.error('Failed to load data:', err);

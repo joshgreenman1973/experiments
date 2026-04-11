@@ -329,16 +329,18 @@ All 311 complaint data is fetched live from the NYC Open Data API at page load. 
 
 ## 14. Known limitations and caveats
 
-1. **Address-based filtering is imperfect.** The word-matching exclusion filter can produce false positives (e.g., "Park Ave" is excluded because it contains "park") and false negatives (a park complaint filed with a nearby street address would be included).
+1. **311 complaints reflect who has called, not where problems exist.** Complaint volume is a measure of reporting behavior, not an objective inventory of streetlight outages. Neighborhoods differ in their propensity for using the 311 system, and many outages are never reported. Areas with lower complaint counts may have just as many dark streetlights as areas with higher counts — they may simply have fewer residents who know to call 311 or who believe it will make a difference. This data is an important signal of where residents see a problem, but it is subject to reporting bias and should not be treated as a complete picture of dark streets.
 
-2. **Location clustering is approximate.** The ~50-meter grid may group complaints about different streetlights that happen to be near each other, or may separate complaints about the same light that straddle a grid boundary.
+2. **Address-based filtering is imperfect.** The word-matching exclusion filter can produce false positives (e.g., "Park Ave" is excluded because it contains "park") and false negatives (a park complaint filed with a nearby street address would be included).
 
-3. **"Still open" reflects 311 status, not reality.** A complaint marked "open" in 311 may have already been fixed but not yet closed in the system. Conversely, a "closed" complaint may have been closed without the light actually being repaired.
+3. **Location clustering is approximate.** The ~50-meter grid may group complaints about different streetlights that happen to be near each other, or may separate complaints about the same light that straddle a grid boundary.
 
-4. **Census tract assignment can miss edge cases.** Complaints on tract boundaries or in water/unmapped areas won't be assigned to any tract. These still appear in hex grid and point views but are absent from census tract rankings.
+4. **"Still open" reflects 311 status, not reality.** A complaint marked "open" in 311 may have already been fixed but not yet closed in the system. Conversely, a "closed" complaint may have been closed without the light actually being repaired.
 
-5. **Data freshness depends on caching.** On a repeat visit within 6 hours, you see cached data (though the app silently refreshes in the background). For the absolute latest data, clear your browser cache or open in an incognito window.
+5. **Census tract assignment can miss edge cases.** Complaints on tract boundaries or in water/unmapped areas won't be assigned to any tract. These still appear in hex grid and point views but are absent from census tract rankings.
 
-6. **Census tract geometry is simplified.** Coordinates are rounded to 4 decimal places (~11m) and polygon rings are point-reduced. This means tract boundaries are approximate to within about 10-15 meters, which can misassign a small number of complaints near tract edges.
+6. **Data freshness.** The map loads from a pre-built static file for speed, then silently refreshes from the API in the background. The static file is regenerated periodically. For the absolute latest data, the background refresh will pick up new complaints automatically.
 
-7. **No population normalization.** The "per square mile" ranking normalizes by area but not by population. A dense residential tract and an industrial tract of the same area are treated equally. Population-weighted analysis would require linking to American Community Survey data, which is not currently included.
+7. **Census tract geometry is simplified.** Coordinates are rounded to 4 decimal places (~11m) and polygon rings are point-reduced. This means tract boundaries are approximate to within about 10-15 meters, which can misassign a small number of complaints near tract edges.
+
+8. **No population normalization.** The "per square mile" ranking normalizes by area but not by population. A dense residential tract and an industrial tract of the same area are treated equally. Population-weighted analysis would require linking to American Community Survey data, which is not currently included.
