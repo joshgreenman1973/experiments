@@ -1,5 +1,19 @@
 import chartData from '../data/music-charts.json'
 
+function decodeEntities(str) {
+  return str
+    .replace(/&#039;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function decodeEntry(entry) {
+  return { ...entry, title: decodeEntities(entry.title), artist: decodeEntities(entry.artist) }
+}
+
 // Pre-sort the chart dates for binary search
 const chartDates = Object.keys(chartData).sort()
 
@@ -38,7 +52,7 @@ export function getChartForDate(dateStr) {
 
   return {
     chartDate: closest,
-    entries: chartData[closest],
+    entries: chartData[closest].map(decodeEntry),
   }
 }
 
@@ -60,8 +74,8 @@ export function searchSongs(query) {
         if (seen.has(key)) continue
         seen.add(key)
         results.push({
-          title: entry.title,
-          artist: entry.artist,
+          title: decodeEntities(entry.title),
+          artist: decodeEntities(entry.artist),
           rank: entry.rank,
           date,
           type: 'music',
