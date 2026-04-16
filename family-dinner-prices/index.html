@@ -624,6 +624,7 @@
   <h1>What Does Dinner<br>Actually Cost?</h1>
   <p class="dek">We checked menus at 250+ neighborhood restaurants across all five boroughs to find out what a family of four actually pays for a weeknight dinner in New York City — no tablecloths, no tasting menus, just the places where people eat.</p>
   <p id="verifiedDate" class="verified-date"></p>
+  <p style="font-size:0.72rem;color:#888;max-width:640px;margin:0.8rem auto 0;line-height:1.5;text-align:center;">Restaurants were drawn from every NYC neighborhood — weighted toward everyday, family-friendly spots with at least 25 Google reviews, and validated via Google Places to confirm each was open, correctly located, and not permanently closed. For each one, we selected the most ordered-looking items on the menu: the signature entrée or pie, the plainest kid-friendly option, and a standard shared side or appetizer — so every bill reflects what a family would actually order, not the cheapest or priciest thing available.</p>
   <p style="font-size:0.72rem;color:#888;max-width:640px;margin:0.8rem auto 0;line-height:1.5;text-align:center;">Two adult entrées (or a shared pie/dishes where that's how families order), two kid portions, one shared side, two sodas (kids get water). Tax (8.875%) and 18% tip included. All prices verified from in-restaurant menus, not delivery platforms.</p>
 </div>
 
@@ -666,11 +667,6 @@
       <h3>Distribution of Family Dinner Prices</h3>
       <p class="chart-note">How many restaurants fall into each $10 price bracket</p>
       <canvas id="histogramChart"></canvas>
-    </div>
-    <div class="chart-card">
-      <h3>Average by Borough</h3>
-      <p class="chart-note">Mean family dinner cost, with range shown</p>
-      <canvas id="boroughChart"></canvas>
     </div>
     <div class="chart-card">
       <h3>Average by Cuisine</h3>
@@ -1109,34 +1105,6 @@ function renderHistogram() {
   });
 }
 
-function renderBoroughChart() {
-  const boroughData = {};
-  getActiveData().forEach(d => {
-    if (!boroughData[d.borough]) boroughData[d.borough] = [];
-    boroughData[d.borough].push(d.totalWithTip);
-  });
-  const labels = Object.keys(boroughData).sort();
-  const avgs = labels.map(b => boroughData[b].reduce((a, v) => a + v, 0) / boroughData[b].length);
-  const mins = labels.map(b => Math.min(...boroughData[b]));
-  const maxs = labels.map(b => Math.max(...boroughData[b]));
-  const boroughColors = { 'Manhattan': '#c23616', 'Brooklyn': '#1d3557', 'Queens': '#2d6a4f', 'Bronx': '#e76f51', 'Staten Island': '#7b1fa2' };
-  const colors = labels.map(b => boroughColors[b] || '#666');
-
-  chartInstances.borough = new Chart(document.getElementById('boroughChart'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Average', data: avgs, backgroundColor: colors, borderRadius: 3 }] },
-    options: {
-      ...chartDefaults,
-      indexAxis: 'y',
-      scales: { x: { beginAtZero: true, ticks: { callback: v => '$' + v, font: {size: 8} } } },
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => { const i = ctx.dataIndex; return `Avg: $${avgs[i].toFixed(0)}  |  Range: $${mins[i].toFixed(0)}–$${maxs[i].toFixed(0)}`; } } }
-      }
-    }
-  });
-}
-
 // Consolidate granular cuisine labels into broader categories for charts
 const CUISINE_MAP = {
   // Caribbean
@@ -1462,7 +1430,6 @@ function switchView(view) {
   renderMarkers(data);
   destroyAllCharts();
   renderHistogram();
-  renderBoroughChart();
   renderCuisineChart();
   renderNeighborhoodCharts();
 
@@ -1503,7 +1470,6 @@ function init() {
   initMap();
   setupFilters();
   renderHistogram();
-  renderBoroughChart();
   renderCuisineChart();
   renderNeighborhoodCharts();
 
