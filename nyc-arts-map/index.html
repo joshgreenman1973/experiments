@@ -183,7 +183,16 @@ body { display: flex; overflow: hidden; }
   color: var(--vc-charcoal);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin: 14px 0 8px;
+  margin: 14px 0 4px;
+}
+
+.cat-hint {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--vc-charcoal);
+  margin-bottom: 8px;
+  font-family: var(--font-secondary);
+  font-style: italic;
 }
 
 .cat-item {
@@ -646,7 +655,7 @@ function init() {
 // ── Sidebar rendering ──
 function renderCategories() {
   const list = document.getElementById('categoryList');
-  list.innerHTML = '<div class="cat-section-label">Categories</div>';
+  list.innerHTML = '<div class="cat-section-label">Categories</div><div class="cat-hint">Click a row to isolate it. Click again to show all.</div>';
 
   const maxCount = Math.max(...Object.keys(CATEGORIES).map(k => VENUES.filter(v => v.c === k).length));
 
@@ -669,12 +678,18 @@ function renderCategories() {
 }
 
 function toggleCategory(key) {
-  categoryVisible[key] = !categoryVisible[key];
-  if (categoryVisible[key]) {
-    clusterGroup.addLayer(categoryLayers[key]);
-  } else {
-    clusterGroup.removeLayer(categoryLayers[key]);
+  const keys = Object.keys(CATEGORIES);
+  const visibleKeys = keys.filter(k => categoryVisible[k]);
+  const isSoloed = visibleKeys.length === 1 && visibleKeys[0] === key;
+
+  // Soloed already → restore all. Otherwise → solo this one.
+  for (const k of keys) {
+    const shouldShow = isSoloed ? true : (k === key);
+    if (shouldShow && !categoryVisible[k]) clusterGroup.addLayer(categoryLayers[k]);
+    if (!shouldShow && categoryVisible[k]) clusterGroup.removeLayer(categoryLayers[k]);
+    categoryVisible[k] = shouldShow;
   }
+  document.getElementById('toggleAllBtn').textContent = isSoloed ? 'Hide All' : 'Show All';
   renderCategories();
   updateCount();
 }
