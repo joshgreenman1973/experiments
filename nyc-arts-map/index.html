@@ -457,100 +457,6 @@ body { display: flex; overflow: hidden; }
   background: rgba(5,5,7,0.8) !important;
 }
 
-/* ── Password gate ── */
-.pw-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: var(--vc-black);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pw-gate-inner {
-  text-align: center;
-  width: 280px;
-  animation: fadeUp 0.5s ease both;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.pw-gate-accent {
-  width: 40px;
-  height: 3px;
-  background: var(--vc-chartreuse);
-  margin: 0 auto 20px;
-}
-
-.pw-gate-title {
-  font-family: var(--font-primary);
-  font-weight: 900;
-  font-size: 24px;
-  color: var(--vc-white);
-  margin-bottom: 4px;
-  letter-spacing: -0.01em;
-}
-
-.pw-gate-sub {
-  font-family: var(--font-secondary);
-  font-size: 14px;
-  font-weight: 200;
-  color: var(--vc-periwinkle);
-  margin-bottom: 28px;
-}
-
-.pw-gate-form {
-  display: flex;
-  gap: 0;
-  border: 1.5px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.pw-gate-form:focus-within {
-  border-color: var(--vc-orange);
-}
-
-.pw-gate-input {
-  flex: 1;
-  padding: 11px 14px;
-  background: rgba(255,255,255,0.05);
-  border: none;
-  color: var(--vc-white);
-  font-family: var(--font-primary);
-  font-size: 14px;
-  font-weight: 400;
-  outline: none;
-}
-
-.pw-gate-input::placeholder { color: rgba(255,255,255,0.25); }
-
-.pw-gate-btn {
-  padding: 11px 18px;
-  background: var(--vc-orange);
-  border: none;
-  color: var(--vc-white);
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.12s;
-  line-height: 1;
-}
-
-.pw-gate-btn:hover { background: #e86a42; }
-
-.pw-gate-error {
-  margin-top: 12px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--vc-magenta);
-  display: none;
-}
-
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar {
@@ -587,19 +493,6 @@ body { display: flex; overflow: hidden; }
 </style>
 </head>
 <body>
-
-<div id="passwordGate" class="pw-gate">
-  <div class="pw-gate-inner">
-    <div class="pw-gate-accent"></div>
-    <h2 class="pw-gate-title">NYC Arts Atlas</h2>
-    <p class="pw-gate-sub">Every creative venue in the five boroughs</p>
-    <div class="pw-gate-form">
-      <input type="password" id="gateInput" class="pw-gate-input" placeholder="Password" />
-      <button id="gateBtn" class="pw-gate-btn">→</button>
-    </div>
-    <div id="gateError" class="pw-gate-error">Incorrect password</div>
-  </div>
-</div>
 
 <div class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
 
@@ -641,15 +534,18 @@ body { display: flex; overflow: hidden; }
 <script>
 // ── Category definitions — mapped to VC palette ──
 const CATEGORIES = {
-  museum:      { label: 'Museums',                      color: '#e7466d' },  // Magenta — focal highlight
-  gallery:     { label: 'Galleries',                     color: '#dde44c' },  // Chartreuse — primary fill
-  theater:     { label: 'Theaters & Performing Arts',    color: '#394882' },  // Indigo
-  cinema:      { label: 'Cinemas',                       color: '#217ebe' },  // Cerulean
-  music:       { label: 'Music Venues',                  color: '#ff7c53' },  // Safety Orange
-  arts_center: { label: 'Arts & Cultural Centers',       color: '#9b9fbc' },  // Periwinkle
-  nightlife:   { label: 'Nightlife & Performance',       color: '#cea9be' },  // Rose
-  dance:       { label: 'Dance Studios & Venues',        color: '#57aa4a' },  // Goodest Green
-  maker:       { label: 'Maker Spaces & Craft Studios',  color: '#4e98cb' },  // Cerulean 80
+  museum:      { label: 'Museums',                      color: '#e7466d' },  // Magenta
+  gallery:     { label: 'Galleries',                    color: '#dde44c' },  // Chartreuse
+  theater:     { label: 'Theaters & Performing Arts',   color: '#394882' },  // Indigo
+  cinema:      { label: 'Movie Theaters',               color: '#217ebe' },  // Cerulean
+  music:       { label: 'Music Venues',                 color: '#ff7c53' },  // Orange
+  comedy:      { label: 'Comedy Clubs',                 color: '#f69577' },  // Orange 80
+  dance:       { label: 'Dance Studios & Venues',       color: '#57aa4a' },  // Goodest Green
+  arts_center: { label: 'Arts & Cultural Centers',      color: '#9b9fbc' },  // Periwinkle
+  library:     { label: 'Libraries',                    color: '#707175' },  // Charcoal
+  bookstore:   { label: 'Bookstores',                   color: '#ec6b8a' },  // Magenta 80
+  nightlife:   { label: 'Nightlife & Performance',      color: '#cea9be' },  // Rose
+  maker:       { label: 'Maker Spaces & Craft Studios', color: '#4e98cb' },  // Cerulean 80
 };
 
 // ── State ──
@@ -855,33 +751,7 @@ document.getElementById('searchInput').addEventListener('keydown', function(e) {
   }
 });
 
-// ── Password gate ──
-function checkGate() {
-  const pw = document.getElementById('gateInput').value;
-  if (pw === 'vitalcity2026?!') {
-    sessionStorage.setItem('arts-atlas-auth', '1');
-    document.getElementById('passwordGate').style.display = 'none';
-    init();
-  } else {
-    document.getElementById('gateError').style.display = 'block';
-    document.getElementById('gateInput').value = '';
-    document.getElementById('gateInput').focus();
-  }
-}
-
-document.getElementById('gateBtn').addEventListener('click', checkGate);
-document.getElementById('gateInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') checkGate();
-  document.getElementById('gateError').style.display = 'none';
-});
-
-// Auto-pass if already authed this session
-if (sessionStorage.getItem('arts-atlas-auth') === '1') {
-  document.getElementById('passwordGate').style.display = 'none';
-  init();
-} else {
-  document.getElementById('gateInput').focus();
-}
+init();
 </script>
 </body>
 </html>
