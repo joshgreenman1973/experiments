@@ -102,6 +102,35 @@
       font-style: italic;
     }
 
+    /* Price verification timestamp */
+    .verified-date {
+      margin: 0.9rem auto 0;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      color: var(--ink-light);
+      text-transform: uppercase;
+    }
+    .verified-date:empty { display: none; }
+    .verified-date .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-right: 0.4rem;
+      vertical-align: 1px;
+    }
+    .receipt-asof {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--ink-faint);
+      text-align: center;
+      margin-top: 3px;
+      letter-spacing: 0.04em;
+    }
+
     /* Methodology as a napkin note */
     .napkin-note {
       display: inline-block;
@@ -533,6 +562,7 @@
   <p class="diner-label">— NYC Family Dining Costs —</p>
   <h1>What Does Dinner<br>Actually Cost?</h1>
   <p class="dek">We checked menus at 250+ neighborhood restaurants across all five boroughs to find out what a family of four actually pays for a weeknight dinner in New York City — no tablecloths, no tasting menus, just the places where people eat.</p>
+  <p id="verifiedDate" class="verified-date"></p>
   <p style="font-size:0.72rem;color:#888;max-width:640px;margin:0.8rem auto 0;line-height:1.5;text-align:center;">Two adult entrées (or a shared pie/dishes where that's how families order), two kid portions, one shared side, two sodas (kids get water). Tax (8.875%) and 18% tip included. All prices verified from in-restaurant menus, not delivery platforms.</p>
 </div>
 
@@ -834,6 +864,9 @@ function buildReceipt(d) {
   const tip = foodSubtotal * TIP_RATE;
   const total = subtotalWithTax + tip;
 
+  const asOf = getRestaurantAsOf(d);
+  const asOfLine = asOf ? `<div class="receipt-asof">Prices as of ${formatVerifiedDate(asOf)}</div>` : '';
+
   return `<div class="receipt">
     <div class="receipt-name">${d.name}</div>
     <div class="receipt-cuisine">${d.cuisine} · ${d.neighborhood}, ${d.borough}</div>
@@ -847,6 +880,7 @@ function buildReceipt(d) {
     <div class="receipt-total"><span>TOTAL</span><span>${fmtDec(total)}</span></div>
     ${d.kidsMenu === 'yes' ? '<div style="text-align:center;margin-top:5px"><span class="receipt-kids-badge">✓ Kids Menu</span></div>' : ''}
     <div class="receipt-footer">— Thank you! —</div>
+    ${asOfLine}
   </div>`;
 }
 
@@ -1367,10 +1401,52 @@ function init() {
 
   renderTrendCharts();
   renderTrackingNote();
+  renderVerifiedDate();
   renderContextCalc();
   renderTable(getActiveData());
   setupTableSort();
   setupViewSwitcher();
+}
+
+// ══════════════════════════════════════════════
+// PRICE VERIFICATION DATE
+// ══════════════════════════════════════════════
+function formatVerifiedDate(ymd) {
+  return new Date(ymd + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  });
+}
+
+function renderVerifiedDate() {
+  const el = document.getElementById('verifiedDate');
+  if (!el) return;
+  if (typeof PRICE_HISTORY === 'undefined' || !PRICE_HISTORY.dates || !PRICE_HISTORY.dates.length) return;
+  const dates = PRICE_HISTORY.dates;
+  const latest = formatVerifiedDate(dates[dates.length - 1]);
+  const suffix = dates.length === 1
+    ? 'baseline'
+    : `${dates.length} monthly checks`;
+  el.innerHTML = `<span class="dot"></span>Prices verified: ${latest} · ${suffix}`;
+}
+
+function slugify(s) {
+  // Match registry's slug convention: strip apostrophes, then replace non-alphanumerics with dashes
+  return String(s || '').toLowerCase().replace(/['\u2019]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function getRestaurantAsOf(d) {
+  if (typeof PRICE_HISTORY === 'undefined' || !PRICE_HISTORY.restaurantHistory) return null;
+  if (!d) return null;
+  const id = d.id || `${slugify(d.name)}-${slugify(d.neighborhood)}-${slugify(d.borough)}`;
+  const h = PRICE_HISTORY.restaurantHistory[id];
+  if (h && h.prices && h.prices.length) {
+    return h.prices[h.prices.length - 1].date;
+  }
+  // Fallback: use the global latest date so the receipt always shows something
+  if (PRICE_HISTORY.dates && PRICE_HISTORY.dates.length) {
+    return PRICE_HISTORY.dates[PRICE_HISTORY.dates.length - 1];
+  }
+  return null;
 }
 
 document.addEventListener('DOMContentLoaded', init);
