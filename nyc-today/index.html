@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Data Dive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0e1a;
+    color: #e8eaf0;
+    min-height: 100vh;
+    padding: 2rem 1.5rem 3rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .header .kicker {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    color: #7b8ab8;
+    margin-bottom: 0.5rem;
+  }
+
+  .header h1 {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+  }
+
+  .header .subtitle {
+    font-size: 0.9rem;
+    color: #4a5578;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1.2rem;
+    margin-top: 1.2rem;
+    font-size: 0.72rem;
+    color: #5a6891;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .legend-swatch {
+    font-weight: 800;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .legend-swatch.shadow { color: #2a3460; }
+  .legend-swatch.today { color: #e8eaf0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.85rem;
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: linear-gradient(135deg, #12162a 0%, #161b30 100%);
+    border: 1px solid #1e2540;
+    border-radius: 12px;
+    padding: 1rem 1.15rem 0.9rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+
+  .card:hover {
+    border-color: #2a3460;
+  }
+
+  .card .category {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.35rem;
+  }
+
+  .card .label {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #c4cce0;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+  }
+
+  .number-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+    min-height: 2.7rem;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .history-strip {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.45rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    justify-content: flex-end;
+    padding-right: 0.15rem;
+  }
+
+  .history-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.22rem;
+    flex: 0 0 auto;
+  }
+
+  .history-number {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #2a3460;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.5s, opacity 0.5s;
+    white-space: nowrap;
+  }
+
+  .history-date {
+    font-size: 0.5rem;
+    color: #2d3757;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .today-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    margin-left: auto;
+    padding-left: 0.7rem;
+    border-left: 1px solid #1e2540;
+    flex-shrink: 0;
+  }
+
+  .today-number {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    transition: color 0.6s;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .today-number.loading { color: #2a3460; }
+
+  .today-date {
+    font-size: 0.56rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7b8ab8;
+    white-space: nowrap;
+  }
+
+  .data-for {
+    margin-top: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .data-for .primary-date {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #a4afcc;
+    letter-spacing: 0.01em;
+  }
+
+  .data-for .primary-date .lag {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.58rem;
+    font-weight: 600;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    background: rgba(148, 163, 184, 0.1);
+    color: #7b8ab8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    vertical-align: 0.1em;
+  }
+
+  .card .footnote {
+    font-size: 0.62rem;
+    color: #3d4668;
+    margin-top: 0.65rem;
+    line-height: 1.35;
+    padding-top: 0.55rem;
+    border-top: 1px solid #1a2038;
+  }
+
+  /* Category colors */
+  .cat-safety .category { color: #f87171; }
+  .cat-safety .today-number { color: #f87171; }
+
+  .cat-housing .category { color: #fb923c; }
+  .cat-housing .today-number { color: #fb923c; }
+
+  .cat-health .category { color: #34d399; }
+  .cat-health .today-number { color: #34d399; }
+
+  .cat-civic .category { color: #fbbf24; }
+  .cat-civic .today-number { color: #fbbf24; }
+
+  .cat-construction .category { color: #a78bfa; }
+  .cat-construction .today-number { color: #a78bfa; }
+
+  .cat-environment .category { color: #4ade80; }
+  .cat-environment .today-number { color: #4ade80; }
+
+  .cat-transport .category { color: #38bdf8; }
+  .cat-transport .today-number { color: #38bdf8; }
+
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.9; }
+  }
+
+  .loading-text {
+    animation: shimmer 1.4s ease-in-out infinite;
+    color: #2a3460 !important;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    font-size: 0.72rem;
+    color: #3d4668;
+    line-height: 1.7;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .footer a {
+    color: #5a6891;
+    text-decoration: none;
+    border-bottom: 1px dotted #3d4668;
+  }
+
+  .refresh-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    color: #4a5578;
+    font-size: 0.7rem;
+  }
+
+  .pulse {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem 0.8rem 2rem; }
+    .header h1 { font-size: 1.9rem; }
+    .header .kicker { font-size: 0.7rem; }
+    .grid { gap: 0.8rem; grid-template-columns: 1fr; }
+    .card { padding: 1.3rem 1.4rem 1.2rem; }
+    .today-number { font-size: 2.4rem; }
+    .shadow-number { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="kicker">Daily Data Dive</div>
+  <h1>What NYC recorded, <span id="header-span">most recently</span></h1>
+  <div class="subtitle">
+    NYC's daily-updating open datasets, compared day over day.
+    Since each dataset lags differently, every card shows the specific day its data is <em>for</em>.
+  </div>
+  <div class="legend">
+    <span class="legend-item">
+      <span class="legend-swatch shadow">84 92 71 88 95</span>
+      <span>past five days</span>
+    </span>
+    <span class="legend-item">
+      <span class="legend-swatch today">112</span>
+      <span>most recent complete day</span>
+    </span>
+    <span class="refresh-note">
+      <span class="pulse"></span>
+      <span>auto-refreshes every 30 min</span>
+    </span>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="footer">
+  Data from <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC Open Data</a> via the Socrata SODA API.
+  Each card shows its own most-recent complete day, since update lag varies by dataset (from hours to a few days).
+  Counts reflect records timestamped on the dates shown, not when they were published.
+</div>
+
+<script>
+const BASE = 'https://data.cityofnewyork.us/resource';
+
+// Each indicator: dataset ID, date field, how to count, labels
+const indicators = [
+  {
+    id: 'collisions',
+    dataset: 'h9gi-nx95',
+    dateField: 'crash_date',
+    category: 'Public safety',
+    catClass: 'cat-safety',
+    label: 'Motor vehicle collisions reported',
+    countMode: 'rows',
+    footnote: 'NYPD Motor Vehicle Collisions'
+  },
+  {
+    id: 'collisions-injured',
+    dataset: 'h9gi-nx95',
+    dateField: 'crash_date',
+    category: 'Public safety',
+    catClass: 'cat-safety',
+    label: 'People injured in traffic crashes',
+    countMode: 'sum',
+    sumField: 'number_of_persons_injured',
+    footnote: 'Motorists, cyclists, and pedestrians injured'
+  },
+  {
+    id: 'hpd-complaints',
+    dataset: 'ygpa-z7cr',
+    dateField: 'received_date',
+    category: 'Housing',
+    catClass: 'cat-housing',
+    label: 'HPD housing complaints filed',
+    countMode: 'rows',
+    footnote: 'Dept. of Housing Preservation and Development'
+  },
+  {
+    id: 'evictions',
+    dataset: '6z8x-wfk4',
+    dateField: 'executed_date',
+    category: 'Housing',
+    catClass: 'cat-housing',
+    label: 'Marshal evictions executed',
+    countMode: 'rows',
+    footnote: 'NYC Marshals -- evictions carried out'
+  },
+  {
+    id: 'dob-jobs',
+    dataset: 'w9ak-ipjd',
+    dateField: 'filing_date',
+    category: 'Construction',
+    catClass: 'cat-construction',
+    label: 'DOB job applications filed',
+    countMode: 'rows',
+    footnote: 'Dept. of Buildings -- new jobs and alterations'
+  },
+  {
+    id: 'restaurant-inspections',
+    dataset: '43nn-pn8j',
+    dateField: 'inspection_date',
+    category: 'Health',
+    catClass: 'cat-health',
+    label: 'Restaurant inspections conducted',
+    countMode: 'rows',
+    footnote: 'DOHMH restaurant inspection results'
+  },
+  {
+    id: 'restaurant-violations',
+    dataset: '43nn-pn8j',
+    dateField: 'inspection_date',
+    category: 'Health',
+    catClass: 'cat-health',
+    label: 'Critical health code violations issued',
+    countMode: 'rows',
+    extraWhere: "critical_flag='Critical'",
+    footnote: 'Critical-flagged violations from that day\u2019s inspections'
+  },
+  {
+    id: '311-complaints',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: '311 service requests opened',
+    countMode: 'rows',
+    footnote: 'All 311 Service Requests from 2010 to Present'
+  },
+  {
+    id: '311-noise',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: 'Noise complaints to 311',
+    countMode: 'rows',
+    extraWhere: "complaint_type like 'Noise%'",
+    footnote: 'Any 311 complaint whose type starts with "Noise"'
+  },
+  {
+    id: 'forestry',
+    dataset: 'bdjm-n7q4',
+    dateField: 'createddate',
+    category: 'Environment',
+    catClass: 'cat-environment',
+    label: 'Forestry work orders opened',
+    countMode: 'rows',
+    footnote: 'Parks Dept. tree-care and forestry work requested that day'
+  },
+  {
+    id: 'street-permits',
+    dataset: 'tqtj-sjs8',
+    dateField: 'permitissuedate',
+    category: 'Construction',
+    catClass: 'cat-construction',
+    label: 'Street construction permits issued',
+    countMode: 'rows',
+    footnote: 'DOT street-work permits -- excavation, sidewalk, canopy, etc.'
+  },
+  {
+    id: 'tlc-drivers',
+    dataset: 'dpec-ucu7',
+    dateField: 'app_date',
+    category: 'Transport',
+    catClass: 'cat-transport',
+    label: 'New TLC driver applications',
+    countMode: 'rows',
+    footnote: "Taxi & Limousine Commission -- new for-hire driver filings"
+  },
+  {
+    id: 'dob-cos',
+    dataset: 'bs8b-p36w',
+    dateField: 'c_o_issue_date',
+    category: 'Construction',
+    catClass: 'cat-construction',
+    label: 'Certificates of Occupancy issued',
+    countMode: 'rows',
+    footnote: 'DOB final COs -- buildings cleared for use'
+  },
+  {
+    id: 'pedestrians-injured',
+    dataset: 'f55k-p6yu',
+    dateField: 'crash_date',
+    category: 'Public safety',
+    catClass: 'cat-safety',
+    label: 'Pedestrians injured in crashes',
+    countMode: 'rows',
+    extraWhere: "person_type='Pedestrian' AND person_injury='Injured'",
+    footnote: 'NYPD Motor Vehicle Collisions -- Persons (pedestrians marked injured)'
+  },
+  {
+    id: 'cyclists-injured',
+    dataset: 'f55k-p6yu',
+    dateField: 'crash_date',
+    category: 'Public safety',
+    catClass: 'cat-safety',
+    label: 'Cyclists injured in crashes',
+    countMode: 'rows',
+    extraWhere: "person_type='Bicyclist' AND person_injury='Injured'",
+    footnote: 'NYPD Motor Vehicle Collisions -- Persons (cyclists marked injured)'
+  },
+  {
+    id: 'hpd-violations',
+    dataset: 'wvxf-dwi5',
+    dateField: 'inspectiondate',
+    category: 'Housing',
+    catClass: 'cat-housing',
+    label: 'HPD housing violations issued',
+    countMode: 'rows',
+    footnote: 'HPD inspection-based violations written against buildings'
+  },
+  {
+    id: 'hpd-vacates',
+    dataset: 'tb8q-a3ar',
+    dateField: 'vacate_effective_date',
+    category: 'Housing',
+    catClass: 'cat-housing',
+    label: 'HPD vacate orders effective',
+    countMode: 'rows',
+    footnote: 'Buildings or units ordered vacated by HPD'
+  },
+  {
+    id: 'mvc-vehicles',
+    dataset: 'bm4k-52h4',
+    dateField: 'crash_date',
+    category: 'Public safety',
+    catClass: 'cat-safety',
+    label: 'Vehicles involved in crashes',
+    countMode: 'rows',
+    footnote: 'NYPD Motor Vehicle Collisions -- Vehicles (one row per vehicle)'
+  },
+  {
+    id: '311-illegal-parking',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: '311: Illegal parking',
+    countMode: 'rows',
+    extraWhere: "complaint_type='Illegal Parking'",
+    footnote: "NYC's single most common 311 complaint type"
+  },
+  {
+    id: '311-noise-residential',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: '311: Residential noise',
+    countMode: 'rows',
+    extraWhere: "complaint_type='Noise - Residential'",
+    footnote: 'Noise coming from homes -- subset of all noise complaints'
+  },
+  {
+    id: '311-heat',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: '311: Heat / hot water',
+    countMode: 'rows',
+    extraWhere: "complaint_type='HEAT/HOT WATER'",
+    footnote: 'Tenant complaints about heat or hot water -- spikes Oct-May'
+  },
+  {
+    id: '311-street-condition',
+    dataset: 'erm2-nwe9',
+    dateField: 'created_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: '311: Street condition',
+    countMode: 'rows',
+    extraWhere: "complaint_type='Street Condition'",
+    footnote: 'Potholes, cave-ins, failed pavement, etc.'
+  },
+  {
+    id: 'indoor-env',
+    dataset: '9jgj-bmct',
+    dateField: 'date_received',
+    category: 'Health',
+    catClass: 'cat-health',
+    label: 'Indoor environmental complaints',
+    countMode: 'rows',
+    footnote: 'DOHMH -- mold, asbestos, lead, indoor air quality reports'
+  },
+  {
+    id: 'school-cafeteria',
+    dataset: '5ery-qagt',
+    dateField: 'inspectiondate',
+    category: 'Health',
+    catClass: 'cat-health',
+    label: 'School cafeteria inspections',
+    countMode: 'rows',
+    footnote: 'DOHMH -- public school cafeteria food safety checks (weekdays)'
+  },
+  {
+    id: 'bus-breakdowns',
+    dataset: 'ez4e-fazm',
+    dateField: 'occurred_on',
+    category: 'Transport',
+    catClass: 'cat-transport',
+    label: 'School bus breakdowns and delays',
+    countMode: 'rows',
+    footnote: 'DOE Office of Pupil Transportation -- school-day incidents'
+  },
+  {
+    id: 'trees-planted',
+    dataset: 'bdjm-n7q4',
+    dateField: 'createddate',
+    category: 'Environment',
+    catClass: 'cat-environment',
+    label: 'Street trees planted',
+    countMode: 'rows',
+    extraWhere: "wotype like 'Tree Plant%'",
+    footnote: 'Parks Dept. forestry work orders for new street-tree plantings'
+  },
+  {
+    id: 'potholes-filled',
+    dataset: 'erm2-nwe9',
+    dateField: 'closed_date',
+    category: 'Civic',
+    catClass: 'cat-civic',
+    label: 'Potholes filled',
+    countMode: 'rows',
+    extraWhere: "complaint_type='Street Condition' AND descriptor like 'Pothole%'",
+    footnote: 'DOT pothole 311 requests marked resolved that day'
+  }
+];
+
+function dateFmt(d) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function shortDate(dStr) {
+  // dStr is YYYY-MM-DD
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function longDate(dStr) {
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+}
+
+// Compute days-ago lag between a date string and "today" in NYC/Eastern time
+function daysAgo(dStr) {
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dataDay = Date.UTC(y, m - 1, d);
+
+  const nowEastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const todayUtc = Date.UTC(nowEastern.getFullYear(), nowEastern.getMonth(), nowEastern.getDate());
+
+  const diffMs = todayUtc - dataDay;
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function lagLabel(dStr) {
+  const n = daysAgo(dStr);
+  if (n <= 0) return 'today';
+  if (n === 1) return 'yesterday';
+  return `${n} days ago`;
+}
+
+function addDays(dStr, days) {
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dateFmt(dt);
+}
+
+function formatNum(n) {
+  if (n === null || n === undefined) return '--';
+  return n.toLocaleString('en-US');
+}
+
+function buildCard(ind) {
+  return `
+    <div class="card ${ind.catClass}" id="card-${ind.id}">
+      <div class="category">${ind.category}</div>
+      <div class="label">${ind.label}</div>
+      <div class="number-row" id="numrow-${ind.id}">
+        <span class="today-number loading loading-text">---</span>
+      </div>
+      <div class="data-for" id="data-for-${ind.id}">
+        <span class="primary-date" id="primary-date-${ind.id}"></span>
+      </div>
+      <div class="footnote">${ind.footnote}</div>
+    </div>`;
+}
+
+// Get counts for the last N days via a single grouped query, then return them sorted desc.
+// Returns [{ date: 'YYYY-MM-DD', count: n }, ...]
+async function fetchRecentDayCounts(ind, lookbackDays = 8) {
+  // Lower-bound date for the window
+  const now = new Date();
+  const nowEastern = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const lookbackStart = new Date(nowEastern);
+  lookbackStart.setDate(lookbackStart.getDate() - lookbackDays);
+  const lowerBound = dateFmt(lookbackStart) + 'T00:00:00';
+
+  let whereParts = [`${ind.dateField} >= '${lowerBound}'`];
+  if (ind.extraWhere) whereParts.push(ind.extraWhere);
+  const where = encodeURIComponent(whereParts.join(' AND '));
+
+  // Group by the calendar day of the date field
+  const dayExpr = `date_trunc_ymd(${ind.dateField})`;
+  let aggExpr;
+  if (ind.countMode === 'sum' && ind.sumField) {
+    aggExpr = `sum(${ind.sumField}) as val`;
+  } else {
+    aggExpr = 'count(*) as val';
+  }
+  const selectExpr = encodeURIComponent(`${dayExpr} as day, ${aggExpr}`);
+  const groupExpr = encodeURIComponent(dayExpr);
+  const orderExpr = encodeURIComponent(`${dayExpr} DESC`);
+
+  const url = `${BASE}/${ind.dataset}.json?$select=${selectExpr}&$where=${where}&$group=${groupExpr}&$order=${orderExpr}&$limit=20`;
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!Array.isArray(data)) return null;
+
+    // Filter out rows with bogus future dates (beyond 1 day from now in Eastern time).
+    // Some datasets contain data-entry errors like "2105-11-05".
+    const nowEastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const tomorrow = new Date(nowEastern);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const cutoff = dateFmt(tomorrow);
+
+    return data
+      .map(row => ({
+        date: (row.day || '').slice(0, 10),
+        count: parseInt(row.val || 0, 10)
+      }))
+      .filter(r => r.date && r.date <= cutoff);
+  } catch {
+    return null;
+  }
+}
+
+// Determine which day is "today" (the latest COMPLETE day).
+// Heuristic: starting from the most recent day, skip it if its count is less than
+// 40% of the next day's count (it's likely partial / in-progress).
+function pickLatestCompleteDay(dayRows) {
+  if (!dayRows || dayRows.length === 0) return null;
+  if (dayRows.length === 1) return { todayIdx: 0, priorIdx: -1 };
+
+  // Compute a rolling typical count from days 1..min(5, len-1) to compare against day 0
+  const sample = dayRows.slice(1, Math.min(6, dayRows.length));
+  if (sample.length === 0) return { todayIdx: 0, priorIdx: -1 };
+  const avg = sample.reduce((a, b) => a + b.count, 0) / sample.length;
+
+  let todayIdx = 0;
+  // If latest day is suspiciously small vs the average of the preceding days, treat it as partial
+  if (avg > 20 && dayRows[0].count < avg * 0.4) {
+    todayIdx = 1;
+  }
+
+  const priorIdx = todayIdx + 1 < dayRows.length ? todayIdx + 1 : -1;
+  return { todayIdx, priorIdx };
+}
+
+async function resolveIndicator(ind) {
+  const rows = await fetchRecentDayCounts(ind, 10);
+  if (!rows || rows.length === 0) return { error: true };
+
+  const pick = pickLatestCompleteDay(rows);
+  if (!pick) return { error: true };
+
+  const todayRow = rows[pick.todayIdx];
+  // History = the ~5 days immediately preceding the chosen "today"
+  const history = rows.slice(pick.todayIdx + 1, pick.todayIdx + 1 + 5);
+
+  return {
+    chosenDate: todayRow.date,
+    chosenCount: todayRow.count,
+    history // array of { date, count }, most-recent-first
+  };
+}
+
+function tinyDate(dStr) {
+  // Used as a column label under each history number. E.g., "TUE 4/8"
+  const [y, m, d] = dStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const wd = dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+  return `${wd.toUpperCase()} ${m}/${d}`;
+}
+
+function updateCard(ind, result) {
+  const primaryDateEl = document.getElementById(`primary-date-${ind.id}`);
+  const row = document.getElementById(`numrow-${ind.id}`);
+
+  if (result.error || result.chosenCount === null) {
+    row.innerHTML = '<span class="today-number" style="color:#2a3460">n/a</span>';
+    primaryDateEl.textContent = 'No recent data';
+    return;
+  }
+
+  const { chosenCount, chosenDate, history } = result;
+  // history is most-recent-first; reverse for left-to-right chronological order
+  const chrono = [...history].reverse();
+
+  // Opacity ramp for history: oldest most faded, newest least faded
+  // For N history items, opacities range from 0.35 (oldest) to 0.8 (newest)
+  const N = chrono.length;
+  const opacities = chrono.map((_, i) => {
+    if (N === 1) return 0.7;
+    return 0.35 + (0.45 * i / (N - 1));
+  });
+
+  const historyHTML = chrono.map((h, i) => `
+    <span class="history-cell">
+      <span class="history-number" style="opacity:${opacities[i]}">${formatNum(h.count)}</span>
+      <span class="history-date">${tinyDate(h.date)}</span>
+    </span>
+  `).join('');
+
+  row.innerHTML = `
+    <span class="history-strip">${historyHTML}</span>
+    <span class="today-cell">
+      <span class="today-number">${formatNum(chosenCount)}</span>
+      <span class="today-date">${tinyDate(chosenDate)}</span>
+    </span>
+  `;
+
+  primaryDateEl.innerHTML = `Latest: ${longDate(chosenDate)} <span class="lag">${lagLabel(chosenDate)}</span>`;
+}
+
+async function loadAll() {
+  // Build grid skeleton immediately
+  const grid = document.getElementById('grid');
+  if (grid.children.length === 0) {
+    grid.innerHTML = indicators.map(buildCard).join('');
+  }
+
+  // Resolve all in parallel
+  const results = await Promise.allSettled(indicators.map(resolveIndicator));
+
+  let latestAcrossAll = null;
+  results.forEach((res, i) => {
+    if (res.status === 'fulfilled' && !res.value.error) {
+      updateCard(indicators[i], res.value);
+      if (!latestAcrossAll || res.value.chosenDate > latestAcrossAll) {
+        latestAcrossAll = res.value.chosenDate;
+      }
+    } else {
+      updateCard(indicators[i], { error: true });
+    }
+  });
+
+  // Header: show the span of dates the cards cover
+  const validResults = results
+    .filter(r => r.status === 'fulfilled' && !r.value.error && r.value.chosenDate)
+    .map(r => r.value.chosenDate);
+  if (validResults.length > 0) {
+    const minDate = validResults.reduce((a, b) => a < b ? a : b);
+    const maxDate = validResults.reduce((a, b) => a > b ? a : b);
+    const headerSpan = document.getElementById('header-span');
+    if (minDate === maxDate) {
+      headerSpan.textContent = longDate(maxDate);
+    } else {
+      headerSpan.textContent = `${longDate(minDate)} through ${longDate(maxDate)}`;
+    }
+  }
+}
+
+loadAll();
+setInterval(loadAll, 30 * 60 * 1000);
+</script>
+</body>
+</html>
