@@ -118,11 +118,23 @@ function isProject(dir) {
 
 function projectRecord(fullPath, category) {
   const name = fullPath.split('/').pop();
-  const indexPath = join(fullPath, 'index.html');
-  const hasIndex = existsSync(indexPath);
+  // Prefer built dist/index.html over root index.html when the root is a
+  // Vite/SPA dev entrypoint (references /src/ modules that don't exist statically).
+  const distIndex = join(fullPath, 'dist', 'index.html');
+  const rootIndex = join(fullPath, 'index.html');
+  let indexPath = null;
+  if (existsSync(rootIndex)) {
+    const head = readText(rootIndex, 4000);
+    const looksLikeViteDev = /src=["']\/?src\/[^"']+\.(jsx?|tsx?|mjs)["']/.test(head);
+    if (looksLikeViteDev && existsSync(distIndex)) indexPath = distIndex;
+    else indexPath = rootIndex;
+  } else if (existsSync(distIndex)) {
+    indexPath = distIndex;
+  }
+  const hasIndex = !!indexPath;
   const git = getGitInfo(fullPath);
   const relPath = fullPath.replace(ROOT + '/', '');
-  const indexUrl = hasIndex ? `./${relPath}/index.html` : null;
+  const indexUrl = hasIndex ? `./${indexPath.replace(ROOT + '/', '')}` : null;
   const livePagesUrl = git.isNested ? ghPagesUrl(git.remote) : null;
   // Preview URL works both locally (file://) and when served from Pages:
   // - For nested repos: use their own Pages URL (absolute, works anywhere)
