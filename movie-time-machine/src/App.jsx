@@ -175,7 +175,7 @@ export default function App() {
 
       <footer className="text-center mt-20 pb-4 text-[10px] text-film-muted/30 tracking-wide space-y-1">
         <p>{catalogStats.tvShows.toLocaleString()} TV shows · {catalogStats.tvSeasons} seasons · {catalogStats.songEntries.toLocaleString()} chart entries · {catalogStats.chartWeeks.toLocaleString()} weeks</p>
-        <p>Movies via TMDB · TV schedules via epguides.com · Charts via musicchartsarchive.com</p>
+        <p>Movies via TMDB · TV schedules via epguides.com &amp; TVMaze · Charts via Billboard Hot 100</p>
         <p>
           <button
             onClick={() => setSourcesOpen(true)}

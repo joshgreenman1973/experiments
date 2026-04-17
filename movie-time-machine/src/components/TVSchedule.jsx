@@ -15,7 +15,7 @@ export default function TVSchedule({ date }) {
       <div className="text-center py-20 text-film-muted">
         <p className="text-base">No TV schedule data for this date</p>
         <p className="text-xs mt-1 text-film-muted/60">
-          Primetime schedules cover fall 1970 through 2012
+          Primetime schedules cover fall 1970 through 2025
         </p>
       </div>
     )
