@@ -85,11 +85,26 @@ function ghOwner(remote) {
   return p ? p.owner : null;
 }
 
+// Cache homepage lookups so we only hit the GitHub API once per repo per build
+const homepageCache = new Map();
+function getGhHomepage(remote) {
+  const p = parseGhRemote(remote);
+  if (!p) return null;
+  const key = `${p.owner}/${p.repo}`;
+  if (homepageCache.has(key)) return homepageCache.get(key);
+  const out = sh(`gh api repos/${key} --jq .homepage`, ROOT);
+  const val = out && out !== 'null' ? out : null;
+  homepageCache.set(key, val);
+  return val;
+}
+
 function getGitInfo(dir) {
   if (existsSync(join(dir, '.git'))) {
+    const remote = sh('git config --get remote.origin.url', dir);
     return {
       isNested: true,
-      remote: sh('git config --get remote.origin.url', dir),
+      remote,
+      homepage: getGhHomepage(remote),
       lastCommit: sh('git log -1 --format=%cI', dir),
       lastCommitMsg: sh('git log -1 --format=%s', dir),
     };
@@ -151,9 +166,14 @@ function projectRecord(fullPath, category) {
   const git = getGitInfo(fullPath);
   const relPath = fullPath.replace(ROOT + '/', '');
   const indexUrl = hasIndex ? `./${indexPath.replace(ROOT + '/', '')}` : null;
-  const livePagesUrl = git.isNested ? ghPagesUrl(git.remote) : null;
+  // For nested repos, prefer the GitHub "homepage" field (set via repo settings)
+  // which points to the actual deployment (Vercel, custom domain, etc.).
+  // Fall back to the default github.io/<repo>/ pattern.
+  const livePagesUrl = git.isNested
+    ? (git.homepage || ghPagesUrl(git.remote))
+    : null;
   // Preview URL works both locally (file://) and when served from Pages:
-  // - For nested repos: use their own Pages URL (absolute, works anywhere)
+  // - For nested repos: use their own live URL (absolute, works anywhere)
   // - For parent-repo projects: use relative path (resolves locally and on Pages)
   const previewUrl = livePagesUrl || indexUrl;
   return applyOverrides({
