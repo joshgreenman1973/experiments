@@ -7,8 +7,10 @@
 const CONFIG = {
   // MTA SIRI API (client-side — supports CORS)
   apiBase: 'https://bustime.mta.info/api/siri/vehicle-monitoring.json',
-  // API key — set via URL param ?key=XXX or prompt
-  apiKey: new URLSearchParams(window.location.search).get('key') || '',
+  // API key — defaults to the baked-in MTA BusTime key (public, rate-limited
+  // per-key by MTA). Override via URL param ?key=XXX to use a different one.
+  apiKey: new URLSearchParams(window.location.search).get('key')
+    || '5ecc401b-fc5b-4048-91bc-df104885f171',
   // Refresh interval in ms (30s minimum per API rules)
   refreshInterval: 30000,
   // Bunching threshold: two buses on same route/direction within this many meters
