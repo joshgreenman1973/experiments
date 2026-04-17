@@ -8,6 +8,22 @@ import { execSync } from 'child_process';
 import { join } from 'path';
 
 const ROOT = '/Users/joshgreenman/Experiments';
+
+// Per-project overrides for live URLs that aren't default github.io/<repo>/
+let OVERRIDES = {};
+try {
+  OVERRIDES = JSON.parse(readFileSync(join(ROOT, 'project-overrides.json'), 'utf8'));
+} catch {}
+function applyOverrides(record) {
+  const o = OVERRIDES[record.name];
+  if (!o) return record;
+  if (o.liveUrl) {
+    record.previewUrl = o.liveUrl;
+    record.livePagesUrl = o.liveUrl;
+  }
+  if (o.description) record.description = o.description;
+  return record;
+}
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);
 const SKIP = new Set(['.git', '.claude', '.github', '.netlify', '.agents', 'node_modules', 'scripts', '.DS_Store']);
 
@@ -140,7 +156,7 @@ function projectRecord(fullPath, category) {
   // - For nested repos: use their own Pages URL (absolute, works anywhere)
   // - For parent-repo projects: use relative path (resolves locally and on Pages)
   const previewUrl = livePagesUrl || indexUrl;
-  return {
+  return applyOverrides({
     name,
     title: (hasIndex && extractTitle(indexPath)) || name,
     description: extractReadmeDesc(fullPath),
@@ -158,7 +174,7 @@ function projectRecord(fullPath, category) {
     lastCommit: git.lastCommit || null,
     lastCommitMsg: git.lastCommitMsg || null,
     lastModified: latestMtime(fullPath),
-  };
+  });
 }
 
 function scan() {
