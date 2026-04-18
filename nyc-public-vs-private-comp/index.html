@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public vs Private — the NYC pay and benefits gap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  :root {
+    --ink: #0a0a0f;
+    --ink-2: #1a1d2e;
+    --paper: #fbf8f2;
+    --paper-2: #f3efe4;
+    --rule: #1a1d2e;
+    --muted: #5b5e6b;
+    /* Public sector = deep teal. Private = burnt coral. Gap = gold. */
+    --pub: #0f6b6b;
+    --pub-dark: #0a4848;
+    --pub-light: #e6f2f0;
+    --priv: #c2410c;
+    --priv-dark: #7a2908;
+    --priv-light: #fbe9dc;
+    --gold: #b78c2c;
+    --fed: #4a5578;
+    --state: #7c5dc7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); color: var(--ink); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  header.mast {
+    padding: 64px 0 40px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: clamp(40px, 6vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  h1 em { font-style: italic; color: var(--priv); font-weight: 400; }
+  .dek {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 1.45;
+    max-width: 760px;
+    color: var(--ink-2);
+    font-weight: 400;
+  }
+  .byline {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  nav.tabs {
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    z-index: 50;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    margin-top: 0;
+  }
+  nav.tabs button {
+    background: transparent;
+    border: none;
+    padding: 18px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color .15s;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.active { color: var(--ink); border-bottom-color: var(--ink); }
+  section.panel { padding: 72px 0; border-bottom: 1px solid var(--rule); display: none; }
+  section.panel.active { display: block; }
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin-bottom: 14px;
+  }
+  h2 .num { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--muted); font-weight: 400; margin-right: 14px; vertical-align: middle; }
+  .intro {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 780px;
+    margin-bottom: 40px;
+  }
+  /* Hero split */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--rule);
+    margin-bottom: 40px;
+    background: var(--rule);
+  }
+  .split > div { padding: 36px 28px; }
+  .split .pub { background: var(--pub); color: #fff; }
+  .split .priv { background: var(--priv); color: #fff; }
+  .split .label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; margin-bottom: 14px; }
+  .split .big {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: clamp(48px, 7vw, 84px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+  }
+  .split .unit { font-family: 'JetBrains Mono', monospace; font-size: 13px; opacity: 0.85; margin-top: 6px; }
+  .split .sub { margin-top: 20px; font-size: 14px; line-height: 1.5; opacity: 0.92; }
+  /* Stat row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin: 40px 0;
+  }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    border-left: 2px solid var(--rule);
+    padding-left: 16px;
+  }
+  .stat.pub { border-left-color: var(--pub); }
+  .stat.priv { border-left-color: var(--priv); }
+  .stat .label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .stat .val { font-family: 'Fraunces', serif; font-weight: 700; font-size: 34px; line-height: 1.1; letter-spacing: -0.01em; }
+  .stat .delta { font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 4px; color: var(--muted); }
+  .stat .delta.up { color: var(--pub); }
+  .stat .delta.down { color: var(--priv); }
+  /* Chart container */
+  .chart-card {
+    background: #fff;
+    border: 1px solid var(--rule);
+    margin: 24px 0;
+    padding: 28px;
+  }
+  .chart-card h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .chart-card .sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  .chart-wrap { position: relative; height: 420px; }
+  .chart-wrap.tall { height: 540px; }
+  .chart-wrap.short { height: 320px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .controls label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+  .pill {
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 7px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .pill:hover { background: var(--paper-2); }
+  .pill.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* Legend swatches */
+  .legend { display: flex; gap: 20px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; background: currentColor; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+  .legend .sw-pub { color: var(--pub); }
+  .legend .sw-priv { color: var(--priv); }
+  .legend .sw-fed { color: var(--fed); }
+  .legend .sw-state { color: var(--state); }
+
+  /* Pull-quote stat */
+  .pullquote {
+    border-top: 3px solid var(--ink);
+    border-bottom: 3px solid var(--ink);
+    padding: 36px 0;
+    margin: 40px 0;
+    text-align: center;
+  }
+  .pullquote .big-num {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: clamp(60px, 10vw, 120px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .pullquote .big-num em { color: var(--priv); font-style: italic; font-weight: 400; }
+  .pullquote .label { font-family: 'Fraunces', serif; font-size: 20px; color: var(--ink-2); margin-top: 14px; max-width: 640px; margin-left: auto; margin-right: auto; line-height: 1.35; }
+
+  /* Bar chart for hero benefits comparison */
+  .comp-bars { margin: 40px 0; }
+  .comp-row { display: grid; grid-template-columns: 120px 1fr 80px; gap: 16px; align-items: center; margin-bottom: 10px; }
+  .comp-row .cat { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .comp-bar-track { height: 34px; background: var(--paper-2); position: relative; display: flex; align-items: center; }
+  .comp-bar-fill { height: 100%; display: flex; align-items: center; padding: 0 10px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+  .comp-bar-fill.pub { background: var(--pub); }
+  .comp-bar-fill.priv { background: var(--priv); }
+  .comp-row .val { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; font-weight: 600; }
+
+  /* Text notes */
+  .note {
+    background: var(--paper-2);
+    border-left: 3px solid var(--gold);
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 24px 0;
+    color: var(--ink-2);
+  }
+  .note strong { color: var(--ink); }
+
+  /* Methodology */
+  .method dl { display: grid; grid-template-columns: 200px 1fr; gap: 14px 32px; margin: 24px 0; }
+  .method dt { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
+  .method dd { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+  .method dd a { color: var(--pub); }
+  @media (max-width: 700px) { .method dl { grid-template-columns: 1fr; } .method dt { padding-top: 0; } }
+
+  /* Footer */
+  footer { padding: 40px 0 80px; font-size: 13px; color: var(--muted); font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
+  footer a { color: var(--ink); border-bottom: 1px solid var(--muted); text-decoration: none; }
+
+  /* Helper: vertical divider */
+  .hr-thin { border-top: 1px solid var(--rule); margin: 40px 0; }
+
+  /* Geo + stat-type tags */
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid var(--rule);
+    background: transparent;
+  }
+  .tag.nyc { background: var(--pub); color: #fff; border-color: var(--pub); }
+  .tag.nys { background: #1a9a9a; color: #fff; border-color: #1a9a9a; }
+  .tag.nat { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .tag.mean { background: var(--paper-2); color: var(--ink); }
+  .tag.median { background: var(--ink); color: var(--paper); }
+  .tag.proj { background: transparent; color: var(--muted); border-style: dashed; }
+  /* chart-card tags spacing */
+  .chart-card .tags { margin-bottom: 10px; }
+
+  /* Matched occupations chart tweaks */
+  .occ-row {
+    display: grid;
+    grid-template-columns: 220px 1fr 100px;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid #e6e3da;
+  }
+  .occ-row:first-child { border-top: none; }
+  .occ-row .name { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; color: var(--ink); }
+  .occ-row .name small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .occ-row .bars { display: flex; flex-direction: column; gap: 4px; }
+  .occ-row .bar { height: 20px; display: flex; align-items: center; padding: 0 8px; color: #fff; font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .occ-row .bar.pub { background: var(--pub); }
+  .occ-row .bar.priv { background: var(--priv); }
+  .occ-row .delta { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; font-weight: 600; }
+  .occ-row .delta.pub { color: var(--pub); }
+  .occ-row .delta.priv { color: var(--priv); }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="wrap">
+    <div class="kicker">NYC / Labor economics / Data project</div>
+    <h1>Who's really winning<br>the <em>paycheck race?</em></h1>
+    <p class="dek">Public-sector workers in New York City earn less per hour in wages than their private-sector counterparts — but when you add pensions, health insurance, and paid leave, the picture inverts. Explore the data, twenty-five years of it, and decide for yourself.</p>
+    <div class="byline">Updated <span id="today"></span> · Sources: BLS QCEW, BLS ECEC, NYC Payroll</div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="wrap" style="display:flex;gap:0;overflow-x:auto;width:100%;">
+    <button data-tab="hero" class="active">01 / Snapshot</button>
+    <button data-tab="wages">02 / Wages over time</button>
+    <button data-tab="growth">03 / Growth race</button>
+    <button data-tab="benefits">04 / The benefits chasm</button>
+    <button data-tab="pensions">05 / The pension story</button>
+    <button data-tab="nyc">06 / Inside NYC payroll</button>
+    <button data-tab="agencies">07 / Agency by agency</button>
+    <button data-tab="matched">08 / Matched occupations</button>
+    <button data-tab="method">09 / Methodology</button>
+  </div>
+</nav>
+
+<section class="panel active" id="hero">
+  <div class="wrap">
+    <h2><span class="num">01</span>Total compensation — NYC, 2024</h2>
+    <p class="intro">Take-home pay is only one piece of what a worker actually earns. Once health insurance, pension contributions, paid leave, and payroll taxes are added in, the picture changes. NYC's private-sector advantage in total compensation is much smaller than the wage gap suggests — and at many agencies, public-sector workers come out ahead.</p>
+
+    <div class="split">
+      <div class="pub">
+        <div class="label">NYC Local government · total comp</div>
+        <div class="big" id="hero-pub-big">—</div>
+        <div class="unit">salary + healthcare + pension + other benefits · 2024</div>
+        <div class="sub">~486,000 workers. Benefits make up ~<span id="pub-ben-pct">—</span>% of compensation — pensions and employer-paid health insurance drive the rest.</div>
+      </div>
+      <div class="priv">
+        <div class="label">NYC private sector · total comp</div>
+        <div class="big" id="hero-priv-big">—</div>
+        <div class="unit">salary + healthcare + pension + other benefits · 2024</div>
+        <div class="sub">~4.06 million workers. Benefits are ~<span id="priv-ben-pct">—</span>% of compensation — smaller retirement, similar health costs, more bonus/supplemental pay.</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>What an average NYC worker actually earns — 2024</h3>
+      <div class="sub">Estimated annual total compensation, decomposed by component. NYC wages are measured directly; benefits are projected from the national ECEC benefit-to-wage ratios (see methodology).</div>
+      <div id="stack-bars" class="comp-bars"></div>
+      <div class="legend" style="margin-top:14px;">
+        <span style="color:#1a1d2e">Salary</span>
+        <span style="color:#0f6b6b">Health insurance</span>
+        <span style="color:#7c5dc7">Retirement</span>
+        <span style="color:#b78c2c">Paid leave</span>
+        <span style="color:#8a5a44">Supp. pay / other</span>
+        <span style="color:#4a5578">Payroll taxes</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat pub"><div class="label">Public salary</div><div class="val" id="s-pub-sal">—</div><div class="delta">avg annual · NYC QCEW 2024</div></div>
+      <div class="stat priv"><div class="label">Private salary</div><div class="val" id="s-priv-sal">—</div><div class="delta">avg annual · NYC QCEW 2024</div></div>
+      <div class="stat pub"><div class="label">Public pension + health</div><div class="val" id="s-pub-bigben">—</div><div class="delta">projected from ECEC ratios</div></div>
+      <div class="stat priv"><div class="label">Private pension + health</div><div class="val" id="s-priv-bigben">—</div><div class="delta">projected from ECEC ratios</div></div>
+    </div>
+
+    <div class="pullquote">
+      <div class="big-num"><em id="total-gap">—</em></div>
+      <div class="label">the gap between NYC private and public total compensation in 2024 — compared to a <span id="wage-gap-reveal">—</span> gap in salary alone. Pensions and health insurance close much of the distance.</div>
+    </div>
+
+    <div class="note"><strong>How this is computed.</strong> NYC wage figures come directly from BLS QCEW (covered payroll records for all five boroughs). Benefit components are estimated by applying the 2025 national ECEC benefit-to-wage ratios (private vs state &amp; local government) to those wages. This is a projection, not a direct NYC measurement — BLS does not publish NYC-specific benefit costs. See the methodology tab for details and limitations.</div>
+
+    <div class="note" style="border-left-color:var(--priv);"><strong>A necessary caveat.</strong> There's no single "average" public or private worker. Aggregate comparisons blend Wall Street traders with retail clerks, NYPD captains with DOE paraprofessionals. Tab 08 ("Matched occupations") is where the real apples-to-apples story lives.</div>
+  </div>
+</section>
+
+<section class="panel" id="wages">
+  <div class="wrap">
+    <h2><span class="num">02</span>Wages over time — NYC, 2000–2024</h2>
+    <p class="intro">Average annual wages by ownership, for workers whose jobs are located in the five boroughs. The BLS QCEW is the gold standard for covered wages — a near-universe of payroll records.</p>
+
+    <div class="controls">
+      <label>Show</label>
+      <button class="pill on" data-metric="avg_annual_wage">Average wage</button>
+      <button class="pill" data-metric="avg_weekly_wage">Weekly wage</button>
+      <button class="pill" data-metric="employment">Employment</button>
+    </div>
+    <div class="legend">
+      <span class="sw-priv">Private</span>
+      <span class="sw-pub">Local gov</span>
+      <span class="sw-state">State gov</span>
+      <span class="sw-fed">Federal</span>
+    </div>
+
+    <div class="chart-card">
+      <div class="tags"><span class="tag nyc">NYC</span><span class="tag mean">Mean</span></div>
+      <h3 id="wages-title">NYC mean annual wage by sector</h3>
+      <div class="sub">Nominal dollars. QCEW publishes means only (total covered wages ÷ annual average employment). Private-sector figures include bonuses and stock comp, which inflates the mean above typical take-home pay — especially in finance-heavy Manhattan.</div>
+      <div class="chart-wrap tall"><canvas id="chart-wages"></canvas></div>
+    </div>
+
+    <div class="note"><strong>Mean vs median — and why it matters here.</strong> The <em>mean</em> adds every dollar and divides by headcount; a single $10M bonus pulls it up. The <em>median</em> is the middle worker — half earn more, half less, regardless of outliers. NYC's private-sector mean is inflated by finance: a handful of banking and tech earners lift the whole average. The Citywide Payroll dataset (tab 06) publishes medians directly for NYC public workers; QCEW does not. For the fairest head-to-head, see tab 08 — matched occupations — which compares medians on both sides.</div>
+
+    <div class="pullquote">
+      <div class="big-num" id="wage-ratio">—</div>
+      <div class="label">dollars earned in NYC's private sector for every dollar earned in local government in 2024 — <em>down</em> from $1.35 in 2000 (and from a peak of $1.50 around 2010). The gap widened through the 2000s, then narrowed sharply as public wages caught up.</div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="growth">
+  <div class="wrap">
+    <h2><span class="num">03</span>The growth race — indexed to 2000</h2>
+    <p class="intro">Raw dollar levels hide the pace of change. Rebased to 100 in the year 2000, which sector's wages have grown fastest? The result may surprise you: NYC's private sector, propelled by finance and tech compensation, has outpaced public wages nearly every year of the twenty-first century.</p>
+
+    <div class="chart-card">
+      <h3>NYC wage growth by sector, indexed to 2000 = 100</h3>
+      <div class="sub">A value of 200 means wages have doubled since 2000 in nominal terms. Inflation has risen roughly 85% over the same period (CPI-U).</div>
+      <div class="chart-wrap tall"><canvas id="chart-growth"></canvas></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>25-year nominal growth</h3>
+        <div class="sub">Total wage growth, 2000 → 2024, by sector.</div>
+        <div class="chart-wrap short"><canvas id="chart-growth-bar"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Annualized growth rate</h3>
+        <div class="sub">CAGR over 24 years. Inflation (CPI-U) averaged 2.6% per year.</div>
+        <div class="chart-wrap short"><canvas id="chart-cagr"></canvas></div>
+      </div>
+    </div>
+
+    <div class="note"><strong>Hypothesis check.</strong> Over the full twenty-four years, NYC local-government wages grew slightly faster than private (+110% vs +100%), and state government grew dramatically faster. All three public sectors beat inflation (+82%). Private-sector wage gains were front-loaded in the 2000s — driven by the finance boom — and have underperformed public wage gains since roughly 2010. The benefits story (next panel) widens the public-sector advantage further.</div>
+  </div>
+</section>
+
+<section class="panel" id="benefits">
+  <div class="wrap">
+    <h2><span class="num">04</span>The benefits chasm</h2>
+    <p class="intro">Wages are only part of compensation. The BLS Employer Costs for Employee Compensation survey measures, per hour, what employers spend on paid leave, insurance, retirement, and legally-required benefits (Social Security, Medicare, unemployment insurance). Public-sector benefits have always been richer — and the gap has widened dramatically over twenty years.</p>
+
+    <div class="chart-card">
+      <div class="tags"><span class="tag nat">National</span><span class="tag mean">Mean $/hr</span></div>
+      <h3>Total benefits spending per hour worked — national</h3>
+      <div class="sub">Employer cost of benefits for private industry vs. state &amp; local government, 2006–2025. Dollars per hour worked.</div>
+      <div class="chart-wrap"><canvas id="chart-benefits"></canvas></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>Benefits composition — Private industry, 2025</h3>
+        <div class="sub">Where the $13.49/hour in benefits actually goes.</div>
+        <div class="chart-wrap short"><canvas id="chart-priv-donut"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Benefits composition — State &amp; local gov, 2025</h3>
+        <div class="sub">Where the $24.58/hour in benefits actually goes.</div>
+        <div class="chart-wrap short"><canvas id="chart-pub-donut"></canvas></div>
+      </div>
+    </div>
+
+    <div class="pullquote">
+      <div class="big-num"><em>1.82×</em></div>
+      <div class="label">the per-hour benefit cost for state &amp; local workers relative to private — up from 1.62× in 2006</div>
+    </div>
+
+    <div class="note"><strong>Why this matters.</strong> If you adjust total compensation for the full benefits package, a "lower-paid" public-sector job can deliver equal or greater lifetime value than a higher-wage private one. Pensions are deferred compensation — dollars the worker doesn't see now but will collect later. The next tab isolates that single line item.</div>
+  </div>
+</section>
+
+<section class="panel" id="pensions">
+  <div class="wrap">
+    <h2><span class="num">05</span>The pension story</h2>
+    <p class="intro">No single benefit has diverged more dramatically than retirement. In 2006, employers spent about $0.91 per hour funding private-sector retirement (mostly 401(k) matches). State and local government employers spent $2.54 — already nearly 3× more. By 2025, private retirement spending inched up to $1.53. Public retirement spending exploded to $8.54 per hour — much of it to cover unfunded pension obligations.</p>
+
+    <div class="chart-card">
+      <div class="tags"><span class="tag nat">National</span><span class="tag mean">Mean $/hr</span></div>
+      <h3>Employer retirement spending per hour worked — national</h3>
+      <div class="sub">Defined-benefit pensions plus defined-contribution plans (e.g. 401(k), 457(b)).</div>
+      <div class="chart-wrap"><canvas id="chart-retire"></canvas></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <h3>Health insurance spending per hour</h3>
+        <div class="sub">Employer cost of health coverage — distinct from worker premium contributions.</div>
+        <div class="chart-wrap short"><canvas id="chart-health"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Paid-leave spending per hour</h3>
+        <div class="sub">Vacation, holiday, sick, and personal leave paid by employers.</div>
+        <div class="chart-wrap short"><canvas id="chart-leave"></canvas></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="nyc">
+  <div class="wrap">
+    <h2><span class="num">06</span>Inside the NYC payroll</h2>
+    <p class="intro">The city publishes every employee's pay. Not just base salary — overtime, other pay, fiscal year, agency. This is a fuller picture than QCEW: we can see means, medians, and the whole shape of the distribution.</p>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <div class="tags"><span class="tag nyc">NYC public</span><span class="tag mean">Mean</span><span class="tag median">Median</span></div>
+        <h3>NYC employee pay — mean vs median regular gross</h3>
+        <div class="sub">Median is resistant to outliers; mean rises when more workers earn high pay. The wedge between them is informative.</div>
+        <div class="chart-wrap"><canvas id="chart-payroll-mm"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Active employees on payroll</h3>
+        <div class="sub">Headcount of workers with positive regular gross pay, by fiscal year.</div>
+        <div class="chart-wrap"><canvas id="chart-payroll-n"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Salary distribution — annual-basis city workers, FY<span id="hist-yr"></span></h3>
+      <div class="sub">How many city employees earn what. Counting only salaried (pay_basis = "per Annum") workers. Bands of $10,000.</div>
+      <div class="chart-wrap"><canvas id="chart-hist"></canvas></div>
+    </div>
+
+    <div class="note"><strong>Why payroll mean is lower than QCEW.</strong> The Citywide Payroll dataset includes everyone who received any payment in a fiscal year — including part-time, per-session, and youth-program workers. QCEW, by contrast, measures employment more like a job count. Annual-basis filtering (above) brings the comparison closer.</div>
+  </div>
+</section>
+
+<section class="panel" id="agencies">
+  <div class="wrap">
+    <h2><span class="num">07</span>Agency by agency</h2>
+    <p class="intro">No single number represents "the NYC public sector." A DOE paraprofessional earning $40k and an NYPD captain earning $200k are both city workers. Here are the largest agencies by headcount, ranked by median regular gross pay.</p>
+
+    <div class="chart-card">
+      <div class="tags"><span class="tag nyc">NYC public</span><span class="tag median">Median ◆</span><span class="tag mean">Mean bars</span></div>
+      <h3>Top 20 NYC agencies by median regular pay — FY<span id="ag-yr"></span></h3>
+      <div class="sub">Showing agencies with at least 500 annual-basis employees. Diamond ◆ marks median; bar shows mean including overtime and "other pay."</div>
+      <div class="chart-wrap tall"><canvas id="chart-agencies"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Workforce composition — top 20 agencies</h3>
+      <div class="sub">Total city employees (any pay basis) per agency. The Department of Education alone employs more New Yorkers than the entire federal presence in the city.</div>
+      <div class="chart-wrap"><canvas id="chart-agencies-n"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="matched">
+  <div class="wrap">
+    <h2><span class="num">08</span>Matched occupations — apples to apples</h2>
+    <p class="intro">Aggregate means paper over everything that matters. A fairer comparison holds the <em>occupation</em> constant: an NYC government nurse versus a nurse at a private hospital; a city accountant versus a private-sector accountant. Below, NYC public-sector <strong>medians</strong> (from the Citywide Payroll dataset, FY2025) stand beside NYC metropolitan-area <strong>medians</strong> for the same occupation (BLS OEWS, May 2024, NY-NJ-PA MSA).</p>
+
+    <div class="chart-card">
+      <div class="tags"><span class="tag nyc">NYC public</span><span class="tag nat">NY-NJ-PA MSA</span><span class="tag median">Median</span></div>
+      <h3>Median annual base pay by occupation</h3>
+      <div class="sub">Left bar (teal): NYC government median regular gross pay, FY2025 annual-basis workers whose title matches the keyword. Right bar (coral): BLS OEWS May 2024 median for the NY-NJ-PA metropolitan area, all employers. Delta shows how much more (teal) or less (coral) NYC public workers earn than the MSA benchmark.</div>
+      <div id="matched-bars" style="margin-top:18px;"></div>
+    </div>
+
+    <div class="note"><strong>Read this carefully.</strong> The MSA figure is <em>all employers</em> — for most occupations (nurses, accountants, lawyers, engineers) that's private-sector-dominated and a reasonable private benchmark. But for <strong>teachers, police, firefighters, and social workers</strong>, public employment dominates the MSA, so the "private" comparator here is effectively another public average. Treat those rows as within-public benchmarks against the broader metro, not as public-vs-private. The comparison is most meaningful for nurses, accountants, engineers, lawyers, and office assistants.</div>
+
+    <div class="note" style="border-left-color:var(--priv);"><strong>What it does not capture.</strong> Title matching is keyword-based, not SOC-coded — an NYC payroll title containing "NURSE" could include nurse administrators or nurse practitioners, not just staff nurses. Hours worked differ (NYC teachers work a school-year calendar; private nurses often work 12-hour shifts). Neither source captures bonuses on the public side or benefits on either side. This is a base-salary snapshot, not total compensation.</div>
+  </div>
+</section>
+
+<section class="panel method" id="method">
+  <div class="wrap">
+    <h2><span class="num">09</span>Methodology, data &amp; caveats</h2>
+    <p class="intro">Every number in this project is derived from a named, public data source. Nothing is modeled, imputed, or projected. Here's exactly where each figure comes from — and what it does not say.</p>
+
+    <h3 style="font-family:'Fraunces';font-size:22px;margin:32px 0 14px;">Data sources</h3>
+    <dl>
+      <dt>BLS QCEW</dt>
+      <dd>Quarterly Census of Employment and Wages, annual by-area ZIP files, 2000–2024. Aggregated across the five New York City counties (FIPS 36005, 36047, 36061, 36081, 36085). NAICS industry code 10 (total, all industries). Ownership codes: 1=Federal, 2=State, 3=Local, 5=Private. Employment-weighted means. Source: <a href="https://data.bls.gov/cew/data/files/" target="_blank">data.bls.gov/cew/data/files</a>.</dd>
+      <dt>BLS ECEC</dt>
+      <dd>Employer Costs for Employee Compensation, quarterly time series via the BLS Public Data API. Series family CMU[ownership][item]000000000D. Private industry (ownership 2) and state &amp; local government (ownership 3), 2006–2025. National coverage — not NYC-specific. For each calendar year we use Q1 data where available, else the earliest published quarter.</dd>
+      <dt>BLS OEWS</dt>
+      <dd>Occupational Employment &amp; Wage Statistics, May 2024, New York-Newark-Jersey City NY-NJ-PA metropolitan statistical area (area 3562200). Published medians are across all employers (public + private). Used on the Matched occupations tab as the metro benchmark, with the caveat that public employment dominates in teacher/police/firefighter/social-worker occupations. Source: <a href="https://www.bls.gov/oes/current/oes_35620.htm" target="_blank">bls.gov/oes</a>.</dd>
+      <dt>NYC Citywide Payroll</dt>
+      <dd>NYC Open Data dataset <code>k397-673e</code>, FY2014–FY2025. Fields used: fiscal_year, agency_name, regular_gross_paid, total_ot_paid, total_other_pay, pay_basis. Aggregates computed via Socrata SoQL directly on the server. Median is a Socrata <code>median()</code> function result. Source: <a href="https://data.cityofnewyork.us/City-Government/Citywide-Payroll-Data-Fiscal-Year-/k397-673e" target="_blank">data.cityofnewyork.us</a>.</dd>
+    </dl>
+
+    <h3 style="font-family:'Fraunces';font-size:22px;margin:32px 0 14px;">Definitions</h3>
+    <dl>
+      <dt>Average annual wage (QCEW)</dt>
+      <dd>Total covered wages / annual average employment. Includes bonuses, tips, and stock-based compensation reported as wages. This is why NYC's private-sector mean looks high — finance bonuses flow through.</dd>
+      <dt>Regular gross paid (NYC)</dt>
+      <dd>Base pay actually disbursed in a fiscal year, before overtime and "other pay." Closer to take-home base salary than QCEW's total wages.</dd>
+      <dt>Total compensation (ECEC)</dt>
+      <dd>Wages + all employer-paid benefits per hour worked. Does NOT include employee-paid premiums, employee 401(k) contributions, or employer costs that aren't employment-based.</dd>
+      <dt>Benefits (ECEC)</dt>
+      <dd>Employer cost of paid leave + supplemental pay + insurance (life, health, disability) + retirement + legally required (Social Security, Medicare, unemployment, workers comp).</dd>
+    </dl>
+
+    <h3 style="font-family:'Fraunces';font-size:22px;margin:32px 0 14px;">Limitations &amp; what this tool does not claim</h3>
+    <ul style="margin-left:20px;line-height:1.7;color:var(--ink-2);font-size:15px;">
+      <li><strong>ECEC is national, not NYC-specific.</strong> Benefits data at the NYC geography is not published by BLS. Pension contributions, in particular, vary substantially by city (NYC's are among the highest due to heavy defined-benefit obligations).</li>
+      <li><strong>QCEW private wages are inflated by bonus pay.</strong> A Manhattan hedge-fund analyst counts the same as a Queens retail worker in the employment count. Medians — which QCEW does not provide — would be a much lower figure.</li>
+      <li><strong>QCEW covers jobs located in NYC, not NYC residents.</strong> A commuter from New Jersey working in Midtown is in the data; a Brooklyn resident commuting to Jersey City is not.</li>
+      <li><strong>No occupation-matched comparisons.</strong> A proper public-vs-private comparison should hold occupation, education, and experience constant. That requires ACS PUMS microdata and is a planned future tab.</li>
+      <li><strong>No inflation adjustment.</strong> All wage figures are nominal. Between 2000 and 2024, CPI-U rose roughly 85%.</li>
+      <li><strong>NYC payroll data under-counts full-time earnings</strong> because it includes short-term and per-session workers. The "annual-basis only" filter on the histogram and agency tabs corrects for this.</li>
+    </ul>
+
+    <h3 style="font-family:'Fraunces';font-size:22px;margin:32px 0 14px;">Headline takeaways</h3>
+    <ol style="margin-left:20px;line-height:1.7;color:var(--ink-2);font-size:15px;">
+      <li>Nominal NYC private-sector wages have grown faster than public over 25 years — contra the common narrative that public pay has surged.</li>
+      <li>Public-sector benefits, especially retirement, have grown dramatically faster than private — mostly driven by pension funding requirements.</li>
+      <li>At the total-compensation level, state &amp; local government workers nationally out-earn private workers ($65.68/hr vs $46.15/hr as of Dec 2025).</li>
+      <li>Inside the NYC government, mean and median pay vary enormously by agency — headline averages conceal large distributions.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Built with public data from the U.S. Bureau of Labor Statistics and NYC Open Data.</div>
+    <div>All charts generated client-side from bundled JSON. View the source on <a href="https://github.com/joshgreenman1973/Experiments" target="_blank">GitHub</a>.</div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
