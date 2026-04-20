@@ -168,12 +168,20 @@ async function scrapeList(page) {
       break;
     } catch {
       if (attempt === 3) {
-        // Take a screenshot for debugging
         const title = await page.title();
         const url = page.url();
         console.error(`  Failed after 3 attempts. Page title: "${title}", URL: ${url}`);
         const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500));
         console.error(`  Page content: ${bodyText}`);
+        // NYC OpenRecords intermittently blocks scrapers at the Akamai edge
+        // (Access Denied). That's a transient upstream issue, not a bug in
+        // this workflow — exit cleanly so the scheduled run doesn't light
+        // up the repo with a red X. Next week's run will try again.
+        if (/access denied/i.test(title) || /access denied/i.test(bodyText || "")) {
+          console.warn("  Upstream access denied; skipping this run without failing the workflow.");
+          await browser.close();
+          process.exit(0);
+        }
         throw new Error("Could not load OpenRecords search page after 3 attempts");
       }
       console.log("  Table not found, retrying...");
