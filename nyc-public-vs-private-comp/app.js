@@ -581,6 +581,49 @@
     }).join('');
   }
 
+  // --- TOP EARNERS (Agencies tab)
+  if (D.top_earners) {
+    const teEl = $('top-earners');
+    if (teEl) {
+      // Match to the top-20 agencies displayed above; sort by total comp desc
+      const top20Names = new Set(agencies.map(a => a.name));
+      const rows = D.top_earners.by_agency
+        .filter(e => top20Names.has(e.agency))
+        .sort((a,b) => b.total - a.total);
+      teEl.innerHTML = rows.map(e => {
+        const breakdown = [];
+        if (e.reg) breakdown.push(`base ${fmt$(e.reg)}`);
+        if (e.ot) breakdown.push(`OT ${fmt$(e.ot)}`);
+        if (e.other) breakdown.push(`other ${fmt$(e.other)}`);
+        return `
+          <div class="earner-row">
+            <div class="agency">${e.agency}</div>
+            <div class="who"><strong>${e.first} ${e.last}</strong><small>${e.title}</small></div>
+            <div class="comp">${fmt$(e.total)}<small>${breakdown.join(' · ')}</small></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const cityEl = $('citywide-top');
+    if (cityEl) {
+      const top15 = D.top_earners.citywide_top25.slice(0, 15);
+      cityEl.innerHTML = top15.map(e => {
+        const breakdown = [];
+        if (e.reg) breakdown.push(`base ${fmt$(e.reg)}`);
+        if (e.ot) breakdown.push(`OT ${fmt$(e.ot)}`);
+        if (e.other) breakdown.push(`other ${fmt$(e.other)}`);
+        return `
+          <div class="earner-row">
+            <div class="agency">${e.agency}</div>
+            <div class="who"><strong>${e.first} ${e.last}</strong><small>${e.title}</small></div>
+            <div class="comp">${fmt$(e.total)}<small>${breakdown.join(' · ')}</small></div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
   // Agency headcount
   const agN = D.payroll_agencies.agencies
     .map(a => ({ name: a.agency_name, n: Number(a.n) }))
