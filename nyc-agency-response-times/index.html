@@ -586,11 +586,11 @@ header .subtitle {
           <h2>Median response time by community district</h2>
           <p class="map-subtitle">Click a district to filter the stats panel</p>
           <div id="map"></div>
-          <div class="map-legend">
-            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#57aa4a;"></div> Under 24 hours</div>
-            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#dde44c;"></div> 1-3 days</div>
-            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#ff7c53;"></div> 3-7 days</div>
-            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#d2232a;"></div> Over 7 days</div>
+          <div class="map-legend" id="map-legend">
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#57aa4a;"></div><span id="legend-l1">Much faster than citywide</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#dde44c;"></div><span id="legend-l2">Near citywide median</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#ff7c53;"></div><span id="legend-l3">Slower than citywide</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#d2232a;"></div><span id="legend-l4">Much slower than citywide</span></div>
             <div class="map-legend-item"><div class="map-legend-swatch" style="background:#ddd;"></div> No data</div>
           </div>
         </div>
@@ -617,7 +617,7 @@ header .subtitle {
 
         <div class="panel-section">
           <h3 id="agency-chart-title">Median response time by agency</h3>
-          <div class="chart-container" id="agency-chart-container" style="height:220px;">
+          <div class="chart-container" id="agency-chart-container" style="height:380px;">
             <canvas id="agency-chart"></canvas>
           </div>
         </div>
@@ -710,9 +710,12 @@ header .subtitle {
   }
 
   function mapColor(days) {
-    if (days < 1) return "#57aa4a";
-    if (days <= 3) return "#dde44c";
-    if (days <= 7) return "#ff7c53";
+    // Relative to citywide median so the map stays meaningful for fast
+    // complaint types (e.g. most noise) and slow ones (e.g. rodent).
+    var m = citywideMedian || 1;
+    if (days < m * 0.67) return "#57aa4a";
+    if (days < m * 1.33) return "#dde44c";
+    if (days < m * 2) return "#ff7c53";
     return "#d2232a";
   }
 
@@ -1089,6 +1092,13 @@ header .subtitle {
     document.getElementById("stat-median").textContent = formatDays(citywideMedian);
     document.getElementById("stat-count").textContent = formatNumber(allTimes.length) + " closed complaints analyzed";
 
+    // Update legend to reflect citywide median thresholds
+    var m = citywideMedian || 1;
+    document.getElementById("legend-l1").textContent = "< " + formatDays(m * 0.67) + " (much faster)";
+    document.getElementById("legend-l2").textContent = formatDays(m * 0.67) + "-" + formatDays(m * 1.33) + " (near median)";
+    document.getElementById("legend-l3").textContent = formatDays(m * 1.33) + "-" + formatDays(m * 2) + " (slower)";
+    document.getElementById("legend-l4").textContent = "> " + formatDays(m * 2) + " (much slower)";
+
     // Show dashboard BEFORE rendering charts so Chart.js has valid layout
     loadingEl.style.display = "none";
     dashboardEl.style.display = "block";
@@ -1222,7 +1232,11 @@ header .subtitle {
       document.getElementById("agency-chart-title").textContent = "Median response time by agency";
     }
 
-    var top = agencies.slice(0, 8).reverse();
+    // Select top 15 by volume, then sort by median for display
+    var byVolume = agencies.slice().sort(function(a, b) { return b.total - a.total; });
+    var top = byVolume.slice(0, 15)
+      .sort(function(a, b) { return b.median - a.median; })
+      .reverse();
     var labels = top.map(function(a) { return a.label || a.agency; });
     var values = top.map(function(a) { return Math.round(a.median * 100) / 100; });
     var colors = top.map(function(a) { return barColor(a.median); });
