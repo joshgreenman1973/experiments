@@ -349,6 +349,95 @@ header .subtitle {
   gap: 1.5rem;
 }
 
+.agency-breakdown-section {
+  margin-bottom: 1.5rem;
+}
+
+.agency-breakdown-row {
+  padding: 1rem 0;
+  border-top: 1px solid #eee;
+}
+
+.agency-breakdown-row:first-child {
+  border-top: none;
+}
+
+.agency-breakdown-name {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agency-breakdown-count {
+  font-size: 0.75rem;
+  color: var(--vc-charcoal);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agency-breakdown-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.breakdown-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vc-charcoal);
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--vc-indigo);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.breakdown-header.fast {
+  border-bottom-color: var(--vc-goodest-green);
+}
+
+.breakdown-header.slow {
+  border-bottom-color: var(--vc-baddest-red);
+}
+
+.agency-breakdown-lists ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.agency-breakdown-lists li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f3f3f3;
+}
+
+.agency-breakdown-lists li .dname {
+  color: #333;
+}
+
+.agency-breakdown-lists li .dtime {
+  color: var(--vc-charcoal);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .agency-breakdown-lists {
+    grid-template-columns: 1fr;
+  }
+}
+
 .fs-col h4 {
   font-size: 0.75rem;
   font-weight: 700;
@@ -633,6 +722,12 @@ header .subtitle {
         <h2>Summary statistics</h2>
         <div id="summary-stats"></div>
       </div>
+    </div>
+
+    <div class="chart-section agency-breakdown-section">
+      <h2>Fastest and slowest neighborhoods, by agency</h2>
+      <p class="chart-subtitle">For each agency, the 5 community districts where complaints close fastest and the 5 where they close slowest. A district needs at least 20 complaints with that agency to be included.</p>
+      <div id="agency-district-breakdown"></div>
     </div>
 
     <p class="data-note" id="data-note"></p>
@@ -1011,24 +1106,32 @@ header .subtitle {
 
     var whereClause = whereParts.join(" AND ");
 
-    var params = new URLSearchParams({
-      "$where": whereClause,
-      "$select": "created_date,closed_date,community_board,agency,agency_name",
-      "$limit": "50000",
-      "$order": "created_date DESC"
-    });
+    // Paginate to get more data when "All types" is selected so smaller
+    // agencies have enough volume for per-district breakdowns.
+    var MAX_RECORDS = complaint ? 50000 : 200000;
+    var PAGE = 50000;
+    var collected = [];
 
     try {
-      var response = await fetch(API_BASE + "?" + params.toString());
-      if (!response.ok) {
-        throw new Error("API returned status " + response.status);
+      var offset = 0;
+      while (collected.length < MAX_RECORDS) {
+        var params = new URLSearchParams({
+          "$where": whereClause,
+          "$select": "created_date,closed_date,community_board,agency,agency_name",
+          "$limit": String(PAGE),
+          "$offset": String(offset),
+          "$order": "created_date DESC"
+        });
+        var response = await fetch(API_BASE + "?" + params.toString());
+        if (!response.ok) throw new Error("API returned status " + response.status);
+        var chunk = await response.json();
+        if (!Array.isArray(chunk)) throw new Error("Unexpected API response format");
+        collected = collected.concat(chunk);
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
       }
-      var data = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error("Unexpected API response format");
-      }
-      allRecords = data;
-      processData(data);
+      allRecords = collected;
+      processData(collected);
     } catch (err) {
       loadingEl.style.display = "none";
       errorContainer.innerHTML = '<div class="error-message">Failed to load data: ' + err.message + '. Try refreshing the page or selecting a different complaint type.</div>';
@@ -1125,6 +1228,7 @@ header .subtitle {
     updateAgencyChart(null);
     renderFastestSlowest(districts);
     renderSummaryStats(allTimes, districts);
+    renderAgencyDistrictBreakdown();
 
     // Data note
     var complaint = complaintSelect.value || "all";
@@ -1337,6 +1441,74 @@ header .subtitle {
     });
     html += '</div>';
 
+    container.innerHTML = html;
+  }
+
+  function renderAgencyDistrictBreakdown() {
+    var container = document.getElementById("agency-district-breakdown");
+    // agency -> { label, total, byDistrict: { district: [times] } }
+    var map = {};
+    allRecords.forEach(function(r) {
+      var created = new Date(r.created_date);
+      var closed = new Date(r.closed_date);
+      if (isNaN(created.getTime()) || isNaN(closed.getTime())) return;
+      var diff = (closed - created) / (1000 * 60 * 60 * 24);
+      if (diff < 0) return;
+      var district = parseCommunityBoard(r.community_board);
+      if (!district) return;
+      var key = r.agency || "Unknown";
+      if (!map[key]) {
+        map[key] = { label: r.agency_name || key, byDistrict: {}, total: 0 };
+      }
+      if (!map[key].byDistrict[district]) map[key].byDistrict[district] = [];
+      map[key].byDistrict[district].push(diff);
+      map[key].total++;
+    });
+
+    var rows = [];
+    Object.keys(map).forEach(function(agency) {
+      var info = map[agency];
+      if (info.total < 500) return;
+      var districtRows = [];
+      Object.keys(info.byDistrict).forEach(function(d) {
+        var t = info.byDistrict[d];
+        if (t.length < 20) return;
+        districtRows.push({ district: d, median: calcMedian(t), count: t.length });
+      });
+      if (districtRows.length < 10) return;
+      districtRows.sort(function(a, b) { return a.median - b.median; });
+      rows.push({
+        agency: agency,
+        label: info.label,
+        total: info.total,
+        fastest: districtRows.slice(0, 5),
+        slowest: districtRows.slice(-5).reverse()
+      });
+    });
+    rows.sort(function(a, b) { return b.total - a.total; });
+
+    if (rows.length === 0) {
+      container.innerHTML = '<p style="color:#888;font-size:0.9rem;">Not enough per-agency, per-district volume in this selection to build meaningful rankings. Try a longer time range or broader complaint filter.</p>';
+      return;
+    }
+
+    var html = "";
+    rows.forEach(function(row) {
+      html += '<div class="agency-breakdown-row">';
+      html += '<div class="agency-breakdown-name">' + row.label + '<span class="agency-breakdown-count">' + formatNumber(row.total) + ' complaints</span></div>';
+      html += '<div class="agency-breakdown-lists">';
+      html += '<div><span class="breakdown-header fast">5 fastest neighborhoods</span><ul>';
+      row.fastest.forEach(function(d) {
+        html += '<li><span class="dname">' + cdDisplayName(d.district) + '</span><span class="dtime">' + formatDays(d.median) + '</span></li>';
+      });
+      html += '</ul></div>';
+      html += '<div><span class="breakdown-header slow">5 slowest neighborhoods</span><ul>';
+      row.slowest.forEach(function(d) {
+        html += '<li><span class="dname">' + cdDisplayName(d.district) + '</span><span class="dtime">' + formatDays(d.median) + '</span></li>';
+      });
+      html += '</ul></div>';
+      html += '</div></div>';
+    });
     container.innerHTML = html;
   }
 
