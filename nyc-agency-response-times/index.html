@@ -1106,9 +1106,10 @@ header .subtitle {
 
     var whereClause = whereParts.join(" AND ");
 
-    // Paginate to get more data when "All types" is selected so smaller
-    // agencies have enough volume for per-district breakdowns.
-    var MAX_RECORDS = complaint ? 50000 : 200000;
+    // Paginate the full universe of matching records. Socrata caps each
+    // page at 50k; we keep fetching until a short page signals we're done.
+    // Hard safety cap so a misfiltered query can't run away.
+    var MAX_RECORDS = 500000;
     var PAGE = 50000;
     var collected = [];
 

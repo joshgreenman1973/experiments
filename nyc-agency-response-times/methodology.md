@@ -76,7 +76,7 @@ When a community district is selected on the map, the agency chart recalculates 
 
 ## Sample size and date range
 
-Each data fetch requests up to 50,000 records from the API with these filters applied server-side:
+Each data fetch paginates the Socrata API in 50,000-record chunks until all matching records in the selected window have been retrieved (with a safety cap of 500,000 records to prevent runaway queries). Server-side filters:
 
 - `complaint_type` matches the selected type (or all types if "All types" is selected)
 - `borough` matches the selected borough (if filtered)
@@ -84,7 +84,7 @@ Each data fetch requests up to 50,000 records from the API with these filters ap
 - `closed_date` is not null
 - `status` equals "Closed"
 
-Records are ordered by `created_date` descending. If more than 50,000 qualifying records exist for a given filter combination, the most recent 50,000 are used.
+Records are ordered by `created_date` descending. In practice, the full universe of matching records is retrieved for any realistic combination of filters.
 
 ## Limitations
 
@@ -111,7 +111,7 @@ While the median reduces the impact of outliers, it can also obscure wide variat
 
 ### Sample size cap
 
-The API returns a maximum of 50,000 records per query. For high-volume complaint types (especially "All types") over long time periods, this cap may exclude older records, biasing the sample toward more recent complaints.
+To prevent runaway queries, the client applies a hard upper bound of 500,000 records per fetch. For extreme combinations (e.g. "All types" over a full year citywide), records beyond that cap would be excluded. The cap is well above the volume of any realistic 30- or 90-day window.
 
 ### Reporting rates vary by neighborhood
 
