@@ -18,10 +18,13 @@ function applyOverrides(record) {
   const o = OVERRIDES[record.name];
   if (!o) return record;
   if (o.liveUrl) {
-    record.previewUrl = o.liveUrl;
     record.livePagesUrl = o.liveUrl;
+    // liveUrl also sets preview unless a separate previewUrl is given
+    if (!o.previewUrl) record.previewUrl = o.liveUrl;
   }
+  if (o.previewUrl) record.previewUrl = o.previewUrl;
   if (o.description) record.description = o.description;
+  if (o.status) record.status = o.status;
   return record;
 }
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);

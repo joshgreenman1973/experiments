@@ -378,6 +378,13 @@
   }
   .flag.nested { color: var(--accent); }
   .flag.loose { color: var(--accent-soft); }
+  .flag.dropped { color: var(--ink-3); border-style: dashed; }
+
+  /* Dropped projects — visibly de-emphasized */
+  .card.dropped { opacity: 0.55; background: transparent; }
+  .card.dropped:hover { opacity: 0.9; background: var(--card); }
+  .card.dropped .card-title { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: var(--ink-3); }
+  .card.dropped .thumb { filter: grayscale(1) contrast(0.8); }
 
   .empty {
     grid-column: 1 / -1;
@@ -434,7 +441,9 @@
     <div class="filter-group">
       <label>Show</label>
       <select id="show">
-        <option value="all">Everything</option>
+        <option value="active">Active only</option>
+        <option value="all">All including dropped</option>
+        <option value="dropped">Dropped only</option>
         <option value="hasIndex">With preview</option>
         <option value="ownRepo">Own repo</option>
         <option value="loose">At root only</option>
@@ -524,6 +533,8 @@ function render() {
   let list = DATA.projects.filter(p => {
     if (cat && p.category !== cat) return false;
     if (owner && p.githubOwner !== owner) return false;
+    if (show === 'active' && p.status === 'dropped') return false;
+    if (show === 'dropped' && p.status !== 'dropped') return false;
     if (show === 'hasIndex' && !p.previewUrl) return false;
     if (show === 'ownRepo' && !p.isNestedRepo) return false;
     if (show === 'loose' && p.category !== 'root') return false;
@@ -551,7 +562,7 @@ function render() {
 
 function card(p, i) {
   const d = document.createElement('article');
-  d.className = 'card';
+  d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '');
   d.style.animationDelay = `${Math.min(i * 20, 600)}ms`;
 
   const idx = String(i + 1).padStart(2, '0');
@@ -577,6 +588,7 @@ function card(p, i) {
   if (p.github) links.push(`<a href="${p.github}" target="_blank" rel="noopener">GitHub</a>`);
 
   const flags = [];
+  if (p.status === 'dropped') flags.push('<span class="flag dropped">dropped</span>');
   if (p.isNestedRepo) flags.push('<span class="flag nested">own·repo</span>');
   if (p.isLooseFile) flags.push('<span class="flag loose">loose</span>');
 
