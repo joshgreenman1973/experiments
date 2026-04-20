@@ -787,6 +787,17 @@ header .subtitle {
     return rounded + (rounded === 1.0 ? " day" : " days");
   }
 
+  // Precise version for tooltips where rounding would mask why two
+  // districts with the same "2 hours" label get different colors.
+  function formatDaysPrecise(d) {
+    if (d < 1) {
+      var hours = d * 24;
+      var h = hours < 10 ? hours.toFixed(2) : hours.toFixed(1);
+      return h + (parseFloat(h) === 1 ? " hour" : " hours");
+    }
+    return d.toFixed(2) + " days";
+  }
+
   function formatNumber(n) {
     return n.toLocaleString("en-US");
   }
@@ -1009,7 +1020,7 @@ header .subtitle {
         var districtData = currentDistricts.find(function(d) { return d.district === key; });
         var html = '<div class="popup-district">' + cdDisplayName(key) + '</div>';
         if (districtData) {
-          html += '<div class="popup-time">Median: ' + formatDays(districtData.median) + '</div>';
+          html += '<div class="popup-time">Median: ' + formatDaysPrecise(districtData.median) + '</div>';
           html += '<div class="popup-count">' + formatNumber(districtData.total) + ' complaints</div>';
         } else {
           html += '<div class="popup-time">No data</div>';
