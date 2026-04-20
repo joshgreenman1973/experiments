@@ -17,6 +17,7 @@ try {
 function applyOverrides(record) {
   const o = OVERRIDES[record.name];
   if (!o) return record;
+  if (o.skip) return null; // excluded from gallery entirely
   if (o.liveUrl) {
     record.livePagesUrl = o.liveUrl;
     // liveUrl also sets preview unless a separate previewUrl is given
@@ -213,19 +214,19 @@ function scan() {
         for (const ie of inner) {
           if (!ie.isDirectory() || SKIP.has(ie.name) || ie.name.startsWith('.')) continue;
           const innerFull = join(full, ie.name);
-          if (isProject(innerFull)) out.push(projectRecord(innerFull, e.name));
+          if (isProject(innerFull)) { const r = projectRecord(innerFull, e.name); if (r) out.push(r); }
           // One more level for personal/world/
           else if (ie.name === 'world') {
             const w = readdirSync(innerFull, { withFileTypes: true });
             for (const we of w) {
               if (!we.isDirectory() || SKIP.has(we.name) || we.name.startsWith('.')) continue;
               const wf = join(innerFull, we.name);
-              if (isProject(wf)) out.push(projectRecord(wf, `${e.name}/world`));
+              if (isProject(wf)) { const r = projectRecord(wf, `${e.name}/world`); if (r) out.push(r); }
             }
           }
         }
       } else if (isProject(full)) {
-        out.push(projectRecord(full, 'root'));
+        { const r = projectRecord(full, 'root'); if (r) out.push(r); }
       }
     } else if (e.isFile() && e.name.endsWith('.html') && e.name !== 'index.html' && e.name !== 'projects.html') {
       const title = extractTitle(full) || e.name;
