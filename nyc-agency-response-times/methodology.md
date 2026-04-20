@@ -56,17 +56,21 @@ Districts with fewer than 5 complaints in the selected time period are excluded 
 
 ### Map choropleth
 
-The map colors each community district by its median resolution time using this scale:
+The map colors each community district relative to the current citywide median response time (`M`) for the selected filters. Using relative rather than fixed thresholds keeps the map meaningful whether you are looking at a fast-responding complaint type (e.g. most noise complaints, resolved in hours) or a slow one (e.g. rodent inspections, resolved in days).
 
 | Color | Threshold | Interpretation |
 |---|---|---|
-| Green | Under 24 hours | Fast resolution |
-| Yellow | 1-3 days | Moderate resolution |
-| Orange | 3-7 days | Slow resolution |
-| Red | Over 7 days | Very slow resolution |
+| Green | Under 0.67 × M | Much faster than citywide median |
+| Yellow | 0.67 × M to 1.33 × M | Near citywide median |
+| Orange | 1.33 × M to 2 × M | Slower than citywide median |
+| Red | Over 2 × M | Much slower than citywide median |
 | Gray | No data | Fewer than 5 complaints or no closed complaints in the time period |
 
+The legend beneath the map displays the actual numeric thresholds for the current selection.
+
 ### Agency breakdown
+
+The agency chart shows response times for the **top 15 agencies by complaint volume** in the current selection, sorted by median response time. Selecting by volume (rather than by slowest median) ensures that high-volume fast responders — such as NYPD (noise, illegal parking) and DHS (homeless outreach) — are included alongside slower agencies like HPD and TLC.
 
 When a community district is selected on the map, the agency chart recalculates median response times using only complaints from that district. This shows which agencies are faster or slower in a specific neighborhood.
 
