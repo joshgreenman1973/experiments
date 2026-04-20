@@ -537,29 +537,43 @@
     },
   });
 
-  // --- MATCHED OCCUPATIONS panel
+  // --- MATCHED OCCUPATIONS panel — 3 bars: NYC public, NYC private (ACS PUMS), MSA
   const matchedEl = $('matched-bars');
   if (matchedEl && D.matched) {
-    // Filter out occupations we couldn't match on the public side
     const rowsM = D.matched.filter(r => r.nyc_public && r.nyc_public.n > 50);
-    const maxVal = Math.max(...rowsM.flatMap(r => [r.nyc_public.median_reg, r.nyc_msa_all.median]));
-    // Flag public-dominated occupations (MSA figure ≈ public workforce, not a private comparator)
+    const vals = rowsM.flatMap(r => [
+      r.nyc_public.median_reg,
+      r.nyc_msa_all.median,
+      r.nyc_private_pums && r.nyc_private_pums.median || 0,
+    ]);
+    const maxVal = Math.max(...vals);
     const publicDominated = new Set(['25-2021','33-3051','33-2011','21-1021']);
     matchedEl.innerHTML = rowsM.map(r => {
       const pub = r.nyc_public.median_reg;
       const msa = r.nyc_msa_all.median;
+      const priv = r.nyc_private_pums && r.nyc_private_pums.median;
+      const privN = r.nyc_private_pums && r.nyc_private_pums.n_records;
       const pubW = (pub / maxVal) * 100;
       const msaW = (msa / maxVal) * 100;
-      const delta = pub - msa;
+      const privW = priv ? (priv / maxVal) * 100 : 0;
+      // Delta = NYC public vs NYC private (PUMS) when available; else vs MSA
+      const base = priv != null ? priv : msa;
+      const baseLabel = priv != null ? 'NYC priv' : 'MSA';
+      const delta = pub - base;
       const deltaCls = delta >= 0 ? 'pub' : 'priv';
-      const deltaTxt = (delta >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(delta / 1000)) + 'k';
-      const flag = publicDominated.has(r.soc) ? ' <small style="color:#b78c2c;">(public-dominated occupation — see note)</small>' : '';
+      const deltaTxt = (delta >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(delta / 1000)) + 'k vs ' + baseLabel;
+      const flag = publicDominated.has(r.soc) ? ' <small style="color:#b78c2c;">(NYC private sample may be thin or atypical for this occupation — see note)</small>' : '';
+      const privBar = priv != null
+        ? `<div class="bar" style="width:${privW}%; background:#c2410c;">NYC priv (PUMS) · ${fmt$(Math.round(priv))}  <span style="opacity:.75;margin-left:6px;">n=${fmtN(privN)}</span></div>`
+        : `<div class="bar" style="width:100%; background:transparent; color:#5b5e6b; padding:0; font-style:italic;">NYC private — no reliable PUMS sample</div>`;
+      const msaColor = priv != null ? '#d98a5a' : '#c2410c';
       return `
         <div class="occ-row">
           <div class="name">${r.name}${flag}<small>NYC public n=${fmtN(r.nyc_public.n)} · SOC ${r.soc}</small></div>
           <div class="bars">
             <div class="bar pub" style="width:${pubW}%">NYC public · ${fmt$(Math.round(pub))}</div>
-            <div class="bar priv" style="width:${msaW}%">NY-NJ MSA · ${fmt$(Math.round(msa))}</div>
+            ${privBar}
+            <div class="bar" style="width:${msaW}%; background:${msaColor};">NY-NJ MSA (all empl.) · ${fmt$(Math.round(msa))}</div>
           </div>
           <div class="delta ${deltaCls}">${deltaTxt}</div>
         </div>
