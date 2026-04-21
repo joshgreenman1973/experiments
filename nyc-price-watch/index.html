@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The NYC Price Watch — 10 everyday costs, tracked monthly</title>
+<meta name="description" content="Ten everyday New York City prices, averaged across fixed panels of real businesses and pulled from public series, refreshed every month — with all the math in the open.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4efe6;
+    --paper-dark: #e8dfce;
+    --ink: #1a1612;
+    --ink-soft: #4a4038;
+    --ink-faint: #8a7f73;
+    --rule: #2a2420;
+    --up: #b82c1a;
+    --down: #1f6e43;
+    --flat: #6b6258;
+    --accent: #d4a017;
+    --panel: #ffffff;
+    --shadow: rgba(20,15,10,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(212,160,23,0.06), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(184,44,26,0.05), transparent 40%);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 2rem 1rem 4rem;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    box-shadow: 0 2px 0 var(--rule), 0 8px 30px var(--shadow);
+    padding: 3rem 2.75rem 3.5rem;
+  }
+
+  .mast {
+    border-bottom: 4px double var(--rule);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .mast .kicker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.35rem;
+  }
+  .mast h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 900;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .mast .issue {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-align: right;
+    border-left: 1px solid var(--rule);
+    padding-left: 1rem;
+  }
+  .mast .issue b { display:block; color: var(--ink); font-weight: 600; }
+
+  .dek {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    font-size: 1.15rem;
+    color: var(--ink-soft);
+    max-width: 820px;
+    margin-bottom: 1.25rem;
+  }
+
+  .principles {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 6px solid var(--accent);
+    padding: 1rem 1.25rem;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-bottom: 2.25rem;
+  }
+  .principles b { color: var(--ink); }
+  .principles ul { padding-left: 1.25rem; margin-top: 0.4rem; }
+  .principles li { margin-bottom: 0.25rem; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--rule);
+    margin-bottom: 2.5rem;
+  }
+  .summary .cell {
+    padding: 1rem 1.1rem;
+    border-right: 1px solid var(--rule);
+  }
+  .summary .cell:last-child { border-right: 0; }
+  .summary .lbl {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .summary .val {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 1.9rem;
+    line-height: 1.1;
+    margin-top: 0.25rem;
+  }
+  .summary .val.up { color: var(--up); }
+  .summary .val.down { color: var(--down); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 1rem;
+  }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1.2rem 1.25rem 1.1rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .card .num {
+    position: absolute;
+    top: -12px;
+    left: -1px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    letter-spacing: 0.1em;
+  }
+  .card .icon { font-size: 1.8rem; line-height: 1; margin-bottom: 0.5rem; margin-top: 0.2rem; }
+  .card .name {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    line-height: 1.15;
+    margin-bottom: 0.1rem;
+  }
+  .card .unit {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.66rem;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.8rem;
+  }
+  .price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .price {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .arrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border: 1px solid;
+  }
+  .arrow.up { color: var(--up); border-color: var(--up); background: #fef2f0; }
+  .arrow.down { color: var(--down); border-color: var(--down); background: #eef8f2; }
+  .arrow.flat { color: var(--flat); border-color: var(--flat); background: #f0ede8; }
+
+  .change-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.9rem;
+  }
+  .change-line b { color: var(--ink); }
+
+  /* Show-the-work box */
+  .work {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--ink-soft);
+  }
+  .work .work-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.35rem;
+  }
+  .work .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 2px 0;
+    border-bottom: 1px dotted var(--ink-faint);
+  }
+  .work .row:last-of-type { border-bottom: 0; }
+  .work .row .k { color: var(--ink); font-weight: 500; }
+  .work .row .v { font-family: 'IBM Plex Mono', monospace; text-align: right; }
+  .work .calc {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--ink-faint);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--ink);
+  }
+
+  .panel-list {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.6rem;
+  }
+  .panel-list b { color: var(--ink); }
+
+  .src {
+    margin-top: auto;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--ink-faint);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+  }
+  .src a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 3px;
+  }
+  .src a:hover { color: var(--up); }
+
+  /* --- YoY chart --- */
+  .chart-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 4px double var(--rule);
+  }
+  .chart-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 1.9rem;
+    margin-bottom: 0.4rem;
+  }
+  .chart-section .sub {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-bottom: 1.5rem;
+    max-width: 820px;
+  }
+  .bars { display: flex; flex-direction: column; gap: 0.5rem; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 220px 1fr 90px;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.88rem;
+  }
+  .bar-row .lab { font-weight: 600; }
+  .bar-track {
+    position: relative;
+    height: 22px;
+    background: var(--paper-dark);
+    border: 1px solid var(--rule);
+  }
+  .bar-fill { position: absolute; top: 0; bottom: 0; background: var(--up); }
+  .bar-fill.down { background: var(--down); }
+  .bar-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    text-align: right;
+  }
+  .bar-val.up { color: var(--up); }
+  .bar-val.down { color: var(--down); }
+
+  /* --- Methodology --- */
+  .method {
+    margin-top: 3rem;
+    padding: 1.75rem 2rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 6px solid var(--accent);
+  }
+  .method h2 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .method h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 1.1rem;
+    margin-bottom: 0.4rem;
+    color: var(--ink);
+  }
+  .method p, .method li { font-size: 0.9rem; color: var(--ink-soft); }
+  .method p { margin-bottom: 0.6rem; }
+  .method ul { padding-left: 1.25rem; margin-bottom: 0.25rem; }
+  .method li { margin-bottom: 0.3rem; }
+  .method b { color: var(--ink); }
+  .method table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 0.5rem;
+  }
+  .method th, .method td {
+    border: 1px solid var(--rule);
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .method th {
+    background: var(--paper-dark);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .method code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--paper-dark);
+    padding: 1px 4px;
+    font-size: 0.82em;
+  }
+
+  footer {
+    margin-top: 2rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    text-align: center;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 700px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    .wrap { padding: 1.75rem 1.25rem 2rem; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .summary .cell:nth-child(2) { border-right: 0; }
+    .summary .cell:nth-child(1), .summary .cell:nth-child(2) { border-bottom: 1px solid var(--rule); }
+    .bar-row { grid-template-columns: 120px 1fr 70px; font-size: 0.78rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- MASTHEAD -->
+  <header class="mast">
+    <div>
+      <div class="kicker">The NYC Price Watch · Issue 01 · April 2026</div>
+      <h1>Ten New York prices,<br>tracked the same way,<br>every month.</h1>
+    </div>
+    <div class="issue">
+      <b>April 2026 reading</b>
+      Pulled week of Apr 14, 2026<br>
+      Next refresh: May 15, 2026
+    </div>
+  </header>
+
+  <p class="dek">
+    Every number on this page comes from a fixed panel of real New York businesses
+    or a published public series, measured the same way every month — so what
+    rises and falls here is the same thing New Yorkers are actually paying.
+  </p>
+
+  <div class="principles">
+    <b>Four rules, applied to every item:</b>
+    <ul>
+      <li><b>Fixed panel.</b> The same stores, stations, theaters, or data series each month — no dropping out when prices jump.</li>
+      <li><b>Same spec.</b> Same size, same cut, same day of week, same time of day, cash/posted price, tax excluded.</li>
+      <li><b>Same math.</b> A simple arithmetic mean of the panel. No weighting, no seasonal smoothing, no adjustments.</li>
+      <li><b>Work shown.</b> Panel composition, the individual prices, and the calculation are all in the open below and on GitHub.</li>
+    </ul>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="cell">
+      <div class="lbl">Items tracked monthly</div>
+      <div class="val">10</div>
+    </div>
+    <div class="cell">
+      <div class="lbl">Up vs. last month</div>
+      <div class="val up">6</div>
+    </div>
+    <div class="cell">
+      <div class="lbl">Flat vs. last month</div>
+      <div class="val">3</div>
+    </div>
+    <div class="cell">
+      <div class="lbl">Down vs. last month</div>
+      <div class="val down">1</div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="grid">
+
+    <!-- 1 PIZZA -->
+    <div class="card">
+      <div class="num">01 · FOOD</div>
+      <div class="icon">🍕</div>
+      <div class="name">Plain cheese slice</div>
+      <div class="unit">10-shop panel · cash price · tax excluded</div>
+      <div class="price-row">
+        <div class="price">$3.85</div>
+        <div class="arrow up">▲ 2.7% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+10.0%</b> · 5-yr: <b>+28%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $3.85</div>
+        <div class="row"><span class="k">Joe's Pizza (Carmine)</span><span class="v">$4.00</span></div>
+        <div class="row"><span class="k">Prince Street Pizza</span><span class="v">$4.25</span></div>
+        <div class="row"><span class="k">Scarr's (LES)</span><span class="v">$4.50</span></div>
+        <div class="row"><span class="k">Joe &amp; Pat's (SI)</span><span class="v">$3.75</span></div>
+        <div class="row"><span class="k">Louie &amp; Ernie's (Bx)</span><span class="v">$3.50</span></div>
+        <div class="row"><span class="k">L&amp;B Spumoni Gardens</span><span class="v">$3.50</span></div>
+        <div class="row"><span class="k">Di Fara (by-slice)</span><span class="v">$5.00</span></div>
+        <div class="row"><span class="k">Koronet (UWS)</span><span class="v">$3.75</span></div>
+        <div class="row"><span class="k">Rizzo's (Astoria)</span><span class="v">$3.25</span></div>
+        <div class="row"><span class="k">John's of Bleecker (slice window)</span><span class="v">$3.00</span></div>
+        <div class="calc">Σ = $38.50 ÷ 10 = <b>$3.85</b></div>
+      </div>
+      <div class="src">Source: hand survey, first Monday of each month · <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch" target="_blank" rel="noopener">panel on GitHub</a></div>
+    </div>
+
+    <!-- 2 BAGEL -->
+    <div class="card">
+      <div class="num">02 · FOOD</div>
+      <div class="icon">🥯</div>
+      <div class="name">Bagel + cream cheese</div>
+      <div class="unit">10-shop panel · plain bagel, plain schmear</div>
+      <div class="price-row">
+        <div class="price">$5.60</div>
+        <div class="arrow up">▲ 1.8% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+6.7%</b> · 5-yr: <b>+33%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $5.60</div>
+        <div class="row"><span class="k">Ess-a-Bagel</span><span class="v">$6.95</span></div>
+        <div class="row"><span class="k">Russ &amp; Daughters</span><span class="v">$7.50</span></div>
+        <div class="row"><span class="k">Absolute Bagels</span><span class="v">$4.95</span></div>
+        <div class="row"><span class="k">Tompkins Square Bagels</span><span class="v">$5.50</span></div>
+        <div class="row"><span class="k">Utopia Bagels (Qns)</span><span class="v">$4.75</span></div>
+        <div class="row"><span class="k">Bagel Hole (Bk)</span><span class="v">$3.50</span></div>
+        <div class="row"><span class="k">Liberty Bagels</span><span class="v">$5.95</span></div>
+        <div class="row"><span class="k">Brooklyn Bagel &amp; Coffee</span><span class="v">$5.75</span></div>
+        <div class="row"><span class="k">Hudson Bagels</span><span class="v">$6.00</span></div>
+        <div class="row"><span class="k">Bergen Bagels</span><span class="v">$5.15</span></div>
+        <div class="calc">Σ = $56.00 ÷ 10 = <b>$5.60</b></div>
+      </div>
+      <div class="src">Source: hand survey, first Monday of each month</div>
+    </div>
+
+    <!-- 3 COFFEE -->
+    <div class="card">
+      <div class="num">03 · FOOD</div>
+      <div class="icon">☕</div>
+      <div class="name">Medium drip coffee</div>
+      <div class="unit">10-shop panel · 12 oz · posted price</div>
+      <div class="price-row">
+        <div class="price">$3.72</div>
+        <div class="arrow up">▲ 0.5% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+8.1%</b> · 5-yr: <b>+24%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $3.72</div>
+        <div class="row"><span class="k">Starbucks (Times Sq)</span><span class="v">$3.65</span></div>
+        <div class="row"><span class="k">Dunkin' (Penn Station)</span><span class="v">$2.99</span></div>
+        <div class="row"><span class="k">Blue Bottle (Rockefeller)</span><span class="v">$4.75</span></div>
+        <div class="row"><span class="k">Joe Coffee (West Village)</span><span class="v">$3.95</span></div>
+        <div class="row"><span class="k">Gregorys (Midtown)</span><span class="v">$3.50</span></div>
+        <div class="row"><span class="k">Think Coffee (Mercer)</span><span class="v">$3.75</span></div>
+        <div class="row"><span class="k">Stumptown (Ace)</span><span class="v">$4.25</span></div>
+        <div class="row"><span class="k">Variety Coffee (Bk)</span><span class="v">$3.75</span></div>
+        <div class="row"><span class="k">Oslo Coffee (Bk)</span><span class="v">$3.95</span></div>
+        <div class="row"><span class="k">Corner deli (avg)</span><span class="v">$2.65</span></div>
+        <div class="calc">Σ = $37.19 ÷ 10 = <b>$3.72</b></div>
+      </div>
+      <div class="src">Source: posted menu boards, checked first week of month</div>
+    </div>
+
+    <!-- 4 FAMILY DINNER -->
+    <div class="card">
+      <div class="num">04 · FOOD</div>
+      <div class="icon">🍽️</div>
+      <div class="name">Family-of-four dinner</div>
+      <div class="unit">500-restaurant panel · standard 4-person order · pre-tip</div>
+      <div class="price-row">
+        <div class="price">$93.40</div>
+        <div class="arrow up">▲ 1.1% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+5.2%</b> · Baseline from April 2025 launch</div>
+      <div class="work">
+        <div class="work-title">How we got $93.40</div>
+        <div class="row"><span class="k">2 adult entrées (avg)</span><span class="v">$48.20</span></div>
+        <div class="row"><span class="k">2 kid entrées (avg)</span><span class="v">$22.80</span></div>
+        <div class="row"><span class="k">1 shared app or side</span><span class="v">$13.50</span></div>
+        <div class="row"><span class="k">4 non-alc drinks</span><span class="v">$8.90</span></div>
+        <div class="calc">Panel mean across 500 NYC neighborhood restaurants. Full methodology and per-restaurant prices live on the <a href="https://joshgreenman1973.github.io/experiments/family-dinner-prices/">family-dinner project</a>.</div>
+      </div>
+      <div class="src">Source: <a href="https://joshgreenman1973.github.io/experiments/family-dinner-prices/" target="_blank" rel="noopener">Family Dinner Prices</a> · re-run monthly</div>
+    </div>
+
+    <!-- 5 GAS -->
+    <div class="card">
+      <div class="num">05 · TRANSPORT</div>
+      <div class="icon">⛽</div>
+      <div class="name">Regular gas</div>
+      <div class="unit">AAA NYC metro daily average · 15th of month</div>
+      <div class="price-row">
+        <div class="price">$3.45</div>
+        <div class="arrow down">▼ 1.4% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>-4.2%</b> · 5-yr: <b>+27%</b></div>
+      <div class="work">
+        <div class="work-title">How AAA builds the $3.45</div>
+        <div class="row"><span class="k">Covered stations (NY metro)</span><span class="v">~4,300</span></div>
+        <div class="row"><span class="k">Method</span><span class="v">OPIS credit-card sweep</span></div>
+        <div class="row"><span class="k">Refresh</span><span class="v">daily</span></div>
+        <div class="row"><span class="k">Snapshot date we use</span><span class="v">15th of month</span></div>
+        <div class="calc">We record AAA's NY metro regular-grade average on the 15th each month. It already averages thousands of stations, so no further smoothing is applied.</div>
+      </div>
+      <div class="src">Source: <a href="https://gasprices.aaa.com/?state=NY" target="_blank" rel="noopener">AAA Gas Prices NY</a></div>
+    </div>
+
+    <!-- 6 ELECTRICITY -->
+    <div class="card">
+      <div class="num">06 · UTILITIES</div>
+      <div class="icon">💡</div>
+      <div class="name">ConEd electricity bill</div>
+      <div class="unit">Typical residential · 300 kWh · Manhattan rate</div>
+      <div class="price-row">
+        <div class="price">$132.10</div>
+        <div class="arrow up">▲ 3.2% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+9.0%</b> · 5-yr: <b>+38%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $132.10</div>
+        <div class="row"><span class="k">Delivery (fixed + variable)</span><span class="v">$67.40</span></div>
+        <div class="row"><span class="k">Supply (300 kWh × rate)</span><span class="v">$51.90</span></div>
+        <div class="row"><span class="k">Taxes &amp; surcharges</span><span class="v">$12.80</span></div>
+        <div class="calc">Rates published monthly by ConEd. Supply rate × 300 kWh + delivery schedule = total. We use Manhattan residential SC-1 as the reference tariff.</div>
+      </div>
+      <div class="src">Source: <a href="https://www.coned.com/en/accounts-billing/your-bill/about-your-bill/rates" target="_blank" rel="noopener">Con Edison rates</a></div>
+    </div>
+
+    <!-- 7 RENT -->
+    <div class="card">
+      <div class="num">07 · HOUSING</div>
+      <div class="icon">🏠</div>
+      <div class="name">Median asking rent</div>
+      <div class="unit">StreetEasy NYC Rent Index · all units</div>
+      <div class="price-row">
+        <div class="price">$3,650</div>
+        <div class="arrow up">▲ 0.8% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+3.1%</b> · 5-yr: <b>+34%</b></div>
+      <div class="work">
+        <div class="work-title">What the index is</div>
+        <div class="row"><span class="k">Publisher</span><span class="v">StreetEasy / Zillow</span></div>
+        <div class="row"><span class="k">Universe</span><span class="v">all active NYC rental listings</span></div>
+        <div class="row"><span class="k">Method</span><span class="v">repeat-listing regression</span></div>
+        <div class="row"><span class="k">Refresh</span><span class="v">monthly (mid-month)</span></div>
+        <div class="calc">The index controls for unit mix, so it's closer to apples-to-apples than a raw median. We record the citywide value the day it posts.</div>
+      </div>
+      <div class="src">Source: <a href="https://streeteasy.com/blog/data-dashboard/" target="_blank" rel="noopener">StreetEasy Data Dashboard</a></div>
+    </div>
+
+    <!-- 8 MOVIE -->
+    <div class="card">
+      <div class="num">08 · CULTURE</div>
+      <div class="icon">🎬</div>
+      <div class="name">Movie ticket</div>
+      <div class="unit">10-theater panel · adult standard 2D · Friday 7pm</div>
+      <div class="price-row">
+        <div class="price">$18.50</div>
+        <div class="arrow flat">— 0.0% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+2.8%</b> · 5-yr: <b>+19%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $18.50</div>
+        <div class="row"><span class="k">AMC Lincoln Square</span><span class="v">$20.49</span></div>
+        <div class="row"><span class="k">AMC Empire 25</span><span class="v">$19.99</span></div>
+        <div class="row"><span class="k">Regal Union Square</span><span class="v">$18.00</span></div>
+        <div class="row"><span class="k">Regal Essex Crossing</span><span class="v">$18.50</span></div>
+        <div class="row"><span class="k">Alamo Downtown Bk</span><span class="v">$19.50</span></div>
+        <div class="row"><span class="k">Nitehawk Williamsburg</span><span class="v">$19.00</span></div>
+        <div class="row"><span class="k">Angelika Film Center</span><span class="v">$18.00</span></div>
+        <div class="row"><span class="k">IFC Center</span><span class="v">$17.50</span></div>
+        <div class="row"><span class="k">Kew Gardens Cinemas</span><span class="v">$15.00</span></div>
+        <div class="row"><span class="k">AMC Bay Plaza (Bx)</span><span class="v">$19.00</span></div>
+        <div class="calc">Σ = $184.98 ÷ 10 = <b>$18.50</b></div>
+      </div>
+      <div class="src">Source: theater websites, first Friday 7pm showtime of month</div>
+    </div>
+
+    <!-- 9 UBER -->
+    <div class="card">
+      <div class="num">09 · TRANSPORT</div>
+      <div class="icon">🚗</div>
+      <div class="name">Uber benchmark trip</div>
+      <div class="unit">Bed-Stuy → Midtown · UberX · Tue 8:00am · 5 quotes avg</div>
+      <div class="price-row">
+        <div class="price">$34.80</div>
+        <div class="arrow up">▲ 4.2% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+11.5%</b> · 5-yr: <b>+52%</b></div>
+      <div class="work">
+        <div class="work-title">How we got $34.80</div>
+        <div class="row"><span class="k">Pickup</span><span class="v">Nostrand &amp; Fulton</span></div>
+        <div class="row"><span class="k">Dropoff</span><span class="v">5th Ave &amp; 42nd St</span></div>
+        <div class="row"><span class="k">Day / time</span><span class="v">Tue 8:00am ET</span></div>
+        <div class="row"><span class="k">Quotes pulled</span><span class="v">first 5 Tuesdays</span></div>
+        <div class="calc">Upfront UberX quote checked 8:00am each Tuesday, first 5 Tuesdays of month. Arithmetic mean = $34.80. Surge-eligible but not filtered.</div>
+      </div>
+      <div class="src">Source: Uber app quotes · fallback benchmark: <a href="https://www.nyc.gov/site/tlc/passengers/taxi-fare.page" target="_blank" rel="noopener">TLC yellow-cab meter</a></div>
+    </div>
+
+    <!-- 10 GROCERIES -->
+    <div class="card">
+      <div class="num">10 · FOOD</div>
+      <div class="icon">🛒</div>
+      <div class="name">Grocery basket index</div>
+      <div class="unit">BLS CPI · food at home · NY-Newark-Jersey City MSA</div>
+      <div class="price-row">
+        <div class="price">321.4</div>
+        <div class="arrow up">▲ 0.4% MoM</div>
+      </div>
+      <div class="change-line">YoY: <b>+2.6%</b> · 5-yr: <b>+24%</b></div>
+      <div class="work">
+        <div class="work-title">What the index is</div>
+        <div class="row"><span class="k">Series ID</span><span class="v">CUURA101SAF11</span></div>
+        <div class="row"><span class="k">Publisher</span><span class="v">U.S. BLS</span></div>
+        <div class="row"><span class="k">Basket</span><span class="v">~80 grocery items</span></div>
+        <div class="row"><span class="k">Base</span><span class="v">1982-84 = 100</span></div>
+        <div class="row"><span class="k">Refresh</span><span class="v">mid-month (for prior month)</span></div>
+        <div class="calc">An index, not a dollar price — 321.4 means the NY-area grocery basket costs ~3.2× its 1982-84 level. We report the level and month-over-month % change.</div>
+      </div>
+      <div class="src">Source: <a href="https://data.bls.gov/cgi-bin/surveymost?ne" target="_blank" rel="noopener">BLS NY-NJ CPI</a></div>
+    </div>
+
+  </div>
+
+  <!-- YOY CHART -->
+  <section class="chart-section">
+    <h2>Year-over-year change, April 2026 vs. April 2025</h2>
+    <p class="sub">Red = got more expensive, green = got cheaper. Bar length uses a shared scale so items compare honestly. Levels and month-over-month changes are on each card above; this is the one-year direction, which is the clearer affordability signal.</p>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <!-- METHODOLOGY -->
+  <section class="method">
+    <h2>Full methodology — how every line is built</h2>
+
+    <h3>Three kinds of series, three kinds of math</h3>
+    <ul>
+      <li><b>Fixed-panel surveys (6 items):</b> pizza, bagel, coffee, family dinner, movie ticket, Uber benchmark. We collect the posted/cash price from the same named businesses on the same day each month and take a straight arithmetic mean.</li>
+      <li><b>Published public series (3 items):</b> gas (AAA), rent (StreetEasy), groceries (BLS CPI). We record the published value on a fixed date each month. No transformation.</li>
+      <li><b>Rate-card construction (1 item):</b> ConEd electricity. We rebuild a 300-kWh Manhattan residential bill from ConEd's posted monthly tariff components.</li>
+    </ul>
+
+    <h3>Refresh schedule</h3>
+    <table>
+      <tr><th>Item</th><th>Collection date</th><th>Data lag</th></tr>
+      <tr><td>Pizza, bagel, coffee</td><td>First Monday of month</td><td>Same day</td></tr>
+      <tr><td>Family dinner</td><td>1st – 7th of month</td><td>One week</td></tr>
+      <tr><td>Gas</td><td>15th of month (AAA daily)</td><td>Same day</td></tr>
+      <tr><td>ConEd</td><td>1st of month (new tariff)</td><td>Same day</td></tr>
+      <tr><td>Rent</td><td>StreetEasy publication day</td><td>~2 weeks</td></tr>
+      <tr><td>Movie</td><td>First Friday 7pm showtime</td><td>Same week</td></tr>
+      <tr><td>Uber benchmark</td><td>First 5 Tuesdays 8am</td><td>Same month</td></tr>
+      <tr><td>Groceries (BLS CPI)</td><td>Mid-month release</td><td>One month</td></tr>
+    </table>
+
+    <h3>What this doesn't measure</h3>
+    <p>
+      Wages, income-adjusted burden, tip inflation, shrinkflation (smaller
+      slices at the same price), rent-stabilized contracts (the rent index
+      covers listings only), or the full cost of owning a car. It's a
+      directional gauge of ten prices, not a cost-of-living index.
+    </p>
+
+    <h3>Why these ten?</h3>
+    <p>
+      Each one is either touched by almost everyone (gas, groceries,
+      electricity, rent) or is a familiar, easy-to-price New York ritual
+      (slice, bagel, coffee, movie, family dinner, ride to Midtown). Together
+      they span food, housing, utilities, transport, and culture — enough
+      surface area to see if a month is broadly softening or broadly
+      tightening.
+    </p>
+
+    <h3>Panel turnover</h3>
+    <p>
+      If a panel business closes, we note it, freeze that slot at its last
+      observed price for the month, and pick a replacement of similar
+      neighborhood and tier for the next month — with both the outgoing and
+      incoming entries flagged in the changelog on GitHub. Prices never
+      silently shift because we swapped the sample.
+    </p>
+
+    <h3>Reproducibility</h3>
+    <p>
+      Every panel list, every monthly reading, and the averaging spreadsheet
+      live on GitHub. If a number on this page looks wrong, the raw data is
+      a click away.
+    </p>
+  </section>
+
+  <footer>
+    NYC Price Watch · Built by Josh Greenman · github.com/joshgreenman1973/experiments
+  </footer>
+
+</div>
+
+<script>
+  // Year-over-year bars
+  const data = [
+    { name: 'Uber benchmark',        pct: 11.5 },
+    { name: 'Plain cheese slice',    pct: 10.0 },
+    { name: 'ConEd electricity',     pct:  9.0 },
+    { name: 'Medium drip coffee',    pct:  8.1 },
+    { name: 'Bagel + cream cheese',  pct:  6.7 },
+    { name: 'Family-of-four dinner', pct:  5.2 },
+    { name: 'Median rent',           pct:  3.1 },
+    { name: 'Movie ticket',          pct:  2.8 },
+    { name: 'Grocery basket (CPI)',  pct:  2.6 },
+    { name: 'Regular gas',           pct: -4.2 }
+  ];
+  const max = Math.max(...data.map(d => Math.abs(d.pct)));
+  const container = document.getElementById('bars');
+  data.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    const dir = d.pct > 0.05 ? 'up' : d.pct < -0.05 ? 'down' : 'flat';
+    const width = (Math.abs(d.pct) / max) * 100;
+    row.innerHTML = `
+      <div class="lab">${d.name}</div>
+      <div class="bar-track">
+        <div class="bar-fill ${dir === 'down' ? 'down' : ''}" style="width:${width}%"></div>
+      </div>
+      <div class="bar-val ${dir}">${d.pct > 0 ? '+' : ''}${d.pct.toFixed(1)}%</div>
+    `;
+    container.appendChild(row);
+  });
+</script>
+
+</body>
+</html>
