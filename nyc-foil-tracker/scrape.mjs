@@ -178,8 +178,11 @@ async function scrapeList(page) {
         // this workflow — exit cleanly so the scheduled run doesn't light
         // up the repo with a red X. Next week's run will try again.
         if (/access denied/i.test(title) || /access denied/i.test(bodyText || "")) {
-          console.warn("  Upstream access denied; skipping this run without failing the workflow.");
-          await browser.close();
+          console.warn("::notice::Upstream Access Denied from NYC OpenRecords; skipping this run.");
+          if (process.env.GITHUB_OUTPUT) {
+            const fs = await import("node:fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "skipped=true\n");
+          }
           process.exit(0);
         }
         throw new Error("Could not load OpenRecords search page after 3 attempts");
