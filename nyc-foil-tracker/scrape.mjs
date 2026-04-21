@@ -15,6 +15,14 @@ const DETAIL_CONCURRENCY = 5; // parallel detail page fetches
 const DETAIL_LIMIT = (BACKFILL || BACKFILL_FULL) ? 500 : 30;
 const DATE_FROM = (BACKFILL || BACKFILL_FULL) ? "01/01/2026" : "";
 
+// NYC Open Data / Socrata: "OpenRecords FOIL Requests" dataset.
+// This is the OFFICIAL published dataset (DORIS) and is not behind Akamai —
+// replaces the fragile scrape of a860-openrecords.nyc.gov/request/view_all.
+// Titles and response/determination messages are NOT in Socrata, so we still
+// fall back to scraping individual detail pages for those (best-effort).
+const SOCRATA_ENDPOINT = "https://data.cityofnewyork.us/resource/kegn-anvq.json";
+const SOCRATA_PAGE_SIZE = 50000; // SODA max per request
+
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 async function launchBrowser() {
@@ -147,7 +155,78 @@ async function scrapeWindow(page, dateFrom, dateTo) {
   return { requests, total };
 }
 
-// Step 1: Scrape the search results list
+// Step 1 (new): Pull the list from the official NYC Open Data Socrata dataset.
+// Returns the same shape as the old scrapeList so downstream code is unchanged.
+async function fetchListFromSocrata({ fullBackfill = false, limitRequests = 200 } = {}) {
+  console.log(`Fetching list from Socrata (${SOCRATA_ENDPOINT})...`);
+
+  const results = [];
+  let offset = 0;
+  // Non-backfill: just grab the most recent N, ordered newest first.
+  // Backfill: page through everything from 2026-01-01 forward.
+  const whereClause = (BACKFILL || fullBackfill)
+    ? `?$where=request_submitted_date >= '2026-01-01T00:00:00'&$order=request_submitted_date DESC`
+    : `?$order=request_submitted_date DESC`;
+
+  const maxToFetch = (BACKFILL || fullBackfill) ? Infinity : limitRequests;
+
+  while (results.length < maxToFetch) {
+    const pageLimit = Math.min(SOCRATA_PAGE_SIZE, maxToFetch - results.length);
+    const url = `${SOCRATA_ENDPOINT}${whereClause}&$limit=${pageLimit}&$offset=${offset}`;
+    console.log(`  GET offset=${offset} limit=${pageLimit}`);
+    const resp = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+    if (!resp.ok) {
+      throw new Error(`Socrata HTTP ${resp.status}: ${await resp.text().then((t) => t.slice(0, 200))}`);
+    }
+    const rows = await resp.json();
+    if (rows.length === 0) break;
+    results.push(...rows);
+    if (rows.length < pageLimit) break;
+    offset += pageLimit;
+  }
+
+  // Try to get the overall dataset size for display
+  let totalInSystem = 0;
+  try {
+    const metaResp = await fetch(
+      `${SOCRATA_ENDPOINT}?$select=count(*) as c`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (metaResp.ok) {
+      const metaJson = await metaResp.json();
+      totalInSystem = parseInt(metaJson[0]?.c || "0", 10) || 0;
+    }
+  } catch {}
+
+  console.log(`  Got ${results.length} rows from Socrata (total in system: ${totalInSystem || "?"})`);
+
+  // Map Socrata row → existing internal shape.
+  // Socrata fields: request_id, agency_name, request_submitted_date,
+  //   request_created_date, request_due_date, request_close_date,
+  //   request_status, submission_method.
+  const mapped = results.map((r) => ({
+    status: r.request_status || "",
+    foilId: r.request_id || "",
+    dateSubmitted: r.request_submitted_date || r.request_created_date || "",
+    // Socrata has no title; detail scrape fills this in
+    title: "* Under Review",
+    url: r.request_id ? `https://a860-openrecords.nyc.gov/request/view/${r.request_id}` : "",
+    agency: r.agency_name || "",
+    dateDue: r.request_due_date || "",
+    dateClosed: r.request_close_date || "",
+    submissionMethod: r.submission_method || "",
+    isUnderReview: true, // until detail scrape fills title
+  }));
+
+  return {
+    totalInSystem: totalInSystem || "597,000+",
+    requests: mapped,
+  };
+}
+
+// Step 1 (legacy): Scrape the search results list via Playwright — kept as fallback.
 async function scrapeList(page) {
   console.log("Navigating to OpenRecords search...");
 
@@ -376,93 +455,16 @@ async function main() {
   }
   const existingMap = new Map(existing.requests.map((r) => [r.foilId, r]));
 
-  // Step 1: Scrape the list
-  const { browser: b1, context: c1 } = await launchBrowser();
-  const listPage = await c1.newPage();
-
+  // Step 1: Pull list from Socrata (no browser, no Akamai)
   let listData;
-
-  if (BACKFILL_FULL) {
-    // Windowed backfill: break into weekly chunks to avoid 10K API cap
-    console.log("=== WINDOWED BACKFILL MODE ===\n");
-
-    // First, load the main page to establish session/cookies
-    await listPage.goto("https://a860-openrecords.nyc.gov/request/view_all", {
-      waitUntil: "domcontentloaded", timeout: 60000,
-    });
-    await listPage.waitForTimeout(5000);
-    try {
-      await listPage.waitForSelector("table tr td", { timeout: 30000 });
-    } catch {
-      console.error("Could not load initial page for windowed backfill");
-      await b1.close();
-      process.exit(1);
-    }
-
-    const windows = generateWeeklyWindows("2026-01-01");
-    console.log(`Generated ${windows.length} weekly windows\n`);
-
-    const allWindowRequests = [];
-    let overallTotal = 0;
-
-    for (let w = 0; w < windows.length; w++) {
-      const win = windows[w];
-      console.log(`  Window ${w + 1}/${windows.length}: ${win.from} – ${win.to}`);
-      const result = await scrapeWindow(listPage, win.from, win.to);
-      allWindowRequests.push(...result.requests);
-      overallTotal = Math.max(overallTotal, result.total);
-      console.log(`    Got ${result.requests.length} requests (window total: ${result.total})`);
-
-      // Save progress after each window
-      const progressRequests = [...allWindowRequests].map((r) => ({
-        ...r,
-        url: r.url ? `https://a860-openrecords.nyc.gov${r.url}` : "",
-        isUnderReview: r.title === "* Under Review",
-      }));
-      for (const r of progressRequests) {
-        if (!existingMap.has(r.foilId)) {
-          existingMap.set(r.foilId, { ...r, responses: [], detailScraped: false });
-        } else {
-          const prev = existingMap.get(r.foilId);
-          prev.status = r.status;
-          prev.dateDue = r.dateDue;
-          if (!r.isUnderReview && r.title !== "* Under Review") prev.title = r.title;
-        }
-      }
-
-      // Save intermediate to disk every 3 windows
-      if ((w + 1) % 3 === 0 || w === windows.length - 1) {
-        const intermediate = Array.from(existingMap.values()).sort(
-          (a, b) => (b.dateSubmitted || "").localeCompare(a.dateSubmitted || "")
-        );
-        writeFileSync(OUTPUT_FILE, JSON.stringify({
-          lastUpdated: new Date().toISOString(),
-          totalInSystem: overallTotal || existing.totalInSystem,
-          requestsFetched: intermediate.length,
-          agencyStats: {},
-          requests: intermediate,
-        }, null, 2));
-        console.log(`    Saved progress: ${intermediate.length} total requests on disk`);
-      }
-
-      await listPage.waitForTimeout(2000); // pause between windows
-    }
-
-    listData = {
-      totalInSystem: overallTotal,
-      requests: allWindowRequests.map((r) => ({
-        ...r,
-        url: r.url ? `https://a860-openrecords.nyc.gov${r.url}` : "",
-        isUnderReview: r.title === "* Under Review",
-      })),
-    };
-  } else {
-    listData = await scrapeList(listPage);
+  try {
+    listData = await fetchListFromSocrata({ fullBackfill: BACKFILL_FULL });
+  } catch (err) {
+    console.error("::error::Socrata list fetch failed:", err.message);
+    process.exit(1);
   }
 
-  await b1.close();
-
-  console.log(`\nFetched ${listData.requests.length} requests from search.\n`);
+  console.log(`\nFetched ${listData.requests.length} requests from Socrata.\n`);
 
   // Merge list data
   for (const r of listData.requests) {
