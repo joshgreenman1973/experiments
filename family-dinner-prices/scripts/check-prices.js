@@ -182,8 +182,37 @@ Set confidence to "high" if you found clear prices, "medium" if you had to estim
 
 // ── Main ────────────────────────────────────────────────────────
 
+const today = new Date().toISOString().split('T')[0];
+const snapshotPath = path.join(snapshotsDir, `${today}.json`);
+const newSnapshot = { date: today, prices: {}, closures: [] };
+const newClosures = [];
+let registryChanged = false;
+
+function persist() {
+  // Always leave disk in a consistent state, even on crash / early exit.
+  try {
+    if (registryChanged) {
+      fs.writeFileSync(path.join(dataDir, 'restaurants.json'), JSON.stringify(registry, null, 2));
+    }
+    newSnapshot.closures = newClosures.map(c => c.name);
+    fs.writeFileSync(snapshotPath, JSON.stringify(newSnapshot, null, 2));
+  } catch (e) {
+    console.error('persist() failed:', e.message);
+  }
+}
+
+process.on('SIGINT', () => { persist(); process.exit(130); });
+process.on('SIGTERM', () => { persist(); process.exit(143); });
+process.on('uncaughtException', (e) => { console.error('uncaughtException:', e); persist(); process.exit(1); });
+process.on('unhandledRejection', (e) => { console.error('unhandledRejection:', e); persist(); process.exit(1); });
+
+function isValidPriceSet(p) {
+  return p && ['adultEntree', 'kidMeal', 'appetizer', 'drinks'].every(
+    k => typeof p[k] === 'number' && isFinite(p[k]) && p[k] >= 0
+  );
+}
+
 async function main() {
-  const today = new Date().toISOString().split('T')[0];
   console.log(`\nGenerating snapshot for ${today}\n`);
 
   const FAIL_THRESHOLD = 3; // consecutive failures before auto-closing
@@ -196,10 +225,7 @@ async function main() {
   console.log(`Active: ${active.length} | Already closed: ${closed.length}`);
   console.log(`Scrapeable: ${scrapeable.length} | Carry forward: ${noUrl.length}\n`);
 
-  const newSnapshot = { date: today, prices: {}, closures: [] };
   const changes = [];
-  const newClosures = [];
-  let registryChanged = false;
 
   // Carry forward prices for active restaurants without URLs
   for (const r of noUrl) {
@@ -252,7 +278,7 @@ async function main() {
 
       const prices = await extractPrices(r, menuText);
 
-      if (!prices || prices.confidence === 'low') {
+      if (!prices || prices.confidence === 'low' || !isValidPriceSet(prices)) {
         console.log('low confidence, carrying forward');
         r.failCount = (r.failCount || 0) + 1;
         registryChanged = true;
@@ -334,18 +360,10 @@ async function main() {
     }
   }
 
-  // Record closures in snapshot for history
-  newSnapshot.closures = newClosures.map(c => c.name);
-
-  // Save updated registry if anything changed
+  persist();
   if (registryChanged) {
-    fs.writeFileSync(path.join(dataDir, 'restaurants.json'), JSON.stringify(registry, null, 2));
     console.log(`\nRegistry updated (${newClosures.length} new closures, fail counts updated)`);
   }
-
-  // Save snapshot
-  const snapshotPath = path.join(snapshotsDir, `${today}.json`);
-  fs.writeFileSync(snapshotPath, JSON.stringify(newSnapshot, null, 2));
 
   // Summary
   console.log(`\n════════════════════════════════════════`);
@@ -375,5 +393,6 @@ async function main() {
 
 main().catch(err => {
   console.error('Fatal error:', err);
+  persist();
   process.exit(1);
 });
