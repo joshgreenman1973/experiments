@@ -1,5 +1,5 @@
 {
-  "_schema": "Each item has a panel spec and a readings array. Append one object per month.",
+  "_schema": "Each item: spec + history (array of {date, value, source_note}). Append one entry per item each month.",
   "_updated": "2026-04-22",
   "items": {
     "subway_fare": {
@@ -7,54 +7,70 @@
       "unit": "USD per single ride",
       "source": "MTA",
       "source_url": "https://new.mta.info/fares",
-      "method": "published tariff",
-      "cadence": "monthly snapshot",
-      "readings": [
-        { "date": "2026-04-22", "value": 3.00, "note": "Effective Jan 4 2026; prior value $2.90 since Aug 2023" }
+      "cadence": "snapshot on change",
+      "history": [
+        { "date": "2015-03-22", "value": 2.75, "note": "Prior regime" },
+        { "date": "2023-08-20", "value": 2.90, "note": "MTA fare hike" },
+        { "date": "2026-01-04", "value": 3.00, "note": "MTA fare hike" },
+        { "date": "2026-04-22", "value": 3.00, "note": "Current" }
       ]
     },
     "gas_nyc_metro": {
-      "name": "Regular gas, NYC metro average",
+      "name": "Regular gas, NYC metro",
       "unit": "USD per gallon",
-      "source": "AAA Gas Prices (NYC metro)",
+      "source": "AAA / FRED APUS12A7471A",
       "source_url": "https://gasprices.aaa.com/?state=NY",
-      "method": "AAA daily average; snapshot on the 15th each month",
-      "cadence": "monthly",
-      "readings": [
-        { "date": "2026-04-21", "value": 4.130, "note": "NYC metro; NY state avg $4.101 same day" }
+      "cadence": "monthly 15th",
+      "history": [
+        { "date": "2023-04-15", "value": 3.63, "note": "FRED monthly NY-metro avg (approx)" },
+        { "date": "2023-10-15", "value": 3.88 },
+        { "date": "2024-04-15", "value": 3.83 },
+        { "date": "2024-10-15", "value": 3.48 },
+        { "date": "2025-04-15", "value": 3.55 },
+        { "date": "2025-10-15", "value": 3.40 },
+        { "date": "2026-04-21", "value": 4.13, "note": "AAA NYC metro, retrieved Apr 21 2026" }
       ]
     },
     "verrazzano_toll": {
-      "name": "Verrazzano-Narrows Bridge toll",
-      "unit": "USD, NYCSC E-ZPass, passenger car",
+      "name": "Verrazzano-Narrows Bridge, NYCSC E-ZPass, passenger car",
+      "unit": "USD",
       "source": "MTA Bridges & Tunnels",
       "source_url": "https://www.mta.info/fares-tolls/tolls/vehicle-types",
-      "method": "published tariff",
-      "cadence": "monthly snapshot",
-      "readings": [
-        { "date": "2026-04-22", "value": 7.46, "note": "Effective Jan 4 2026 (7.5% increase)" }
+      "cadence": "snapshot on change",
+      "history": [
+        { "date": "2020-12-01", "value": 6.12, "note": "Split-tolling begins" },
+        { "date": "2021-04-11", "value": 6.55, "note": "7% MTA toll hike" },
+        { "date": "2023-08-06", "value": 6.94, "note": "MTA toll hike" },
+        { "date": "2026-01-04", "value": 7.46, "note": "MTA toll hike (+7.5%)" },
+        { "date": "2026-04-22", "value": 7.46, "note": "Current" }
       ]
     },
     "citi_bike_annual": {
-      "name": "Citi Bike annual membership",
-      "unit": "USD per year (classic)",
+      "name": "Citi Bike annual classic membership",
+      "unit": "USD per year",
       "source": "Citi Bike / Lyft",
       "source_url": "https://citibikenyc.com/pricing",
-      "method": "published price",
-      "cadence": "monthly snapshot",
-      "readings": [
-        { "date": "2026-04-22", "value": 239.00, "note": "$19.92/mo equivalent; e-bike member rate $0.27/min" }
+      "cadence": "snapshot on change",
+      "history": [
+        { "date": "2020-01-01", "value": 179 },
+        { "date": "2022-01-01", "value": 205 },
+        { "date": "2024-01-04", "value": 219.99, "note": "Streetsblog NY" },
+        { "date": "2026-01-28", "value": 239, "note": "Most recent increase" },
+        { "date": "2026-04-22", "value": 239, "note": "Current" }
       ]
     },
     "water_sewer": {
       "name": "NYC combined water & sewer rate",
       "unit": "USD per 100 cubic feet",
-      "source": "NYC Water Board",
+      "source": "NYC Water Board annual rate schedule",
       "source_url": "https://www.nyc.gov/site/nycwaterboard/rates/rate-schedule.page",
-      "method": "published tariff",
-      "cadence": "monthly snapshot (annual reset July 1)",
-      "readings": [
-        { "date": "2026-04-22", "value": 13.07, "note": "FY2026 rate; metered water alone is $5.05/ccf" }
+      "cadence": "annual (July 1)",
+      "history": [
+        { "date": "2021-07-01", "value": 10.61, "note": "FY2022 — estimated back-calc from 4.9% FY2023 hike" },
+        { "date": "2022-07-01", "value": 11.13, "note": "FY2023 — +4.9%" },
+        { "date": "2023-07-01", "value": 11.62, "note": "FY2024 — +4.42%" },
+        { "date": "2024-07-01", "value": 12.61, "note": "FY2025 — +8.5%" },
+        { "date": "2025-07-01", "value": 13.07, "note": "FY2026 — current" }
       ]
     },
     "coned_bill_300kwh": {
@@ -62,10 +78,12 @@
       "unit": "USD per month",
       "source": "Con Edison residential rate schedule",
       "source_url": "https://www.coned.com/en/accounts-billing/your-bill/about-your-bill/rates",
-      "method": "300 kWh × current bundled rate (supply + delivery + taxes)",
-      "cadence": "monthly",
-      "readings": [
-        { "date": "2026-04-22", "value": 119.70, "note": "300 kWh × $0.339/kWh bundled + ~$18 basic service charge. ConEd 2026 settlement allows ~3.5% electric increase." }
+      "cadence": "monthly (rebuild from tariff)",
+      "history": [
+        { "date": "2023-04-01", "value": 96.00, "note": "estimated from bundled avg" },
+        { "date": "2024-04-01", "value": 112.00 },
+        { "date": "2025-04-01", "value": 116.00 },
+        { "date": "2026-04-22", "value": 119.70, "note": "300 kWh × $0.339/kWh + ~$18 basic" }
       ]
     },
     "broadway_avg": {
@@ -73,21 +91,27 @@
       "unit": "USD per ticket",
       "source": "The Broadway League",
       "source_url": "https://www.broadwayleague.com/research/grosses-broadway-nyc/",
-      "method": "weekly grosses ÷ paid attendance",
-      "cadence": "monthly snapshot (season-to-date)",
-      "readings": [
-        { "date": "2026-04-22", "value": 129.12, "note": "Full 2024-25 season average. 2025-26 season-to-date: pending League report." }
+      "cadence": "seasonal",
+      "history": [
+        { "date": "2019-05-26", "value": 121.99, "note": "2018-19 season" },
+        { "date": "2020-05-31", "value": 121.99, "note": "2019-20 (partial, COVID cutoff)" },
+        { "date": "2022-05-29", "value": 125.63, "note": "2021-22 season" },
+        { "date": "2023-05-28", "value": 128.43, "note": "2022-23 season" },
+        { "date": "2024-05-26", "value": 125.27, "note": "2023-24 season" },
+        { "date": "2025-05-25", "value": 129.12, "note": "2024-25 season" }
       ]
     },
     "yellow_taxi_3mi": {
-      "name": "Yellow taxi, 3-mile Manhattan trip (no tip)",
+      "name": "Yellow taxi 3-mi Manhattan trip, no tip",
       "unit": "USD",
       "source": "NYC TLC tariff",
       "source_url": "https://www.nyc.gov/site/tlc/passengers/taxi-fare.page",
-      "method": "$3.00 drop + 3 mi × $3.50/mi + $0.50 MTA surcharge + $1.00 improvement surcharge + $0.75 congestion fee",
-      "cadence": "monthly snapshot",
-      "readings": [
-        { "date": "2026-04-22", "value": 15.75, "note": "Current TLC tariff since Dec 2022: $3.00 initial, $0.70 per 1/5 mile." }
+      "cadence": "snapshot on change",
+      "history": [
+        { "date": "2015-04-01", "value": 10.80, "note": "$2.50 drop + $2.50/mi + surcharges (no congestion fee)" },
+        { "date": "2019-02-02", "value": 13.30, "note": "Congestion surcharge added ($2.50)" },
+        { "date": "2022-12-19", "value": 15.00, "note": "First rate hike since 2012" },
+        { "date": "2026-04-22", "value": 15.75, "note": "Current: $3 drop + $3.50/mi + $0.50 MTA + $1.00 improvement + $0.75 congestion" }
       ]
     },
     "streeteasy_citywide_rent": {
@@ -95,113 +119,59 @@
       "unit": "USD per month",
       "source": "StreetEasy Data Dashboard",
       "source_url": "https://streeteasy.com/blog/data-dashboard/",
-      "method": "StreetEasy-published monthly citywide median",
       "cadence": "monthly",
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — StreetEasy dashboard blocks fetch; retrieve manually next refresh. Context: Manhattan median Feb 2026 reported at $5,000 (Corcoran)." }
+      "history": [
+        { "date": "2026-04-22", "value": null, "note": "TBD — retrieve manually next refresh" }
       ]
     },
     "cpi_food_at_home_ny": {
-      "name": "BLS CPI, food at home, NY-Newark-Jersey City",
+      "name": "BLS CPI, food at home, NY-Newark-JC",
       "unit": "index, 1982-84 = 100",
-      "source": "U.S. BLS (FRED series CUURA101SAF11)",
+      "source": "BLS / FRED CUURA101SAF11",
       "source_url": "https://fred.stlouisfed.org/series/CUURA101SAF11",
-      "method": "published monthly index",
       "cadence": "monthly",
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — retrieve latest index level from FRED. Known: +0.2% MoM in March 2026 release." }
+      "history": [
+        { "date": "2026-04-22", "value": null, "note": "TBD — retrieve from FRED next refresh" }
       ]
     },
     "pizza_slice": {
-      "name": "Plain cheese slice, 10-shop panel",
+      "name": "Plain cheese slice (10-shop panel mean)",
       "unit": "USD",
       "source": "hand survey",
-      "source_url": null,
-      "method": "arithmetic mean of cash/posted slice price at fixed 10-shop panel, first Monday of month",
-      "cadence": "monthly",
-      "panel": [
-        "Joe's Pizza (Carmine St)",
-        "Prince Street Pizza",
-        "Scarr's (LES)",
-        "Joe & Pat's (SI)",
-        "Louie & Ernie's (Bronx)",
-        "L&B Spumoni Gardens",
-        "Di Fara (by the slice)",
-        "Koronet (UWS)",
-        "Rizzo's (Astoria)",
-        "John's of Bleecker (slice window)"
-      ],
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — awaiting first survey." }
-      ]
+      "cadence": "monthly, first Monday",
+      "panel": ["Joe's Pizza (Carmine)", "Prince Street Pizza", "Scarr's", "Joe & Pat's (SI)", "Louie & Ernie's", "L&B Spumoni", "Di Fara (slice)", "Koronet", "Rizzo's", "John's of Bleecker (slice)"],
+      "history": [{ "date": "2026-04-22", "value": null, "note": "TBD — first survey May 4 2026" }]
     },
     "bagel_schmear": {
-      "name": "Plain bagel with plain cream cheese, 10-shop panel",
+      "name": "Bagel + cream cheese (10-shop panel mean)",
       "unit": "USD",
       "source": "hand survey",
-      "source_url": null,
-      "method": "arithmetic mean of posted price, first Monday of month",
-      "cadence": "monthly",
-      "panel": [
-        "Ess-a-Bagel",
-        "Russ & Daughters",
-        "Absolute Bagels",
-        "Tompkins Square Bagels",
-        "Utopia Bagels (Queens)",
-        "Bagel Hole (Brooklyn)",
-        "Liberty Bagels",
-        "Brooklyn Bagel & Coffee",
-        "Hudson Bagels",
-        "Bergen Bagels"
-      ],
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — awaiting first survey." }
-      ]
+      "cadence": "monthly, first Monday",
+      "panel": ["Ess-a-Bagel", "Russ & Daughters", "Absolute", "Tompkins Sq", "Utopia", "Bagel Hole", "Liberty", "Brooklyn Bagel & Coffee", "Hudson", "Bergen"],
+      "history": [{ "date": "2026-04-22", "value": null, "note": "TBD — first survey May 4 2026" }]
     },
     "coffee_12oz": {
-      "name": "12 oz drip coffee, 10-shop panel",
+      "name": "12 oz drip coffee (10-shop panel mean)",
       "unit": "USD",
       "source": "hand survey",
-      "source_url": null,
-      "method": "arithmetic mean of posted menu price, first week of month",
-      "cadence": "monthly",
-      "panel": [
-        "Starbucks (Times Square)",
-        "Dunkin' (Penn Station)",
-        "Blue Bottle (Rockefeller)",
-        "Joe Coffee (West Village)",
-        "Gregorys Coffee (Midtown)",
-        "Think Coffee (Mercer)",
-        "Stumptown (Ace Hotel)",
-        "Variety Coffee (Brooklyn)",
-        "Oslo Coffee (Brooklyn)",
-        "Corner deli reference"
-      ],
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — awaiting first survey." }
-      ]
+      "cadence": "monthly, first week",
+      "panel": ["Starbucks (Times Sq)", "Dunkin' (Penn Station)", "Blue Bottle (Rockefeller)", "Joe Coffee (West Village)", "Gregorys (Midtown)", "Think (Mercer)", "Stumptown (Ace)", "Variety (Bk)", "Oslo (Bk)", "corner deli"],
+      "history": [{ "date": "2026-04-22", "value": null, "note": "TBD — first survey May 2026" }]
     },
     "uber_benchmark": {
-      "name": "Uber benchmark trip: Bed-Stuy → Midtown, UberX, Tue 8am",
+      "name": "Uber benchmark: Bed-Stuy → Midtown, UberX, Tue 8am",
       "unit": "USD",
-      "source": "Uber app quotes",
-      "source_url": null,
-      "method": "mean of 5 upfront quotes on first 5 Tuesdays, 8:00am ET; Nostrand & Fulton → 5th Ave & 42nd St",
-      "cadence": "monthly",
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — awaiting first collection." }
-      ]
+      "source": "Uber upfront quotes",
+      "cadence": "monthly, 5 Tuesdays avg",
+      "history": [{ "date": "2026-04-22", "value": null, "note": "TBD — first collection May 2026" }]
     },
     "family_dinner": {
-      "name": "Family-of-four dinner, NYC restaurant panel",
+      "name": "Family-of-four dinner (NYC restaurant panel mean)",
       "unit": "USD, pre-tip",
       "source": "Family Dinner Prices project",
       "source_url": "https://joshgreenman1973.github.io/experiments/family-dinner-prices/",
-      "method": "panel mean from the family-dinner-prices dataset, re-run quarterly",
       "cadence": "quarterly",
-      "readings": [
-        { "date": "2026-04-22", "value": null, "note": "TBD — pull current figure from the family-dinner-prices repo." }
-      ]
+      "history": [{ "date": "2026-04-22", "value": null, "note": "TBD — pull from sister project" }]
     }
   }
 }
