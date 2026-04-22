@@ -43,12 +43,30 @@ function readText(path, cap = 50000) {
   try { return readFileSync(path, 'utf8').slice(0, cap); } catch { return ''; }
 }
 
+// Decode HTML entities (both named and numeric) so titles/descriptions
+// don't render the literal &mdash; / &amp; / etc. in the gallery.
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  nbsp: ' ', hellip: '…', mdash: '—', ndash: '–',
+  copy: '©', reg: '®', trade: '™',
+  ldquo: '\u201c', rdquo: '\u201d', lsquo: '\u2018', rsquo: '\u2019',
+  laquo: '«', raquo: '»', deg: '°', sect: '§', para: '¶',
+  times: '×', divide: '÷', plusmn: '±',
+};
+function decodeEntities(s) {
+  if (!s) return s;
+  return s
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return _; } })
+    .replace(/&#(\d+);/g, (_, n) => { try { return String.fromCodePoint(parseInt(n, 10)); } catch { return _; } })
+    .replace(/&([a-z][a-z0-9]+);/gi, (m, n) => NAMED_ENTITIES[n.toLowerCase()] ?? m);
+}
+
 function extractTitle(htmlPath) {
   const html = readText(htmlPath);
   const t = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (t) return t[1].replace(/\s+/g, ' ').trim();
+  if (t) return decodeEntities(t[1].replace(/\s+/g, ' ').trim());
   const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  if (h1) return h1[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (h1) return decodeEntities(h1[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120));
   return null;
 }
 
@@ -62,7 +80,7 @@ function extractReadmeDesc(dir) {
       const t = line.trim();
       if (!t) continue;
       if (t.startsWith('#') || t.startsWith('!') || t.startsWith('[!') || t.startsWith('<')) continue;
-      return t.slice(0, 240);
+      return decodeEntities(t.slice(0, 240));
     }
   }
   return null;
