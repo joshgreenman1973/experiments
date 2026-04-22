@@ -573,6 +573,39 @@ section.visible .section-subtitle {
 .marker-cluster-large { background: rgba(239,68,68,0.4) !important; }
 .marker-cluster-large div { background: rgba(239,68,68,0.85) !important; color: #fff !important; font-family: var(--font-mono) !important; font-size: 12px !important; }
 
+/* Live status bar */
+.live-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: rgba(10,10,18,0.8);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 2;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+.live-dot.refreshing { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation-duration: 0.6s; }
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.live-sep { color: var(--text-tertiary); }
+.live-bar strong { color: var(--text-primary); font-weight: 600; }
+
 /* Footer */
 footer {
   padding: 48px;
@@ -689,6 +722,14 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
       <div class="hero-stat-label">Lives Lost</div>
     </div>
   </div>
+  <div class="live-bar">
+    <span class="live-dot" id="liveDot"></span>
+    <span>LIVE</span>
+    <span class="live-sep">·</span>
+    <span>DATA THROUGH <strong id="liveThrough">—</strong></span>
+    <span class="live-sep">·</span>
+    <span>REFRESHED <strong id="liveRefreshed">just now</strong></span>
+  </div>
   <div class="hero-pulse">SCROLL TO EXPLORE</div>
 </section>
 
@@ -703,14 +744,14 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
       <div class="chart-card-title">The COVID Paradox: Fewer Crashes, More Death</div>
       <div class="chart-wrap" id="trendParadoxWrap"><div class="loader">Loading…</div></div>
       <div class="insight-callout">
-        Crashes fell <strong>51%</strong> between 2018 and 2020. But fatalities <em>rose</em> from 231 to 269. The fatality rate per 1,000 crashes <strong>more than doubled</strong>—and has stayed elevated ever since. Empty streets meant higher speeds.
+        Crashes fell <strong id="covidDropPct">—</strong> between 2018 and 2020. But fatalities <em>rose</em> from <span id="covid2018Killed">—</span> to <span id="covid2020Killed">—</span>. The fatality rate per 1,000 crashes <strong>more than doubled</strong>—and has stayed elevated ever since. Empty streets meant higher speeds.
       </div>
     </div>
     <div class="card">
       <div class="chart-card-title">Fatality Rate Per 1,000 Crashes</div>
       <div class="chart-wrap" id="trendFatalRateWrap"><div class="loader">Loading…</div></div>
       <div class="insight-callout">
-        Pre-pandemic: roughly <span class="insight-number">1.1</span> fatal crashes per 1,000. By 2021 it hit <span class="insight-number">2.6</span> — the worst in the dataset. Even by 2024, it's <span class="insight-number">2.8</span>. <strong>Each crash is now nearly 3× as likely to kill someone.</strong>
+        Pre-pandemic: roughly <span class="insight-number" id="ratePre">—</span> fatal crashes per 1,000. The peak pandemic year hit <span class="insight-number" id="ratePeak">—</span> — the worst in the dataset. Most recent full year: <span class="insight-number" id="rateRecent">—</span> (<span id="rateRecentYear">—</span>). <strong>Each crash is now roughly <span id="rateMultiplier">—</span>× as likely to kill someone.</strong>
       </div>
     </div>
   </div>
@@ -720,14 +761,14 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
       <div class="chart-card-title">Vision Zero's Scorecard: Pedestrian Deaths</div>
       <div class="chart-wrap" id="trendVisionZeroWrap"><div class="loader">Loading…</div></div>
       <div class="insight-callout amber">
-        Vision Zero launched in 2014. Pedestrian fatalities dropped from <span class="insight-number amber">176</span> in 2013 to <span class="insight-number amber">101</span> in 2020 — a 43% cut. But they've rebounded to the 120s since, <strong>erasing about half of the program's gains.</strong>
+        Vision Zero launched in 2014. Pedestrian fatalities dropped from <span class="insight-number amber" id="vz2013">—</span> in 2013 to <span class="insight-number amber" id="vzLow">—</span> at their low point (<span id="vzLowYear">—</span>) — a <span id="vzDropPct">—</span> cut. But the most recent year logged <span class="insight-number amber" id="vzRecent">—</span> pedestrian deaths (<span id="vzRecentYear">—</span>), <strong>erasing much of the program's gains.</strong>
       </div>
     </div>
     <div class="card">
       <div class="chart-card-title">The E-Bike Explosion</div>
       <div class="chart-wrap" id="trendEbikeWrap"><div class="loader">Loading…</div></div>
       <div class="insight-callout cyan">
-        E-bike and e-scooter crashes went from near-zero to <span class="insight-number cyan">4,065</span> in 2023 — a <strong>3,800% increase</strong> in four years. Tracks directly with delivery app growth and micromobility adoption.
+        E-bike and e-scooter crashes went from near-zero to <span class="insight-number cyan" id="ebikePeak">—</span> at peak (<span id="ebikePeakYear">—</span>) — a <strong id="ebikeGrowth">—</strong> increase over the micromobility boom. Tracks directly with delivery app growth and adoption.
       </div>
     </div>
   </div>
@@ -737,7 +778,7 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
       <div class="chart-card-title">Cyclist Injuries: Structurally Higher</div>
       <div class="chart-wrap" id="trendCyclistWrap"><div class="loader">Loading…</div></div>
       <div class="insight-callout purple">
-        Cyclist injuries rose <strong>30%</strong> — from ~4,000/year (2013–2015) to ~5,200/year (2023–2025) — even as total crashes fell by more than half. More people cycling means more exposure, and infrastructure hasn't kept pace.
+        Cyclist injuries rose <strong id="cycRisePct">—</strong> — from ~<span id="cycEarlyAvg">—</span>/year (<span id="cycEarlyRange">—</span>) to ~<span id="cycRecentAvg">—</span>/year (<span id="cycRecentRange">—</span>) — even as total crashes fell by more than half. More people cycling means more exposure, and infrastructure hasn't kept pace.
       </div>
     </div>
     <div class="card">
@@ -753,7 +794,7 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
     <div class="chart-card-title">The Bronx: Growing Share of Fatalities</div>
     <div class="chart-wrap" id="trendBronxWrap"><div class="loader">Loading…</div></div>
     <div class="insight-callout amber">
-      In 2013–2015, the Bronx had 77 fatalities vs. Brooklyn's 201 (a 2.6:1 ratio). By 2022–2024, it's 92 vs. 150 (1.6:1). <strong>The Bronx's share of traffic deaths has grown</strong> even as its crash count fell, suggesting deeper infrastructure and enforcement gaps.
+      In 2013–2015, the Bronx had <span id="bronxEarly">—</span> fatalities vs. Brooklyn's <span id="bkEarly">—</span> (<span id="ratioEarly">—</span> ratio). In <span id="bronxRecentRange">—</span>, it's <span id="bronxRecent">—</span> vs. <span id="bkRecent">—</span> (<span id="ratioRecent">—</span> ratio). <strong>The Bronx's share of traffic deaths has grown</strong> even as its crash count fell, suggesting deeper infrastructure and enforcement gaps.
     </div>
   </div>
 </section>
@@ -942,7 +983,7 @@ section.visible .fade-up:nth-child(4) { transition-delay: 0.4s; }
 </section>
 
 <footer>
-  Data from <a href="https://data.cityofnewyork.us" target="_blank">NYC Open Data</a> · NYPD Motor Vehicle Collision Reports · Updated Daily
+  Data from <a href="https://data.cityofnewyork.us" target="_blank">NYC Open Data</a> · NYPD Motor Vehicle Collision Reports · Data through <span id="footLatest">—</span> · Auto-refreshes every 5 min
 </footer>
 
 <script>
@@ -1068,17 +1109,62 @@ async function loadSectionData(sectionId) {
 // ===== HERO =====
 async function loadHero() {
   try {
-    const data = await sodaGet(CRASHES_API, {
-      '$select': 'COUNT(*) as total, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed'
-    });
+    const [data, latest] = await Promise.all([
+      sodaGet(CRASHES_API, {
+        '$select': 'COUNT(*) as total, SUM(number_of_persons_injured) as injured, SUM(number_of_persons_killed) as killed'
+      }),
+      sodaGet(CRASHES_API, {
+        '$select': 'MAX(crash_date) as max_date'
+      })
+    ]);
     const r = data[0];
     animateCounter(document.getElementById('heroTotal'), parseInt(r.total));
     animateCounter(document.getElementById('heroInjured'), parseInt(r.injured));
     animateCounter(document.getElementById('heroKilled'), parseInt(r.killed));
+    if (latest && latest[0] && latest[0].max_date) {
+      const d = new Date(latest[0].max_date);
+      const el = document.getElementById('liveThrough');
+      if (el) el.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const foot = document.getElementById('footLatest');
+      if (foot) foot.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    lastRefresh = Date.now();
+    updateRefreshedLabel();
   } catch (e) {
     console.error('Hero load error:', e);
   }
 }
+
+let lastRefresh = Date.now();
+function updateRefreshedLabel() {
+  const el = document.getElementById('liveRefreshed');
+  if (!el) return;
+  const sec = Math.floor((Date.now() - lastRefresh) / 1000);
+  let txt;
+  if (sec < 5) txt = 'just now';
+  else if (sec < 60) txt = sec + 's ago';
+  else if (sec < 3600) txt = Math.floor(sec / 60) + 'm ago';
+  else txt = Math.floor(sec / 3600) + 'h ago';
+  el.textContent = txt;
+}
+setInterval(updateRefreshedLabel, 5000);
+
+// Auto-refresh loaded sections every 5 minutes
+async function autoRefresh() {
+  const dot = document.getElementById('liveDot');
+  if (dot) dot.classList.add('refreshing');
+  // Re-run loaders for sections already loaded. Reset their flag so loadSectionData re-runs.
+  const toRefresh = Array.from(loadedSections);
+  for (const id of toRefresh) {
+    // Skip map/explorer — they have stateful Leaflet instances that shouldn't rebuild silently
+    if (id === 'map-section' || id === 'explorer-section') continue;
+    try { await loadSectionData(id); } catch (e) { console.error('refresh', id, e); }
+  }
+  lastRefresh = Date.now();
+  updateRefreshedLabel();
+  if (dot) dot.classList.remove('refreshing');
+}
+setInterval(autoRefresh, 5 * 60 * 1000);
 
 // ===== TRENDS =====
 async function loadTrends() {
@@ -1120,7 +1206,10 @@ async function loadTrends() {
       '$order': 'year ASC'
     });
 
-    // Borough fatalities: early vs recent
+    // Borough fatalities: early (2013-2015) vs recent (last 3 complete years, computed dynamically below)
+    const currentYear = new Date().getFullYear();
+    const recentEnd = currentYear; // exclusive — excludes current partial year
+    const recentStart = recentEnd - 3;
     const boroughEarlyP = sodaGet(CRASHES_API, {
       '$select': 'borough, SUM(number_of_persons_killed) as killed',
       '$where': "crash_date >= '2013-01-01' AND crash_date < '2016-01-01' AND borough IS NOT NULL",
@@ -1129,7 +1218,7 @@ async function loadTrends() {
     });
     const boroughRecentP = sodaGet(CRASHES_API, {
       '$select': 'borough, SUM(number_of_persons_killed) as killed',
-      '$where': "crash_date >= '2022-01-01' AND crash_date < '2025-01-01' AND borough IS NOT NULL",
+      '$where': `crash_date >= '${recentStart}-01-01' AND crash_date < '${recentEnd}-01-01' AND borough IS NOT NULL`,
       '$group': 'borough',
       '$order': 'borough ASC'
     });
@@ -1137,7 +1226,7 @@ async function loadTrends() {
     const [yearly, ped, cyc, ebike, speed, boroughEarly, boroughRecent] = await Promise.all([yearlyP, pedP, cycP, ebikeP, speedP, boroughEarlyP, boroughRecentP]);
 
     // Filter to full years only (2013–2025)
-    const fullYears = yearly.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const fullYears = yearly.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= currentYear);
     const labels = fullYears.map(d => d.year);
 
     // 1. COVID Paradox — Crashes vs Fatalities dual-axis
@@ -1204,7 +1293,7 @@ async function loadTrends() {
     });
 
     // 3. Vision Zero — Pedestrian deaths
-    const pedYears = ped.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const pedYears = ped.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= currentYear);
     const vzWrap = document.getElementById('trendVisionZeroWrap');
     vzWrap.innerHTML = '<canvas></canvas>';
     new Chart(vzWrap.querySelector('canvas'), {
@@ -1231,7 +1320,7 @@ async function loadTrends() {
     });
 
     // 4. E-bike explosion
-    const ebikeYears = ebike.filter(d => parseInt(d.year) >= 2018 && parseInt(d.year) <= 2025);
+    const ebikeYears = ebike.filter(d => parseInt(d.year) >= 2018 && parseInt(d.year) <= currentYear);
     const ebWrap = document.getElementById('trendEbikeWrap');
     ebWrap.innerHTML = '<canvas></canvas>';
     new Chart(ebWrap.querySelector('canvas'), {
@@ -1258,7 +1347,7 @@ async function loadTrends() {
     });
 
     // 5. Cyclist injuries over time
-    const cycYears = cyc.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const cycYears = cyc.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= currentYear);
     const cycWrap = document.getElementById('trendCyclistWrap');
     cycWrap.innerHTML = '<canvas></canvas>';
     new Chart(cycWrap.querySelector('canvas'), {
@@ -1283,7 +1372,7 @@ async function loadTrends() {
     });
 
     // 6. Unsafe speed trend
-    const speedYears = speed.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= 2025);
+    const speedYears = speed.filter(d => parseInt(d.year) >= 2013 && parseInt(d.year) <= currentYear);
     const speedWrap = document.getElementById('trendSpeedWrap');
     speedWrap.innerHTML = '<canvas></canvas>';
     new Chart(speedWrap.querySelector('canvas'), {
@@ -1324,7 +1413,7 @@ async function loadTrends() {
         labels: boroughs,
         datasets: [
           { label: '2013–2015', data: boroughs.map(b => earlyMap[b] || 0), backgroundColor: 'rgba(107,114,128,0.4)', borderColor: COLORS.gray, borderWidth: 1, borderRadius: 3 },
-          { label: '2022–2024', data: boroughs.map(b => recentMap[b] || 0), backgroundColor: 'rgba(245,158,11,0.5)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 3 }
+          { label: `${recentStart}–${recentEnd - 1}`, data: boroughs.map(b => recentMap[b] || 0), backgroundColor: 'rgba(245,158,11,0.5)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 3 }
         ]
       },
       options: {
@@ -1337,9 +1426,105 @@ async function loadTrends() {
       }
     });
 
+    // ===== Populate dynamic callout numbers =====
+    const byYear = {};
+    fullYears.forEach(d => { byYear[parseInt(d.year)] = d; });
+    const completeYears = fullYears.filter(d => parseInt(d.year) < currentYear);
+    const mostRecentComplete = completeYears.length ? parseInt(completeYears[completeYears.length - 1].year) : null;
+
+    if (byYear[2018] && byYear[2020]) {
+      const c2018 = parseInt(byYear[2018].crashes);
+      const c2020 = parseInt(byYear[2020].crashes);
+      setTxt('covidDropPct', Math.round((c2018 - c2020) / c2018 * 100) + '%');
+      setTxt('covid2018Killed', formatNum(parseInt(byYear[2018].killed)));
+      setTxt('covid2020Killed', formatNum(parseInt(byYear[2020].killed)));
+    }
+
+    const rateOf = y => byYear[y] ? (parseInt(byYear[y].killed) / parseInt(byYear[y].crashes) * 1000) : null;
+    const preRates = [2016, 2017, 2018, 2019].map(rateOf).filter(v => v != null);
+    const preAvg = preRates.length ? preRates.reduce((a,b) => a+b, 0) / preRates.length : null;
+    let peakRate = 0, peakYear = null;
+    completeYears.forEach(d => {
+      const r = parseInt(d.killed) / parseInt(d.crashes) * 1000;
+      if (r > peakRate) { peakRate = r; peakYear = parseInt(d.year); }
+    });
+    const recentRate = mostRecentComplete ? rateOf(mostRecentComplete) : null;
+    if (preAvg) setTxt('ratePre', preAvg.toFixed(1));
+    if (peakRate) setTxt('ratePeak', peakRate.toFixed(1));
+    if (recentRate) { setTxt('rateRecent', recentRate.toFixed(1)); setTxt('rateRecentYear', mostRecentComplete); }
+    if (preAvg && recentRate) setTxt('rateMultiplier', (recentRate / preAvg).toFixed(1));
+
+    const pedByYear = {};
+    pedYears.forEach(d => { pedByYear[parseInt(d.year)] = parseInt(d.ped_killed); });
+    if (pedByYear[2013]) setTxt('vz2013', pedByYear[2013]);
+    let vzLow = Infinity, vzLowYear = null;
+    Object.entries(pedByYear).forEach(([y, v]) => {
+      const yr = parseInt(y);
+      if (yr >= 2014 && yr < currentYear && v > 0 && v < vzLow) { vzLow = v; vzLowYear = yr; }
+    });
+    if (vzLow !== Infinity) {
+      setTxt('vzLow', vzLow);
+      setTxt('vzLowYear', vzLowYear);
+      if (pedByYear[2013]) setTxt('vzDropPct', Math.round((pedByYear[2013] - vzLow) / pedByYear[2013] * 100) + '%');
+    }
+    if (mostRecentComplete && pedByYear[mostRecentComplete] != null) {
+      setTxt('vzRecent', pedByYear[mostRecentComplete]);
+      setTxt('vzRecentYear', mostRecentComplete);
+    }
+
+    let ebPeak = 0, ebPeakYear = null;
+    ebikeYears.forEach(d => {
+      const v = parseInt(d.total);
+      if (parseInt(d.year) < currentYear && v > ebPeak) { ebPeak = v; ebPeakYear = parseInt(d.year); }
+    });
+    if (ebPeak) {
+      setTxt('ebikePeak', formatNum(ebPeak));
+      setTxt('ebikePeakYear', ebPeakYear);
+      const ebEarly = ebikeYears.find(d => parseInt(d.year) === 2019);
+      if (ebEarly && parseInt(ebEarly.total) > 0) {
+        const growth = Math.round((ebPeak - parseInt(ebEarly.total)) / parseInt(ebEarly.total) * 100);
+        setTxt('ebikeGrowth', formatNum(growth) + '%');
+      }
+    }
+
+    const cycByYear = {};
+    cycYears.forEach(d => { cycByYear[parseInt(d.year)] = parseInt(d.cyc_injured); });
+    const earlyCycYears = [2013, 2014, 2015].filter(y => cycByYear[y] != null);
+    const recentCycYears = [];
+    if (mostRecentComplete) {
+      for (let y = mostRecentComplete; y > mostRecentComplete - 3 && y >= 2013; y--) {
+        if (cycByYear[y] != null) recentCycYears.push(y);
+      }
+    }
+    if (earlyCycYears.length && recentCycYears.length) {
+      const earlyAvg = Math.round(earlyCycYears.reduce((s,y) => s + cycByYear[y], 0) / earlyCycYears.length);
+      const recentAvg = Math.round(recentCycYears.reduce((s,y) => s + cycByYear[y], 0) / recentCycYears.length);
+      const pct = Math.round((recentAvg - earlyAvg) / earlyAvg * 100);
+      setTxt('cycEarlyAvg', formatNum(earlyAvg));
+      setTxt('cycRecentAvg', formatNum(recentAvg));
+      setTxt('cycEarlyRange', `${earlyCycYears[0]}–${earlyCycYears[earlyCycYears.length-1]}`);
+      setTxt('cycRecentRange', `${recentCycYears[recentCycYears.length-1]}–${recentCycYears[0]}`);
+      setTxt('cycRisePct', (pct >= 0 ? '+' : '') + pct + '%');
+    }
+
+    const bxE = earlyMap['BRONX'] || 0, bkE = earlyMap['BROOKLYN'] || 0;
+    const bxR = recentMap['BRONX'] || 0, bkR = recentMap['BROOKLYN'] || 0;
+    setTxt('bronxEarly', bxE);
+    setTxt('bkEarly', bkE);
+    setTxt('bronxRecent', bxR);
+    setTxt('bkRecent', bkR);
+    if (bxE) setTxt('ratioEarly', (bkE / bxE).toFixed(1) + ':1');
+    if (bxR) setTxt('ratioRecent', (bkR / bxR).toFixed(1) + ':1');
+    setTxt('bronxRecentRange', `${recentStart}–${recentEnd - 1}`);
+
   } catch (e) {
     console.error('Trends load error:', e);
   }
+}
+
+function setTxt(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
 }
 
 // ===== MAP =====
