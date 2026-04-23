@@ -116,12 +116,6 @@
       </div>
       <div class="route-list" id="route-list"></div>
 
-      <!-- Historical trends (loaded from summary data) -->
-      <div class="trends-panel" id="trends-panel" style="display:none">
-        <div class="trends-header">Trends</div>
-        <div class="trends-grid" id="trends-grid"></div>
-      </div>
-
       <!-- Sources and methodology -->
       <div class="source-credits">
         <p><strong>Source:</strong> <a href="https://bustime.mta.info/wiki/Developers/Index" target="_blank">MTA BusTime SIRI API</a> (real-time vehicle positions)</p>
@@ -173,16 +167,73 @@
     </div>
   </div>
 
-  <!-- Timeline -->
-  <div class="timeline" id="timeline">
-    <div class="timeline-controls">
-      <button class="timeline-btn" id="btn-live" title="Live mode">&#x25C9;</button>
-      <button class="timeline-btn" id="btn-play" title="Play/Pause">&#x25B6;</button>
+  <!-- Weekly trends tray (expandable from bottom) -->
+  <div class="tray" id="tray" aria-expanded="false">
+    <button class="tray-handle" id="tray-handle" aria-controls="tray-body">
+      <span class="tray-caret" aria-hidden="true">&#x25B2;</span>
+      <span class="tray-label">Weekly trends</span>
+      <span class="tray-summary" id="tray-summary">Collecting data&hellip;</span>
+      <span class="tray-hint">click to expand</span>
+    </button>
+    <div class="tray-body" id="tray-body" role="region" aria-label="Weekly performance trends">
+      <div class="tray-body-inner">
+        <div class="tray-section">
+          <div class="tray-section-header">
+            <div class="tray-section-title">This week vs. last week</div>
+            <div class="tray-section-sub" id="tray-current-period">&mdash;</div>
+          </div>
+          <div class="tray-cards" id="tray-cards">
+            <div class="tray-empty" id="tray-empty">
+              <div class="tray-empty-title">No full weeks yet.</div>
+              <div class="tray-empty-body" id="tray-empty-body">
+                Automatic collection started mid-week on Apr&nbsp;22, 2026, so the
+                current ISO week will never have seven full days of data. The first
+                complete Monday&ndash;Sunday week is <strong>Apr&nbsp;27 &ndash; May&nbsp;3</strong>,
+                which rolls up the morning of <strong>Mon, May&nbsp;4, 2026</strong>.
+                Partial weeks appear in the table below with an asterisk.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tray-section">
+          <div class="tray-section-header">
+            <div class="tray-section-title">Week by week</div>
+            <div class="tray-section-sub">Every row shows the underlying sample size and date range &mdash; nothing is hidden.</div>
+          </div>
+          <div class="tray-table-wrap">
+            <table class="tray-table" id="tray-table">
+              <thead>
+                <tr>
+                  <th>ISO week</th>
+                  <th>Dates</th>
+                  <th class="num">Days</th>
+                  <th class="num">Snapshots</th>
+                  <th class="num">Avg speed (mph)</th>
+                  <th class="num">Bunching / snap</th>
+                  <th class="num">Reliability (%)</th>
+                  <th class="num">Routes</th>
+                </tr>
+              </thead>
+              <tbody id="tray-table-body">
+                <tr class="tray-table-empty"><td colspan="8">No weekly rows yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <details class="tray-math">
+          <summary><strong>How these numbers are computed</strong></summary>
+          <div class="tray-math-body">
+            <p>Every 5 minutes between 6&nbsp;AM and 11&nbsp;PM ET, a GitHub Action pulls every active bus from the MTA BusTime SIRI API and appends one JSON line to <code>data/snapshots/YYYY-MM-DD.jsonl</code>. Each line captures position, heading, route, phase, and timestamp for ~1,500 vehicles.</p>
+            <p><strong>Daily roll-up</strong> (runs 1&nbsp;AM ET, <code>process.js</code>): for each route, compute per-bus speeds between consecutive snapshots (along-route distance &divide; elapsed time, capped at 60&nbsp;mph). System speed = unweighted mean of route means (so the M15 doesn't dominate). Bunching = count of same-route same-direction bus pairs within 250&nbsp;m. Reliability = share of snapshots in which the route has no 20+ minute gap. Every input count is preserved in <code>data/daily/YYYY-MM-DD.json</code>.</p>
+            <p><strong>Weekly roll-up</strong> (<code>rollup.js</code>): group days by ISO&nbsp;week (Mon&ndash;Sun). For each metric, take the simple mean across days in the week; sum the snapshot and bunching-event totals. Weeks with fewer than 7 days are held back from the headline cards until they're complete &mdash; you'll see them in the table with a partial-week marker, never in the "this week" number.</p>
+            <p><strong>Change vs. last week</strong> = this week's mean minus last week's mean, shown with one decimal. Good direction (up for speed/reliability, down for bunching) is green.</p>
+            <p>See the full <a href="#methodology" onclick="document.querySelector('.methodology').setAttribute('open','');">methodology</a> for how individual metrics are defined and how they compare to MTA official numbers.</p>
+          </div>
+        </details>
+      </div>
     </div>
-    <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
-    <div class="timeline-time" id="timeline-time">&mdash;:&mdash;</div>
-    <div class="timeline-speed" id="timeline-speed" title="Click to change speed">1&times;</div>
-    <div class="timeline-date" id="timeline-date"></div>
   </div>
 
   <script src="app.js"></script>

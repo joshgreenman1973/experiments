@@ -55,9 +55,9 @@ function cacheDomElements() {
     'stat-gaps', 'stat-wait', 'speed-hint', 'speed-detail',
     'wait-alerts', 'live-badge', 'status-text', 'loading-overlay',
     'loading-text', 'route-list', 'route-search', 'sort-btn',
-    'timeline-slider', 'timeline-time', 'timeline-date', 'timeline-speed',
-    'btn-live', 'btn-play', 'borough-filter', 'route-list-header',
-    'trends-panel', 'trends-grid',
+    'borough-filter', 'route-list-header',
+    'tray', 'tray-handle', 'tray-body', 'tray-summary', 'tray-hint',
+    'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -977,65 +977,19 @@ function setupBusClickHandler() {
   });
 }
 
-// ═══ TIMELINE CONTROLS ═══
+// ═══ CONTROLS ═══
 function setupControls() {
-  const slider = dom['timeline-slider'];
-  const btnLive = dom['btn-live'];
-  const btnPlay = dom['btn-play'];
-  const speedEl = dom['timeline-speed'];
-
-  btnLive.addEventListener('click', () => {
-    isLive = true;
-    isPlaying = false;
-    clearInterval(playTimer);
-    btnLive.classList.add('active');
-    btnPlay.classList.remove('active');
-    dom['live-badge'].style.display = 'flex';
-    slider.value = slider.max;
-    if (currentSnapshot) {
-      renderBuses(currentSnapshot);
-      computeMetrics(currentSnapshot);
-    }
-  });
-
-  btnPlay.addEventListener('click', () => {
-    if (snapshots.length < 2) return;
-    isLive = false;
-    isPlaying = !isPlaying;
-    btnLive.classList.remove('active');
-    dom['live-badge'].style.display = 'none';
-
-    if (isPlaying) {
-      btnPlay.classList.add('active');
-      btnPlay.textContent = '\u23F8';
-      startPlayback();
-    } else {
-      btnPlay.classList.remove('active');
-      btnPlay.textContent = '\u25B6';
-      clearInterval(playTimer);
-    }
-  });
-
-  slider.addEventListener('input', () => {
-    if (snapshots.length === 0) return;
-    isLive = false;
-    btnLive.classList.remove('active');
-    dom['live-badge'].style.display = 'none';
-
-    const idx = Math.round((slider.value / 100) * (snapshots.length - 1));
-    showSnapshot(idx);
-  });
-
-  speedEl.addEventListener('click', () => {
-    const speeds = [1, 2, 5, 10, 30];
-    const idx = speeds.indexOf(playSpeed);
-    playSpeed = speeds[(idx + 1) % speeds.length];
-    speedEl.textContent = `${playSpeed}\u00D7`;
-    if (isPlaying) {
-      clearInterval(playTimer);
-      startPlayback();
-    }
-  });
+  // Weekly trends tray toggle
+  const tray = dom['tray'];
+  const handle = dom['tray-handle'];
+  const hint = dom['tray-hint'];
+  if (handle && tray) {
+    handle.addEventListener('click', () => {
+      const open = tray.getAttribute('aria-expanded') === 'true';
+      tray.setAttribute('aria-expanded', open ? 'false' : 'true');
+      if (hint) hint.textContent = open ? 'click to expand' : 'click to collapse';
+    });
+  }
 
   // Route search
   dom['route-search'].addEventListener('input', () => {
@@ -1109,41 +1063,10 @@ function updateSortHighlight() {
   });
 }
 
-function startPlayback() {
-  let idx = Math.round(
-    (dom['timeline-slider'].value / 100) * (snapshots.length - 1)
-  );
-
-  playTimer = setInterval(() => {
-    idx++;
-    if (idx >= snapshots.length) {
-      idx = 0; // loop
-    }
-    showSnapshot(idx);
-    dom['timeline-slider'].value =
-      (idx / (snapshots.length - 1)) * 100;
-  }, 1000 / playSpeed);
-}
-
-function showSnapshot(idx) {
-  if (idx < 0 || idx >= snapshots.length) return;
-  const snap = snapshots[idx];
-  renderBuses(snap);
-  computeMetrics(snap);
-  dom['timeline-time'].textContent = formatTime(new Date(snap.ts));
-  dom['status-text'].textContent = `Snapshot ${idx + 1} of ${snapshots.length}`;
-}
-
-function updateTimeline() {
-  if (!isLive) return;
-  const slider = dom['timeline-slider'];
-  slider.max = 100;
-  slider.value = 100;
-  if (currentSnapshot) {
-    dom['timeline-time'].textContent = formatTime(new Date(currentSnapshot.ts));
-    dom['timeline-date'].textContent = formatDate(new Date(currentSnapshot.ts));
-  }
-}
+// Timeline playback removed; keep no-ops so any legacy call sites remain safe.
+function startPlayback() {}
+function showSnapshot() {}
+function updateTimeline() {}
 
 // ═══ UTILITIES ═══
 
@@ -1330,79 +1253,138 @@ function hideLoading() {
   setTimeout(() => overlay.style.display = 'none', 500);
 }
 
-// ═══ HISTORICAL TRENDS ═══
+// ═══ HISTORICAL TRENDS (tray) ═══
 async function loadTrends() {
-  try {
-    const res = await fetch('data/summary/latest.json');
-    if (!res.ok) return;
-    const data = await res.json();
-    renderTrends(data);
-  } catch (e) {
-    // No trend data yet — that's fine, panel stays hidden
-  }
+  // Fetch both the rolled-up summary (latest.json) and the full weekly series
+  // (weekly.json). We show whatever is available; missing files are tolerated.
+  const [latestRes, weeklyRes] = await Promise.all([
+    fetch('data/summary/latest.json').catch(() => null),
+    fetch('data/summary/weekly.json').catch(() => null),
+  ]);
+
+  let latest = null;
+  let weekly = [];
+  if (latestRes?.ok) { try { latest = await latestRes.json(); } catch {} }
+  if (weeklyRes?.ok) { try { weekly = await weeklyRes.json(); } catch {} }
+
+  renderTrends(latest, weekly);
 }
 
-function renderTrends(data) {
-  const panel = dom['trends-panel'];
-  const grid = dom['trends-grid'];
-  if (!panel || !grid) return;
+/** Render the bottom tray: collapsed headline + expanded cards + weekly table. */
+function renderTrends(data, weeklyAll) {
+  const summaryEl = dom['tray-summary'];
+  const periodEl = dom['tray-current-period'];
+  const cardsEl = dom['tray-cards'];
+  const emptyEl = dom['tray-empty'];
+  const tbody = dom['tray-table-body'];
 
-  const cards = [];
+  // ── Current and prior full week from latest.json ──
+  const thisWeek = data?.thisWeek?.days >= 7 ? data.thisWeek : null;
+  const lastWeek = data?.lastWeek?.days >= 7 ? data.lastWeek : null;
 
-  // Only show weekly data when we have a full week (7 days)
-  const thisWeek = data.thisWeek?.days >= 7 ? data.thisWeek : null;
-  const lastWeek = data.lastWeek?.days >= 7 ? data.lastWeek : null;
-  if (thisWeek?.avgSpeed != null) {
-    const change = lastWeek?.avgSpeed != null
-      ? round1(thisWeek.avgSpeed - lastWeek.avgSpeed) : null;
-    cards.push(trendCard('Avg speed', thisWeek.avgSpeed, 'mph', change, 'higher is better',
-      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgSpeed')));
+  // Collapsed-row summary text
+  if (summaryEl) {
+    if (thisWeek?.avgSpeed != null) {
+      const bits = [
+        `${thisWeek.avgSpeed} mph avg speed`,
+        thisWeek.avgReliability != null ? `${thisWeek.avgReliability}% reliability` : null,
+        thisWeek.avgBunchingRate != null ? `${thisWeek.avgBunchingRate} bunches/snap` : null,
+      ].filter(Boolean);
+      summaryEl.textContent = `Week of ${thisWeek.startDate}: ${bits.join(' · ')}`;
+    } else if (weeklyAll && weeklyAll.length > 0) {
+      const partial = weeklyAll[weeklyAll.length - 1];
+      summaryEl.textContent = `In progress: ${partial.period} (${partial.days}/7 days collected)`;
+    } else {
+      summaryEl.textContent = 'Collecting data \u2014 first full week rolls up Mon, May 4';
+    }
+  }
+  if (periodEl) {
+    periodEl.textContent = thisWeek
+      ? `ISO week ${thisWeek.period} · ${thisWeek.startDate} to ${thisWeek.endDate} · ${thisWeek.totalSnapshots?.toLocaleString?.() ?? thisWeek.totalSnapshots} snapshots across ${thisWeek.days} days`
+      : 'Waiting for the first complete ISO week (Monday through Sunday).';
   }
 
-  // Reliability: this week vs last week
-  if (thisWeek?.avgReliability != null) {
-    const change = lastWeek?.avgReliability != null
-      ? round1(thisWeek.avgReliability - lastWeek.avgReliability) : null;
-    cards.push(trendCard('Reliability', thisWeek.avgReliability, '%', change, 'higher is better',
-      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgReliability')));
+  // ── Expanded cards ──
+  if (cardsEl) {
+    const cards = [];
+    const pushIfPresent = (label, unit, field, direction) => {
+      if (thisWeek?.[field] == null) return;
+      const change = lastWeek?.[field] != null
+        ? round1(thisWeek[field] - lastWeek[field]) : null;
+      cards.push(trendCard(
+        label,
+        thisWeek[field],
+        unit,
+        change,
+        direction,
+        `Week of ${thisWeek.startDate}`,
+        fullWeeksField(data?.weeklyHistory, field),
+      ));
+    };
+    pushIfPresent('Avg speed', 'mph', 'avgSpeed', 'higher is better');
+    pushIfPresent('Avg wait-reliability', '%', 'avgReliability', 'higher is better');
+    pushIfPresent('Bunching', '/snap', 'avgBunchingRate', 'lower is better');
+
+    // Monthly roll-ups, only when we have a full calendar month of data
+    const thisMonth = data?.thisMonth?.days >= 28 ? data.thisMonth : null;
+    const lastMonth = data?.lastMonth?.days >= 28 ? data.lastMonth : null;
+    const pushMonth = (label, unit, field, direction) => {
+      if (thisMonth?.[field] == null) return;
+      const change = lastMonth?.[field] != null
+        ? round1(thisMonth[field] - lastMonth[field]) : null;
+      cards.push(trendCard(
+        label,
+        thisMonth[field],
+        unit,
+        change,
+        direction,
+        thisMonth.period,
+        fullMonthsField(data?.monthlyHistory, field),
+      ));
+    };
+    pushMonth('Monthly speed', 'mph', 'avgSpeed', 'higher is better');
+    pushMonth('Monthly reliability', '%', 'avgReliability', 'higher is better');
+    pushMonth('Monthly bunching', '/snap', 'avgBunchingRate', 'lower is better');
+
+    if (cards.length > 0) {
+      if (emptyEl) emptyEl.style.display = 'none';
+      // Replace cards but keep the empty placeholder in DOM for re-use
+      cardsEl.innerHTML = cards.join('');
+    } else if (emptyEl) {
+      // Keep empty state visible, but clear any stale cards
+      const existing = cardsEl.querySelectorAll('.trend-card');
+      existing.forEach(n => n.remove());
+      emptyEl.style.display = 'flex';
+      cardsEl.appendChild(emptyEl); // ensure it's the rendered child
+    }
   }
 
-  // Bunching rate: this week vs last week (lower is better)
-  if (thisWeek?.avgBunchingRate != null) {
-    const change = lastWeek?.avgBunchingRate != null
-      ? round1(thisWeek.avgBunchingRate - lastWeek.avgBunchingRate) : null;
-    cards.push(trendCard('Bunching', thisWeek.avgBunchingRate, '/snap', change, 'lower is better',
-      `Week of ${thisWeek.startDate}`, fullWeeksField(data.weeklyHistory, 'avgBunchingRate')));
+  // ── Week-by-week table ──
+  if (tbody) {
+    const rows = Array.isArray(weeklyAll) ? [...weeklyAll] : [];
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="8">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
+    } else {
+      // Newest first
+      rows.reverse();
+      const currentPeriod = thisWeek?.period;
+      tbody.innerHTML = rows.map(w => {
+        const isPartial = w.days < 7;
+        const rowCls = w.period === currentPeriod ? 'current' : (isPartial ? 'partial' : '');
+        const daysCell = isPartial ? `${w.days}/7 *` : `${w.days}`;
+        return `<tr class="${rowCls}">
+          <td>${w.period}</td>
+          <td>${w.startDate} &ndash; ${w.endDate}</td>
+          <td class="num">${daysCell}</td>
+          <td class="num">${(w.totalSnapshots || 0).toLocaleString()}</td>
+          <td class="num">${w.avgSpeed ?? '\u2014'}</td>
+          <td class="num">${w.avgBunchingRate ?? '\u2014'}</td>
+          <td class="num">${w.avgReliability ?? '\u2014'}</td>
+          <td class="num">${w.avgRoutes ?? '\u2014'}</td>
+        </tr>`;
+      }).join('');
+    }
   }
-
-  // Only show monthly data when we have a full month (28+ days)
-  const thisMonth = data.thisMonth?.days >= 28 ? data.thisMonth : null;
-  const lastMonth = data.lastMonth?.days >= 28 ? data.lastMonth : null;
-  if (thisMonth?.avgSpeed != null) {
-    const change = lastMonth?.avgSpeed != null
-      ? round1(thisMonth.avgSpeed - lastMonth.avgSpeed) : null;
-    cards.push(trendCard('Monthly speed', thisMonth.avgSpeed, 'mph', change, 'higher is better',
-      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgSpeed')));
-  }
-
-  if (thisMonth?.avgReliability != null) {
-    const change = lastMonth?.avgReliability != null
-      ? round1(thisMonth.avgReliability - lastMonth.avgReliability) : null;
-    cards.push(trendCard('Monthly reliability', thisMonth.avgReliability, '%', change, 'higher is better',
-      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgReliability')));
-  }
-
-  if (thisMonth?.avgBunchingRate != null) {
-    const change = lastMonth?.avgBunchingRate != null
-      ? round1(thisMonth.avgBunchingRate - lastMonth.avgBunchingRate) : null;
-    cards.push(trendCard('Monthly bunching', thisMonth.avgBunchingRate, '/snap', change, 'lower is better',
-      thisMonth.period, fullMonthsField(data.monthlyHistory, 'avgBunchingRate')));
-  }
-
-  if (cards.length === 0) return;
-
-  grid.innerHTML = cards.join('');
-  panel.style.display = 'block';
 }
 
 /** Filter history arrays to only include full periods */
