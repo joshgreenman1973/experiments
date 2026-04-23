@@ -380,6 +380,114 @@
   .flag.loose { color: var(--accent-soft); }
   .flag.dropped { color: var(--ink-3); border-style: dashed; }
 
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 0 40px;
+    margin-top: -1px;
+  }
+  .tab {
+    padding: 14px 20px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tab .tab-count {
+    color: var(--ink-4);
+    margin-left: 6px;
+    font-weight: 400;
+    font-size: 10.5px;
+  }
+  .tab .lock {
+    display: inline-block;
+    width: 9px; height: 9px;
+    margin-right: 6px;
+    opacity: 0.7;
+    vertical-align: -1px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-.5V4.5A3.5 3.5 0 0 0 8 1zm0 1.5a2 2 0 0 1 2 2V7H6V4.5a2 2 0 0 1 2-2z'/></svg>") no-repeat center / contain;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-.5V4.5A3.5 3.5 0 0 0 8 1zm0 1.5a2 2 0 0 1 2 2V7H6V4.5a2 2 0 0 1 2-2z'/></svg>") no-repeat center / contain;
+  }
+  .tab.unlocked .lock { opacity: 0.25; }
+
+  /* Password modal */
+  .gate-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(20,17,16,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .gate-backdrop.open { display: flex; }
+  .gate {
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    padding: 28px 32px 24px;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    box-shadow: 0 20px 60px -10px rgba(0,0,0,0.3);
+  }
+  .gate h3 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "SOFT" 40, "wght" 400;
+    font-size: 24px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .gate p {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+  .gate input[type="password"] {
+    width: 100%;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    outline: none;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .gate input[type="password"]:focus { border-color: var(--accent); }
+  .gate .err {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: #a6382c;
+    min-height: 16px;
+    margin-bottom: 12px;
+  }
+  .gate-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .gate-actions button {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 13px;
+    padding: 8px 16px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .gate-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .gate-actions button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .gate-actions button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+
   /* Dropped projects — visibly de-emphasized */
   .card.dropped { opacity: 0.55; background: transparent; }
   .card.dropped:hover { opacity: 0.9; background: var(--card); }
@@ -423,6 +531,25 @@
   <div class="stats" id="stats">loading…</div>
   <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
 </header>
+
+<nav class="tabs" role="tablist" id="tabs">
+  <button class="tab" role="tab" data-tab="general" aria-selected="true">Everything <span class="tab-count" id="count-general"></span></button>
+  <button class="tab" role="tab" data-tab="professional" aria-selected="false"><span class="lock"></span>Professional <span class="tab-count" id="count-professional"></span></button>
+  <button class="tab" role="tab" data-tab="personal" aria-selected="false"><span class="lock"></span>Personal <span class="tab-count" id="count-personal"></span></button>
+</nav>
+
+<div class="gate-backdrop" id="gate">
+  <form class="gate" id="gate-form">
+    <h3 id="gate-title">Unlock</h3>
+    <p id="gate-msg">These projects are private. Enter the gallery password.</p>
+    <input type="password" id="gate-password" placeholder="Password" autocomplete="current-password" autofocus>
+    <div class="err" id="gate-err">&nbsp;</div>
+    <div class="gate-actions">
+      <button type="button" id="gate-cancel">Cancel</button>
+      <button type="submit" class="primary">Unlock</button>
+    </div>
+  </form>
+</div>
 
 <section class="controls">
   <div class="search">
@@ -469,6 +596,10 @@
 
 <script>
 let DATA = null;
+// Holds the decrypted project arrays per audience. Populated as the user
+// successfully unlocks each tab. Session-scoped only — cleared on tab close.
+const UNLOCKED = { general: null, professional: null, personal: null };
+let ACTIVE_TAB = 'general';
 
 const $ = (id) => document.getElementById(id);
 
@@ -485,6 +616,27 @@ async function load() {
   }
 
   $('stats').innerHTML = `<span>${DATA.count}</span> projects · <span>${DATA.categories.length}</span> categories · built ${timeAgo(DATA.generatedAt)}`;
+
+  // General projects are public — load them immediately
+  UNLOCKED.general = DATA.projects;
+
+  // Tab counts
+  const counts = DATA.counts || { general: (DATA.projects||[]).length, professional: 0, personal: 0 };
+  $('count-general').textContent = '· ' + counts.general;
+  $('count-professional').textContent = '· ' + (counts.professional || (DATA.locked?.professional?.count || 0));
+  $('count-personal').textContent = '· ' + (counts.personal || (DATA.locked?.personal?.count || 0));
+
+  // Tab wiring
+  for (const btn of document.querySelectorAll('.tab')) {
+    btn.addEventListener('click', () => onTabClick(btn.dataset.tab));
+  }
+  // Gate wiring
+  $('gate-form').addEventListener('submit', e => { e.preventDefault(); tryUnlock(); });
+  $('gate-cancel').addEventListener('click', () => closeGate(true));
+  $('gate').addEventListener('click', e => { if (e.target === $('gate')) closeGate(true); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && $('gate').classList.contains('open')) closeGate(true);
+  });
 
   for (const c of DATA.categories) {
     const o = document.createElement('option');
@@ -523,6 +675,83 @@ async function load() {
   render();
 }
 
+// ==== Audience tab + gate ====
+
+let pendingTab = null;
+
+function onTabClick(tab) {
+  if (tab === ACTIVE_TAB) return;
+  if (tab === 'general' || UNLOCKED[tab]) { setActiveTab(tab); return; }
+  pendingTab = tab;
+  $('gate-title').textContent = tab === 'professional' ? 'Unlock professional projects' : 'Unlock personal projects';
+  $('gate-msg').textContent = tab === 'professional'
+    ? 'Vital City–branded work is private. Enter the gallery password to view.'
+    : 'Family, personal, and kid projects are private. Enter the gallery password to view.';
+  $('gate-err').innerHTML = '&nbsp;';
+  $('gate-password').value = '';
+  $('gate').classList.add('open');
+  setTimeout(() => $('gate-password').focus(), 30);
+}
+
+function closeGate(abort) {
+  $('gate').classList.remove('open');
+  if (abort) pendingTab = null;
+}
+
+async function tryUnlock() {
+  const pw = $('gate-password').value;
+  const tab = pendingTab;
+  if (!tab || !pw) return;
+  const blob = DATA.locked && DATA.locked[tab];
+  if (!blob) { $('gate-err').textContent = 'Nothing locked for this tab.'; return; }
+  $('gate-err').innerHTML = '<em>decrypting…</em>';
+  try {
+    const records = await decryptGroup(blob, pw);
+    UNLOCKED[tab] = records;
+    document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('unlocked');
+    closeGate(false);
+    setActiveTab(tab);
+  } catch (err) {
+    $('gate-err').textContent = 'Wrong password.';
+    $('gate-password').select();
+  }
+}
+
+function setActiveTab(tab) {
+  ACTIVE_TAB = tab;
+  for (const btn of document.querySelectorAll('.tab')) {
+    btn.setAttribute('aria-selected', String(btn.dataset.tab === tab));
+  }
+  render();
+}
+
+// WebCrypto AES-GCM decryption matching the Node builder's
+// PBKDF2-SHA256 → AES-256-GCM pipeline (ciphertext has auth tag appended).
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function decryptGroup(blob, password) {
+  const enc = new TextEncoder();
+  const salt = base64ToBytes(blob.salt);
+  const iv = base64ToBytes(blob.iv);
+  const ctAndTag = base64ToBytes(blob.ciphertext);
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: blob.iterations || 250000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ctAndTag);
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
 function render() {
   const term = $('q').value.toLowerCase().trim();
   const cat = $('cat').value;
@@ -530,7 +759,8 @@ function render() {
   const show = $('show').value;
   const owner = $('owner').value;
 
-  let list = DATA.projects.filter(p => {
+  const source = UNLOCKED[ACTIVE_TAB] || [];
+  let list = source.filter(p => {
     if (cat && p.category !== cat) return false;
     if (owner && p.githubOwner !== owner) return false;
     if (show === 'active' && p.status === 'dropped') return false;
@@ -548,7 +778,7 @@ function render() {
   else if (sort === 'category') list.sort((a,b) => (a.category + '/' + a.name).localeCompare(b.category + '/' + b.name));
   else list.sort((a,b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
 
-  $('count').innerHTML = `<b>${list.length}</b> of ${DATA.count}`;
+  $('count').innerHTML = `<b>${list.length}</b> of ${source.length}`;
 
   const grid = $('grid');
   grid.innerHTML = '';

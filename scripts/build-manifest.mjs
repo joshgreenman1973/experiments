@@ -5,6 +5,7 @@
 
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
+import { randomBytes, pbkdf2Sync, createCipheriv } from 'crypto';
 import { join } from 'path';
 
 const ROOT = '/Users/joshgreenman/Experiments';
@@ -14,6 +15,26 @@ let OVERRIDES = {};
 try {
   OVERRIDES = JSON.parse(readFileSync(join(ROOT, 'project-overrides.json'), 'utf8'));
 } catch {}
+// Audience classification for the tabbed UI.
+const VC_OWNERS = new Set(['vitalcity-nyc', 'vital-city-nyc']);
+const PERSONAL_NAMES = new Set([
+  'family-tree', 'mauro-family-tree', 'sashas-animal-adventure', 'knitshift',
+  'lolas-library', 'greenman-portfolio', 'gallery-cool-stuff', 'france-trip',
+  'paris-density', 'midnight-talent-show', 'midnight-talent-show-2',
+  'midnight-talent-show-book-one', 'saint-sernin-du-plain',
+]);
+const PROFESSIONAL_NAMES = new Set(['the-ai-city-preview']);
+function classifyAudience(p) {
+  if (PROFESSIONAL_NAMES.has(p.name)) return 'professional';
+  if (VC_OWNERS.has(p.githubOwner)) return 'professional';
+  const text = [p.title, p.description].filter(Boolean).join(' ');
+  if (/vital\s*city/i.test(text)) return 'professional';
+  if (p.category === 'vital-city-tools') return 'professional';
+  if (p.category === 'personal' || (p.category || '').startsWith('personal/')) return 'personal';
+  if (PERSONAL_NAMES.has(p.name)) return 'personal';
+  return 'general';
+}
+
 function applyOverrides(record) {
   const o = OVERRIDES[record.name];
   if (!o) return record;
@@ -26,6 +47,7 @@ function applyOverrides(record) {
   if (o.previewUrl) record.previewUrl = o.previewUrl;
   if (o.description) record.description = o.description;
   if (o.status) record.status = o.status;
+  if (o.audience) record.audience = o.audience;
   return record;
 }
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);
@@ -277,16 +299,72 @@ function scan() {
   return out;
 }
 
-const projects = scan();
+let projects = scan();
+
+// Dedupe: when the same project name appears in multiple locations
+// (e.g. at root AND inside a category folder, from an incomplete reorg),
+// prefer the nested-repo copy; otherwise prefer the more-recently-modified one.
+const byName = new Map();
+for (const p of projects) {
+  const existing = byName.get(p.name);
+  if (!existing) { byName.set(p.name, p); continue; }
+  const pick = (() => {
+    if (p.isNestedRepo && !existing.isNestedRepo) return p;
+    if (existing.isNestedRepo && !p.isNestedRepo) return existing;
+    return (p.lastModified || '') > (existing.lastModified || '') ? p : existing;
+  })();
+  byName.set(p.name, pick);
+}
+projects = [...byName.values()];
 projects.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
+
+// Classify each project's audience (unless overridden)
+for (const p of projects) {
+  if (!p.audience) p.audience = classifyAudience(p);
+}
+const general = projects.filter(p => p.audience === 'general');
+const professional = projects.filter(p => p.audience === 'professional');
+const personal = projects.filter(p => p.audience === 'personal');
+
+// Encrypt a group with AES-256-GCM via PBKDF2-SHA256. The salt is public
+// (stored alongside the ciphertext) — it's the password that's secret.
+// Matches WebCrypto's AES-GCM format (ciphertext || 16-byte tag).
+const GALLERY_PASSWORD = '#9701SW72ct!!!';
+const PBKDF2_ITER = 250000;
+function encryptGroup(records, password) {
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256');
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const plaintext = Buffer.from(JSON.stringify(records), 'utf8');
+  const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return {
+    alg: 'AES-GCM',
+    kdf: 'PBKDF2-SHA256',
+    iterations: PBKDF2_ITER,
+    salt: salt.toString('base64'),
+    iv: iv.toString('base64'),
+    ciphertext: Buffer.concat([ct, tag]).toString('base64'),
+    count: records.length,
+  };
+}
 
 const manifest = {
   generatedAt: new Date().toISOString(),
   count: projects.length,
+  counts: { general: general.length, professional: professional.length, personal: personal.length },
   categories: [...new Set(projects.map(p => p.category))].sort(),
   owners: [...new Set(projects.map(p => p.githubOwner).filter(Boolean))].sort(),
-  projects,
+  projects: general,
+  locked: {
+    professional: encryptGroup(professional, GALLERY_PASSWORD),
+    personal: encryptGroup(personal, GALLERY_PASSWORD),
+  },
 };
 
 writeFileSync(join(ROOT, 'projects-manifest.json'), JSON.stringify(manifest, null, 2));
-console.log(`Wrote projects-manifest.json — ${projects.length} projects`);
+console.log(`Wrote projects-manifest.json — ${projects.length} total`);
+console.log(`  general: ${general.length} (public)`);
+console.log(`  professional: ${professional.length} (encrypted)`);
+console.log(`  personal: ${personal.length} (encrypted)`);
