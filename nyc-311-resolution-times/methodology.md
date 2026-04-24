@@ -1,4 +1,6 @@
-# Methodology: NYC agency response times
+# Methodology: NYC 311 resolution times
+
+This dashboard measures **resolution time** — the interval between when a complaint is filed (`created_date`) and when the responsible agency marks it closed (`closed_date`). That is not the same as "resolution time" in the everyday sense (time until someone shows up or acknowledges the complaint). The 311 public dataset does not expose a dispatch or first-action timestamp, only created and closed, so this tool can only measure the full open-to-close lifecycle.
 
 ## Data source
 
@@ -26,7 +28,7 @@ Community district boundaries are loaded from the NYC Open Data community distri
 
 ## What are community districts?
 
-New York City is divided into 59 community districts, each served by an advisory community board. Community boards are local representative bodies appointed by borough presidents and city council members. Each district covers a defined geographic area within a borough. This dashboard uses community districts as the geographic unit for comparing response times across neighborhoods.
+New York City is divided into 59 community districts, each served by an advisory community board. Community boards are local representative bodies appointed by borough presidents and city council members. Each district covers a defined geographic area within a borough. This dashboard uses community districts as the geographic unit for comparing resolution times across neighborhoods.
 
 ## Calculation methodology
 
@@ -56,7 +58,7 @@ Districts with fewer than 5 complaints in the selected time period are excluded 
 
 ### Map choropleth
 
-The map colors each community district relative to the current citywide median response time (`M`) for the selected filters. Using relative rather than fixed thresholds keeps the map meaningful whether you are looking at a fast-responding complaint type (e.g. most noise complaints, resolved in hours) or a slow one (e.g. rodent inspections, resolved in days).
+The map colors each community district relative to the current citywide median resolution time (`M`) for the selected filters. Using relative rather than fixed thresholds keeps the map meaningful whether you are looking at a fast-responding complaint type (e.g. most noise complaints, resolved in hours) or a slow one (e.g. rodent inspections, resolved in days).
 
 | Color | Threshold | Interpretation |
 |---|---|---|
@@ -70,9 +72,9 @@ The legend beneath the map displays the actual numeric thresholds for the curren
 
 ### Agency breakdown
 
-The agency chart shows response times for the **top 15 agencies by complaint volume** in the current selection, sorted by median response time. Selecting by volume (rather than by slowest median) ensures that high-volume fast responders — such as NYPD (noise, illegal parking) and DHS (homeless outreach) — are included alongside slower agencies like HPD and TLC.
+The agency chart shows resolution times for the **top 15 agencies by complaint volume** in the current selection, sorted by median resolution time. Selecting by volume (rather than by slowest median) ensures that high-volume fast responders — such as NYPD (noise, illegal parking) and DHS (homeless outreach) — are included alongside slower agencies like HPD and TLC.
 
-When a community district is selected on the map, the agency chart recalculates median response times using only complaints from that district. This shows which agencies are faster or slower in a specific neighborhood.
+When a community district is selected on the map, the agency chart recalculates median resolution times using only complaints from that district. This shows which agencies are faster or slower in a specific neighborhood.
 
 ## Sample size and date range
 
@@ -102,7 +104,7 @@ Certain categories of complaints have low closure rates. For these types, the da
 
 ### Median can mask variation
 
-While the median reduces the impact of outliers, it can also obscure wide variation within a district. Two districts with the same median could have very different distributions -- one might resolve most complaints quickly with a few extreme outliers, while another might have consistently moderate response times.
+While the median reduces the impact of outliers, it can also obscure wide variation within a district. Two districts with the same median could have very different distributions -- one might resolve most complaints quickly with a few extreme outliers, while another might have consistently moderate resolution times.
 
 ### Community board field quality
 
