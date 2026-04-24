@@ -105,7 +105,16 @@ section.visible .section-label, section.visible .section-title, section.visible 
 .insight-callout.red { border-left-color: var(--red); background: var(--red-dim); }
 .insight-callout.cyan { border-left-color: var(--cyan); background: var(--cyan-dim); }
 
-/* Wall of shame */
+/* Wall controls */
+.wall-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.control-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.control-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); min-width: 64px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { background: transparent; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; padding: 6px 12px; border-radius: 6px; cursor: pointer; text-transform: uppercase; transition: all 0.15s; }
+.pill:hover { border-color: var(--yellow); color: var(--yellow); }
+.pill.active { background: var(--yellow); border-color: var(--yellow); color: #0a0a12; font-weight: 700; }
+
+/* Most-ticketed plates */
 .wall-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .wall-table th { text-align: left; font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); }
 .wall-table td { padding: 12px; border-bottom: 1px solid var(--border-subtle); }
@@ -298,7 +307,24 @@ footer .foot-row { margin-bottom: 4px; }
   <div class="section-subtitle">Plates are public record. These are already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Click any row for a full dossier.</div>
 
   <div class="card">
-    <div class="card-title">Ranked live from NYC Open Data · <span style="color:var(--yellow)">pvqr-7yc4</span></div>
+    <div class="card-title">Ranked live from NYC Open Data · <span id="wallSource" style="color:var(--yellow)">pvqr-7yc4</span></div>
+    <div class="wall-controls">
+      <div class="control-row">
+        <div class="control-label">Window</div>
+        <div class="pills" id="wallWindowPills">
+          <button type="button" class="pill active" data-years="2026">FY2026</button>
+          <button type="button" class="pill" data-years="2026,2025">FY2025-26</button>
+          <button type="button" class="pill" data-years="2026,2025,2024">FY2024-26</button>
+          <button type="button" class="pill" data-years="2026,2025,2024,2023">FY2023-26</button>
+          <button type="button" class="pill" data-years="2026,2025,2024,2023,2022,2021">FY2021-26</button>
+          <button type="button" class="pill" data-mode="month">By month</button>
+        </div>
+      </div>
+      <div class="control-row" id="wallMonthRow" style="display:none">
+        <div class="control-label">Month</div>
+        <div class="pills" id="wallMonthPills"></div>
+      </div>
+    </div>
     <div id="wallTable"><div class="loader">Loading top speeders…</div></div>
     <div class="disclosure">Fine estimate is $50 × ticket count. Fine totals do not reflect late fees, payments, or disputes. See <a href="./METHODOLOGY.md" style="color:var(--yellow)">methodology</a>.</div>
   </div>
@@ -690,22 +716,144 @@ async function loadWhy() {
 }
 
 // ===== WALL OF SHAME =====
+// Parking Violations Issued datasets, keyed by fiscal year
+const FY_DATASETS = {
+  2026: 'pvqr-7yc4',
+  2025: 'm5vz-tzqv',
+  2024: '8zf9-spf8',
+  2023: '869v-vr48',
+  2022: '7mxj-7a6y',
+  2021: 'kvfd-bves'
+};
+
+// wall selection state
+let wallMode = { type: 'fy', years: [2026], month: null };
+
+function datasetUrl(id) { return `https://data.cityofnewyork.us/resource/${id}.json`; }
+
+// Build month-pill options: every month from Jul 2025 through the current month (FY2026)
+function wallMonthOptions() {
+  const start = new Date(2025, 6, 1); // Jul 2025 (month index 6)
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), 1);
+  const months = [];
+  let d = new Date(start);
+  while (d <= end) {
+    const y = d.getFullYear(), m = d.getMonth();
+    const next = new Date(y, m + 1, 1);
+    const label = d.toLocaleString('en-US', { month: 'short', year: '2-digit' }); // "Jul 25"
+    const pad = (n) => String(n).padStart(2, '0');
+    months.push({
+      key: `${y}-${pad(m+1)}`,
+      label,
+      start: `${y}-${pad(m+1)}-01T00:00:00`,
+      end: `${next.getFullYear()}-${pad(next.getMonth()+1)}-01T00:00:00`
+    });
+    d = next;
+  }
+  return months;
+}
+
+function renderMonthPills() {
+  const host = document.getElementById('wallMonthPills');
+  const opts = wallMonthOptions();
+  host.innerHTML = opts.map((o, i) => `<button type="button" class="pill${i === opts.length - 1 ? ' active' : ''}" data-month='${JSON.stringify(o)}'>${o.label}</button>`).join('');
+  // default selected month = most recent
+  if (opts.length) wallMode.month = opts[opts.length - 1];
+  host.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      host.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wallMode.month = JSON.parse(btn.getAttribute('data-month'));
+      loadWall();
+    });
+  });
+}
+
+function initWallControls() {
+  renderMonthPills();
+  const pills = document.querySelectorAll('#wallWindowPills .pill');
+  pills.forEach(btn => {
+    btn.addEventListener('click', () => {
+      pills.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const monthRow = document.getElementById('wallMonthRow');
+      if (btn.dataset.mode === 'month') {
+        wallMode = { type: 'month', years: [2026], month: wallMode.month || wallMonthOptions().slice(-1)[0] };
+        monthRow.style.display = 'flex';
+      } else {
+        const years = btn.dataset.years.split(',').map(Number);
+        wallMode = { type: 'fy', years, month: null };
+        monthRow.style.display = 'none';
+      }
+      loadWall();
+    });
+  });
+}
+
+async function fetchTopPlatesForYear(year, limit=5000) {
+  const id = FY_DATASETS[year];
+  if (!id) return [];
+  return await sodaGet(datasetUrl(id), {
+    '$select': 'plate_id, registration_state, COUNT(*) as c',
+    '$where': 'violation_code=36',
+    '$group': 'plate_id, registration_state',
+    '$order': 'c DESC',
+    '$limit': String(limit)
+  });
+}
+
 async function loadWall() {
   const el = document.getElementById('wallTable');
   el.innerHTML = '<div class="loader">Loading top speeders…</div>';
+  const sourceEl = document.getElementById('wallSource');
   try {
-    const rows = await sodaGet(VIOLATIONS_API, {
-      '$select': 'plate_id, registration_state, COUNT(*) as c',
-      '$where': `${SPEED_CAM_WHERE}`,
-      '$group': 'plate_id, registration_state',
-      '$order': 'c DESC',
-      '$limit': '50'
-    });
-    if (!rows.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
+    let merged, headerLabel;
 
-    let html = '<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>Tickets (FY2026)</th><th>Fine estimate</th></tr></thead><tbody>';
-    rows.forEach((r, i) => {
-      const count = parseInt(r.c);
+    if (wallMode.type === 'month') {
+      const m = wallMode.month;
+      const rows = await sodaGet(datasetUrl('pvqr-7yc4'), {
+        '$select': 'plate_id, registration_state, COUNT(*) as c',
+        '$where': `violation_code=36 AND issue_date >= '${m.start}' AND issue_date < '${m.end}'`,
+        '$group': 'plate_id, registration_state',
+        '$order': 'c DESC',
+        '$limit': '50'
+      });
+      merged = rows.map(r => ({ ...r, c: parseInt(r.c) }));
+      headerLabel = `Tickets (${m.label})`;
+      sourceEl.textContent = 'pvqr-7yc4';
+    } else if (wallMode.years.length === 1) {
+      const y = wallMode.years[0];
+      const rows = await fetchTopPlatesForYear(y, 50);
+      merged = rows.map(r => ({ ...r, c: parseInt(r.c) }));
+      headerLabel = `Tickets (FY${y})`;
+      sourceEl.textContent = FY_DATASETS[y];
+    } else {
+      // Multi-year merge: top 5000 per year by count, summed in-browser
+      const all = await Promise.all(wallMode.years.map(y => fetchTopPlatesForYear(y, 5000)));
+      const map = new Map();
+      all.forEach((rows, idx) => {
+        const y = wallMode.years[idx];
+        rows.forEach(r => {
+          const k = `${r.plate_id}|${r.registration_state || ''}`;
+          const rec = map.get(k) || { plate_id: r.plate_id, registration_state: r.registration_state, c: 0, years: {} };
+          rec.c += parseInt(r.c);
+          rec.years[y] = parseInt(r.c);
+          map.set(k, rec);
+        });
+      });
+      merged = Array.from(map.values()).sort((a, b) => b.c - a.c).slice(0, 50);
+      const ys = [...wallMode.years].sort((a, b) => a - b);
+      const span = ys.length > 1 ? `FY${ys[0]}-${String(ys[ys.length-1]).slice(-2)}` : `FY${ys[0]}`;
+      headerLabel = `Tickets (${span})`;
+      sourceEl.textContent = wallMode.years.map(y => FY_DATASETS[y]).join(' + ');
+    }
+
+    if (!merged.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
+
+    let html = `<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>${headerLabel}</th><th>Fine estimate</th></tr></thead><tbody>`;
+    merged.forEach((r, i) => {
+      const count = r.c;
       const fines = count * 50;
       html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state}')">
         <td class="rank-n">#${i+1}</td>
@@ -1137,7 +1285,7 @@ async function loadOverlap() {
       if (topTicket.boro === topHarm.boro) {
         ins.textContent = `${topTicket.name} leads on both axes — ${formatNum(topTicket.ticketsPer100k)} tickets and ${topTicket.casualtiesPer100k.toFixed(1)} pedestrian+cyclist casualties per 100k residents. Where cameras catch the most speeders, pedestrians and cyclists take the most harm.`;
       } else {
-        ins.textContent = `${topTicket.name} leads on camera tickets per capita (${formatNum(topTicket.ticketsPer100k)} / 100k), while ${topHarm.name} leads on pedestrian+cyclist casualties per capita (${topHarm.casualtiesPer100k.toFixed(1)} / 100k). The rank gap is where enforcement leverage lives — more cameras where harm is worst, or a look at why high-ticket boroughs aren't seeing proportional harm reduction.`;
+        ins.innerHTML = `${topTicket.name} leads on camera tickets per capita (${formatNum(topTicket.ticketsPer100k)} / 100k), while ${topHarm.name} leads on pedestrian+cyclist casualties per capita (${topHarm.casualtiesPer100k.toFixed(1)} / 100k). The gap is largely a tool-fit story: speed cameras deter high-speed straight-line strikes on outer-borough arterials, the pattern that dominates in Staten Island, Queens, and the Bronx. Manhattan's casualties skew toward turning conflicts, door zones, and sheer pedestrian exposure (its daytime population is roughly double its resident count, which inflates its per-100k-residents rate), and cameras don't address those mechanisms. Not primarily an enforcement gap.`;
       }
     }
 
@@ -1255,6 +1403,7 @@ async function loadTemporal() {
 
 // ===== KICKOFF =====
 ensureAdapter().then(() => {
+  initWallControls();
   loadHero();
   // If URL has plate, scroll to lookup
   const qs = new URLSearchParams(window.location.search);
