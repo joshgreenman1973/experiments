@@ -1492,23 +1492,17 @@ async function runDVAP(threshold, windowMonths) {
   const finesEl = document.getElementById('dvapFines');
   countEl.textContent = '…'; shareEl.textContent = '…'; finesEl.textContent = '…';
   try {
-    // windowMonths interpreted as a fraction of WINDOW_LABEL (12 months). For simplicity we scale the threshold proportionally
-    // when simulating a shorter window, and use full-year data. Explicit note shown in UI.
+    // windowMonths scales the threshold: simulating a shorter rolling window
+    // over the same data bumps the effective threshold up proportionally.
     const scaledThreshold = Math.max(1, Math.round(threshold * (12 / windowMonths)));
-    let all = window.__topPlatesCache;
-    if (!all) {
-      all = await sodaGet(VIOLATIONS_API, {
-        '$select': 'plate_id, COUNT(*) as c',
-        '$where': `${SPEED_CAM_WHERE}`,
-        '$group': 'plate_id',
-        '$order': 'c DESC',
-        '$limit': '20000'
-      });
-      window.__topPlatesCache = all;
-    }
-    const rows = all.filter(r => parseInt(r.c) >= scaledThreshold);
-    const count = rows.length;
-    const ticketSum = rows.reduce((s,r)=>s + parseInt(r.c), 0);
+    // Exact server-side count via SoQL subquery pipe: group plates, filter
+    // by threshold, then count the groups and sum their ticket totals.
+    // This replaces the old client-side filter over a 20k-row cache, which
+    // ceilinged out at 20,000 for any low threshold.
+    const q = `SELECT plate_id, count(*) as c WHERE violation_code=36 GROUP BY plate_id HAVING c >= ${scaledThreshold} |> SELECT count(*) as n, sum(c) as tot`;
+    const rows = await sodaGet(VIOLATIONS_API, { '$query': q });
+    const count = parseInt(rows[0]?.n || 0);
+    const ticketSum = parseInt(rows[0]?.tot || 0);
     countEl.textContent = formatNum(count);
     shareEl.textContent = ((count / 2000000) * 100).toFixed(3) + '%';
     finesEl.textContent = fmtUSD(ticketSum * 50);
