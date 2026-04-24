@@ -51,7 +51,7 @@ $limit=20000
 
 ## Geography
 
-The School Zone map plots camera-ticket totals at **borough centroids** (5 points). `pvqr-7yc4` stores `violation_precinct = 0` for every speed-camera row, so precinct-level granularity is unavailable in this dataset. Borough is read from `violation_county` (BK / QN / MN / BX / ST). Future work: when `violation_precinct` gets populated in a future data drop, switch to the 77-precinct centroid map; or pursue a geocode of the top ~500 `(street_name, intersecting_street)` pairs for marker-level precision.
+The School Zone map plots camera-ticket totals at **intersection level**, ~500 points. `pvqr-7yc4` carries no lat/lon and `violation_precinct = 0` for every speed-camera row, so the only location signal is the text pair `(street_name, intersecting_street)`. Those fields are truncated to 20 characters with the remainder spilling into the second field (e.g., `WB N CONDUIT AVE @ 8` + `8TH ST` → `N CONDUIT AVE & 88TH ST`). `scripts/build_camera_locations.py` fetches the top 500 (street, cross, borough) triples, concatenates and splits on `@`, strips the direction prefix (WB/EB/NB/SB), and geocodes via the U.S. Census Geocoder (primary) with NYC Planning Labs Geosearch as a fallback. Results are committed to `intersections.json` (roughly 90% hit rate). The frontend joins the static geo file with a live top-500 query at render time, so circle sizes update as the API updates while coordinates remain stable. Borough is read from `violation_county` (BK / QN / MN / BX / ST). The ~10% of intersections that fail both geocoders are omitted from the map but still counted in every other panel.
 
 ## Cross-dataset per-capita comparison
 

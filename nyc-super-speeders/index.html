@@ -399,11 +399,12 @@ footer .foot-row { margin-bottom: 4px; }
 <section id="map-section" class="short">
   <div class="section-label">05 — Where the tickets land</div>
   <div class="section-title">Where the tickets cluster</div>
-  <div class="section-subtitle">Camera-ticket volume aggregated to NYPD precinct centroids. Circle size = tickets issued in Fiscal Year 2026 (Jul 2025–present). Click a precinct for details.</div>
+  <div class="section-subtitle">Each circle is a camera-bearing intersection, sized by FY2026 (Jul 2025–present) ticket volume. Coordinates come from geocoding the top ~500 intersections in the <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" style="color:var(--yellow)">pvqr-7yc4</a> text fields; individual violation rows have no lat/lon.</div>
 
   <div class="card">
-    <div class="card-title">Camera ticket density by NYPD precinct — FY2026</div>
+    <div class="card-title">Camera ticket density by intersection — FY2026</div>
     <div class="map-box" id="schoolMap"></div>
+    <div class="insight-callout" id="mapCoverage" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
   </div>
 </section>
 
@@ -1288,43 +1289,55 @@ async function loadSchoolMap() {
   }).addTo(schoolMap);
 
   try {
-    // pvqr-7yc4 has violation_precinct = 0 across all speed-cam rows, so we aggregate to borough.
-    const rows = await sodaGet(VIOLATIONS_API, {
-      '$select': 'violation_county, COUNT(*) as c',
-      '$where': `${SPEED_CAM_WHERE}`,
-      '$group': 'violation_county',
-      '$order': 'c DESC',
-      '$limit': '20'
+    // pvqr-7yc4 has violation_precinct=0 and no lat/lon for speed-cam rows.
+    // We geocode the top intersections offline (scripts/build_camera_locations.py
+    // -> intersections.json) and join live FY2026 counts here.
+    const [geoFile, live] = await Promise.all([
+      fetch('intersections.json').then(r => r.json()),
+      sodaGet(VIOLATIONS_API, {
+        '$select': 'street_name, intersecting_street, violation_county, COUNT(*) as c',
+        '$where': SPEED_CAM_WHERE,
+        '$group': 'street_name, intersecting_street, violation_county',
+        '$order': 'c DESC',
+        '$limit': '500'
+      })
+    ]);
+
+    const BORO_NAME = { 'BK':'Brooklyn','BX':'Bronx','MN':'Manhattan','QN':'Queens','ST':'Staten Island' };
+    const keyOf = (sn, xs, boro) => `${(sn||'').trim()}||${(xs||'').trim()}||${(boro||'').trim()}`;
+    const geoMap = new Map();
+    (geoFile.intersections || []).forEach(g => {
+      if (g.lat && g.lon) geoMap.set(keyOf(g.street_name, g.intersecting_street, g.boro), g);
     });
 
-    const BORO_CENTROIDS = {
-      'BK': [40.6782, -73.9442], // Brooklyn
-      'BX': [40.8448, -73.8648], // Bronx
-      'MN': [40.7831, -73.9712], // Manhattan / New York County
-      'QN': [40.7282, -73.7949], // Queens
-      'ST': [40.5795, -74.1502]  // Staten Island
-    };
-    const BORO_NAME = { 'BK':'Brooklyn','BX':'Bronx','MN':'Manhattan','QN':'Queens','ST':'Staten Island' };
+    const plotted = [];
+    live.forEach(r => {
+      const g = geoMap.get(keyOf(r.street_name, r.intersecting_street, r.violation_county));
+      if (!g) return;
+      plotted.push({ ...g, count: parseInt(r.c), street_name: r.street_name, intersecting_street: r.intersecting_street, boro: r.violation_county });
+    });
 
-    const counts = rows.map(r => parseInt(r.c));
+    const counts = plotted.map(p => p.count);
     const maxC = Math.max(...counts, 1);
-
-    rows.forEach(r => {
-      const key = (r.violation_county || '').toUpperCase();
-      const loc = BORO_CENTROIDS[key];
-      if (!loc) return;
-      const c = parseInt(r.c);
-      const radius = 18 + Math.sqrt(c / maxC) * 60;
-      L.circleMarker(loc, {
+    plotted.forEach(p => {
+      const radius = 4 + Math.sqrt(p.count / maxC) * 22;
+      L.circleMarker([p.lat, p.lon], {
         radius,
         fillColor: '#dc2626',
         color: '#facc15',
-        weight: 1.5,
-        fillOpacity: 0.45
+        weight: 1,
+        fillOpacity: 0.55
       })
-        .bindPopup(`<strong>${BORO_NAME[key] || key}</strong><br>${formatNum(c)} speed-camera tickets in FY2026`)
+        .bindPopup(`<strong>${p.label || ''}</strong><br>${BORO_NAME[p.boro]||p.boro}<br>${formatNum(p.count)} FY2026 speed-camera tickets`)
         .addTo(schoolMap);
     });
+
+    const matched = plotted.length;
+    const totalLive = live.length;
+    const coverageEl = document.getElementById('mapCoverage');
+    if (coverageEl) {
+      coverageEl.textContent = `${matched} of top ${totalLive} intersections geocoded (${(100*matched/totalLive).toFixed(0)}%). Coordinates come from geocoding the camera-bearing intersection text; individual violations have no lat/lon in pvqr-7yc4.`;
+    }
   } catch(e) { console.error('schoolmap', e); }
 }
 
