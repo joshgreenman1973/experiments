@@ -218,9 +218,9 @@ footer .foot-row { margin-bottom: 4px; }
   <div class="nav-dot" data-section="escalation-section" data-label="Escalation"></div>
   <div class="nav-dot" data-section="lookup-section" data-label="Plate Lookup"></div>
   <div class="nav-dot" data-section="map-section" data-label="School Zones"></div>
+  <div class="nav-dot" data-section="time-section" data-label="Temporal"></div>
   <div class="nav-dot" data-section="overlap-section" data-label="Same Places"></div>
   <div class="nav-dot" data-section="dvap-section" data-label="DVAP Sim"></div>
-  <div class="nav-dot" data-section="time-section" data-label="Temporal"></div>
 </nav>
 
 <!-- ===== HERO ===== -->
@@ -399,18 +399,34 @@ footer .foot-row { margin-bottom: 4px; }
 <section id="map-section" class="short">
   <div class="section-label">05 — Where the tickets land</div>
   <div class="section-title">Where the tickets cluster</div>
-  <div class="section-subtitle">Each circle is a camera-bearing intersection, sized by FY2026 (Jul 2025–present) ticket volume. Coordinates come from geocoding the top ~500 intersections in the <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" style="color:var(--yellow)">pvqr-7yc4</a> text fields; individual violation rows have no lat/lon.</div>
+  <div class="section-subtitle">Each circle is a camera-bearing intersection, sized by ticket volume in the selected window. Coordinates come from geocoding the top ~500 intersections across every fiscal year in the <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" style="color:var(--yellow)">pvqr-7yc4</a>-family datasets; individual violation rows have no lat/lon.</div>
 
   <div class="card">
-    <div class="card-title">Camera ticket density by intersection — FY2026</div>
+    <div class="card-title">Camera ticket density by intersection — <span id="mapTitleWindow">FY2026</span></div>
+    <div class="wall-pills" id="mapWindowPills" style="margin-bottom:12px">
+      <button class="wall-pill active" data-mapwin="fy26">FY2026 only</button>
+      <button class="wall-pill" data-mapwin="all">All years (FY14–26)</button>
+    </div>
     <div class="map-box" id="schoolMap"></div>
     <div class="insight-callout" id="mapCoverage" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
   </div>
 </section>
 
+<!-- ===== TEMPORAL ===== -->
+<section id="time-section" class="short">
+  <div class="section-label">06 — Temporal patterns</div>
+  <div class="section-title">When the cameras catch them</div>
+  <div class="section-subtitle">NYC speed cameras have operated 24/7 since August 2022. Hour-of-day and day-of-week breakdowns use FY2026 tickets with a valid issue_date.</div>
+
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Tickets by hour of day (FY2026 sample)</div><div class="chart-wrap" style="height:300px"><canvas id="hourChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Tickets by day of week (FY2026)</div><div class="chart-wrap" style="height:300px"><canvas id="dowChart"></canvas></div></div>
+  </div>
+</section>
+
 <!-- ===== CROSS DATASET ===== -->
 <section id="overlap-section" class="short">
-  <div class="section-label">06 — Same places, same people</div>
+  <div class="section-label">07 — Same places, same people</div>
   <div class="section-title">Speed camera density vs. pedestrian + cyclist casualties</div>
   <div class="section-subtitle">Cross-referencing <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" style="color:var(--yellow)">speed-camera violations</a> against <a href="https://data.cityofnewyork.us/d/h9gi-nx95" style="color:var(--cyan)">NYPD crash records</a>, normalized per 100,000 residents so borough size doesn't drown out rate. Boroughs ranked by ticket rate. The question: do the hotspots line up?</div>
 
@@ -425,7 +441,7 @@ footer .foot-row { margin-bottom: 4px; }
 
 <!-- ===== DVAP SIMULATOR ===== -->
 <section id="dvap-section" class="short">
-  <div class="section-label">07 — DVAP simulator</div>
+  <div class="section-label">08 — DVAP simulator</div>
   <div class="section-title">How many drivers would be eligible for booting?</div>
   <div class="section-subtitle">The DVAP statute sets the threshold at 15 school-zone speed tickets in 12 months. Drag the sliders to see how the eligible cohort changes.</div>
 
@@ -450,18 +466,6 @@ footer .foot-row { margin-bottom: 4px; }
     <div class="insight-callout">
       <strong>DVAP legal threshold is 15 / 12 months.</strong> Since the program's 2020 launch, enforcement has been limited — a reality documented by Transportation Alternatives and Streetsblog. The gap between eligible plates and actual bootings is the core accountability story.
     </div>
-  </div>
-</section>
-
-<!-- ===== TEMPORAL ===== -->
-<section id="time-section" class="short">
-  <div class="section-label">08 — Temporal patterns</div>
-  <div class="section-title">When the cameras catch them</div>
-  <div class="section-subtitle">NYC speed cameras have operated 24/7 since August 2022. Hour-of-day and day-of-week breakdowns use FY2026 tickets with a valid issue_date.</div>
-
-  <div class="grid-2">
-    <div class="card"><div class="card-title">Tickets by hour of day (FY2026 sample)</div><div class="chart-wrap" style="height:300px"><canvas id="hourChart"></canvas></div></div>
-    <div class="card"><div class="card-title">Tickets by day of week (FY2026)</div><div class="chart-wrap" style="height:300px"><canvas id="dowChart"></canvas></div></div>
   </div>
 </section>
 
@@ -1279,66 +1283,102 @@ function copyPermalink() {
 }
 
 // ===== SCHOOL MAP =====
-let schoolMap;
+let schoolMap, schoolMapLayer, schoolGeoCache = null;
+let schoolMapWindow = 'fy26'; // 'fy26' | 'all'
+
+async function fetchMapCountsForWindow(mode) {
+  // FY2026-only: one query against pvqr-7yc4.
+  if (mode === 'fy26') {
+    const rows = await sodaGet(VIOLATIONS_API, {
+      '$select': 'street_name, intersecting_street, violation_county, COUNT(*) as c',
+      '$where': SPEED_CAM_WHERE,
+      '$group': 'street_name, intersecting_street, violation_county',
+      '$order': 'c DESC',
+      '$limit': '500'
+    });
+    return rows.map(r => ({ sn: r.street_name, xs: r.intersecting_street, boro: r.violation_county, c: parseInt(r.c) }));
+  }
+  // All-years: query every FY dataset in parallel, union, sum.
+  const fys = Object.keys(FY_DATASETS);
+  const perFy = await Promise.all(fys.map(fy => sodaGet(`https://data.cityofnewyork.us/resource/${FY_DATASETS[fy]}.json`, {
+    '$select': 'street_name, intersecting_street, violation_county, COUNT(*) as c',
+    '$where': 'violation_code=36',
+    '$group': 'street_name, intersecting_street, violation_county',
+    '$order': 'c DESC',
+    '$limit': '500'
+  }).catch(() => [])));
+  const agg = new Map();
+  perFy.forEach(rows => rows.forEach(r => {
+    const k = `${r.street_name||''}||${r.intersecting_street||''}||${r.violation_county||''}`;
+    agg.set(k, (agg.get(k) || 0) + parseInt(r.c));
+  }));
+  return Array.from(agg.entries()).map(([k, c]) => {
+    const [sn, xs, boro] = k.split('||');
+    return { sn, xs, boro, c };
+  }).sort((a,b) => b.c - a.c).slice(0, 500);
+}
+
+async function renderSchoolMap() {
+  if (!schoolGeoCache) {
+    schoolGeoCache = await fetch('intersections.json').then(r => r.json());
+  }
+  const mode = schoolMapWindow;
+  const live = await fetchMapCountsForWindow(mode);
+
+  const BORO_NAME = { 'BK':'Brooklyn','BX':'Bronx','MN':'Manhattan','QN':'Queens','ST':'Staten Island' };
+  const keyOf = (sn, xs, boro) => `${(sn||'').trim()}||${(xs||'').trim()}||${(boro||'').trim()}`;
+  const geoMap = new Map();
+  (schoolGeoCache.intersections || []).forEach(g => {
+    if (g.lat && g.lon) geoMap.set(keyOf(g.street_name, g.intersecting_street, g.boro), g);
+  });
+
+  const plotted = [];
+  live.forEach(r => {
+    const g = geoMap.get(keyOf(r.sn, r.xs, r.boro));
+    if (!g) return;
+    plotted.push({ ...g, count: r.c, boro: r.boro });
+  });
+
+  if (schoolMapLayer) schoolMapLayer.remove();
+  schoolMapLayer = L.layerGroup().addTo(schoolMap);
+
+  const maxC = Math.max(...plotted.map(p => p.count), 1);
+  const label = mode === 'fy26' ? 'FY2026 speed-camera tickets' : 'all-years speed-camera tickets (FY14–26)';
+  plotted.forEach(p => {
+    const radius = 4 + Math.sqrt(p.count / maxC) * 22;
+    L.circleMarker([p.lat, p.lon], {
+      radius, fillColor: '#dc2626', color: '#facc15',
+      weight: 1, fillOpacity: 0.55
+    })
+      .bindPopup(`<strong>${p.label || ''}</strong><br>${BORO_NAME[p.boro]||p.boro}<br>${formatNum(p.count)} ${label}`)
+      .addTo(schoolMapLayer);
+  });
+
+  const titleEl = document.getElementById('mapTitleWindow');
+  if (titleEl) titleEl.textContent = mode === 'fy26' ? 'FY2026' : 'All years (FY14–26)';
+  const coverageEl = document.getElementById('mapCoverage');
+  if (coverageEl) {
+    coverageEl.textContent = `${plotted.length} of top ${live.length} intersections in this window matched the ~500-point geo cache. Coordinates come from geocoding the camera-bearing intersection text; individual violation rows have no lat/lon in the pvqr-7yc4 family of datasets.`;
+  }
+}
+
 async function loadSchoolMap() {
-  if (schoolMap) return;
-  schoolMap = L.map('schoolMap', { zoomControl: true, preferCanvas: true }).setView([40.72, -73.95], 11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 19
-  }).addTo(schoolMap);
-
-  try {
-    // pvqr-7yc4 has violation_precinct=0 and no lat/lon for speed-cam rows.
-    // We geocode the top intersections offline (scripts/build_camera_locations.py
-    // -> intersections.json) and join live FY2026 counts here.
-    const [geoFile, live] = await Promise.all([
-      fetch('intersections.json').then(r => r.json()),
-      sodaGet(VIOLATIONS_API, {
-        '$select': 'street_name, intersecting_street, violation_county, COUNT(*) as c',
-        '$where': SPEED_CAM_WHERE,
-        '$group': 'street_name, intersecting_street, violation_county',
-        '$order': 'c DESC',
-        '$limit': '500'
-      })
-    ]);
-
-    const BORO_NAME = { 'BK':'Brooklyn','BX':'Bronx','MN':'Manhattan','QN':'Queens','ST':'Staten Island' };
-    const keyOf = (sn, xs, boro) => `${(sn||'').trim()}||${(xs||'').trim()}||${(boro||'').trim()}`;
-    const geoMap = new Map();
-    (geoFile.intersections || []).forEach(g => {
-      if (g.lat && g.lon) geoMap.set(keyOf(g.street_name, g.intersecting_street, g.boro), g);
+  if (!schoolMap) {
+    schoolMap = L.map('schoolMap', { zoomControl: true, preferCanvas: true }).setView([40.72, -73.95], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(schoolMap);
+    document.querySelectorAll('#mapWindowPills [data-mapwin]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mapWindowPills [data-mapwin]').forEach(b => b.classList.toggle('active', b === btn));
+        schoolMapWindow = btn.getAttribute('data-mapwin');
+        renderSchoolMap();
+      });
     });
-
-    const plotted = [];
-    live.forEach(r => {
-      const g = geoMap.get(keyOf(r.street_name, r.intersecting_street, r.violation_county));
-      if (!g) return;
-      plotted.push({ ...g, count: parseInt(r.c), street_name: r.street_name, intersecting_street: r.intersecting_street, boro: r.violation_county });
-    });
-
-    const counts = plotted.map(p => p.count);
-    const maxC = Math.max(...counts, 1);
-    plotted.forEach(p => {
-      const radius = 4 + Math.sqrt(p.count / maxC) * 22;
-      L.circleMarker([p.lat, p.lon], {
-        radius,
-        fillColor: '#dc2626',
-        color: '#facc15',
-        weight: 1,
-        fillOpacity: 0.55
-      })
-        .bindPopup(`<strong>${p.label || ''}</strong><br>${BORO_NAME[p.boro]||p.boro}<br>${formatNum(p.count)} FY2026 speed-camera tickets`)
-        .addTo(schoolMap);
-    });
-
-    const matched = plotted.length;
-    const totalLive = live.length;
-    const coverageEl = document.getElementById('mapCoverage');
-    if (coverageEl) {
-      coverageEl.textContent = `${matched} of top ${totalLive} intersections geocoded (${(100*matched/totalLive).toFixed(0)}%). Coordinates come from geocoding the camera-bearing intersection text; individual violations have no lat/lon in pvqr-7yc4.`;
-    }
-  } catch(e) { console.error('schoolmap', e); }
+  }
+  try { await renderSchoolMap(); }
+  catch(e) { console.error('schoolmap', e); }
 }
 
 // ===== OVERLAP =====

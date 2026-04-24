@@ -20,6 +20,17 @@ import sys
 from pathlib import Path
 
 TOP_N = 500
+PER_FY_N = 400
+# Fiscal-year datasets (same list as the frontend FY_DATASETS). The union of
+# each FY's top PER_FY_N intersections gives us a geo cache that covers both
+# the FY2026 and the all-years map view.
+FY_DATASETS = {
+    2026: "pvqr-7yc4", 2025: "m5vz-tzqv", 2024: "8zf9-spf8",
+    2023: "869v-vr48", 2022: "7mxj-7a6y", 2021: "kvfd-bves",
+    2020: "p7t3-5i9s", 2019: "faiq-9dfq", 2018: "a5td-mswe",
+    2017: "2bnn-yakx", 2016: "kiv2-tbus", 2015: "c284-tqph",
+    2014: "jt7v-77mi",
+}
 SODA = "https://data.cityofnewyork.us/resource/pvqr-7yc4.json"
 GEOSEARCH = "https://geosearch.planninglabs.nyc/v2/search"
 CENSUS = "https://geocoding.geo.census.gov/geocoder/locations/address"
@@ -30,17 +41,44 @@ BORO = {
     "BX": "Bronx",  "ST": "Staten Island",
 }
 
-def fetch_top():
+def fetch_top_for(fy, dsid):
     params = {
         "$select": "street_name,intersecting_street,violation_county,count(*) as c",
         "$where": "violation_code=36",
         "$group": "street_name,intersecting_street,violation_county",
         "$order": "c DESC",
-        "$limit": str(TOP_N),
+        "$limit": str(PER_FY_N),
     }
-    url = f"{SODA}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=60) as r:
-        return json.loads(r.read())
+    url = f"https://data.cityofnewyork.us/resource/{dsid}.json?{urllib.parse.urlencode(params)}"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        print(f"  FY{fy} ({dsid}) failed: {e}", file=sys.stderr)
+        return []
+
+def fetch_top():
+    """Union of top-PER_FY_N intersections across every fiscal-year dataset,
+    summed to a grand total per (street, cross, county). Top TOP_N returned."""
+    agg = {}
+    fy26_totals = {}
+    for fy, dsid in FY_DATASETS.items():
+        rows = fetch_top_for(fy, dsid)
+        print(f"  FY{fy}: {len(rows)} rows", file=sys.stderr)
+        for row in rows:
+            k = (row.get("street_name",""), row.get("intersecting_street",""), row.get("violation_county",""))
+            c = int(row.get("c", 0))
+            agg[k] = agg.get(k, 0) + c
+            if fy == 2026:
+                fy26_totals[k] = c
+    merged = []
+    for (sn, xs, vc), total in agg.items():
+        merged.append({
+            "street_name": sn, "intersecting_street": xs, "violation_county": vc,
+            "c": total, "fy26": fy26_totals.get((sn, xs, vc), 0),
+        })
+    merged.sort(key=lambda r: r["c"], reverse=True)
+    return merged[:TOP_N]
 
 def normalize(street_name, intersecting_street):
     """
@@ -136,7 +174,8 @@ def main():
             "street_name": sn,
             "intersecting_street": xs,
             "boro": boro_code,
-            "tickets_at_build": count,
+            "tickets_at_build_all_years": count,
+            "tickets_at_build_fy26": int(row.get("fy26", 0)),
             "label": label,
             "lat": geo["lat"] if geo else None,
             "lon": geo["lon"] if geo else None,
