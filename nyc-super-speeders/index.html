@@ -120,6 +120,10 @@ section.visible .section-label, section.visible .section-title, section.visible 
 .wall-table td { padding: 12px; border-bottom: 1px solid var(--border-subtle); }
 .wall-table tr { cursor: pointer; transition: background 0.15s; }
 .wall-table tr:hover { background: rgba(250,204,21,0.04); }
+.wall-table th.sortable { cursor: pointer; user-select: none; }
+.wall-table th.sortable:hover { color: var(--yellow); }
+.wall-table th.sortable .arrow { opacity: 0.35; margin-left: 4px; font-size: 10px; }
+.wall-table th.sortable.active .arrow { opacity: 1; color: var(--yellow); }
 .plate-chip { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--red); letter-spacing: 1px; background: rgba(220,38,38,0.08); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(220,38,38,0.2); display: inline-block; }
 .state-badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--text-tertiary); margin-left: 6px; }
 .vehicle-desc { color: var(--text-secondary); font-size: 13px; }
@@ -225,7 +229,7 @@ footer .foot-row { margin-bottom: 4px; }
   <div class="hero-stats">
     <div class="hero-stat">
       <div class="hero-stat-value total" id="heroTotal">--</div>
-      <div class="hero-stat-label">Speed-camera tickets (FY2026)</div>
+      <div class="hero-stat-label">Camera tickets (FY2026)</div>
     </div>
     <div class="hero-stat">
       <div class="hero-stat-value eligible" id="heroEligible">--</div>
@@ -652,7 +656,8 @@ async function loadHero() {
     });
 
     const [totalAll, latest, topPlates] = await Promise.all([
-      sodaGet(VIOLATIONS_API, { '$select': 'COUNT(*) as c', '$where': SPEED_CAM_WHERE }),
+      // Sum both camera types (code 36 = school-zone speed, code 7 = red-light)
+      sodaGet(VIOLATIONS_API, { '$select': 'COUNT(*) as c', '$where': 'violation_code IN (36, 7)' }),
       latestPromise,
       topPromise
     ]);
@@ -869,6 +874,57 @@ function windowLabel(mode) {
   return ys.length > 1 ? `FY${ys[0]}-${String(ys[ys.length-1]).slice(-2)}` : `FY${ys[0]}`;
 }
 
+// Current wall render state: rows + column definitions + active sort
+let wallRender = { rows: [], cols: [], sortKey: null, sortDir: 'desc', preamble: '' };
+
+function renderWallTable() {
+  const { rows, cols, sortKey, sortDir, preamble } = wallRender;
+  const el = document.getElementById('wallTable');
+  if (!rows.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
+
+  const sortCol = cols.find(c => c.key === sortKey) || cols.find(c => c.defaultSort) || cols.find(c => c.sortable);
+  const sorted = [...rows].sort((a, b) => {
+    const av = sortCol.accessor(a), bv = sortCol.accessor(b);
+    let cmp;
+    if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv;
+    else cmp = String(av || '').localeCompare(String(bv || ''));
+    return sortDir === 'desc' ? -cmp : cmp;
+  });
+
+  let html = preamble || '';
+  html += '<table class="wall-table"><thead><tr>';
+  html += '<th>#</th>';
+  cols.forEach(c => {
+    if (!c.sortable) { html += `<th>${c.label}</th>`; return; }
+    const active = c.key === sortCol.key;
+    const arrow = active ? (sortDir === 'desc' ? '▼' : '▲') : '▾';
+    html += `<th class="sortable${active ? ' active' : ''}" data-sortkey="${c.key}">${c.label}<span class="arrow">${arrow}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  sorted.forEach((r, i) => {
+    html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state || ''}')">`;
+    html += `<td class="rank-n">#${i+1}</td>`;
+    cols.forEach(c => { html += c.render(r); });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+
+  el.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.getAttribute('data-sortkey');
+      if (wallRender.sortKey === key) {
+        wallRender.sortDir = wallRender.sortDir === 'desc' ? 'asc' : 'desc';
+      } else {
+        wallRender.sortKey = key;
+        wallRender.sortDir = (cols.find(c => c.key === key) || {}).defaultDir || 'desc';
+      }
+      renderWallTable();
+    });
+  });
+}
+
 async function loadWall() {
   const el = document.getElementById('wallTable');
   el.innerHTML = '<div class="loader">Loading top speeders…</div>';
@@ -881,72 +937,90 @@ async function loadWall() {
     sourceEl.textContent = datasetsUsed.join(' + ');
 
     if (wallMode.vtype === 'both') {
-      // Intersect: plates that hit ≥15 speed AND ≥5 red-light in the window
       const [speedMap, redMap] = await Promise.all([
         aggregateWindow(36, wallMode, 5000),
         aggregateWindow(7, wallMode, 5000)
       ]);
-      const rows = [];
+      const all = [];
       speedMap.forEach((s, k) => {
         const r = redMap.get(k);
         if (!r) return;
         if (s.c < 15 || r.c < 5) return;
-        rows.push({
+        all.push({
           plate_id: s.plate_id,
           registration_state: s.registration_state,
           speed: s.c,
           red: r.c,
-          score: s.c + r.c
+          combined: s.c + r.c,
+          fines: (s.c + r.c) * 50
         });
       });
-      rows.sort((a, b) => b.score - a.score);
-      const top = rows.slice(0, 50);
+      all.sort((a, b) => b.combined - a.combined);
+      const rows = all.slice(0, 50);
 
-      if (!top.length) {
+      wallRender = {
+        rows,
+        cols: [
+          { key: 'plate', label: 'Plate', sortable: true, defaultDir: 'asc',
+            accessor: r => r.plate_id,
+            render: r => `<td><span class="plate-chip">${r.plate_id}</span></td>` },
+          { key: 'state', label: 'State', sortable: true, defaultDir: 'asc',
+            accessor: r => r.registration_state || '',
+            render: r => `<td class="vehicle-desc">${r.registration_state || '—'}</td>` },
+          { key: 'speed', label: 'Speed cam', sortable: true, defaultDir: 'desc',
+            accessor: r => r.speed,
+            render: r => `<td class="ticket-count">${formatNum(r.speed)}</td>` },
+          { key: 'red', label: 'Red-light', sortable: true, defaultDir: 'desc',
+            accessor: r => r.red,
+            render: r => `<td class="ticket-count" style="color:var(--red)">${formatNum(r.red)}</td>` },
+          { key: 'combined', label: 'Combined', sortable: true, defaultDir: 'desc', defaultSort: true,
+            accessor: r => r.combined,
+            render: r => `<td class="ticket-count" style="color:var(--yellow)">${formatNum(r.combined)}</td>` },
+          { key: 'fines', label: 'Fine estimate', sortable: true, defaultDir: 'desc',
+            accessor: r => r.fines,
+            render: r => `<td class="fine-total">${fmtUSD(r.fines)}</td>` }
+        ],
+        sortKey: 'combined',
+        sortDir: 'desc',
+        preamble: `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5"><strong style="color:var(--yellow)">${rows.length} plates</strong> in ${winLabel} crossed both DVAP thresholds — each is legally boot-eligible on two separate statutory grounds.</div>`
+      };
+      if (!rows.length) {
         el.innerHTML = `<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No plates in this window crossed both DVAP thresholds (≥15 speed AND ≥5 red-light).</div>`;
         return;
       }
-
-      let html = `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5"><strong style="color:var(--yellow)">${top.length} plates</strong> in ${winLabel} crossed both DVAP thresholds — each is legally boot-eligible on two separate statutory grounds.</div>`;
-      html += `<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>Speed cam</th><th>Red-light</th><th>Combined fines</th></tr></thead><tbody>`;
-      top.forEach((r, i) => {
-        const fines = (r.speed + r.red) * 50;
-        html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state}')">
-          <td class="rank-n">#${i+1}</td>
-          <td><span class="plate-chip">${r.plate_id}</span></td>
-          <td class="vehicle-desc">${r.registration_state || '—'}</td>
-          <td class="ticket-count">${formatNum(r.speed)}</td>
-          <td class="ticket-count" style="color:var(--red)">${formatNum(r.red)}</td>
-          <td class="fine-total">${fmtUSD(fines)}</td>
-        </tr>`;
-      });
-      html += '</tbody></table>';
-      el.innerHTML = html;
+      renderWallTable();
       return;
     }
 
-    // Single-type modes: speed or red-light
+    // Single-type modes
     const v = VTYPE[wallMode.vtype];
     const map = await aggregateWindow(v.code, wallMode, 5000);
-    const merged = Array.from(map.values()).sort((a, b) => b.c - a.c).slice(0, 50);
+    const rows = Array.from(map.values())
+      .sort((a, b) => b.c - a.c)
+      .slice(0, 50)
+      .map(r => ({ plate_id: r.plate_id, registration_state: r.registration_state, count: r.c, fines: r.c * 50 }));
 
-    if (!merged.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
-
-    const headerLabel = `${v.short} tickets (${winLabel})`;
-    let html = `<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>${headerLabel}</th><th>Fine estimate</th></tr></thead><tbody>`;
-    merged.forEach((r, i) => {
-      const count = r.c;
-      const fines = count * 50;
-      html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state}')">
-        <td class="rank-n">#${i+1}</td>
-        <td><span class="plate-chip">${r.plate_id}</span></td>
-        <td class="vehicle-desc">${r.registration_state || '—'}</td>
-        <td class="ticket-count">${formatNum(count)}</td>
-        <td class="fine-total">${fmtUSD(fines)}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    el.innerHTML = html;
+    wallRender = {
+      rows,
+      cols: [
+        { key: 'plate', label: 'Plate', sortable: true, defaultDir: 'asc',
+          accessor: r => r.plate_id,
+          render: r => `<td><span class="plate-chip">${r.plate_id}</span></td>` },
+        { key: 'state', label: 'State', sortable: true, defaultDir: 'asc',
+          accessor: r => r.registration_state || '',
+          render: r => `<td class="vehicle-desc">${r.registration_state || '—'}</td>` },
+        { key: 'count', label: `${v.short} tickets (${winLabel})`, sortable: true, defaultDir: 'desc', defaultSort: true,
+          accessor: r => r.count,
+          render: r => `<td class="ticket-count">${formatNum(r.count)}</td>` },
+        { key: 'fines', label: 'Fine estimate', sortable: true, defaultDir: 'desc',
+          accessor: r => r.fines,
+          render: r => `<td class="fine-total">${fmtUSD(r.fines)}</td>` }
+      ],
+      sortKey: 'count',
+      sortDir: 'desc',
+      preamble: ''
+    };
+    renderWallTable();
   } catch(e) {
     console.error('wall', e);
     el.innerHTML = `<div style="color:var(--red);padding:24px;font-family:var(--font-mono);font-size:12px">Error: ${e.message}</div>`;
