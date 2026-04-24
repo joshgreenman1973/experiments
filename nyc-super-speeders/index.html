@@ -311,7 +311,7 @@ footer .foot-row { margin-bottom: 4px; }
   <div class="section-subtitle">Plates are public record, already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Toggle between school-zone speed cameras (violation code 36), red-light cameras (code 7), and the Both view — plates that cross the DVAP thresholds for both systems (≥15 speed + ≥5 red-light in a single year). Click any row for a full dossier.</div>
 
   <div class="card">
-    <div class="card-title">Ranked live from <a href="https://data.cityofnewyork.us/Transportation/Parking-Violations-Issued-Fiscal-Year-2026/pvqr-7yc4" target="_blank" style="color:var(--text-secondary);text-decoration:underline">NYC Open Data</a> · <span id="wallSource" style="color:var(--yellow);text-transform:none;letter-spacing:0">NYC Parking Violations Issued, FY2026</span></div>
+    <div class="card-title" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">Ranked live from NYC Parking Violations Issued <span id="wallSource" style="color:var(--yellow);text-transform:none;letter-spacing:0;font-weight:500;display:inline-flex;flex-wrap:wrap;gap:6px"></span></div>
     <div class="wall-controls">
       <div class="control-row">
         <div class="control-label">Type</div>
@@ -943,17 +943,14 @@ async function loadWall() {
   const sourceEl = document.getElementById('wallSource');
   const winLabel = windowLabel(wallMode);
   try {
-    // Human-readable source description. 4x4 IDs live in methodology + link.
-    let sourceDesc;
-    if (wallMode.type === 'month') {
-      sourceDesc = `NYC Parking Violations Issued, ${wallMode.month.label} (FY2026 file)`;
-    } else if (wallMode.years.length === 1) {
-      sourceDesc = `NYC Parking Violations Issued, FY${wallMode.years[0]}`;
-    } else {
-      const ys = [...wallMode.years].sort((a,b) => a - b);
-      sourceDesc = `NYC Parking Violations Issued, FY${ys[0]}-FY${ys[ys.length-1]} (${ys.length} fiscal-year files merged)`;
-    }
-    sourceEl.textContent = sourceDesc;
+    // One linked chip per fiscal-year dataset used in the current view.
+    const fyLink = (y) => `<a href="https://data.cityofnewyork.us/d/${FY_DATASETS[y]}" target="_blank" style="color:var(--yellow);text-decoration:underline">FY${y}</a>`;
+    const yearsInView = wallMode.type === 'month' ? [2026] : [...wallMode.years].sort((a,b) => a - b);
+    const prefix = wallMode.type === 'month'
+      ? `· ${wallMode.month.label} (`
+      : (yearsInView.length === 1 ? '· ' : '· merged: ');
+    const suffix = wallMode.type === 'month' ? ')' : '';
+    sourceEl.innerHTML = prefix + yearsInView.map(fyLink).join(' · ') + suffix;
 
     if (wallMode.vtype === 'both') {
       const [speedMap, redMap] = await Promise.all([
