@@ -298,7 +298,7 @@ footer .foot-row { margin-bottom: 4px; }
   <div class="section-subtitle">Plates are public record. These are already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Click any row for a full dossier.</div>
 
   <div class="card">
-    <div class="card-title">Ranked live from NYC Open Data · <span style="color:var(--yellow)">hekt-pqw7</span></div>
+    <div class="card-title">Ranked live from NYC Open Data · <span style="color:var(--yellow)">pvqr-7yc4</span></div>
     <div id="wallTable"><div class="loader">Loading top speeders…</div></div>
     <div class="disclosure">Fine estimate is $50 × ticket count. Fine totals do not reflect late fees, payments, or disputes. See <a href="./METHODOLOGY.md" style="color:var(--yellow)">methodology</a>.</div>
   </div>
@@ -370,13 +370,13 @@ footer .foot-row { margin-bottom: 4px; }
 <section id="overlap-section" class="short">
   <div class="section-label">06 — Same places, same people</div>
   <div class="section-title">Speed camera density vs. pedestrian + cyclist casualties</div>
-  <div class="section-subtitle">Cross-referencing <a href="https://data.cityofnewyork.us/d/hekt-pqw7" style="color:var(--yellow)">speed-camera violations</a> against <a href="https://data.cityofnewyork.us/d/h9gi-nx95" style="color:var(--cyan)">NYPD crash records</a>. Each dot is a borough; the question is whether the hotspots line up.</div>
+  <div class="section-subtitle">Cross-referencing <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" style="color:var(--yellow)">speed-camera violations</a> against <a href="https://data.cityofnewyork.us/d/h9gi-nx95" style="color:var(--cyan)">NYPD crash records</a>, normalized per 100,000 residents so borough size doesn't drown out rate. Boroughs ranked by ticket rate. The question: do the hotspots line up?</div>
 
   <div class="card">
-    <div class="card-title">Camera tickets per borough vs. pedestrian+cyclist killed+injured</div>
-    <div class="chart-wrap" style="height:440px"><canvas id="overlapChart"></canvas></div>
-    <div class="insight-callout cyan">
-      Camera enforcement concentrates in boroughs where camera-enforceable speeding happens most — but pedestrian and cyclist harm is not evenly distributed across those same neighborhoods. Outlier boroughs (high tickets, comparatively low harm; or vice versa) are where policy leverage exists.
+    <div class="card-title">Speed-camera tickets and pedestrian+cyclist casualties per 100,000 residents</div>
+    <div class="chart-wrap" style="height:420px"><canvas id="overlapChart"></canvas></div>
+    <div class="insight-callout cyan" id="overlapInsight">
+      Loading per-capita comparison…
     </div>
   </div>
 </section>
@@ -415,20 +415,16 @@ footer .foot-row { margin-bottom: 4px; }
 <section id="time-section" class="short">
   <div class="section-label">08 — Temporal patterns</div>
   <div class="section-title">When the cameras catch them</div>
-  <div class="section-subtitle">NYC speed cameras operated school-hours-only until Aug 1, 2022, then went 24/7. The data carries a visible inflection.</div>
+  <div class="section-subtitle">NYC speed cameras have operated 24/7 since August 2022. Hour-of-day and day-of-week breakdowns use FY2026 tickets with a valid issue_date.</div>
 
   <div class="grid-2">
-    <div class="card"><div class="card-title">Tickets by hour of day (all-time)</div><div class="chart-wrap" style="height:300px"><canvas id="hourChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Tickets by hour of day (FY2026 sample)</div><div class="chart-wrap" style="height:300px"><canvas id="hourChart"></canvas></div></div>
     <div class="card"><div class="card-title">Tickets by day of week (FY2026)</div><div class="chart-wrap" style="height:300px"><canvas id="dowChart"></canvas></div></div>
-  </div>
-  <div class="card" style="margin-top:20px">
-    <div class="card-title">Monthly ticket volume — all-time, with Aug 2022 24/7 inflection</div>
-    <div class="chart-wrap" style="height:320px"><canvas id="monthlyChart"></canvas></div>
   </div>
 </section>
 
 <footer>
-  <div class="foot-row">Data from <a href="https://data.cityofnewyork.us/d/hekt-pqw7" target="_blank">NYC Open Data · Open Parking &amp; Camera Violations</a> · Cross-ref: <a href="https://data.cityofnewyork.us/d/h9gi-nx95" target="_blank">Motor Vehicle Collisions</a></div>
+  <div class="foot-row">Data from <a href="https://data.cityofnewyork.us/d/pvqr-7yc4" target="_blank">NYC Open Data · Parking Violations Issued FY2026</a> · Cross-ref: <a href="https://data.cityofnewyork.us/d/h9gi-nx95" target="_blank">Motor Vehicle Collisions</a></div>
   <div class="foot-row">Data through <span id="footLatest">—</span> · Auto-refreshes every 5 min · <a href="./METHODOLOGY.md">methodology</a> · <a href="https://joshgreenman1973.github.io/experiments/nyc-collisions/" style="color:var(--cyan)">collisions companion</a></div>
 </footer>
 
@@ -756,7 +752,7 @@ async function loadEscalation() {
       });
       // Sort client-side by parsed date
       const dated = rows.map(r => parseNycDate(r.issue_date)).filter(d => d && !isNaN(d)).sort((a,b) => a - b);
-      const points = dated.map((d, i) => ({ x: d.toISOString().slice(0,10), y: i+1 }));
+      const points = dated.map((d, i) => ({ x: d.getTime(), y: i+1 }));
       return { label: `${p.plate_id}·${p.registration_state || ''}`, data: points };
     }));
 
@@ -970,37 +966,59 @@ async function loadSchoolMap() {
   }).addTo(schoolMap);
 
   try {
+    // pvqr-7yc4 has violation_precinct = 0 across all speed-cam rows, so we aggregate to borough.
     const rows = await sodaGet(VIOLATIONS_API, {
-      '$select': 'violation_precinct, COUNT(*) as c',
+      '$select': 'violation_county, COUNT(*) as c',
       '$where': `${SPEED_CAM_WHERE}`,
-      '$group': 'violation_precinct',
+      '$group': 'violation_county',
       '$order': 'c DESC',
-      '$limit': '200'
+      '$limit': '20'
     });
+
+    const BORO_CENTROIDS = {
+      'BK': [40.6782, -73.9442], // Brooklyn
+      'BX': [40.8448, -73.8648], // Bronx
+      'MN': [40.7831, -73.9712], // Manhattan / New York County
+      'QN': [40.7282, -73.7949], // Queens
+      'ST': [40.5795, -74.1502]  // Staten Island
+    };
+    const BORO_NAME = { 'BK':'Brooklyn','BX':'Bronx','MN':'Manhattan','QN':'Queens','ST':'Staten Island' };
 
     const counts = rows.map(r => parseInt(r.c));
     const maxC = Math.max(...counts, 1);
 
     rows.forEach(r => {
-      const p = parseInt(r.violation_precinct);
-      const c = parseInt(r.c);
-      const loc = PRECINCT_CENTROIDS[p];
+      const key = (r.violation_county || '').toUpperCase();
+      const loc = BORO_CENTROIDS[key];
       if (!loc) return;
-      const radius = 6 + Math.sqrt(c / maxC) * 42;
-      const boro = PRECINCT_BORO[p] || '';
-      const circ = L.circleMarker(loc, {
+      const c = parseInt(r.c);
+      const radius = 18 + Math.sqrt(c / maxC) * 60;
+      L.circleMarker(loc, {
         radius,
         fillColor: '#dc2626',
         color: '#facc15',
-        weight: 1.2,
-        fillOpacity: 0.5
-      }).bindPopup(`<strong>Precinct ${p}</strong> (${BORO_FULL[boro] || ''})<br>${formatNum(c)} tickets in FY2026`);
-      circ.addTo(schoolMap);
+        weight: 1.5,
+        fillOpacity: 0.45
+      })
+        .bindPopup(`<strong>${BORO_NAME[key] || key}</strong><br>${formatNum(c)} speed-camera tickets in FY2026`)
+        .addTo(schoolMap);
     });
   } catch(e) { console.error('schoolmap', e); }
 }
 
 // ===== OVERLAP =====
+// 2020 Census borough populations (NYC DCP)
+const BORO_POP = {
+  'BK': 2736074, // Brooklyn
+  'QN': 2405464, // Queens
+  'MN': 1694251, // Manhattan
+  'BX': 1472654, // Bronx
+  'SI': 495747   // Staten Island
+};
+const BORO_FULL_NAME = { 'BK':'Brooklyn','QN':'Queens','MN':'Manhattan','BX':'Bronx','SI':'Staten Island' };
+const COUNTY_TO_BORO_KEY = { 'BK':'BK','K':'BK','KINGS':'BK','QN':'QN','Q':'QN','QUEENS':'QN','MN':'MN','NY':'MN','NEW YORK':'MN','MANHATTAN':'MN','BX':'BX','BRONX':'BX','ST':'SI','R':'SI','RICHMOND':'SI','STATEN ISLAND':'SI' };
+const CRASH_BORO_TO_KEY = { 'BROOKLYN':'BK','QUEENS':'QN','MANHATTAN':'MN','BRONX':'BX','STATEN ISLAND':'SI' };
+
 let overlapChart;
 async function loadOverlap() {
   try {
@@ -1019,77 +1037,109 @@ async function loadOverlap() {
 
     const boroTickets = {};
     tickets.forEach(r => {
-      const b = COUNTY_TO_BORO[(r.violation_county||'').toUpperCase()];
+      const b = COUNTY_TO_BORO_KEY[(r.violation_county||'').toUpperCase()];
       if (b) boroTickets[b] = (boroTickets[b] || 0) + parseInt(r.c);
     });
     const boroHarm = {};
-    const boroMap = { 'MANHATTAN':'MAN','BRONX':'BX','BROOKLYN':'BK','QUEENS':'QN','STATEN ISLAND':'SI' };
     crashes.forEach(r => {
-      const b = boroMap[(r.borough||'').toUpperCase()];
+      const b = CRASH_BORO_TO_KEY[(r.borough||'').toUpperCase()];
       if (!b) return;
-      boroHarm[b] = (parseInt(r.pi||0) + parseInt(r.pk||0) + parseInt(r.ci||0) + parseInt(r.ck||0));
+      boroHarm[b] = (boroHarm[b] || 0) + parseInt(r.pi||0) + parseInt(r.pk||0) + parseInt(r.ci||0) + parseInt(r.ck||0);
     });
 
-    const points = Object.keys(BORO_FULL).map(b => ({
-      x: boroTickets[b] || 0,
-      y: boroHarm[b] || 0,
-      label: BORO_FULL[b]
-    }));
+    // Per 100k residents
+    const rows = Object.keys(BORO_POP).map(b => {
+      const pop = BORO_POP[b];
+      return {
+        boro: b,
+        name: BORO_FULL_NAME[b],
+        ticketsPer100k: Math.round((boroTickets[b] || 0) / pop * 100000),
+        casualtiesPer100k: Math.round((boroHarm[b] || 0) / pop * 100000 * 10) / 10,
+        ticketsRaw: boroTickets[b] || 0,
+        casualtiesRaw: boroHarm[b] || 0,
+        pop
+      };
+    }).sort((a,b) => b.ticketsPer100k - a.ticketsPer100k);
+
+    const labels = rows.map(r => r.name);
 
     const ctx = document.getElementById('overlapChart').getContext('2d');
     if (overlapChart) overlapChart.destroy();
     overlapChart = new Chart(ctx, {
-      type: 'scatter',
+      type: 'bar',
       data: {
-        datasets: [{
-          label: 'Borough',
-          data: points,
-          backgroundColor: COLORS.yellow,
-          borderColor: COLORS.red,
-          pointRadius: 10,
-          pointHoverRadius: 13
-        }]
+        labels,
+        datasets: [
+          {
+            label: 'Speed-camera tickets per 100k residents',
+            data: rows.map(r => r.ticketsPer100k),
+            backgroundColor: 'rgba(250,204,21,0.85)',
+            borderColor: COLORS.yellow,
+            borderWidth: 1,
+            xAxisID: 'xTickets',
+            borderRadius: 3
+          },
+          {
+            label: 'Pedestrian + cyclist casualties per 100k residents',
+            data: rows.map(r => r.casualtiesPer100k),
+            backgroundColor: 'rgba(6,182,212,0.85)',
+            borderColor: COLORS.cyan,
+            borderWidth: 1,
+            xAxisID: 'xCasualties',
+            borderRadius: 3
+          }
+        ]
       },
       options: {
+        indexAxis: 'y',
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: { position: 'bottom', labels: { font: { family: 'JetBrains Mono', size: 11 } } },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.raw.label}: ${formatNum(ctx.raw.x)} tickets, ${formatNum(ctx.raw.y)} ped+cyc killed+injured`
+              label: (ctx) => {
+                const r = rows[ctx.dataIndex];
+                if (ctx.datasetIndex === 0) return `  ${formatNum(r.ticketsPer100k)} tickets / 100k  (${formatNum(r.ticketsRaw)} total)`;
+                return `  ${r.casualtiesPer100k.toFixed(1)} casualties / 100k  (${formatNum(r.casualtiesRaw)} total)`;
+              },
+              afterBody: (items) => {
+                const r = rows[items[0].dataIndex];
+                return `  population: ${formatNum(r.pop)}`;
+              }
             }
           }
         },
         scales: {
-          x: { title: { display: true, text: 'Speed-camera tickets (last 12 mo)' }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { title: { display: true, text: 'Pedestrian + cyclist killed+injured (last 12 mo)' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+          xTickets: {
+            position: 'top',
+            beginAtZero: true,
+            title: { display: true, text: 'Tickets per 100k residents (FY2026)', color: COLORS.yellow, font: { family: 'JetBrains Mono', size: 10 } },
+            grid: { color: 'rgba(250,204,21,0.06)' },
+            ticks: { color: 'rgba(250,204,21,0.7)', font: { family: 'JetBrains Mono', size: 10 } }
+          },
+          xCasualties: {
+            position: 'bottom',
+            beginAtZero: true,
+            title: { display: true, text: 'Casualties per 100k residents (on-or-after Jul 1, 2025)', color: COLORS.cyan, font: { family: 'JetBrains Mono', size: 10 } },
+            grid: { display: false },
+            ticks: { color: 'rgba(6,182,212,0.7)', font: { family: 'JetBrains Mono', size: 10 } }
+          },
+          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 12 } } }
         }
       }
     });
 
-    // After render, overlay labels via HTML would be fancy; for now use Chart.js afterDraw plugin
-    overlapChart.options.plugins.tooltip.enabled = true;
-    const labels = points.map(p => p.label);
-    overlapChart.data.datasets[0].pointLabels = labels;
-    // Add data labels manually using the afterDraw plugin
-    Chart.register({
-      id: 'overlapLabels',
-      afterDatasetsDraw(chart) {
-        if (chart.canvas.id !== 'overlapChart') return;
-        const { ctx } = chart;
-        const ds = chart.data.datasets[0];
-        ds.data.forEach((pt, i) => {
-          const meta = chart.getDatasetMeta(0).data[i];
-          if (!meta) return;
-          ctx.save();
-          ctx.font = "bold 11px 'JetBrains Mono'";
-          ctx.fillStyle = '#f4f3ef';
-          ctx.fillText(pt.label, meta.x + 12, meta.y + 4);
-          ctx.restore();
-        });
+    // Insight: correlation + outlier callout
+    const topTicket = rows[0];
+    const topHarm = [...rows].sort((a,b) => b.casualtiesPer100k - a.casualtiesPer100k)[0];
+    const ins = document.getElementById('overlapInsight');
+    if (ins) {
+      if (topTicket.boro === topHarm.boro) {
+        ins.textContent = `${topTicket.name} leads on both axes — ${formatNum(topTicket.ticketsPer100k)} tickets and ${topTicket.casualtiesPer100k.toFixed(1)} pedestrian+cyclist casualties per 100k residents. Where cameras catch the most speeders, pedestrians and cyclists take the most harm.`;
+      } else {
+        ins.textContent = `${topTicket.name} leads on camera tickets per capita (${formatNum(topTicket.ticketsPer100k)} / 100k), while ${topHarm.name} leads on pedestrian+cyclist casualties per capita (${topHarm.casualtiesPer100k.toFixed(1)} / 100k). The rank gap is where enforcement leverage lives — more cameras where harm is worst, or a look at why high-ticket boroughs aren't seeing proportional harm reduction.`;
       }
-    });
-    overlapChart.update();
+    }
 
   } catch(e) { console.error('overlap', e); }
 }
@@ -1147,33 +1197,21 @@ async function runDVAP(threshold, windowMonths) {
 }
 
 // ===== TEMPORAL =====
-let hourChart, dowChart, monthlyChart;
+let hourChart, dowChart;
 async function loadTemporal() {
   await ensureAdapter();
   try {
-    // Monthly trend — native date_trunc on calendar_date column
-    const monthly = await sodaGet(VIOLATIONS_API, {
-      '$select': 'date_trunc_ym(issue_date) as ym, count(*) as c',
-      '$where': `${SPEED_CAM_WHERE} AND issue_date IS NOT NULL`,
-      '$group': 'date_trunc_ym(issue_date)',
-      '$order': 'ym ASC',
-      '$limit': '500'
-    });
-    const monthlyClean = monthly
-      .map(r => { const d = new Date(r.ym); return { y: String(d.getUTCFullYear()), m: String(d.getUTCMonth()+1).padStart(2,'0'), c: r.c }; })
-      .filter(r => /^20(1[4-9]|2[0-9])$/.test(r.y));
-
-    // Hour of day — sample recent year rows
+    // Hour of day — sample rows (violation_time is populated even when issue_date is null)
     const sample = await sodaGet(VIOLATIONS_API, {
-      '$select': 'violation_time, issue_date',
+      '$select': 'violation_time',
       '$where': `${SPEED_CAM_WHERE}`,
       '$limit': '50000'
     });
 
-    // Day of week — compute client-side from year's worth of rows (aggregate by date string)
+    // Day of week — aggregate by issue_date (dated rows only)
     const dowRows = await sodaGet(VIOLATIONS_API, {
       '$select': 'issue_date, count(*) as c',
-      '$where': `${SPEED_CAM_WHERE}`,
+      '$where': `${SPEED_CAM_WHERE} AND issue_date IS NOT NULL`,
       '$group': 'issue_date',
       '$limit': '400'
     });
@@ -1181,44 +1219,6 @@ async function loadTemporal() {
     dowRows.forEach(r => {
       const d = parseNycDate(r.issue_date);
       if (d && !isNaN(d)) dowData[d.getDay()] += parseInt(r.c);
-    });
-    const dow = dowData.map((v, i) => ({ d: i, c: v }));
-
-    // Monthly chart
-    const mLabels = monthlyClean.map(r => `${r.y}-${r.m}-01`);
-    const mData = monthlyClean.map(r => parseInt(r.c));
-    monthlyChart = new Chart(document.getElementById('monthlyChart').getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: mLabels,
-        datasets: [{
-          label: 'Tickets/month',
-          data: mData,
-          borderColor: COLORS.yellow,
-          backgroundColor: 'rgba(250,204,21,0.08)',
-          tension: 0.25,
-          pointRadius: 0,
-          fill: true,
-          borderWidth: 2
-        }, {
-          label: 'Aug 2022 · 24/7 cameras',
-          data: mLabels.map(l => ({ x: l, y: l === '2022-08-01' ? Math.max(...mData) : null })),
-          borderColor: COLORS.red,
-          borderDash: [4, 4],
-          showLine: false,
-          pointRadius: (ctx) => ctx.raw && ctx.raw.y ? 8 : 0,
-          pointStyle: 'rectRot',
-          pointBackgroundColor: COLORS.red
-        }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        scales: {
-          x: { type: 'time', time: { unit: 'year' }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, title: { display: true, text: 'Tickets per month' } }
-        },
-        plugins: { legend: { position: 'bottom' } }
-      }
     });
 
     // Hour chart

@@ -48,9 +48,13 @@ $limit=20000
 - **Pedestrian fatality curve** (20/30/40/50 mph → ~10/40/80/95%): synthesis of AAA Foundation for Traffic Safety; Rosén & Sander, *Accident Analysis & Prevention* (2009); and the NHTSA/NACTO literature on impact-speed lethality. Not a NYC-specific measurement.
 - **NYC registered vehicles ≈ 2,000,000**: used as DVAP-simulator denominator. Source: NYS DMV registration counts.
 
-## Precinct centroids
+## Geography
 
-The School Zone map plots camera-ticket totals at approximate NYPD precinct centroids (77 points, embedded in `index.html`). These are centroid approximations, not the exact camera locations. The source dataset does not carry lat/lng, only precinct + street-pair text. Future work: geocode the top 500 `(street_name, intersecting_street)` pairs into a static `intersections.json` for marker-level precision.
+The School Zone map plots camera-ticket totals at **borough centroids** (5 points). `pvqr-7yc4` stores `violation_precinct = 0` for every speed-camera row, so precinct-level granularity is unavailable in this dataset. Borough is read from `violation_county` (BK / QN / MN / BX / ST). Future work: when `violation_precinct` gets populated in a future data drop, switch to the 77-precinct centroid map; or pursue a geocode of the top ~500 `(street_name, intersecting_street)` pairs for marker-level precision.
+
+## Cross-dataset per-capita comparison
+
+The "Same places, same people" chart normalizes both metrics to per-100,000-residents using 2020 Census borough populations (NYC DCP): Brooklyn 2,736,074 · Queens 2,405,464 · Manhattan 1,694,251 · Bronx 1,472,654 · Staten Island 495,747. Without population normalization, the comparison reduces to borough-size and obscures the actual rate question.
 
 ## Known limitations
 
