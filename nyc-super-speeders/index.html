@@ -303,12 +303,20 @@ footer .foot-row { margin-bottom: 4px; }
 <!-- ===== MOST-TICKETED PLATES ===== -->
 <section id="wall-section" class="short">
   <div class="section-label">02 — Most-ticketed plates</div>
-  <div class="section-title">Top 50 plates by camera tickets in Fiscal Year 2026</div>
-  <div class="section-subtitle">Plates are public record. These are already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Click any row for a full dossier.</div>
+  <div class="section-title">Top 50 plates by camera tickets</div>
+  <div class="section-subtitle">Plates are public record, already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Toggle between school-zone speed cameras (violation code 36), red-light cameras (code 7), and the Both view — plates that cross the DVAP thresholds for both systems (≥15 speed + ≥5 red-light in a single year). Click any row for a full dossier.</div>
 
   <div class="card">
     <div class="card-title">Ranked live from NYC Open Data · <span id="wallSource" style="color:var(--yellow)">pvqr-7yc4</span></div>
     <div class="wall-controls">
+      <div class="control-row">
+        <div class="control-label">Type</div>
+        <div class="pills" id="wallTypePills">
+          <button type="button" class="pill active" data-vtype="speed">Speed camera</button>
+          <button type="button" class="pill" data-vtype="red">Red-light camera</button>
+          <button type="button" class="pill" data-vtype="both">Both (DVAP)</button>
+        </div>
+      </div>
       <div class="control-row">
         <div class="control-label">Window</div>
         <div class="pills" id="wallWindowPills">
@@ -727,7 +735,15 @@ const FY_DATASETS = {
 };
 
 // wall selection state
-let wallMode = { type: 'fy', years: [2026], month: null };
+//   vtype: 'speed' | 'red' | 'both'
+//   type: 'fy' | 'month'
+let wallMode = { vtype: 'speed', type: 'fy', years: [2026], month: null };
+
+// Violation-code map
+const VTYPE = {
+  speed: { code: 36, label: 'speed-camera', short: 'Speed cam' },
+  red:   { code: 7,  label: 'red-light',    short: 'Red-light' }
+};
 
 function datasetUrl(id) { return `https://data.cityofnewyork.us/resource/${id}.json`; }
 
@@ -772,85 +788,151 @@ function renderMonthPills() {
 
 function initWallControls() {
   renderMonthPills();
-  const pills = document.querySelectorAll('#wallWindowPills .pill');
-  pills.forEach(btn => {
+  // Window pills
+  const winPills = document.querySelectorAll('#wallWindowPills .pill');
+  winPills.forEach(btn => {
     btn.addEventListener('click', () => {
-      pills.forEach(b => b.classList.remove('active'));
+      winPills.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const monthRow = document.getElementById('wallMonthRow');
       if (btn.dataset.mode === 'month') {
-        wallMode = { type: 'month', years: [2026], month: wallMode.month || wallMonthOptions().slice(-1)[0] };
+        wallMode.type = 'month';
+        wallMode.years = [2026];
+        wallMode.month = wallMode.month || wallMonthOptions().slice(-1)[0];
         monthRow.style.display = 'flex';
       } else {
-        const years = btn.dataset.years.split(',').map(Number);
-        wallMode = { type: 'fy', years, month: null };
+        wallMode.type = 'fy';
+        wallMode.years = btn.dataset.years.split(',').map(Number);
+        wallMode.month = null;
         monthRow.style.display = 'none';
       }
       loadWall();
     });
   });
+  // Type pills
+  const typePills = document.querySelectorAll('#wallTypePills .pill');
+  typePills.forEach(btn => {
+    btn.addEventListener('click', () => {
+      typePills.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      wallMode.vtype = btn.dataset.vtype;
+      loadWall();
+    });
+  });
 }
 
-async function fetchTopPlatesForYear(year, limit=5000) {
+async function fetchTopPlatesForYear(year, code, limit=5000) {
   const id = FY_DATASETS[year];
   if (!id) return [];
   return await sodaGet(datasetUrl(id), {
     '$select': 'plate_id, registration_state, COUNT(*) as c',
-    '$where': 'violation_code=36',
+    '$where': `violation_code=${code}`,
     '$group': 'plate_id, registration_state',
     '$order': 'c DESC',
     '$limit': String(limit)
   });
 }
 
+// Sum counts of a given code across the selected window, returned as a Map keyed by plate|state.
+async function aggregateWindow(code, mode, limit=5000) {
+  const map = new Map();
+  if (mode.type === 'month') {
+    const m = mode.month;
+    const rows = await sodaGet(datasetUrl('pvqr-7yc4'), {
+      '$select': 'plate_id, registration_state, COUNT(*) as c',
+      '$where': `violation_code=${code} AND issue_date >= '${m.start}' AND issue_date < '${m.end}'`,
+      '$group': 'plate_id, registration_state',
+      '$order': 'c DESC',
+      '$limit': String(limit)
+    });
+    rows.forEach(r => {
+      const k = `${r.plate_id}|${r.registration_state || ''}`;
+      map.set(k, { plate_id: r.plate_id, registration_state: r.registration_state, c: parseInt(r.c) });
+    });
+  } else {
+    const all = await Promise.all(mode.years.map(y => fetchTopPlatesForYear(y, code, limit)));
+    all.forEach(rows => {
+      rows.forEach(r => {
+        const k = `${r.plate_id}|${r.registration_state || ''}`;
+        const rec = map.get(k) || { plate_id: r.plate_id, registration_state: r.registration_state, c: 0 };
+        rec.c += parseInt(r.c);
+        map.set(k, rec);
+      });
+    });
+  }
+  return map;
+}
+
+function windowLabel(mode) {
+  if (mode.type === 'month') return mode.month.label;
+  const ys = [...mode.years].sort((a,b) => a - b);
+  return ys.length > 1 ? `FY${ys[0]}-${String(ys[ys.length-1]).slice(-2)}` : `FY${ys[0]}`;
+}
+
 async function loadWall() {
   const el = document.getElementById('wallTable');
   el.innerHTML = '<div class="loader">Loading top speeders…</div>';
   const sourceEl = document.getElementById('wallSource');
+  const winLabel = windowLabel(wallMode);
   try {
-    let merged, headerLabel;
+    const datasetsUsed = wallMode.type === 'month'
+      ? ['pvqr-7yc4']
+      : wallMode.years.map(y => FY_DATASETS[y]);
+    sourceEl.textContent = datasetsUsed.join(' + ');
 
-    if (wallMode.type === 'month') {
-      const m = wallMode.month;
-      const rows = await sodaGet(datasetUrl('pvqr-7yc4'), {
-        '$select': 'plate_id, registration_state, COUNT(*) as c',
-        '$where': `violation_code=36 AND issue_date >= '${m.start}' AND issue_date < '${m.end}'`,
-        '$group': 'plate_id, registration_state',
-        '$order': 'c DESC',
-        '$limit': '50'
-      });
-      merged = rows.map(r => ({ ...r, c: parseInt(r.c) }));
-      headerLabel = `Tickets (${m.label})`;
-      sourceEl.textContent = 'pvqr-7yc4';
-    } else if (wallMode.years.length === 1) {
-      const y = wallMode.years[0];
-      const rows = await fetchTopPlatesForYear(y, 50);
-      merged = rows.map(r => ({ ...r, c: parseInt(r.c) }));
-      headerLabel = `Tickets (FY${y})`;
-      sourceEl.textContent = FY_DATASETS[y];
-    } else {
-      // Multi-year merge: top 5000 per year by count, summed in-browser
-      const all = await Promise.all(wallMode.years.map(y => fetchTopPlatesForYear(y, 5000)));
-      const map = new Map();
-      all.forEach((rows, idx) => {
-        const y = wallMode.years[idx];
-        rows.forEach(r => {
-          const k = `${r.plate_id}|${r.registration_state || ''}`;
-          const rec = map.get(k) || { plate_id: r.plate_id, registration_state: r.registration_state, c: 0, years: {} };
-          rec.c += parseInt(r.c);
-          rec.years[y] = parseInt(r.c);
-          map.set(k, rec);
+    if (wallMode.vtype === 'both') {
+      // Intersect: plates that hit ≥15 speed AND ≥5 red-light in the window
+      const [speedMap, redMap] = await Promise.all([
+        aggregateWindow(36, wallMode, 5000),
+        aggregateWindow(7, wallMode, 5000)
+      ]);
+      const rows = [];
+      speedMap.forEach((s, k) => {
+        const r = redMap.get(k);
+        if (!r) return;
+        if (s.c < 15 || r.c < 5) return;
+        rows.push({
+          plate_id: s.plate_id,
+          registration_state: s.registration_state,
+          speed: s.c,
+          red: r.c,
+          score: s.c + r.c
         });
       });
-      merged = Array.from(map.values()).sort((a, b) => b.c - a.c).slice(0, 50);
-      const ys = [...wallMode.years].sort((a, b) => a - b);
-      const span = ys.length > 1 ? `FY${ys[0]}-${String(ys[ys.length-1]).slice(-2)}` : `FY${ys[0]}`;
-      headerLabel = `Tickets (${span})`;
-      sourceEl.textContent = wallMode.years.map(y => FY_DATASETS[y]).join(' + ');
+      rows.sort((a, b) => b.score - a.score);
+      const top = rows.slice(0, 50);
+
+      if (!top.length) {
+        el.innerHTML = `<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No plates in this window crossed both DVAP thresholds (≥15 speed AND ≥5 red-light).</div>`;
+        return;
+      }
+
+      let html = `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5"><strong style="color:var(--yellow)">${top.length} plates</strong> in ${winLabel} crossed both DVAP thresholds — each is legally boot-eligible on two separate statutory grounds.</div>`;
+      html += `<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>Speed cam</th><th>Red-light</th><th>Combined fines</th></tr></thead><tbody>`;
+      top.forEach((r, i) => {
+        const fines = (r.speed + r.red) * 50;
+        html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state}')">
+          <td class="rank-n">#${i+1}</td>
+          <td><span class="plate-chip">${r.plate_id}</span></td>
+          <td class="vehicle-desc">${r.registration_state || '—'}</td>
+          <td class="ticket-count">${formatNum(r.speed)}</td>
+          <td class="ticket-count" style="color:var(--red)">${formatNum(r.red)}</td>
+          <td class="fine-total">${fmtUSD(fines)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      el.innerHTML = html;
+      return;
     }
+
+    // Single-type modes: speed or red-light
+    const v = VTYPE[wallMode.vtype];
+    const map = await aggregateWindow(v.code, wallMode, 5000);
+    const merged = Array.from(map.values()).sort((a, b) => b.c - a.c).slice(0, 50);
 
     if (!merged.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
 
+    const headerLabel = `${v.short} tickets (${winLabel})`;
     let html = `<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>${headerLabel}</th><th>Fine estimate</th></tr></thead><tbody>`;
     merged.forEach((r, i) => {
       const count = r.c;

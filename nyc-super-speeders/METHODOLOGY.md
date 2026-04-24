@@ -6,15 +6,16 @@ Live companion to the [NYC Traffic Collisions deep dive](https://joshgreenman197
 
 | # | Dataset | 4x4 ID | Role |
 |---|---|---|---|
-| 1 | Parking Violations Issued – Fiscal Year 2026 | [`pvqr-7yc4`](https://data.cityofnewyork.us/d/pvqr-7yc4) | **Primary.** Speed-camera rows isolated via `violation_code = 36` (equivalent to description `PHTO SCHOOL ZN SPEED VIOLATION`). Scope is NYC Fiscal Year 2026 (July 1, 2025 – June 30, 2026), the freshest live-updating dataset. Every metric on this page — top plates, DVAP cohort, escalation curves, hour/day patterns, map — starts here. |
+| 1 | Parking Violations Issued – Fiscal Year 2026 | [`pvqr-7yc4`](https://data.cityofnewyork.us/d/pvqr-7yc4) | **Primary.** Speed-camera rows isolated via `violation_code = 36` (equivalent to description `PHTO SCHOOL ZN SPEED VIOLATION`); red-light camera rows via `violation_code = 7` (`FAILURE TO STOP AT RED LIGHT`, essentially all camera-issued — 503,067 of 503,072 FY2026 rows are agency-coded `V`). Scope is NYC Fiscal Year 2026 (July 1, 2025 – June 30, 2026), the freshest live-updating dataset. Every metric on this page — top plates, DVAP cohort, escalation curves, hour/day patterns, map — starts here. Multi-year views also read from the prior fiscal-year files (`m5vz-tzqv` FY25, `8zf9-spf8` FY24, `869v-vr48` FY23, `7mxj-7a6y` FY22, `kvfd-bves` FY21). |
 | 2 | Motor Vehicle Collisions – Crashes | [`h9gi-nx95`](https://data.cityofnewyork.us/d/h9gi-nx95) | Cross-reference. Used in "Same Places, Same People" to compare camera-ticket density against pedestrian + cyclist killed/injured totals by borough (filtered to on-or-after July 1, 2025 to match the ticket window). |
 
 ## Definitions
 
 - **Super speeder** — in this project, any plate with ≥15 school-zone speed-camera tickets during NYC Fiscal Year 2026 (the dataset's window). The DVAP statutory threshold is ≥15 in a rolling 12-month window; because pvqr-7yc4 is fiscal-year-scoped, FY2026 is a 12-month proxy that becomes an exact match as the fiscal year closes on June 30, 2026.
+- **Dual-threshold plate** (Both view on the Most-ticketed-plates table) — a plate that crosses *both* DVAP statutory thresholds in the selected window: ≥15 school-zone speed-camera tickets AND ≥5 red-light-camera tickets. Either threshold alone triggers DVAP boot eligibility; dual-threshold plates are doubly eligible and represent drivers exhibiting two distinct dangerous patterns (unsafe speed and failure to stop at red lights).
+- **Camera ticket** — speed-camera citation (code 36) or red-light-camera citation (code 7) issued by NYC DOT. Does not include NYPD officer-issued red-light or speed tickets.
 - **DVAP status** (on the plate lookup dossier) — Red: ≥15 FY2026 tickets (legally eligible for booting). Amber: 10–14 (approaching). Green: <10.
 - **Window** — NYC Fiscal Year 2026, July 1, 2025 – June 30, 2026. Hero counters reflect live cumulative totals within that window.
-- **Camera ticket** — a speed-camera citation issued by NYC DOT in a designated school zone. Does not include red-light camera citations (not in this v1) or NYPD officer-issued speed tickets.
 - **Fine estimate** — `$50 × ticket count`. $50 is the statutory NYC school-zone speed-camera fine. This estimate does not account for late fees, judge dismissals, or unpaid balances.
 
 ## Filters and queries
