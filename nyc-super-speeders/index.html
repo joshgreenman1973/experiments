@@ -329,6 +329,7 @@ footer .foot-row { margin-bottom: 4px; }
           <button type="button" class="pill" data-years="2026,2025,2024">FY2024-26</button>
           <button type="button" class="pill" data-years="2026,2025,2024,2023">FY2023-26</button>
           <button type="button" class="pill" data-years="2026,2025,2024,2023,2022,2021">FY2021-26</button>
+          <button type="button" class="pill" data-years="2026,2025,2024,2023,2022,2021,2020,2019,2018,2017,2016,2015,2014">All years (FY14-26)</button>
           <button type="button" class="pill" data-mode="month">By month</button>
         </div>
       </div>
@@ -338,7 +339,7 @@ footer .foot-row { margin-bottom: 4px; }
       </div>
     </div>
     <div id="wallTable"><div class="loader">Loading top speeders…</div></div>
-    <div class="disclosure">Fine estimate is $50 × ticket count. Fine totals do not reflect late fees, payments, or disputes. See <a href="./METHODOLOGY.md" style="color:var(--yellow)">methodology</a>.</div>
+    <div class="disclosure">Base fines = $50 × ticket count (statutory base for school-zone speed and red-light camera violations, flat with no per-violation escalation). Excludes $25 late fee, $25 NYS public safety fee, DMV add-ons, interest, payments, and disputes — real billed exposure can run 1.5×+ for unpaid plates. See <a href="./METHODOLOGY.md" style="color:var(--yellow)">methodology</a>.</div>
   </div>
 </section>
 
@@ -729,15 +730,26 @@ async function loadWhy() {
 }
 
 // ===== WALL OF SHAME =====
-// Parking Violations Issued datasets, keyed by fiscal year
+// Parking Violations Issued datasets, keyed by fiscal year.
+// NYC's school-zone speed-camera program launched mid-FY2014, so FY2014 has
+// only a partial year of code-36 data; we include it in "all years" totals
+// but the long tail for speed cameras effectively starts FY2015.
 const FY_DATASETS = {
   2026: 'pvqr-7yc4',
   2025: 'm5vz-tzqv',
   2024: '8zf9-spf8',
   2023: '869v-vr48',
   2022: '7mxj-7a6y',
-  2021: 'kvfd-bves'
+  2021: 'kvfd-bves',
+  2020: 'p7t3-5i9s',
+  2019: 'faiq-9dfq',
+  2018: 'a5td-mswe',
+  2017: '2bnn-yakx',
+  2016: 'kiv2-tbus',
+  2015: 'c284-tqph',
+  2014: 'jt7v-77mi'
 };
+const ALL_YEARS = Object.keys(FY_DATASETS).map(Number).sort((a,b) => b - a);
 
 // wall selection state
 //   vtype: 'speed' | 'red' | 'both'
@@ -976,7 +988,7 @@ async function loadWall() {
           { key: 'combined', label: 'Combined', sortable: true, defaultDir: 'desc', defaultSort: true,
             accessor: r => r.combined,
             render: r => `<td class="ticket-count" style="color:var(--yellow)">${formatNum(r.combined)}</td>` },
-          { key: 'fines', label: 'Fine estimate', sortable: true, defaultDir: 'desc',
+          { key: 'fines', label: 'Base fines', sortable: true, defaultDir: 'desc',
             accessor: r => r.fines,
             render: r => `<td class="fine-total">${fmtUSD(r.fines)}</td>` }
         ],
@@ -1012,7 +1024,7 @@ async function loadWall() {
         { key: 'count', label: `${v.short} tickets (${winLabel})`, sortable: true, defaultDir: 'desc', defaultSort: true,
           accessor: r => r.count,
           render: r => `<td class="ticket-count">${formatNum(r.count)}</td>` },
-        { key: 'fines', label: 'Fine estimate', sortable: true, defaultDir: 'desc',
+        { key: 'fines', label: 'Base fines', sortable: true, defaultDir: 'desc',
           accessor: r => r.fines,
           render: r => `<td class="fine-total">${fmtUSD(r.fines)}</td>` }
       ],

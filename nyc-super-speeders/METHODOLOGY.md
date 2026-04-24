@@ -16,7 +16,7 @@ Live companion to the [NYC Traffic Collisions deep dive](https://joshgreenman197
 - **Camera ticket** — speed-camera citation (code 36) or red-light-camera citation (code 7) issued by NYC DOT. Does not include NYPD officer-issued red-light or speed tickets.
 - **DVAP status** (on the plate lookup dossier) — Red: ≥15 FY2026 tickets (legally eligible for booting). Amber: 10–14 (approaching). Green: <10.
 - **Window** — NYC Fiscal Year 2026, July 1, 2025 – June 30, 2026. Hero counters reflect live cumulative totals within that window.
-- **Fine estimate** — `$50 × ticket count`. $50 is the statutory NYC school-zone speed-camera fine. This estimate does not account for late fees, judge dismissals, or unpaid balances.
+- **Base fines** — `$50 × ticket count`. $50 is the statutory NYC base fine for both school-zone speed-camera violations (NY VTL §1180-b) and red-light camera violations, flat with no per-violation escalation. The estimate excludes the $25 late-payment fee (applied after 30 days unpaid), the $25 NYS public safety fee, DMV add-ons, accrued interest, dismissals, and payment status. Real billed exposure for an unpaid plate can reasonably run 1.5× the base-fine figure.
 
 ## Filters and queries
 
