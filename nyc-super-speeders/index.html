@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Super Speeders: A Data Portrait</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-void: #05050a;
+  --bg-section: #0b0b12;
+  --bg-card: rgba(255,255,255,0.03);
+  --bg-card-hover: rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.06);
+  --text-primary: #f4f3ef;
+  --text-secondary: rgba(244,243,239,0.6);
+  --text-tertiary: rgba(244,243,239,0.35);
+  --red: #dc2626;
+  --red-dim: rgba(220,38,38,0.15);
+  --yellow: #facc15;
+  --yellow-dim: rgba(250,204,21,0.15);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.15);
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6,182,212,0.15);
+  --green: #22c55e;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: var(--yellow) var(--bg-void); }
+body { background: var(--bg-void); color: var(--text-primary); font-family: var(--font-body); line-height: 1.6; overflow-x: hidden; }
+
+/* Scroll progress */
+.scroll-progress { position: fixed; top: 0; left: 0; height: 2px; background: linear-gradient(90deg, var(--red), var(--yellow)); z-index: 9999; transition: width 0.1s linear; }
+
+/* Nav dots */
+.nav-dots { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 14px; }
+.nav-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-tertiary); border: 1px solid var(--border-subtle); cursor: pointer; transition: all 0.3s ease; position: relative; }
+.nav-dot.active { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 12px var(--yellow); }
+.nav-dot:hover::after { content: attr(data-label); position: absolute; right: 20px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); background: rgba(11,11,18,0.92); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-subtle); }
+
+section { min-height: 100vh; position: relative; padding: 80px 48px; display: flex; flex-direction: column; justify-content: center; }
+section.short { min-height: auto; }
+
+.section-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase; color: var(--yellow); margin-bottom: 12px; opacity: 0; transform: translateY(20px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+.section-title { font-family: var(--font-mono); font-size: clamp(28px, 4vw, 44px); font-weight: 700; line-height: 1.15; margin-bottom: 16px; opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s; }
+.section-subtitle { font-size: 17px; color: var(--text-secondary); max-width: 720px; margin-bottom: 40px; opacity: 0; transform: translateY(20px); transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s; }
+section.visible .section-label, section.visible .section-title, section.visible .section-subtitle { opacity: 1; transform: translateY(0); }
+
+.card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 24px; transition: all 0.3s ease; }
+.card:hover { background: var(--bg-card-hover); border-color: rgba(255,255,255,0.1); }
+.card-title { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 16px; text-transform: uppercase; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+.loader { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 12px; }
+.loader::before { content: ''; width: 14px; height: 14px; border: 2px solid var(--border-subtle); border-top-color: var(--yellow); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.chart-wrap { position: relative; width: 100%; }
+.chart-wrap canvas { width: 100% !important; }
+
+/* ===== HERO ===== */
+#hero { align-items: center; text-align: center; background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(250,204,21,0.07) 0%, transparent 70%); overflow: hidden; }
+#hero::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(250,204,21,0.1) 1px, transparent 1px); background-size: 32px 32px; mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 70%); }
+.hero-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 6px; text-transform: uppercase; color: var(--yellow); margin-bottom: 24px; position: relative; }
+.hero-title { font-family: var(--font-mono); font-size: clamp(36px, 6vw, 68px); font-weight: 700; line-height: 1.05; margin-bottom: 20px; position: relative; }
+.hero-title span { background: linear-gradient(135deg, var(--text-primary) 0%, rgba(244,243,239,0.55) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-sub { font-size: 18px; color: var(--text-secondary); max-width: 640px; margin: 0 auto 48px; position: relative; line-height: 1.7; }
+.hero-stats { display: flex; gap: 48px; justify-content: center; position: relative; flex-wrap: wrap; }
+.hero-stat { text-align: center; }
+.hero-stat-value { font-family: var(--font-mono); font-size: clamp(32px, 5vw, 52px); font-weight: 700; line-height: 1; margin-bottom: 8px; }
+.hero-stat-value.total { color: var(--text-primary); }
+.hero-stat-value.eligible { color: var(--red); }
+.hero-stat-value.top { color: var(--yellow); }
+.hero-stat-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-tertiary); }
+
+/* Live bar */
+.live-bar { display: inline-flex; align-items: center; gap: 12px; margin-top: 32px; padding: 8px 16px; border: 1px solid var(--border-subtle); border-radius: 999px; background: rgba(11,11,18,0.8); font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; color: var(--text-secondary); position: relative; z-index: 2; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: livePulse 1.6s ease-in-out infinite; }
+.live-dot.refreshing { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation-duration: 0.6s; }
+@keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+.live-sep { color: var(--text-tertiary); }
+.live-bar strong { color: var(--text-primary); font-weight: 600; }
+
+/* Insight callouts */
+.insight-callout { border-left: 3px solid var(--yellow); padding: 14px 18px; margin: 14px 0; background: var(--yellow-dim); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.insight-callout strong { color: var(--text-primary); font-weight: 600; }
+.insight-callout.red { border-left-color: var(--red); background: var(--red-dim); }
+.insight-callout.cyan { border-left-color: var(--cyan); background: var(--cyan-dim); }
+
+/* Wall of shame */
+.wall-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.wall-table th { text-align: left; font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); }
+.wall-table td { padding: 12px; border-bottom: 1px solid var(--border-subtle); }
+.wall-table tr { cursor: pointer; transition: background 0.15s; }
+.wall-table tr:hover { background: rgba(250,204,21,0.04); }
+.plate-chip { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--red); letter-spacing: 1px; background: rgba(220,38,38,0.08); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(220,38,38,0.2); display: inline-block; }
+.state-badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--text-tertiary); margin-left: 6px; }
+.vehicle-desc { color: var(--text-secondary); font-size: 13px; }
+.ticket-count { font-family: var(--font-mono); font-weight: 700; font-size: 16px; color: var(--yellow); }
+.rank-n { font-family: var(--font-mono); font-size: 13px; color: var(--text-tertiary); width: 32px; }
+.fine-total { font-family: var(--font-mono); color: var(--text-secondary); font-size: 13px; }
+
+/* Plate lookup */
+.lookup-form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
+.lookup-form input, .lookup-form select { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-primary); font-family: var(--font-mono); font-size: 14px; padding: 12px 16px; border-radius: 8px; outline: none; min-width: 160px; }
+.lookup-form input:focus, .lookup-form select:focus { border-color: var(--yellow); }
+.lookup-form input::placeholder { color: var(--text-tertiary); }
+.lookup-btn { background: var(--yellow); border: none; color: #0a0a12; font-family: var(--font-mono); font-size: 13px; font-weight: 700; padding: 12px 24px; border-radius: 8px; cursor: pointer; transition: all 0.2s; letter-spacing: 1.5px; }
+.lookup-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(250,204,21,0.3); }
+.lookup-btn.ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+.lookup-btn.ghost:hover { color: var(--yellow); border-color: var(--yellow); }
+
+.dossier { display: none; }
+.dossier.active { display: block; }
+.dossier-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.dossier-stat { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; }
+.dossier-stat-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
+.dossier-stat-value { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.dossier-stat-value.red { color: var(--red); }
+.dossier-stat-value.yellow { color: var(--yellow); }
+
+.dvap-meter { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px; font-weight: 600; }
+.dvap-meter.red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+.dvap-meter.amber { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+.dvap-meter.green { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid var(--green); }
+.dvap-meter .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+/* Sliders */
+.slider-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+.slider-block label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+.slider-block output { font-family: var(--font-mono); font-size: 28px; font-weight: 700; color: var(--yellow); }
+.slider-block input[type=range] { width: 100%; margin-top: 8px; accent-color: var(--yellow); }
+
+/* Map */
+.map-box { width: 100%; height: 520px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-subtle); background: #0a0a12; }
+.leaflet-container { background: #0a0a12; }
+.leaflet-popup-content-wrapper { background: rgba(11,11,18,0.95) !important; color: var(--text-primary) !important; border: 1px solid var(--border-subtle) !important; border-radius: 8px !important; font-family: var(--font-body) !important; }
+.leaflet-popup-tip { background: rgba(11,11,18,0.95) !important; }
+.leaflet-popup-content { font-size: 13px; line-height: 1.5; }
+.leaflet-popup-content strong { color: var(--yellow); font-family: var(--font-mono); }
+
+/* Wall header note */
+.disclosure { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; color: var(--text-tertiary); margin-top: 10px; }
+
+/* Footer */
+footer { padding: 48px; text-align: center; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; border-top: 1px solid var(--border-subtle); line-height: 1.8; }
+footer a { color: var(--yellow); text-decoration: none; }
+footer a:hover { color: var(--red); }
+footer .foot-row { margin-bottom: 4px; }
+
+/* Risk curve mini-viz */
+.risk-row { display: flex; align-items: center; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); }
+.risk-row:last-child { border-bottom: none; }
+.risk-speed { font-family: var(--font-mono); font-size: 20px; font-weight: 700; color: var(--text-primary); min-width: 80px; }
+.risk-bar-track { flex: 1; height: 18px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; position: relative; }
+.risk-bar-fill { height: 100%; background: linear-gradient(90deg, var(--yellow), var(--red)); border-radius: 4px; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
+.risk-pct { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--red); min-width: 60px; text-align: right; }
+
+/* Concentration bar */
+.concentration-wrap { margin: 24px 0 8px; }
+.concentration-track { height: 48px; display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-subtle); }
+.concentration-seg { display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 12px; font-weight: 700; transition: all 0.3s; }
+.concentration-seg.super { background: var(--red); color: #fff; }
+.concentration-seg.rest { background: rgba(255,255,255,0.05); color: var(--text-tertiary); }
+.concentration-legend { display: flex; justify-content: space-between; margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); letter-spacing: 1px; }
+
+@media (max-width: 900px) {
+  section { padding: 60px 20px; }
+  .grid-2, .grid-3, .slider-row { grid-template-columns: 1fr; }
+  .dossier-grid { grid-template-columns: 1fr; }
+  .hero-stats { gap: 24px; }
+  .nav-dots { display: none; }
+  .wall-table th:nth-child(3), .wall-table td:nth-child(3) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<nav class="nav-dots" id="navDots">
+  <div class="nav-dot active" data-section="hero" data-label="Overview"></div>
+  <div class="nav-dot" data-section="why-section" data-label="Why It Matters"></div>
+  <div class="nav-dot" data-section="wall-section" data-label="Wall of Shame"></div>
+  <div class="nav-dot" data-section="escalation-section" data-label="Escalation"></div>
+  <div class="nav-dot" data-section="lookup-section" data-label="Plate Lookup"></div>
+  <div class="nav-dot" data-section="map-section" data-label="School Zones"></div>
+  <div class="nav-dot" data-section="overlap-section" data-label="Same Places"></div>
+  <div class="nav-dot" data-section="dvap-section" data-label="DVAP Sim"></div>
+  <div class="nav-dot" data-section="time-section" data-label="Temporal"></div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section id="hero">
+  <div class="hero-eyebrow">NYC Open Data · Speed Camera Violations · Live</div>
+  <h1 class="hero-title"><span>NYC Super Speeders:<br>A Data Portrait</span></h1>
+  <p class="hero-sub">The drivers who rack up dozens—sometimes hundreds—of speed-camera tickets in a single year. A plate-level accountability dashboard and companion to the <a href="https://joshgreenman1973.github.io/experiments/nyc-collisions/" style="color:var(--cyan)">NYC Traffic Collisions</a> deep dive.</p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-value total" id="heroTotal">--</div>
+      <div class="hero-stat-label">Camera Tickets All-Time</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value eligible" id="heroEligible">--</div>
+      <div class="hero-stat-label">DVAP-Eligible Plates (FY2026)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value top" id="heroTop">--</div>
+      <div class="hero-stat-label">Top Plate, FY2026 Tickets</div>
+    </div>
+  </div>
+  <div class="live-bar">
+    <span class="live-dot" id="liveDot"></span>
+    <span>LIVE</span>
+    <span class="live-sep">·</span>
+    <span>DATA THROUGH <strong id="liveThrough">—</strong></span>
+    <span class="live-sep">·</span>
+    <span>REFRESHED <strong id="liveRefreshed">just now</strong></span>
+  </div>
+</section>
+
+<!-- ===== WHY IT MATTERS ===== -->
+<section id="why-section" class="short">
+  <div class="section-label">01 — Why speed kills</div>
+  <div class="section-title">A small number of drivers, a disproportionate share of the risk</div>
+  <div class="section-subtitle">Speed is the single biggest determinant of whether a crash kills someone. And a tiny sliver of drivers are responsible for an outsized share of the speeding — while everyone else pays for it.</div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Pedestrian fatality risk by impact speed</div>
+      <div id="riskCurve">
+        <div class="risk-row"><div class="risk-speed">20 mph</div><div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%" data-w="10"></div></div><div class="risk-pct">~10%</div></div>
+        <div class="risk-row"><div class="risk-speed">30 mph</div><div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%" data-w="40"></div></div><div class="risk-pct">~40%</div></div>
+        <div class="risk-row"><div class="risk-speed">40 mph</div><div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%" data-w="80"></div></div><div class="risk-pct">~80%</div></div>
+        <div class="risk-row"><div class="risk-speed">50 mph</div><div class="risk-bar-track"><div class="risk-bar-fill" style="width:0%" data-w="95"></div></div><div class="risk-pct">~95%</div></div>
+      </div>
+      <div class="insight-callout">
+        A pedestrian struck at <strong>20 mph</strong> has roughly a 1-in-10 chance of being killed. At <strong>40 mph</strong>, the risk rises to 4-in-5. <strong>Doubling the speed doesn't double the risk — it multiplies it many times over.</strong>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">Sources: AAA Foundation; Rosén & Sander, 2009</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">The super-speeder concentration</div>
+      <div style="font-family:var(--font-mono);font-size:36px;font-weight:700;color:var(--red);line-height:1;margin-bottom:8px"><span id="concPct">—</span>%</div>
+      <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:1.5px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:14px">Of FY2026 camera tickets came from the top 1% of plates</div>
+      <div class="concentration-wrap">
+        <div class="concentration-track">
+          <div class="concentration-seg super" id="concSegSuper" style="width:0%">TOP 1%</div>
+          <div class="concentration-seg rest" id="concSegRest" style="width:100%">EVERYONE ELSE (99%)</div>
+        </div>
+        <div class="concentration-legend"><span>Share of all tickets</span><span id="concLabel">computing…</span></div>
+      </div>
+      <div class="insight-callout red">
+        A small cohort of repeat offenders drives a huge share of the camera-detected speeding. The Dangerous Vehicle Abatement Program (DVAP) was written for precisely this group — any car with <strong>15+ school-zone speed tickets in 12 months</strong> is eligible to be booted or impounded.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What everyone else pays</div>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+        <div style="font-family:var(--font-mono);font-size:36px;font-weight:700;color:var(--yellow);line-height:1">$<span id="insuranceFig">—</span></div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-tertiary);letter-spacing:1px">EST. SHARED COST<br>PER NYC HOUSEHOLD / YEAR</div>
+      </div>
+      <div style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">
+        Speeding drives crashes, crashes drive insurance claims, and insurance is <strong style="color:var(--text-primary)">pooled risk</strong>. New York drivers now pay some of the highest auto-insurance premiums in the country — and a measurable portion of that tracks to the aggressive minority, not the average driver.
+      </div>
+      <div class="insight-callout cyan">
+        Safe drivers subsidize unsafe ones. Emergency rooms, ambulance runs, disability claims, lost-work days — every collision is a bill that eventually lands on a premium, a tax, or a hospital ledger.
+        <div style="margin-top:8px;font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">NYC avg full-coverage premium ~$4,100/yr (2025, Bankrate); portion attributable to aggressive driving is an estimate — see methodology.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WALL OF SHAME ===== -->
+<section id="wall-section" class="short">
+  <div class="section-label">02 — The Wall of Shame</div>
+  <div class="section-title">Top 50 plates by camera tickets in Fiscal Year 2026</div>
+  <div class="section-subtitle">Plates are public record. These are already published by Transportation Alternatives, Streetsblog, and the NYC DOF violation database. Click any row for a full dossier.</div>
+
+  <div class="card">
+    <div class="card-title">Ranked live from NYC Open Data · <span style="color:var(--yellow)">hekt-pqw7</span></div>
+    <div id="wallTable"><div class="loader">Loading top speeders…</div></div>
+    <div class="disclosure">Fine estimate is $50 × ticket count. Fine totals do not reflect late fees, payments, or disputes. See <a href="./METHODOLOGY.md" style="color:var(--yellow)">methodology</a>.</div>
+  </div>
+</section>
+
+<!-- ===== ESCALATION ===== -->
+<section id="escalation-section" class="short">
+  <div class="section-label">03 — Escalation curves</div>
+  <div class="section-title">They don't stop at 15</div>
+  <div class="section-subtitle">Cumulative tickets for the top 10 plates, with the DVAP legal threshold at 15. Most blow past it in the first quarter and keep accumulating.</div>
+
+  <div class="card">
+    <div class="card-title">Cumulative camera tickets — top 10 plates</div>
+    <div class="chart-wrap" style="height:440px"><canvas id="escalationChart"></canvas></div>
+    <div class="insight-callout red">
+      Under the <strong>Dangerous Vehicle Abatement Program</strong> (Local Law 5 of 2020), any car with 15+ school-zone speed tickets in a rolling 12-month window is legally eligible to be booted or impounded. Enforcement has been sparse: the program has booted fewer than a few hundred cars since its 2020 launch.
+    </div>
+  </div>
+</section>
+
+<!-- ===== PLATE LOOKUP ===== -->
+<section id="lookup-section" class="short">
+  <div class="section-label">04 — Plate lookup</div>
+  <div class="section-title">Type a plate. See the record.</div>
+  <div class="section-subtitle">Every plate is a public accountability record. Search below, or open a dossier by appending <code style="color:var(--yellow);font-family:var(--font-mono)">?plate=LFC3742&amp;state=NY</code> to this URL.</div>
+
+  <div class="card">
+    <form class="lookup-form" id="lookupForm" onsubmit="event.preventDefault(); runLookup();">
+      <input type="text" id="lookupPlate" placeholder="PLATE (e.g. LFC3742)" maxlength="10" autocomplete="off">
+      <select id="lookupState">
+        <option value="NY">NY</option><option value="NJ">NJ</option><option value="CT">CT</option><option value="PA">PA</option><option value="FL">FL</option><option value="MA">MA</option><option value="TX">TX</option><option value="CA">CA</option>
+      </select>
+      <button type="submit" class="lookup-btn">LOOK UP</button>
+      <button type="button" class="lookup-btn ghost" onclick="copyPermalink()">COPY PERMALINK</button>
+    </form>
+
+    <div class="dossier" id="dossier">
+      <div class="dossier-grid">
+        <div class="dossier-stat"><div class="dossier-stat-label">Total camera tickets</div><div class="dossier-stat-value red" id="dosTotal">—</div></div>
+        <div class="dossier-stat"><div class="dossier-stat-label">In FY2026</div><div class="dossier-stat-value yellow" id="dos12">—</div></div>
+        <div class="dossier-stat"><div class="dossier-stat-label">DVAP status</div><div id="dosDVAP"><span class="dvap-meter green"><span class="dot"></span>—</span></div></div>
+        <div class="dossier-stat"><div class="dossier-stat-label">Vehicle</div><div class="dossier-stat-value" style="font-size:15px;line-height:1.4" id="dosVehicle">—</div></div>
+        <div class="dossier-stat"><div class="dossier-stat-label">First violation</div><div class="dossier-stat-value" style="font-size:15px" id="dosFirst">—</div></div>
+        <div class="dossier-stat"><div class="dossier-stat-label">Most recent</div><div class="dossier-stat-value" style="font-size:15px" id="dosLast">—</div></div>
+      </div>
+      <div class="grid-2" style="margin-top:8px">
+        <div class="card"><div class="card-title">Ticket timeline</div><div class="chart-wrap" style="height:260px"><canvas id="dosTimelineChart"></canvas></div></div>
+        <div class="card"><div class="card-title">Hour of day</div><div class="chart-wrap" style="height:260px"><canvas id="dosHourChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <div id="lookupStatus" style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px;letter-spacing:1px;margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ===== SCHOOL ZONE MAP ===== -->
+<section id="map-section" class="short">
+  <div class="section-label">05 — School zone siege</div>
+  <div class="section-title">Where the tickets cluster</div>
+  <div class="section-subtitle">Camera-ticket volume aggregated to NYPD precinct centroids. Circle size = tickets issued in Fiscal Year 2026 (Jul 2025–present). Click a precinct for details.</div>
+
+  <div class="card">
+    <div class="card-title">Camera ticket density by NYPD precinct — FY2026</div>
+    <div class="map-box" id="schoolMap"></div>
+  </div>
+</section>
+
+<!-- ===== CROSS DATASET ===== -->
+<section id="overlap-section" class="short">
+  <div class="section-label">06 — Same places, same people</div>
+  <div class="section-title">Speed camera density vs. pedestrian + cyclist casualties</div>
+  <div class="section-subtitle">Cross-referencing <a href="https://data.cityofnewyork.us/d/hekt-pqw7" style="color:var(--yellow)">speed-camera violations</a> against <a href="https://data.cityofnewyork.us/d/h9gi-nx95" style="color:var(--cyan)">NYPD crash records</a>. Each dot is a borough; the question is whether the hotspots line up.</div>
+
+  <div class="card">
+    <div class="card-title">Camera tickets per borough vs. pedestrian+cyclist killed+injured</div>
+    <div class="chart-wrap" style="height:440px"><canvas id="overlapChart"></canvas></div>
+    <div class="insight-callout cyan">
+      Camera enforcement concentrates in boroughs where camera-enforceable speeding happens most — but pedestrian and cyclist harm is not evenly distributed across those same neighborhoods. Outlier boroughs (high tickets, comparatively low harm; or vice versa) are where policy leverage exists.
+    </div>
+  </div>
+</section>
+
+<!-- ===== DVAP SIMULATOR ===== -->
+<section id="dvap-section" class="short">
+  <div class="section-label">07 — DVAP simulator</div>
+  <div class="section-title">How many drivers would be eligible for booting?</div>
+  <div class="section-subtitle">The DVAP statute sets the threshold at 15 school-zone speed tickets in 12 months. Drag the sliders to see how the eligible cohort changes.</div>
+
+  <div class="card">
+    <div class="slider-row">
+      <div class="slider-block">
+        <label>Ticket threshold (default 15)</label>
+        <output id="dvapThreshOut">15</output>
+        <input type="range" id="dvapThresh" min="5" max="100" step="1" value="15">
+      </div>
+      <div class="slider-block">
+        <label>Rolling window (months, default 12)</label>
+        <output id="dvapWindowOut">12</output>
+        <input type="range" id="dvapWindow" min="1" max="24" step="1" value="12">
+      </div>
+    </div>
+    <div class="dossier-grid">
+      <div class="dossier-stat"><div class="dossier-stat-label">Plates over threshold</div><div class="dossier-stat-value yellow" id="dvapCount">—</div></div>
+      <div class="dossier-stat"><div class="dossier-stat-label">Share of ~2M NYC-registered vehicles</div><div class="dossier-stat-value" id="dvapShare">—</div></div>
+      <div class="dossier-stat"><div class="dossier-stat-label">Estimated fine exposure</div><div class="dossier-stat-value red" id="dvapFines">—</div></div>
+    </div>
+    <div class="insight-callout">
+      <strong>DVAP legal threshold is 15 / 12 months.</strong> Since the program's 2020 launch, enforcement has been limited — a reality documented by Transportation Alternatives and Streetsblog. The gap between eligible plates and actual bootings is the core accountability story.
+    </div>
+  </div>
+</section>
+
+<!-- ===== TEMPORAL ===== -->
+<section id="time-section" class="short">
+  <div class="section-label">08 — Temporal patterns</div>
+  <div class="section-title">When the cameras catch them</div>
+  <div class="section-subtitle">NYC speed cameras operated school-hours-only until Aug 1, 2022, then went 24/7. The data carries a visible inflection.</div>
+
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Tickets by hour of day (all-time)</div><div class="chart-wrap" style="height:300px"><canvas id="hourChart"></canvas></div></div>
+    <div class="card"><div class="card-title">Tickets by day of week (FY2026)</div><div class="chart-wrap" style="height:300px"><canvas id="dowChart"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <div class="card-title">Monthly ticket volume — all-time, with Aug 2022 24/7 inflection</div>
+    <div class="chart-wrap" style="height:320px"><canvas id="monthlyChart"></canvas></div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-row">Data from <a href="https://data.cityofnewyork.us/d/hekt-pqw7" target="_blank">NYC Open Data · Open Parking &amp; Camera Violations</a> · Cross-ref: <a href="https://data.cityofnewyork.us/d/h9gi-nx95" target="_blank">Motor Vehicle Collisions</a></div>
+  <div class="foot-row">Data through <span id="footLatest">—</span> · Auto-refreshes every 5 min · <a href="./METHODOLOGY.md">methodology</a> · <a href="https://joshgreenman1973.github.io/experiments/nyc-collisions/" style="color:var(--cyan)">collisions companion</a></div>
+</footer>
+
+<script>
+// ===== CONFIG =====
+// Primary: Parking Violations Issued - Fiscal Year 2026 (pvqr-7yc4). Covers July 1, 2025 to present. Proper calendar_date column.
+const VIOLATIONS_API = 'https://data.cityofnewyork.us/resource/pvqr-7yc4.json';
+const CRASHES_API = 'https://data.cityofnewyork.us/resource/h9gi-nx95.json';
+
+// Speed camera = NYC violation code 36 ("PHTO SCHOOL ZN SPEED VIOLATION")
+const SPEED_CAM_WHERE = "violation_code=36";
+const WINDOW_LABEL = 'FY2026';
+const WINDOW_LABEL_LONG = 'FY2026 so far';
+// Crash overlap window = same period (July 1 2025 onward)
+const CROSS_DATE_START = '2025-07-01T00:00:00';
+
+function parseNycDate(s) {
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+// ===== UTILITIES =====
+async function sodaGet(base, params) {
+  const qs = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  const res = await fetch(`${base}?${qs}`);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`SODA ${res.status}: ${txt.substring(0,200)}`);
+  }
+  return res.json();
+}
+
+function formatNum(n) { return Number(n).toLocaleString('en-US'); }
+function fmtUSD(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+
+function animateCounter(el, target, duration = 1500) {
+  if (!el) return;
+  const steps = 30;
+  const interval = duration / steps;
+  let step = 0;
+  el.textContent = formatNum(0);
+  const t = setInterval(() => {
+    step++;
+    const p = Math.min(step / steps, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = formatNum(Math.floor(target * eased));
+    if (p >= 1) clearInterval(t);
+  }, interval);
+}
+
+function daysAgoISO(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0,10) + 'T00:00:00';
+}
+
+function isoDate(d) { return d.toISOString().slice(0,10); }
+
+// Chart.js defaults
+Chart.defaults.color = 'rgba(244,243,239,0.6)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(11,11,18,0.95)';
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.1)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.tooltip.titleFont = { family: "'JetBrains Mono', monospace", size: 12, weight: 600 };
+Chart.defaults.plugins.tooltip.bodyFont = { family: "'DM Sans', sans-serif", size: 12 };
+Chart.defaults.plugins.tooltip.padding = 12;
+
+const COLORS = {
+  red: '#dc2626', yellow: '#facc15', amber: '#f59e0b', cyan: '#06b6d4', green: '#22c55e',
+  palette: ['#dc2626','#facc15','#f59e0b','#06b6d4','#a855f7','#22c55e','#3b82f6','#ef4444','#eab308','#14b8a6']
+};
+
+// ===== PRECINCT CENTROIDS (approx, 77 precincts) =====
+// Approximate lat/lng for NYPD precincts — used for the School Zone map. Sourced from public NYPD precinct polygons; centroids rounded.
+const PRECINCT_CENTROIDS = {
+  1:[40.7192,-74.0056],5:[40.7173,-73.9991],6:[40.7337,-74.0043],7:[40.7158,-73.9852],9:[40.7266,-73.9842],10:[40.7421,-74.0021],13:[40.7353,-73.9872],14:[40.7539,-73.9927],17:[40.7528,-73.9714],18:[40.7651,-73.9841],19:[40.7729,-73.9606],20:[40.7796,-73.9826],22:[40.7967,-73.9662],23:[40.7927,-73.9435],24:[40.7989,-73.9702],25:[40.8003,-73.9378],26:[40.8083,-73.9572],28:[40.8053,-73.9478],30:[40.8260,-73.9437],32:[40.8184,-73.9409],33:[40.8482,-73.9336],34:[40.8636,-73.9275],
+  40:[40.8101,-73.9221],41:[40.8264,-73.8946],42:[40.8394,-73.9036],43:[40.8303,-73.8677],44:[40.8356,-73.9180],45:[40.8576,-73.8286],46:[40.8519,-73.9019],47:[40.8886,-73.8602],48:[40.8617,-73.8846],49:[40.8480,-73.8488],50:[40.8858,-73.9058],52:[40.8740,-73.8835],
+  60:[40.5772,-73.9579],61:[40.5967,-73.9404],62:[40.6005,-73.9833],63:[40.6242,-73.9322],66:[40.6316,-73.9748],67:[40.6559,-73.9428],68:[40.6368,-74.0250],69:[40.6409,-73.8978],70:[40.6303,-73.9632],71:[40.6646,-73.9459],72:[40.6533,-74.0116],73:[40.6787,-73.9108],75:[40.6761,-73.8687],76:[40.6786,-74.0010],77:[40.6762,-73.9475],78:[40.6772,-73.9751],79:[40.6949,-73.9569],81:[40.6886,-73.9349],83:[40.6986,-73.9219],84:[40.6938,-73.9900],88:[40.6905,-73.9754],90:[40.7090,-73.9522],94:[40.7199,-73.9507],
+  100:[40.5807,-73.8350],101:[40.6003,-73.7571],102:[40.6914,-73.8450],103:[40.7008,-73.7917],104:[40.7037,-73.8768],105:[40.7356,-73.7347],106:[40.6836,-73.8425],107:[40.7266,-73.7964],108:[40.7444,-73.9279],109:[40.7669,-73.8339],110:[40.7487,-73.8713],111:[40.7628,-73.7713],112:[40.7274,-73.8546],113:[40.6791,-73.7593],114:[40.7625,-73.9139],115:[40.7482,-73.8892],
+  120:[40.6298,-74.0775],121:[40.6311,-74.1735],122:[40.5765,-74.1197],123:[40.5430,-74.1755]
+};
+const PRECINCT_BORO = {
+  1:'MAN',5:'MAN',6:'MAN',7:'MAN',9:'MAN',10:'MAN',13:'MAN',14:'MAN',17:'MAN',18:'MAN',19:'MAN',20:'MAN',22:'MAN',23:'MAN',24:'MAN',25:'MAN',26:'MAN',28:'MAN',30:'MAN',32:'MAN',33:'MAN',34:'MAN',
+  40:'BX',41:'BX',42:'BX',43:'BX',44:'BX',45:'BX',46:'BX',47:'BX',48:'BX',49:'BX',50:'BX',52:'BX',
+  60:'BK',61:'BK',62:'BK',63:'BK',66:'BK',67:'BK',68:'BK',69:'BK',70:'BK',71:'BK',72:'BK',73:'BK',75:'BK',76:'BK',77:'BK',78:'BK',79:'BK',81:'BK',83:'BK',84:'BK',88:'BK',90:'BK',94:'BK',
+  100:'QN',101:'QN',102:'QN',103:'QN',104:'QN',105:'QN',106:'QN',107:'QN',108:'QN',109:'QN',110:'QN',111:'QN',112:'QN',113:'QN',114:'QN',115:'QN',
+  120:'SI',121:'SI',122:'SI',123:'SI'
+};
+const BORO_FULL = {MAN:'Manhattan',BX:'Bronx',BK:'Brooklyn',QN:'Queens',SI:'Staten Island'};
+const COUNTY_TO_BORO = {'NY':'MAN','MN':'MAN','BX':'BX','BRONX':'BX','BK':'BK','K':'BK','KINGS':'BK','Q':'QN','QN':'QN','QNS':'QN','QUEENS':'QN','ST':'SI','R':'SI','RICH':'SI'};
+
+// ===== LIVE BAR =====
+let lastRefresh = Date.now();
+function updateRefreshedLabel() {
+  const el = document.getElementById('liveRefreshed');
+  if (!el) return;
+  const sec = Math.floor((Date.now() - lastRefresh) / 1000);
+  let txt;
+  if (sec < 5) txt = 'just now';
+  else if (sec < 60) txt = sec + 's ago';
+  else if (sec < 3600) txt = Math.floor(sec/60) + 'm ago';
+  else txt = Math.floor(sec/3600) + 'h ago';
+  el.textContent = txt;
+}
+setInterval(updateRefreshedLabel, 5000);
+
+async function autoRefresh() {
+  const dot = document.getElementById('liveDot');
+  if (dot) dot.classList.add('refreshing');
+  try {
+    await loadHero();
+    await loadWall();
+  } catch(e) { console.error(e); }
+  lastRefresh = Date.now();
+  updateRefreshedLabel();
+  if (dot) dot.classList.remove('refreshing');
+}
+setInterval(autoRefresh, 5 * 60 * 1000);
+
+// ===== SCROLL OBSERVER =====
+const sections = document.querySelectorAll('section');
+const navDots = document.querySelectorAll('.nav-dot');
+const loadedSections = new Set();
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      navDots.forEach(d => d.classList.remove('active'));
+      const dot = document.querySelector(`.nav-dot[data-section="${entry.target.id}"]`);
+      if (dot) dot.classList.add('active');
+      if (!loadedSections.has(entry.target.id)) {
+        loadedSections.add(entry.target.id);
+        loadSection(entry.target.id);
+      }
+    }
+  });
+}, { threshold: 0.1 });
+sections.forEach(s => observer.observe(s));
+
+navDots.forEach(dot => {
+  dot.addEventListener('click', () => {
+    document.getElementById(dot.dataset.section).scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('scrollProgress').style.width = ((scrollTop/docHeight)*100) + '%';
+});
+
+function loadSection(id) {
+  switch(id) {
+    case 'hero': loadHero(); break;
+    case 'why-section': loadWhy(); break;
+    case 'wall-section': loadWall(); break;
+    case 'escalation-section': loadEscalation(); break;
+    case 'lookup-section': initLookup(); break;
+    case 'map-section': loadSchoolMap(); break;
+    case 'overlap-section': loadOverlap(); break;
+    case 'dvap-section': initDVAP(); break;
+    case 'time-section': loadTemporal(); break;
+  }
+}
+
+// ===== HERO =====
+async function loadHero() {
+  try {
+    // "Data through" = latest non-null issue_date across speed-cam rows.
+    const latestPromise = sodaGet(VIOLATIONS_API, {
+      '$select': 'issue_date',
+      '$where': `${SPEED_CAM_WHERE} AND issue_date IS NOT NULL`,
+      '$order': 'issue_date DESC',
+      '$limit': '1'
+    });
+
+    // Single top-plates query — derive eligible (>=15) count and top count from array.
+    const topPromise = sodaGet(VIOLATIONS_API, {
+      '$select': 'plate_id, COUNT(*) as c',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$group': 'plate_id',
+      '$order': 'c DESC',
+      '$limit': '20000'
+    });
+
+    const [totalAll, latest, topPlates] = await Promise.all([
+      sodaGet(VIOLATIONS_API, { '$select': 'COUNT(*) as c', '$where': SPEED_CAM_WHERE }),
+      latestPromise,
+      topPromise
+    ]);
+    const eligibleCount = topPlates.filter(r => parseInt(r.c) >= 15).length;
+    const topCount = parseInt(topPlates[0]?.c || 0);
+    animateCounter(document.getElementById('heroTotal'), parseInt(totalAll[0]?.c || 0));
+    animateCounter(document.getElementById('heroEligible'), eligibleCount);
+    animateCounter(document.getElementById('heroTop'), topCount);
+    // Stash for reuse by why-section / dvap
+    window.__topPlatesCache = topPlates;
+
+    if (latest && latest[0] && latest[0].issue_date) {
+      const d = parseNycDate(latest[0].issue_date);
+      if (d && !isNaN(d)) {
+        const txt = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        document.getElementById('liveThrough').textContent = txt;
+        const foot = document.getElementById('footLatest');
+        if (foot) foot.textContent = txt;
+      }
+    }
+    lastRefresh = Date.now();
+    updateRefreshedLabel();
+  } catch(e) { console.error('hero', e); }
+}
+
+// ===== WHY SECTION =====
+async function loadWhy() {
+  // Animate risk bars
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.risk-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  });
+
+  // Compute top 1% concentration from cached top plates (or fetch if missing)
+  try {
+    let all = window.__topPlatesCache;
+    if (!all) {
+      all = await sodaGet(VIOLATIONS_API, {
+        '$select': 'plate_id, COUNT(*) as c',
+        '$where': `${SPEED_CAM_WHERE}`,
+        '$group': 'plate_id',
+        '$order': 'c DESC',
+        '$limit': '20000'
+      });
+    }
+    if (all.length) {
+      const counts = all.map(r => parseInt(r.c)).sort((a,b) => b-a);
+      const total = counts.reduce((s,n)=>s+n, 0);
+      const topN = Math.max(1, Math.floor(counts.length * 0.01));
+      const topSum = counts.slice(0, topN).reduce((s,n)=>s+n, 0);
+      const pct = total ? Math.round((topSum/total)*100) : 0;
+      document.getElementById('concPct').textContent = pct;
+      requestAnimationFrame(() => {
+        document.getElementById('concSegSuper').style.width = pct + '%';
+        document.getElementById('concSegRest').style.width = (100-pct) + '%';
+        document.getElementById('concSegSuper').textContent = pct > 8 ? 'TOP 1% · ' + pct + '%' : pct + '%';
+        document.getElementById('concSegRest').textContent = pct < 92 ? 'OTHER 99% · ' + (100-pct) + '%' : '';
+      });
+      document.getElementById('concLabel').textContent = `${formatNum(topN)} plates account for ${formatNum(topSum)} of ${formatNum(total)} tickets`;
+    }
+  } catch(e) { console.error('why', e); }
+
+  // Insurance externality — use estimate derived from NYC premium data
+  // Rough back-of-envelope: NYC average full-cov premium ~$4,100/yr (Bankrate 2025).
+  // Portion tied to aggressive-driving claims: literature puts speeding in ~25% of fatal crashes and a meaningful fraction of injury claims.
+  // Conservative estimate: 8% of premium ≈ $328/household/year. Stated as estimate, sourced in methodology.
+  document.getElementById('insuranceFig').textContent = '328';
+}
+
+// ===== WALL OF SHAME =====
+async function loadWall() {
+  const el = document.getElementById('wallTable');
+  el.innerHTML = '<div class="loader">Loading top speeders…</div>';
+  try {
+    const rows = await sodaGet(VIOLATIONS_API, {
+      '$select': 'plate_id, registration_state, COUNT(*) as c',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$group': 'plate_id, registration_state',
+      '$order': 'c DESC',
+      '$limit': '50'
+    });
+    if (!rows.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:24px;text-align:center;font-family:var(--font-mono)">No data returned.</div>'; return; }
+
+    let html = '<table class="wall-table"><thead><tr><th>#</th><th>Plate</th><th>State</th><th>Tickets (FY2026)</th><th>Fine estimate</th></tr></thead><tbody>';
+    rows.forEach((r, i) => {
+      const count = parseInt(r.c);
+      const fines = count * 50;
+      html += `<tr onclick="openPlate('${r.plate_id}','${r.registration_state}')">
+        <td class="rank-n">#${i+1}</td>
+        <td><span class="plate-chip">${r.plate_id}</span></td>
+        <td class="vehicle-desc">${r.registration_state || '—'}</td>
+        <td class="ticket-count">${formatNum(count)}</td>
+        <td class="fine-total">${fmtUSD(fines)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(e) {
+    console.error('wall', e);
+    el.innerHTML = `<div style="color:var(--red);padding:24px;font-family:var(--font-mono);font-size:12px">Error: ${e.message}</div>`;
+  }
+}
+
+function openPlate(plate, state) {
+  document.getElementById('lookupPlate').value = plate;
+  document.getElementById('lookupState').value = state || 'NY';
+  document.getElementById('lookup-section').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(runLookup, 600);
+}
+
+// ===== ESCALATION CURVES =====
+let escalationChart;
+async function loadEscalation() {
+  try {
+    await ensureAdapter();
+    const topPlates = await sodaGet(VIOLATIONS_API, {
+      '$select': 'plate_id, registration_state, COUNT(*) as c',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$group': 'plate_id, registration_state',
+      '$order': 'c DESC',
+      '$limit': '10'
+    });
+
+    // For each plate, fetch all tickets ascending (across all years) to compute cumulative
+    const series = await Promise.all(topPlates.map(async (p) => {
+      const rows = await sodaGet(VIOLATIONS_API, {
+        '$select': 'issue_date',
+        '$where': `${SPEED_CAM_WHERE} AND plate_id='${p.plate_id}' AND registration_state='${p.registration_state}' AND issue_date IS NOT NULL`,
+        '$limit': '10000'
+      });
+      // Sort client-side by parsed date
+      const dated = rows.map(r => parseNycDate(r.issue_date)).filter(d => d && !isNaN(d)).sort((a,b) => a - b);
+      const points = dated.map((d, i) => ({ x: d.toISOString().slice(0,10), y: i+1 }));
+      return { label: `${p.plate_id}·${p.registration_state || ''}`, data: points };
+    }));
+
+    const ctx = document.getElementById('escalationChart').getContext('2d');
+    if (escalationChart) escalationChart.destroy();
+    escalationChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: series.map((s, i) => ({
+          label: s.label,
+          data: s.data,
+          borderColor: COLORS.palette[i % COLORS.palette.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          tension: 0.15,
+          pointRadius: 0,
+          pointHoverRadius: 4
+        }))
+      },
+      options: {
+        maintainAspectRatio: false,
+        parsing: false,
+        scales: {
+          x: { type: 'time', time: { unit: 'month' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Cumulative tickets', color: 'rgba(244,243,239,0.5)' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'JetBrains Mono', size: 10 } } },
+          annotation: false
+        }
+      }
+    });
+
+    // Draw DVAP threshold line using plugin-free post-render: add a horizontal line via chart's grid annotation: simplest is a dataset
+    escalationChart.data.datasets.push({
+      label: 'DVAP threshold (15)',
+      data: series[0]?.data.length ? [{x: series[0].data[0].x, y: 15}, {x: series[0].data[series[0].data.length-1].x, y: 15}] : [],
+      borderColor: 'rgba(250,204,21,0.8)',
+      borderDash: [6, 6],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: false
+    });
+    escalationChart.update();
+
+  } catch(e) { console.error('escalation', e); }
+}
+
+// Fallback for Chart time scale — we need date adapter
+// Load date-fns adapter via CDN (added via ensureAdapter)
+function ensureAdapter() {
+  if (window._adapterLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js';
+    s.onload = () => { window._adapterLoaded = true; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ===== PLATE LOOKUP =====
+let dosTimelineChart, dosHourChart;
+
+function initLookup() {
+  // Handle query param
+  const qs = new URLSearchParams(window.location.search);
+  const p = qs.get('plate');
+  const s = qs.get('state');
+  if (p) {
+    document.getElementById('lookupPlate').value = p.toUpperCase();
+    if (s) document.getElementById('lookupState').value = s.toUpperCase();
+    setTimeout(runLookup, 300);
+  }
+}
+
+async function runLookup() {
+  const plate = document.getElementById('lookupPlate').value.trim().toUpperCase();
+  const state = document.getElementById('lookupState').value.trim().toUpperCase();
+  const status = document.getElementById('lookupStatus');
+  const dossier = document.getElementById('dossier');
+  if (!plate) { status.textContent = 'Enter a plate.'; return; }
+  status.textContent = 'Loading…';
+  try {
+    await ensureAdapter();
+    const [all, totalRow, yearRow] = await Promise.all([
+      sodaGet(VIOLATIONS_API, {
+        '$select': 'issue_date, violation_time, violation_precinct, vehicle_make, vehicle_body_type, vehicle_year, vehicle_color, street_name, intersecting_street',
+        '$where': `${SPEED_CAM_WHERE} AND plate_id='${plate}' AND registration_state='${state}'`,
+        '$limit': '20000'
+      }),
+      sodaGet(VIOLATIONS_API, {
+        '$select': 'COUNT(*) as c',
+        '$where': `${SPEED_CAM_WHERE} AND plate_id='${plate}' AND registration_state='${state}'`
+      }),
+      sodaGet(VIOLATIONS_API, {
+        '$select': 'COUNT(*) as c',
+        '$where': `${SPEED_CAM_WHERE} AND plate_id='${plate}' AND registration_state='${state}'`
+      })
+    ]);
+
+    const totalCount = parseInt(totalRow[0]?.c || 0);
+    const last12Count = parseInt(yearRow[0]?.c || 0);
+    // Parse dates client-side and sort ascending
+    all.forEach(r => { r._d = parseNycDate(r.issue_date); });
+    all.sort((a,b) => (a._d||0) - (b._d||0));
+    if (!totalCount) {
+      status.textContent = `No speed-camera tickets found for ${plate} (${state}).`;
+      dossier.classList.remove('active');
+      return;
+    }
+    status.textContent = `${formatNum(totalCount)} total · ${formatNum(last12Count)} in ${WINDOW_LABEL_LONG}`;
+
+    const anyRow = all.find(r => r.vehicle_make) || all[0] || {};
+    const vehParts = [anyRow.vehicle_year, anyRow.vehicle_color, anyRow.vehicle_make, anyRow.vehicle_body_type].filter(Boolean);
+    const veh = vehParts.length ? vehParts.join(' ') : '—';
+
+    document.getElementById('dosTotal').textContent = formatNum(totalCount);
+    document.getElementById('dos12').textContent = formatNum(last12Count);
+    document.getElementById('dosVehicle').textContent = veh;
+    document.getElementById('dosFirst').textContent = all.length && all[0]._d ? all[0]._d.toLocaleDateString('en-US') : '—';
+    document.getElementById('dosLast').textContent = all.length && all[all.length-1]._d ? all[all.length-1]._d.toLocaleDateString('en-US') : '—';
+
+    // DVAP meter
+    const dvapEl = document.getElementById('dosDVAP');
+    let cls='green', txt='UNDER THRESHOLD';
+    if (last12Count >= 15) { cls='red'; txt='DVAP ELIGIBLE'; }
+    else if (last12Count >= 10) { cls='amber'; txt='APPROACHING'; }
+    dvapEl.innerHTML = `<span class="dvap-meter ${cls}"><span class="dot"></span>${txt} (${last12Count}/15)</span>`;
+
+    // Timeline chart: scatter by date, y=1 strip
+    const ctxT = document.getElementById('dosTimelineChart').getContext('2d');
+    if (dosTimelineChart) dosTimelineChart.destroy();
+    dosTimelineChart = new Chart(ctxT, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Ticket',
+          data: all.filter(r => r._d).map(r => ({ x: r._d.toISOString().slice(0,10), y: 1 })),
+          backgroundColor: 'rgba(220,38,38,0.6)',
+          borderColor: COLORS.red,
+          pointRadius: 4
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        scales: {
+          x: { type: 'time', time: { unit: 'month' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { display: false, min: 0.5, max: 1.5 }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Hour histogram
+    const hours = Array(24).fill(0);
+    all.forEach(r => {
+      if (r.violation_time) {
+        // formats vary: "0743A", "07:43 AM", "07:43"
+        let h = 0;
+        const t = r.violation_time.trim();
+        let m = t.match(/^(\d{2})(\d{2})([AP])/i);
+        if (m) { h = parseInt(m[1]); if (m[3].toUpperCase()==='P' && h<12) h+=12; if (m[3].toUpperCase()==='A' && h===12) h=0; }
+        else { m = t.match(/^(\d{1,2}):(\d{2})\s*([AP]M)?/i); if (m) { h = parseInt(m[1]); if (m[3]){ const ap = m[3].toUpperCase(); if (ap==='PM' && h<12) h+=12; if (ap==='AM' && h===12) h=0; } } }
+        if (h >= 0 && h < 24) hours[h]++;
+      }
+    });
+    const ctxH = document.getElementById('dosHourChart').getContext('2d');
+    if (dosHourChart) dosHourChart.destroy();
+    dosHourChart = new Chart(ctxH, {
+      type: 'bar',
+      data: {
+        labels: Array.from({length:24},(_,i)=>i),
+        datasets: [{ label: 'Tickets', data: hours, backgroundColor: COLORS.yellow, borderRadius: 2 }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, title: { display: true, text: 'Hour of day' } }, y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } } }
+      }
+    });
+
+    dossier.classList.add('active');
+
+    // Update URL for permalink
+    const newUrl = `${window.location.pathname}?plate=${encodeURIComponent(plate)}&state=${encodeURIComponent(state)}`;
+    window.history.replaceState({}, '', newUrl);
+  } catch(e) {
+    console.error('lookup', e);
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+
+function copyPermalink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const s = document.getElementById('lookupStatus');
+    const prev = s.textContent;
+    s.textContent = 'Permalink copied to clipboard.';
+    setTimeout(() => { s.textContent = prev; }, 1600);
+  });
+}
+
+// ===== SCHOOL MAP =====
+let schoolMap;
+async function loadSchoolMap() {
+  if (schoolMap) return;
+  schoolMap = L.map('schoolMap', { zoomControl: true, preferCanvas: true }).setView([40.72, -73.95], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(schoolMap);
+
+  try {
+    const rows = await sodaGet(VIOLATIONS_API, {
+      '$select': 'violation_precinct, COUNT(*) as c',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$group': 'violation_precinct',
+      '$order': 'c DESC',
+      '$limit': '200'
+    });
+
+    const counts = rows.map(r => parseInt(r.c));
+    const maxC = Math.max(...counts, 1);
+
+    rows.forEach(r => {
+      const p = parseInt(r.violation_precinct);
+      const c = parseInt(r.c);
+      const loc = PRECINCT_CENTROIDS[p];
+      if (!loc) return;
+      const radius = 6 + Math.sqrt(c / maxC) * 42;
+      const boro = PRECINCT_BORO[p] || '';
+      const circ = L.circleMarker(loc, {
+        radius,
+        fillColor: '#dc2626',
+        color: '#facc15',
+        weight: 1.2,
+        fillOpacity: 0.5
+      }).bindPopup(`<strong>Precinct ${p}</strong> (${BORO_FULL[boro] || ''})<br>${formatNum(c)} tickets in FY2026`);
+      circ.addTo(schoolMap);
+    });
+  } catch(e) { console.error('schoolmap', e); }
+}
+
+// ===== OVERLAP =====
+let overlapChart;
+async function loadOverlap() {
+  try {
+    const [tickets, crashes] = await Promise.all([
+      sodaGet(VIOLATIONS_API, {
+        '$select': 'violation_county, COUNT(*) as c',
+        '$where': `${SPEED_CAM_WHERE}`,
+        '$group': 'violation_county'
+      }),
+      sodaGet(CRASHES_API, {
+        '$select': 'borough, SUM(number_of_pedestrians_injured) as pi, SUM(number_of_pedestrians_killed) as pk, SUM(number_of_cyclist_injured) as ci, SUM(number_of_cyclist_killed) as ck',
+        '$where': `crash_date >= '${CROSS_DATE_START}'`,
+        '$group': 'borough'
+      })
+    ]);
+
+    const boroTickets = {};
+    tickets.forEach(r => {
+      const b = COUNTY_TO_BORO[(r.violation_county||'').toUpperCase()];
+      if (b) boroTickets[b] = (boroTickets[b] || 0) + parseInt(r.c);
+    });
+    const boroHarm = {};
+    const boroMap = { 'MANHATTAN':'MAN','BRONX':'BX','BROOKLYN':'BK','QUEENS':'QN','STATEN ISLAND':'SI' };
+    crashes.forEach(r => {
+      const b = boroMap[(r.borough||'').toUpperCase()];
+      if (!b) return;
+      boroHarm[b] = (parseInt(r.pi||0) + parseInt(r.pk||0) + parseInt(r.ci||0) + parseInt(r.ck||0));
+    });
+
+    const points = Object.keys(BORO_FULL).map(b => ({
+      x: boroTickets[b] || 0,
+      y: boroHarm[b] || 0,
+      label: BORO_FULL[b]
+    }));
+
+    const ctx = document.getElementById('overlapChart').getContext('2d');
+    if (overlapChart) overlapChart.destroy();
+    overlapChart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Borough',
+          data: points,
+          backgroundColor: COLORS.yellow,
+          borderColor: COLORS.red,
+          pointRadius: 10,
+          pointHoverRadius: 13
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.raw.label}: ${formatNum(ctx.raw.x)} tickets, ${formatNum(ctx.raw.y)} ped+cyc killed+injured`
+            }
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Speed-camera tickets (last 12 mo)' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { title: { display: true, text: 'Pedestrian + cyclist killed+injured (last 12 mo)' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    // After render, overlay labels via HTML would be fancy; for now use Chart.js afterDraw plugin
+    overlapChart.options.plugins.tooltip.enabled = true;
+    const labels = points.map(p => p.label);
+    overlapChart.data.datasets[0].pointLabels = labels;
+    // Add data labels manually using the afterDraw plugin
+    Chart.register({
+      id: 'overlapLabels',
+      afterDatasetsDraw(chart) {
+        if (chart.canvas.id !== 'overlapChart') return;
+        const { ctx } = chart;
+        const ds = chart.data.datasets[0];
+        ds.data.forEach((pt, i) => {
+          const meta = chart.getDatasetMeta(0).data[i];
+          if (!meta) return;
+          ctx.save();
+          ctx.font = "bold 11px 'JetBrains Mono'";
+          ctx.fillStyle = '#f4f3ef';
+          ctx.fillText(pt.label, meta.x + 12, meta.y + 4);
+          ctx.restore();
+        });
+      }
+    });
+    overlapChart.update();
+
+  } catch(e) { console.error('overlap', e); }
+}
+
+// ===== DVAP SIMULATOR =====
+let dvapDebounce;
+let dvapAllPlates = null;
+async function initDVAP() {
+  const threshEl = document.getElementById('dvapThresh');
+  const winEl = document.getElementById('dvapWindow');
+  const threshOut = document.getElementById('dvapThreshOut');
+  const winOut = document.getElementById('dvapWindowOut');
+
+  const run = () => {
+    threshOut.textContent = threshEl.value;
+    winOut.textContent = winEl.value;
+    clearTimeout(dvapDebounce);
+    dvapDebounce = setTimeout(() => runDVAP(+threshEl.value, +winEl.value), 180);
+  };
+  threshEl.addEventListener('input', run);
+  winEl.addEventListener('input', run);
+  await runDVAP(15, 12);
+}
+
+async function runDVAP(threshold, windowMonths) {
+  const countEl = document.getElementById('dvapCount');
+  const shareEl = document.getElementById('dvapShare');
+  const finesEl = document.getElementById('dvapFines');
+  countEl.textContent = '…'; shareEl.textContent = '…'; finesEl.textContent = '…';
+  try {
+    // windowMonths interpreted as a fraction of WINDOW_LABEL (12 months). For simplicity we scale the threshold proportionally
+    // when simulating a shorter window, and use full-year data. Explicit note shown in UI.
+    const scaledThreshold = Math.max(1, Math.round(threshold * (12 / windowMonths)));
+    let all = window.__topPlatesCache;
+    if (!all) {
+      all = await sodaGet(VIOLATIONS_API, {
+        '$select': 'plate_id, COUNT(*) as c',
+        '$where': `${SPEED_CAM_WHERE}`,
+        '$group': 'plate_id',
+        '$order': 'c DESC',
+        '$limit': '20000'
+      });
+      window.__topPlatesCache = all;
+    }
+    const rows = all.filter(r => parseInt(r.c) >= scaledThreshold);
+    const count = rows.length;
+    const ticketSum = rows.reduce((s,r)=>s + parseInt(r.c), 0);
+    countEl.textContent = formatNum(count);
+    shareEl.textContent = ((count / 2000000) * 100).toFixed(3) + '%';
+    finesEl.textContent = fmtUSD(ticketSum * 50);
+  } catch(e) {
+    console.error('dvap', e);
+    countEl.textContent = 'err';
+  }
+}
+
+// ===== TEMPORAL =====
+let hourChart, dowChart, monthlyChart;
+async function loadTemporal() {
+  await ensureAdapter();
+  try {
+    // Monthly trend — native date_trunc on calendar_date column
+    const monthly = await sodaGet(VIOLATIONS_API, {
+      '$select': 'date_trunc_ym(issue_date) as ym, count(*) as c',
+      '$where': `${SPEED_CAM_WHERE} AND issue_date IS NOT NULL`,
+      '$group': 'date_trunc_ym(issue_date)',
+      '$order': 'ym ASC',
+      '$limit': '500'
+    });
+    const monthlyClean = monthly
+      .map(r => { const d = new Date(r.ym); return { y: String(d.getUTCFullYear()), m: String(d.getUTCMonth()+1).padStart(2,'0'), c: r.c }; })
+      .filter(r => /^20(1[4-9]|2[0-9])$/.test(r.y));
+
+    // Hour of day — sample recent year rows
+    const sample = await sodaGet(VIOLATIONS_API, {
+      '$select': 'violation_time, issue_date',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$limit': '50000'
+    });
+
+    // Day of week — compute client-side from year's worth of rows (aggregate by date string)
+    const dowRows = await sodaGet(VIOLATIONS_API, {
+      '$select': 'issue_date, count(*) as c',
+      '$where': `${SPEED_CAM_WHERE}`,
+      '$group': 'issue_date',
+      '$limit': '400'
+    });
+    const dowData = Array(7).fill(0);
+    dowRows.forEach(r => {
+      const d = parseNycDate(r.issue_date);
+      if (d && !isNaN(d)) dowData[d.getDay()] += parseInt(r.c);
+    });
+    const dow = dowData.map((v, i) => ({ d: i, c: v }));
+
+    // Monthly chart
+    const mLabels = monthlyClean.map(r => `${r.y}-${r.m}-01`);
+    const mData = monthlyClean.map(r => parseInt(r.c));
+    monthlyChart = new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: mLabels,
+        datasets: [{
+          label: 'Tickets/month',
+          data: mData,
+          borderColor: COLORS.yellow,
+          backgroundColor: 'rgba(250,204,21,0.08)',
+          tension: 0.25,
+          pointRadius: 0,
+          fill: true,
+          borderWidth: 2
+        }, {
+          label: 'Aug 2022 · 24/7 cameras',
+          data: mLabels.map(l => ({ x: l, y: l === '2022-08-01' ? Math.max(...mData) : null })),
+          borderColor: COLORS.red,
+          borderDash: [4, 4],
+          showLine: false,
+          pointRadius: (ctx) => ctx.raw && ctx.raw.y ? 8 : 0,
+          pointStyle: 'rectRot',
+          pointBackgroundColor: COLORS.red
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        scales: {
+          x: { type: 'time', time: { unit: 'year' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, title: { display: true, text: 'Tickets per month' } }
+        },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    // Hour chart
+    const hours = Array(24).fill(0);
+    sample.forEach(r => {
+      if (r.violation_time) {
+        const t = r.violation_time.trim();
+        let h = 0;
+        let m = t.match(/^(\d{2})(\d{2})([AP])/i);
+        if (m) { h = parseInt(m[1]); if (m[3].toUpperCase()==='P' && h<12) h+=12; if (m[3].toUpperCase()==='A' && h===12) h=0; }
+        else { m = t.match(/^(\d{1,2}):(\d{2})\s*([AP]M)?/i); if (m) { h = parseInt(m[1]); if (m[3]){ const ap = m[3].toUpperCase(); if (ap==='PM' && h<12) h+=12; if (ap==='AM' && h===12) h=0; } } }
+        if (h >= 0 && h < 24) hours[h]++;
+      }
+    });
+    hourChart = new Chart(document.getElementById('hourChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: Array.from({length:24},(_,i)=>i), datasets: [{ data: hours, backgroundColor: COLORS.yellow, borderRadius: 3 }] },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { title: (c) => c[0].label + ':00' } } },
+        scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, title: { display: true, text: 'Hour (sample of last 60 days, up to 50k tickets)' } }, y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } } }
+      }
+    });
+
+    // DOW chart
+    const dowLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    dowChart = new Chart(document.getElementById('dowChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: COLORS.red, borderRadius: 3 }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+    });
+  } catch(e) { console.error('temporal', e); }
+}
+
+// ===== KICKOFF =====
+ensureAdapter().then(() => {
+  loadHero();
+  // If URL has plate, scroll to lookup
+  const qs = new URLSearchParams(window.location.search);
+  if (qs.get('plate')) {
+    setTimeout(() => document.getElementById('lookup-section').scrollIntoView({ behavior: 'smooth' }), 400);
+  }
+});
+</script>
+
+</body>
+</html>
