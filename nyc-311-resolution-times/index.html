@@ -1263,10 +1263,13 @@ header .subtitle {
     var asc = districts.slice().sort(function(a, b) { return a.median - b.median; });
     var fastest = asc.slice(0, 5);
     var slowest = asc.slice(-5);
-    var combined = fastest.concat(slowest);
-    var labels = combined.map(function(d) { return cdShortName(d.district); });
-    var values = combined.map(function(d) { return Math.round(d.median * 100) / 100; });
-    var colors = combined.map(function(d) { return barColor(d.median); });
+    // Insert a spacer row between the two groups so fastest and slowest
+    // read as distinct sections rather than one continuous ranking.
+    var SPACER = { district: "__spacer__", median: null, isSpacer: true };
+    var combined = fastest.concat([SPACER]).concat(slowest);
+    var labels = combined.map(function(d) { return d.isSpacer ? "" : cdShortName(d.district); });
+    var values = combined.map(function(d) { return d.isSpacer ? null : Math.round(d.median * 100) / 100; });
+    var colors = combined.map(function(d) { return d.isSpacer ? "transparent" : barColor(d.median); });
 
     var container = document.getElementById("district-chart-container");
     if (districtChart) districtChart.destroy();
