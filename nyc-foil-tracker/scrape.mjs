@@ -652,6 +652,16 @@ async function main() {
 
   writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
   console.log(`\nSaved ${allRequests.length} requests to ${OUTPUT_FILE}`);
+
+  // Regenerate RSS feeds from the fresh data
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const r = spawnSync("node", [join(__dirname, "generate-feeds.mjs")], { stdio: "inherit" });
+    if (r.status !== 0) console.warn("Feed generation exited non-zero (continuing)");
+  } catch (err) {
+    console.warn("Feed generation failed (non-fatal):", err.message);
+  }
+
   console.log("Done!");
 }
 

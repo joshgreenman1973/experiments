@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — NYC FOIL Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --navy: #0a1628;
+  --navy-mid: #132240;
+  --ink: #0d1b2a;
+  --cream: #f5f0e8;
+  --parchment: #faf7f2;
+  --gold: #c8a43a;
+  --slate: #64748b;
+  --rule: rgba(10, 22, 40, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Source Serif 4', Georgia, serif;
+  background: var(--parchment);
+  color: var(--ink);
+  line-height: 1.7;
+  font-size: 17px;
+}
+
+.masthead {
+  background: var(--navy);
+  color: var(--cream);
+  padding: 0.5rem 0;
+  border-bottom: 3px solid var(--gold);
+}
+
+.masthead-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.masthead a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+
+.header {
+  background: var(--navy);
+  color: var(--cream);
+  text-align: center;
+  padding: 2rem;
+}
+
+.header h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 900;
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+}
+
+.header .kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+}
+
+h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 2.5rem 0 0.9rem;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+
+p { margin: 0.9rem 0; }
+
+ul { margin: 0.6rem 0 1rem 1.4rem; }
+
+li { margin: 0.3rem 0; }
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  background: var(--cream);
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+}
+
+.callout {
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  padding: 1rem 1.2rem;
+  margin: 1.2rem 0;
+  font-size: 0.95rem;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 2.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--navy);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--navy);
+}
+
+.back-link:hover { color: var(--gold); border-bottom-color: var(--gold); }
+
+a { color: var(--navy); }
+
+.footer {
+  background: var(--navy);
+  color: var(--cream);
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  border-top: 3px solid var(--gold);
+}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <span>Methodology</span>
+    <span><a href="index.html">Back to tracker</a></span>
+  </div>
+</div>
+
+<header class="header">
+  <div class="kicker">How this tracker works</div>
+  <h1>Methodology</h1>
+</header>
+
+<div class="container">
+
+  <p>
+    The NYC FOIL Tracker pulls public freedom-of-information request data from
+    <a href="https://a860-openrecords.nyc.gov/request/view_all" target="_blank" rel="noopener">NYC OpenRecords</a>,
+    the city's central FOIL portal. This page documents exactly what's collected, how the numbers are computed,
+    and what the tracker doesn't capture. Nothing here is a black box.
+  </p>
+
+  <h2>Data source</h2>
+  <p>
+    OpenRecords (a860-openrecords.nyc.gov) is the public-facing portal NYC agencies use to receive FOIL requests
+    and post responses. The tracker reads the public "View all requests" listing and individual request pages —
+    no private records, no agency-only views.
+  </p>
+
+  <h2>What's pulled</h2>
+  <p>For each request the scraper captures:</p>
+  <ul>
+    <li><code>foilId</code> — the request's public ID (e.g., FOIL-2026-056-12507)</li>
+    <li><code>title</code> — request subject line, when present (placeholder requests show "* Under Review")</li>
+    <li><code>agency</code> — the receiving NYC agency</li>
+    <li><code>status</code> — Open or Closed</li>
+    <li><code>determination</code> — Fulfilled, Denied, or Partially Denied (closed requests only)</li>
+    <li><code>determinationMessage</code> — agency's stated reason for the determination</li>
+    <li><code>dateSubmitted</code>, <code>dateDue</code>, <code>dateClosed</code></li>
+    <li><code>responses</code> — public documents the agency posted in response</li>
+  </ul>
+
+  <h2>Coverage gap (important)</h2>
+  <div class="callout">
+    The "Filed in 2026" stat shows the total reported by OpenRecords (around 600,000 requests). The "Tracked here"
+    number is what the scraper actually has details for — currently around 35,000. This is not a complete archive
+    of every NYC FOIL ever filed.
+  </div>
+  <p>
+    OpenRecords' public listing is a rolling window: older requests fall off the public-facing pages over time,
+    and the listing is paginated with practical limits. The tracker captures what's currently visible on the site.
+    Agency-level totals shown in the "By agency" table reflect the scraped subset, not the agency's lifetime FOIL
+    volume.
+  </p>
+
+  <h2>How the headline stats are computed</h2>
+
+  <h3>Avg. response (days)</h3>
+  <p>
+    Mean number of calendar days from <code>dateSubmitted</code> to final agency action (<code>dateClosed</code>),
+    averaged across all closed requests in the tracked subset that have both dates recorded. Open requests are
+    excluded. This is a calendar-day average; New York's FOIL law uses business days for legal deadlines, so the
+    tracker number is slightly higher than the equivalent business-day figure.
+  </p>
+
+  <h3>Denial rate</h3>
+  <p>
+    Denials as a share of requests with a recorded determination (Fulfilled + Denied + Partially Denied).
+    Open requests, withdrawn requests, and requests with no determination message are excluded from the
+    denominator. "Partially Denied" requests are counted as fulfilled for this calculation — only outright
+    denials count as denials.
+  </p>
+
+  <h3>Past due date</h3>
+  <p>
+    An open request whose <code>dateDue</code> (the agency's own stated due date) is earlier than today.
+    OpenRecords' due dates reflect the agency's statutory acknowledgment-and-response timeline plus any
+    extensions the agency has requested. A request marked "past due" means the agency has missed its own
+    extended deadline, not just the initial 5-business-day acknowledgment.
+  </p>
+
+  <h3>Open &gt; 30 / 90 days</h3>
+  <p>
+    Open requests where <code>dateSubmitted</code> is more than 30 (or 90) calendar days ago. This is independent
+    of whether the agency requested extensions — it's a simple "how long has this been sitting" measure.
+  </p>
+
+  <h3>Denied last 30 days</h3>
+  <p>
+    Closed requests with <code>determination = "Denied"</code> and <code>dateClosed</code> within the last
+    30 calendar days. Useful for spotting recent denial patterns by agency or topic.
+  </p>
+
+  <h2>"Under review" placeholders</h2>
+  <p>
+    Newly filed requests show a placeholder title of "* Under Review" for the first several business days while
+    OpenRecords processes them. These are real requests but with no public subject yet, so the tracker hides them
+    by default. Toggle "Show 'under review' placeholders" in the filter bar to include them.
+  </p>
+
+  <h2>Topic tagging</h2>
+  <p>
+    The "By topic" panel and the topic filter use simple keyword patterns to bucket requests by subject matter.
+    Patterns match against the request title only (no body text — OpenRecords doesn't expose request bodies
+    publicly). Many requests have generic titles ("Complaint Report", an address) or no title yet, so they
+    cluster into "Other / unclassified" — currently around 65% of titled requests. The patterns favor
+    high-confidence matches over coverage; if a title doesn't contain a recognizable keyword, it stays untagged
+    rather than getting forced into a bucket.
+  </p>
+  <p>
+    A request can land in more than one topic (e.g., a body-cam request at NYPD matches both
+    "Police / NYPD records" and "Vehicle / parking / traffic" if it mentions a traffic stop). The
+    "Other / unclassified" bucket only contains requests that match zero topics. The full pattern list
+    lives in <code>index.html</code> (TOPIC_PATTERNS) and is mirrored in <code>generate-feeds.mjs</code>.
+  </p>
+
+  <h2>RSS feeds</h2>
+  <p>
+    The tracker publishes RSS feeds so reporters can subscribe to specific slices in their feed reader. Available
+    feeds:
+  </p>
+  <ul>
+    <li><a href="feed.xml"><code>feed.xml</code></a> — newest 100 requests across all agencies</li>
+    <li><code>feed/&lt;agency-slug&gt;.xml</code> — newest 50 for each of the top 20 agencies by volume</li>
+    <li><code>feed/topic-&lt;slug&gt;.xml</code> — newest 50 for each topic bucket</li>
+  </ul>
+  <p>
+    Feeds regenerate every time the scraper runs. The full feed index is at
+    <a href="feed/INDEX.md"><code>feed/INDEX.md</code></a>.
+  </p>
+
+  <h2>Requester identity</h2>
+  <p>
+    OpenRecords does not display requester names, emails, or affiliations on the public-facing detail page.
+    Only the requester (when logged in) and the receiving agency can see who filed a given request. As a result,
+    the tracker has no way to surface "who's filing the most FOILs" or "what did The New York Times ask for
+    last week" without privileged data access. This was checked directly against the public detail page
+    markup — the field simply isn't there.
+  </p>
+
+  <h2>Update cadence</h2>
+  <p>
+    The scraper runs automatically every six hours. The "Last updated" timestamp at the top of the tracker shows
+    when the current data was pulled.
+  </p>
+
+  <h2>Limitations and caveats</h2>
+  <ul>
+    <li><strong>Not all NYC FOILs go through OpenRecords.</strong> A few agencies (notably parts of the NYPD's
+    legal bureau and some public authorities) accept FOIL requests outside the OpenRecords system. Those don't
+    appear here.</li>
+    <li><strong>Requester identity is not currently captured.</strong> OpenRecords shows requester names on
+    individual request pages, but the tracker does not aggregate them. Adding this is on the roadmap.</li>
+    <li><strong>"Determination" is the agency's self-classification.</strong> A request marked "Fulfilled" may
+    have produced a small fraction of what was asked for; a request marked "Partially Denied" may be
+    substantively a denial. The tracker reports what the agency reported.</li>
+    <li><strong>Avg. response excludes open requests.</strong> An agency that simply never closes its requests
+    can have a low average response time — because only the requests it does close count.</li>
+    <li><strong>Date precision is to the day.</strong> OpenRecords records timestamps but the tracker rounds to
+    calendar days for all calculations.</li>
+  </ul>
+
+  <h2>Source code and corrections</h2>
+  <p>
+    The scraper, data file, and this front-end are all open source. If you spot an error or have a methodology
+    question, file an issue on
+    <a href="https://github.com/joshgreenman1973/experiments" target="_blank" rel="noopener">GitHub</a>.
+  </p>
+
+  <a href="index.html" class="back-link">← Back to the tracker</a>
+
+</div>
+
+<footer class="footer">
+  <p>NYC FOIL Tracker — an independent civic project. Not affiliated with NYC government.</p>
+</footer>
+
+</body>
+</html>
