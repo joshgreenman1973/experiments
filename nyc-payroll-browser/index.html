@@ -547,6 +547,37 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   margin-top:10px;
 }
 
+th.sortable{
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+  transition:color 0.15s,background 0.15s;
+}
+th.sortable::after{
+  content:' \2195';
+  color:#c4c0b6;
+  font-size:11px;
+  margin-left:4px;
+  font-weight:400;
+}
+th.sortable:hover{color:var(--orange);background:#fafaf7;}
+th.sortable:hover::after{color:var(--orange);}
+th.sortable.sort-asc::after{content:' \2191';color:var(--orange);}
+th.sortable.sort-desc::after{content:' \2193';color:var(--orange);}
+th.sortable.sort-asc,th.sortable.sort-desc{color:var(--orange);}
+
+.sort-hint{
+  display:inline-block;
+  font-family:var(--sans);
+  font-size:10.5px;
+  color:var(--muted);
+  letter-spacing:0.4px;
+  text-transform:uppercase;
+  font-weight:500;
+  margin-left:8px;
+}
+.sort-hint::before{content:'\2195 ';color:var(--orange);}
+
 .disclosure{
   background:rgba(201,76,36,0.06);
   border-left:3px solid var(--orange);
@@ -931,8 +962,8 @@ const state={
   fringe:false,
   earners:{data:null,page:1,pageSize:25,err:null,loading:false},
   ot:{data:null,page:1,pageSize:25,err:null,loading:false},
-  agencies:{data:null,err:null,loading:false,metric:'avg_salary'},
-  commish:{data:null,err:null,loading:false},
+  agencies:{data:null,err:null,loading:false,metric:'avg_salary',sortBy:'ot',sortDir:'desc'},
+  commish:{data:null,err:null,loading:false,sortBy:'total',sortDir:'desc'},
   tiers:{data:null,byYear:{},totalRows:0,err:null,loading:false,progress:null,chart:null},
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   agencyList:[]
@@ -1290,18 +1321,29 @@ function renderCommissioners(){
   if(state.commish.err){body.innerHTML=`<div class="error-state">Could not load: ${state.commish.err}</div>`;return;}
   const data=state.commish.data||[];
   if(!data.length){body.innerHTML='<div class="empty-state">No agency heads found for this fiscal year.</div>';return;}
-  meta.textContent=`${data.length} agency heads  ·  FY ${state.year}`;
+  meta.innerHTML=`${data.length} agency heads  ·  FY ${state.year}<span class="sort-hint">click any column to sort</span>`;
+  const sb=state.commish.sortBy,sd=state.commish.sortDir;
+  const sorted=[...data].sort((a,b)=>{
+    const av=a[sb],bv=b[sb];
+    if(typeof av==='string')return sd==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return sd==='asc'?av-bv:bv-av;
+  });
+  const cls=k=>'sortable num'+(sb===k?' sort-'+sd:'');
+  const clsL=k=>'sortable'+(sb===k?' sort-'+sd:'');
   body.innerHTML=`
     <div class="table-scroll"><table>
       <thead><tr>
-        <th>Rank</th><th>Agency</th><th>Title</th><th>Name</th>
-        <th class="num">Base salary</th>
-        <th class="num">Regular pay</th>
-        <th class="num">Overtime</th>
-        <th class="num">All-in pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th>Rank</th>
+        <th class="${clsL('agency')}" data-sort="agency">Agency</th>
+        <th class="${clsL('title')}" data-sort="title">Title</th>
+        <th class="${clsL('name')}" data-sort="name">Name</th>
+        <th class="${cls('base')}" data-sort="base">Base salary</th>
+        <th class="${cls('regular')}" data-sort="regular">Regular pay</th>
+        <th class="${cls('ot')}" data-sort="ot">Overtime</th>
+        <th class="${cls('total')}" data-sort="total">All-in pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
       </tr></thead>
       <tbody>
-        ${data.map((r,i)=>`<tr>
+        ${sorted.map((r,i)=>`<tr>
           <td class="rank">${i+1}</td>
           <td class="name">${titleCase(r.agency)}</td>
           <td class="title-cell muted">${titleCase(r.title)}</td>
@@ -1314,6 +1356,14 @@ function renderCommissioners(){
       </tbody>
     </table></div>
   `;
+  body.querySelectorAll('th.sortable').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const k=th.dataset.sort;
+      if(state.commish.sortBy===k)state.commish.sortDir=state.commish.sortDir==='asc'?'desc':'asc';
+      else{state.commish.sortBy=k;state.commish.sortDir=(k==='agency'||k==='title'||k==='name')?'asc':'desc';}
+      renderCommissioners();
+    });
+  });
 }
 
 function renderAgencyAnalysis(){
@@ -1330,7 +1380,7 @@ function renderAgencyAnalysis(){
   const data=state.agencies.data||[];
   if(!data.length){body.innerHTML='<div class="empty-state">No data.</div>';return;}
   chartMeta.textContent=`FY ${state.year}`;
-  tableMeta.textContent=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}`;
+  tableMeta.innerHTML=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}<span class="sort-hint">click any column to sort</span>`;
 
   const metric=state.agencies.metric||'ot';
   const MIN_HC_FOR_AVG=50;
@@ -1372,21 +1422,31 @@ function renderAgencyAnalysis(){
   });
 
   const maxRatio=Math.max(...data.map(r=>r.ratio),0.01);
+  const enriched=data.map(r=>({...r,avg_salary:r.hc>0?r.base/r.hc:0,avg_total:r.hc>0?r.total/r.hc:0}));
+  const sb=state.agencies.sortBy,sd=state.agencies.sortDir;
+  const tableSorted=[...enriched].sort((a,b)=>{
+    const av=a[sb],bv=b[sb];
+    if(typeof av==='string')return sd==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+    return sd==='asc'?av-bv:bv-av;
+  });
+  const cls=k=>'sortable num'+(sb===k?' sort-'+sd:'');
+  const clsL=k=>'sortable'+(sb===k?' sort-'+sd:'');
   body.innerHTML=`
     <div class="table-scroll"><table>
       <thead><tr>
-        <th>Rank</th><th>Agency</th>
-        <th class="num">Employees</th><th class="num">Regular pay</th>
-        <th class="num">Overtime</th><th class="num">Total payroll${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
-        <th class="num" title="Average salary (regular pay) per employee. Includes part-year and seasonal employees, so agencies with many one-day or per-diem workers (e.g., poll workers) will appear lower.">Avg salary</th>
-        <th class="num" title="Average all-in pay (regular + OT + other) per employee. Skewed by part-year/seasonal workers — see methodology.">Avg all-in</th>
-        <th class="num">OT/regular</th>
+        <th>Rank</th>
+        <th class="${clsL('agency')}" data-sort="agency">Agency</th>
+        <th class="${cls('hc')}" data-sort="hc">Employees</th>
+        <th class="${cls('base')}" data-sort="base">Regular pay</th>
+        <th class="${cls('ot')}" data-sort="ot">Overtime</th>
+        <th class="${cls('total')}" data-sort="total">Total payroll${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th class="${cls('avg_salary')}" data-sort="avg_salary" title="Average salary (regular pay) per employee. Includes part-year and seasonal employees, so agencies with many one-day or per-diem workers (e.g., poll workers) will appear lower.">Avg salary</th>
+        <th class="${cls('avg_total')}" data-sort="avg_total" title="Average all-in pay (regular + OT + other) per employee. Skewed by part-year/seasonal workers — see methodology.">Avg all-in</th>
+        <th class="${cls('ratio')}" data-sort="ratio">OT/regular</th>
       </tr></thead>
       <tbody>
-        ${data.map((r,i)=>{
+        ${tableSorted.map((r,i)=>{
           const pct=Math.min(r.ratio/maxRatio,1)*100;
-          const avgSal=r.hc>0?r.base/r.hc:0;
-          const avgAll=r.hc>0?r.total/r.hc:0;
           return `<tr>
             <td class="rank">${i+1}</td>
             <td class="name">${titleCase(r.agency)}</td>
@@ -1394,14 +1454,22 @@ function renderAgencyAnalysis(){
             <td class="num">${fmtMoneyFull(fr(r.base))}</td>
             <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
             <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
-            <td class="num">${fmtMoneyFull(fr(avgSal))}</td>
-            <td class="num">${fmtMoneyFull(fr(avgAll))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.avg_salary))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.avg_total))}</td>
             <td class="num"><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-pct">${fmtPct(r.ratio)}</div></div></td>
           </tr>`;
         }).join('')}
       </tbody>
     </table></div>
   `;
+  body.querySelectorAll('th.sortable').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const k=th.dataset.sort;
+      if(state.agencies.sortBy===k)state.agencies.sortDir=state.agencies.sortDir==='asc'?'desc':'asc';
+      else{state.agencies.sortBy=k;state.agencies.sortDir=k==='agency'?'asc':'desc';}
+      renderAgencyAnalysis();
+    });
+  });
 }
 
 async function loadTrends(){
