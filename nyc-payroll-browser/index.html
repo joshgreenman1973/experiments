@@ -768,6 +768,14 @@ footer a{color:var(--cream);}
       </div>
       <div id="agencyBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div></div>
     </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Agency commissioners and equivalents</h3>
+        <div class="meta" id="commishMeta"></div>
+      </div>
+      <div id="commishBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency heads...</div></div></div>
+      <p class="chart-note">Identified by title — Commissioner, Chancellor, Chairperson, Executive Director, District Attorney, Borough President, Public Advocate, Comptroller, and Mayor. When more than one person held a head-of-agency title at the same agency in a fiscal year (e.g., a mid-year transition), the highest-paid is shown. Acting and interim heads may not appear if they retained a different civil-service title. Pay reflects what was actually paid during the fiscal year, so partial-year tenure shows as a lower figure than the annualized salary.</p>
+    </div>
   </section>
 
   <section class="view" id="view-tiers">
@@ -924,6 +932,7 @@ const state={
   earners:{data:null,page:1,pageSize:25,err:null,loading:false},
   ot:{data:null,page:1,pageSize:25,err:null,loading:false},
   agencies:{data:null,err:null,loading:false,metric:'avg_salary'},
+  commish:{data:null,err:null,loading:false},
   tiers:{data:null,byYear:{},totalRows:0,err:null,loading:false,progress:null,chart:null},
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   agencyList:[]
@@ -1234,6 +1243,77 @@ async function loadAgencyAnalysis(){
   }catch(e){state.agencies.err=e.message;}
   state.agencies.loading=false;
   renderAgencyAnalysis();
+}
+
+const COMMISH_TITLES=['COMMISSIONER','CHANCELLOR','CHAIRPERSON','CHAIR','EXECUTIVE DIRECTOR','DISTRICT ATTORNEY','BOROUGH PRESIDENT','PUBLIC ADVOCATE','COMPTROLLER','MAYOR'];
+
+async function loadCommissioners(){
+  state.commish.loading=true;
+  state.commish.err=null;
+  renderCommissioners();
+  try{
+    const inList=COMMISH_TITLES.map(t=>`'${t}'`).join(',');
+    const rows=await api({
+      $select:'last_name,first_name,mid_init,agency_name,title_description,base_salary,regular_gross_paid,total_ot_paid,total_other_pay',
+      $where:`fiscal_year='${escapeSoql(state.year)}' AND upper(title_description) IN (${inList})`,
+      $order:'regular_gross_paid DESC',
+      $limit:500
+    });
+    const seen=new Map();
+    rows.forEach(r=>{
+      const key=(r.agency_name||'')+'||'+(r.title_description||'');
+      const total=Number(r.regular_gross_paid||0)+Number(r.total_ot_paid||0)+Number(r.total_other_pay||0);
+      const cur=seen.get(key);
+      if(!cur||total>cur.total){
+        seen.set(key,{
+          agency:r.agency_name||'(unknown)',
+          title:r.title_description||'',
+          name:[r.last_name,r.first_name,r.mid_init].filter(Boolean).join(' ').trim(),
+          base:Number(r.base_salary||0),
+          regular:Number(r.regular_gross_paid||0),
+          ot:Number(r.total_ot_paid||0),
+          other:Number(r.total_other_pay||0),
+          total
+        });
+      }
+    });
+    state.commish.data=Array.from(seen.values()).sort((a,b)=>b.total-a.total);
+  }catch(e){state.commish.err=e.message;}
+  state.commish.loading=false;
+  renderCommissioners();
+}
+
+function renderCommissioners(){
+  const body=document.getElementById('commishBody');
+  const meta=document.getElementById('commishMeta');
+  if(state.commish.loading){body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading agency heads...</div></div>';return;}
+  if(state.commish.err){body.innerHTML=`<div class="error-state">Could not load: ${state.commish.err}</div>`;return;}
+  const data=state.commish.data||[];
+  if(!data.length){body.innerHTML='<div class="empty-state">No agency heads found for this fiscal year.</div>';return;}
+  meta.textContent=`${data.length} agency heads  ·  FY ${state.year}`;
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Agency</th><th>Title</th><th>Name</th>
+        <th class="num">Base salary</th>
+        <th class="num">Regular pay</th>
+        <th class="num">Overtime</th>
+        <th class="num">All-in pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+      </tr></thead>
+      <tbody>
+        ${data.map((r,i)=>`<tr>
+          <td class="rank">${i+1}</td>
+          <td class="name">${titleCase(r.agency)}</td>
+          <td class="title-cell muted">${titleCase(r.title)}</td>
+          <td class="name">${titleCase(r.name)}</td>
+          <td class="num">${fmtMoneyFull(fr(r.base))}</td>
+          <td class="num">${fmtMoneyFull(fr(r.regular))}</td>
+          <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
+          <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  `;
 }
 
 function renderAgencyAnalysis(){
@@ -1567,6 +1647,7 @@ function applyFringe(){
   if(state.earners.data)renderEarners();
   if(state.ot.data)renderOvertime();
   if(state.agencies.data)renderAgencyAnalysis();
+  if(state.commish.data)renderCommissioners();
 }
 document.getElementById('fringeCheckbox').addEventListener('change',e=>{
   state.fringe=e.target.checked;
@@ -1588,6 +1669,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     const v=btn.dataset.view;
     document.getElementById('view-'+v).classList.add('active');
     if(v==='agencies'&&!state.agencies.data&&!state.agencies.loading)loadAgencyAnalysis();
+    if(v==='agencies'&&!state.commish.data&&!state.commish.loading)loadCommissioners();
     if(v==='tiers'&&!state.tiers.data&&!state.tiers.loading)loadTiers();
     if(v==='trends'&&!state.trends.data&&!state.trends.loading)loadTrends();
   });
@@ -1595,11 +1677,11 @@ document.querySelectorAll('.tab').forEach(btn=>{
 
 document.getElementById('yearSelect').addEventListener('change',async e=>{
   state.year=e.target.value;
-  state.earners.data=null;state.ot.data=null;state.agencies.data=null;state.tiers.data=null;
+  state.earners.data=null;state.ot.data=null;state.agencies.data=null;state.tiers.data=null;state.commish.data=null;
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
   loadOvertime();
-  if(document.getElementById('view-agencies').classList.contains('active'))loadAgencyAnalysis();
+  if(document.getElementById('view-agencies').classList.contains('active')){loadAgencyAnalysis();loadCommissioners();}
   if(document.getElementById('view-tiers').classList.contains('active'))loadTiers();
 });
 
