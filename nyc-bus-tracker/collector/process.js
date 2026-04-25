@@ -106,12 +106,12 @@ function computeSpeedsBetween(prevSnap, currSnap) {
   const currTime = new Date(currSnap.ts).getTime();
   const dtHours = (currTime - prevTime) / 3600000;
 
-  // Skip if bad interval. Window widened to 75 min because the GitHub Actions
-  // */5 cron drifts heavily on free runners (observed pair gaps of 60-80 min on
-  // 2026-04-22). At wide windows haversine distance / elapsed time understates
-  // actual road speed (buses zigzag), so weekly speeds derived from sparse
-  // collection should be read as a floor, not a precise number — see methodology.
-  if (dtHours <= 0 || dtHours > 1.25) return new Map();
+  // The collector samples every 30 seconds (in dense bursts inside an hourly
+  // workflow, see .github/workflows/bus-tracker-collect.yml). Tight pair window
+  // discards consecutive snapshots that crossed an hour boundary or otherwise
+  // drifted, keeping speed estimates clean. Anything > 10 minutes apart almost
+  // certainly straddles a workflow gap and should not contribute to speed math.
+  if (dtHours <= 0 || dtHours > 0.17) return new Map();
 
   const routeSpeeds = new Map();
 

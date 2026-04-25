@@ -1,14 +1,21 @@
 name: Collect Bus Data
 
+# Hourly cron is reliable on GitHub Actions in a way "*/5" is not — short-interval
+# crons get heavily throttled on free runners. Inside each hourly run we call
+# collect.js 18 times with 30-second pauses, so we get dense 30-second samples
+# (18 lines per hour × 17 operating hours = ~306 snapshots/day) without relying
+# on cron precision. Public repos get unlimited Actions minutes, so cost is $0.
 on:
-  # Every 5 minutes, 6am-11pm ET (10am-3am UTC during EDT, 11am-4am UTC during EST)
-  # Using broad UTC window to cover both DST states
   schedule:
-    - cron: '*/5 10-23 * * *'   # 10:00-23:55 UTC
-    - cron: '*/5 0-4 * * *'     # 00:00-04:55 UTC (late evening ET)
+    - cron: '0 10-23 * * *'  # 10:00-23:00 UTC (covers 6am-7pm ET in EDT, 5am-6pm ET in EST)
+    - cron: '0 0-4 * * *'    # 00:00-04:00 UTC  (covers 8pm-12am ET in EDT, 7pm-11pm ET in EST)
 
-  # Manual trigger
   workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: 'How many minutes of dense collection (default 9, max 50)'
+        required: false
+        default: '9'
 
 permissions:
   contents: write
@@ -16,34 +23,71 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # Hard ceiling so a stuck run can't burn the day's budget. The loop itself
+    # is bounded to ~10 minutes; this is just belt-and-suspenders.
+    timeout-minutes: 15
 
     steps:
-      - name: Check if within operating hours (6am-11pm ET)
+      - name: Operating-hours gate (6am-11pm ET)
+        id: gate
         run: |
           HOUR_ET=$(TZ='America/New_York' date +%H)
           if [ "$HOUR_ET" -lt 6 ] || [ "$HOUR_ET" -ge 23 ]; then
             echo "Outside operating hours (${HOUR_ET}:00 ET). Skipping."
-            exit 0
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Within operating hours (${HOUR_ET}:00 ET). Proceeding."
+            echo "skip=false" >> $GITHUB_OUTPUT
           fi
-          echo "Within operating hours (${HOUR_ET}:00 ET). Proceeding."
 
       - name: Checkout repository
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
         run: cd nyc-bus-tracker/collector && npm ci
 
-      - name: Collect bus data
-        run: node nyc-bus-tracker/collector/collect.js
+      - name: Collect bus data (dense sampling — 30 sec interval)
+        if: steps.gate.outputs.skip != 'true'
         env:
           MTA_API_KEY: ${{ secrets.MTA_BUSTIME_API_KEY }}
+          DURATION_MIN: ${{ github.event.inputs.duration_minutes || '9' }}
+        run: |
+          # Cap duration to 50 minutes so we always finish before the next hourly cron.
+          DUR_MIN=${DURATION_MIN:-9}
+          if [ "$DUR_MIN" -gt 50 ]; then DUR_MIN=50; fi
+          # 30-second cadence -> 2 calls/minute. Iterations = duration * 2.
+          ITERATIONS=$(( DUR_MIN * 2 ))
+          echo "Running ${ITERATIONS} collections at 30-second intervals (~${DUR_MIN} min)"
+
+          # We don't `set -e` because a single API blip shouldn't kill the run.
+          OK=0
+          FAIL=0
+          for i in $(seq 1 $ITERATIONS); do
+            if node nyc-bus-tracker/collector/collect.js; then
+              OK=$((OK+1))
+            else
+              FAIL=$((FAIL+1))
+              echo "::warning::collect.js failed on iteration ${i}"
+            fi
+            # Sleep on every iteration except the last
+            if [ "$i" -lt "$ITERATIONS" ]; then
+              sleep 30
+            fi
+          done
+          echo "Collection complete: ${OK} succeeded, ${FAIL} failed."
+          # Fail the run only if everything failed (partial loss is acceptable)
+          if [ "$OK" -eq 0 ]; then exit 1; fi
 
       - name: Commit and push data
+        if: steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
@@ -52,6 +96,9 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new data to commit"
           else
+            # Pull any concurrent updates (other workflows may have committed)
+            # before pushing, to reduce push-rejected churn.
+            git pull --rebase --autostash origin main || true
             DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
             git commit -m "Bus data: ${DATE} ET"
             git push
