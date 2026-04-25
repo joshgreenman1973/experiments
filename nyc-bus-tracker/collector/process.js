@@ -21,6 +21,38 @@ const SNAPSHOTS_DIR = join(__dirname, '..', 'data', 'snapshots');
 const DAILY_DIR = join(__dirname, '..', 'data', 'daily');
 
 const BUNCHING_DISTANCE_M = 250;
+const DEFAULT_SPEED_MPH = 8; // assumption when a route has no observed speed yet
+const GAP_CAP_MIN = 60; // cap individual gaps to avoid terminus skew (matches live app)
+const BIG_GAP_20 = 20;
+const BIG_GAP_30 = 30;
+
+/** Borough bucket from MTA route shortname. Mirrors live-app prefix matching. */
+function boroughOf(route) {
+  if (!route) return 'unknown';
+  const r = route.toUpperCase();
+  if (r.startsWith('BX')) return 'Bx';
+  if (r.startsWith('B')) return 'B';
+  if (r.startsWith('S')) return 'S';
+  if (r.startsWith('Q')) return 'Q';
+  if (r.startsWith('M')) return 'M';
+  if (r.startsWith('X')) return 'X'; // express
+  return 'other';
+}
+
+function percentile(arr, p) {
+  if (arr.length === 0) return null;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[idx];
+}
+
+function isWeekendDate(dateStr) {
+  // dateStr is "YYYY-MM-DD" — interpret as ET local date for the weekday lookup.
+  // ISO-week math handled separately; here we just need Sat/Sun detection.
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const day = d.getUTCDay();
+  return day === 0 || day === 6;
+}
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -74,8 +106,12 @@ function computeSpeedsBetween(prevSnap, currSnap) {
   const currTime = new Date(currSnap.ts).getTime();
   const dtHours = (currTime - prevTime) / 3600000;
 
-  // Skip if bad interval (negative, zero, or >30 min gap)
-  if (dtHours <= 0 || dtHours > 0.5) return new Map();
+  // Skip if bad interval. Window widened to 75 min because the GitHub Actions
+  // */5 cron drifts heavily on free runners (observed pair gaps of 60-80 min on
+  // 2026-04-22). At wide windows haversine distance / elapsed time understates
+  // actual road speed (buses zigzag), so weekly speeds derived from sparse
+  // collection should be read as a floor, not a precise number — see methodology.
+  if (dtHours <= 0 || dtHours > 1.25) return new Map();
 
   const routeSpeeds = new Map();
 
@@ -105,7 +141,7 @@ function processDay(date) {
   let totalBunchingEvents = 0;
   const totalGapRoutes = new Set();
 
-  // Accumulate per-route speeds across all snapshot pairs
+  // Per-route speed accumulators across all snapshot pairs
   const routeSpeedAccum = {}; // route -> [all speeds across the day]
 
   // Process consecutive snapshot pairs for speed
@@ -117,10 +153,46 @@ function processDay(date) {
     }
   }
 
-  // Process each snapshot for bunching and gaps
+  // First pass route average speed (used as the "assumed speed" for gap-time
+  // estimation in the second pass). Falls back to DEFAULT_SPEED_MPH per route.
+  const routeAvgSpeedHint = {};
+  for (const [route, speeds] of Object.entries(routeSpeedAccum)) {
+    if (speeds.length > 0) routeAvgSpeedHint[route] = avg(speeds);
+  }
+
+  // Hourly system-level accumulators (24 buckets)
+  const hourly = {
+    snapshots: new Array(24).fill(0),
+    busesSum: new Array(24).fill(0),    // bus-count totals → divide by snapshot count later
+    bunchPairs: new Array(24).fill(0),
+    bigGap20: new Array(24).fill(0),
+    bigGap30: new Array(24).fill(0),
+    gapSumMin: new Array(24).fill(0),   // sum of gap minutes across all routes/dirs
+    gapCount: new Array(24).fill(0),    // number of gap measurements
+    gapSumSqMin: new Array(24).fill(0), // sum of gap² (for queuing-formula wait)
+  };
+
+  // Per-snapshot active-bus counts (for daily mean/peak/min)
+  const activeBusCounts = [];
+
+  // Per-borough accumulators
+  const boroughStats = {}; // boro -> { snapshots, busesSum, bunchPairs, gapSumMin, gapCount, gapSumSqMin, routes:Set, speeds:[] }
+  function ensureBoro(b) {
+    if (!boroughStats[b]) boroughStats[b] = {
+      snapshots: 0, busesSum: 0, bunchPairs: 0,
+      gapSumMin: 0, gapCount: 0, gapSumSqMin: 0,
+      routes: new Set(), speeds: [],
+    };
+    return boroughStats[b];
+  }
+
+  // Process each snapshot for bunching, gaps, wait, hourly, borough
   for (const snap of snapshots) {
     const ts = new Date(snap.ts);
     const hour = ts.getHours();
+    hourly.snapshots[hour]++;
+    activeBusCounts.push(snap.vehicles.length);
+    hourly.busesSum[hour] += snap.vehicles.length;
 
     // Group vehicles by route + direction
     const groups = {};
@@ -130,12 +202,22 @@ function processDay(date) {
       groups[key].push(v);
     }
 
+    // Track which routes had any 20/30+ min gap in THIS snapshot (for big-gap counts)
+    const routesWithBigGap20 = new Set();
+    const routesWithBigGap30 = new Set();
+
     for (const [key, buses] of Object.entries(groups)) {
-      const route = key.split('_')[0];
+      const [route, dir] = key.split('_');
+      const boro = boroughOf(route);
+      const bs = ensureBoro(boro);
+      bs.snapshots++;
+      bs.busesSum += buses.length;
+      bs.routes.add(route);
 
       if (!routeStats[route]) {
         routeStats[route] = {
           route,
+          borough: boro,
           totalBuses: 0,
           snapshotCount: 0,
           bunchingEvents: 0,
@@ -143,6 +225,10 @@ function processDay(date) {
           gapSnapshots: 0,
           maxBusCount: 0,
           minBusCount: Infinity,
+          gapMinutes: [],     // every gap measurement (capped) for this route
+          maxGapObserved: 0,  // peak inter-bus gap seen all day
+          bigGap20Count: 0,   // snapshots where this route had ≥20-min gap
+          bigGap30Count: 0,
         };
       }
 
@@ -163,19 +249,76 @@ function processDay(date) {
             rs.bunchingEvents++;
             rs.bunchingByHour[hour]++;
             totalBunchingEvents++;
+            hourly.bunchPairs[hour]++;
+            bs.bunchPairs++;
           }
         }
       }
 
-      // Gap detection (single bus = potential service gap)
+      // Single-bus snapshot = service gap (legacy field)
       if (buses.length <= 1) {
         rs.gapSnapshots++;
         totalGapRoutes.add(route);
       }
+
+      // ── Inter-bus gap minutes (queuing-formula wait input) ──
+      // Mirrors live app's estimateGaps: order along dominant axis, divide
+      // straight-line distance by route's observed speed (haversine-based;
+      // we don't have route shapes server-side, so this is a known underestimate
+      // for winding routes, see methodology). Skip when too few buses to spread.
+      if (buses.length >= 3) {
+        const isEastWest =
+          Math.abs(buses[0].lon - buses[1].lon) >
+          Math.abs(buses[0].lat - buses[1].lat);
+        const sorted = [...buses].sort((a, b) =>
+          isEastWest ? a.lon - b.lon : a.lat - b.lat,
+        );
+        const speedMph = routeAvgSpeedHint[route] || DEFAULT_SPEED_MPH;
+        const speedMps = (speedMph * 1609.34) / 3600;
+        let maxGapHere = 0;
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const dist = haversine(
+            sorted[i].lat, sorted[i].lon,
+            sorted[i + 1].lat, sorted[i + 1].lon,
+          );
+          const gapMin = speedMps > 0
+            ? Math.min(GAP_CAP_MIN, Math.round((dist / speedMps) / 60))
+            : 0;
+          rs.gapMinutes.push(gapMin);
+          maxGapHere = Math.max(maxGapHere, gapMin);
+          rs.maxGapObserved = Math.max(rs.maxGapObserved, gapMin);
+
+          hourly.gapSumMin[hour] += gapMin;
+          hourly.gapCount[hour]++;
+          hourly.gapSumSqMin[hour] += gapMin * gapMin;
+
+          bs.gapSumMin += gapMin;
+          bs.gapCount++;
+          bs.gapSumSqMin += gapMin * gapMin;
+        }
+        // 20+ is inclusive of 30+ (matches live page's "routes with 20+ min waits")
+        if (maxGapHere >= BIG_GAP_20) {
+          routesWithBigGap20.add(route);
+          rs.bigGap20Count++;
+        }
+        if (maxGapHere >= BIG_GAP_30) {
+          routesWithBigGap30.add(route);
+          rs.bigGap30Count++;
+        }
+      }
     }
+
+    hourly.bigGap20[hour] += routesWithBigGap20.size;
+    hourly.bigGap30[hour] += routesWithBigGap30.size;
   }
 
-  // Compute per-route summaries including speed
+  // Borough route avg speeds (mean of per-route means within each borough)
+  for (const [route, hint] of Object.entries(routeAvgSpeedHint)) {
+    const b = boroughOf(route);
+    if (boroughStats[b]) boroughStats[b].speeds.push(hint);
+  }
+
+  // ── Per-route summaries (now include wait/gap stats) ──
   const routeSummaries = Object.values(routeStats).map(rs => {
     const avgBuses = rs.snapshotCount > 0 ? rs.totalBuses / rs.snapshotCount : 0;
     const gapPct = rs.snapshotCount > 0 ? (rs.gapSnapshots / rs.snapshotCount) * 100 : 0;
@@ -183,13 +326,29 @@ function processDay(date) {
       ? ((rs.snapshotCount - rs.gapSnapshots) / rs.snapshotCount) * 100
       : 0;
 
-    // Per-route average speed
     const speeds = routeSpeedAccum[rs.route];
     const routeAvgSpeed = speeds && speeds.length > 0 ? round1(avg(speeds)) : null;
 
+    // Wait time: queuing-formula on this route's gap distribution
+    let avgWait = null;
+    let medianGap = null;
+    let p90Gap = null;
+    if (rs.gapMinutes.length > 0) {
+      const meanGap = avg(rs.gapMinutes);
+      const meanGapSq = rs.gapMinutes.reduce((a, b) => a + b * b, 0) / rs.gapMinutes.length;
+      avgWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
+      medianGap = percentile(rs.gapMinutes, 50);
+      p90Gap = percentile(rs.gapMinutes, 90);
+    }
+
     return {
       route: rs.route,
+      borough: rs.borough,
       avgSpeed: routeAvgSpeed,
+      avgWait,
+      medianGap,
+      p90Gap,
+      maxGap: rs.maxGapObserved || null,
       avgBuses: round1(avgBuses),
       maxBuses: rs.maxBusCount,
       minBuses: rs.minBusCount === Infinity ? 0 : rs.minBusCount,
@@ -198,6 +357,8 @@ function processDay(date) {
       gapSnapshots: rs.gapSnapshots,
       gapPct: round1(gapPct),
       reliability: round1(reliability),
+      bigGap20Count: rs.bigGap20Count,
+      bigGap30Count: rs.bigGap30Count,
       snapshotCount: rs.snapshotCount,
     };
   });
@@ -205,29 +366,127 @@ function processDay(date) {
   // Sort by reliability ascending (worst first)
   routeSummaries.sort((a, b) => a.reliability - b.reliability);
 
-  // System-wide average speed: mean of per-route averages (each route weighted equally)
+  // System-wide avg speed: unweighted mean of per-route averages
   const routeAvgSpeeds = routeSummaries
     .filter(r => r.avgSpeed != null)
     .map(r => r.avgSpeed);
   const systemAvgSpeed = routeAvgSpeeds.length > 0 ? round1(avg(routeAvgSpeeds)) : null;
 
-  // System-wide bunching rate: bunching events per snapshot per route
+  // System-wide wait time: queuing formula across ALL gap observations system-wide
+  let systemAvgWait = null;
+  let totalGapSum = 0;
+  let totalGapSumSq = 0;
+  let totalGapCount = 0;
+  for (let h = 0; h < 24; h++) {
+    totalGapSum += hourly.gapSumMin[h];
+    totalGapSumSq += hourly.gapSumSqMin[h];
+    totalGapCount += hourly.gapCount[h];
+  }
+  if (totalGapCount > 0) {
+    const meanGap = totalGapSum / totalGapCount;
+    const meanGapSq = totalGapSumSq / totalGapCount;
+    systemAvgWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
+  }
+
+  // Big-gap counts: average number of routes per snapshot exceeding the threshold
   const totalSnapshots = snapshots.length;
+  let bigGap20Sum = 0, bigGap30Sum = 0;
+  for (let h = 0; h < 24; h++) {
+    bigGap20Sum += hourly.bigGap20[h];
+    bigGap30Sum += hourly.bigGap30[h];
+  }
+  const bigGap20PerSnap = totalSnapshots > 0 ? round1(bigGap20Sum / totalSnapshots) : null;
+  const bigGap30PerSnap = totalSnapshots > 0 ? round1(bigGap30Sum / totalSnapshots) : null;
+
+  // Active bus counts across the day
+  const activeBusesAvg = activeBusCounts.length > 0 ? round1(avg(activeBusCounts)) : null;
+  const activeBusesPeak = activeBusCounts.length > 0 ? Math.max(...activeBusCounts) : null;
+  const activeBusesMin = activeBusCounts.length > 0 ? Math.min(...activeBusCounts) : null;
+
+  // Bunching per snapshot (legacy field, unchanged)
   const bunchingRate = totalSnapshots > 0 && routeSummaries.length > 0
     ? round1(totalBunchingEvents / totalSnapshots)
     : null;
 
+  // Hourly system-level rollups (sparse: only hours with at least one snapshot)
+  const hourlySystem = {};
+  for (let h = 0; h < 24; h++) {
+    if (hourly.snapshots[h] === 0) continue;
+    const meanGap = hourly.gapCount[h] > 0 ? hourly.gapSumMin[h] / hourly.gapCount[h] : 0;
+    const meanGapSq = hourly.gapCount[h] > 0 ? hourly.gapSumSqMin[h] / hourly.gapCount[h] : 0;
+    const wait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
+    hourlySystem[h] = {
+      snapshots: hourly.snapshots[h],
+      avgBuses: round1(hourly.busesSum[h] / hourly.snapshots[h]),
+      bunchPairsPerSnap: round1(hourly.bunchPairs[h] / hourly.snapshots[h]),
+      bigGap20PerSnap: round1(hourly.bigGap20[h] / hourly.snapshots[h]),
+      bigGap30PerSnap: round1(hourly.bigGap30[h] / hourly.snapshots[h]),
+      avgWait: wait,
+    };
+  }
+  // Per-hour speed (mean of per-route speeds within hour) is non-trivial to bucket
+  // because speed is computed across snapshot pairs; we approximate by reusing the
+  // pair-level speed sample's source hour. Captured in a separate pass:
+  const hourlySpeedAccum = new Array(24).fill(0).map(() => []);
+  for (let s = 1; s < snapshots.length; s++) {
+    const speedsByRoute = computeSpeedsBetween(snapshots[s - 1], snapshots[s]);
+    const h = new Date(snapshots[s].ts).getHours();
+    for (const [, speeds] of speedsByRoute) {
+      hourlySpeedAccum[h].push(...speeds);
+    }
+  }
+  for (let h = 0; h < 24; h++) {
+    if (hourlySystem[h] && hourlySpeedAccum[h].length > 0) {
+      hourlySystem[h].avgSpeed = round1(avg(hourlySpeedAccum[h]));
+    } else if (hourlySystem[h]) {
+      hourlySystem[h].avgSpeed = null;
+    }
+  }
+
+  // Per-borough rollups
+  const byBorough = {};
+  for (const [boro, bs] of Object.entries(boroughStats)) {
+    if (bs.snapshots === 0) continue;
+    const meanGap = bs.gapCount > 0 ? bs.gapSumMin / bs.gapCount : 0;
+    const meanGapSq = bs.gapCount > 0 ? bs.gapSumSqMin / bs.gapCount : 0;
+    const wait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
+    byBorough[boro] = {
+      snapshots: bs.snapshots,
+      routes: bs.routes.size,
+      avgBuses: round1(bs.busesSum / bs.snapshots),
+      avgSpeed: bs.speeds.length > 0 ? round1(avg(bs.speeds)) : null,
+      bunchPairsPerSnap: round1(bs.bunchPairs / bs.snapshots),
+      avgWait: wait,
+    };
+  }
+
   const dailySummary = {
     date,
-    snapshotCount: snapshots.length,
+    weekday: new Date(date + 'T12:00:00Z').getUTCDay(), // 0=Sun..6=Sat
+    isWeekend: isWeekendDate(date),
+    snapshotCount: totalSnapshots,
     totalRoutes: routeSummaries.length,
+
+    // ── Headline system metrics ──
     systemAvgSpeed,
+    systemAvgWait,
     bunchingRate,
     totalBunchingEvents,
+    bigGap20PerSnap,
+    bigGap30PerSnap,
+    activeBusesAvg,
+    activeBusesPeak,
+    activeBusesMin,
     routesWithGaps: totalGapRoutes.size,
     systemReliability: routeSummaries.length > 0
       ? round1(avg(routeSummaries.map(r => r.reliability)))
       : 0,
+
+    // ── Slices ──
+    hourly: hourlySystem,    // 0..23 → { snapshots, avgSpeed, avgBuses, bunchPairsPerSnap, avgWait, bigGap20PerSnap, bigGap30PerSnap }
+    byBorough,               // 'M'|'B'|'Bx'|'Q'|'S'|'X' → { avgSpeed, avgBuses, avgWait, bunchPairsPerSnap, snapshots, routes }
+
+    // ── Per-route detail (full) ──
     worstRoutes: routeSummaries.slice(0, 20),
     bestRoutes: routeSummaries.slice(-10).reverse(),
     routes: routeSummaries,

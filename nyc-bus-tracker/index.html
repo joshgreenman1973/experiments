@@ -207,29 +207,80 @@
                 <tr>
                   <th>ISO week</th>
                   <th>Dates</th>
-                  <th class="num">Days</th>
-                  <th class="num">Snapshots</th>
-                  <th class="num">Avg speed (mph)</th>
-                  <th class="num">Bunching / snap</th>
-                  <th class="num">Reliability (%)</th>
-                  <th class="num">Routes</th>
+                  <th class="num" title="Days of data captured (out of 7)">Days</th>
+                  <th class="num" title="Total 5-min snapshots collected this week">Snapshots</th>
+                  <th class="num" title="System-wide avg speed in mph (mean of per-route means)">Speed (mph)</th>
+                  <th class="num" title="Expected rider wait minutes from queuing-formula on observed gap distribution">Wait (min)</th>
+                  <th class="num" title="% of snapshots with no 20+ min gap on the route">Reliab. (%)</th>
+                  <th class="num" title="Bus-pair bunching events per snapshot">Bunch / snap</th>
+                  <th class="num" title="Routes per snapshot with a 20+ min gap">20+ gaps</th>
+                  <th class="num" title="Routes per snapshot with a 30+ min gap">30+ gaps</th>
+                  <th class="num" title="Average active buses across snapshots">Buses (avg)</th>
+                  <th class="num" title="Peak active bus count seen">Buses (peak)</th>
+                  <th class="num" title="Routes with at least one observation this week">Routes</th>
                 </tr>
               </thead>
               <tbody id="tray-table-body">
-                <tr class="tray-table-empty"><td colspan="8">No weekly rows yet.</td></tr>
+                <tr class="tray-table-empty"><td colspan="13">No weekly rows yet.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
+        <details class="tray-math" id="tray-coverage">
+          <summary><strong>Data collection &mdash; what's captured and what to be skeptical of</strong></summary>
+          <div class="tray-math-body">
+            <p id="tray-coverage-stats">Loading collection stats&hellip;</p>
+
+            <p><strong>Every metric the live page reports is captured at the daily, weekly, and monthly level</strong> &mdash; nothing is computed only at view time. Specifically:</p>
+            <ul>
+              <li>System-wide: avg speed, avg rider wait, % reliability, bunching events per snapshot, routes-per-snapshot with 20+ and 30+ min gaps, active bus count (avg / peak / min), total snapshots, total bunching events, total routes seen.</li>
+              <li><strong>Per hour of day (0&ndash;23):</strong> avg speed, avg wait, avg buses, bunch pairs/snap, big-gap counts. Lets us compare rush hour vs. off-peak.</li>
+              <li><strong>Per borough (M, B, Bx, Q, S, X-express):</strong> avg speed, avg wait, avg buses, bunch pairs/snap, route count.</li>
+              <li><strong>Per route, every day:</strong> avg speed, avg wait, median &amp; 90th-percentile gap, max observed gap, bunching events (per-hour buckets), reliability, big-gap counts, avg/min/max active buses.</li>
+              <li><strong>Weekday vs weekend</strong> sub-aggregates inside every weekly and monthly row.</li>
+            </ul>
+
+            <p><strong>Where the data lives</strong> (all viewable on GitHub):</p>
+            <ul>
+              <li><code>data/snapshots/YYYY-MM-DD.jsonl</code> &mdash; raw 5-min collections, one JSON line per snapshot, ~1,500 vehicles each. Never deleted.</li>
+              <li><code>data/daily/YYYY-MM-DD.json</code> &mdash; full daily roll-up including the per-route, per-hour, and per-borough slices above.</li>
+              <li><code>data/summary/weekly.json</code> &amp; <code>monthly.json</code> &mdash; system-level period rollups (the source for the table above).</li>
+              <li><code>data/summary/weekly-routes.json</code> &amp; <code>monthly-routes.json</code> &mdash; per-route history keyed by route shortname.</li>
+              <li><code>data/summary/latest.json</code> &mdash; convenience file with current/last-week/last-month plus 12 weeks &amp; 12 months of context.</li>
+            </ul>
+
+            <p><strong>Known limitations &mdash; read these numbers with skepticism:</strong></p>
+            <ul>
+              <li><strong>Speed is a floor, not a precise estimate.</strong> The collector uses GitHub Actions free-tier crons, which drift heavily on short intervals. Observed interval on the first day of collection (Apr 22, 2026) ranged from <strong>57 to 148 minutes</strong>, not the targeted 5. Speed is computed from straight-line distance between consecutive snapshots &divide; elapsed time, which underestimates actual road speed by 30&ndash;50% at hourly windows because buses don't travel in straight lines. The live page (which polls every 30 seconds while open) gives much tighter numbers; weekly aggregates here should be treated as a directional indicator and a floor.</li>
+              <li><strong>Big-gap counts run high for the same reason.</strong> Inter-bus gaps measured at hourly intervals on slow routes look enormous because the bus moved a long way between observations. Pre/post-free-bus comparisons within this dataset should still be valid (same methodology applied consistently), but the absolute numbers should not be compared to MTA published gap statistics.</li>
+              <li><strong>No GTFS schedule data.</strong> Reliability here means "&gt;1 bus on the route this snapshot," not "on time vs. schedule." Wait time is queuing-formula on observed gaps, not "additional bus stop time" the MTA reports.</li>
+              <li><strong>Bunching uses 250m proximity, not headway-percentage.</strong> Different definition than the NYC Comptroller's "actual headway &lt; 25% of scheduled."</li>
+              <li><strong>Collection started 2026-04-22</strong>, mid-week. The first complete ISO week (Mon&ndash;Sun) is Apr 27 &ndash; May 3, rolled up the morning of May 4, 2026.</li>
+            </ul>
+
+            <p>If something looks wrong, the audit trail is the raw JSONL plus the daily JSON &mdash; both are public and dated. Open an issue, and the math is in <code>collector/process.js</code> and <code>collector/rollup.js</code>.</p>
+          </div>
+        </details>
+
         <details class="tray-math">
           <summary><strong>How these numbers are computed</strong></summary>
           <div class="tray-math-body">
-            <p>Every 5 minutes between 6&nbsp;AM and 11&nbsp;PM ET, a GitHub Action pulls every active bus from the MTA BusTime SIRI API and appends one JSON line to <code>data/snapshots/YYYY-MM-DD.jsonl</code>. Each line captures position, heading, route, phase, and timestamp for ~1,500 vehicles.</p>
-            <p><strong>Daily roll-up</strong> (runs 1&nbsp;AM ET, <code>process.js</code>): for each route, compute per-bus speeds between consecutive snapshots (along-route distance &divide; elapsed time, capped at 60&nbsp;mph). System speed = unweighted mean of route means (so the M15 doesn't dominate). Bunching = count of same-route same-direction bus pairs within 250&nbsp;m. Reliability = share of snapshots in which the route has no 20+ minute gap. Every input count is preserved in <code>data/daily/YYYY-MM-DD.json</code>.</p>
-            <p><strong>Weekly roll-up</strong> (<code>rollup.js</code>): group days by ISO&nbsp;week (Mon&ndash;Sun). For each metric, take the simple mean across days in the week; sum the snapshot and bunching-event totals. Weeks with fewer than 7 days are held back from the headline cards until they're complete &mdash; you'll see them in the table with a partial-week marker, never in the "this week" number.</p>
-            <p><strong>Change vs. last week</strong> = this week's mean minus last week's mean, shown with one decimal. Good direction (up for speed/reliability, down for bunching) is green.</p>
-            <p>See the full <a href="#methodology" onclick="document.querySelector('.methodology').setAttribute('open','');">methodology</a> for how individual metrics are defined and how they compare to MTA official numbers.</p>
+            <p>Every 5 minutes between 6&nbsp;AM and 11&nbsp;PM ET, a GitHub Action pulls every active bus from the MTA BusTime SIRI API and appends one JSON line to <code>data/snapshots/YYYY-MM-DD.jsonl</code>. Each line captures position, heading, route, direction, phase, and timestamp for ~1,500 vehicles.</p>
+            <p><strong>Daily roll-up</strong> (<code>process.js</code>, runs 1&nbsp;AM ET) captures every metric the live page shows, plus slices for later analysis:</p>
+            <ul>
+              <li><strong>Avg speed</strong> &mdash; per-bus speeds between consecutive snapshots (haversine distance &divide; elapsed time, &ge; 0.5 and &lt; 60&nbsp;mph). Per-route mean, then unweighted mean of route means &mdash; so the M15 doesn't dominate the system number.</li>
+              <li><strong>Avg rider wait</strong> &mdash; for every snapshot, sort same-route same-direction buses along their dominant axis and convert the inter-bus distance into minutes using that route's observed speed (cap 60&nbsp;min). Wait&nbsp;= E[gap&sup2;]&nbsp;&divide;&nbsp;(2&nbsp;&middot;&nbsp;E[gap]) over the day's gap distribution. Same formula as the live page.</li>
+              <li><strong>Bunching</strong> &mdash; same-route same-direction bus pairs within 250&nbsp;m. Stored as both a per-snapshot rate and total events.</li>
+              <li><strong>Big gaps (20+ / 30+ min)</strong> &mdash; routes-per-snapshot whose maximum inter-bus gap meets the threshold.</li>
+              <li><strong>Active buses</strong> &mdash; average and peak vehicle count across the day's snapshots.</li>
+              <li><strong>Reliability</strong> &mdash; share of snapshots where a route has more than one bus running.</li>
+              <li><strong>Slices captured for later use:</strong> per-hour (24 buckets) speed/wait/bunching/buses/big-gaps; per-borough (M, B, Bx, Q, S, X) the same metrics; per-route history; weekday vs weekend tagged.</li>
+            </ul>
+            <p>Every input count is preserved in <code>data/daily/YYYY-MM-DD.json</code> &mdash; nothing is thrown away.</p>
+            <p><strong>Weekly &amp; monthly roll-ups</strong> (<code>rollup.js</code>): group days by ISO week (Mon&ndash;Sun) and calendar month. Take the simple mean of daily means for each metric; sum totals (snapshots, bunching events). Roll up the per-hour, per-borough, and per-route slices the same way and write them to <code>data/summary/weekly.json</code>, <code>monthly.json</code>, <code>weekly-routes.json</code>, and <code>monthly-routes.json</code>. Weekday-only and weekend-only sub-aggregates are also stored, so we can compare like-with-like across weeks.</p>
+            <p>Weeks with fewer than 7 days appear in the table with a partial-week marker (<code>3/7&nbsp;*</code>) and are excluded from the "this week" headline cards. <strong>Change vs. last week</strong> = this week's mean minus last week's mean (one decimal). Good direction (up for speed/reliability/buses, down for wait/bunching/gaps) renders green.</p>
+            <p>See the full <a href="#methodology" onclick="document.querySelector('.methodology').setAttribute('open','');">methodology</a> for how each metric compares to MTA official numbers and the limits of this pipeline.</p>
           </div>
         </details>
       </div>

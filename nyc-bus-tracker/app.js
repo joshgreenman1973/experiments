@@ -58,6 +58,7 @@ function cacheDomElements() {
     'borough-filter', 'route-list-header',
     'tray', 'tray-handle', 'tray-body', 'tray-summary', 'tray-hint',
     'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
+    'tray-coverage-stats',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -1286,9 +1287,11 @@ function renderTrends(data, weeklyAll) {
   if (summaryEl) {
     if (thisWeek?.avgSpeed != null) {
       const bits = [
-        `${thisWeek.avgSpeed} mph avg speed`,
-        thisWeek.avgReliability != null ? `${thisWeek.avgReliability}% reliability` : null,
-        thisWeek.avgBunchingRate != null ? `${thisWeek.avgBunchingRate} bunches/snap` : null,
+        `${thisWeek.avgSpeed} mph`,
+        thisWeek.avgWait != null ? `${thisWeek.avgWait} min wait` : null,
+        thisWeek.avgReliability != null ? `${thisWeek.avgReliability}% reliable` : null,
+        thisWeek.avgActiveBuses != null ? `${Math.round(thisWeek.avgActiveBuses).toLocaleString()} buses avg` : null,
+        thisWeek.avgBigGap20PerSnap != null ? `${thisWeek.avgBigGap20PerSnap} routes w/ 20+ min gaps` : null,
       ].filter(Boolean);
       summaryEl.textContent = `Week of ${thisWeek.startDate}: ${bits.join(' · ')}`;
     } else if (weeklyAll && weeklyAll.length > 0) {
@@ -1322,8 +1325,11 @@ function renderTrends(data, weeklyAll) {
       ));
     };
     pushIfPresent('Avg speed', 'mph', 'avgSpeed', 'higher is better');
-    pushIfPresent('Avg wait-reliability', '%', 'avgReliability', 'higher is better');
+    pushIfPresent('Avg wait', 'min', 'avgWait', 'lower is better');
+    pushIfPresent('Reliability', '%', 'avgReliability', 'higher is better');
     pushIfPresent('Bunching', '/snap', 'avgBunchingRate', 'lower is better');
+    pushIfPresent('20+ min gaps', '/snap', 'avgBigGap20PerSnap', 'lower is better');
+    pushIfPresent('Active buses', '', 'avgActiveBuses', 'higher is better');
 
     // Monthly roll-ups, only when we have a full calendar month of data
     const thisMonth = data?.thisMonth?.days >= 28 ? data.thisMonth : null;
@@ -1359,15 +1365,37 @@ function renderTrends(data, weeklyAll) {
     }
   }
 
+  // ── Collection coverage stats (transparency drawer) ──
+  const covEl = dom['tray-coverage-stats'];
+  if (covEl) {
+    const cur = data?.current;
+    if (cur?.date) {
+      const bits = [
+        `Latest daily roll-up: <strong>${cur.date}</strong>`,
+        cur.snapshotCount != null ? `${cur.snapshotCount.toLocaleString()} snapshots` : null,
+        cur.totalRoutes != null ? `${cur.totalRoutes} routes seen` : null,
+        cur.activeBusesPeak != null ? `peak ${cur.activeBusesPeak.toLocaleString()} buses` : null,
+      ].filter(Boolean);
+      const totalSnaps = (weeklyAll || []).reduce((s, w) => s + (w.totalSnapshots || 0), 0);
+      const totalDays = (weeklyAll || []).reduce((s, w) => s + (w.days || 0), 0);
+      covEl.innerHTML = bits.join(' &middot; ')
+        + (totalSnaps > 0
+            ? `. Lifetime so far: <strong>${totalSnaps.toLocaleString()}</strong> snapshots across <strong>${totalDays}</strong> day${totalDays !== 1 ? 's' : ''}.`
+            : '.');
+    } else {
+      covEl.textContent = 'No daily roll-up yet — first one lands ~1 AM ET the morning after the first full collection day.';
+    }
+  }
+
   // ── Week-by-week table ──
   if (tbody) {
     const rows = Array.isArray(weeklyAll) ? [...weeklyAll] : [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="8">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
+      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="13">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
     } else {
-      // Newest first
-      rows.reverse();
+      rows.reverse(); // newest first
       const currentPeriod = thisWeek?.period;
+      const cell = v => v == null ? '\u2014' : (typeof v === 'number' ? v.toLocaleString() : v);
       tbody.innerHTML = rows.map(w => {
         const isPartial = w.days < 7;
         const rowCls = w.period === currentPeriod ? 'current' : (isPartial ? 'partial' : '');
@@ -1376,11 +1404,16 @@ function renderTrends(data, weeklyAll) {
           <td>${w.period}</td>
           <td>${w.startDate} &ndash; ${w.endDate}</td>
           <td class="num">${daysCell}</td>
-          <td class="num">${(w.totalSnapshots || 0).toLocaleString()}</td>
-          <td class="num">${w.avgSpeed ?? '\u2014'}</td>
-          <td class="num">${w.avgBunchingRate ?? '\u2014'}</td>
-          <td class="num">${w.avgReliability ?? '\u2014'}</td>
-          <td class="num">${w.avgRoutes ?? '\u2014'}</td>
+          <td class="num">${cell(w.totalSnapshots)}</td>
+          <td class="num">${cell(w.avgSpeed)}</td>
+          <td class="num">${cell(w.avgWait)}</td>
+          <td class="num">${cell(w.avgReliability)}</td>
+          <td class="num">${cell(w.avgBunchingRate)}</td>
+          <td class="num">${cell(w.avgBigGap20PerSnap)}</td>
+          <td class="num">${cell(w.avgBigGap30PerSnap)}</td>
+          <td class="num">${cell(w.avgActiveBuses)}</td>
+          <td class="num">${cell(w.peakActiveBuses)}</td>
+          <td class="num">${cell(w.avgRoutes)}</td>
         </tr>`;
       }).join('');
     }
