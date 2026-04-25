@@ -510,6 +510,43 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   text-transform:uppercase;
 }
 
+.metric-toggle{
+  display:inline-flex;
+  background:#f0ede6;
+  border-radius:6px;
+  padding:2px;
+  gap:1px;
+}
+.metric-toggle button{
+  padding:6px 11px;
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  border-radius:4px;
+  font-family:var(--sans);
+  font-size:10.5px;
+  font-weight:600;
+  letter-spacing:0.5px;
+  color:var(--muted);
+  text-transform:uppercase;
+  transition:all 0.15s;
+}
+.metric-toggle button:hover{color:var(--ink);}
+.metric-toggle button.active{
+  background:#fff;
+  color:var(--orange);
+  box-shadow:0 1px 2px rgba(0,0,0,0.08);
+}
+
+.chart-note{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.55;
+  padding:14px 18px 0;
+  border-top:1px solid #ececec;
+  margin-top:10px;
+}
+
 .disclosure{
   background:rgba(201,76,36,0.06);
   border-left:3px solid var(--orange);
@@ -712,8 +749,15 @@ footer a{color:var(--cream);}
     </div>
     <div class="data-card">
       <div class="data-card-header">
-        <h3>Top 20 agencies by overtime spend</h3>
-        <div class="meta" id="agencyChartMeta"></div>
+        <h3 id="agencyChartTitle">Top 20 agencies by overtime spend</h3>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div class="metric-toggle" id="agencyMetricToggle">
+            <button data-metric="ot" class="active">Total OT</button>
+            <button data-metric="avg_salary">Avg salary</button>
+            <button data-metric="avg_total">Avg all-in pay</button>
+          </div>
+          <div class="meta" id="agencyChartMeta"></div>
+        </div>
       </div>
       <div class="chart-wrap tall"><canvas id="agencyChart"></canvas></div>
     </div>
@@ -761,6 +805,7 @@ footer a{color:var(--cream);}
     <div class="data-card">
       <div class="data-card-header"><h3>Headcount over time</h3></div>
       <div class="chart-wrap med"><canvas id="hcChart"></canvas></div>
+      <p class="chart-note">Counts every person who received a paycheck during the fiscal year — including part-year, seasonal, per-diem, and one-day workers (e.g., ~37,000 Board of Election poll workers in election years; tens of thousands of per-session and per-diem teachers). The city's full-time-equivalent (FTE) headcount, as reported in the Mayor's Management Report and budget documents, is closer to ~300,000.</p>
     </div>
     <div class="data-card">
       <div class="data-card-header"><h3>Average base salary over time</h3></div>
@@ -878,7 +923,7 @@ const state={
   fringe:false,
   earners:{data:null,page:1,pageSize:25,err:null,loading:false},
   ot:{data:null,page:1,pageSize:25,err:null,loading:false},
-  agencies:{data:null,err:null,loading:false},
+  agencies:{data:null,err:null,loading:false,metric:'ot'},
   tiers:{data:null,byYear:{},totalRows:0,err:null,loading:false,progress:null,chart:null},
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   agencyList:[]
@@ -1207,17 +1252,27 @@ function renderAgencyAnalysis(){
   chartMeta.textContent=`FY ${state.year}`;
   tableMeta.textContent=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}`;
 
-  const top20=data.slice(0,20);
+  const metric=state.agencies.metric||'ot';
+  const MIN_HC_FOR_AVG=50;
+  const cfg={
+    ot:{title:'Top 20 agencies by overtime spend',label:'Overtime spend',color:'#c94c24',value:r=>fr(r.ot),pool:data},
+    avg_salary:{title:'Top 20 agencies by average salary',label:'Avg salary per employee',color:'#2c5282',value:r=>r.hc>0?fr(r.base)/r.hc:0,pool:data.filter(r=>r.hc>=MIN_HC_FOR_AVG)},
+    avg_total:{title:'Top 20 agencies by average all-in pay',label:'Avg total pay per employee',color:'#1a6b35',value:r=>r.hc>0?fr(r.total)/r.hc:0,pool:data.filter(r=>r.hc>=MIN_HC_FOR_AVG)}
+  }[metric];
+  document.getElementById('agencyChartTitle').textContent=cfg.title;
+  document.querySelectorAll('#agencyMetricToggle button').forEach(b=>b.classList.toggle('active',b.dataset.metric===metric));
+
+  const sorted=[...cfg.pool].map(r=>({r,v:cfg.value(r)})).sort((a,b)=>b.v-a.v).slice(0,20);
   const ctx=document.getElementById('agencyChart').getContext('2d');
   if(agencyChart)agencyChart.destroy();
   agencyChart=new Chart(ctx,{
     type:'bar',
     data:{
-      labels:top20.map(r=>titleCase(r.agency)),
+      labels:sorted.map(s=>titleCase(s.r.agency)),
       datasets:[{
-        label:'Overtime spend',
-        data:top20.map(r=>fr(r.ot)),
-        backgroundColor:'#c94c24',
+        label:cfg.label,
+        data:sorted.map(s=>s.v),
+        backgroundColor:cfg.color,
         borderRadius:2,
         barThickness:18
       }]
@@ -1227,10 +1282,10 @@ function renderAgencyAnalysis(){
       maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.x)}}
+        tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.x)+(metric!=='ot'?' / employee':'')}}
       },
       scales:{
-        x:{ticks:{callback:v=>fmtMoney(v),font:{family:"'JetBrains Mono'",size:11}},grid:{color:'#f0f0f0'}},
+        x:{beginAtZero:true,ticks:{callback:v=>fmtMoney(v),font:{family:"'JetBrains Mono'",size:11}},grid:{color:'#f0f0f0'}},
         y:{ticks:{font:{family:"'Inter'",size:12},autoSkip:false},grid:{display:false}}
       }
     }
@@ -1243,11 +1298,15 @@ function renderAgencyAnalysis(){
         <th>Rank</th><th>Agency</th>
         <th class="num">Employees</th><th class="num">Regular pay</th>
         <th class="num">Overtime</th><th class="num">Total payroll${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th class="num" title="Average salary (regular pay) per employee. Includes part-year and seasonal employees, so agencies with many one-day or per-diem workers (e.g., poll workers) will appear lower.">Avg salary</th>
+        <th class="num" title="Average all-in pay (regular + OT + other) per employee. Skewed by part-year/seasonal workers — see methodology.">Avg all-in</th>
         <th class="num">OT/regular</th>
       </tr></thead>
       <tbody>
         ${data.map((r,i)=>{
           const pct=Math.min(r.ratio/maxRatio,1)*100;
+          const avgSal=r.hc>0?r.base/r.hc:0;
+          const avgAll=r.hc>0?r.total/r.hc:0;
           return `<tr>
             <td class="rank">${i+1}</td>
             <td class="name">${titleCase(r.agency)}</td>
@@ -1255,6 +1314,8 @@ function renderAgencyAnalysis(){
             <td class="num">${fmtMoneyFull(fr(r.base))}</td>
             <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
             <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
+            <td class="num">${fmtMoneyFull(fr(avgSal))}</td>
+            <td class="num">${fmtMoneyFull(fr(avgAll))}</td>
             <td class="num"><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-pct">${fmtPct(r.ratio)}</div></div></td>
           </tr>`;
         }).join('')}
@@ -1325,7 +1386,7 @@ function renderTrends(){
       borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.08)',
       borderWidth:2.5,fill:true,tension:0.25,pointRadius:4,pointBackgroundColor:'#0a1628'
     }]},
-    options:{...baseOpts,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtInt(c.parsed.y)+' employees'}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>fmtInt(v)}}}}
+    options:{...baseOpts,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtInt(c.parsed.y)+' employees'}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,beginAtZero:true,ticks:{...baseOpts.scales.y.ticks,callback:v=>fmtInt(v)}}}}
   });
   state.trends.charts.baseChart=new Chart(document.getElementById('baseChart'),{
     type:'line',
@@ -1510,6 +1571,13 @@ function applyFringe(){
 document.getElementById('fringeCheckbox').addEventListener('change',e=>{
   state.fringe=e.target.checked;
   applyFringe();
+});
+
+document.querySelectorAll('#agencyMetricToggle button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    state.agencies.metric=b.dataset.metric;
+    if(state.agencies.data)renderAgencyAnalysis();
+  });
 });
 
 document.querySelectorAll('.tab').forEach(btn=>{
