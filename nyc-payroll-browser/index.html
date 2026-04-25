@@ -110,7 +110,7 @@ header.site{
   margin:0 auto;
   padding:0 40px;
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
 }
 .stat{
   padding:22px 24px;
@@ -509,6 +509,8 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   margin-left:4px;
   text-transform:uppercase;
 }
+.prorated-mark{color:var(--orange);font-weight:700;cursor:help;margin-left:2px;}
+.table-footnote{font-size:11.5px;color:var(--muted);padding:8px 14px 12px;background:#fafafa;border-top:1px solid #f0f0f0;}
 
 .metric-toggle{
   display:inline-flex;
@@ -639,8 +641,9 @@ footer a{color:var(--cream);}
   .header-inner{padding:24px 20px;flex-direction:column;align-items:flex-start;}
   .title{font-size:38px;}
   .stats-inner{grid-template-columns:repeat(2,1fr);padding:0 20px;}
-  .stat:nth-child(2){border-right:none;}
-  .stat:nth-child(1),.stat:nth-child(2){border-bottom:1px solid rgba(245,240,232,0.08);}
+  .stat:nth-child(2n){border-right:none;}
+  .stat{border-bottom:1px solid rgba(245,240,232,0.08);}
+  .stat:last-child{border-bottom:none;}
   .tabs-inner{padding:0 20px;}
   main{padding:22px 20px 40px;}
   .controls{padding:14px;gap:12px;}
@@ -681,8 +684,12 @@ footer a{color:var(--cream);}
         <div class="stat-value loading" id="statHc">Loading...</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Avg base salary</div>
-        <div class="stat-value loading" id="statAvg">Loading...</div>
+        <div class="stat-label">Avg salary (FT)</div>
+        <div class="stat-value loading" id="statAvgFT">Loading...</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Avg all-in (FT)</div>
+        <div class="stat-value loading" id="statAvgAllinFT">Loading...</div>
       </div>
       <div class="stat">
         <div class="stat-label">Total overtime</div>
@@ -703,6 +710,7 @@ footer a{color:var(--cream);}
   <div class="tabs-inner">
     <button class="tab active" data-view="earners">Top earners</button>
     <button class="tab" data-view="overtime">Overtime</button>
+    <button class="tab" data-view="perdiem">Per-diem &amp; hourly</button>
     <button class="tab" data-view="agencies">Agency analysis</button>
     <button class="tab" data-view="tiers">Pension tiers</button>
     <button class="tab" data-view="trends">Headcount trends</button>
@@ -770,6 +778,42 @@ footer a{color:var(--cream);}
         <div class="meta" id="otMeta"></div>
       </div>
       <div id="otBody"><div class="loading-state"><div class="spinner"></div><div>Loading overtime data...</div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-perdiem">
+    <div class="view-header">
+      <h2>Per-diem &amp; hourly</h2>
+      <p>Workers paid by the day or hour — substitute teachers, per-session educators, election poll workers, hourly support staff, per-diem ferry crew, and more. The Citywide Payroll dataset includes about 215,000 such records per year alongside the ~345,000 annual-salaried employees.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="pdAgency">Agency</label>
+        <select id="pdAgency"><option value="">All agencies</option></select>
+      </div>
+      <div class="control">
+        <label for="pdBasis">Pay basis</label>
+        <select id="pdBasis">
+          <option value="all">All per-diem &amp; hourly</option>
+          <option value="day">Per day only</option>
+          <option value="hour">Per hour only</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="pdMinHours">Minimum regular hours</label>
+        <select id="pdMinHours">
+          <option value="0">No minimum</option>
+          <option value="500">500+ hours</option>
+          <option value="1000">1,000+ hours</option>
+        </select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Top per-diem &amp; hourly earners</h3>
+        <div class="meta" id="pdMeta"></div>
+      </div>
+      <div id="pdBody"><div class="loading-state"><div class="spinner"></div><div>Loading per-diem data...</div></div></div>
     </div>
   </section>
 
@@ -874,6 +918,12 @@ footer a{color:var(--cream);}
       <li><strong>OT ratio.</strong> Computed as <code>total_ot_paid / regular_gross_paid</code>. A ratio of 0.50 means an employee earned half as much in overtime as in regular wages.</li>
     </ul>
 
+    <h3>Pro-rated salary marker</h3>
+    <p>An asterisk (<span class="prorated-mark">*</span>) next to a regular pay figure indicates that the employee was paid less than 85% of their authorized base salary during the fiscal year. This usually means a partial year of service — a mid-year hire, a mid-year departure, or an extended unpaid leave. Applied only to records with <code>pay_basis</code> of "per Annum" or "Prorated Annual"; per-diem and hourly workers are excluded since the comparison would not be meaningful.</p>
+
+    <h3>Full-time averages in the top stats bar</h3>
+    <p>The "Avg salary (FT)" and "Avg all-in (FT)" figures are restricted to records where <code>pay_basis = 'per Annum'</code> and <code>regular_hours &gt; 1500</code>. This filter excludes per-diem and hourly workers (substitute teachers, poll workers, per-session staff) and partial-year salaried employees, giving a more honest read of typical full-time city pay than averaging across all 550K records would.</p>
+
     <h3>Fringe benefits</h3>
     <p>When the "Include fringe" toggle is on, all pay figures are multiplied by 1.39 to approximate total compensation cost including health insurance, pension contributions, FICA/Medicare, and retiree health benefits. The 39% rate is NYC OMB's blended fringe rate (FY2024 Mayor's Management Report and Financial Plan). Note: this is a uniform multiplier applied to all pay including overtime, though OT typically carries lower fringe in actual budgeting. Use as an order-of-magnitude estimate only.</p>
 
@@ -966,9 +1016,20 @@ const state={
   commish:{data:null,err:null,loading:false,sortBy:'total',sortDir:'desc'},
   tiers:{data:null,byYear:{},totalRows:0,err:null,loading:false,progress:null,chart:null},
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
+  perdiem:{data:null,err:null,loading:false,agency:'',basis:'all',minHours:'0',page:1,pageSize:25,sortBy:'regular',sortDir:'desc'},
   agencyList:[]
 };
 const fr=n=>state.fringe?Number(n||0)*FRINGE_RATE:Number(n||0);
+const PRORATED_TOOLTIP='Regular pay less than 85% of authorized base — likely partial year (mid-year hire, departure, or leave).';
+const isProrated=r=>{
+  const pb=r.pay_basis||'';
+  if(pb!=='per Annum'&&pb!=='Prorated Annual')return false;
+  const reg=Number(r.regular_gross_paid||0);
+  const bs=Number(r.base_salary||0);
+  return reg>0&&bs>0&&reg<bs*0.85;
+};
+const proratedMark=r=>isProrated(r)?`<sup class="prorated-mark" title="${PRORATED_TOOLTIP}">*</sup>`:'';
+const PRORATED_FOOTNOTE='<div class="table-footnote"><span class="prorated-mark">*</span> Regular pay less than 85% of authorized base salary — likely a partial year (mid-year hire, departure, or leave).</div>';
 const pensionTier=d=>{
   if(!d)return null;
   const t=new Date(d);
@@ -1020,28 +1081,32 @@ async function loadAgencies(){
     const opts='<option value="">All agencies</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
     document.getElementById('earnersAgency').innerHTML=opts;
     document.getElementById('otAgency').innerHTML=opts;
+    document.getElementById('pdAgency').innerHTML=opts;
     document.getElementById('trendAgency').innerHTML='<option value="">All agencies combined</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
   }catch(e){console.error(e);}
 }
 
 async function loadStats(){
-  ['statTotal','statHc','statAvg','statOt'].forEach(id=>{
+  const ids=['statTotal','statHc','statAvgFT','statAvgAllinFT','statOt'];
+  ids.forEach(id=>{
     const el=document.getElementById(id);
     el.textContent='Loading...';
     el.classList.add('loading');
   });
   try{
-    const rows=await api({
-      $select:'count(*) as hc,sum(regular_gross_paid) as base_sum,sum(total_ot_paid) as ot_sum,sum(total_other_pay) as other_sum,avg(base_salary) as avg_base',
-      $where:`fiscal_year='${escapeSoql(state.year)}'`,
-      $limit:1
-    });
+    const where=`fiscal_year='${escapeSoql(state.year)}'`;
+    const ftWhere=`fiscal_year='${escapeSoql(state.year)}' AND pay_basis='per Annum' AND regular_hours > 1500`;
+    const [rows,ftRows]=await Promise.all([
+      api({$select:'count(*) as hc,sum(regular_gross_paid) as base_sum,sum(total_ot_paid) as ot_sum,sum(total_other_pay) as other_sum',$where:where,$limit:1}),
+      api({$select:'count(*) as ft_hc,avg(base_salary) as ft_avg_salary,avg(regular_gross_paid+total_ot_paid) as ft_avg_allin',$where:ftWhere,$limit:1})
+    ]);
     const r=rows[0]||{};
+    const f=ftRows[0]||{};
     const total=Number(r.base_sum||0)+Number(r.ot_sum||0)+Number(r.other_sum||0);
-    state.statsRaw={total,hc:r.hc,avg_base:r.avg_base,ot_sum:r.ot_sum};
+    state.statsRaw={total,hc:r.hc,ot_sum:r.ot_sum,ft_avg_salary:f.ft_avg_salary,ft_avg_allin:f.ft_avg_allin};
     renderStats();
   }catch(e){
-    ['statTotal','statHc','statAvg','statOt'].forEach(id=>{
+    ids.forEach(id=>{
       const el=document.getElementById(id);
       el.textContent='Error';
     });
@@ -1056,7 +1121,8 @@ function renderStats(){
   const tag=state.fringe?' (incl. fringe)':'';
   set('statTotal',fmtMoney(fr(r.total))+tag);
   set('statHc',fmtInt(r.hc));
-  set('statAvg',fmtMoney(fr(r.avg_base))+tag);
+  set('statAvgFT',fmtMoney(fr(r.ft_avg_salary))+tag);
+  set('statAvgAllinFT',fmtMoney(fr(r.ft_avg_allin))+tag);
   set('statOt',fmtMoney(fr(r.ot_sum))+tag);
 }
 
@@ -1067,7 +1133,7 @@ async function loadEarners(){
   renderEarners();
   try{
     const rows=await api({
-      $select:'last_name,first_name,mid_init,agency_name,title_description,agency_start_date,base_salary,regular_gross_paid,total_ot_paid,total_other_pay,(regular_gross_paid+total_ot_paid+total_other_pay) as total_gross',
+      $select:'last_name,first_name,mid_init,agency_name,title_description,agency_start_date,pay_basis,base_salary,regular_gross_paid,total_ot_paid,total_other_pay,(regular_gross_paid+total_ot_paid+total_other_pay) as total_gross',
       $where:`fiscal_year='${escapeSoql(state.year)}'`,
       $order:'total_gross DESC',
       $limit:500
@@ -1137,7 +1203,7 @@ function renderEarners(){
             <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
             <td class="tenure">${fmtTenure(r.tenure)}</td>
             <td class="num">${fmtMoneyFull(fr(r.base_salary_n))}</td>
-            <td class="num">${fmtMoneyFull(fr(r.base))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.base))}${proratedMark(r)}</td>
             <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
             <td class="num">${fmtMoneyFull(fr(r.other))}</td>
             <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
@@ -1145,6 +1211,7 @@ function renderEarners(){
         `).join('')}
       </tbody>
     </table></div>
+    ${PRORATED_FOOTNOTE}
     <div class="pagination">
       <div class="page-info">Page ${state.earners.page} of ${totalPages}</div>
       <div class="page-buttons">
@@ -1164,7 +1231,7 @@ async function loadOvertime(){
   renderOvertime();
   try{
     const rows=await api({
-      $select:'last_name,first_name,mid_init,agency_name,title_description,agency_start_date,regular_gross_paid,ot_hours,total_ot_paid',
+      $select:'last_name,first_name,mid_init,agency_name,title_description,agency_start_date,pay_basis,base_salary,regular_gross_paid,ot_hours,total_ot_paid',
       $where:`fiscal_year='${escapeSoql(state.year)}'`,
       $order:'total_ot_paid DESC',
       $limit:500
@@ -1229,7 +1296,7 @@ function renderOvertime(){
             <td class="agency">${titleCase(r.agency_name||'')}</td>
             <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
             <td class="tenure">${fmtTenure(r.tenure)}</td>
-            <td class="num">${fmtMoneyFull(fr(r.base))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.base))}${proratedMark(r)}</td>
             <td class="num">${fmtInt(r.hrs)}</td>
             <td class="num"><strong>${fmtMoneyFull(fr(r.ot))}</strong></td>
             <td class="num"><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-pct">${fmtPct(r.ratio)}</div></div></td>
@@ -1237,6 +1304,7 @@ function renderOvertime(){
         }).join('')}
       </tbody>
     </table></div>
+    ${PRORATED_FOOTNOTE}
     <div class="pagination">
       <div class="page-info">Page ${state.ot.page} of ${totalPages}</div>
       <div class="page-buttons">
@@ -1247,6 +1315,130 @@ function renderOvertime(){
   `;
   document.getElementById('otPrev').onclick=()=>{state.ot.page--;renderOvertime();};
   document.getElementById('otNext').onclick=()=>{state.ot.page++;renderOvertime();};
+}
+
+async function loadPerDiem(){
+  state.perdiem.loading=true;
+  state.perdiem.err=null;
+  state.perdiem.page=1;
+  renderPerDiem();
+  try{
+    const rows=await api({
+      $select:'last_name,first_name,mid_init,agency_name,title_description,pay_basis,base_salary,regular_hours,regular_gross_paid,total_ot_paid',
+      $where:`fiscal_year='${escapeSoql(state.year)}' AND pay_basis IN ('per Day','per Hour')`,
+      $order:'regular_gross_paid DESC',
+      $limit:500
+    });
+    state.perdiem.data=rows.map(r=>({
+      ...r,
+      basis:r.pay_basis||'',
+      rate:Number(r.base_salary||0),
+      hrs:Number(r.regular_hours||0),
+      regular:Number(r.regular_gross_paid||0),
+      ot:Number(r.total_ot_paid||0),
+      total:Number(r.regular_gross_paid||0)+Number(r.total_ot_paid||0)
+    }));
+  }catch(e){state.perdiem.err=e.message;}
+  state.perdiem.loading=false;
+  renderPerDiem();
+}
+
+function filterPerDiem(){
+  const ag=document.getElementById('pdAgency').value;
+  const basis=document.getElementById('pdBasis').value;
+  const min=Number(document.getElementById('pdMinHours').value)||0;
+  let data=state.perdiem.data||[];
+  if(ag)data=data.filter(r=>r.agency_name===ag);
+  if(basis==='day')data=data.filter(r=>r.basis==='per Day');
+  else if(basis==='hour')data=data.filter(r=>r.basis==='per Hour');
+  if(min)data=data.filter(r=>r.hrs>=min);
+  const sb=state.perdiem.sortBy,sd=state.perdiem.sortDir;
+  const sortKey={regular:'regular',ot:'ot',total:'total',hrs:'hrs',rate:'rate',name:'last_name',agency:'agency_name',title:'title_description',basis:'basis'}[sb]||'regular';
+  data=[...data].sort((a,b)=>{
+    const av=a[sortKey],bv=b[sortKey];
+    if(typeof av==='string')return sd==='asc'?(av||'').localeCompare(bv||''):(bv||'').localeCompare(av||'');
+    return sd==='asc'?(av||0)-(bv||0):(bv||0)-(av||0);
+  });
+  return data;
+}
+
+function fmtRate(r){
+  if(!r.rate)return '<span class="muted">—</span>';
+  if(r.basis==='per Day')return '$'+r.rate.toFixed(2)+'/day';
+  if(r.basis==='per Hour')return '$'+r.rate.toFixed(2)+'/hr';
+  return fmtMoneyFull(r.rate);
+}
+
+function renderPerDiem(){
+  const body=document.getElementById('pdBody');
+  const meta=document.getElementById('pdMeta');
+  if(state.perdiem.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading per-diem data...</div></div>';
+    meta.textContent='';return;
+  }
+  if(state.perdiem.err){
+    body.innerHTML=`<div class="error-state">Could not load per-diem data: ${state.perdiem.err}</div>`;return;
+  }
+  const data=filterPerDiem();
+  meta.innerHTML=`${data.length.toLocaleString()} of ${(state.perdiem.data||[]).length.toLocaleString()} records  ·  FY ${state.year}<span class="sort-hint">click any column to sort</span>`;
+  if(!data.length){
+    body.innerHTML='<div class="empty-state">No matching workers in the top 500 for this filter.</div>';return;
+  }
+  const ps=state.perdiem.pageSize;
+  const totalPages=Math.max(1,Math.ceil(data.length/ps));
+  if(state.perdiem.page>totalPages)state.perdiem.page=totalPages;
+  const start=(state.perdiem.page-1)*ps;
+  const page=data.slice(start,start+ps);
+  const sb=state.perdiem.sortBy,sd=state.perdiem.sortDir;
+  const cls=k=>'sortable num'+(sb===k?' sort-'+sd:'');
+  const clsL=k=>'sortable'+(sb===k?' sort-'+sd:'');
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th>
+        <th class="${clsL('name')}" data-sort="name">Employee</th>
+        <th class="${clsL('agency')}" data-sort="agency">Agency</th>
+        <th class="${clsL('title')}" data-sort="title">Title</th>
+        <th class="${clsL('basis')}" data-sort="basis">Pay basis</th>
+        <th class="${cls('rate')}" data-sort="rate">Base rate</th>
+        <th class="${cls('hrs')}" data-sort="hrs">Regular hours</th>
+        <th class="${cls('regular')}" data-sort="regular">Regular pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th class="${cls('ot')}" data-sort="ot">OT pay</th>
+        <th class="${cls('total')}" data-sort="total">Total pay</th>
+      </tr></thead>
+      <tbody>
+        ${page.map((r,i)=>`<tr>
+          <td class="rank">${start+i+1}</td>
+          <td class="name">${fmtName(r)}</td>
+          <td class="agency">${titleCase(r.agency_name||'')}</td>
+          <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
+          <td class="muted">${r.basis}</td>
+          <td class="num">${fmtRate(r)}</td>
+          <td class="num">${fmtInt(r.hrs)}</td>
+          <td class="num">${fmtMoneyFull(fr(r.regular))}</td>
+          <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
+          <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="pagination">
+      <div class="page-info">Page ${state.perdiem.page} of ${totalPages}</div>
+      <div class="page-buttons">
+        <button class="page-btn" id="pdPrev" ${state.perdiem.page<=1?'disabled':''}>Previous</button>
+        <button class="page-btn" id="pdNext" ${state.perdiem.page>=totalPages?'disabled':''}>Next</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('pdPrev').onclick=()=>{state.perdiem.page--;renderPerDiem();};
+  document.getElementById('pdNext').onclick=()=>{state.perdiem.page++;renderPerDiem();};
+  body.querySelectorAll('th.sortable').forEach(th=>{
+    th.addEventListener('click',()=>{
+      const k=th.dataset.sort;
+      if(state.perdiem.sortBy===k)state.perdiem.sortDir=state.perdiem.sortDir==='asc'?'desc':'asc';
+      else{state.perdiem.sortBy=k;state.perdiem.sortDir=(k==='name'||k==='agency'||k==='title'||k==='basis')?'asc':'desc';}
+      renderPerDiem();
+    });
+  });
 }
 
 let agencyChart=null;
@@ -1285,7 +1477,7 @@ async function loadCommissioners(){
   try{
     const inList=COMMISH_TITLES.map(t=>`'${t}'`).join(',');
     const rows=await api({
-      $select:'last_name,first_name,mid_init,agency_name,title_description,base_salary,regular_gross_paid,total_ot_paid,total_other_pay',
+      $select:'last_name,first_name,mid_init,agency_name,title_description,pay_basis,base_salary,regular_gross_paid,total_ot_paid,total_other_pay',
       $where:`fiscal_year='${escapeSoql(state.year)}' AND upper(title_description) IN (${inList})`,
       $order:'regular_gross_paid DESC',
       $limit:500
@@ -1304,7 +1496,10 @@ async function loadCommissioners(){
           regular:Number(r.regular_gross_paid||0),
           ot:Number(r.total_ot_paid||0),
           other:Number(r.total_other_pay||0),
-          total
+          total,
+          pay_basis:r.pay_basis||'',
+          base_salary:r.base_salary,
+          regular_gross_paid:r.regular_gross_paid
         });
       }
     });
@@ -1349,12 +1544,13 @@ function renderCommissioners(){
           <td class="title-cell muted">${titleCase(r.title)}</td>
           <td class="name">${titleCase(r.name)}</td>
           <td class="num">${fmtMoneyFull(fr(r.base))}</td>
-          <td class="num">${fmtMoneyFull(fr(r.regular))}</td>
+          <td class="num">${fmtMoneyFull(fr(r.regular))}${proratedMark(r)}</td>
           <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
           <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
         </tr>`).join('')}
       </tbody>
     </table></div>
+    ${PRORATED_FOOTNOTE}
   `;
   body.querySelectorAll('th.sortable').forEach(th=>{
     th.addEventListener('click',()=>{
@@ -1714,6 +1910,7 @@ function applyFringe(){
   renderStats();
   if(state.earners.data)renderEarners();
   if(state.ot.data)renderOvertime();
+  if(state.perdiem.data)renderPerDiem();
   if(state.agencies.data)renderAgencyAnalysis();
   if(state.commish.data)renderCommissioners();
 }
@@ -1736,6 +1933,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     btn.classList.add('active');
     const v=btn.dataset.view;
     document.getElementById('view-'+v).classList.add('active');
+    if(v==='perdiem'&&!state.perdiem.data&&!state.perdiem.loading)loadPerDiem();
     if(v==='agencies'&&!state.agencies.data&&!state.agencies.loading)loadAgencyAnalysis();
     if(v==='agencies'&&!state.commish.data&&!state.commish.loading)loadCommissioners();
     if(v==='tiers'&&!state.tiers.data&&!state.tiers.loading)loadTiers();
@@ -1745,10 +1943,11 @@ document.querySelectorAll('.tab').forEach(btn=>{
 
 document.getElementById('yearSelect').addEventListener('change',async e=>{
   state.year=e.target.value;
-  state.earners.data=null;state.ot.data=null;state.agencies.data=null;state.tiers.data=null;state.commish.data=null;
+  state.earners.data=null;state.ot.data=null;state.perdiem.data=null;state.agencies.data=null;state.tiers.data=null;state.commish.data=null;
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
   loadOvertime();
+  if(document.getElementById('view-perdiem').classList.contains('active'))loadPerDiem();
   if(document.getElementById('view-agencies').classList.contains('active')){loadAgencyAnalysis();loadCommissioners();}
   if(document.getElementById('view-tiers').classList.contains('active'))loadTiers();
 });
@@ -1759,6 +1958,9 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
 });
 ['otAgency','otMinHours'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>{state.ot.page=1;renderOvertime();});
+});
+['pdAgency','pdBasis','pdMinHours'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{state.perdiem.page=1;renderPerDiem();});
 });
 document.getElementById('trendAgency').addEventListener('change',e=>{
   state.trends.agency=e.target.value;
