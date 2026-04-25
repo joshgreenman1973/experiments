@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Payroll Browser | Vital City</title>
+<meta name="description" content="An interactive browser for the NYC Citywide Payroll dataset — top earners, overtime, agency spending, and headcount trends.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#0a1628;
+  --cream:#f5f0e8;
+  --orange:#c94c24;
+  --orange-hover:#a83d1c;
+  --text:#1a1a1a;
+  --muted:#6b6b6b;
+  --border:#e0e0e0;
+  --bg:#fafafa;
+  --serif:'Source Serif 4',Georgia,serif;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:var(--sans);
+  color:var(--text);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+a{color:var(--orange);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+header.site{
+  background:var(--navy);
+  color:var(--cream);
+  border-bottom:4px solid var(--orange);
+}
+.header-inner{
+  max-width:1340px;
+  margin:0 auto;
+  padding:32px 40px 28px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:32px;
+  flex-wrap:wrap;
+}
+.kicker{
+  font-family:var(--sans);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:2.5px;
+  text-transform:uppercase;
+  color:var(--orange);
+  margin-bottom:14px;
+}
+.title{
+  font-family:var(--serif);
+  font-size:54px;
+  font-weight:600;
+  letter-spacing:-0.02em;
+  line-height:1.05;
+  color:var(--cream);
+  margin-bottom:10px;
+}
+.subtitle{
+  font-size:15px;
+  color:rgba(245,240,232,0.72);
+  max-width:620px;
+  line-height:1.5;
+}
+.year-control{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-end;
+}
+.year-control label{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:rgba(245,240,232,0.6);
+}
+.year-control select{
+  background:rgba(245,240,232,0.08);
+  color:var(--cream);
+  border:1px solid rgba(245,240,232,0.25);
+  font-family:var(--mono);
+  font-size:15px;
+  font-weight:500;
+  padding:9px 14px;
+  border-radius:4px;
+  cursor:pointer;
+  min-width:140px;
+}
+.year-control select:focus{outline:2px solid var(--orange);outline-offset:1px;}
+
+.stats-bar{
+  background:#0d1d36;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.stats-inner{
+  max-width:1340px;
+  margin:0 auto;
+  padding:0 40px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+}
+.stat{
+  padding:22px 24px;
+  border-right:1px solid rgba(245,240,232,0.08);
+  color:var(--cream);
+}
+.stat:last-child{border-right:none;}
+.stat-label{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:rgba(245,240,232,0.55);
+  margin-bottom:6px;
+}
+.stat-value{
+  font-family:var(--mono);
+  font-size:24px;
+  font-weight:600;
+  letter-spacing:-0.01em;
+}
+.stat-value.loading{color:rgba(245,240,232,0.4);font-style:italic;font-weight:400;}
+
+nav.tabs{
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(10,22,40,0.06);
+}
+.tabs-inner{
+  max-width:1340px;
+  margin:0 auto;
+  padding:0 40px;
+  display:flex;
+  gap:0;
+  overflow-x:auto;
+}
+.tab{
+  background:none;
+  border:none;
+  font-family:var(--sans);
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:0.3px;
+  color:var(--muted);
+  padding:18px 22px;
+  cursor:pointer;
+  border-bottom:3px solid transparent;
+  white-space:nowrap;
+  transition:color 0.15s,border-color 0.15s;
+}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--navy);border-bottom-color:var(--orange);}
+
+main{
+  max-width:1340px;
+  margin:0 auto;
+  padding:32px 40px 60px;
+}
+
+.view{display:none;}
+.view.active{display:block;}
+
+.view-header{
+  margin-bottom:22px;
+}
+.view-header h2{
+  font-family:var(--serif);
+  font-size:30px;
+  font-weight:600;
+  letter-spacing:-0.01em;
+  color:var(--navy);
+  margin-bottom:6px;
+}
+.view-header p{
+  font-size:14px;
+  color:var(--muted);
+  max-width:780px;
+}
+
+.controls{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:18px 20px;
+  margin-bottom:22px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px;
+  align-items:flex-end;
+}
+.control{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:170px;
+}
+.control label{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.control select,.control input{
+  font-family:var(--sans);
+  font-size:14px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:4px;
+  background:#fff;
+  color:var(--text);
+}
+.control select:focus,.control input:focus{outline:2px solid var(--orange);outline-offset:0;border-color:var(--orange);}
+
+.data-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:6px;
+  overflow:hidden;
+}
+.data-card + .data-card{margin-top:22px;}
+.data-card-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.data-card-header h3{
+  font-family:var(--serif);
+  font-size:18px;
+  font-weight:600;
+  color:var(--navy);
+}
+.data-card-header .meta{
+  font-size:12px;
+  color:var(--muted);
+  font-family:var(--mono);
+}
+
+.table-scroll{overflow-x:auto;}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+thead th{
+  background:#fafafa;
+  text-align:left;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+thead th.num{text-align:right;}
+tbody td{
+  padding:12px 14px;
+  border-bottom:1px solid #f0f0f0;
+  vertical-align:middle;
+}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:#fafbfc;}
+td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;}
+td.rank{font-family:var(--mono);color:var(--muted);width:42px;}
+td.name{font-weight:600;color:var(--navy);}
+td.agency,td.title-cell{color:var(--text);}
+td.muted{color:var(--muted);}
+
+.bar-cell{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  justify-content:flex-end;
+}
+.bar-track{
+  width:60px;
+  height:6px;
+  background:#f0e7e2;
+  border-radius:3px;
+  overflow:hidden;
+}
+.bar-fill{
+  height:100%;
+  background:var(--orange);
+  border-radius:3px;
+}
+.bar-pct{
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--text);
+  min-width:46px;
+  text-align:right;
+}
+
+.pagination{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+  background:#fafafa;
+  font-size:13px;
+}
+.pagination .page-info{color:var(--muted);font-family:var(--mono);}
+.pagination .page-buttons{display:flex;gap:6px;}
+.page-btn{
+  background:#fff;
+  border:1px solid var(--border);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:13px;
+  font-weight:500;
+  padding:6px 12px;
+  border-radius:4px;
+  cursor:pointer;
+}
+.page-btn:hover:not(:disabled){border-color:var(--orange);color:var(--orange);}
+.page-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+.chart-wrap{
+  padding:20px;
+  background:#fff;
+}
+.chart-wrap.tall{height:560px;}
+.chart-wrap.med{height:340px;}
+
+.loading-state,.error-state,.empty-state{
+  padding:60px 20px;
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+}
+.error-state{
+  background:#fdf3f0;
+  color:#8b2e15;
+  border-left:3px solid var(--orange);
+  text-align:left;
+  padding:16px 20px;
+  font-size:13px;
+  border-radius:4px;
+}
+.spinner{
+  display:inline-block;
+  width:28px;
+  height:28px;
+  border:3px solid #e8e3dc;
+  border-top-color:var(--orange);
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+  margin-bottom:14px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.methodology{
+  margin-top:60px;
+  padding-top:40px;
+  border-top:1px solid var(--border);
+}
+.methodology h2{
+  font-family:var(--serif);
+  font-size:24px;
+  font-weight:600;
+  color:var(--navy);
+  margin-bottom:16px;
+}
+.methodology h3{
+  font-family:var(--sans);
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--orange);
+  margin-top:22px;
+  margin-bottom:8px;
+}
+.methodology p,.methodology li{
+  font-size:14px;
+  color:var(--text);
+  line-height:1.65;
+  margin-bottom:8px;
+  max-width:760px;
+}
+.methodology ul{padding-left:20px;}
+.methodology code{
+  font-family:var(--mono);
+  font-size:12px;
+  background:#f0ece5;
+  padding:2px 5px;
+  border-radius:3px;
+}
+
+footer{
+  background:var(--navy);
+  color:rgba(245,240,232,0.6);
+  font-size:13px;
+  padding:24px 40px;
+  text-align:center;
+  margin-top:40px;
+}
+footer a{color:var(--cream);}
+
+@media (max-width:780px){
+  .header-inner{padding:24px 20px;flex-direction:column;align-items:flex-start;}
+  .title{font-size:38px;}
+  .stats-inner{grid-template-columns:repeat(2,1fr);padding:0 20px;}
+  .stat:nth-child(2){border-right:none;}
+  .stat:nth-child(1),.stat:nth-child(2){border-bottom:1px solid rgba(245,240,232,0.08);}
+  .tabs-inner{padding:0 20px;}
+  main{padding:22px 20px 40px;}
+  .controls{padding:14px;gap:12px;}
+  .control{min-width:140px;flex:1;}
+  .view-header h2{font-size:24px;}
+}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <div>
+      <div class="kicker">Vital City &middot; NYC data</div>
+      <h1 class="title">NYC payroll browser</h1>
+      <p class="subtitle">Top earners, overtime, agency spending, and headcount trends across roughly 300,000 city employees, drawn live from the NYC Citywide Payroll dataset.</p>
+    </div>
+    <div class="year-control">
+      <label for="yearSelect">Fiscal year</label>
+      <select id="yearSelect"><option>Loading...</option></select>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stats-inner">
+      <div class="stat">
+        <div class="stat-label">Total payroll</div>
+        <div class="stat-value loading" id="statTotal">Loading...</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Employees</div>
+        <div class="stat-value loading" id="statHc">Loading...</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Avg base salary</div>
+        <div class="stat-value loading" id="statAvg">Loading...</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Total overtime</div>
+        <div class="stat-value loading" id="statOt">Loading...</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-inner">
+    <button class="tab active" data-view="earners">Top earners</button>
+    <button class="tab" data-view="overtime">Overtime</button>
+    <button class="tab" data-view="agencies">Agency analysis</button>
+    <button class="tab" data-view="trends">Headcount trends</button>
+  </div>
+</nav>
+
+<main>
+
+  <section class="view active" id="view-earners">
+    <div class="view-header">
+      <h2>Top earners</h2>
+      <p>The highest-paid city employees by total gross pay (base plus overtime plus other pay) for the selected fiscal year. Drawn from the top 500 records returned by the API.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="earnersAgency">Agency</label>
+        <select id="earnersAgency"><option value="">All agencies</option></select>
+      </div>
+      <div class="control">
+        <label for="earnersSearch">Last name contains</label>
+        <input type="text" id="earnersSearch" placeholder="e.g. smith">
+      </div>
+      <div class="control">
+        <label for="earnersSort">Sort by</label>
+        <select id="earnersSort">
+          <option value="total">Total pay</option>
+          <option value="base">Base pay (regular gross)</option>
+          <option value="ot">Overtime pay</option>
+        </select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Top earners</h3>
+        <div class="meta" id="earnersMeta"></div>
+      </div>
+      <div id="earnersBody"><div class="loading-state"><div class="spinner"></div><div>Loading payroll data...</div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-overtime">
+    <div class="view-header">
+      <h2>Overtime</h2>
+      <p>Employees with the highest overtime pay in the selected fiscal year. The bar shows overtime pay as a percentage of regular gross pay.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="otAgency">Agency</label>
+        <select id="otAgency"><option value="">All agencies</option></select>
+      </div>
+      <div class="control">
+        <label for="otMinHours">Minimum OT hours</label>
+        <select id="otMinHours">
+          <option value="0">No minimum</option>
+          <option value="500">500+ hours</option>
+          <option value="1000">1,000+ hours</option>
+          <option value="1500">1,500+ hours</option>
+          <option value="2000">2,000+ hours</option>
+        </select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Top overtime recipients</h3>
+        <div class="meta" id="otMeta"></div>
+      </div>
+      <div id="otBody"><div class="loading-state"><div class="spinner"></div><div>Loading overtime data...</div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-agencies">
+    <div class="view-header">
+      <h2>Agency analysis</h2>
+      <p>Aggregate payroll spending grouped by agency for the selected fiscal year, ranked by total overtime spend. The ratio bar shows overtime pay as a share of regular gross pay.</p>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Top 20 agencies by overtime spend</h3>
+        <div class="meta" id="agencyChartMeta"></div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="agencyChart"></canvas></div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>All agencies</h3>
+        <div class="meta" id="agencyTableMeta"></div>
+      </div>
+      <div id="agencyBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-trends">
+    <div class="view-header">
+      <h2>Headcount trends</h2>
+      <p>Year-over-year trends across the full dataset. Choose an agency to filter all three charts; the default view combines every agency.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="trendAgency">Agency</label>
+        <select id="trendAgency"><option value="">All agencies combined</option></select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header"><h3>Headcount over time</h3></div>
+      <div class="chart-wrap med"><canvas id="hcChart"></canvas></div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header"><h3>Average base salary over time</h3></div>
+      <div class="chart-wrap med"><canvas id="baseChart"></canvas></div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header"><h3>Total overtime paid over time</h3></div>
+      <div class="chart-wrap med"><canvas id="otChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="methodology">
+    <h2>Methodology and notes</h2>
+    <p><strong>Source.</strong> All data is fetched live from the NYC Open Data Citywide Payroll Data dataset, identifier <code>k397-673e</code>, hosted by the Office of Payroll Administration on data.cityofnewyork.us. The dataset includes payroll information for active employees of mayoral agencies, certain elected officials' offices, and a number of other city entities, covering fiscal years 2014 to present.</p>
+
+    <h3>Field definitions</h3>
+    <ul>
+      <li><strong>Base salary.</strong> The annualized salary or hourly rate authorized for the title at the start of the fiscal year. This is not what was actually paid.</li>
+      <li><strong>Regular gross paid.</strong> Actual regular wages paid during the fiscal year, excluding overtime and other pay. This is the figure used as the base of pay in this tool.</li>
+      <li><strong>Total OT paid.</strong> Actual overtime wages paid during the fiscal year.</li>
+      <li><strong>Total other pay.</strong> Lump-sum payments, differentials, retroactive pay, and other non-regular, non-overtime compensation paid during the fiscal year.</li>
+      <li><strong>Total pay.</strong> Computed as <code>regular_gross_paid + total_ot_paid + total_other_pay</code>. This is the figure used to rank top earners.</li>
+      <li><strong>OT ratio.</strong> Computed as <code>total_ot_paid / regular_gross_paid</code>. A ratio of 0.50 means an employee earned half as much in overtime as in regular wages.</li>
+    </ul>
+
+    <h3>Limitations</h3>
+    <ul>
+      <li>Dollar figures are <strong>nominal</strong> and not inflation-adjusted. Year-over-year comparisons reflect both real changes and inflation.</li>
+      <li>Headcount is <strong>not point-in-time</strong>. The dataset counts every distinct employee record paid during the fiscal year, including those who left mid-year and those who joined mid-year, so the total is higher than any single-day headcount.</li>
+      <li>Coverage excludes some entities. Most notably, employees of NYC Health + Hospitals, the Department of Education pedagogical staff in some years, and other independent authorities may not appear or may appear inconsistently across years.</li>
+      <li>The Top earners and Overtime tabs draw from the top 500 API records by the relevant ranking before client-side filtering. Filtering for a small agency may therefore return fewer than expected results.</li>
+      <li>Names appear as recorded in the city payroll system and may include data-entry inconsistencies.</li>
+    </ul>
+
+    <h3>Reproducibility</h3>
+    <p>Every query in this tool is a Socrata SoQL request against the public dataset. The browser console will log each URL on request. To reproduce any view, copy the URL into a browser or curl it directly. Documentation: <a href="https://dev.socrata.com/foundry/data.cityofnewyork.us/k397-673e" target="_blank" rel="noopener">Socrata API docs for k397-673e</a>.</p>
+  </section>
+
+</main>
+
+<footer>
+  Built for <a href="https://www.vitalcitynyc.org/" target="_blank" rel="noopener">Vital City</a>. Data: NYC Office of Payroll Administration via NYC Open Data.
+</footer>
+
+<script>
+const API_BASE='https://data.cityofnewyork.us/resource/k397-673e.json';
+const fmtMoney=n=>{
+  if(n==null||isNaN(n))return '—';
+  const v=Number(n);
+  if(Math.abs(v)>=1e9)return '$'+(v/1e9).toFixed(2)+'B';
+  if(Math.abs(v)>=1e6)return '$'+(v/1e6).toFixed(2)+'M';
+  if(Math.abs(v)>=1e3)return '$'+Math.round(v).toLocaleString();
+  return '$'+v.toFixed(0);
+};
+const fmtMoneyFull=n=>{
+  if(n==null||isNaN(n))return '—';
+  return '$'+Math.round(Number(n)).toLocaleString();
+};
+const fmtInt=n=>{
+  if(n==null||isNaN(n))return '—';
+  return Math.round(Number(n)).toLocaleString();
+};
+const fmtPct=n=>{
+  if(n==null||isNaN(n))return '—';
+  return (Number(n)*100).toFixed(1)+'%';
+};
+const fmtName=r=>{
+  const first=(r.first_name||'').trim();
+  const last=(r.last_name||'').trim();
+  const mi=(r.mid_init||'').trim();
+  const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1).toLowerCase():'';
+  const f=first.split(/\s+/).map(cap).join(' ');
+  const l=last.split(/\s+/).map(cap).join(' ');
+  return [f,mi?mi.toUpperCase()+'.':'',l].filter(Boolean).join(' ');
+};
+const titleCase=s=>{
+  if(!s)return '';
+  return s.toLowerCase().replace(/\b([a-z])/g,m=>m.toUpperCase());
+};
+const escapeSoql=s=>String(s).replace(/'/g,"''");
+
+async function api(params){
+  const url=API_BASE+'?'+Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+  console.log('[api]',url);
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('API error '+r.status+': '+(await r.text()));
+  return r.json();
+}
+
+const state={
+  year:null,
+  years:[],
+  earners:{data:null,page:1,pageSize:25,err:null,loading:false},
+  ot:{data:null,page:1,pageSize:25,err:null,loading:false},
+  agencies:{data:null,err:null,loading:false},
+  trends:{data:null,agency:'',err:null,loading:false,charts:{}},
+  agencyList:[]
+};
+
+async function loadYears(){
+  try{
+    const rows=await api({$select:'fiscal_year',$group:'fiscal_year',$order:'fiscal_year DESC',$limit:50});
+    state.years=rows.map(r=>r.fiscal_year).filter(Boolean);
+    const sel=document.getElementById('yearSelect');
+    sel.innerHTML=state.years.map(y=>`<option value="${y}">FY ${y}</option>`).join('');
+    state.year=state.years[0];
+    sel.value=state.year;
+  }catch(e){
+    document.getElementById('yearSelect').innerHTML='<option>Error</option>';
+    console.error(e);
+  }
+}
+
+async function loadAgencies(){
+  try{
+    const rows=await api({$select:'agency_name',$where:`fiscal_year='${escapeSoql(state.year)}'`,$group:'agency_name',$order:'agency_name ASC',$limit:500});
+    state.agencyList=rows.map(r=>r.agency_name).filter(Boolean);
+    const opts='<option value="">All agencies</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
+    document.getElementById('earnersAgency').innerHTML=opts;
+    document.getElementById('otAgency').innerHTML=opts;
+    document.getElementById('trendAgency').innerHTML='<option value="">All agencies combined</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
+  }catch(e){console.error(e);}
+}
+
+async function loadStats(){
+  ['statTotal','statHc','statAvg','statOt'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.textContent='Loading...';
+    el.classList.add('loading');
+  });
+  try{
+    const rows=await api({
+      $select:'count(*) as hc,sum(regular_gross_paid) as base_sum,sum(total_ot_paid) as ot_sum,sum(total_other_pay) as other_sum,avg(base_salary) as avg_base',
+      $where:`fiscal_year='${escapeSoql(state.year)}'`,
+      $limit:1
+    });
+    const r=rows[0]||{};
+    const total=Number(r.base_sum||0)+Number(r.ot_sum||0)+Number(r.other_sum||0);
+    const set=(id,v)=>{const el=document.getElementById(id);el.textContent=v;el.classList.remove('loading');};
+    set('statTotal',fmtMoney(total));
+    set('statHc',fmtInt(r.hc));
+    set('statAvg',fmtMoney(r.avg_base));
+    set('statOt',fmtMoney(r.ot_sum));
+  }catch(e){
+    ['statTotal','statHc','statAvg','statOt'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.textContent='Error';
+    });
+    console.error(e);
+  }
+}
+
+async function loadEarners(){
+  state.earners.loading=true;
+  state.earners.err=null;
+  state.earners.page=1;
+  renderEarners();
+  try{
+    const rows=await api({
+      $select:'last_name,first_name,mid_init,agency_name,title_description,base_salary,regular_gross_paid,total_ot_paid,total_other_pay,(regular_gross_paid+total_ot_paid+total_other_pay) as total_gross',
+      $where:`fiscal_year='${escapeSoql(state.year)}'`,
+      $order:'total_gross DESC',
+      $limit:500
+    });
+    state.earners.data=rows.map(r=>({
+      ...r,
+      base:Number(r.regular_gross_paid||0),
+      ot:Number(r.total_ot_paid||0),
+      other:Number(r.total_other_pay||0),
+      total:Number(r.total_gross||0),
+      base_salary_n:Number(r.base_salary||0)
+    }));
+  }catch(e){state.earners.err=e.message;}
+  state.earners.loading=false;
+  renderEarners();
+}
+
+function filterEarners(){
+  const ag=document.getElementById('earnersAgency').value;
+  const q=document.getElementById('earnersSearch').value.trim().toLowerCase();
+  const sort=document.getElementById('earnersSort').value;
+  let data=state.earners.data||[];
+  if(ag)data=data.filter(r=>r.agency_name===ag);
+  if(q)data=data.filter(r=>(r.last_name||'').toLowerCase().includes(q));
+  if(sort==='base')data=[...data].sort((a,b)=>b.base-a.base);
+  else if(sort==='ot')data=[...data].sort((a,b)=>b.ot-a.ot);
+  return data;
+}
+
+function renderEarners(){
+  const body=document.getElementById('earnersBody');
+  const meta=document.getElementById('earnersMeta');
+  if(state.earners.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading top earners...</div></div>';
+    meta.textContent='';return;
+  }
+  if(state.earners.err){
+    body.innerHTML=`<div class="error-state">Could not load top earners: ${state.earners.err}</div>`;
+    return;
+  }
+  const data=filterEarners();
+  meta.textContent=`${data.length.toLocaleString()} of ${(state.earners.data||[]).length.toLocaleString()} records  ·  FY ${state.year}`;
+  if(!data.length){
+    body.innerHTML='<div class="empty-state">No matching employees in the top 500 for this filter.</div>';
+    return;
+  }
+  const ps=state.earners.pageSize;
+  const totalPages=Math.max(1,Math.ceil(data.length/ps));
+  if(state.earners.page>totalPages)state.earners.page=totalPages;
+  const start=(state.earners.page-1)*ps;
+  const page=data.slice(start,start+ps);
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Name</th><th>Agency</th><th>Title</th>
+        <th class="num">Base salary</th><th class="num">Regular gross</th>
+        <th class="num">OT pay</th><th class="num">Other pay</th><th class="num">Total pay</th>
+      </tr></thead>
+      <tbody>
+        ${page.map((r,i)=>`
+          <tr>
+            <td class="rank">${start+i+1}</td>
+            <td class="name">${fmtName(r)}</td>
+            <td class="agency">${titleCase(r.agency_name||'')}</td>
+            <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
+            <td class="num">${fmtMoneyFull(r.base_salary_n)}</td>
+            <td class="num">${fmtMoneyFull(r.base)}</td>
+            <td class="num">${fmtMoneyFull(r.ot)}</td>
+            <td class="num">${fmtMoneyFull(r.other)}</td>
+            <td class="num"><strong>${fmtMoneyFull(r.total)}</strong></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table></div>
+    <div class="pagination">
+      <div class="page-info">Page ${state.earners.page} of ${totalPages}</div>
+      <div class="page-buttons">
+        <button class="page-btn" id="earnPrev" ${state.earners.page<=1?'disabled':''}>Previous</button>
+        <button class="page-btn" id="earnNext" ${state.earners.page>=totalPages?'disabled':''}>Next</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('earnPrev').onclick=()=>{state.earners.page--;renderEarners();};
+  document.getElementById('earnNext').onclick=()=>{state.earners.page++;renderEarners();};
+}
+
+async function loadOvertime(){
+  state.ot.loading=true;
+  state.ot.err=null;
+  state.ot.page=1;
+  renderOvertime();
+  try{
+    const rows=await api({
+      $select:'last_name,first_name,mid_init,agency_name,title_description,regular_gross_paid,ot_hours,total_ot_paid',
+      $where:`fiscal_year='${escapeSoql(state.year)}'`,
+      $order:'total_ot_paid DESC',
+      $limit:500
+    });
+    state.ot.data=rows.map(r=>({
+      ...r,
+      base:Number(r.regular_gross_paid||0),
+      ot:Number(r.total_ot_paid||0),
+      hrs:Number(r.ot_hours||0),
+      ratio:Number(r.regular_gross_paid)>0?Number(r.total_ot_paid||0)/Number(r.regular_gross_paid):0
+    }));
+  }catch(e){state.ot.err=e.message;}
+  state.ot.loading=false;
+  renderOvertime();
+}
+
+function filterOvertime(){
+  const ag=document.getElementById('otAgency').value;
+  const min=Number(document.getElementById('otMinHours').value)||0;
+  let data=state.ot.data||[];
+  if(ag)data=data.filter(r=>r.agency_name===ag);
+  if(min)data=data.filter(r=>r.hrs>=min);
+  return data;
+}
+
+function renderOvertime(){
+  const body=document.getElementById('otBody');
+  const meta=document.getElementById('otMeta');
+  if(state.ot.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading overtime data...</div></div>';
+    meta.textContent='';return;
+  }
+  if(state.ot.err){
+    body.innerHTML=`<div class="error-state">Could not load overtime: ${state.ot.err}</div>`;return;
+  }
+  const data=filterOvertime();
+  meta.textContent=`${data.length.toLocaleString()} of ${(state.ot.data||[]).length.toLocaleString()} records  ·  FY ${state.year}`;
+  if(!data.length){
+    body.innerHTML='<div class="empty-state">No matching employees in the top 500 for this filter.</div>';return;
+  }
+  const maxRatio=Math.max(...data.map(r=>r.ratio),1);
+  const ps=state.ot.pageSize;
+  const totalPages=Math.max(1,Math.ceil(data.length/ps));
+  if(state.ot.page>totalPages)state.ot.page=totalPages;
+  const start=(state.ot.page-1)*ps;
+  const page=data.slice(start,start+ps);
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Name</th><th>Agency</th><th>Title</th>
+        <th class="num">Regular pay</th><th class="num">OT hours</th>
+        <th class="num">OT pay</th><th class="num">OT % of regular</th>
+      </tr></thead>
+      <tbody>
+        ${page.map((r,i)=>{
+          const pct=Math.min(r.ratio/maxRatio,1)*100;
+          return `<tr>
+            <td class="rank">${start+i+1}</td>
+            <td class="name">${fmtName(r)}</td>
+            <td class="agency">${titleCase(r.agency_name||'')}</td>
+            <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
+            <td class="num">${fmtMoneyFull(r.base)}</td>
+            <td class="num">${fmtInt(r.hrs)}</td>
+            <td class="num"><strong>${fmtMoneyFull(r.ot)}</strong></td>
+            <td class="num"><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-pct">${fmtPct(r.ratio)}</div></div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+    <div class="pagination">
+      <div class="page-info">Page ${state.ot.page} of ${totalPages}</div>
+      <div class="page-buttons">
+        <button class="page-btn" id="otPrev" ${state.ot.page<=1?'disabled':''}>Previous</button>
+        <button class="page-btn" id="otNext" ${state.ot.page>=totalPages?'disabled':''}>Next</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('otPrev').onclick=()=>{state.ot.page--;renderOvertime();};
+  document.getElementById('otNext').onclick=()=>{state.ot.page++;renderOvertime();};
+}
+
+let agencyChart=null;
+async function loadAgencyAnalysis(){
+  state.agencies.loading=true;
+  state.agencies.err=null;
+  renderAgencyAnalysis();
+  try{
+    const rows=await api({
+      $select:'agency_name,count(*) as hc,sum(regular_gross_paid) as base_sum,sum(total_ot_paid) as ot_sum,sum(total_other_pay) as other_sum',
+      $where:`fiscal_year='${escapeSoql(state.year)}'`,
+      $group:'agency_name',
+      $order:'ot_sum DESC',
+      $limit:200
+    });
+    state.agencies.data=rows.map(r=>({
+      agency:r.agency_name||'(unknown)',
+      hc:Number(r.hc||0),
+      base:Number(r.base_sum||0),
+      ot:Number(r.ot_sum||0),
+      other:Number(r.other_sum||0),
+      total:Number(r.base_sum||0)+Number(r.ot_sum||0)+Number(r.other_sum||0),
+      ratio:Number(r.base_sum)>0?Number(r.ot_sum||0)/Number(r.base_sum):0
+    }));
+  }catch(e){state.agencies.err=e.message;}
+  state.agencies.loading=false;
+  renderAgencyAnalysis();
+}
+
+function renderAgencyAnalysis(){
+  const body=document.getElementById('agencyBody');
+  const chartMeta=document.getElementById('agencyChartMeta');
+  const tableMeta=document.getElementById('agencyTableMeta');
+  if(state.agencies.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div>';
+    return;
+  }
+  if(state.agencies.err){
+    body.innerHTML=`<div class="error-state">Could not load agency data: ${state.agencies.err}</div>`;return;
+  }
+  const data=state.agencies.data||[];
+  if(!data.length){body.innerHTML='<div class="empty-state">No data.</div>';return;}
+  chartMeta.textContent=`FY ${state.year}`;
+  tableMeta.textContent=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}`;
+
+  const top20=data.slice(0,20);
+  const ctx=document.getElementById('agencyChart').getContext('2d');
+  if(agencyChart)agencyChart.destroy();
+  agencyChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:top20.map(r=>titleCase(r.agency)),
+      datasets:[{
+        label:'Overtime spend',
+        data:top20.map(r=>r.ot),
+        backgroundColor:'#c94c24',
+        borderRadius:2,
+        barThickness:18
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.x)}}
+      },
+      scales:{
+        x:{ticks:{callback:v=>fmtMoney(v),font:{family:"'JetBrains Mono'",size:11}},grid:{color:'#f0f0f0'}},
+        y:{ticks:{font:{family:"'Inter'",size:12},autoSkip:false},grid:{display:false}}
+      }
+    }
+  });
+
+  const maxRatio=Math.max(...data.map(r=>r.ratio),0.01);
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Agency</th>
+        <th class="num">Employees</th><th class="num">Regular pay</th>
+        <th class="num">Overtime</th><th class="num">Total payroll</th>
+        <th class="num">OT/regular</th>
+      </tr></thead>
+      <tbody>
+        ${data.map((r,i)=>{
+          const pct=Math.min(r.ratio/maxRatio,1)*100;
+          return `<tr>
+            <td class="rank">${i+1}</td>
+            <td class="name">${titleCase(r.agency)}</td>
+            <td class="num">${fmtInt(r.hc)}</td>
+            <td class="num">${fmtMoneyFull(r.base)}</td>
+            <td class="num">${fmtMoneyFull(r.ot)}</td>
+            <td class="num"><strong>${fmtMoneyFull(r.total)}</strong></td>
+            <td class="num"><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-pct">${fmtPct(r.ratio)}</div></div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  `;
+}
+
+async function loadTrends(){
+  state.trends.loading=true;
+  state.trends.err=null;
+  renderTrendsLoading();
+  try{
+    const params={
+      $select:'fiscal_year,count(*) as hc,avg(base_salary) as avg_base,sum(total_ot_paid) as total_ot',
+      $group:'fiscal_year',
+      $order:'fiscal_year ASC',
+      $limit:50
+    };
+    if(state.trends.agency)params.$where=`agency_name='${escapeSoql(state.trends.agency)}'`;
+    const rows=await api(params);
+    state.trends.data=rows.map(r=>({
+      year:r.fiscal_year,
+      hc:Number(r.hc||0),
+      avg_base:Number(r.avg_base||0),
+      total_ot:Number(r.total_ot||0)
+    })).filter(r=>r.year);
+  }catch(e){state.trends.err=e.message;}
+  state.trends.loading=false;
+  renderTrends();
+}
+
+function renderTrendsLoading(){
+  ['hcChart','baseChart','otChart'].forEach(id=>{
+    const c=state.trends.charts[id];
+    if(c){c.destroy();state.trends.charts[id]=null;}
+  });
+}
+
+function renderTrends(){
+  const wraps=document.querySelectorAll('#view-trends .chart-wrap');
+  if(state.trends.err){
+    wraps.forEach(w=>w.innerHTML=`<div class="error-state">Could not load trends: ${state.trends.err}</div>`);
+    return;
+  }
+  if(state.trends.loading){
+    wraps.forEach(w=>w.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading trend data...</div></div>');
+    return;
+  }
+  wraps.forEach((w,i)=>{
+    const ids=['hcChart','baseChart','otChart'];
+    w.innerHTML=`<canvas id="${ids[i]}"></canvas>`;
+  });
+  const data=state.trends.data||[];
+  const labels=data.map(r=>'FY '+r.year);
+  const baseOpts={
+    maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{}}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11}}},
+      y:{grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11}}}
+    }
+  };
+  state.trends.charts.hcChart=new Chart(document.getElementById('hcChart'),{
+    type:'line',
+    data:{labels,datasets:[{
+      data:data.map(r=>r.hc),
+      borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.08)',
+      borderWidth:2.5,fill:true,tension:0.25,pointRadius:4,pointBackgroundColor:'#0a1628'
+    }]},
+    options:{...baseOpts,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtInt(c.parsed.y)+' employees'}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>fmtInt(v)}}}}
+  });
+  state.trends.charts.baseChart=new Chart(document.getElementById('baseChart'),{
+    type:'line',
+    data:{labels,datasets:[{
+      data:data.map(r=>r.avg_base),
+      borderColor:'#c94c24',backgroundColor:'rgba(201,76,36,0.08)',
+      borderWidth:2.5,fill:true,tension:0.25,pointRadius:4,pointBackgroundColor:'#c94c24'
+    }]},
+    options:{...baseOpts,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.y)}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>fmtMoney(v)}}}}
+  });
+  state.trends.charts.otChart=new Chart(document.getElementById('otChart'),{
+    type:'bar',
+    data:{labels,datasets:[{
+      data:data.map(r=>r.total_ot),
+      backgroundColor:'#c94c24',borderRadius:2
+    }]},
+    options:{...baseOpts,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.y)}}},scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>fmtMoney(v)}}}}
+  });
+}
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    const v=btn.dataset.view;
+    document.getElementById('view-'+v).classList.add('active');
+    if(v==='agencies'&&!state.agencies.data&&!state.agencies.loading)loadAgencyAnalysis();
+    if(v==='trends'&&!state.trends.data&&!state.trends.loading)loadTrends();
+  });
+});
+
+document.getElementById('yearSelect').addEventListener('change',async e=>{
+  state.year=e.target.value;
+  state.earners.data=null;state.ot.data=null;state.agencies.data=null;
+  await Promise.all([loadAgencies(),loadStats()]);
+  loadEarners();
+  loadOvertime();
+  if(document.getElementById('view-agencies').classList.contains('active'))loadAgencyAnalysis();
+});
+
+['earnersAgency','earnersSearch','earnersSort'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{state.earners.page=1;renderEarners();});
+  document.getElementById(id).addEventListener('change',()=>{state.earners.page=1;renderEarners();});
+});
+['otAgency','otMinHours'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{state.ot.page=1;renderOvertime();});
+});
+document.getElementById('trendAgency').addEventListener('change',e=>{
+  state.trends.agency=e.target.value;
+  loadTrends();
+});
+
+(async function init(){
+  await loadYears();
+  if(!state.year)return;
+  await Promise.all([loadAgencies(),loadStats()]);
+  loadEarners();
+  loadOvertime();
+})();
+</script>
+</body>
+</html>
