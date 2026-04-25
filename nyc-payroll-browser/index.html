@@ -577,6 +577,18 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   margin-top:10px;
 }
 
+.chart-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px;
+  padding:10px 18px 4px;
+  font-size:11.5px;
+  color:#3d3d3d;
+  font-family:var(--sans);
+}
+.chart-legend .leg{display:inline-flex;align-items:center;gap:6px;}
+.chart-legend .leg-sw{display:inline-block;width:10px;height:10px;border-radius:2px;}
+
 th.sortable{
   cursor:pointer;
   user-select:none;
@@ -943,8 +955,14 @@ footer a{color:var(--cream);}
         <h3>Headcount by agency</h3>
         <div class="meta" id="hcByAgencyMeta"></div>
       </div>
+      <div class="chart-legend" id="hcByAgencyLegend">
+        <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Full-time (per annum)</span>
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Per day</span>
+        <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>Per hour</span>
+        <span class="leg"><span class="leg-sw" style="background:#94a3b8"></span>Prorated annual</span>
+      </div>
       <div class="chart-wrap tall"><canvas id="hcByAgencyChart"></canvas></div>
-      <p class="chart-note">Bars reflect the selected fiscal year. The time-series charts below show all years.</p>
+      <p class="chart-note">Bars reflect the selected fiscal year and break each agency's headcount into salaried full-time staff (per annum), per-day workers (e.g. poll workers, per-diem teachers), per-hour workers (substitutes, hourly support), and prorated annual (mid-year hires/departures). The time-series charts below show all years combined.</p>
     </div>
     <div class="data-card">
       <div class="data-card-header"><h3>Headcount over time</h3></div>
@@ -1084,6 +1102,7 @@ const state={
   commish:{data:null,err:null,loading:false,sortBy:'total',sortDir:'desc'},
   tiers:{data:null,byYear:{},totalRows:0,err:null,loading:false,progress:null,chart:null},
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
+  hcAgencyBasis:{byYear:{},loading:false},
   perdiem:{data:null,err:null,loading:false,agency:'',basis:'all',minHours:'0',page:1,pageSize:25,sortBy:'total',sortDir:'desc'},
   agencyList:[]
 };
@@ -1973,47 +1992,74 @@ async function loadTrends(){
 
 let hcByAgencyChart=null;
 async function loadHcByAgency(){
-  if(!state.agencies.data&&!state.agencies.loading){
-    await loadAgencyAnalysis();
-  }
+  const year=state.year;
+  if(state.hcAgencyBasis.byYear[year]){renderHcByAgency();return;}
+  if(state.hcAgencyBasis.loading)return;
+  state.hcAgencyBasis.loading=true;
+  renderHcByAgency();
+  try{
+    const rows=await api({
+      $select:'agency_name,pay_basis,count(*) as n',
+      $where:`fiscal_year='${escapeSoql(year)}'`,
+      $group:'agency_name,pay_basis',
+      $order:'agency_name',
+      $limit:1000
+    });
+    const byAgency={};
+    rows.forEach(r=>{
+      const a=r.agency_name||'(unknown)';
+      const b=r.pay_basis||'';
+      const n=Number(r.n||0);
+      if(!byAgency[a])byAgency[a]={agency:a,annum:0,day:0,hour:0,prorated:0,total:0};
+      if(b==='per Annum')byAgency[a].annum+=n;
+      else if(b==='per Day')byAgency[a].day+=n;
+      else if(b==='per Hour')byAgency[a].hour+=n;
+      else if(b==='Prorated Annual')byAgency[a].prorated+=n;
+      byAgency[a].total+=n;
+    });
+    state.hcAgencyBasis.byYear[year]=Object.values(byAgency);
+  }catch(e){state.hcAgencyBasis.err=e.message;}
+  state.hcAgencyBasis.loading=false;
   renderHcByAgency();
 }
 function renderHcByAgency(){
   const meta=document.getElementById('hcByAgencyMeta');
   const canvas=document.getElementById('hcByAgencyChart');
   if(!canvas)return;
-  const data=state.agencies.data||[];
-  if(!data.length){
-    meta.textContent='';
-    if(hcByAgencyChart){hcByAgencyChart.destroy();hcByAgencyChart=null;}
-    return;
-  }
-  const top=[...data].sort((a,b)=>b.hc-a.hc).slice(0,30);
+  const data=state.hcAgencyBasis.byYear[state.year]||[];
+  if(state.hcAgencyBasis.loading&&!data.length){meta.textContent='Loading...';if(hcByAgencyChart){hcByAgencyChart.destroy();hcByAgencyChart=null;}return;}
+  if(!data.length){meta.textContent='';if(hcByAgencyChart){hcByAgencyChart.destroy();hcByAgencyChart=null;}return;}
+  const top=[...data].sort((a,b)=>b.total-a.total).slice(0,30);
   meta.textContent=`FY ${state.year} · top 30 agencies`;
   const ctx=canvas.getContext('2d');
   if(hcByAgencyChart)hcByAgencyChart.destroy();
+  const tipLabel=ctx=>`${ctx.dataset.label}: ${fmtInt(ctx.parsed.x)}`;
   hcByAgencyChart=new Chart(ctx,{
     type:'bar',
     data:{
       labels:top.map(r=>titleCase(r.agency)),
-      datasets:[{
-        label:'Headcount',
-        data:top.map(r=>r.hc),
-        backgroundColor:'#0a1628',
-        borderRadius:2,
-        barThickness:14
-      }]
+      datasets:[
+        {label:'Full-time',data:top.map(r=>r.annum),backgroundColor:'#0a1628',stack:'h',barThickness:14},
+        {label:'Per day',data:top.map(r=>r.day),backgroundColor:'#c94c24',stack:'h',barThickness:14},
+        {label:'Per hour',data:top.map(r=>r.hour),backgroundColor:'#c8a43a',stack:'h',barThickness:14},
+        {label:'Prorated annual',data:top.map(r=>r.prorated),backgroundColor:'#94a3b8',stack:'h',barThickness:14}
+      ]
     },
     options:{
       indexAxis:'y',
       maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{callbacks:{label:c=>fmtInt(c.parsed.x)+' employees'}}
+        tooltip:{
+          callbacks:{
+            label:tipLabel,
+            footer:items=>{const t=items.reduce((s,i)=>s+i.parsed.x,0);return `Total: ${fmtInt(t)}`;}
+          }
+        }
       },
       scales:{
-        x:{beginAtZero:true,ticks:{callback:v=>fmtInt(v),font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
-        y:{ticks:{font:{family:"'Inter'",size:12},autoSkip:false,color:'#1a1a1a'},grid:{display:false},border:{display:false}}
+        x:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtInt(v),font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
+        y:{stacked:true,ticks:{font:{family:"'Inter'",size:12},autoSkip:false,color:'#1a1a1a'},grid:{display:false},border:{display:false}}
       }
     }
   });
