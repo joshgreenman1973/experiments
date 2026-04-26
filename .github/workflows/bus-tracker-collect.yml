@@ -96,9 +96,13 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new data to commit"
           else
-            # Pull any concurrent updates (other workflows may have committed)
-            # before pushing, to reduce push-rejected churn.
+            # Pull any concurrent updates (other workflows or PRs may have
+            # committed) before pushing, to avoid non-fast-forward rejection.
+            # `--autostash` unstashes changes back as UNSTAGED, so we have to
+            # re-stage after the pull or `git commit` will fail with
+            # "no changes added to commit".
             git pull --rebase --autostash origin main || true
+            git add nyc-bus-tracker/data/snapshots/
             DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
             git commit -m "Bus data: ${DATE} ET"
             git push
