@@ -885,7 +885,7 @@ footer a{color:var(--cream);}
   <section class="view active" id="view-overview">
     <div class="view-header">
       <h2>Overview: how NYC pays its workforce</h2>
-      <p>A citywide view of New York City government compensation — total payroll, average pay, headcount, benefits, and overtime, drawn from the NYC Citywide Payroll dataset and complemented by the federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW) and Employer Costs for Employee Compensation (ECEC) series.</p>
+      <p>A citywide view of New York City government compensation — total payroll, average pay, headcount, benefits, and overtime, drawn from the NYC Citywide Payroll dataset and complemented by the federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW) for the long-run employment series.</p>
     </div>
 
     <div class="data-card">
@@ -949,15 +949,6 @@ footer a{color:var(--cream);}
       </div>
       <div class="chart-wrap med"><canvas id="ovQcewChart"></canvas></div>
       <p class="chart-note" id="ovQcewNote">Source: federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW), local-government ownership in the five boroughs. The QCEW series is broader than the city's own payroll dataset — it includes some non-mayoral local-government employers (independent authorities and special districts that report to the unemployment-insurance system) — and is reported on a calendar-year basis, not the city's fiscal-year basis.</p>
-    </div>
-
-    <div class="data-card">
-      <div class="data-card-header">
-        <h3>Wages vs benefits: what state and local employers pay per dollar of compensation</h3>
-        <div class="meta" id="ovEcecMeta"></div>
-      </div>
-      <div class="chart-wrap med"><canvas id="ovEcecChart"></canvas></div>
-      <p class="chart-note" id="ovEcecNote">Source: federal Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC), state and local government workers nationwide. NYC's blended fringe rate of about 39% (used in the "Include fringe" toggle elsewhere in this tool) is in line with this national benchmark for state and local government.</p>
     </div>
 
     <div class="data-card">
@@ -1217,7 +1208,6 @@ footer a{color:var(--cream);}
       <li><strong>NYC Office of Management and Budget:</strong> <a href="https://www.nyc.gov/site/omb/index.page" target="_blank" rel="noopener">nyc.gov/site/omb</a> &middot; <a href="https://www.nyc.gov/site/omb/publications/financial-plan.page" target="_blank" rel="noopener">Financial Plan</a> (source of the blended fringe-benefit rate)</li>
       <li><strong>Mayor's Management Report:</strong> <a href="https://www.nyc.gov/site/operations/performance/mmr.page" target="_blank" rel="noopener">nyc.gov/site/operations/performance/mmr.page</a> (full-time-equivalent agency headcounts and fringe schedules)</li>
       <li><strong>Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW):</strong> <a href="https://www.bls.gov/cew/" target="_blank" rel="noopener">bls.gov/cew</a> — used in the Overview tab for long-run NYC local-government employment back to 2000.</li>
-      <li><strong>Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC):</strong> <a href="https://www.bls.gov/ncs/ect/home.htm" target="_blank" rel="noopener">bls.gov/ncs/ect</a> — used in the Overview tab for the wages-vs-benefits split for state and local government workers nationwide.</li>
       <li><strong>Pension tier definitions:</strong> <a href="https://www.nycers.org/about-tiers" target="_blank" rel="noopener">NYCERS — About Tiers</a> &middot; <a href="https://www.osc.ny.gov/retirement/members/whats-my-tier" target="_blank" rel="noopener">NY State Comptroller — What's my tier?</a></li>
       <li><strong>Retiree pension records (not in this tool):</strong> <a href="https://www.seethroughny.net/pensions" target="_blank" rel="noopener">SeeThroughNY pension database</a>, Empire Center for Public Policy</li>
     </ul>
@@ -1339,7 +1329,7 @@ const state={
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   hcAgencyBasis:{byYear:{},loading:false},
   perdiem:{data:null,err:null,loading:false,agency:'',basis:'all',minHours:'0',page:1,pageSize:25,sortBy:'total',sortDir:'desc'},
-  overview:{wages:null,qcew:null,ecec:null,loading:false,err:null,charts:{}},
+  overview:{wages:null,qcew:null,loading:false,err:null,charts:{}},
   agencyList:[]
 };
 const fr=n=>state.fringe?Number(n||0)*FRINGE_RATE:Number(n||0);
@@ -2579,7 +2569,7 @@ async function fetchJsonWithFallback(paths){
 
 async function loadOverview(){
   if(state.overview.loading)return;
-  if(state.overview.wages&&state.overview.qcew&&state.overview.ecec){
+  if(state.overview.wages&&state.overview.qcew){
     renderOverview();return;
   }
   state.overview.loading=true;
@@ -2597,11 +2587,7 @@ async function loadOverview(){
       './data/qcew_nyc.json',
       '../nyc-public-vs-private-comp/data/qcew_nyc.json'
     ]);
-    const ececFetch=fetchJsonWithFallback([
-      './data/ecec_annual.json',
-      '../nyc-public-vs-private-comp/data/ecec_annual.json'
-    ]);
-    const [wages,qcew,ecec]=await Promise.all([wagesQuery,qcewFetch,ececFetch]);
+    const [wages,qcew]=await Promise.all([wagesQuery,qcewFetch]);
     state.overview.wages=wages.map(r=>({
       year:r.fiscal_year,
       ft_hc:Number(r.ft_hc||0),
@@ -2613,7 +2599,6 @@ async function loadOverview(){
       avg_allin:Number(r.avg_allin||0)
     })).filter(r=>r.year);
     state.overview.qcew=qcew;
-    state.overview.ecec=ecec;
   }catch(e){
     console.error('overview load',e);
     state.overview.err=e.message;
@@ -2623,7 +2608,7 @@ async function loadOverview(){
 }
 
 function renderOverviewLoading(){
-  ['ovPayrollChart','ovAvgChart','ovQcewChart','ovEcecChart','ovOtChart'].forEach(id=>{
+  ['ovPayrollChart','ovAvgChart','ovQcewChart','ovOtChart'].forEach(id=>{
     const c=state.overview.charts[id];
     if(c){c.destroy();state.overview.charts[id]=null;}
   });
@@ -2639,7 +2624,6 @@ function renderOverview(){
   renderOvPayrollChart();
   renderOvAvgChart();
   renderOvQcewChart();
-  renderOvEcecChart();
   renderOvOtChart();
 }
 
@@ -2743,67 +2727,6 @@ function renderOvQcewChart(){
       }
     }
   });
-}
-
-function renderOvEcecChart(){
-  const ctx=document.getElementById('ovEcecChart');
-  if(!ctx)return;
-  const e=state.overview.ecec||{};
-  const years=Object.keys(e).filter(y=>e[y]&&e[y].StateLocal).sort();
-  // Show two recent years for comparison
-  const yShow=[years[0],years[years.length-1]].filter((v,i,a)=>a.indexOf(v)===i);
-  const labels=yShow.map(y=>'State & local, '+y);
-  const sl=yShow.map(y=>e[y].StateLocal);
-  // Stacked horizontal bar by category as $ per hour
-  const cats=[
-    {key:'wages',label:'Wages & salaries',color:'#0a1628'},
-    {key:'paid_leave',label:'Paid leave',color:'#2c5282'},
-    {key:'supp_pay',label:'Supplemental pay',color:'#5a7ca0'},
-    {key:'insurance',label:'Insurance (mostly health)',color:'#c94c24'},
-    {key:'retirement',label:'Retirement & savings',color:'#c8a43a'},
-    {key:'legally_required',label:'Legally required (FICA, UI, etc.)',color:'#94a3b8'}
-  ];
-  const datasets=cats.map(c=>({
-    label:c.label,
-    data:sl.map(r=>r[c.key]||0),
-    backgroundColor:c.color,
-    stack:'comp',
-    borderWidth:0
-  }));
-  if(state.overview.charts.ovEcecChart)state.overview.charts.ovEcecChart.destroy();
-  document.getElementById('ovEcecMeta').textContent=`${yShow[0]} vs ${yShow[yShow.length-1]}  ·  $ per hour worked`;
-  state.overview.charts.ovEcecChart=new Chart(ctx,{
-    type:'bar',
-    data:{labels,datasets},
-    options:{
-      indexAxis:'y',
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:true,position:'bottom',labels:{font:{family:"'Inter'",size:11},boxWidth:10,boxHeight:10,padding:10,color:'#1a1a1a'}},
-        tooltip:{
-          callbacks:{
-            label:c=>{
-              const total=sl[c.dataIndex].total_comp||1;
-              const pct=(c.parsed.x/total*100).toFixed(1);
-              return c.dataset.label+': $'+c.parsed.x.toFixed(2)+' ('+pct+'% of total comp)';
-            },
-            footer:items=>{const t=sl[items[0].dataIndex].total_comp;return 'Total comp: $'+t.toFixed(2)+'/hr';}
-          }
-        }
-      },
-      scales:{
-        x:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+v,font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
-        y:{stacked:true,ticks:{font:{family:"'Inter'",size:12},color:'#1a1a1a'},grid:{display:false},border:{display:false}}
-      }
-    }
-  });
-  // Update chart-note with latest split
-  const latest=sl[sl.length-1];
-  if(latest&&latest.total_comp){
-    const wagesPct=(latest.wages/latest.total_comp*100).toFixed(0);
-    const benPct=(latest.benefits/latest.total_comp*100).toFixed(0);
-    document.getElementById('ovEcecNote').innerHTML=`In ${yShow[yShow.length-1]}, state and local government employers nationwide spent <strong>$${latest.total_comp.toFixed(2)}</strong> per hour worked on total compensation: <strong>${wagesPct}%</strong> in wages and <strong>${benPct}%</strong> in benefits. NYC's blended fringe rate of about 39% (used in the "Include fringe" toggle elsewhere in this tool) is in line with this national benchmark for state and local government. Source: federal Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC), state and local government workers nationwide.`;
-  }
 }
 
 function renderOvOtChart(){
