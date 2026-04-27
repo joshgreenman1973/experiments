@@ -40,9 +40,14 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout repository
+      # Snapshot data lives on its own branch so concurrent PR merges to main
+      # can never collide with the bot's pushes. The bot is the only writer to
+      # `bus-data`. This is the structural fix for the autostash collision class.
+      - name: Checkout bus-data branch
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
+        with:
+          ref: bus-data
 
       - name: Set up Node.js
         if: steps.gate.outputs.skip != 'true'
@@ -86,7 +91,7 @@ jobs:
           # Fail the run only if everything failed (partial loss is acceptable)
           if [ "$OK" -eq 0 ]; then exit 1; fi
 
-      - name: Commit and push data
+      - name: Commit and push to bus-data
         if: steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "Bus Tracker Bot"
@@ -95,15 +100,17 @@ jobs:
 
           if git diff --staged --quiet; then
             echo "No new data to commit"
-          else
-            # Pull any concurrent updates (other workflows or PRs may have
-            # committed) before pushing, to avoid non-fast-forward rejection.
-            # `--autostash` unstashes changes back as UNSTAGED, so we have to
-            # re-stage after the pull or `git commit` will fail with
-            # "no changes added to commit".
-            git pull --rebase --autostash origin main || true
-            git add nyc-bus-tracker/data/snapshots/
-            DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
-            git commit -m "Bus data: ${DATE} ET"
-            git push
+            exit 0
+          fi
+
+          DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
+          git commit -m "Bus data: ${DATE} ET"
+
+          # bus-data only has bot commits, so non-fast-forward should be rare,
+          # but a previous run that overlapped (e.g. manual + cron) could have
+          # pushed during ours. Try once, then pull-rebase + retry on rejection.
+          if ! git push origin bus-data; then
+            echo "Push rejected, rebasing on bus-data and retrying..."
+            git pull --rebase origin bus-data
+            git push origin bus-data
           fi

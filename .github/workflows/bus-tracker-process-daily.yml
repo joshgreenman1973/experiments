@@ -20,8 +20,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      # Snapshots live on the `bus-data` branch (isolated from main so collection
+      # never collides with PR pushes). Daily summaries land on `main` because
+      # GitHub Pages serves from there. Strategy: check out main as the base,
+      # then pull just data/snapshots/ from bus-data into the working tree.
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Pull snapshot files from bus-data branch
+        run: |
+          git fetch origin bus-data --depth=1
+          # Replace working-tree snapshots with the latest from bus-data.
+          # We don't add them to the index — they stay on bus-data, not main.
+          git checkout origin/bus-data -- nyc-bus-tracker/data/snapshots/
+          echo "Snapshot files now in working tree:"
+          ls nyc-bus-tracker/data/snapshots/ | tail -10
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -43,16 +58,26 @@ jobs:
       - name: Generate weekly/monthly rollups
         run: node nyc-bus-tracker/collector/rollup.js
 
-      - name: Commit and push summaries
+      - name: Commit summaries to main
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
+          # Only stage the rollup outputs. Snapshots stay on bus-data.
           git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/
 
           if git diff --staged --quiet; then
             echo "No new summaries to commit"
-          else
-            DATE=$(TZ='America/New_York' date '+%Y-%m-%d')
-            git commit -m "Daily summary: ${DATE}"
-            git push
+            exit 0
+          fi
+
+          DATE=$(TZ='America/New_York' date '+%Y-%m-%d')
+          git commit -m "Daily summary: ${DATE}"
+
+          # Daily processor runs at 1am ET when main is usually quiet, but
+          # retry once on rejection just in case a PR landed mid-processing.
+          if ! git push origin main; then
+            echo "Push rejected, rebasing and retrying..."
+            git pull --rebase --autostash origin main
+            git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/
+            git push origin main
           fi
