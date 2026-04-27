@@ -649,6 +649,43 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   margin-top:10px;
 }
 
+.ov-stat{
+  padding:22px 22px 18px;
+  border-right:1px solid rgba(245,240,232,0.08);
+}
+.ov-stat:last-child{border-right:none;}
+.ov-stat-label{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:rgba(245,240,232,0.55);
+  margin-bottom:6px;
+}
+.ov-stat-value{
+  font-family:var(--mono);
+  font-size:26px;
+  font-weight:500;
+  letter-spacing:-0.02em;
+  color:var(--cream);
+  font-feature-settings:"tnum";
+}
+.ov-stat-value.loading{color:rgba(245,240,232,0.4);font-style:italic;font-weight:400;}
+.ov-stat-sub{
+  font-family:var(--sans);
+  font-size:10.5px;
+  font-weight:500;
+  letter-spacing:0.2px;
+  color:rgba(245,240,232,0.5);
+  font-variant-numeric:tabular-nums;
+  margin-top:4px;
+  line-height:1.4;
+}
+@media (max-width:780px){
+  #ovStatBody > div{grid-template-columns:repeat(2,1fr) !important;}
+  .ov-stat{border-bottom:1px solid rgba(245,240,232,0.08);}
+}
+
 .chart-legend{
   display:flex;
   flex-wrap:wrap;
@@ -833,7 +870,8 @@ footer a{color:var(--cream);}
 
 <nav class="tabs">
   <div class="tabs-inner">
-    <button class="tab active" data-view="earners">Top earners</button>
+    <button class="tab active" data-view="overview">Overview</button>
+    <button class="tab" data-view="earners">Top earners</button>
     <button class="tab" data-view="perdiem">Per-diem &amp; hourly</button>
     <button class="tab" data-view="agencies">Agency analysis</button>
     <button class="tab" data-view="overtime">Overtime</button>
@@ -844,7 +882,99 @@ footer a{color:var(--cream);}
 
 <main>
 
-  <section class="view active" id="view-earners">
+  <section class="view active" id="view-overview">
+    <div class="view-header">
+      <h2>Overview: how NYC pays its workforce</h2>
+      <p>A citywide view of New York City government compensation — total payroll, average pay, headcount, benefits, and overtime, drawn from the NYC Citywide Payroll dataset and complemented by the federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW) and Employer Costs for Employee Compensation (ECEC) series.</p>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3 id="ovStatTitle">Total compensation footprint</h3>
+        <div class="meta" id="ovStatMeta"></div>
+      </div>
+      <div id="ovStatBody" style="padding:0;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);background:#0d1d36;color:var(--cream);">
+          <div class="ov-stat" id="ovStatWages">
+            <div class="ov-stat-label">Total wages paid</div>
+            <div class="ov-stat-value loading">Loading...</div>
+            <div class="ov-stat-sub">W-2 regular + OT + other pay</div>
+          </div>
+          <div class="ov-stat" id="ovStatBenefits">
+            <div class="ov-stat-label">Benefits (estimated)</div>
+            <div class="ov-stat-value loading">Loading...</div>
+            <div class="ov-stat-sub">39% blended fringe rate</div>
+          </div>
+          <div class="ov-stat" id="ovStatComp">
+            <div class="ov-stat-label">Total compensation</div>
+            <div class="ov-stat-value loading">Loading...</div>
+            <div class="ov-stat-sub">Wages + benefits</div>
+          </div>
+          <div class="ov-stat" id="ovStatFt">
+            <div class="ov-stat-label">Full-time workforce</div>
+            <div class="ov-stat-value loading">Loading...</div>
+            <div class="ov-stat-sub">per Annum, &gt;1,500 hrs</div>
+          </div>
+        </div>
+        <p class="chart-note" id="ovStatNarrative" style="padding:18px 22px;">Loading...</p>
+      </div>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Total payroll over time</h3>
+        <div class="meta" id="ovPayrollMeta"></div>
+      </div>
+      <div class="chart-wrap med"><canvas id="ovPayrollChart"></canvas></div>
+      <p class="chart-note" id="ovPayrollNote">Wages paid (regular + overtime + other pay) for full-time, per-annum employees by fiscal year. Restricted to <code>pay_basis = 'per Annum'</code> with more than 1,500 regular hours to keep the comparison apples-to-apples across years.</p>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Average full-time pay over time</h3>
+        <div class="meta" id="ovAvgMeta"></div>
+      </div>
+      <div class="chart-legend">
+        <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Average regular pay</span>
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Average regular + overtime</span>
+      </div>
+      <div class="chart-wrap med"><canvas id="ovAvgChart"></canvas></div>
+      <p class="chart-note" id="ovAvgNote">Average pay for full-time, per-annum employees by fiscal year. Figures are <strong>nominal</strong> (not inflation-adjusted), so part of the rise reflects general price growth rather than real wage gains.</p>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>NYC local-government employment, 2000 to today</h3>
+        <div class="meta" id="ovQcewMeta"></div>
+      </div>
+      <div class="chart-wrap med"><canvas id="ovQcewChart"></canvas></div>
+      <p class="chart-note" id="ovQcewNote">Source: federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW), local-government ownership in the five boroughs. The QCEW series is broader than the city's own payroll dataset — it includes some non-mayoral local-government employers (independent authorities and special districts that report to the unemployment-insurance system) — and is reported on a calendar-year basis, not the city's fiscal-year basis.</p>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Wages vs benefits: what state and local employers pay per dollar of compensation</h3>
+        <div class="meta" id="ovEcecMeta"></div>
+      </div>
+      <div class="chart-wrap med"><canvas id="ovEcecChart"></canvas></div>
+      <p class="chart-note" id="ovEcecNote">Source: federal Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC), state and local government workers nationwide. NYC's blended fringe rate of about 39% (used in the "Include fringe" toggle elsewhere in this tool) is in line with this national benchmark for state and local government.</p>
+    </div>
+
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Overtime trend: dollars and share of regular pay</h3>
+        <div class="meta" id="ovOtMeta"></div>
+      </div>
+      <div class="chart-legend">
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Total overtime paid (left axis)</span>
+        <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>OT as % of regular pay (right axis)</span>
+      </div>
+      <div class="chart-wrap med"><canvas id="ovOtChart"></canvas></div>
+      <p class="chart-note" id="ovOtNote">Total overtime dollars and overtime as a share of regular wages, full-time employees only. Rising overtime can signal either chronic understaffing or a deliberate policy choice to cover demand with OT instead of new hires.</p>
+    </div>
+  </section>
+
+  <section class="view" id="view-earners">
     <div class="view-header">
       <h2>Top earners</h2>
       <p>The highest-paid city employees by total gross pay (base plus overtime plus other pay) for the selected fiscal year. Drawn from the top 500 records returned by the API.</p>
@@ -1086,6 +1216,8 @@ footer a{color:var(--cream);}
       <li><strong>NYC Office of Payroll Administration:</strong> <a href="https://www.nyc.gov/site/opa/index.page" target="_blank" rel="noopener">nyc.gov/site/opa</a> (data steward)</li>
       <li><strong>NYC Office of Management and Budget:</strong> <a href="https://www.nyc.gov/site/omb/index.page" target="_blank" rel="noopener">nyc.gov/site/omb</a> &middot; <a href="https://www.nyc.gov/site/omb/publications/financial-plan.page" target="_blank" rel="noopener">Financial Plan</a> (source of the blended fringe-benefit rate)</li>
       <li><strong>Mayor's Management Report:</strong> <a href="https://www.nyc.gov/site/operations/performance/mmr.page" target="_blank" rel="noopener">nyc.gov/site/operations/performance/mmr.page</a> (full-time-equivalent agency headcounts and fringe schedules)</li>
+      <li><strong>Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW):</strong> <a href="https://www.bls.gov/cew/" target="_blank" rel="noopener">bls.gov/cew</a> — used in the Overview tab for long-run NYC local-government employment back to 2000.</li>
+      <li><strong>Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC):</strong> <a href="https://www.bls.gov/ncs/ect/home.htm" target="_blank" rel="noopener">bls.gov/ncs/ect</a> — used in the Overview tab for the wages-vs-benefits split for state and local government workers nationwide.</li>
       <li><strong>Pension tier definitions:</strong> <a href="https://www.nycers.org/about-tiers" target="_blank" rel="noopener">NYCERS — About Tiers</a> &middot; <a href="https://www.osc.ny.gov/retirement/members/whats-my-tier" target="_blank" rel="noopener">NY State Comptroller — What's my tier?</a></li>
       <li><strong>Retiree pension records (not in this tool):</strong> <a href="https://www.seethroughny.net/pensions" target="_blank" rel="noopener">SeeThroughNY pension database</a>, Empire Center for Public Policy</li>
     </ul>
@@ -1207,6 +1339,7 @@ const state={
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   hcAgencyBasis:{byYear:{},loading:false},
   perdiem:{data:null,err:null,loading:false,agency:'',basis:'all',minHours:'0',page:1,pageSize:25,sortBy:'total',sortDir:'desc'},
+  overview:{wages:null,qcew:null,ecec:null,loading:false,err:null,charts:{}},
   agencyList:[]
 };
 const fr=n=>state.fringe?Number(n||0)*FRINGE_RATE:Number(n||0);
@@ -2431,6 +2564,276 @@ function renderTiers(){
   `;
 }
 
+// ---------- Overview tab ----------
+async function fetchJsonWithFallback(paths){
+  let lastErr=null;
+  for(const p of paths){
+    try{
+      const r=await fetch(p);
+      if(r.ok)return await r.json();
+      lastErr=new Error('HTTP '+r.status+' for '+p);
+    }catch(e){lastErr=e;}
+  }
+  throw lastErr||new Error('All fetch paths failed');
+}
+
+async function loadOverview(){
+  if(state.overview.loading)return;
+  if(state.overview.wages&&state.overview.qcew&&state.overview.ecec){
+    renderOverview();return;
+  }
+  state.overview.loading=true;
+  state.overview.err=null;
+  renderOverviewLoading();
+  try{
+    const wagesQuery=api({
+      $select:'fiscal_year,count(*) as ft_hc,sum(regular_gross_paid) as reg_sum,sum(total_ot_paid) as ot_sum,sum(total_other_pay) as other_sum,avg(regular_gross_paid) as avg_reg,avg(regular_gross_paid+total_ot_paid) as avg_allin',
+      $where:`pay_basis='per Annum' AND regular_hours > 1500`,
+      $group:'fiscal_year',
+      $order:'fiscal_year ASC',
+      $limit:50
+    });
+    const qcewFetch=fetchJsonWithFallback([
+      './data/qcew_nyc.json',
+      '../nyc-public-vs-private-comp/data/qcew_nyc.json'
+    ]);
+    const ececFetch=fetchJsonWithFallback([
+      './data/ecec_annual.json',
+      '../nyc-public-vs-private-comp/data/ecec_annual.json'
+    ]);
+    const [wages,qcew,ecec]=await Promise.all([wagesQuery,qcewFetch,ececFetch]);
+    state.overview.wages=wages.map(r=>({
+      year:r.fiscal_year,
+      ft_hc:Number(r.ft_hc||0),
+      reg_sum:Number(r.reg_sum||0),
+      ot_sum:Number(r.ot_sum||0),
+      other_sum:Number(r.other_sum||0),
+      total_pay:Number(r.reg_sum||0)+Number(r.ot_sum||0)+Number(r.other_sum||0),
+      avg_reg:Number(r.avg_reg||0),
+      avg_allin:Number(r.avg_allin||0)
+    })).filter(r=>r.year);
+    state.overview.qcew=qcew;
+    state.overview.ecec=ecec;
+  }catch(e){
+    console.error('overview load',e);
+    state.overview.err=e.message;
+  }
+  state.overview.loading=false;
+  renderOverview();
+}
+
+function renderOverviewLoading(){
+  ['ovPayrollChart','ovAvgChart','ovQcewChart','ovEcecChart','ovOtChart'].forEach(id=>{
+    const c=state.overview.charts[id];
+    if(c){c.destroy();state.overview.charts[id]=null;}
+  });
+}
+
+function renderOverview(){
+  if(state.overview.err){
+    document.getElementById('ovStatNarrative').textContent='Could not load overview data: '+state.overview.err;
+    return;
+  }
+  if(!state.overview.wages)return;
+  renderOverviewStats();
+  renderOvPayrollChart();
+  renderOvAvgChart();
+  renderOvQcewChart();
+  renderOvEcecChart();
+  renderOvOtChart();
+}
+
+function renderOverviewStats(){
+  const wages=state.overview.wages||[];
+  if(!wages.length)return;
+  // Use selected fiscal year if available in series, else latest
+  const yearSel=state.year;
+  let row=wages.find(r=>String(r.year)===String(yearSel));
+  if(!row)row=wages[wages.length-1];
+  const wagesTotal=row.total_pay;
+  const benefits=wagesTotal*(FRINGE_RATE-1);
+  const totalComp=wagesTotal*FRINGE_RATE;
+  const ftHc=row.ft_hc;
+  const perEmp=ftHc>0?totalComp/ftHc:0;
+  const set=(id,v)=>{
+    const el=document.querySelector('#'+id+' .ov-stat-value');
+    if(el){el.textContent=v;el.classList.remove('loading');}
+  };
+  set('ovStatWages',fmtMoney(wagesTotal));
+  set('ovStatBenefits',fmtMoney(benefits));
+  set('ovStatComp',fmtMoney(totalComp));
+  set('ovStatFt',fmtInt(ftHc));
+  document.getElementById('ovStatMeta').textContent=`FY ${row.year}  ·  full-time, per-annum employees`;
+  const narrate=`In fiscal year ${row.year}, the city paid <strong>${fmtMoney(wagesTotal)}</strong> in wages to its full-time, per-annum workforce on top of an estimated <strong>${fmtMoney(benefits)}</strong> in benefits — a total compensation footprint of <strong>${fmtMoney(totalComp)}</strong> across about ${fmtInt(ftHc)} full-time employees, or roughly <strong>${fmtMoneyFull(perEmp)}</strong> per full-time employee per year. Benefits are estimated using the city's blended fringe rate of 39% (covering health insurance, pension contributions, payroll taxes, retiree health, and other supplements). Wages are actual W-2 dollars paid; benefits are an estimate.`;
+  document.getElementById('ovStatNarrative').innerHTML=narrate;
+}
+
+function renderOvPayrollChart(){
+  const ctx=document.getElementById('ovPayrollChart');
+  if(!ctx)return;
+  const data=state.overview.wages||[];
+  const labels=data.map(r=>'FY '+r.year);
+  if(state.overview.charts.ovPayrollChart)state.overview.charts.ovPayrollChart.destroy();
+  document.getElementById('ovPayrollMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  full-time only`;
+  state.overview.charts.ovPayrollChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      data:data.map(r=>r.total_pay),
+      borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.10)',
+      borderWidth:2.5,fill:true,tension:0.25,pointRadius:4,pointBackgroundColor:'#0a1628'
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.y)+' total wages'}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b'}},
+        y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>'$'+(v/1e9).toFixed(1)+'B'},border:{display:false}}
+      }
+    }
+  });
+}
+
+function renderOvAvgChart(){
+  const ctx=document.getElementById('ovAvgChart');
+  if(!ctx)return;
+  const data=state.overview.wages||[];
+  const labels=data.map(r=>'FY '+r.year);
+  if(state.overview.charts.ovAvgChart)state.overview.charts.ovAvgChart.destroy();
+  document.getElementById('ovAvgMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  nominal dollars`;
+  state.overview.charts.ovAvgChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Avg regular pay',data:data.map(r=>r.avg_reg),borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#0a1628'},
+      {label:'Avg regular + overtime',data:data.map(r=>r.avg_allin),borderColor:'#c94c24',backgroundColor:'rgba(201,76,36,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#c94c24'}
+    ]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtMoneyFull(c.parsed.y)}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b'}},
+        y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>fmtMoney(v)},border:{display:false}}
+      }
+    }
+  });
+}
+
+function renderOvQcewChart(){
+  const ctx=document.getElementById('ovQcewChart');
+  if(!ctx)return;
+  const q=state.overview.qcew||{};
+  const years=Object.keys(q).filter(y=>q[y]&&q[y].Local).sort();
+  const labels=years;
+  const empData=years.map(y=>q[y].Local.employment);
+  if(state.overview.charts.ovQcewChart)state.overview.charts.ovQcewChart.destroy();
+  document.getElementById('ovQcewMeta').textContent=`${years[0]}–${years[years.length-1]}  ·  calendar year`;
+  state.overview.charts.ovQcewChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'NYC local-government employment',
+      data:empData,
+      borderColor:'#c94c24',backgroundColor:'rgba(201,76,36,0.10)',
+      borderWidth:2.5,fill:true,tension:0.25,pointRadius:3,pointBackgroundColor:'#c94c24'
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtInt(c.parsed.y)+' employees'}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b',autoSkip:true,maxTicksLimit:12}},
+        y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>fmtInt(v)},border:{display:false}}
+      }
+    }
+  });
+}
+
+function renderOvEcecChart(){
+  const ctx=document.getElementById('ovEcecChart');
+  if(!ctx)return;
+  const e=state.overview.ecec||{};
+  const years=Object.keys(e).filter(y=>e[y]&&e[y].StateLocal).sort();
+  // Show two recent years for comparison
+  const yShow=[years[0],years[years.length-1]].filter((v,i,a)=>a.indexOf(v)===i);
+  const labels=yShow.map(y=>'State & local, '+y);
+  const sl=yShow.map(y=>e[y].StateLocal);
+  // Stacked horizontal bar by category as $ per hour
+  const cats=[
+    {key:'wages',label:'Wages & salaries',color:'#0a1628'},
+    {key:'paid_leave',label:'Paid leave',color:'#2c5282'},
+    {key:'supp_pay',label:'Supplemental pay',color:'#5a7ca0'},
+    {key:'insurance',label:'Insurance (mostly health)',color:'#c94c24'},
+    {key:'retirement',label:'Retirement & savings',color:'#c8a43a'},
+    {key:'legally_required',label:'Legally required (FICA, UI, etc.)',color:'#94a3b8'}
+  ];
+  const datasets=cats.map(c=>({
+    label:c.label,
+    data:sl.map(r=>r[c.key]||0),
+    backgroundColor:c.color,
+    stack:'comp',
+    borderWidth:0
+  }));
+  if(state.overview.charts.ovEcecChart)state.overview.charts.ovEcecChart.destroy();
+  document.getElementById('ovEcecMeta').textContent=`${yShow[0]} vs ${yShow[yShow.length-1]}  ·  $ per hour worked`;
+  state.overview.charts.ovEcecChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets},
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{family:"'Inter'",size:11},boxWidth:10,boxHeight:10,padding:10,color:'#1a1a1a'}},
+        tooltip:{
+          callbacks:{
+            label:c=>{
+              const total=sl[c.dataIndex].total_comp||1;
+              const pct=(c.parsed.x/total*100).toFixed(1);
+              return c.dataset.label+': $'+c.parsed.x.toFixed(2)+' ('+pct+'% of total comp)';
+            },
+            footer:items=>{const t=sl[items[0].dataIndex].total_comp;return 'Total comp: $'+t.toFixed(2)+'/hr';}
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+v,font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
+        y:{stacked:true,ticks:{font:{family:"'Inter'",size:12},color:'#1a1a1a'},grid:{display:false},border:{display:false}}
+      }
+    }
+  });
+  // Update chart-note with latest split
+  const latest=sl[sl.length-1];
+  if(latest&&latest.total_comp){
+    const wagesPct=(latest.wages/latest.total_comp*100).toFixed(0);
+    const benPct=(latest.benefits/latest.total_comp*100).toFixed(0);
+    document.getElementById('ovEcecNote').innerHTML=`In ${yShow[yShow.length-1]}, state and local government employers nationwide spent <strong>$${latest.total_comp.toFixed(2)}</strong> per hour worked on total compensation: <strong>${wagesPct}%</strong> in wages and <strong>${benPct}%</strong> in benefits. NYC's blended fringe rate of about 39% (used in the "Include fringe" toggle elsewhere in this tool) is in line with this national benchmark for state and local government. Source: federal Bureau of Labor Statistics (BLS) Employer Costs for Employee Compensation (ECEC), state and local government workers nationwide.`;
+  }
+}
+
+function renderOvOtChart(){
+  const ctx=document.getElementById('ovOtChart');
+  if(!ctx)return;
+  const data=state.overview.wages||[];
+  const labels=data.map(r=>'FY '+r.year);
+  if(state.overview.charts.ovOtChart)state.overview.charts.ovOtChart.destroy();
+  document.getElementById('ovOtMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  full-time only`;
+  state.overview.charts.ovOtChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[
+      {type:'bar',label:'Total overtime paid',data:data.map(r=>r.ot_sum),backgroundColor:'#c94c24',borderRadius:2,yAxisID:'y',order:2},
+      {type:'line',label:'OT as % of regular pay',data:data.map(r=>r.reg_sum>0?r.ot_sum/r.reg_sum*100:0),borderColor:'#c8a43a',backgroundColor:'#c8a43a',borderWidth:2.5,fill:false,tension:0.25,pointRadius:4,pointBackgroundColor:'#c8a43a',yAxisID:'y1',order:1}
+    ]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{
+        if(c.dataset.yAxisID==='y1')return c.dataset.label+': '+c.parsed.y.toFixed(1)+'%';
+        return c.dataset.label+': '+fmtMoneyFull(c.parsed.y);
+      }}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b'}},
+        y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>'$'+(v/1e9).toFixed(1)+'B'},border:{display:false},position:'left'},
+        y1:{beginAtZero:true,grid:{display:false},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#c8a43a',callback:v=>v.toFixed(0)+'%'},border:{display:false},position:'right'}
+      }
+    }
+  });
+}
+
 function applyFringe(){
   const tog=document.getElementById('fringeToggle');
   tog.classList.toggle('on',state.fringe);
@@ -2460,6 +2863,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     btn.classList.add('active');
     const v=btn.dataset.view;
     document.getElementById('view-'+v).classList.add('active');
+    if(v==='overview'&&!state.overview.wages&&!state.overview.loading)loadOverview();
     if(v==='perdiem'&&!state.perdiem.data&&!state.perdiem.loading)loadPerDiem();
     if(v==='perdiem')loadPdAgencyBreakdown();
     if(v==='overtime')loadOtByAgency();
@@ -2477,6 +2881,8 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
   loadOvertime();
+  // overview headline stats depend on selected year — re-render if loaded
+  if(state.overview.wages)renderOverviewStats();
   if(document.getElementById('view-perdiem').classList.contains('active')){loadPerDiem();loadPdAgencyBreakdown();}
   if(document.getElementById('view-agencies').classList.contains('active')){loadAgencyAnalysis();loadCommissioners();}
   if(document.getElementById('view-overtime').classList.contains('active'))loadOtByAgency();
@@ -2505,6 +2911,8 @@ document.getElementById('trendAgency').addEventListener('change',e=>{
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
   loadOvertime();
+  // Overview is the default tab — kick off its data load too
+  loadOverview();
 })();
 </script>
 </body>
