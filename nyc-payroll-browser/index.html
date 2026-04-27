@@ -834,11 +834,11 @@ footer a{color:var(--cream);}
 <nav class="tabs">
   <div class="tabs-inner">
     <button class="tab active" data-view="earners">Top earners</button>
-    <button class="tab" data-view="overtime">Overtime</button>
     <button class="tab" data-view="perdiem">Per-diem &amp; hourly</button>
     <button class="tab" data-view="agencies">Agency analysis</button>
-    <button class="tab" data-view="tiers">Pension tiers</button>
+    <button class="tab" data-view="overtime">Overtime</button>
     <button class="tab" data-view="trends">Headcount trends</button>
+    <button class="tab" data-view="tiers">Pension tiers</button>
   </div>
 </nav>
 
@@ -907,11 +907,11 @@ footer a{color:var(--cream);}
     </div>
     <div class="data-card">
       <div class="data-card-header">
-        <h3>Where overtime dwarfs regular pay</h3>
-        <div class="meta" id="otChartMeta"></div>
+        <h3>Total overtime by agency</h3>
+        <div class="meta" id="otAgencyChartMeta"></div>
       </div>
-      <div class="chart-wrap tall"><canvas id="otRatioChart"></canvas></div>
-      <p class="chart-note">Top 25 employees ranked by OT pay as a percentage of regular wages, restricted to those with at least $20,000 in regular gross to filter out partial-year noise. A 100% bar means OT equaled regular pay; 200% means double. The orange line marks the 100% threshold.</p>
+      <div class="chart-wrap tall"><canvas id="otByAgencyChart"></canvas></div>
+      <p class="chart-note">Top 20 agencies ranked by total overtime dollars paid in the selected fiscal year. The Police Department, Fire Department, Department of Correction, and Department of Sanitation typically dominate.</p>
     </div>
     <div class="data-card">
       <div class="data-card-header">
@@ -919,6 +919,14 @@ footer a{color:var(--cream);}
         <div class="meta" id="otMeta"></div>
       </div>
       <div id="otBody"><div class="loading-state"><div class="spinner"></div><div>Loading overtime data...</div></div></div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Where overtime dwarfs regular pay</h3>
+        <div class="meta" id="otChartMeta"></div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="otRatioChart"></canvas></div>
+      <p class="chart-note">Top 25 employees ranked by overtime pay as a percentage of regular wages, restricted to those with at least $20,000 in regular gross to filter out partial-year noise. A 100% bar means overtime equaled regular pay; 200% means double. Y-axis shows name, job title, and agency.</p>
     </div>
   </section>
 
@@ -1711,7 +1719,10 @@ function renderOtRatioChart(){
   const labels=pool.map(r=>{
     const last=titleCase(r.last_name||'');
     const first=titleCase(r.first_name||'');
-    return (last+(first?', '+first.charAt(0)+'.':''));
+    const name=last+(first?', '+first.charAt(0)+'.':'');
+    const title=titleCase(r.title_description||'');
+    const ag=titleCase(r.agency_name||'');
+    return [name,title+(ag?'  ·  '+ag:'')];
   });
   const ctx=canvas.getContext('2d');
   if(otRatioChart)otRatioChart.destroy();
@@ -1736,12 +1747,15 @@ function renderOtRatioChart(){
           callbacks:{
             title:items=>{
               const r=pool[items[0].dataIndex];
-              return labels[items[0].dataIndex]+' — '+titleCase(r.agency_name||'');
+              const last=titleCase(r.last_name||'');
+              const first=titleCase(r.first_name||'');
+              return last+(first?', '+first.charAt(0)+'.':'')+' — '+titleCase(r.agency_name||'');
             },
             label:c=>{
               const r=pool[c.dataIndex];
               return [
-                'OT pay: '+fmtMoneyFull(fr(r.ot)),
+                'Title: '+titleCase(r.title_description||''),
+                'Overtime pay: '+fmtMoneyFull(fr(r.ot)),
                 'Regular pay: '+fmtMoneyFull(fr(r.base)),
                 'Ratio: '+c.parsed.x.toFixed(0)+'%'
               ];
@@ -1752,6 +1766,48 @@ function renderOtRatioChart(){
       },
       scales:{
         x:{beginAtZero:true,ticks:{callback:v=>v+'%',font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
+        y:{ticks:{font:{family:"'Inter'",size:11},autoSkip:false,color:'#1a1a1a'},grid:{display:false},border:{display:false}}
+      }
+    }
+  });
+}
+
+let otByAgencyChart=null;
+async function loadOtByAgency(){
+  if(!state.agencies.data&&!state.agencies.loading)await loadAgencyAnalysis();
+  renderOtByAgencyChart();
+}
+function renderOtByAgencyChart(){
+  const canvas=document.getElementById('otByAgencyChart');
+  const meta=document.getElementById('otAgencyChartMeta');
+  if(!canvas)return;
+  const data=state.agencies.data||[];
+  if(!data.length){if(otByAgencyChart){otByAgencyChart.destroy();otByAgencyChart=null;}if(meta)meta.textContent='';return;}
+  const top=[...data].filter(r=>r.ot>0).sort((a,b)=>b.ot-a.ot).slice(0,20);
+  if(meta)meta.textContent=`FY ${state.year}  ·  top 20 agencies`;
+  const ctx=canvas.getContext('2d');
+  if(otByAgencyChart)otByAgencyChart.destroy();
+  otByAgencyChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:top.map(r=>titleCase(r.agency)),
+      datasets:[{
+        label:'Total overtime',
+        data:top.map(r=>fr(r.ot)),
+        backgroundColor:'#c94c24',
+        borderRadius:2,
+        barThickness:14
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.x)+' in overtime'}}
+      },
+      scales:{
+        x:{beginAtZero:true,ticks:{callback:v=>fmtMoney(v),font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
         y:{ticks:{font:{family:"'Inter'",size:12},autoSkip:false,color:'#1a1a1a'},grid:{display:false},border:{display:false}}
       }
     }
@@ -2406,6 +2462,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     document.getElementById('view-'+v).classList.add('active');
     if(v==='perdiem'&&!state.perdiem.data&&!state.perdiem.loading)loadPerDiem();
     if(v==='perdiem')loadPdAgencyBreakdown();
+    if(v==='overtime')loadOtByAgency();
     if(v==='agencies'&&!state.agencies.data&&!state.agencies.loading)loadAgencyAnalysis();
     if(v==='agencies'&&!state.commish.data&&!state.commish.loading)loadCommissioners();
     if(v==='tiers'&&!state.tiers.data&&!state.tiers.loading)loadTiers();
@@ -2422,6 +2479,7 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
   loadOvertime();
   if(document.getElementById('view-perdiem').classList.contains('active')){loadPerDiem();loadPdAgencyBreakdown();}
   if(document.getElementById('view-agencies').classList.contains('active')){loadAgencyAnalysis();loadCommissioners();}
+  if(document.getElementById('view-overtime').classList.contains('active'))loadOtByAgency();
   if(document.getElementById('view-tiers').classList.contains('active'))loadTiers();
   if(document.getElementById('view-trends').classList.contains('active'))loadHcByAgency();
 });
