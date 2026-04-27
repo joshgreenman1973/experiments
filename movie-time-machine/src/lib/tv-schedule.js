@@ -9,6 +9,31 @@ const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 
  * TV seasons run roughly Sep–May. We map dates to the season that
  * was airing at the time.
  */
+const SEASON_KEYS_SORTED = Object.keys(tvData).sort(
+  (a, b) => parseInt(a.split('-')[0]) - parseInt(b.split('-')[0])
+)
+
+function nearestSeason(seasonKey) {
+  if (!SEASON_KEYS_SORTED.length) return null
+  if (tvData[seasonKey]) return seasonKey
+  const target = parseInt(seasonKey.split('-')[0])
+  const firstYear = parseInt(SEASON_KEYS_SORTED[0].split('-')[0])
+  const lastYear = parseInt(SEASON_KEYS_SORTED[SEASON_KEYS_SORTED.length - 1].split('-')[0])
+  if (target < firstYear) return SEASON_KEYS_SORTED[0]
+  if (target > lastYear) return SEASON_KEYS_SORTED[SEASON_KEYS_SORTED.length - 1]
+  // Find nearest by absolute year distance (ties prefer earlier)
+  let best = SEASON_KEYS_SORTED[0]
+  let bestDist = Infinity
+  for (const k of SEASON_KEYS_SORTED) {
+    const d = Math.abs(parseInt(k.split('-')[0]) - target)
+    if (d < bestDist) {
+      bestDist = d
+      best = k
+    }
+  }
+  return best
+}
+
 export function getTVSchedule(dateStr) {
   const date = new Date(dateStr + 'T12:00:00')
   const year = date.getFullYear()
@@ -17,28 +42,22 @@ export function getTVSchedule(dateStr) {
   // Determine which season: Sep–Dec = year–(year+1), Jan–Aug = (year-1)–year
   let seasonKey
   if (month >= 8) {
-    // Sep–Dec
     seasonKey = `${year}-${year + 1}`
   } else {
-    // Jan–Aug
     seasonKey = `${year - 1}-${year}`
   }
 
-  const season = tvData[seasonKey]
-  if (!season) {
-    // Try adjacent seasons
-    const fallback1 = `${year}-${year + 1}`
-    const fallback2 = `${year - 1}-${year}`
-    const s = tvData[fallback1] || tvData[fallback2]
-    if (!s) return null
-    const dayName = DAYS[date.getDay()]
-    return { season: fallback1 in tvData ? fallback1 : fallback2, day: dayName, networks: s[dayName] || [] }
-  }
-
   const dayName = DAYS[date.getDay()]
-  const networks = season[dayName] || []
+  const resolvedKey = nearestSeason(seasonKey)
+  if (!resolvedKey) return null
 
-  return { season: seasonKey, day: dayName, networks }
+  const networks = tvData[resolvedKey][dayName] || []
+  return {
+    season: resolvedKey,
+    day: dayName,
+    networks,
+    isFallback: resolvedKey !== seasonKey,
+  }
 }
 
 export function formatTime(timeStr) {

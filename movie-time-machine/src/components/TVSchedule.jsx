@@ -26,9 +26,15 @@ export default function TVSchedule({ date }) {
 
   return (
     <div className="max-w-4xl mx-auto px-5">
-      <p className="text-xs text-film-muted text-center mb-8 uppercase tracking-widest font-light">
+      <p className="text-xs text-film-muted text-center mb-2 uppercase tracking-widest font-light">
         {dayLabel} night · {seasonLabel} season
       </p>
+      {schedule.isFallback && (
+        <p className="text-[11px] text-film-muted/60 text-center mb-6 italic">
+          No TV data for that exact date — showing the closest available season ({seasonLabel}).
+        </p>
+      )}
+      {!schedule.isFallback && <div className="mb-8" />}
 
       <div className="grid gap-5 md:grid-cols-3">
         {schedule.networks.map(({ network, shows }) => {
