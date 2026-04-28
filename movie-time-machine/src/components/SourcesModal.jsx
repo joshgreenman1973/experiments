@@ -48,10 +48,10 @@ export default function SourcesModal({ open, onClose }) {
               TV schedules
             </h3>
             <p>
-              Primetime TV grids come from <a href="https://epguides.com/" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">epguides.com</a>, covering the 1970-1971 through 2011-2012 seasons.
+              Primetime TV grids cover the 1946-1947 through 2025-2026 seasons. Pre-1970 grids come from <a href="https://en.wikipedia.org/wiki/List_of_United_States_network_television_schedules" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">Wikipedia&rsquo;s season schedule articles</a>; 1970-1971 through 2011-2012 from <a href="https://epguides.com/" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">epguides.com</a>; 2012-2013 through 2025-2026 from the <a href="https://www.tvmaze.com/api" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">TVMaze API</a>.
             </p>
             <p className="mt-2 text-film-muted text-xs">
-              <strong className="text-film-text/60">What might not be right:</strong> Only ABC, CBS, NBC, and FOX are included -- no cable, no PBS, no CW/UPN/WB. Schedules reflect the planned primetime grid for each season, not what actually aired on a specific night (preemptions, specials, and mid-season replacements may not be captured). Time slots are Eastern. Some "movie" placeholders appear where networks ran rotating movie nights rather than a named series.
+              <strong className="text-film-text/60">What might not be right:</strong> Only the major broadcast networks are included (ABC, CBS, NBC, plus DuMont in the late 1940s and FOX from 1986 on) -- no cable, no PBS, no CW/UPN/WB. Schedules reflect the planned primetime grid for each season, not what actually aired on a specific night (preemptions, specials, and mid-season replacements may not be captured). Time slots are Eastern. Some "movie" placeholders appear where networks ran rotating movie nights rather than a named series.
             </p>
           </section>
 

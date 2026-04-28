@@ -15,7 +15,7 @@ export default function TVSchedule({ date }) {
       <div className="text-center py-20 text-film-muted">
         <p className="text-base">No TV schedule data for this date</p>
         <p className="text-xs mt-1 text-film-muted/60">
-          Primetime schedules cover fall 1970 through 2025
+          Primetime schedules cover fall 1946 through 2026
         </p>
       </div>
     )
@@ -79,7 +79,7 @@ export default function TVSchedule({ date }) {
       </div>
 
       <p className="text-center text-[10px] text-film-muted/30 mt-10 tracking-wide">
-        Primetime grid · Times Eastern · Data from epguides.com
+        Primetime grid · Times Eastern · Wikipedia, epguides.com &amp; TVMaze
       </p>
     </div>
   )
