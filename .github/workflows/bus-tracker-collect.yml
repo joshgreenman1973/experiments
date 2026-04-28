@@ -40,14 +40,25 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      # Snapshot data lives on its own branch so concurrent PR merges to main
-      # can never collide with the bot's pushes. The bot is the only writer to
-      # `bus-data`. This is the structural fix for the autostash collision class.
-      - name: Checkout bus-data branch
+      # CODE lives on main (collect.js, package.json). DATA lives on bus-data
+      # (so PR merges to main never collide with the bot's pushes). Strategy:
+      # check out main as the working tree, then overlay snapshots from
+      # bus-data into the data dir. Run the collector. Push only the snapshot
+      # tree back to bus-data. main is read-only from the workflow's POV.
+      - name: Checkout main (for collector code)
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
-          ref: bus-data
+          fetch-depth: 1
+
+      - name: Pull latest snapshots from bus-data
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          git fetch origin bus-data --depth=1
+          # Replace working-tree snapshots with bus-data's version. Subsequent
+          # collect.js calls append; we'll commit the diff directly to bus-data.
+          rm -rf nyc-bus-tracker/data/snapshots
+          git checkout origin/bus-data -- nyc-bus-tracker/data/snapshots/
 
       - name: Set up Node.js
         if: steps.gate.outputs.skip != 'true'
@@ -91,13 +102,27 @@ jobs:
           # Fail the run only if everything failed (partial loss is acceptable)
           if [ "$OK" -eq 0 ]; then exit 1; fi
 
-      - name: Commit and push to bus-data
+      - name: Push new snapshots to bus-data
         if: steps.gate.outputs.skip != 'true'
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
-          git add nyc-bus-tracker/data/snapshots/
 
+          # Build a fresh commit on top of bus-data with just the snapshot tree.
+          # We're currently on main; switch to a detached bus-data state and
+          # transfer ONLY data/snapshots/ from the working tree.
+          git fetch origin bus-data --depth=1
+          # Save the snapshots before switching branches (working tree changes).
+          TMPSNAP=$(mktemp -d)
+          cp -r nyc-bus-tracker/data/snapshots/* "$TMPSNAP/" 2>/dev/null || true
+
+          git checkout -B bus-data origin/bus-data
+          # Replace bus-data's snapshot tree with our updated copy.
+          rm -rf nyc-bus-tracker/data/snapshots
+          mkdir -p nyc-bus-tracker/data/snapshots
+          cp -r "$TMPSNAP/." nyc-bus-tracker/data/snapshots/
+
+          git add nyc-bus-tracker/data/snapshots/
           if git diff --staged --quiet; then
             echo "No new data to commit"
             exit 0
@@ -106,9 +131,8 @@ jobs:
           DATE=$(TZ='America/New_York' date '+%Y-%m-%d %H:%M')
           git commit -m "Bus data: ${DATE} ET"
 
-          # bus-data only has bot commits, so non-fast-forward should be rare,
-          # but a previous run that overlapped (e.g. manual + cron) could have
-          # pushed during ours. Try once, then pull-rebase + retry on rejection.
+          # bus-data is bot-only, so non-fast-forward is rare. Retry once if
+          # an overlapping run pushed in between.
           if ! git push origin bus-data; then
             echo "Push rejected, rebasing on bus-data and retrying..."
             git pull --rebase origin bus-data
