@@ -114,26 +114,33 @@
   /* Section heading — used when sort = "By category" */
   .group-heading {
     grid-column: 1 / -1;
-    padding: 28px 22px 8px;
-    margin-top: 4px;
+    padding: 48px 22px 14px;
     display: flex; align-items: baseline; gap: 14px;
-    border-bottom: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule-strong);
   }
-  .group-heading:first-child { margin-top: 0; padding-top: 18px; }
+  .group-heading:first-child { padding-top: 24px; }
+  .group-heading .kicker {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
   .group-heading h3 {
     font-family: "Fraunces", serif;
-    font-variation-settings: "opsz" 32, "SOFT" 60, "wght" 400;
-    font-size: 22px;
-    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 48, "SOFT" 60, "wght" 380;
+    font-size: 32px;
+    letter-spacing: -0.015em;
+    line-height: 1;
     margin: 0;
     color: var(--ink);
   }
-  .group-heading h3::first-letter { color: var(--accent); }
-  .group-heading span {
+  .group-heading .count {
     font-family: "JetBrains Mono", monospace;
     font-size: 11px;
     color: var(--ink-3);
     margin-left: auto;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ---- Controls ---- */
@@ -604,9 +611,9 @@
     <div class="filter-group">
       <label>Sort</label>
       <select id="sort">
+        <option value="category">By category</option>
         <option value="name">A–Z</option>
         <option value="modified">Recent</option>
-        <option value="category">By category</option>
       </select>
     </div>
   </div>
@@ -826,7 +833,14 @@ function render() {
       if (!groups[key]) continue;
       const heading = document.createElement('div');
       heading.className = 'group-heading';
-      heading.innerHTML = `<h3>${escapeHtml(key)}</h3><span>${groups[key].length}</span>`;
+      const kickers = {
+        'Cities': '§ 1',
+        'The wider world': '§ 2',
+        'Tools & feeds': '§ 3',
+        'Fun stuff': '§ 4',
+      };
+      const kicker = kickers[key] || 'section';
+      heading.innerHTML = `<span class="kicker">${escapeHtml(kicker)}</span><h3>${escapeHtml(key)}</h3><span class="count">${groups[key].length} ${groups[key].length === 1 ? 'project' : 'projects'}</span>`;
       grid.appendChild(heading);
       for (const p of groups[key]) grid.appendChild(card(p, idx++));
     }
