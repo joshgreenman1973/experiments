@@ -2123,20 +2123,19 @@ function renderCommissioners(){
 
 function renderAgencyAnalysis(){
   const body=document.getElementById('agencyBody');
-  const chartMeta=document.getElementById('agencyChartMeta');
-  const tableMeta=document.getElementById('agencyTableMeta');
-  if(state.agencies.loading){
-    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div>';
-    return;
-  }
-  if(state.agencies.err){
-    body.innerHTML=`<div class="error-state">Could not load agency data: ${state.agencies.err}</div>`;return;
-  }
+  if(state.agencies.loading){body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div>';return;}
+  if(state.agencies.err){body.innerHTML=`<div class="error-state">Could not load agency data: ${state.agencies.err}</div>`;return;}
   const data=state.agencies.data||[];
   if(!data.length){body.innerHTML='<div class="empty-state">No data.</div>';return;}
-  chartMeta.textContent=`FY ${state.year}`;
-  tableMeta.innerHTML=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}<span class="sort-hint">click any column to sort</span>`;
+  renderAgencyChart();
+  renderAgencyTable();
+}
 
+function renderAgencyChart(){
+  const data=state.agencies.data||[];
+  if(!data.length)return;
+  const chartMeta=document.getElementById('agencyChartMeta');
+  chartMeta.textContent=`FY ${state.year}`;
   const metric=state.agencies.metric||'ot';
   const MIN_HC_FOR_AVG=50;
   const cfg={
@@ -2146,7 +2145,6 @@ function renderAgencyAnalysis(){
   }[metric];
   document.getElementById('agencyChartTitle').textContent=cfg.title;
   document.querySelectorAll('#agencyMetricToggle button').forEach(b=>b.classList.toggle('active',b.dataset.metric===metric));
-
   const sorted=[...cfg.pool].map(r=>({r,v:cfg.value(r)})).sort((a,b)=>b.v-a.v).slice(0,20);
   const ctx=document.getElementById('agencyChart').getContext('2d');
   if(agencyChart)agencyChart.destroy();
@@ -2154,13 +2152,7 @@ function renderAgencyAnalysis(){
     type:'bar',
     data:{
       labels:sorted.map(s=>titleCase(s.r.agency)),
-      datasets:[{
-        label:cfg.label,
-        data:sorted.map(s=>s.v),
-        backgroundColor:cfg.color,
-        borderRadius:2,
-        barThickness:18
-      }]
+      datasets:[{label:cfg.label,data:sorted.map(s=>s.v),backgroundColor:cfg.color,borderRadius:2,barThickness:18}]
     },
     options:{
       indexAxis:'y',
@@ -2175,7 +2167,14 @@ function renderAgencyAnalysis(){
       }
     }
   });
+}
 
+function renderAgencyTable(){
+  const body=document.getElementById('agencyBody');
+  const tableMeta=document.getElementById('agencyTableMeta');
+  const data=state.agencies.data||[];
+  if(!data.length)return;
+  tableMeta.innerHTML=`${data.length.toLocaleString()} agencies  ·  FY ${state.year}<span class="sort-hint">click any column to sort</span>`;
   const maxRatio=Math.max(...data.map(r=>r.ratio),0.01);
   const enriched=data.map(r=>({...r,avg_salary:r.hc>0?r.base/r.hc:0,avg_total:r.hc>0?r.total/r.hc:0}));
   const sb=state.agencies.sortBy,sd=state.agencies.sortDir;
@@ -2222,7 +2221,7 @@ function renderAgencyAnalysis(){
       const k=th.dataset.sort;
       if(state.agencies.sortBy===k)state.agencies.sortDir=state.agencies.sortDir==='asc'?'desc':'asc';
       else{state.agencies.sortBy=k;state.agencies.sortDir=k==='agency'?'asc':'desc';}
-      renderAgencyAnalysis();
+      renderAgencyTable();
     });
   });
 }
