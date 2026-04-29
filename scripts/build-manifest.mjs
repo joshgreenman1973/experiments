@@ -19,6 +19,23 @@ let OVERRIDES = {};
 try {
   OVERRIDES = JSON.parse(readFileSync(join(ROOT, 'project-overrides.json'), 'utf8'));
 } catch {}
+// Subcategory: four buckets used to group the General view.
+// Tools & feeds checked first (federal-register-daily would otherwise hit
+// "wider world" via "federal"). Override per-project via project-overrides.json.
+function classifySubcategory(p) {
+  const text = [p.name, p.title, p.description].filter(Boolean).join(' ').toLowerCase();
+  if (/\b(register[- ]?daily|record[- ]?daily|scanner|data[- ]?finder|story[- ]?finder|news[- ]?engine|open[- ]?data[- ]?weekly|foil[- ]?tracker|daily data)\b/.test(text)) {
+    return 'Tools & feeds';
+  }
+  if (/\b(world|global|federal|scotus|america|americans|national|nationwide|countries|country|paris|france|tokyo|london|seoul|saint[- ]?sernin|nvdrs|u\.?s\.?|usa|supreme court)\b/.test(text)) {
+    return 'The wider world';
+  }
+  if (/\b(time[- ]machine|menus?|bagels?|donuts?|talent[- ]show|ginos?|family[- ]dinner|movies?|good[- ]time|knit|animal[- ]adventure|library|paris density|midnight)\b/.test(text)) {
+    return 'Fun stuff';
+  }
+  return 'Cities';
+}
+
 // Audience classification for the tabbed UI.
 const VC_OWNERS = new Set(['vitalcity-nyc', 'vital-city-nyc']);
 const PERSONAL_NAMES = new Set([
@@ -52,6 +69,7 @@ function applyOverrides(record) {
   if (o.description) record.description = o.description;
   if (o.status) record.status = o.status;
   if (o.audience) record.audience = o.audience;
+  if (o.subcategory) record.subcategory = o.subcategory;
   return record;
 }
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);
@@ -272,7 +290,7 @@ function scan() {
       } else if (isProject(full)) {
         { const r = projectRecord(full, 'root'); if (r) out.push(r); }
       }
-    } else if (e.isFile() && e.name.endsWith('.html') && e.name !== 'index.html' && e.name !== 'projects.html') {
+    } else if (e.isFile() && e.name.endsWith('.html') && !['index.html', 'projects.html', 'admin.html'].includes(e.name)) {
       const title = extractTitle(full) || e.name;
       const rel = e.name;
       const lastCommit = sh(`git log -1 --format=%cI -- "${rel}"`, ROOT);
@@ -417,6 +435,7 @@ projects.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || '
 // Classify each project's audience (unless overridden)
 for (const p of projects) {
   if (!p.audience) p.audience = classifyAudience(p);
+  if (!p.subcategory) p.subcategory = classifySubcategory(p);
 }
 const general = projects.filter(p => p.audience === 'general');
 const professional = projects.filter(p => p.audience === 'professional');

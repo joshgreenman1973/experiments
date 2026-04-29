@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>experiments — index</title>
+<title>Josh's Clean Code Kitchen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
@@ -82,34 +82,98 @@
   .theme-toggle:hover { border-color: var(--ink); }
 
   .masthead {
-    padding: 28px 40px 20px;
-    border-bottom: 1px solid var(--rule);
+    padding: 44px 40px 8px;
     position: relative;
-    display: flex; justify-content: space-between; align-items: baseline;
-    gap: 24px; flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    column-gap: 28px;
+    row-gap: 6px;
+    align-items: end;
   }
+  .masthead .wordmark { grid-column: 1 / -1; }
   .masthead h1 {
     font-family: "Fraunces", serif;
-    font-variation-settings: "opsz" 48, "SOFT" 30, "wght" 420;
-    font-size: 36px;
-    line-height: 1;
-    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 144, "SOFT" 60, "wght" 380;
+    font-size: clamp(34px, 5.4vw, 64px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
     margin: 0;
     color: var(--ink);
   }
-  .masthead .path {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
-    color: var(--ink-3);
-    margin-left: 2px;
+  .masthead h1 .poss {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "wght" 360;
+    color: var(--accent);
+  }
+  .masthead .footnote {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 18, "SOFT" 80, "wght" 340;
+    font-size: 14px;
+    color: var(--ink-2);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .masthead .footnote::before {
+    content: "*";
+    color: var(--accent);
+    font-style: normal;
+    margin-right: 4px;
+  }
+  .masthead .ornament {
+    grid-column: 1 / -1;
+    margin: 18px 0 0;
+    display: flex; align-items: center; gap: 12px;
+    color: var(--ink-4);
+  }
+  .masthead .ornament::before,
+  .masthead .ornament::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+  .masthead .ornament .mark {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 24, "SOFT" 80, "wght" 320;
+    font-size: 14px;
+    color: var(--accent);
   }
   .masthead .stats {
     font-family: "JetBrains Mono", monospace;
     font-size: 11px; letter-spacing: 0.04em;
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
+    align-self: end;
   }
   .masthead .stats span { color: var(--ink); font-weight: 500; }
+  .masthead .theme-toggle { align-self: end; }
+  [data-theme="ink"] .masthead h1 .poss { color: var(--accent); }
+
+  /* Section heading — used when sort = "By category" */
+  .group-heading {
+    grid-column: 1 / -1;
+    padding: 28px 22px 8px;
+    margin-top: 4px;
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .group-heading:first-child { margin-top: 0; padding-top: 18px; }
+  .group-heading h3 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 32, "SOFT" 60, "wght" 400;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .group-heading h3::first-letter { color: var(--accent); }
+  .group-heading span {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-left: auto;
+  }
 
   /* ---- Controls ---- */
   .controls {
@@ -524,12 +588,13 @@
 <body>
 
 <header class="masthead">
-  <div>
-    <h1>experiments</h1>
-    <div class="path">~/Experiments</div>
+  <div class="wordmark">
+    <h1>Josh<span class="poss">'s</span> Clean Code Kitchen</h1>
+    <div class="footnote">some offerings stale, others underbaked</div>
   </div>
   <div class="stats" id="stats">loading…</div>
   <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
+  <div class="ornament" aria-hidden="true"><span class="mark">✦</span></div>
 </header>
 
 <nav class="tabs" role="tablist" id="tabs">
@@ -579,8 +644,8 @@
     <div class="filter-group">
       <label>Sort</label>
       <select id="sort">
-        <option value="modified">Recent</option>
         <option value="name">A–Z</option>
+        <option value="modified">Recent</option>
         <option value="category">By category</option>
       </select>
     </div>
@@ -774,9 +839,13 @@ function render() {
     return hay.includes(term);
   });
 
-  if (sort === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
-  else if (sort === 'category') list.sort((a,b) => (a.category + '/' + a.name).localeCompare(b.category + '/' + b.name));
-  else list.sort((a,b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
+  // Default sort: alphabetical by title. "By category" groups by subcategory
+  // and alphabetizes within each section. "Recent" sorts by last commit.
+  if (sort === 'name' || sort === 'category') {
+    list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
+  } else {
+    list.sort((a,b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
+  }
 
   $('count').innerHTML = `<b>${list.length}</b> of ${source.length}`;
 
@@ -786,7 +855,24 @@ function render() {
     grid.innerHTML = '<div class="empty">No matches.<small>try clearing a filter</small></div>';
     return;
   }
-  list.forEach((p, i) => grid.appendChild(card(p, i)));
+
+  if (sort === 'category') {
+    const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
+    const groups = {};
+    for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
+    const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()];
+    let idx = 0;
+    for (const key of ordered) {
+      if (!groups[key]) continue;
+      const heading = document.createElement('div');
+      heading.className = 'group-heading';
+      heading.innerHTML = `<h3>${escapeHtml(key)}</h3><span>${groups[key].length}</span>`;
+      grid.appendChild(heading);
+      for (const p of groups[key]) grid.appendChild(card(p, idx++));
+    }
+  } else {
+    list.forEach((p, i) => grid.appendChild(card(p, i)));
+  }
   observeThumbnails();
 }
 
@@ -796,7 +882,7 @@ function card(p, i) {
   d.style.animationDelay = `${Math.min(i * 20, 600)}ms`;
 
   const idx = String(i + 1).padStart(2, '0');
-  const catDisplay = p.category === 'root' ? 'uncategorized' : p.category;
+  const catDisplay = p.subcategory || (p.category === 'root' ? 'general' : p.category);
 
   const thumb = p.previewUrl
     ? `<div class="thumb" data-src="${encodeURI(p.previewUrl)}"></div>`
