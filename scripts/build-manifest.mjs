@@ -8,7 +8,11 @@ import { execSync } from 'child_process';
 import { randomBytes, pbkdf2Sync, createCipheriv } from 'crypto';
 import { join } from 'path';
 
-const ROOT = '/Users/joshgreenman/Experiments';
+// Resolve ROOT dynamically so the script works both locally (~/Experiments)
+// and in CI (the runner's checkout path). The script lives at <ROOT>/scripts.
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Per-project overrides for live URLs that aren't default github.io/<repo>/
 let OVERRIDES = {};
