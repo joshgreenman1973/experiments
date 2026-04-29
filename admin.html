@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="paper">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>experiments — admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:    #f3efe6;
+    --paper-2:  #ece7dc;
+    --card:     #fbf8f1;
+    --ink:      #1a1612;
+    --ink-2:    #4a4137;
+    --ink-3:    #8a8074;
+    --ink-4:    #b8ae9f;
+    --rule:     #d4cbb8;
+    --rule-strong: #1a1612;
+    --accent:   #7a2b28;
+    --accent-soft: #c27169;
+    --ok:       #4a6b3e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.55;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: var(--paper); }
+  a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+  header {
+    padding: 28px 40px 18px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 24px; flex-wrap: wrap;
+  }
+  header h1 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "SOFT" 30, "wght" 420;
+    font-size: 36px; line-height: 1; letter-spacing: -0.02em;
+    margin: 0;
+  }
+  header .path {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+    margin-top: 4px;
+  }
+  header .meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+    text-align: right;
+  }
+
+  /* ===== Toolbar / save bar ===== */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    padding: 14px 40px;
+    background: rgba(243,239,230,0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+    display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  }
+  .toolbar .search {
+    flex: 1; min-width: 220px;
+  }
+  .toolbar input[type="search"] {
+    width: 100%;
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 14px;
+    padding: 7px 10px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    outline: none;
+  }
+  .toolbar input[type="search"]:focus { border-color: var(--accent); }
+  .toolbar select {
+    font-family: inherit; font-size: 13px;
+    padding: 6px 10px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+  }
+  .pill-count {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .pill-count b { color: var(--ink); }
+
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 14px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button.primary {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+  button.primary:hover:not(:disabled) {
+    background: var(--accent); border-color: var(--accent); color: var(--paper);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .save-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-left: auto;
+  }
+  .save-status {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    transition: color 0.2s;
+  }
+  .save-status.dirty { color: var(--accent); }
+  .save-status.ok { color: var(--ok); }
+
+  /* ===== Project table ===== */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px 40px 60px;
+  }
+
+  table.projects {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--rule);
+  }
+  table.projects th, table.projects td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: middle;
+  }
+  table.projects th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--paper-2);
+    position: sticky; top: 60px; z-index: 5;
+  }
+  table.projects tbody tr:hover { background: var(--paper-2); }
+  table.projects tbody tr.dirty { background: rgba(122,43,24,0.05); }
+  table.projects tbody tr.dirty:hover { background: rgba(122,43,24,0.08); }
+
+  .col-name {
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-weight: 500;
+    max-width: 320px;
+  }
+  .col-name .repo {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+  .col-name .repo a { color: inherit; text-decoration: none; }
+  .col-name .repo a:hover { color: var(--accent); }
+  .col-when {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .audience-buttons { display: inline-flex; gap: 0; }
+  .audience-buttons label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--rule);
+    border-right-width: 0;
+    cursor: pointer;
+    color: var(--ink-3);
+    background: var(--paper);
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .audience-buttons label:first-child { border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+  .audience-buttons label:last-child { border-right-width: 1px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+  .audience-buttons label:hover { color: var(--ink); }
+  .audience-buttons input { display: none; }
+  .audience-buttons input:checked + span {
+    color: var(--paper);
+  }
+  .audience-buttons label.checked-general { background: var(--ink-2); color: var(--paper); border-color: var(--ink-2); }
+  .audience-buttons label.checked-personal { background: var(--accent-soft); color: var(--paper); border-color: var(--accent-soft); }
+  .audience-buttons label.checked-professional { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .audience-buttons label.checked-hide { background: var(--ink-3); color: var(--paper); border-color: var(--ink-3); text-decoration: line-through; }
+
+  /* ===== Gates / modals ===== */
+  .gate {
+    position: fixed; inset: 0;
+    background: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    z-index: 50;
+  }
+  .gate-card {
+    max-width: 460px; width: 100%;
+    background: var(--card);
+    border: 1px solid var(--rule-strong);
+    padding: 32px 36px;
+  }
+  .gate-card h2 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "SOFT" 40, "wght" 400;
+    font-size: 26px; margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .gate-card p {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin: 0 0 20px;
+    line-height: 1.55;
+  }
+  .gate-card label {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+  .gate-card input {
+    width: 100%;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    padding: 9px 11px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .gate-card input:focus { border-color: var(--accent); }
+  .gate-card .err {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--accent);
+    min-height: 16px;
+    margin-bottom: 12px;
+  }
+  .gate-card .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .gate-card details {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+  }
+  .gate-card details summary {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .gate-card details ol {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    margin: 10px 0 0;
+    padding-left: 20px;
+    line-height: 1.6;
+  }
+  .gate-card details code {
+    font-family: "JetBrains Mono", monospace;
+    background: var(--paper-2);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 11.5px;
+  }
+
+  .empty {
+    padding: 80px;
+    text-align: center;
+    color: var(--ink-3);
+    font-style: italic;
+  }
+  .danger-zone {
+    margin-top: 40px;
+    padding: 20px;
+    border: 1px dashed var(--ink-4);
+    background: var(--paper-2);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .danger-zone button { font-size: 11px; padding: 4px 10px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     Stage 1 — Password gate
+============================================================ -->
+<div class="gate" id="gate-password" style="display:none">
+  <form class="gate-card" id="form-password">
+    <h2>experiments — admin</h2>
+    <p>Enter the gallery password to continue. This page lets you change which projects appear in the General, Personal, and Vital City tabs.</p>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" autofocus>
+    <div class="err" id="pw-err">&nbsp;</div>
+    <div class="actions">
+      <button type="submit" class="primary">Continue</button>
+    </div>
+  </form>
+</div>
+
+<!-- ============================================================
+     Stage 2 — GitHub PAT setup
+============================================================ -->
+<div class="gate" id="gate-token" style="display:none">
+  <form class="gate-card" id="form-token">
+    <h2>Connect to GitHub</h2>
+    <p>Saving changes writes back to <code style="font-family:JetBrains Mono,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px;border-radius:2px">joshgreenman1973/experiments</code> via the GitHub API. Paste a Personal Access Token — stored in this browser only.</p>
+    <label for="pat">GitHub token</label>
+    <input id="pat" type="password" autocomplete="off" placeholder="github_pat_…">
+    <div class="err" id="pat-err">&nbsp;</div>
+    <div class="actions">
+      <button type="button" id="pat-skip">Skip (read-only)</button>
+      <button type="submit" class="primary">Connect</button>
+    </div>
+    <details>
+      <summary>How to get a token</summary>
+      <ol>
+        <li>Go to <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">github.com/settings/personal-access-tokens/new</a></li>
+        <li>Name it <code>experiments-admin</code></li>
+        <li>Resource owner: <code>joshgreenman1973</code></li>
+        <li>Repository access: <code>Only select repositories</code> → pick <code>experiments</code></li>
+        <li>Permissions → Repository permissions → <code>Contents: Read and write</code></li>
+        <li>Generate, copy, paste here</li>
+      </ol>
+    </details>
+  </form>
+</div>
+
+<!-- ============================================================
+     Stage 3 — Main UI
+============================================================ -->
+<div id="main-ui" style="display:none">
+
+<header>
+  <div>
+    <h1>experiments — admin</h1>
+    <div class="path">project-overrides.json · <span id="hdr-mode">read-write</span></div>
+  </div>
+  <div class="meta" id="hdr-meta">loading…</div>
+</header>
+
+<div class="toolbar">
+  <div class="search">
+    <input type="search" id="q" placeholder="Filter by name or title…" autocomplete="off">
+  </div>
+  <select id="filter-aud">
+    <option value="">All audiences</option>
+    <option value="general">General</option>
+    <option value="personal">Personal</option>
+    <option value="professional">Vital City</option>
+    <option value="hide">Hidden</option>
+  </select>
+  <select id="filter-source">
+    <option value="">All sources</option>
+    <option value="github-api">GitHub Pages auto</option>
+    <option value="local">Local folder</option>
+  </select>
+  <span class="pill-count" id="count">—</span>
+  <div class="save-bar">
+    <span class="save-status" id="save-status">no changes</span>
+    <button id="btn-discard" disabled>Discard</button>
+    <button id="btn-save" class="primary" disabled>Save changes</button>
+  </div>
+</div>
+
+<main>
+  <table class="projects" id="projects-table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Last update</th>
+        <th>Audience</th>
+      </tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+  </table>
+
+  <div class="danger-zone" id="danger-zone" style="display:none">
+    <strong>Token tools.</strong> Stored in this browser only.
+    <div><button id="btn-clear-token">Forget token</button></div>
+  </div>
+</main>
+
+</div>
+
+<script>
+const REPO_OWNER = 'joshgreenman1973';
+const REPO_NAME = 'experiments';
+const OVERRIDES_PATH = 'project-overrides.json';
+const BRANCH = 'main';
+const GALLERY_PASSWORD = '#9701SW72ct!!!';
+
+const $ = (id) => document.getElementById(id);
+
+let pat = null;
+let manifest = null;
+let overrides = null;        // committed-state override map (mutable name -> { audience? skip? ... })
+let editing = {};            // pending edits (name -> patch object)
+let overridesSha = null;     // sha for next PUT
+let allProjects = [];        // combined list (from manifest projects + locked.counts placeholders)
+
+// ===================================================================
+// Stage 1 — Gallery password (soft gate)
+// ===================================================================
+function showGate(stage) {
+  $('gate-password').style.display = stage === 'password' ? 'flex' : 'none';
+  $('gate-token').style.display = stage === 'token' ? 'flex' : 'none';
+  $('main-ui').style.display = stage === 'main' ? 'block' : 'none';
+}
+
+if (sessionStorage.getItem('admin-passed') === '1') {
+  startTokenStage();
+} else {
+  showGate('password');
+}
+
+$('form-password').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('pw').value;
+  if (v === GALLERY_PASSWORD) {
+    sessionStorage.setItem('admin-passed', '1');
+    startTokenStage();
+  } else {
+    $('pw-err').textContent = 'Wrong password.';
+    $('pw').select();
+  }
+});
+
+// ===================================================================
+// Stage 2 — GitHub PAT
+// ===================================================================
+function startTokenStage() {
+  pat = localStorage.getItem('admin-github-pat');
+  if (pat) startMain();
+  else showGate('token');
+}
+
+$('form-token').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = $('pat').value.trim();
+  if (!v) { $('pat-err').textContent = 'Token required.'; return; }
+  $('pat-err').innerHTML = '<em>verifying…</em>';
+  // Verify by fetching the repo
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`, {
+      headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' }
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    pat = v;
+    localStorage.setItem('admin-github-pat', v);
+    startMain();
+  } catch (err) {
+    $('pat-err').textContent = 'Token rejected — ' + err.message;
+  }
+});
+$('pat-skip').addEventListener('click', () => { pat = null; startMain(); });
+
+// ===================================================================
+// Stage 3 — main UI
+// ===================================================================
+async function startMain() {
+  showGate('main');
+  $('hdr-mode').textContent = pat ? 'read-write' : 'read-only';
+  $('danger-zone').style.display = pat ? 'block' : 'none';
+
+  $('btn-clear-token')?.addEventListener('click', () => {
+    if (confirm('Forget the GitHub token? You\'ll be asked again on next visit.')) {
+      localStorage.removeItem('admin-github-pat');
+      location.reload();
+    }
+  });
+
+  $('q').addEventListener('input', render);
+  $('filter-aud').addEventListener('change', render);
+  $('filter-source').addEventListener('change', render);
+  $('btn-discard').addEventListener('click', discardEdits);
+  $('btn-save').addEventListener('click', saveEdits);
+
+  await loadAll();
+}
+
+async function ghRead(path) {
+  const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (pat) headers.Authorization = 'Bearer ' + pat;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`GET ${path}: ${res.status}`);
+  return res.json();
+}
+
+async function ghWrite(path, contentBytes, sha, message) {
+  if (!pat) throw new Error('No token set — read-only mode.');
+  const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`;
+  const body = {
+    message,
+    content: btoa(String.fromCharCode(...new Uint8Array(contentBytes))),
+    branch: BRANCH,
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: 'Bearer ' + pat,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`PUT ${path}: ${res.status} — ${err.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+function decodeContent(blob) {
+  // GitHub returns base64-encoded with newlines
+  const b64 = (blob.content || '').replace(/\s+/g, '');
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+async function loadAll() {
+  setStatus('loading manifest…');
+  try {
+    // Fetch manifest from Pages (always public — no auth needed)
+    // We use Pages rather than the repo's HEAD because the manifest may not
+    // have been committed yet at HEAD.
+    const manifestRes = await fetch('./projects-manifest.json?v=' + Date.now());
+    manifest = await manifestRes.json();
+
+    // Fetch overrides from the repo (so we have the SHA for write-back)
+    const ovBlob = await ghRead(OVERRIDES_PATH);
+    overridesSha = ovBlob.sha;
+    overrides = JSON.parse(decodeContent(ovBlob));
+
+    await buildProjectList();
+    setStatus('loaded — ' + allProjects.length + ' projects', 'ok');
+    $('hdr-meta').textContent = `${allProjects.length} projects · manifest built ${timeAgo(manifest.generatedAt)}`;
+    render();
+  } catch (err) {
+    $('hdr-meta').textContent = 'Failed to load: ' + err.message;
+    setStatus('load error', 'dirty');
+  }
+}
+
+// The manifest only ships GENERAL projects unencrypted — the locked groups are
+// AES-encrypted. To list all projects in the admin we need the full project
+// list. We get this by ALSO fetching the most recently-built local manifest
+// from the post-commit hook... but that doesn't work in CI.
+//
+// Cleanest: re-derive from the manifest by including locked.counts placeholders
+// as opaque rows we can still re-classify. To get the names, we need to
+// decrypt the locked groups using the gallery password.
+async function decryptLocked(blob, password) {
+  const enc = new TextEncoder();
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const salt = b64(blob.salt);
+  const iv = b64(blob.iv);
+  const ctTag = b64(blob.ciphertext);
+  const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: blob.iterations || 250000, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+  );
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ctTag);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+async function buildProjectList() {
+  const general = manifest.projects || [];
+  let professional = [], personal = [];
+  if (manifest.locked?.professional) {
+    try { professional = await decryptLocked(manifest.locked.professional, GALLERY_PASSWORD); } catch {}
+  }
+  if (manifest.locked?.personal) {
+    try { personal = await decryptLocked(manifest.locked.personal, GALLERY_PASSWORD); } catch {}
+  }
+  for (const p of general) p._currentAudience = 'general';
+  for (const p of professional) p._currentAudience = 'professional';
+  for (const p of personal) p._currentAudience = 'personal';
+  // Hidden projects are in overrides but not in manifest.projects/locked.
+  // We can't surface their metadata without rebuilding — leave them off.
+  allProjects = [...general, ...professional, ...personal];
+  // Sort by last update desc
+  allProjects.sort((a,b) => (b.lastModified || b.lastCommit || '').localeCompare(a.lastModified || a.lastCommit || ''));
+}
+
+// ===================================================================
+// Render
+// ===================================================================
+function render() {
+  const term = $('q').value.toLowerCase().trim();
+  const audFilter = $('filter-aud').value;
+  const srcFilter = $('filter-source').value;
+
+  const list = allProjects.filter(p => {
+    if (term) {
+      const hay = (p.name + ' ' + (p.title || '') + ' ' + (p.description || '')).toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    if (audFilter) {
+      const cur = currentChoice(p);
+      if (cur !== audFilter) return false;
+    }
+    if (srcFilter) {
+      const isApi = p._source === 'github-api';
+      if (srcFilter === 'github-api' && !isApi) return false;
+      if (srcFilter === 'local' && isApi) return false;
+    }
+    return true;
+  });
+
+  const tbody = $('rows');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">No matches</td></tr>';
+  } else {
+    tbody.innerHTML = list.map(rowHtml).join('');
+    for (const input of tbody.querySelectorAll('input[type=radio]')) {
+      input.addEventListener('change', onAudienceChange);
+    }
+  }
+  $('count').innerHTML = `<b>${list.length}</b> of ${allProjects.length}`;
+  refreshSaveBar();
+}
+
+function currentChoice(p) {
+  // Edits override committed state
+  const e = editing[p.name];
+  if (e) {
+    if (e.skip) return 'hide';
+    if (e.audience) return e.audience;
+  }
+  const ov = overrides[p.name];
+  if (ov) {
+    if (ov.skip) return 'hide';
+    if (ov.audience) return ov.audience;
+  }
+  return p._currentAudience || 'general';
+}
+
+function rowHtml(p) {
+  const choice = currentChoice(p);
+  const dirty = !!editing[p.name];
+  const source = p._source === 'github-api' ? 'GitHub Pages' : (p.category || 'local');
+  const repoLink = p.github
+    ? `<a href="${esc(p.github)}" target="_blank">${esc(p.githubOwner || '')}/${esc(p.name)}</a>`
+    : `<span>${esc(p.name)}</span>`;
+  const liveLink = p.livePagesUrl
+    ? ` · <a href="${esc(p.livePagesUrl)}" target="_blank">live ↗</a>`
+    : '';
+  const opt = (val, label, cls) =>
+    `<label class="${choice === val ? 'checked-' + val : ''}">
+       <input type="radio" name="aud-${esc(p.name)}" value="${val}" data-name="${esc(p.name)}" ${choice === val ? 'checked' : ''}>
+       <span>${label}</span>
+     </label>`;
+  return `<tr class="${dirty ? 'dirty' : ''}">
+    <td class="col-name">
+      <div>${esc(p.title || p.name)}</div>
+      <div class="repo">${repoLink}${liveLink} <span style="color:var(--ink-4)">· ${esc(source)}</span></div>
+    </td>
+    <td class="col-when">${timeAgo(p.lastCommit || p.lastModified) || '—'}</td>
+    <td class="col-audience">
+      <div class="audience-buttons">
+        ${opt('general', 'General')}
+        ${opt('personal', 'Personal')}
+        ${opt('professional', 'Vital City')}
+        ${opt('hide', 'Hide')}
+      </div>
+    </td>
+  </tr>`;
+}
+
+function onAudienceChange(e) {
+  const name = e.target.dataset.name;
+  const val = e.target.value;
+  const project = allProjects.find(p => p.name === name);
+  if (!project) return;
+
+  // Compute the patch needed against COMMITTED state (overrides + audience derived from manifest)
+  const committed = (overrides && overrides[name]) || {};
+  const committedSkip = committed.skip || false;
+  const committedAudience = committed.audience || project._currentAudience || 'general';
+
+  const newSkip = val === 'hide';
+  const newAudience = val === 'hide' ? committedAudience : val;
+
+  // No change?
+  if (newSkip === committedSkip && newAudience === committedAudience) {
+    delete editing[name];
+  } else {
+    const patch = { ...committed };
+    if (newSkip) patch.skip = true; else delete patch.skip;
+    // Only set audience if it differs from default classification
+    if (val === 'hide') {
+      // keep audience as-is
+    } else {
+      patch.audience = val;
+    }
+    editing[name] = patch;
+  }
+  render();
+}
+
+// ===================================================================
+// Save
+// ===================================================================
+function discardEdits() {
+  if (!Object.keys(editing).length) return;
+  if (!confirm('Discard ' + Object.keys(editing).length + ' pending change(s)?')) return;
+  editing = {};
+  render();
+  setStatus('discarded', 'ok');
+}
+
+async function saveEdits() {
+  if (!pat) { setStatus('need a token to save', 'dirty'); return; }
+  const names = Object.keys(editing);
+  if (!names.length) return;
+
+  $('btn-save').disabled = true;
+  $('btn-discard').disabled = true;
+  setStatus('saving…');
+
+  // Apply edits to committed overrides
+  const updated = { ...overrides };
+  for (const name of names) {
+    const patch = editing[name];
+    // If patch ends up empty (no audience, no skip, no other fields), drop it
+    const cleaned = { ...patch };
+    if (!cleaned.audience && !cleaned.skip && !cleaned.description && !cleaned.status && !cleaned.liveUrl && !cleaned.previewUrl) {
+      delete updated[name];
+    } else {
+      updated[name] = cleaned;
+    }
+  }
+
+  // Preserve the leading _comment field
+  const ordered = {};
+  if (overrides._comment) ordered._comment = overrides._comment;
+  for (const k of Object.keys(updated).sort()) {
+    if (k === '_comment') continue;
+    ordered[k] = updated[k];
+  }
+  const json = JSON.stringify(ordered, null, 2) + '\n';
+  const bytes = new TextEncoder().encode(json);
+
+  try {
+    const result = await ghWrite(
+      OVERRIDES_PATH,
+      bytes,
+      overridesSha,
+      `Admin: update audience for ${names.length} project${names.length === 1 ? '' : 's'}`
+    );
+    overrides = ordered;
+    overridesSha = result.content.sha;
+    editing = {};
+    setStatus('saved · manifest will rebuild on next CI run (~90s)', 'ok');
+    render();
+  } catch (err) {
+    setStatus('save failed — ' + err.message, 'dirty');
+  } finally {
+    $('btn-save').disabled = false;
+    $('btn-discard').disabled = false;
+    refreshSaveBar();
+  }
+}
+
+function refreshSaveBar() {
+  const n = Object.keys(editing).length;
+  $('btn-save').disabled = !n || !pat;
+  $('btn-discard').disabled = !n;
+  if (n) {
+    setStatus(n + ' pending change' + (n === 1 ? '' : 's'), 'dirty');
+  }
+}
+
+function setStatus(msg, kind) {
+  const el = $('save-status');
+  el.textContent = msg;
+  el.classList.remove('dirty', 'ok');
+  if (kind) el.classList.add(kind);
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  if (s < 86400*14) return Math.floor(s/86400) + 'd ago';
+  if (s < 86400*60) return Math.floor(s/(86400*7)) + 'w ago';
+  if (s < 86400*365) return Math.floor(s/(86400*30)) + 'mo ago';
+  return Math.floor(s/(86400*365)) + 'y ago';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

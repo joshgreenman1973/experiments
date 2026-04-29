@@ -1,0 +1,51 @@
+name: Rebuild gallery manifest
+
+# Runs the manifest builder whenever overrides change (admin saves) OR
+# the builder script itself changes, plus daily at 6am ET to pick up new
+# Pages-enabled repos that weren't on the gallery yet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'project-overrides.json'
+      - 'scripts/build-manifest.mjs'
+  schedule:
+    - cron: '0 11 * * *' # 06:00 America/New_York (during EST/EDT)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-manifest
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run builder
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/build-manifest.mjs
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet projects-manifest.json; then
+            echo "No manifest change — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add projects-manifest.json
+          git commit -m "Rebuild manifest [skip ci]"
+          git push
