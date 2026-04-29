@@ -649,42 +649,75 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
   margin-top:10px;
 }
 
+.ov-headline{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  background:#fff;
+  padding:14px 26px 24px;
+  gap:12px;
+}
 .ov-stat{
-  padding:22px 22px 18px;
-  border-right:1px solid rgba(245,240,232,0.08);
+  padding:14px 0 4px;
+  border-right:1px solid #e8e2d5;
+  padding-right:24px;
+  position:relative;
 }
-.ov-stat:last-child{border-right:none;}
+.ov-stat:last-child{border-right:none;padding-right:0;}
 .ov-stat-label{
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:1.5px;
-  text-transform:uppercase;
-  color:rgba(245,240,232,0.55);
-  margin-bottom:6px;
-}
-.ov-stat-value{
-  font-family:var(--mono);
-  font-size:26px;
-  font-weight:500;
-  letter-spacing:-0.02em;
-  color:var(--cream);
-  font-feature-settings:"tnum";
-}
-.ov-stat-value.loading{color:rgba(245,240,232,0.4);font-style:italic;font-weight:400;}
-.ov-stat-sub{
   font-family:var(--sans);
   font-size:10.5px;
+  font-weight:600;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+.ov-stat-value{
+  font-family:var(--serif);
+  font-size:42px;
   font-weight:500;
-  letter-spacing:0.2px;
-  color:rgba(245,240,232,0.5);
-  font-variant-numeric:tabular-nums;
-  margin-top:4px;
+  font-variation-settings:"opsz" 60;
+  letter-spacing:-0.025em;
+  color:var(--ink);
+  line-height:1.05;
+  font-feature-settings:"tnum","lnum";
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.ov-stat-emphasis .ov-stat-value{color:var(--orange);}
+.ov-stat-value.loading{color:#ddd6c5;font-style:italic;font-weight:400;}
+.ov-stat-sub{
+  font-family:var(--sans);
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:0.1px;
+  color:var(--muted);
+  margin-top:8px;
   line-height:1.4;
 }
-@media (max-width:780px){
-  #ovStatBody > div{grid-template-columns:repeat(2,1fr) !important;}
-  .ov-stat{border-bottom:1px solid rgba(245,240,232,0.08);}
+.ov-narrative{
+  font-family:var(--serif);
+  font-size:16px;
+  line-height:1.65;
+  color:#2b2b2b;
+  padding:6px 30px 24px;
+  margin:0;
+  border-top:1px solid #ececec;
+  padding-top:20px;
+  font-variation-settings:"opsz" 14;
 }
+.ov-narrative strong{color:var(--ink);font-weight:600;}
+@media (max-width:780px){
+  .ov-headline{grid-template-columns:repeat(2,1fr);}
+  .ov-stat{border-right:none;border-bottom:1px solid #e8e2d5;padding:14px 0;}
+  .ov-stat:nth-child(2n){border-right:none;}
+  .ov-stat:last-child{border-bottom:none;}
+  .ov-stat-value{font-size:34px;}
+}
+
+.paymix-col{min-width:200px;width:200px;}
+.paymix{display:flex;align-items:center;height:100%;}
+.paymix-bar{display:flex;height:14px;border-radius:2px;overflow:hidden;background:#f0ede6;min-width:1px;}
+.paymix-bar span{display:inline-block;height:100%;}
 
 .chart-legend{
   display:flex;
@@ -894,18 +927,18 @@ footer a{color:var(--cream);}
         <div class="meta" id="ovStatMeta"></div>
       </div>
       <div id="ovStatBody" style="padding:0;">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);background:#0d1d36;color:var(--cream);">
+        <div class="ov-headline">
           <div class="ov-stat" id="ovStatWages">
             <div class="ov-stat-label">Total wages paid</div>
             <div class="ov-stat-value loading">Loading...</div>
-            <div class="ov-stat-sub">W-2 regular + OT + other pay</div>
+            <div class="ov-stat-sub">W-2 regular + overtime + other pay</div>
           </div>
           <div class="ov-stat" id="ovStatBenefits">
             <div class="ov-stat-label">Benefits (estimated)</div>
             <div class="ov-stat-value loading">Loading...</div>
             <div class="ov-stat-sub">39% blended fringe rate</div>
           </div>
-          <div class="ov-stat" id="ovStatComp">
+          <div class="ov-stat ov-stat-emphasis" id="ovStatComp">
             <div class="ov-stat-label">Total compensation</div>
             <div class="ov-stat-value loading">Loading...</div>
             <div class="ov-stat-sub">Wages + benefits</div>
@@ -913,10 +946,10 @@ footer a{color:var(--cream);}
           <div class="ov-stat" id="ovStatFt">
             <div class="ov-stat-label">Full-time workforce</div>
             <div class="ov-stat-value loading">Loading...</div>
-            <div class="ov-stat-sub">per Annum, &gt;1,500 hrs</div>
+            <div class="ov-stat-sub">per Annum, &gt;1,500 hours</div>
           </div>
         </div>
-        <p class="chart-note" id="ovStatNarrative" style="padding:18px 22px;">Loading...</p>
+        <p class="ov-narrative" id="ovStatNarrative">Loading...</p>
       </div>
     </div>
 
@@ -990,16 +1023,13 @@ footer a{color:var(--cream);}
     </div>
     <div class="data-card">
       <div class="data-card-header">
-        <h3>Pay composition of the top 20 earners</h3>
-        <div class="meta" id="earnersChartMeta"></div>
-      </div>
-      <div class="chart-wrap tall"><canvas id="earnersChart"></canvas></div>
-      <p class="chart-note">Each bar is one employee, segmented by source of pay. Long orange segments mark the overtime-driven earners — workers whose OT meets or exceeds their regular wages. Hover any bar for the full breakdown.</p>
-    </div>
-    <div class="data-card">
-      <div class="data-card-header">
         <h3>Top earners</h3>
         <div class="meta" id="earnersMeta"></div>
+      </div>
+      <div class="chart-legend" style="padding:14px 22px 0;">
+        <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Regular pay</span>
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Overtime</span>
+        <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>Other pay</span>
       </div>
       <div id="earnersBody"><div class="loading-state"><div class="spinner"></div><div>Loading payroll data...</div></div></div>
     </div>
@@ -1511,12 +1541,25 @@ function renderEarners(){
   if(state.earners.page>totalPages)state.earners.page=totalPages;
   const start=(state.earners.page-1)*ps;
   const page=data.slice(start,start+ps);
+  const maxTotal=Math.max(...data.map(r=>r.total),1);
+  const mixCell=r=>{
+    const total=r.total||0;
+    if(total<=0)return '<div class="paymix"><div class="paymix-bar"></div></div>';
+    const w=(total/maxTotal)*100;
+    const reg=Math.max(0,r.base||0);
+    const ot=Math.max(0,r.ot||0);
+    const other=Math.max(0,r.other||0);
+    const sum=reg+ot+other||1;
+    const pReg=reg/sum*100,pOt=ot/sum*100,pOther=other/sum*100;
+    return `<div class="paymix"><div class="paymix-bar" style="width:${w.toFixed(2)}%"><span style="width:${pReg.toFixed(2)}%;background:#0a1628"></span><span style="width:${pOt.toFixed(2)}%;background:#c94c24"></span><span style="width:${pOther.toFixed(2)}%;background:#c8a43a"></span></div></div>`;
+  };
   body.innerHTML=`
     <div class="table-scroll"><table>
       <thead><tr>
         <th>Rank</th><th>Name</th><th>Agency</th><th>Title</th><th>Tenure</th>
         <th class="num">Base salary</th><th class="num">Regular gross</th>
         <th class="num">OT pay</th><th class="num">Other pay</th><th class="num">Total pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th class="paymix-col">Pay mix</th>
       </tr></thead>
       <tbody>
         ${page.map((r,i)=>`
@@ -1531,6 +1574,7 @@ function renderEarners(){
             <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
             <td class="num">${fmtMoneyFull(fr(r.other))}</td>
             <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
+            <td class="paymix-col">${mixCell(r)}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -1546,7 +1590,6 @@ function renderEarners(){
   `;
   document.getElementById('earnPrev').onclick=()=>{state.earners.page--;renderEarners();};
   document.getElementById('earnNext').onclick=()=>{state.earners.page++;renderEarners();};
-  renderEarnersChart();
 }
 
 async function loadOvertime(){
@@ -1764,62 +1807,6 @@ function renderPerDiem(){
       else{state.perdiem.sortBy=k;state.perdiem.sortDir=(k==='name'||k==='agency'||k==='title'||k==='basis')?'asc':'desc';}
       renderPerDiem();
     });
-  });
-}
-
-let earnersChart=null;
-function renderEarnersChart(){
-  const canvas=document.getElementById('earnersChart');
-  const meta=document.getElementById('earnersChartMeta');
-  if(!canvas)return;
-  const data=filterEarners().slice(0,20);
-  if(!data.length){
-    if(earnersChart){earnersChart.destroy();earnersChart=null;}
-    if(meta)meta.textContent='';
-    return;
-  }
-  if(meta)meta.textContent=`FY ${state.year}  ·  top 20 by total pay`;
-  const labels=data.map(r=>{
-    const last=titleCase(r.last_name||'');
-    const first=titleCase(r.first_name||'');
-    return last+(first?', '+first:'');
-  });
-  const ctx=canvas.getContext('2d');
-  if(earnersChart)earnersChart.destroy();
-  earnersChart=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels,
-      datasets:[
-        {label:'Regular pay',data:data.map(r=>fr(r.base)),backgroundColor:'#0a1628',stack:'pay',borderWidth:0},
-        {label:'Overtime',data:data.map(r=>fr(r.ot)),backgroundColor:'#c94c24',stack:'pay',borderWidth:0},
-        {label:'Other pay',data:data.map(r=>fr(r.other)),backgroundColor:'#c8a43a',stack:'pay',borderWidth:0}
-      ]
-    },
-    options:{
-      indexAxis:'y',
-      maintainAspectRatio:false,
-      plugins:{
-        legend:{display:true,position:'top',align:'end',labels:{font:{family:"'Inter'",size:11},boxWidth:10,boxHeight:10,padding:14,color:'#1a1a1a'}},
-        tooltip:{
-          callbacks:{
-            title:items=>{
-              const r=data[items[0].dataIndex];
-              return labels[items[0].dataIndex]+' — '+titleCase(r.agency_name||'');
-            },
-            label:c=>c.dataset.label+': '+fmtMoneyFull(c.parsed.x),
-            footer:items=>{
-              const r=data[items[0].dataIndex];
-              return 'Total: '+fmtMoneyFull(fr(r.total));
-            }
-          }
-        }
-      },
-      scales:{
-        x:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtMoney(v),font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b'},grid:{color:'#f0f0f0'},border:{display:false}},
-        y:{stacked:true,ticks:{font:{family:"'Inter'",size:12},autoSkip:false,color:'#1a1a1a'},grid:{display:false},border:{display:false}}
-      }
-    }
   });
 }
 
