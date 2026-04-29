@@ -809,6 +809,55 @@ th.sortable.sort-asc,th.sortable.sort-desc{color:var(--orange);}
 }
 .cross-link strong{color:var(--navy);}
 
+.export-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-family:var(--sans);
+  font-size:10.5px;
+  font-weight:600;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+  color:var(--muted);
+  padding:4px 0;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  transition:color 0.15s;
+}
+.export-btn:hover{color:var(--orange);}
+.export-btn::before{content:'\2193';font-size:12px;font-weight:700;}
+
+.callout{
+  background:rgba(201,76,36,0.06);
+  border-left:3px solid var(--orange);
+  padding:14px 18px;
+  margin:22px 0;
+  border-radius:0 4px 4px 0;
+  font-size:13px;
+  color:var(--text);
+  line-height:1.55;
+}
+.callout strong{color:var(--navy);font-weight:600;}
+
+.cache-note{
+  font-size:11.5px;
+  color:var(--muted);
+  font-family:var(--sans);
+  font-style:italic;
+  margin-left:8px;
+}
+
+.freshness{
+  font-size:11.5px;
+  color:rgba(245,240,232,0.55);
+  font-family:var(--mono);
+  letter-spacing:0.2px;
+  margin-top:8px;
+}
+.freshness a{color:rgba(245,240,232,0.75);text-decoration:underline;}
+.freshness a:hover{color:var(--cream);}
+
 footer{
   background:var(--navy);
   color:rgba(245,240,232,0.6);
@@ -842,6 +891,7 @@ footer a{color:var(--cream);}
       <div class="kicker">New York City data</div>
       <h1 class="title">NYC payroll browser</h1>
       <p class="subtitle">Top earners, overtime, agency spending, and headcount trends across roughly 300,000 city employees, drawn live from the NYC Citywide Payroll dataset.</p>
+      <div class="freshness" id="freshness"></div>
     </div>
     <div class="year-row">
       <label class="fringe-toggle" id="fringeToggle">
@@ -1012,7 +1062,10 @@ footer a{color:var(--cream);}
     <div class="data-card">
       <div class="data-card-header">
         <h3>Top earners</h3>
-        <div class="meta" id="earnersMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="earnersMeta"></div>
+          <button class="export-btn" data-export="earners">Export CSV</button>
+        </div>
       </div>
       <div class="chart-legend" style="padding:14px 22px 0;">
         <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Regular pay</span>
@@ -1055,7 +1108,10 @@ footer a{color:var(--cream);}
     <div class="data-card">
       <div class="data-card-header">
         <h3>Top overtime recipients</h3>
-        <div class="meta" id="otMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="otMeta"></div>
+          <button class="export-btn" data-export="ot">Export CSV</button>
+        </div>
       </div>
       <div id="otBody"><div class="loading-state"><div class="spinner"></div><div>Loading overtime data...</div></div></div>
     </div>
@@ -1116,10 +1172,16 @@ footer a{color:var(--cream);}
       <div class="chart-wrap tall"><canvas id="pdAgencyChart"></canvas></div>
       <p class="chart-note">Top 15 agencies by per-diem and hourly headcount for the selected fiscal year. The Department of Education (per-session and substitute teachers) and the Board of Elections (poll workers) typically dominate; together they account for the bulk of the city's non-salaried workforce.</p>
     </div>
+    <div class="callout">
+      <p><strong>Why are skilled tradespeople at the top?</strong> Many of the highest-earning per-diem workers are stationary engineers, plumbers, electricians, and other building-trades staff at the Department of Education or other agencies. They're paid on a per-day rate (often $1,000+ per day) but routinely log a full 2,080-hour year — so their annual earnings rival or exceed those of salaried managers. The dataset codes them as "per Day" because that's how they were hired and how their union contract is structured, not because they're occasional workers.</p>
+    </div>
     <div class="data-card">
       <div class="data-card-header">
         <h3>Top per-diem &amp; hourly earners</h3>
-        <div class="meta" id="pdMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="pdMeta"></div>
+          <button class="export-btn" data-export="perdiem">Export CSV</button>
+        </div>
       </div>
       <div id="pdBody"><div class="loading-state"><div class="spinner"></div><div>Loading per-diem data...</div></div></div>
     </div>
@@ -1146,14 +1208,20 @@ footer a{color:var(--cream);}
     <div class="data-card">
       <div class="data-card-header">
         <h3>All agencies</h3>
-        <div class="meta" id="agencyTableMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="agencyTableMeta"></div>
+          <button class="export-btn" data-export="agencies">Export CSV</button>
+        </div>
       </div>
       <div id="agencyBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency totals...</div></div></div>
     </div>
     <div class="data-card">
       <div class="data-card-header">
         <h3>Agency commissioners and equivalents</h3>
-        <div class="meta" id="commishMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="commishMeta"></div>
+          <button class="export-btn" data-export="commish">Export CSV</button>
+        </div>
       </div>
       <div id="commishBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency heads...</div></div></div>
       <p class="chart-note">Identified by title — Commissioner, Chancellor, Chairperson, Executive Director, District Attorney, Borough President, Public Advocate, Comptroller, and Mayor. When more than one person held a head-of-agency title at the same agency in a fiscal year (e.g., a mid-year transition), the highest-paid is shown. Acting and interim heads may not appear if they retained a different civil-service title. Pay reflects what was actually paid during the fiscal year, so partial-year tenure shows as a lower figure than the annualized salary.</p>
@@ -1175,7 +1243,11 @@ footer a{color:var(--cream);}
     <div class="data-card">
       <div class="data-card-header">
         <h3>All agencies</h3>
-        <div class="meta" id="tierTableMeta"></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="tierTableMeta"></div>
+          <span class="cache-note" id="tierCacheNote"></span>
+          <button class="export-btn" data-export="tiers">Export CSV</button>
+        </div>
       </div>
       <div id="tierBody"><div class="loading-state"><div class="spinner"></div><div>Loading tier data...</div></div></div>
     </div>
@@ -1329,6 +1401,198 @@ const titleCase=s=>{
 };
 const escapeSoql=s=>String(s).replace(/'/g,"''");
 
+const AGENCY_OVERRIDES={
+  'HRA/DEPT OF SOCIAL SERVICES':'HRA / Dept. of Social Services',
+  'NYC HOUSING AUTHORITY':'NYC Housing Authority',
+  'NYC FIRE PENSION FUND':'NYC Fire Pension Fund',
+  'NYC POLICE PENSION FUND':'NYC Police Pension Fund',
+  'NYC EMPLOYEES RETIREMENT SYS':"NYC Employees' Retirement System",
+  'OFF OF PAYROLL ADMINISTRATION':'Office of Payroll Administration',
+  'OFFICE OF PAYROLL ADMIN':'Office of Payroll Administration',
+  'OFFICE OF MANAGEMENT & BUDGET':'Office of Management and Budget',
+  'OFFICE OF MGMT & BUDGET':'Office of Management and Budget',
+  'DEPT OF ED PEDAGOGICAL':'DOE — Pedagogical',
+  'DEPARTMENT OF ED PEDAGOGICAL':'DOE — Pedagogical',
+  'DEPT OF ED PARA PROFESSIONALS':'DOE — Paraprofessionals',
+  'DEPARTMENT OF ED PARA PROFESSION':'DOE — Paraprofessionals',
+  'DEPT OF ED PER SESSION TEACHER':'DOE — Per-Session Teachers',
+  'DEPT OF ED PER DIEM TEACHERS':'DOE — Per-Diem Teachers',
+  'DEPT OF ED HRLY SUPPORT STAFF':'DOE — Hourly Support Staff',
+  'DEPT OF ED CUSTODIAL PAYROL':'DOE — Custodial',
+  'DEPARTMENT OF ED CUSTODIAL PAYRO':'DOE — Custodial',
+  'DEPARTMENT OF EDUCATION ADMIN':'DOE — Administration',
+  'DEPT OF EDUCATION ADMIN':'DOE — Administration',
+  'BOARD OF ELECTION POLL WORKERS':'Board of Elections — Poll Workers',
+  'BD OF ELECTION POLL WORKERS':'Board of Elections — Poll Workers',
+  'BOARD OF ELECTION':'Board of Elections',
+  'BOARD OF ELECTIONS':'Board of Elections',
+  'POLICE DEPARTMENT':'NYPD',
+  'FIRE DEPARTMENT':'FDNY',
+  'DEPARTMENT OF CORRECTION':'Department of Correction',
+  'DEPARTMENT OF SANITATION':'DSNY',
+  'DEPT OF PARKS & RECREATION':'Parks Department',
+  'DEPT OF ENVIRONMENT PROTECTION':'Department of Environmental Protection',
+  'DEPARTMENT OF ENVIRONMENT PROTEC':'Department of Environmental Protection',
+  'BUSINESS INTEGRITY COMMISSION':'Business Integrity Commission',
+  "ADMIN FOR CHILDREN'S SVCS":"Administration for Children's Services",
+  'ADMIN TRIALS AND HEARINGS':'Office of Administrative Trials and Hearings',
+  'BOROUGH PRESIDENT-BROOKLYN':'Brooklyn Borough President',
+  'BOROUGH PRESIDENT-BRONX':'Bronx Borough President',
+  'BOROUGH PRESIDENT-MANHATTAN':'Manhattan Borough President',
+  'BOROUGH PRESIDENT-QUEENS':'Queens Borough President',
+  'BOROUGH PRESIDENT-S.I.':'Staten Island Borough President',
+  'BOROUGH PRESIDENT-STATEN IS':'Staten Island Borough President',
+  'DISTRICT ATTORNEY-MANHATTAN':'Manhattan District Attorney',
+  'DISTRICT ATTORNEY KINGS COUNTY':'Brooklyn District Attorney',
+  'BRONX DISTRICT ATTORNEY':'Bronx District Attorney',
+  'DISTRICT ATTORNEY QNS COUNTY':'Queens District Attorney',
+  'DISTRICT ATTORNEY RICHMOND COU':'Staten Island District Attorney',
+  'DISTRICT ATTORNEY RICHMOND COUNT':'Staten Island District Attorney',
+  'DISTRICT ATTORNEY-SPECIAL NARC':'Special Narcotics Prosecutor'
+};
+const AGENCY_ACRONYMS=new Set(['NYC','MTA','HRA','ACS','DOT','DEP','DSNY','FDNY','NYPD','DOE','DOC','OMB','OPA','IDNYC','TLC','HPD','DCAS','DOB','DCWP','NYCHA','OATH','DCA','EDC','DDC','DOITT','OTI','DSS','DHS','DYCD','HHC','MOCJ','LPC','DCP','TSI']);
+const SMALL_WORDS=new Set(['of','the','and','in','on','for','to','at','a','an','&','by','or']);
+function cleanAgencyName(raw){
+  if(!raw)return '';
+  const key=String(raw).trim().toUpperCase();
+  if(AGENCY_OVERRIDES[key])return AGENCY_OVERRIDES[key];
+  const words=key.split(/(\s+|[-/])/);
+  return words.map((w,i)=>{
+    if(/^\s+$/.test(w)||w==='-'||w==='/')return w;
+    if(AGENCY_ACRONYMS.has(w))return w;
+    const lo=w.toLowerCase();
+    if(i>0&&SMALL_WORDS.has(lo))return lo;
+    return lo.charAt(0).toUpperCase()+lo.slice(1);
+  }).join('');
+}
+
+function csvEscape(v){
+  if(v==null)return '';
+  const s=String(v);
+  if(/[",\n\r]/.test(s))return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function downloadCsv(filename,rows){
+  const csv=rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+function isoDate(){return new Date().toISOString().slice(0,10);}
+
+const IDB_NAME='payroll-browser';
+const IDB_STORE='tiers';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    try{
+      const req=indexedDB.open(IDB_NAME,1);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE,{keyPath:'year'});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    }catch(e){reject(e);}
+  });
+}
+async function idbGet(year){
+  try{
+    const db=await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(IDB_STORE,'readonly');
+      const req=tx.objectStore(IDB_STORE).get(String(year));
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){return null;}
+}
+async function idbPut(entry){
+  try{
+    const db=await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(IDB_STORE,'readwrite');
+      tx.objectStore(IDB_STORE).put(entry);
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){return false;}
+}
+function timeAgo(ts){
+  if(!ts)return '';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return s+'s ago';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+async function loadFreshness(){
+  const el=document.getElementById('freshness');
+  if(!el)return;
+  const KEY='payroll-meta-cache';
+  const TTL=60*60*1000;
+  let meta=null;
+  try{
+    const raw=sessionStorage.getItem(KEY);
+    if(raw){
+      const obj=JSON.parse(raw);
+      if(obj&&obj.cachedAt&&Date.now()-obj.cachedAt<TTL)meta=obj.data;
+    }
+  }catch(_){}
+  if(!meta){
+    try{
+      const r=await fetch('https://data.cityofnewyork.us/api/views/k397-673e.json');
+      if(r.ok){
+        meta=await r.json();
+        try{sessionStorage.setItem(KEY,JSON.stringify({cachedAt:Date.now(),data:meta}));}catch(_){}
+      }
+    }catch(e){console.error('freshness',e);}
+  }
+  if(!meta||!meta.rowsUpdatedAt)return;
+  const ts=meta.rowsUpdatedAt*1000;
+  const d=new Date(ts);
+  const date=d.toISOString().slice(0,10);
+  const ago=timeAgo(ts);
+  el.innerHTML=`Source dataset last updated ${date}, ${ago} · Live from NYC Open Data dataset <a href="https://data.cityofnewyork.us/City-Government/Citywide-Payroll-Data-Fiscal-Year-/k397-673e" target="_blank" rel="noopener">k397-673e</a>.`;
+}
+
+function readUrlState(){
+  const h=location.hash.replace(/^#/,'');
+  if(!h)return {};
+  const out={};
+  h.split('&').forEach(p=>{
+    if(!p)return;
+    const i=p.indexOf('=');
+    if(i<0)out[decodeURIComponent(p)]='';
+    else out[decodeURIComponent(p.slice(0,i))]=decodeURIComponent(p.slice(i+1).replace(/\+/g,' '));
+  });
+  return out;
+}
+function writeUrlState(){
+  if(!state.urlReady)return;
+  const tab=document.querySelector('.tab.active')?.dataset.view||'overview';
+  const parts=[];
+  parts.push('tab='+encodeURIComponent(tab));
+  if(state.year)parts.push('year='+encodeURIComponent(state.year));
+  if(state.fringe)parts.push('fringe=1');
+  let agency='';
+  if(tab==='earners')agency=document.getElementById('earnersAgency')?.value||'';
+  else if(tab==='overtime')agency=document.getElementById('otAgency')?.value||'';
+  else if(tab==='perdiem')agency=document.getElementById('pdAgency')?.value||'';
+  else if(tab==='trends')agency=document.getElementById('trendAgency')?.value||'';
+  if(agency)parts.push('agency='+encodeURIComponent(agency).replace(/%20/g,'+'));
+  if(tab==='earners'){
+    const q=document.getElementById('earnersSearch')?.value.trim()||'';
+    if(q)parts.push('q='+encodeURIComponent(q));
+    const sort=document.getElementById('earnersSort')?.value||'';
+    if(sort&&sort!=='total')parts.push('sort='+sort);
+  }
+  history.replaceState(null,'','#'+parts.join('&'));
+}
+
 async function api(params){
   const url=API_BASE+'?'+Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
   console.log('[api]',url);
@@ -1412,11 +1676,11 @@ async function loadAgencies(){
   try{
     const rows=await api({$select:'agency_name',$where:`fiscal_year='${escapeSoql(state.year)}'`,$group:'agency_name',$order:'agency_name ASC',$limit:500});
     state.agencyList=rows.map(r=>r.agency_name).filter(Boolean);
-    const opts='<option value="">All agencies</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
+    const opts='<option value="">All agencies</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${cleanAgencyName(a)}</option>`).join('');
     document.getElementById('earnersAgency').innerHTML=opts;
     document.getElementById('otAgency').innerHTML=opts;
     document.getElementById('pdAgency').innerHTML=opts;
-    document.getElementById('trendAgency').innerHTML='<option value="">All agencies combined</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${titleCase(a)}</option>`).join('');
+    document.getElementById('trendAgency').innerHTML='<option value="">All agencies combined</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${cleanAgencyName(a)}</option>`).join('');
   }catch(e){console.error(e);}
 }
 
@@ -1557,7 +1821,7 @@ function renderEarners(){
           <tr>
             <td class="rank">${start+i+1}</td>
             <td class="name">${fmtName(r)}${tierBadge(r.tier)}</td>
-            <td class="agency">${titleCase(r.agency_name||'')}</td>
+            <td class="agency">${cleanAgencyName(r.agency_name||'')}</td>
             <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
             <td class="tenure">${fmtTenure(r.tenure)}</td>
             <td class="num">${fmtMoneyFull(fr(r.base_salary_n))}</td>
@@ -1652,7 +1916,7 @@ function renderOvertime(){
           return `<tr>
             <td class="rank">${start+i+1}</td>
             <td class="name">${fmtName(r)}${tierBadge(r.tier)}</td>
-            <td class="agency">${titleCase(r.agency_name||'')}</td>
+            <td class="agency">${cleanAgencyName(r.agency_name||'')}</td>
             <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
             <td class="tenure">${fmtTenure(r.tenure)}</td>
             <td class="num">${fmtMoneyFull(fr(r.base))}${proratedMark(r)}</td>
@@ -1770,7 +2034,7 @@ function renderPerDiem(){
         ${page.map((r,i)=>`<tr>
           <td class="rank">${start+i+1}</td>
           <td class="name">${fmtName(r)}</td>
-          <td class="agency">${titleCase(r.agency_name||'')}</td>
+          <td class="agency">${cleanAgencyName(r.agency_name||'')}</td>
           <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
           <td class="muted">${r.basis}</td>
           <td class="num">${fmtRate(r)}</td>
@@ -1822,7 +2086,7 @@ function renderOtRatioChart(){
     const first=titleCase(r.first_name||'');
     const name=last+(first?', '+first.charAt(0)+'.':'');
     const title=titleCase(r.title_description||'');
-    const ag=titleCase(r.agency_name||'');
+    const ag=cleanAgencyName(r.agency_name||'');
     return [name,title+(ag?'  ·  '+ag:'')];
   });
   const ctx=canvas.getContext('2d');
@@ -1850,7 +2114,7 @@ function renderOtRatioChart(){
               const r=pool[items[0].dataIndex];
               const last=titleCase(r.last_name||'');
               const first=titleCase(r.first_name||'');
-              return last+(first?', '+first.charAt(0)+'.':'')+' — '+titleCase(r.agency_name||'');
+              return last+(first?', '+first.charAt(0)+'.':'')+' — '+cleanAgencyName(r.agency_name||'');
             },
             label:c=>{
               const r=pool[c.dataIndex];
@@ -1891,7 +2155,7 @@ function renderOtByAgencyChart(){
   otByAgencyChart=new Chart(ctx,{
     type:'bar',
     data:{
-      labels:top.map(r=>titleCase(r.agency)),
+      labels:top.map(r=>cleanAgencyName(r.agency)),
       datasets:[{
         label:'Total overtime',
         data:top.map(r=>fr(r.ot)),
@@ -1936,7 +2200,7 @@ function renderPdAgencyChart(){
   pdAgencyChart=new Chart(ctx,{
     type:'bar',
     data:{
-      labels:data.map(r=>titleCase(r.agency)),
+      labels:data.map(r=>cleanAgencyName(r.agency)),
       datasets:[
         {label:'Per day',data:data.map(r=>r.day),backgroundColor:'#0a1628',stack:'pd',borderWidth:0},
         {label:'Per hour',data:data.map(r=>r.hour),backgroundColor:'#c94c24',stack:'pd',borderWidth:0}
@@ -2090,7 +2354,7 @@ function renderCommissioners(){
       <tbody>
         ${sorted.map((r,i)=>`<tr>
           <td class="rank">${i+1}</td>
-          <td class="name">${titleCase(r.agency)}</td>
+          <td class="name">${cleanAgencyName(r.agency)}</td>
           <td class="title-cell muted">${titleCase(r.title)}</td>
           <td class="name">${titleCase(r.name)}</td>
           <td class="num">${fmtMoneyFull(fr(r.base))}</td>
@@ -2193,7 +2457,7 @@ function renderAgencyTable(){
           const pct=Math.min(r.ratio/maxRatio,1)*100;
           return `<tr>
             <td class="rank">${i+1}</td>
-            <td class="name">${titleCase(r.agency)}</td>
+            <td class="name">${cleanAgencyName(r.agency)}</td>
             <td class="num">${fmtInt(r.hc)}</td>
             <td class="num">${fmtMoneyFull(fr(r.base))}</td>
             <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
@@ -2287,7 +2551,7 @@ function renderHcByAgency(){
   hcByAgencyChart=new Chart(ctx,{
     type:'bar',
     data:{
-      labels:top.map(r=>titleCase(r.agency)),
+      labels:top.map(r=>cleanAgencyName(r.agency)),
       datasets:[
         {label:'Full-time',data:top.map(r=>r.annum),backgroundColor:'#0a1628',stack:'h',barThickness:14},
         {label:'Per day',data:top.map(r=>r.day),backgroundColor:'#c94c24',stack:'h',barThickness:14},
@@ -2363,10 +2627,26 @@ function renderTrends(){
 let tierChart=null;
 async function loadTiers(){
   const year=state.year;
-  // Serve from cache if we already fetched this year
   if(state.tiers.byYear[year]){
-    state.tiers.data=state.tiers.byYear[year].data;
-    state.tiers.totalRows=state.tiers.byYear[year].totalRows;
+    const c=state.tiers.byYear[year];
+    state.tiers.data=c.data;
+    state.tiers.totalRows=c.totalRows;
+    state.tiers.cacheSource=c.cacheSource||null;
+    state.tiers.cacheFetchedAt=c.fetchedAt||null;
+    state.tiers.loading=false;
+    state.tiers.err=null;
+    state.tiers.progress=null;
+    renderTiers();
+    return;
+  }
+  const cached=await idbGet(year);
+  const TTL=30*24*60*60*1000;
+  if(cached&&cached.fetchedAt&&Date.now()-cached.fetchedAt<TTL){
+    state.tiers.data=cached.data;
+    state.tiers.totalRows=cached.totalRows;
+    state.tiers.cacheSource='idb';
+    state.tiers.cacheFetchedAt=cached.fetchedAt;
+    state.tiers.byYear[year]={data:cached.data,totalRows:cached.totalRows,cacheSource:'idb',fetchedAt:cached.fetchedAt};
     state.tiers.loading=false;
     state.tiers.err=null;
     state.tiers.progress=null;
@@ -2377,6 +2657,8 @@ async function loadTiers(){
   state.tiers.err=null;
   state.tiers.progress={fetched:0,total:null};
   state.tiers.data=null;
+  state.tiers.cacheSource=null;
+  state.tiers.cacheFetchedAt=null;
   renderTiers();
   try{
     const where=`fiscal_year='${escapeSoql(year)}' AND agency_start_date IS NOT NULL`;
@@ -2418,9 +2700,13 @@ async function loadTiers(){
       offset+=limit;
     }
     const data=Object.values(byAgency).sort((a,b)=>b.total-a.total);
+    const fetchedAt=Date.now();
     state.tiers.data=data;
     state.tiers.totalRows=fetched;
-    state.tiers.byYear[year]={data,totalRows:fetched};
+    state.tiers.cacheSource='live';
+    state.tiers.cacheFetchedAt=fetchedAt;
+    state.tiers.byYear[year]={data,totalRows:fetched,cacheSource:'live',fetchedAt};
+    idbPut({year:String(year),data,fetchedAt,totalRows:fetched});
   }catch(e){state.tiers.err=e.message;}
   state.tiers.loading=false;
   state.tiers.progress=null;
@@ -2459,6 +2745,12 @@ function renderTiers(){
   const rowsLabel=`${totalRows.toLocaleString()} employees`;
   chartMeta.textContent=`FY ${state.year}  ·  ${rowsLabel}`;
   tableMeta.textContent=`${data.length.toLocaleString()} agencies  ·  ${rowsLabel}  ·  FY ${state.year}`;
+  const note=document.getElementById('tierCacheNote');
+  if(note){
+    if(state.tiers.cacheSource==='idb')note.textContent=`Loaded from cache (fetched ${timeAgo(state.tiers.cacheFetchedAt)}).`;
+    else if(state.tiers.cacheSource==='live')note.textContent='Fetched live from NYC Open Data.';
+    else note.textContent='';
+  }
 
   const top20=data.slice(0,20);
   const ctx=document.getElementById('tierChart').getContext('2d');
@@ -2466,7 +2758,7 @@ function renderTiers(){
   tierChart=new Chart(ctx,{
     type:'bar',
     data:{
-      labels:top20.map(r=>titleCase(r.agency)),
+      labels:top20.map(r=>cleanAgencyName(r.agency)),
       datasets:[
         {label:'Tier 6',data:top20.map(r=>r.total?r.t6/r.total*100:0),backgroundColor:'#9a9a9a',stack:'s'},
         {label:'Tier 4',data:top20.map(r=>r.total?r.t4/r.total*100:0),backgroundColor:'#c94c24',stack:'s'},
@@ -2501,7 +2793,7 @@ function renderTiers(){
           const old=r.total?r.older/r.total*100:0;
           return `<tr>
             <td class="rank">${i+1}</td>
-            <td class="name">${titleCase(r.agency)}</td>
+            <td class="name">${cleanAgencyName(r.agency)}</td>
             <td class="num">${fmtInt(r.total)}</td>
             <td class="num">${t6.toFixed(1)}%</td>
             <td class="num">${t4.toFixed(1)}%</td>
@@ -2729,6 +3021,7 @@ function applyFringe(){
 document.getElementById('fringeCheckbox').addEventListener('change',e=>{
   state.fringe=e.target.checked;
   applyFringe();
+  writeUrlState();
 });
 
 document.querySelectorAll('#agencyMetricToggle button').forEach(b=>{
@@ -2756,6 +3049,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
     if(v==='tiers'&&!state.tiers.data&&!state.tiers.loading)loadTiers();
     if(v==='trends'&&!state.trends.data&&!state.trends.loading)loadTrends();
     if(v==='trends')loadHcByAgency();
+    writeUrlState();
   });
 });
 
@@ -2772,31 +3066,141 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
   if(document.getElementById('view-overtime').classList.contains('active'))loadOtByAgency();
   if(document.getElementById('view-tiers').classList.contains('active'))loadTiers();
   if(document.getElementById('view-trends').classList.contains('active'))loadHcByAgency();
+  writeUrlState();
 });
 
-['earnersAgency','earnersSearch','earnersSort'].forEach(id=>{
-  document.getElementById(id).addEventListener('input',()=>{state.earners.page=1;renderEarners();});
-  document.getElementById(id).addEventListener('change',()=>{state.earners.page=1;renderEarners();});
+['earnersAgency','earnersSort'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{state.earners.page=1;renderEarners();writeUrlState();});
+});
+document.getElementById('earnersSearch').addEventListener('input',()=>{
+  state.earners.page=1;renderEarners();
+  if(urlSearchTimer)clearTimeout(urlSearchTimer);
+  urlSearchTimer=setTimeout(writeUrlState,300);
 });
 ['otAgency','otMinHours'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',()=>{state.ot.page=1;renderOvertime();});
+  document.getElementById(id).addEventListener('change',()=>{state.ot.page=1;renderOvertime();writeUrlState();});
 });
 ['pdAgency','pdBasis','pdMinHours'].forEach(id=>{
-  document.getElementById(id).addEventListener('change',()=>{state.perdiem.page=1;renderPerDiem();});
+  document.getElementById(id).addEventListener('change',()=>{state.perdiem.page=1;renderPerDiem();writeUrlState();});
 });
 document.getElementById('trendAgency').addEventListener('change',e=>{
   state.trends.agency=e.target.value;
   loadTrends();
+  writeUrlState();
 });
 
+function buildCsvRows(kind){
+  const yr=state.year||'';
+  if(kind==='earners'){
+    const data=filterEarners();
+    const head=['rank','name','agency','title','tenure_years','base_salary','regular_gross','ot_pay','other_pay','total_pay'];
+    const rows=data.map((r,i)=>[i+1,fmtName(r),cleanAgencyName(r.agency_name||''),titleCase(r.title_description||''),r.tenure!=null?r.tenure.toFixed(1):'',Math.round(fr(r.base_salary_n)),Math.round(fr(r.base)),Math.round(fr(r.ot)),Math.round(fr(r.other)),Math.round(fr(r.total))]);
+    return [head,...rows];
+  }
+  if(kind==='ot'){
+    const data=filterOvertime();
+    const head=['rank','name','agency','title','tenure_years','regular_pay','ot_hours','ot_pay','ot_pct_of_regular'];
+    const rows=data.map((r,i)=>[i+1,fmtName(r),cleanAgencyName(r.agency_name||''),titleCase(r.title_description||''),r.tenure!=null?r.tenure.toFixed(1):'',Math.round(fr(r.base)),Math.round(r.hrs),Math.round(fr(r.ot)),(r.ratio*100).toFixed(1)+'%']);
+    return [head,...rows];
+  }
+  if(kind==='perdiem'){
+    const data=filterPerDiem();
+    const head=['rank','name','agency','title','pay_basis','base_rate','regular_hours','regular_pay','ot_pay','total_pay'];
+    const rows=data.map((r,i)=>[i+1,fmtName(r),cleanAgencyName(r.agency_name||''),titleCase(r.title_description||''),r.basis,r.rate,Math.round(r.hrs),Math.round(fr(r.regular)),Math.round(fr(r.ot)),Math.round(fr(r.total))]);
+    return [head,...rows];
+  }
+  if(kind==='agencies'){
+    const data=state.agencies.data||[];
+    const enriched=data.map(r=>({...r,avg_salary:r.hc>0?r.base/r.hc:0,avg_total:r.hc>0?r.total/r.hc:0}));
+    const sb=state.agencies.sortBy,sd=state.agencies.sortDir;
+    const sorted=[...enriched].sort((a,b)=>{
+      const av=a[sb],bv=b[sb];
+      if(typeof av==='string')return sd==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      return sd==='asc'?av-bv:bv-av;
+    });
+    const head=['rank','agency','employees','regular_pay','overtime','total_payroll','avg_salary','avg_all_in','ot_to_regular_ratio'];
+    const rows=sorted.map((r,i)=>[i+1,cleanAgencyName(r.agency),r.hc,Math.round(fr(r.base)),Math.round(fr(r.ot)),Math.round(fr(r.total)),Math.round(fr(r.avg_salary)),Math.round(fr(r.avg_total)),(r.ratio*100).toFixed(1)+'%']);
+    return [head,...rows];
+  }
+  if(kind==='commish'){
+    const data=state.commish.data||[];
+    const sb=state.commish.sortBy,sd=state.commish.sortDir;
+    const sorted=[...data].sort((a,b)=>{
+      const av=a[sb],bv=b[sb];
+      if(typeof av==='string')return sd==='asc'?av.localeCompare(bv):bv.localeCompare(av);
+      return sd==='asc'?av-bv:bv-av;
+    });
+    const head=['rank','agency','title','name','base_salary','regular_pay','overtime','all_in_pay'];
+    const rows=sorted.map((r,i)=>[i+1,cleanAgencyName(r.agency),titleCase(r.title),titleCase(r.name),Math.round(fr(r.base)),Math.round(fr(r.regular)),Math.round(fr(r.ot)),Math.round(fr(r.total))]);
+    return [head,...rows];
+  }
+  if(kind==='tiers'){
+    const data=state.tiers.data||[];
+    const head=['rank','agency','total','tier_6_pct','tier_4_pct','earlier_pct'];
+    const rows=data.map((r,i)=>[i+1,cleanAgencyName(r.agency),r.total,r.total?(r.t6/r.total*100).toFixed(1)+'%':'',r.total?(r.t4/r.total*100).toFixed(1)+'%':'',r.total?(r.older/r.total*100).toFixed(1)+'%':'']);
+    return [head,...rows];
+  }
+  return [];
+}
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.export-btn[data-export]');
+  if(!btn)return;
+  const kind=btn.dataset.export;
+  const rows=buildCsvRows(kind);
+  if(!rows.length)return;
+  downloadCsv(`nyc-payroll-${kind}-${state.year||'all'}-${isoDate()}.csv`,rows);
+});
+
+let urlSearchTimer=null;
+function applyUrlState(s){
+  if(s.year&&state.years.includes(s.year))state.year=s.year;
+  if(s.fringe==='1'){
+    state.fringe=true;
+    document.getElementById('fringeCheckbox').checked=true;
+    document.getElementById('fringeToggle').classList.add('on');
+  }
+  const sel=document.getElementById('yearSelect');
+  if(sel&&state.year)sel.value=state.year;
+}
+function applyUrlStatePostAgencies(s){
+  if(s.tab){
+    const tab=document.querySelector(`.tab[data-view="${s.tab}"]`);
+    if(tab)tab.click();
+  }
+  if(s.agency){
+    ['earnersAgency','otAgency','pdAgency','trendAgency'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.value=s.agency;
+    });
+    if(state.trends)state.trends.agency=s.agency;
+  }
+  if(s.q){
+    const q=document.getElementById('earnersSearch');
+    if(q)q.value=s.q;
+  }
+  if(s.sort){
+    const so=document.getElementById('earnersSort');
+    if(so)so.value=s.sort;
+  }
+  state.urlReady=true;
+  writeUrlState();
+  if(state.earners.data)renderEarners();
+  if(state.ot.data)renderOvertime();
+  if(state.perdiem.data)renderPerDiem();
+}
+
 (async function init(){
+  state.urlReady=false;
+  const url=readUrlState();
   await loadYears();
   if(!state.year)return;
+  applyUrlState(url);
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
   loadOvertime();
-  // Overview is the default tab — kick off its data load too
   loadOverview();
+  loadFreshness();
+  applyUrlStatePostAgencies(url);
 })();
 </script>
 </body>
