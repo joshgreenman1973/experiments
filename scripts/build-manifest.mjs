@@ -299,7 +299,99 @@ function scan() {
   return out;
 }
 
-let projects = scan();
+// ===== GitHub API discovery =====
+// Pulls every repo on Josh's three accounts that has Pages enabled, so anything
+// pushed to GitHub Pages shows up automatically — no local clone required.
+// Runs alongside the local-folder scan and dedupes by repo name (local entries
+// win when both exist, since they're richer).
+
+const GH_OWNERS = ['joshgreenman1973', 'vitalcity-nyc', 'vital-city-nyc'];
+const GH_HEADERS = {
+  'User-Agent': 'experiments-manifest-builder',
+  'Accept': 'application/vnd.github+json',
+  ...(process.env.GITHUB_TOKEN ? { 'Authorization': 'Bearer ' + process.env.GITHUB_TOKEN } : {}),
+};
+
+async function ghJson(path) {
+  const url = path.startsWith('http') ? path : `https://api.github.com/${path}`;
+  const res = await fetch(url, { headers: GH_HEADERS });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error(`GitHub API ${res.status} ${res.statusText} for ${url}`);
+  }
+  return res.json();
+}
+
+async function listOwnerRepos(owner) {
+  const all = [];
+  for (const path of [`orgs/${owner}/repos`, `users/${owner}/repos`]) {
+    let page = 1;
+    while (page <= 5) {
+      const batch = await ghJson(`${path}?per_page=100&page=${page}&type=public`).catch(() => null);
+      if (!Array.isArray(batch) || !batch.length) break;
+      all.push(...batch);
+      if (batch.length < 100) break;
+      page++;
+    }
+    if (all.length) break;
+  }
+  return all;
+}
+
+async function discoverViaGitHub() {
+  const out = [];
+  for (const owner of GH_OWNERS) {
+    let repos;
+    try { repos = await listOwnerRepos(owner); }
+    catch (e) { console.warn(`  (skipping ${owner}: ${e.message})`); continue; }
+    for (const r of repos) {
+      if (!r.has_pages) continue;
+      if (r.full_name === 'joshgreenman1973/experiments') continue;
+      if (r.archived) continue;
+      const liveUrl = r.homepage || `https://${owner}.github.io/${r.name}/`;
+      out.push({
+        name: r.name,
+        title: r.description || r.name,
+        description: r.description || null,
+        category: 'remote',
+        localPath: null,
+        relPath: null,
+        hasIndex: true,
+        indexUrl: null,
+        previewUrl: liveUrl,
+        github: r.html_url,
+        githubOwner: owner,
+        livePagesUrl: liveUrl,
+        isNestedRepo: true,
+        gitRemote: r.clone_url,
+        lastCommit: r.pushed_at,
+        lastCommitMsg: null,
+        lastModified: r.pushed_at,
+        _source: 'github-api',
+      });
+    }
+  }
+  return out;
+}
+
+async function buildProjectList() {
+  const local = scan();
+  console.log(`  local scan: ${local.length} projects`);
+  let remote = [];
+  try {
+    remote = await discoverViaGitHub();
+    console.log(`  github api: ${remote.length} pages-enabled repos`);
+  } catch (e) {
+    console.warn('  github api discovery skipped:', e.message);
+  }
+  // Dedupe by name. Local entries win because they have richer metadata
+  // (HTML titles, README descriptions, parent-tracked file paths).
+  const byName = new Map();
+  for (const p of [...remote, ...local]) byName.set(p.name, p);
+  return [...byName.values()];
+}
+
+let projects = await buildProjectList();
 
 // Dedupe: when the same project name appears in multiple locations
 // (e.g. at root AND inside a category folder, from an incomplete reorg),
