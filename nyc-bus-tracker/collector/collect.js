@@ -91,11 +91,25 @@ async function main() {
     mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  const filename = `${todayStr()}.jsonl`;
-  const filepath = join(DATA_DIR, filename);
+  // Hourly chunking — data/snapshots/YYYY-MM-DD/HH.jsonl in ET. Caps each file
+  // at ~5 MB no matter how dense the sampling, so we never approach GitHub's
+  // 100 MiB blob ceiling. process.js still reads legacy {date}.jsonl files too.
+  const now = new Date();
+  const dateET = now.toLocaleString('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  const hourET = now.toLocaleString('en-GB', {
+    timeZone: 'America/New_York',
+    hour: '2-digit', hour12: false,
+  }).padStart(2, '0').slice(0, 2);
 
+  const dayDir = join(DATA_DIR, dateET);
+  if (!existsSync(dayDir)) mkdirSync(dayDir, { recursive: true });
+
+  const filepath = join(dayDir, `${hourET}.jsonl`);
   appendFileSync(filepath, JSON.stringify(snapshot) + '\n');
-  console.log(`Appended ${vehicles.length} vehicles to ${filename}`);
+  console.log(`Appended ${vehicles.length} vehicles to ${dateET}/${hourET}.jsonl`);
 }
 
 main().catch(err => {

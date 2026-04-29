@@ -12,7 +12,7 @@
  * Defaults to yesterday if no date provided.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -78,18 +78,43 @@ function getDate(offsetDays = -1) {
   return d.toISOString().slice(0, 10);
 }
 
-function loadSnapshots(date) {
-  const file = join(SNAPSHOTS_DIR, `${date}.jsonl`);
-  if (!existsSync(file)) {
-    console.error(`No data file for ${date}`);
-    process.exit(1);
-  }
-
-  const lines = readFileSync(file, 'utf-8').trim().split('\n');
-  return lines.map(line => {
+function parseJsonlBuffer(text) {
+  return text.trim().split('\n').map(line => {
     try { return JSON.parse(line); }
     catch { return null; }
   }).filter(Boolean);
+}
+
+/** Load all snapshots for a given date, sorted by timestamp.
+ *  Supports both layouts:
+ *   - legacy: data/snapshots/YYYY-MM-DD.jsonl  (single file)
+ *   - hourly: data/snapshots/YYYY-MM-DD/HH.jsonl  (one file per hour ET)
+ *  If both exist (unlikely but possible during migration), they're merged. */
+function loadSnapshots(date) {
+  const flat = join(SNAPSHOTS_DIR, `${date}.jsonl`);
+  const dir  = join(SNAPSHOTS_DIR, date);
+  const all = [];
+
+  if (existsSync(flat) && statSync(flat).isFile()) {
+    all.push(...parseJsonlBuffer(readFileSync(flat, 'utf-8')));
+  }
+  if (existsSync(dir) && statSync(dir).isDirectory()) {
+    const files = readdirSync(dir)
+      .filter(f => f.endsWith('.jsonl'))
+      .sort(); // 00.jsonl..23.jsonl naturally chronological
+    for (const f of files) {
+      all.push(...parseJsonlBuffer(readFileSync(join(dir, f), 'utf-8')));
+    }
+  }
+
+  if (all.length === 0) {
+    console.error(`No data file for ${date} (looked at ${flat} and ${dir}/)`);
+    process.exit(1);
+  }
+
+  // Defensive: sort by timestamp in case files arrived out of order
+  all.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+  return all;
 }
 
 /**

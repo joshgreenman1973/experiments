@@ -15,7 +15,7 @@ export default function TVSchedule({ date }) {
       <div className="text-center py-20 text-film-muted">
         <p className="text-base">No TV schedule data for this date</p>
         <p className="text-xs mt-1 text-film-muted/60">
-          Primetime schedules cover fall 1970 through 2025
+          Primetime schedules cover fall 1946 through 2026
         </p>
       </div>
     )
@@ -26,9 +26,15 @@ export default function TVSchedule({ date }) {
 
   return (
     <div className="max-w-4xl mx-auto px-5">
-      <p className="text-xs text-film-muted text-center mb-8 uppercase tracking-widest font-light">
+      <p className="text-xs text-film-muted text-center mb-2 uppercase tracking-widest font-light">
         {dayLabel} night · {seasonLabel} season
       </p>
+      {schedule.isFallback && (
+        <p className="text-[11px] text-film-muted/60 text-center mb-6 italic">
+          No TV data for that exact date — showing the closest available season ({seasonLabel}).
+        </p>
+      )}
+      {!schedule.isFallback && <div className="mb-8" />}
 
       <div className="grid gap-5 md:grid-cols-3">
         {schedule.networks.map(({ network, shows }) => {
@@ -73,7 +79,7 @@ export default function TVSchedule({ date }) {
       </div>
 
       <p className="text-center text-[10px] text-film-muted/30 mt-10 tracking-wide">
-        Primetime grid · Times Eastern · Data from epguides.com
+        Primetime grid · Times Eastern · Wikipedia, epguides.com &amp; TVMaze
       </p>
     </div>
   )
