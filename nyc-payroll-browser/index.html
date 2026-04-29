@@ -599,6 +599,22 @@ td.muted{color:var(--muted);}
 
 td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;}
 
+.tier-loading-tag{
+  display:inline-block;
+  font-family:var(--sans);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:0.5px;
+  color:var(--orange);
+  background:rgba(201,76,36,0.1);
+  padding:2px 7px;
+  border-radius:3px;
+  margin-left:8px;
+  text-transform:uppercase;
+  animation:tierPulse 1.4s ease-in-out infinite;
+}
+@keyframes tierPulse{0%,100%{opacity:1}50%{opacity:0.55}}
+
 .fringe-tag{
   display:inline-block;
   font-family:var(--sans);
@@ -2671,12 +2687,12 @@ async function loadTiers(){
     state.tiers.progress={fetched:0,total};
     renderTiers();
 
-    // 2) Paginate full dataset
+    // 2) Paginate full dataset, render progressively after each chunk
     const limit=50000;
     const byAgency={};
     let offset=0,fetched=0;
     while(true){
-      if(state.year!==year)return; // year changed mid-fetch; bail
+      if(state.year!==year)return;
       const rows=await api({
         $select:'agency_name,agency_start_date',
         $where:where,
@@ -2695,14 +2711,14 @@ async function loadTiers(){
       });
       fetched+=rows.length;
       state.tiers.progress={fetched,total};
+      state.tiers.data=Object.values(byAgency).sort((a,b)=>b.total-a.total);
+      state.tiers.totalRows=fetched;
       renderTiers();
       if(rows.length<limit)break;
       offset+=limit;
     }
-    const data=Object.values(byAgency).sort((a,b)=>b.total-a.total);
+    const data=state.tiers.data;
     const fetchedAt=Date.now();
-    state.tiers.data=data;
-    state.tiers.totalRows=fetched;
     state.tiers.cacheSource='live';
     state.tiers.cacheFetchedAt=fetchedAt;
     state.tiers.byYear[year]={data,totalRows:fetched,cacheSource:'live',fetchedAt};
@@ -2717,7 +2733,7 @@ function renderTiers(){
   const body=document.getElementById('tierBody');
   const chartMeta=document.getElementById('tierChartMeta');
   const tableMeta=document.getElementById('tierTableMeta');
-  if(state.tiers.loading){
+  if(state.tiers.loading&&!(state.tiers.data&&state.tiers.data.length)){
     const p=state.tiers.progress||{fetched:0,total:null};
     const fetchedStr=p.fetched.toLocaleString();
     const totalStr=p.total?p.total.toLocaleString():'…';
@@ -2725,8 +2741,8 @@ function renderTiers(){
     const barWidth=p.total?pct+'%':'15%';
     const barClass=p.total?'tier-progress-bar':'tier-progress-bar tier-progress-indet';
     const label=p.total
-      ? `Fetching ${fetchedStr} of ${totalStr} records (${pct}%)`
-      : `Fetching employee records — ${fetchedStr}…`;
+      ? `Loading first chunk (${fetchedStr} of ${totalStr} records)…`
+      : `Loading employee records — ${fetchedStr}…`;
     chartMeta.textContent=`FY ${state.year}  ·  loading…`;
     tableMeta.textContent='';
     body.innerHTML=`
@@ -2743,11 +2759,16 @@ function renderTiers(){
   if(!data.length){body.innerHTML='<div class="empty-state">No data.</div>';return;}
   const totalRows=state.tiers.totalRows||data.reduce((s,r)=>s+r.total,0);
   const rowsLabel=`${totalRows.toLocaleString()} employees`;
-  chartMeta.textContent=`FY ${state.year}  ·  ${rowsLabel}`;
-  tableMeta.textContent=`${data.length.toLocaleString()} agencies  ·  ${rowsLabel}  ·  FY ${state.year}`;
+  const p=state.tiers.progress;
+  const stillLoading=state.tiers.loading&&p&&p.total&&p.fetched<p.total;
+  const pct=stillLoading?Math.min(100,Math.round(p.fetched/p.total*100)):100;
+  const loadingTag=stillLoading?` <span class="tier-loading-tag">streaming · ${pct}%</span>`:'';
+  chartMeta.innerHTML=`FY ${state.year}  ·  ${rowsLabel}${loadingTag}`;
+  tableMeta.innerHTML=`${data.length.toLocaleString()} agencies  ·  ${rowsLabel}  ·  FY ${state.year}${loadingTag}`;
   const note=document.getElementById('tierCacheNote');
   if(note){
-    if(state.tiers.cacheSource==='idb')note.textContent=`Loaded from cache (fetched ${timeAgo(state.tiers.cacheFetchedAt)}).`;
+    if(stillLoading)note.textContent='Streaming live from NYC Open Data — chart updates as more chunks arrive.';
+    else if(state.tiers.cacheSource==='idb')note.textContent=`Loaded from cache (fetched ${timeAgo(state.tiers.cacheFetchedAt)}).`;
     else if(state.tiers.cacheSource==='live')note.textContent='Fetched live from NYC Open Data.';
     else note.textContent='';
   }
