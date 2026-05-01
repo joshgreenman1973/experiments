@@ -385,6 +385,7 @@
   <span class="pill-count" id="count">—</span>
   <div class="save-bar">
     <span class="save-status" id="save-status">no changes</span>
+    <button id="btn-refresh" title="Re-scan GitHub for new repos and rebuild the manifest">↻ Refresh</button>
     <button id="btn-discard" disabled>Discard</button>
     <button id="btn-save" class="primary" disabled>Save changes</button>
   </div>
@@ -502,6 +503,7 @@ async function startMain() {
   $('filter-source').addEventListener('change', render);
   $('btn-discard').addEventListener('click', discardEdits);
   $('btn-save').addEventListener('click', saveEdits);
+  $('btn-refresh').addEventListener('click', triggerRebuild);
 
   await loadAll();
 }
@@ -734,6 +736,38 @@ function onAudienceChange(e) {
 // ===================================================================
 // Save
 // ===================================================================
+// Triggers the rebuild-manifest GitHub Action via workflow_dispatch.
+// Used when the user has just published a new Pages site and doesn't want
+// to wait for the next hourly cron.
+async function triggerRebuild() {
+  if (!pat) { setStatus('need a token to refresh', 'dirty'); return; }
+  $('btn-refresh').disabled = true;
+  setStatus('queuing rebuild…');
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/rebuild-manifest.yml/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + pat,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: BRANCH }),
+      }
+    );
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`${res.status} — ${txt.slice(0, 200)}`);
+    }
+    setStatus('rebuild queued — manifest will refresh within ~60 seconds', 'ok');
+  } catch (err) {
+    setStatus('refresh failed: ' + err.message, 'dirty');
+  } finally {
+    setTimeout(() => { $('btn-refresh').disabled = false; }, 5000);
+  }
+}
+
 function discardEdits() {
   if (!Object.keys(editing).length) return;
   if (!confirm('Discard ' + Object.keys(editing).length + ' pending change(s)?')) return;
