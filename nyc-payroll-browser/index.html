@@ -628,6 +628,21 @@ td.tenure{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:
 .prorated-mark{color:var(--orange);font-weight:700;cursor:help;margin-left:2px;}
 .table-footnote{font-size:11.5px;color:var(--muted);padding:8px 14px 12px;background:#fafafa;border-top:1px solid #f0f0f0;}
 
+.dollar-toggle-wrap{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  margin-top:14px;
+}
+.dollar-toggle-label{
+  font-family:var(--sans);
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
 .metric-toggle{
   display:inline-flex;
   background:#f0ede6;
@@ -985,6 +1000,13 @@ footer a{color:var(--cream);}
     <div class="view-header">
       <h2>Overview: how NYC pays its workforce</h2>
       <p>A citywide view of New York City government compensation — total payroll, average pay, headcount, and benefits, drawn from the NYC Citywide Payroll dataset and complemented by the federal Bureau of Labor Statistics (BLS) Quarterly Census of Employment and Wages (QCEW) for the long-run employment series.</p>
+      <div class="dollar-toggle-wrap">
+        <span class="dollar-toggle-label">Dollars:</span>
+        <div class="metric-toggle" id="dollarToggle">
+          <button data-mode="nominal" class="active">Nominal</button>
+          <button data-mode="real">Real (FY 2025 dollars)</button>
+        </div>
+      </div>
     </div>
 
     <div class="data-card">
@@ -1337,6 +1359,9 @@ footer a{color:var(--cream);}
     <h3>Full-time averages in the top stats bar</h3>
     <p>The "Avg salary (FT)" and "Avg all-in (FT)" figures are restricted to records where <code>pay_basis = 'per Annum'</code> and <code>regular_hours &gt; 1500</code>. This filter excludes per-diem and hourly workers (substitute teachers, poll workers, per-session staff) and partial-year salaried employees, giving a more honest read of typical full-time city pay than averaging across all 550K records would.</p>
 
+    <h3>Inflation adjustment</h3>
+    <p>The Overview tab has a "Nominal" / "Real (FY 2025 dollars)" toggle that applies to the total-payroll, average-pay, and total-compensation-footprint cards. Real dollars are computed by deflating each fiscal year's nominal figure by the calendar-year average of the New York-Newark-Jersey City CPI-U (Bureau of Labor Statistics series CUURA101SA0), indexed to the FY 2025 base. Calendar-year averages are matched to the fiscal-year-end year, which is a reasonable approximation since NYC fiscal years end June 30 and the CPI series moves slowly within a year. This is a defensible journalism deflator, not a precise economist's deflator — readers comparing real wage growth should consult the Bureau of Labor Statistics directly for finer-grained adjustments.</p>
+
     <h3>Fringe benefits</h3>
     <p>When the "Include fringe" toggle is on, all pay figures are multiplied by 1.39 to approximate total compensation cost including health insurance (active and retiree), pension contributions for the New York City Employees' Retirement System (NYCERS), Teachers' Retirement System (TRS), and the Police and Fire pension funds, Federal Insurance Contributions Act (FICA) and Medicare taxes, annuity and welfare-fund supplements, and other non-wage benefits. The 39% blended rate is published by the <a href="https://www.nyc.gov/site/omb/publications/financial-plan.page" target="_blank" rel="noopener">New York City Office of Management and Budget Financial Plan</a> and the <a href="https://www.nyc.gov/site/operations/performance/mmr.page" target="_blank" rel="noopener">Mayor's Management Report</a>. Note: this is a uniform multiplier applied to all pay including overtime, though overtime typically carries lower fringe in actual budgeting. Use as an order-of-magnitude estimate only.</p>
 
@@ -1594,6 +1619,7 @@ function writeUrlState(){
   parts.push('tab='+encodeURIComponent(tab));
   if(state.year)parts.push('year='+encodeURIComponent(state.year));
   if(state.fringe)parts.push('fringe=1');
+  if(state.overview.real)parts.push('real=1');
   let agency='';
   if(tab==='earners')agency=document.getElementById('earnersAgency')?.value||'';
   else if(tab==='overtime')agency=document.getElementById('otAgency')?.value||'';
@@ -1618,6 +1644,18 @@ async function api(params){
 }
 
 const FRINGE_RATE=1.39;
+
+const CPI_BY_FY={
+  '2014':254.819,'2015':254.913,'2016':256.572,'2017':261.396,
+  '2018':264.747,'2019':268.647,'2020':271.870,'2021':281.137,
+  '2022':297.668,'2023':309.156,'2024':314.706,'2025':322.500
+};
+const CPI_BASE_FY='2025';
+function cpiAdjust(amount,fromFY){
+  const a=CPI_BY_FY[String(fromFY)];const b=CPI_BY_FY[CPI_BASE_FY];
+  if(!a||!b)return amount;
+  return amount*(b/a);
+}
 const state={
   year:null,
   years:[],
@@ -1630,7 +1668,7 @@ const state={
   trends:{data:null,agency:'',err:null,loading:false,charts:{}},
   hcAgencyBasis:{byYear:{},loading:false},
   perdiem:{data:null,err:null,loading:false,agency:'',basis:'all',minHours:'0',page:1,pageSize:25,sortBy:'total',sortDir:'desc'},
-  overview:{wages:null,qcew:null,loading:false,err:null,charts:{}},
+  overview:{wages:null,qcew:null,loading:false,err:null,charts:{},real:false},
   agencyList:[]
 };
 const fr=n=>state.fringe?Number(n||0)*FRINGE_RATE:Number(n||0);
@@ -2906,7 +2944,9 @@ function renderOverviewStats(){
   const yearSel=state.year;
   let row=wages.find(r=>String(r.year)===String(yearSel));
   if(!row)row=wages[wages.length-1];
-  const wagesTotal=row.total_pay;
+  const real=state.overview.real;
+  const adj=v=>real?cpiAdjust(v,row.year):v;
+  const wagesTotal=adj(row.total_pay);
   const benefits=wagesTotal*(FRINGE_RATE-1);
   const totalComp=wagesTotal*FRINGE_RATE;
   const ftHc=row.ft_hc;
@@ -2919,8 +2959,10 @@ function renderOverviewStats(){
   set('ovStatBenefits',fmtMoney(benefits));
   set('ovStatComp',fmtMoney(totalComp));
   set('ovStatFt',fmtInt(ftHc));
-  document.getElementById('ovStatMeta').textContent=`FY ${row.year}  ·  full-time, per-annum employees`;
-  const narrate=`In fiscal year ${row.year}, the city paid <strong>${fmtMoney(wagesTotal)}</strong> in wages to its full-time, per-annum workforce on top of an estimated <strong>${fmtMoney(benefits)}</strong> in benefits — a total compensation footprint of <strong>${fmtMoney(totalComp)}</strong> across about ${fmtInt(ftHc)} full-time employees, or roughly <strong>${fmtMoneyFull(perEmp)}</strong> per full-time employee per year. Benefits are estimated using the city's blended fringe rate of 39% (covering health insurance, pension contributions, payroll taxes, retiree health, and other supplements). Wages are actual W-2 dollars paid; benefits are an estimate.`;
+  const dollarTag=real?` ·  FY ${CPI_BASE_FY} dollars`:'';
+  document.getElementById('ovStatMeta').textContent=`FY ${row.year}  ·  full-time, per-annum employees${dollarTag}`;
+  const dollarPhrase=real&&String(row.year)!==CPI_BASE_FY?` (in FY ${CPI_BASE_FY} dollars)`:'';
+  const narrate=`In fiscal year ${row.year}${dollarPhrase}, the city paid <strong>${fmtMoney(wagesTotal)}</strong> in wages to its full-time, per-annum workforce on top of an estimated <strong>${fmtMoney(benefits)}</strong> in benefits — a total compensation footprint of <strong>${fmtMoney(totalComp)}</strong> across about ${fmtInt(ftHc)} full-time employees, or roughly <strong>${fmtMoneyFull(perEmp)}</strong> per full-time employee per year. Benefits are estimated using the city's blended fringe rate of 39% (covering health insurance, pension contributions, payroll taxes, retiree health, and other supplements). Wages are actual W-2 dollars paid; benefits are an estimate.`;
   document.getElementById('ovStatNarrative').innerHTML=narrate;
 }
 
@@ -2929,18 +2971,26 @@ function renderOvPayrollChart(){
   if(!ctx)return;
   const data=state.overview.wages||[];
   const labels=data.map(r=>'FY '+r.year);
+  const real=state.overview.real;
+  const adj=v=>real?cpiAdjust(v,data[0]?.year):v;
+  const series=data.map(r=>real?cpiAdjust(r.total_pay,r.year):r.total_pay);
   if(state.overview.charts.ovPayrollChart)state.overview.charts.ovPayrollChart.destroy();
-  document.getElementById('ovPayrollMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  full-time only`;
+  const dollarLabel=real?`real FY ${CPI_BASE_FY} dollars`:'nominal dollars';
+  document.getElementById('ovPayrollMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  full-time only  ·  ${dollarLabel}`;
+  const note=document.getElementById('ovPayrollNote');
+  if(note)note.textContent=real
+    ?`Wages paid (regular + overtime + other pay) for full-time, per-annum employees by fiscal year, deflated to FY ${CPI_BASE_FY} dollars using NY-Newark-Jersey City CPI-U. This strips out general price growth so the line shows real change in the city's wage bill. Restricted to pay_basis = 'per Annum' with more than 1,500 regular hours.`
+    :"Wages paid (regular + overtime + other pay) for full-time, per-annum employees by fiscal year. Restricted to pay_basis = 'per Annum' with more than 1,500 regular hours to keep the comparison apples-to-apples across years.";
   state.overview.charts.ovPayrollChart=new Chart(ctx,{
     type:'line',
     data:{labels,datasets:[{
-      data:data.map(r=>r.total_pay),
+      data:series,
       borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.10)',
       borderWidth:2.5,fill:true,tension:0.25,pointRadius:4,pointBackgroundColor:'#0a1628'
     }]},
     options:{
       maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.y)+' total wages'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtMoneyFull(c.parsed.y)+' total wages'+(real?` (FY ${CPI_BASE_FY} dollars)`:'')}}},
       scales:{
         x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b'}},
         y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>'$'+(v/1e9).toFixed(1)+'B'},border:{display:false}}
@@ -2954,17 +3004,25 @@ function renderOvAvgChart(){
   if(!ctx)return;
   const data=state.overview.wages||[];
   const labels=data.map(r=>'FY '+r.year);
+  const real=state.overview.real;
+  const regSeries=data.map(r=>real?cpiAdjust(r.avg_reg,r.year):r.avg_reg);
+  const allinSeries=data.map(r=>real?cpiAdjust(r.avg_allin,r.year):r.avg_allin);
   if(state.overview.charts.ovAvgChart)state.overview.charts.ovAvgChart.destroy();
-  document.getElementById('ovAvgMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  nominal dollars`;
+  const dollarLabel=real?`real FY ${CPI_BASE_FY} dollars`:'nominal dollars';
+  document.getElementById('ovAvgMeta').textContent=`FY ${data[0]?.year}–${data[data.length-1]?.year}  ·  ${dollarLabel}`;
+  const note=document.getElementById('ovAvgNote');
+  if(note)note.innerHTML=real
+    ?`Average pay for full-time, per-annum employees by fiscal year, deflated to <strong>FY ${CPI_BASE_FY} dollars</strong> using NY-Newark-Jersey City CPI-U. After adjusting for inflation, the trend reflects real wage gains rather than general price growth.`
+    :"Average pay for full-time, per-annum employees by fiscal year. Figures are <strong>nominal</strong> (not inflation-adjusted), so part of the rise reflects general price growth rather than real wage gains.";
   state.overview.charts.ovAvgChart=new Chart(ctx,{
     type:'line',
     data:{labels,datasets:[
-      {label:'Avg regular pay',data:data.map(r=>r.avg_reg),borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#0a1628'},
-      {label:'Avg regular + overtime',data:data.map(r=>r.avg_allin),borderColor:'#c94c24',backgroundColor:'rgba(201,76,36,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#c94c24'}
+      {label:'Avg regular pay',data:regSeries,borderColor:'#0a1628',backgroundColor:'rgba(10,22,40,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#0a1628'},
+      {label:'Avg regular + overtime',data:allinSeries,borderColor:'#c94c24',backgroundColor:'rgba(201,76,36,0.06)',borderWidth:2.5,fill:false,tension:0.25,pointRadius:3.5,pointBackgroundColor:'#c94c24'}
     ]},
     options:{
       maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtMoneyFull(c.parsed.y)}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtMoneyFull(c.parsed.y)+(real?` (FY ${CPI_BASE_FY} dollars)`:'')}}},
       scales:{
         x:{grid:{display:false},ticks:{font:{family:"'Inter'",size:11},color:'#6b6b6b'}},
         y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{family:"'JetBrains Mono'",size:11},color:'#6b6b6b',callback:v=>fmtMoney(v)},border:{display:false}}
@@ -3049,6 +3107,15 @@ document.querySelectorAll('#agencyMetricToggle button').forEach(b=>{
   b.addEventListener('click',()=>{
     state.agencies.metric=b.dataset.metric;
     if(state.agencies.data)renderAgencyAnalysis();
+  });
+});
+
+document.querySelectorAll('#dollarToggle button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    state.overview.real=b.dataset.mode==='real';
+    document.querySelectorAll('#dollarToggle button').forEach(x=>x.classList.toggle('active',x===b));
+    if(state.overview.wages)renderOverview();
+    writeUrlState();
   });
 });
 
@@ -3179,6 +3246,10 @@ function applyUrlState(s){
     state.fringe=true;
     document.getElementById('fringeCheckbox').checked=true;
     document.getElementById('fringeToggle').classList.add('on');
+  }
+  if(s.real==='1'){
+    state.overview.real=true;
+    document.querySelectorAll('#dollarToggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode==='real'));
   }
   const sel=document.getElementById('yearSelect');
   if(sel&&state.year)sel.value=state.year;
