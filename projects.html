@@ -822,7 +822,13 @@ function render() {
   if (sort === 'name' || sort === 'category') {
     list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
   } else {
-    list.sort((a,b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
+    // Prefer lastCommit (real activity) over lastModified (filesystem mtime)
+    // since CI freshly checks out files and sets every mtime equal.
+    list.sort((a,b) => {
+      const aT = a.lastCommit || a.lastModified || '';
+      const bT = b.lastCommit || b.lastModified || '';
+      return bT.localeCompare(aT);
+    });
   }
 
   $('count').innerHTML = `<b>${list.length}</b> of ${source.length}`;
