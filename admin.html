@@ -614,7 +614,15 @@ async function buildProjectList() {
   // We can't surface their metadata without rebuilding — leave them off.
   allProjects = [...general, ...professional, ...personal];
   // Sort by last update desc
-  allProjects.sort((a,b) => (b.lastModified || b.lastCommit || '').localeCompare(a.lastModified || a.lastCommit || ''));
+  // Sort by last commit (real project activity) descending; fall back to
+  // lastModified (filesystem mtime) only when no commit data is available.
+  // lastCommit beats mtime here because mtime gets bumped by random IDE
+  // touches, fresh clones, and post-commit hooks — not actual updates.
+  allProjects.sort((a, b) => {
+    const aT = a.lastCommit || a.lastModified || '';
+    const bT = b.lastCommit || b.lastModified || '';
+    return bT.localeCompare(aT);
+  });
 }
 
 // ===================================================================
