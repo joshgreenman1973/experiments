@@ -752,8 +752,11 @@ async function triggerRebuild() {
   $('btn-refresh').disabled = true;
   setStatus('queuing rebuild…');
   try {
+    // Use repository_dispatch instead of workflow_dispatch so the existing
+    // PAT (Contents: write) is enough — workflow_dispatch would also need
+    // Actions: write. The workflow accepts both event types.
     const res = await fetch(
-      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/rebuild-manifest.yml/dispatches`,
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/dispatches`,
       {
         method: 'POST',
         headers: {
@@ -761,7 +764,7 @@ async function triggerRebuild() {
           Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ref: BRANCH }),
+        body: JSON.stringify({ event_type: 'refresh-gallery' }),
       }
     );
     if (!res.ok) {
