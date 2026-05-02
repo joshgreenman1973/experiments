@@ -5,7 +5,7 @@
 
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
-import { randomBytes, pbkdf2Sync, createCipheriv } from 'crypto';
+import { pbkdf2Sync, createCipheriv, createHash } from 'crypto';
 import { join } from 'path';
 
 // Resolve ROOT dynamically so the script works both locally (~/Experiments)
@@ -259,7 +259,7 @@ function projectRecord(fullPath, category) {
     gitRemote: git.remote || null,
     lastCommit: git.lastCommit || null,
     lastCommitMsg: git.lastCommitMsg || null,
-    lastModified: latestMtime(fullPath),
+    lastModified: git.lastCommit || null,
   });
 }
 
@@ -295,7 +295,6 @@ function scan() {
       const rel = e.name;
       const lastCommit = sh(`git log -1 --format=%cI -- "${rel}"`, ROOT);
       const lastCommitMsg = sh(`git log -1 --format=%s -- "${rel}"`, ROOT);
-      const stat = statSync(full);
       out.push({
         name: e.name.replace(/\.html$/, ''),
         title,
@@ -313,7 +312,7 @@ function scan() {
         gitRemote: null,
         lastCommit: lastCommit || null,
         lastCommitMsg: lastCommitMsg || null,
-        lastModified: new Date(stat.mtimeMs).toISOString(),
+        lastModified: lastCommit || null,
         isLooseFile: true,
       });
     }
@@ -430,7 +429,13 @@ for (const p of projects) {
   byName.set(p.name, pick);
 }
 projects = [...byName.values()];
-projects.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
+// Sort newest-first by lastModified, with name as a stable tiebreaker so the
+// output is fully deterministic (otherwise two projects sharing a timestamp
+// could swap order between runs and dirty the manifest).
+projects.sort((a, b) => {
+  const cmp = (b.lastModified || '').localeCompare(a.lastModified || '');
+  return cmp !== 0 ? cmp : (a.name || '').localeCompare(b.name || '');
+});
 
 // Classify each project's audience (unless overridden)
 for (const p of projects) {
@@ -447,11 +452,16 @@ const personal = projects.filter(p => p.audience === 'personal');
 const GALLERY_PASSWORD = '#9701SW72ct!!!';
 const PBKDF2_ITER = 250000;
 function encryptGroup(records, password) {
-  const salt = randomBytes(16);
-  const iv = randomBytes(12);
+  // Derive salt/iv deterministically from the plaintext so unchanged inputs
+  // produce identical ciphertext (otherwise the hourly CI rebuild dirties the
+  // manifest every run). Salt and IV are public; uniqueness-per-key for AES-GCM
+  // is preserved because any plaintext change yields a new hash.
+  const plaintext = Buffer.from(JSON.stringify(records), 'utf8');
+  const digest = createHash('sha256').update(plaintext).digest();
+  const salt = digest.subarray(0, 16);
+  const iv = digest.subarray(16, 28);
   const key = pbkdf2Sync(password, salt, PBKDF2_ITER, 32, 'sha256');
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const plaintext = Buffer.from(JSON.stringify(records), 'utf8');
   const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
   return {
@@ -466,7 +476,6 @@ function encryptGroup(records, password) {
 }
 
 const manifest = {
-  generatedAt: new Date().toISOString(),
   count: projects.length,
   counts: { general: general.length, professional: professional.length, personal: personal.length },
   categories: [...new Set(projects.map(p => p.category))].sort(),
