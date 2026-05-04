@@ -254,6 +254,7 @@ async function fetchPolymarket() {
         volume_usd: num(m.volume),
         liquidity_usd: num(m.liquidity),
         open_interest_usd: null,
+        created_at: m.createdAt || m.startDateIso || m.startDate || null,
         close_date: m.endDate || m.end_date_iso || null,
         matched_keywords: verdict.hits,
         topic_id: topic.topic_id,
@@ -343,6 +344,7 @@ async function fetchKalshi() {
           volume_usd: volume,
           liquidity_usd: num(m.liquidity_dollars),
           open_interest_usd: oi,
+          created_at: m.created_time || m.open_time || null,
           close_date: m.close_time || ev.close_time || null,
           matched_keywords: verdict.hits,
           topic_id: topic.topic_id,
@@ -427,6 +429,7 @@ async function fetchManifold() {
         volume_usd: null, // Manifold uses play money
         liquidity_usd: null,
         open_interest_usd: null,
+        created_at: m.createdTime ? new Date(m.createdTime).toISOString() : null,
         close_date: m.closeTime ? new Date(m.closeTime).toISOString() : null,
         matched_keywords: verdict.hits,
         topic_id: topic.topic_id,
