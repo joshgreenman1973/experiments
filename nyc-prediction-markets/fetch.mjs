@@ -78,6 +78,69 @@ function buildRegex(phrases) {
 
 const STRONG_RE = buildRegex(STRONG_KEYWORDS);
 
+// ---------- topic rules ----------
+// Each rule: a question matching `pattern` gets tagged with `id` + human label.
+// First matching rule wins. The dashboard groups markets sharing an id and
+// surfaces those with 2+ platforms as side-by-side comparisons.
+//
+// Be conservative — these should describe the SAME outcome and the SAME time
+// window. Different time windows on the same outcome get distinct ids.
+
+const TOPIC_RULES = [
+  { id: "mamdani-rent-freeze-2026", label: "Mamdani freezes NYC rent in 2026",
+    pattern: /mamdani.*(?:freeze|freezes).*rent.*(?:in 2026|2026)\b/i },
+  { id: "mamdani-rent-freeze-before-2027", label: "Mamdani freezes NYC rent before 2027",
+    pattern: /mamdani.*(?:freeze|freezes).*rent.*before 2027/i },
+  { id: "mamdani-grocery-before-2028", label: "Mamdani opens city-owned grocery store before 2028",
+    pattern: /mamdani.*(?:city-owned )?grocery.*(?:before 2028|in 2027|by 2028)/i },
+  { id: "mamdani-min-wage-30-before-2027", label: "Mamdani raises minimum wage to $30 before 2027",
+    pattern: /mamdani.*minimum wage.*\$?30.*before 2027/i },
+  { id: "mamdani-reelected-2029", label: "Mamdani re-elected NYC mayor (2029)",
+    pattern: /mamdani.*re-?elected/i },
+
+  { id: "mamdani-2028-dem-nom", label: "Mamdani wins 2028 Democratic presidential nomination",
+    pattern: /mamdani.*2028.*democratic.*(?:presidential )?nomination/i },
+  { id: "mamdani-2028-president", label: "Mamdani wins 2028 US presidential election",
+    pattern: /mamdani.*2028 us presidential election/i },
+
+  { id: "aoc-2028-dem-nom", label: "Ocasio-Cortez wins 2028 Democratic presidential nomination",
+    pattern: /(?:ocasio-cortez|\baoc\b).*2028.*democratic.*(?:presidential )?nomination/i },
+  { id: "aoc-2028-president", label: "Ocasio-Cortez wins 2028 US presidential election",
+    pattern: /(?:ocasio-cortez|\baoc\b).*(?:2028 us presidential election|elected (?:u\.s\.|us) president in 2028|be elected president in 2028)/i },
+  { id: "aoc-runs-2028", label: "AOC runs for president in 2028",
+    pattern: /\baoc\b.*run for president in 2028|aoc.*announce(?:s|d)? (?:a |her )?presidential run|alexandria ocasio-cortez announce a presidential run/i },
+  { id: "aoc-senate-2028", label: "AOC runs for Senate in 2028",
+    pattern: /(?:ocasio-cortez|\baoc\b).*(?:run for senate|senate run).*2028|alexandria ocasio-cortez run for senate in 2028/i },
+
+  { id: "stefanik-2028-rep-nom", label: "Stefanik wins 2028 Republican presidential nomination",
+    pattern: /stefanik.*2028.*republican.*(?:presidential )?nomination/i },
+
+  { id: "ny-gov-2026-dem-primary", label: "Winner of 2026 NY Democratic gubernatorial primary",
+    pattern: /(?:hochul|delgado|democratic).*2026.*new york.*(?:democratic )?gubernatorial primary|2026 new york democratic gubernatorial primary/i },
+  { id: "ny-gov-2026-rep-primary", label: "Winner of 2026 NY Republican gubernatorial primary",
+    pattern: /2026 new york governor republican primary/i },
+  { id: "ny-gov-2026-general", label: "Democrats win 2026 NY governor's race",
+    pattern: /(?:democrats win the new york governor race in 2026|2026 new york state gubernatorial election|next governor of new york after kathy hochul)/i },
+
+  { id: "schumer-leader-before-end-2026", label: "Schumer steps down as Senate leader before end of 2026",
+    pattern: /schumer.*(?:stop being|cease|out as).*(?:senate.*leader|leader.*senate|minority leader).*(?:before (?:the end of |nov 3,? )2026|end of 2026)/i },
+  { id: "schumer-leader-before-end-2030", label: "Schumer steps down as Senate leader before 2030",
+    pattern: /schumer.*(?:stop being|cease).*(?:senate.*leader|leader.*senate).*before 2030/i },
+
+  { id: "congestion-pricing-ends-2027", label: "NYC congestion pricing ends before 2027",
+    pattern: /congestion pricing.*(?:end|ends|ended).*(?:before 2027|in 2027)/i },
+];
+
+function tagTopic(question) {
+  if (!question) return { topic_id: null, topic_label: null };
+  for (const rule of TOPIC_RULES) {
+    if (rule.pattern.test(question)) {
+      return { topic_id: rule.id, topic_label: rule.label };
+    }
+  }
+  return { topic_id: null, topic_label: null };
+}
+
 function matchesNY(text, extraTags = []) {
   if (!text) return { match: false, hits: [] };
   const haystack = [text, ...extraTags].join(" ");
@@ -181,6 +244,7 @@ async function fetchPolymarket() {
       }
 
       const eventSlug = m.events?.[0]?.slug || m.slug;
+      const topic = tagTopic(question);
       out.push({
         source: "polymarket",
         id: String(m.id ?? m.slug ?? m.conditionId ?? ""),
@@ -192,6 +256,8 @@ async function fetchPolymarket() {
         open_interest_usd: null,
         close_date: m.endDate || m.end_date_iso || null,
         matched_keywords: verdict.hits,
+        topic_id: topic.topic_id,
+        topic_label: topic.topic_label,
       });
     }
     if (batch.length < limit) break;
@@ -264,10 +330,12 @@ async function fetchKalshi() {
           (num(m.last_price) !== null ? num(m.last_price) / 100 : null);
         const volume = num(m.volume_fp) ?? num(m.volume);
         const oi = num(m.open_interest_fp) ?? num(m.open_interest);
+        const fullQuestion = mTitle ? `${title} — ${mTitle}` : title;
+        const topic = tagTopic(fullQuestion);
         out.push({
           source: "kalshi",
           id: m.ticker,
-          question: mTitle ? `${title} — ${mTitle}` : title,
+          question: fullQuestion,
           url: ev.event_ticker
             ? `https://kalshi.com/markets/${ev.event_ticker.toLowerCase()}`
             : null,
@@ -277,6 +345,8 @@ async function fetchKalshi() {
           open_interest_usd: oi,
           close_date: m.close_time || ev.close_time || null,
           matched_keywords: verdict.hits,
+          topic_id: topic.topic_id,
+          topic_label: topic.topic_label,
         });
       }
     }
@@ -346,6 +416,7 @@ async function fetchManifold() {
         ];
         continue;
       }
+      const topic = tagTopic(m.question);
       seen.set(m.id, {
         source: "manifold",
         id: m.id,
@@ -358,6 +429,8 @@ async function fetchManifold() {
         open_interest_usd: null,
         close_date: m.closeTime ? new Date(m.closeTime).toISOString() : null,
         matched_keywords: verdict.hits,
+        topic_id: topic.topic_id,
+        topic_label: topic.topic_label,
       });
     }
   }

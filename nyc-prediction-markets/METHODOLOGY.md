@@ -91,6 +91,16 @@ Each run also writes a snapshot to `data/history/YYYY-MM-DD-HH.json`. The 24h-ch
 - **Keyword false negatives.** Markets that talk about NY policy without naming any of the listed people, places, offices, or topics will slip through. The keyword list is in `fetch.mjs` (`STRONG_KEYWORDS`, `AMBIGUOUS`, `MANIFOLD_QUERIES`) and is the single thing to edit when something is missed.
 - **Multi-outcome markets.** For events like "NYC Mayor 2025 winner" with N candidates, every candidate's contract appears as its own row. This is intentional — it's the only way to see how each contract is priced — but it means one event can dominate the table.
 
+## Cross-platform topic consolidation
+
+When the same outcome trades on more than one platform — e.g. "Mamdani freezes NYC rent in 2026" runs on both Kalshi and Manifold — we want them side-by-side so price differences are obvious.
+
+The `TOPIC_RULES` array in `fetch.mjs` is a list of `{ id, label, pattern }` rules. Each market's question is matched against the rules; the first match wins and tags the market with `topic_id` + `topic_label`. The dashboard groups markets by `topic_id` and surfaces any topic with 2+ distinct platforms in a "Same question, different platforms" comparison strip at the top of the page, sorted by spread (biggest disagreement first).
+
+Topics are deliberately conservative: same outcome **and** same time window. "Mamdani freezes rent in 2026" and "Mamdani freezes rent before 2027" are distinct topics — they're betting on different things. Markets that don't match any rule have `topic_id: null` and don't appear in the comparison strip; they show up only in the main table.
+
+Adding a new topic is a one-line append to `TOPIC_RULES`.
+
 ## Update cadence
 
 Cron `0 */6 * * *` — runs at 00:00, 06:00, 12:00, 18:00 UTC. Each run takes ~30s. The Action commits to `data/markets.json` and a timestamped file in `data/history/` only when something changed.
