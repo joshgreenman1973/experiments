@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NY prediction markets tracker</title>
+<style>
+  :root {
+    --bg: #f7f6f1;
+    --paper: #ffffff;
+    --ink: #18181b;
+    --muted: #6b6b70;
+    --rule: #e4e2db;
+    --accent: #b8431f;
+    --green: #1f7a4e;
+    --red: #c0392b;
+    --chip-poly: #1f3a8a;
+    --chip-kalshi: #6b21a8;
+    --chip-manifold: #064e3b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 24px 28px 18px;
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 780px;
+  }
+  .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  main {
+    padding: 18px 28px 60px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .controls input[type="text"] {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font: inherit;
+    width: 240px;
+  }
+  .controls input[type="checkbox"] { accent-color: var(--accent); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    background: #ecebe4;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  th .arrow { font-size: 10px; color: var(--accent); margin-left: 4px; }
+  tbody tr:hover { background: #faf8f1; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .src {
+    display: inline-block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: white;
+    font-weight: 600;
+  }
+  .src.polymarket { background: var(--chip-poly); }
+  .src.kalshi { background: var(--chip-kalshi); }
+  .src.manifold { background: var(--chip-manifold); }
+  .price { font-weight: 700; font-size: 15px; }
+  .delta-pos { color: var(--green); }
+  .delta-neg { color: var(--red); }
+  .q a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .q a:hover { color: var(--accent); text-decoration: underline; }
+  .keywords {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-note {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .footer-note a { color: var(--accent); }
+  .empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+  }
+  @media (max-width: 720px) {
+    .hide-narrow { display: none; }
+    th, td { padding: 8px 8px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>NY prediction markets tracker</h1>
+  <div class="sub">Every active prediction market touching New York City or New York State politics and policy — Mamdani, Hochul, Adams, Cuomo, congestion pricing, NYPD, MTA, the lot — pulled from Polymarket, Kalshi, and Manifold every six hours and consolidated here.</div>
+  <div class="meta" id="meta">Loading…</div>
+</header>
+<main>
+  <div class="controls">
+    <label><input type="checkbox" data-src="polymarket" checked> Polymarket</label>
+    <label><input type="checkbox" data-src="kalshi" checked> Kalshi</label>
+    <label><input type="checkbox" data-src="manifold" checked> Manifold</label>
+    <label>Search <input type="text" id="search" placeholder="Mamdani, MTA, congestion…" /></label>
+    <label><input type="checkbox" id="hideLow" checked> Hide volume &lt; $1k</label>
+    <label><input type="checkbox" id="hideManifold"> Hide play-money</label>
+  </div>
+  <div id="tableWrap"></div>
+  <div class="footer-note">
+    Yes price is the implied probability the market is currently assigning. 24h Δ compares to the snapshot taken roughly 24 hours ago; "—" means no prior snapshot exists yet for that contract. Volume is lifetime in USD for Polymarket and Kalshi, in mana for Manifold (play-money — note the M).
+    Methodology and keyword list: <a href="METHODOLOGY.md">METHODOLOGY.md</a>.
+    Data refreshed every 6 hours via GitHub Actions. Source: <a href="data/markets.json">markets.json</a>.
+  </div>
+</main>
+<script>
+let MARKETS = [];
+let SORT = { key: "abs_change", dir: "desc" };
+
+const fmtPct = (p) => p == null ? "—" : (p * 100).toFixed(0) + "%";
+const fmtDelta = (d) => {
+  if (d == null) return "—";
+  const v = (d * 100).toFixed(1);
+  return (d >= 0 ? "+" : "") + v + "pp";
+};
+const fmtMoney = (n, isMana) => {
+  if (n == null) return "—";
+  const prefix = isMana ? "M" : "$";
+  if (n >= 1e6) return prefix + (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return prefix + (n / 1e3).toFixed(1) + "k";
+  return prefix + Math.round(n);
+};
+const fmtDate = (s) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (isNaN(d)) return "—";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+function getValue(m, key) {
+  if (key === "abs_change") return Math.abs(m.price_change_24h ?? 0);
+  if (key === "volume") return m.volume_usd ?? m.volume_mana ?? 0;
+  if (key === "yes_price") return m.yes_price ?? -1;
+  if (key === "change") return m.price_change_24h ?? -Infinity;
+  if (key === "close") return m.close_date ? new Date(m.close_date).getTime() : Infinity;
+  if (key === "question") return m.question?.toLowerCase() || "";
+  if (key === "source") return m.source;
+  return 0;
+}
+
+function render() {
+  const sources = new Set(
+    [...document.querySelectorAll('.controls input[data-src]')]
+      .filter((el) => el.checked)
+      .map((el) => el.dataset.src),
+  );
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const hideLow = document.getElementById("hideLow").checked;
+  const hideMani = document.getElementById("hideManifold").checked;
+
+  let rows = MARKETS.filter((m) => {
+    if (!sources.has(m.source)) return false;
+    if (hideMani && m.source === "manifold") return false;
+    if (hideLow) {
+      const vol = m.volume_usd ?? m.volume_mana ?? 0;
+      if (vol < 1000) return false;
+    }
+    if (q) {
+      const hay = (m.question + " " + (m.matched_keywords||[]).join(" ")).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const dir = SORT.dir === "asc" ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = getValue(a, SORT.key), bv = getValue(b, SORT.key);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+
+  const wrap = document.getElementById("tableWrap");
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div class="empty">No markets match the current filters.</div>';
+    return;
+  }
+
+  const arrow = (k) => SORT.key === k ? `<span class="arrow">${SORT.dir === "asc" ? "▲" : "▼"}</span>` : "";
+
+  let html = `<table><thead><tr>
+    <th data-sort="question">Question${arrow("question")}</th>
+    <th data-sort="source" class="hide-narrow">Source${arrow("source")}</th>
+    <th data-sort="yes_price" class="num">Yes${arrow("yes_price")}</th>
+    <th data-sort="change" class="num">24h Δ${arrow("change")}</th>
+    <th data-sort="volume" class="num">Volume${arrow("volume")}</th>
+    <th data-sort="close" class="num hide-narrow">Closes${arrow("close")}</th>
+  </tr></thead><tbody>`;
+
+  for (const m of rows) {
+    const isMana = m.source === "manifold";
+    const vol = m.volume_usd ?? m.volume_mana;
+    const dCls = m.price_change_24h == null ? "" : m.price_change_24h >= 0 ? "delta-pos" : "delta-neg";
+    const link = m.url ? `<a href="${m.url}" target="_blank" rel="noopener">${escapeHtml(m.question)}</a>` : escapeHtml(m.question);
+    html += `<tr>
+      <td class="q">${link}<div class="keywords">${(m.matched_keywords||[]).map(escapeHtml).join(" · ")}</div></td>
+      <td class="hide-narrow"><span class="src ${m.source}">${m.source}</span></td>
+      <td class="num price">${fmtPct(m.yes_price)}</td>
+      <td class="num ${dCls}">${fmtDelta(m.price_change_24h)}</td>
+      <td class="num">${fmtMoney(vol, isMana)}</td>
+      <td class="num hide-narrow">${fmtDate(m.close_date)}</td>
+    </tr>`;
+  }
+  html += "</tbody></table>";
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll("th[data-sort]").forEach((th) => {
+    th.onclick = () => {
+      const k = th.dataset.sort;
+      if (SORT.key === k) SORT.dir = SORT.dir === "asc" ? "desc" : "asc";
+      else { SORT.key = k; SORT.dir = (k === "question" || k === "source") ? "asc" : "desc"; }
+      render();
+    };
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+async function load() {
+  try {
+    const res = await fetch("data/markets.json?_=" + Date.now());
+    const data = await res.json();
+    MARKETS = data.markets || [];
+    const updated = data.updated_at ? new Date(data.updated_at) : null;
+    const counts = data.source_counts || {};
+    document.getElementById("meta").textContent =
+      `${MARKETS.length} markets — ${counts.polymarket || 0} Polymarket, ${counts.kalshi || 0} Kalshi, ${counts.manifold || 0} Manifold · last refreshed ${updated ? updated.toLocaleString() : "unknown"}`;
+    render();
+  } catch (e) {
+    document.getElementById("tableWrap").innerHTML = '<div class="empty">Could not load data/markets.json. Run <code>node fetch.mjs</code> to generate it.</div>';
+  }
+}
+
+document.querySelectorAll(".controls input").forEach((el) => el.addEventListener("change", render));
+document.getElementById("search").addEventListener("input", render);
+load();
+</script>
+</body>
+</html>
