@@ -890,8 +890,12 @@ function card(p, i) {
     : '';
 
   const links = [];
-  if (p.indexUrl) links.push(`<a href="${encodeURI(p.indexUrl)}" target="_blank" rel="noopener">Open</a>`);
-  if (p.livePagesUrl && p.livePagesUrl !== p.previewUrl) links.push(`<a href="${p.livePagesUrl}" target="_blank" rel="noopener">Live</a>`);
+  // Single "Open" link, pointing to the canonical live page. Prefers the
+  // GitHub Pages URL (works everywhere) and falls back to the local relative
+  // index for parent-tracked projects (which still resolves correctly when
+  // served from Pages).
+  const openUrl = p.livePagesUrl || p.indexUrl;
+  if (openUrl) links.push(`<a href="${encodeURI(openUrl)}" target="_blank" rel="noopener">Open</a>`);
   if (p.github) links.push(`<a href="${p.github}" target="_blank" rel="noopener">GitHub</a>`);
 
   const flags = [];
