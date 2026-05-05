@@ -1,4 +1,4 @@
-# Beat the Bureaucracy — NYC Civics Quiz
+# Beat the Bureaucracy — New York City Civics Quiz
 
 A personal-byline interactive quiz on New York City government, politics, and obscure laws.
 

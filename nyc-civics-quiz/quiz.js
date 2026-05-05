@@ -391,7 +391,7 @@ function drawScorecard({ finalScore, finalTotal, rank, cats }) {
   ctx.textBaseline = "top";
   ctx.fillText("JOSH GREENMAN", 60, 80);
   ctx.fillStyle = "#6b6b73";
-  ctx.fillText("·  NYC CIVICS QUIZ", 290, 80);
+  ctx.fillText("·  NEW YORK CITY CIVICS QUIZ", 290, 80);
 
   // headline
   ctx.fillStyle = "#0b0b0d";
@@ -464,7 +464,7 @@ function downloadScorecard() {
 }
 
 async function share({ finalScore, finalTotal, rank }) {
-  const text = `I scored ${finalScore}/${finalTotal} on the NYC Civics Quiz. I'm a ${rank}.`;
+  const text = `I scored ${finalScore}/${finalTotal} on the New York City Civics Quiz. I'm a ${rank}.`;
   const canvas = document.getElementById("scorecard-canvas");
   // Try Web Share with file
   if (navigator.canShare && canvas) {
@@ -472,13 +472,13 @@ async function share({ finalScore, finalTotal, rank }) {
       const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
       const file = new File([blob], "score.png", { type: "image/png" });
       if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: "NYC Civics Quiz", text, files: [file] });
+        await navigator.share({ title: "New York City Civics Quiz", text, files: [file] });
         return;
       }
     } catch (e) { /* fall through */ }
   }
   if (navigator.share) {
-    try { await navigator.share({ title: "NYC Civics Quiz", text }); return; } catch (e) {}
+    try { await navigator.share({ title: "New York City Civics Quiz", text }); return; } catch (e) {}
   }
   if (navigator.clipboard) {
     await navigator.clipboard.writeText(text);
