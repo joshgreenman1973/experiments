@@ -59,7 +59,7 @@
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.Recharts;
+        const { AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } = window.Recharts;
 
         const compositionData = [
             { year: 1940, public: 980000, charter: 0, religious: 250000, nonReligious: 20000, homeschool: 0 },
@@ -196,6 +196,58 @@
             { grade: '12', y2019: 66000, y2025: 64000 }
         ];
 
+        // Workforce data: NYC traditional public-school pedagogical staff vs. enrollment, 2000-01 to 2022-23.
+        // Teacher counts 2000-01 to 2011-12 from IBO Fiscal Brief, May 2014 (Table 1).
+        // Teacher counts 2015-16 to 2022-23 from IBO Roll Call, September 2023.
+        // Years 2012-13, 2013-14, 2014-15 (italicized in tooltip) are linear interpolations between IBO endpoints.
+        // Total pedagogical and non-pedagogical from NYC OMB (via NYC Council Finance Division), available FY15+ only.
+        // Enrollment from IBO endpoints with linear interpolation for missing years; matches DOE Demographic Snapshot within ~1%.
+        const workforceData = [
+            { year: '2000-01', genEd: 63905, sped: 13183, totalPed: null, nonPed: null, enrollment: 1105240 },
+            { year: '2001-02', genEd: 64743, sped: 13305, totalPed: null, nonPed: null, enrollment: 1099436 },
+            { year: '2002-03', genEd: 64421, sped: 13711, totalPed: null, nonPed: null, enrollment: 1093633 },
+            { year: '2003-04', genEd: 61448, sped: 13913, totalPed: null, nonPed: null, enrollment: 1087829 },
+            { year: '2004-05', genEd: 62641, sped: 14415, totalPed: null, nonPed: null, enrollment: 1082025 },
+            { year: '2005-06', genEd: 62111, sped: 14823, totalPed: null, nonPed: null, enrollment: 1076222 },
+            { year: '2006-07', genEd: 62522, sped: 15364, totalPed: null, nonPed: null, enrollment: 1070418 },
+            { year: '2007-08', genEd: 62867, sped: 15949, totalPed: null, nonPed: null, enrollment: 1064614 },
+            { year: '2008-09', genEd: 62374, sped: 16508, totalPed: null, nonPed: null, enrollment: 1058811 },
+            { year: '2009-10', genEd: 59402, sped: 17141, totalPed: null, nonPed: null, enrollment: 1053007 },
+            { year: '2010-11', genEd: 56825, sped: 17855, totalPed: null, nonPed: null, enrollment: 1047204 },
+            { year: '2011-12', genEd: 54778, sped: 18595, totalPed: null, nonPed: null, enrollment: 1041437 },
+            // Interpolated:
+            { year: '2012-13', genEd: 54691, sped: 19426, totalPed: null, nonPed: null, enrollment: 1025828, interpolated: true },
+            { year: '2013-14', genEd: 54604, sped: 20257, totalPed: null, nonPed: null, enrollment: 1010219, interpolated: true },
+            { year: '2014-15', genEd: 54517, sped: 21088, totalPed: 112271, nonPed: 11656, enrollment: 994609, interpolated: true },
+            // IBO 2023 series:
+            { year: '2015-16', genEd: 54430, sped: 21919, totalPed: 115799, nonPed: 12248, enrollment: 979000 },
+            { year: '2016-17', genEd: 54602, sped: 22677, totalPed: 118671, nonPed: 12528, enrollment: 980000 },
+            { year: '2017-18', genEd: 54782, sped: 23430, totalPed: 119900, nonPed: 12799, enrollment: 974000 },
+            { year: '2018-19', genEd: 54128, sped: 24107, totalPed: 120398, nonPed: 13218, enrollment: 967000 },
+            { year: '2019-20', genEd: 52984, sped: 25190, totalPed: 121077, nonPed: 13607, enrollment: 962000 },
+            { year: '2020-21', genEd: 51589, sped: 25440, totalPed: 119210, nonPed: 13173, enrollment: 938000 },
+            { year: '2021-22', genEd: 51650, sped: 25960, totalPed: 117004, nonPed: 12717, enrollment: 893000 },
+            { year: '2022-23', genEd: 49607, sped: 26047, totalPed: 116660, nonPed: 12780, enrollment: 881000 },
+        ].map(d => ({
+            ...d,
+            otherPed: d.totalPed != null ? d.totalPed - d.genEd - d.sped : null,
+            studentsPerTeacher: d.enrollment / (d.genEd + d.sped),
+            parasAndStaffPer1k: d.totalPed != null ? ((d.totalPed - d.genEd - d.sped) / d.enrollment) * 1000 : null,
+            nonPedPer1k: d.nonPed != null ? (d.nonPed / d.enrollment) * 1000 : null,
+        }));
+
+        // 2019-20 school-based snapshot from the November 2019 DOE Local Law 226 headcount report.
+        // The only year with a clean published decomposition of the "other pedagogical" bucket.
+        const workforceSnapshot2019 = [
+            { role: 'Teachers', count: 72158 },
+            { role: 'Paraprofessionals', count: 16426 },
+            { role: 'School aides', count: 5580 },
+            { role: 'Guidance counselors', count: 2728 },
+            { role: 'Principals', count: 1640 },
+            { role: 'Social workers', count: 860 },
+            { role: 'School psychologists', count: 513 },
+        ];
+
         const COLORS = {
             public: '#dde44c',
             charter: '#ff7c53',
@@ -260,6 +312,28 @@
             const [activeTab, setActiveTab] = useState('composition');
             const [progress, setProgress] = useState(2025);
             const [isPlaying, setIsPlaying] = useState(false);
+            const [workforceYZero, setWorkforceYZero] = useState(false);
+            const [wfProgress, setWfProgress] = useState(workforceData.length - 1);
+            const [wfPlaying, setWfPlaying] = useState(false);
+            const [wfIndexed, setWfIndexed] = useState(false);
+
+            useEffect(() => {
+                var raf;
+                var last = performance.now();
+                var maxIdx = workforceData.length - 1;
+                var tick = (now) => {
+                    var dt = now - last;
+                    last = now;
+                    setWfProgress(prev => {
+                        var next = prev + (dt / 350);
+                        if (next >= maxIdx) { setWfPlaying(false); return maxIdx; }
+                        return next;
+                    });
+                    raf = requestAnimationFrame(tick);
+                };
+                if (wfPlaying) { last = performance.now(); raf = requestAnimationFrame(tick); }
+                return () => cancelAnimationFrame(raf);
+            }, [wfPlaying]);
 
             useEffect(() => {
                 var raf;
@@ -316,6 +390,7 @@
                 { id: 'prek', label: 'Early Childhood (Pre-K / 3-K)' },
                 { id: 'grades', label: 'Public Enrollment by Grade' },
                 { id: 'absenteeism', label: 'Chronic Absenteeism' },
+                { id: 'workforce', label: 'Workforce' },
                 { id: 'methodology', label: 'Methodology' },
             ];
 
@@ -558,7 +633,223 @@
                         </div>
                     </div>}
 
-                    {/* TAB 5: METHODOLOGY */}
+                    {/* TAB 5: WORKFORCE */}
+                    {activeTab === 'workforce' && <div>
+                        <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                            New York City public school staff and student enrollment, 2000-01 to 2022-23
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '24px' }}>
+                            Headcount of pedagogical and non-pedagogical staff in traditional public (district) schools, against student enrollment. Press play to watch how each line moves.
+                        </p>
+
+                        {(() => {
+                            var last = workforceData[workforceData.length - 1];
+                            var firstWith = (key) => workforceData.find(d => d[key] != null);
+                            var pct = (a, b) => {
+                                var d = ((b - a) / a) * 100;
+                                return (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
+                            };
+                            var detail = (key) => {
+                                var f = firstWith(key);
+                                return f ? pct(f[key], last[key]) + ' since ' + f.year : '';
+                            };
+                            return (
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                                    <StatCard label="Students" value={Math.round(last.enrollment / 1000) + 'k'} detail={detail('enrollment')} color="#dde44c" />
+                                    <StatCard label="Gen-ed teachers" value={formatNumber(last.genEd)} detail={detail('genEd')} color="#394882" />
+                                    <StatCard label="Special-ed teachers" value={formatNumber(last.sped)} detail={detail('sped')} color="#9b9fbc" />
+                                    <StatCard label="Other pedagogical" value={formatNumber(last.otherPed)} detail={detail('otherPed')} color="#e7466d" />
+                                    <StatCard label="Non-pedagogical" value={formatNumber(last.nonPed)} detail={detail('nonPed')} color="#707175" />
+                                </div>
+                            );
+                        })()}
+
+                        {(() => {
+                            var maxIdx = workforceData.length - 1;
+                            var idx = Math.min(Math.max(0, Math.floor(wfProgress)), maxIdx);
+                            var frac = wfProgress - idx;
+                            var animated = workforceData.slice(0, idx + 1);
+                            if (idx < maxIdx && frac > 0) {
+                                var prev = workforceData[idx];
+                                var next = workforceData[idx + 1];
+                                var lerp = (a, b) => (a == null || b == null) ? null : a + (b - a) * frac;
+                                animated = animated.concat([{
+                                    year: next.year,
+                                    genEd: lerp(prev.genEd, next.genEd),
+                                    sped: lerp(prev.sped, next.sped),
+                                    otherPed: lerp(prev.otherPed, next.otherPed),
+                                    nonPed: lerp(prev.nonPed, next.nonPed),
+                                    enrollment: lerp(prev.enrollment, next.enrollment),
+                                }]);
+                            }
+                            // Index mode: rebase each series to 100 at its own first non-null observation.
+                            var firstWith = (key) => workforceData.find(d => d[key] != null);
+                            var bases = {
+                                genEd: firstWith('genEd').genEd,
+                                sped: firstWith('sped').sped,
+                                otherPed: firstWith('otherPed').otherPed,
+                                nonPed: firstWith('nonPed').nonPed,
+                                enrollment: firstWith('enrollment').enrollment,
+                            };
+                            var chartData = wfIndexed ? animated.map(d => ({
+                                year: d.year,
+                                genEd: d.genEd != null ? (d.genEd / bases.genEd) * 100 : null,
+                                sped: d.sped != null ? (d.sped / bases.sped) * 100 : null,
+                                otherPed: d.otherPed != null ? (d.otherPed / bases.otherPed) * 100 : null,
+                                nonPed: d.nonPed != null ? (d.nonPed / bases.nonPed) * 100 : null,
+                                enrollment: d.enrollment != null ? (d.enrollment / bases.enrollment) * 100 : null,
+                            })) : animated;
+                            window.__wfChart = chartData;
+                            return (
+                                <React.Fragment>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#f8f8f8', border: '1px solid #ddd', marginBottom: '20px', flexWrap: 'wrap' }}>
+                            <button onClick={() => {
+                                if (wfProgress >= maxIdx && !wfPlaying) { setWfProgress(0); setWfPlaying(true); }
+                                else { setWfPlaying(!wfPlaying); }
+                            }} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050507', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                                {wfPlaying ? <PauseIcon /> : <PlayIcon />}
+                            </button>
+                            <button onClick={() => { setWfPlaying(false); setWfProgress(0); }} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#050507', border: '1px solid #ddd', cursor: 'pointer' }}>
+                                <ResetIcon />
+                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#707175', fontVariantNumeric: 'tabular-nums' }}>{workforceData[0].year}</span>
+                                <input type="range" min="0" max={maxIdx} step="0.05" value={wfProgress} onChange={e => { setWfProgress(parseFloat(e.target.value)); setWfPlaying(false); }} style={{ flex: 1 }} />
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#050507', fontVariantNumeric: 'tabular-nums', minWidth: '56px', textAlign: 'right' }}>{animated[animated.length - 1].year}</span>
+                            </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={wfIndexed} onChange={e => setWfIndexed(e.target.checked)} />
+                                Show as % change since each line's first year
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={workforceYZero} onChange={e => setWorkforceYZero(e.target.checked)} />
+                                Y-axis from zero
+                            </label>
+                        </div>
+
+                        <div style={{ fontSize: '11px', color: '#707175', marginBottom: '10px' }}>Source: NYC IBO (teachers), NYC OMB (total headcount), NYC DOE Demographic Snapshot (enrollment)</div>
+
+                        <div style={{ height: '420px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={chartData} margin={{ top: 10, right: 60, left: 10, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                    <XAxis dataKey="year" tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis yAxisId="staff" tickFormatter={wfIndexed ? (v => v.toFixed(0) + '%') : formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={50} domain={wfIndexed ? [70, 220] : (workforceYZero ? [0, 'auto'] : ['auto', 'auto'])} label={{ value: wfIndexed ? '% of first year' : 'Staff', angle: -90, position: 'insideLeft', fill: '#707175', fontSize: 11 }} />
+                                    <YAxis yAxisId="students" orientation="right" tickFormatter={wfIndexed ? (v => v.toFixed(0) + '%') : formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={50} domain={wfIndexed ? [70, 220] : (workforceYZero ? [0, 'auto'] : ['auto', 'auto'])} label={{ value: wfIndexed ? '% of first year' : 'Students', angle: 90, position: 'insideRight', fill: '#707175', fontSize: 11 }} />
+                                    {wfIndexed && <ReferenceLine yAxisId="staff" y={100} stroke="#bbb" strokeDasharray="2 4" />}
+                                    <Tooltip wrapperStyle={{ outline: 'none' }} content={({ active, payload, label }) => {
+                                        if (!active || !payload || !payload.length) return null;
+                                        var shortName = (n) => n.replace(/ \(.+?\)/, '');
+                                        return (
+                                            <div style={{ background: 'rgba(5,5,7,0.96)', color: '#fff', padding: '8px 10px', fontFamily: 'var(--font-primary)', boxShadow: '0 4px 16px rgba(0,0,0,0.24)', fontSize: '11px', lineHeight: 1.3 }}>
+                                                <div style={{ fontWeight: 800, fontSize: '12px', marginBottom: '4px' }}>{label}</div>
+                                                {payload.map((e, i) => (
+                                                    <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: '1px', whiteSpace: 'nowrap' }}>
+                                                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: e.color, marginRight: '6px', flexShrink: 0 }} />
+                                                        <span style={{ color: 'rgba(255,255,255,0.7)', marginRight: '10px' }}>{shortName(e.name)}</span>
+                                                        <span style={{ fontWeight: 700, marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>{wfIndexed ? e.value.toFixed(1) + '%' : e.value.toLocaleString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    }} />
+                                    <Legend iconType="square" iconSize={10} wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
+                                    <Line yAxisId="staff" type="monotone" dataKey="genEd" name="General-education teachers (district)" stroke="#394882" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
+                                    <Line yAxisId="staff" type="monotone" dataKey="sped" name="Special-education teachers (district)" stroke="#9b9fbc" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
+                                    <Line yAxisId="staff" type="monotone" dataKey="otherPed" name="Other pedagogical (paras, counselors, Pre-K, etc.)" stroke="#e7466d" strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
+                                    <Line yAxisId="staff" type="monotone" dataKey="nonPed" name="Non-pedagogical (school aides, secretaries, etc.)" stroke="#707175" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3 }} isAnimationActive={false} />
+                                    <Line yAxisId="students" type="monotone" dataKey="enrollment" name="Student enrollment (district)" stroke="#dde44c" strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                                </React.Fragment>
+                            );
+                        })()}
+
+                        <h3 style={{ fontSize: '17px', fontWeight: 900, letterSpacing: '-0.02em', marginTop: '40px', marginBottom: '4px' }}>
+                            Staff per 1,000 students, and students per teacher
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '20px' }}>
+                            When students fall faster than staff, ratios shift. These three measures show by how much.
+                        </p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                            {[
+                                { key: 'studentsPerTeacher', name: 'Students per district teacher', color: '#394882', fmt: v => v == null ? '' : v.toFixed(1) },
+                                { key: 'parasAndStaffPer1k', name: 'Other pedagogical staff per 1,000 students', color: '#e7466d', fmt: v => v == null ? '' : v.toFixed(1) },
+                                { key: 'nonPedPer1k', name: 'Non-pedagogical staff per 1,000 students', color: '#707175', fmt: v => v == null ? '' : v.toFixed(1) },
+                            ].map(spec => (
+                                <div key={spec.key} style={{ border: '1px solid #ddd', padding: '16px', background: '#fff' }}>
+                                    <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#707175', marginBottom: '4px' }}>{spec.name}</div>
+                                    {(() => {
+                                        var first = workforceData.find(d => d[spec.key] != null);
+                                        var last = workforceData[workforceData.length - 1];
+                                        return (
+                                            <div style={{ fontSize: '13px', color: '#050507', marginBottom: '8px' }}>
+                                                <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{spec.fmt(first[spec.key])}</span>
+                                                <span style={{ color: '#707175' }}> ({first.year}) </span>
+                                                <span style={{ color: '#707175' }}>&rarr; </span>
+                                                <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{spec.fmt(last[spec.key])}</span>
+                                                <span style={{ color: '#707175' }}> ({last.year})</span>
+                                            </div>
+                                        );
+                                    })()}
+                                    <div style={{ height: '160px' }}>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={workforceData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                                                <XAxis dataKey="year" tick={{ fill: '#707175', fontSize: 10 }} axisLine={false} tickLine={false} interval={1} />
+                                                <YAxis tickFormatter={spec.fmt} tick={{ fill: '#707175', fontSize: 10 }} axisLine={false} tickLine={false} width={36} domain={workforceYZero ? [0, 'auto'] : ['auto', 'auto']} />
+                                                <Tooltip formatter={(v) => spec.fmt(v)} />
+                                                <Line type="monotone" dataKey={spec.key} stroke={spec.color} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} name={spec.name} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <h3 style={{ fontSize: '17px', fontWeight: 900, letterSpacing: '-0.02em', marginTop: '40px', marginBottom: '4px' }}>
+                            What is inside "other pedagogical"? A 2019-20 snapshot
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#707175', marginBottom: '20px' }}>
+                            The DOE's November 2019 Local Law 226 headcount report is the only recent year with a clean public decomposition of school-based staff. It does not break out central / non-school-based instructional specialists, which the budget documents place in a separate "categorical" pedagogical bucket of roughly 4,000 to 7,000 positions.
+                        </p>
+
+                        <div style={{ height: '320px', width: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={workforceSnapshot2019} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 10 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
+                                    <XAxis type="number" tickFormatter={formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis type="category" dataKey="role" tick={{ fill: '#050507', fontSize: 12 }} axisLine={false} tickLine={false} width={140} />
+                                    <Tooltip formatter={(v) => v.toLocaleString()} />
+                                    <Bar dataKey="count" fill="#e7466d" isAnimationActive={false} radius={[0, 3, 3, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ background: '#f8f8f8', border: '1px solid #ddd', padding: '16px 20px', marginTop: '24px', fontSize: '12px', color: '#707175', lineHeight: 1.6 }}>
+                            <div style={{ fontWeight: 700, marginBottom: '6px', color: '#050507', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>What this chart can and cannot show</div>
+                            <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                                <li>Year-by-year district teacher counts come from the NYC Independent Budget Office (IBO), September 2023, using individual-level DOE data. They cover traditional public (district) schools only, not charter schools.</li>
+                                <li>"Other pedagogical" is computed as: total NYC DOE pedagogical headcount (NYC Office of Management and Budget, OMB) minus general-education and special-education teachers (IBO). This bucket contains paraprofessionals, counselors, social workers, school psychologists, librarians, principals and assistant principals, Pre-K and 3-K teachers, and central / field-office pedagogical staff. It cannot be broken out by year in publicly released sources at the granularity requested.</li>
+                                <li>Charter-school teachers are not included. NYSED publishes charter teacher counts but only as part of statewide BEDS personnel files, which require additional processing. Charter enrollment is shown on the Composition tab.</li>
+                                <li>Pre-K and 3-K teachers are included inside "other pedagogical." The OMB pedagogical breakdown for fiscal 2024 reports 6,605 actual Early Childhood pedagogical positions, 1,515 in School Support and Other, and 4,441 in Categorical Programs (which includes the Absent Teacher Reserve and centrally funded specialists).</li>
+                                <li>To get year-by-year counts of paraprofessionals, central / non-school-based instructional staff, or charter teachers specifically would require a Freedom of Information Law (FOIL) request to the NYC Department of Education or processing of NYSED Personnel Master File raw data.</li>
+                            </ul>
+                        </div>
+
+                        <div style={{ marginTop: '16px', fontSize: '11px', color: '#707175' }}>
+                            <span style={{ fontWeight: 600 }}>Sources:</span>{' '}
+                            <a href="https://www.ibo.nyc.ny.us/iboreports/roll-call-recent-trends-in-teacher-retention-and-hiring-in-new-york-city-public-schools-september-2023.pdf" style={{ color: '#707175', textDecoration: 'underline' }}>IBO, Roll Call (Sept. 2023)</a>,{' '}
+                            <a href="https://council.nyc.gov/budget/wp-content/uploads/sites/54/2024/03/040-DOE.pdf" style={{ color: '#707175', textDecoration: 'underline' }}>NYC Council Finance Division, DOE FY25 Preliminary Budget</a>,{' '}
+                            <a href="https://council.nyc.gov/budget/wp-content/uploads/sites/54/2020/04/040-DOE.pdf" style={{ color: '#707175', textDecoration: 'underline' }}>NYC Council, DOE FY21 Executive Budget</a>,{' '}
+                            <a href="https://infohub.nyced.org/reports/government-reports/report-on-school-based-staff-demographics" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE School-Based Staff Demographics</a>,{' '}
+                            <a href="https://infohub.nyced.org/" style={{ color: '#707175', textDecoration: 'underline' }}>NYC DOE InfoHub</a>
+                        </div>
+                    </div>}
+
+                    {/* TAB 6: METHODOLOGY */}
                     {activeTab === 'methodology' && <div>
                         <h2 style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '20px' }}>
                             Methodology and data notes
@@ -595,6 +886,18 @@
                                 <p style={{ marginBottom: '10px' }}>The DOE formally adopted the NYSED definition starting in 2020-21 but retroactively applied it to data from 2016-17 onward. Only 2018-19 is shown as the pre-pandemic baseline because it is the last full school year with reliable data and is widely cited in published analyses.</p>
                                 <p style={{ marginBottom: '10px' }}><strong>2019-20 is excluded entirely</strong> because schools closed in mid-March 2020 and the DOE did not publish end-of-year attendance data. <strong>2020-21 is shown but flagged</strong>: with 61% of students fully remote, attendance tracking was inconsistent across schools, and the reported 30% rate likely understates actual disengagement.</p>
                                 <p>Because NYS excludes suspensions from its definition, these rates are not directly comparable to federal chronic absenteeism data from the U.S. Department of Education, which counts all absences regardless of reason.</p>
+                            </div>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '15px', fontWeight: 700, fontFamily: 'var(--font-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#707175', marginBottom: '10px' }}>Workforce</h3>
+                                <p style={{ marginBottom: '10px' }}>The Workforce tab compares NYC public-school staffing to student enrollment in the same district schools, school years 2000-01 through 2022-23. It draws on four independent sources stitched together year by year.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>District classroom teachers</strong> (general education and special education) come from two New York City Independent Budget Office (IBO) reports: the May 2014 fiscal brief "Demographics and Work Experience: A Statistical Portrait of New York City's Public School Teachers" (Table 1) for school years 2000-01 through 2011-12, and the September 2023 brief "Roll Call: Recent Trends in Teacher Retention &amp; Hiring in New York City Public Schools" for school years 2015-16 through 2022-23. Both IBO series are built from individual teacher-level data obtained from the DOE under data-use agreements and cover teachers in DOE-operated traditional public schools only (charter teachers excluded). The intermediate three years (2012-13, 2013-14, 2014-15) are not in either published report and are shown as <strong>linear interpolations</strong> between the IBO endpoints; they are flagged on the tab.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Total DOE pedagogical and non-pedagogical headcount</strong> come from the New York City Office of Management and Budget (OMB) actual headcount tables, as reproduced in the NYC Council Finance Division briefing paper on the DOE Fiscal 2025 Preliminary Budget (March 2024), Charts 6 and 7. OMB uses fiscal year (July to June); we map fiscal year N to school year N-1 to N. Pedagogical positions include all licensed teachers, paraprofessionals, counselors, social workers, school psychologists, librarians, and principals/assistant principals across the entire DOE, including any pedagogical positions in central and field offices. Non-pedagogical positions include school aides, secretaries, and DOE central administration civilian staff.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>"Other pedagogical"</strong> is computed: total DOE pedagogical headcount (OMB) minus district general-education teachers minus district special-education teachers (both IBO). This residual contains paraprofessionals, school-based pupil-services staff (counselors, social workers, school psychologists, librarians), school leadership (principals and assistant principals), Pre-K and 3-K teachers, and any pedagogical positions assigned to DOE central or field offices. Year-by-year breakdowns of this bucket at finer granularity are not published. The DOE's November 2019 Local Law 226 headcount report is the only recent year that publicly decomposes the school-based portion (72,158 teachers, 16,426 paraprofessionals, 5,580 school aides, 2,728 guidance counselors, 1,640 principals, 860 social workers, 513 school psychologists). The OMB FY24 actual breakdown by program area places about 4,441 pedagogical positions in Categorical Programs (includes the Absent Teacher Reserve and centrally funded specialists) and 1,515 in School Support and Other, totaling roughly 6,000 non-school-based pedagogical positions in fiscal 2024.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Student enrollment</strong> is the K-12 total in DOE-operated traditional public schools. Endpoint figures (1,105,240 in 2000-01; 1,041,437 in 2011-12; 881,000 in 2022-23) come from the same IBO reports cited above. Years between IBO observations are linear interpolations of district enrollment. The intermediate values match the DOE Demographic Snapshot annual figures within roughly one percent. Charter, religious, secular private, and homeschool students are excluded so that the denominator matches the staff numerator.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Charter teachers and Pre-K/3-K teachers as separate lines.</strong> The original plan called for these to be broken out as their own colored lines. They are not. Charter-school teacher counts by year are published only inside NYSED Basic Educational Data System (BEDS) Personnel Master File downloads, which require additional processing beyond the scope of this update. Pre-K and 3-K teachers are reported by the DOE in aggregate program totals (8,024 budgeted / 6,605 actual in fiscal 2024) but the public IBO and OMB time series do not separate them from other teachers across all eight years on a comparable basis. Both categories are folded into "other pedagogical" for now and noted explicitly on the tab.</p>
+                                <p style={{ marginBottom: '10px' }}><strong>Fiscal year vs. school year alignment.</strong> IBO teacher counts are by school year (October to October). OMB headcount is by fiscal year (June end-of-year actual). For chart alignment, OMB fiscal year N is plotted at school year N-1 to N. The two series will not match exactly because OMB's pedagogical total includes paraprofessionals and other staff that IBO does not classify as teachers, and because the snapshot dates differ by a few months.</p>
+                                <p><strong>What this means for the user's question.</strong> The user asked whether paraprofessionals and non-school-based "roaming" instructional staff grew while students declined. The published data answer the broader version of the question: the "other pedagogical" bucket (which contains both groups) was 39,450 in 2015-16 and 41,006 in 2022-23, while district enrollment fell from about 979,000 to about 881,000 students. That implies a rise from 40 to 47 such staff per 1,000 students, or 16 percent more per pupil. To isolate paraprofessional and central-office headcount specifically, the next step would be a FOIL request to the DOE's Division of Human Resources or processing of the NYSED BEDS Personnel Master File raw downloads.</p>
                             </div>
 
                             <div style={{ borderTop: '1px solid #ddd', paddingTop: '20px' }}>
