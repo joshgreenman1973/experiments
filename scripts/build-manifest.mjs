@@ -252,7 +252,12 @@ function projectRecord(fullPath, category) {
     hasIndex,
     indexUrl,
     previewUrl,
-    github: ghWebUrl(git.remote),
+    // For nested repos, github is the project's own repo. For parent-tracked
+    // projects (folders inside the experiments monorepo), point at the
+    // tree view of that folder rather than the bare experiments repo.
+    github: git.isNested
+      ? ghWebUrl(git.remote)
+      : ghWebUrl(git.remote) + '/tree/main/' + relPath,
     githubOwner: ghOwner(git.remote),
     livePagesUrl,
     isNestedRepo: git.isNested,
@@ -305,7 +310,8 @@ function scan() {
         hasIndex: true,
         indexUrl: `./${rel}`,
         previewUrl: `./${rel}`,
-        github: ghWebUrl(sh('git config --get remote.origin.url', ROOT)),
+        // Loose HTML at root: link to the file in the parent repo's tree view.
+        github: ghWebUrl(sh('git config --get remote.origin.url', ROOT)) + '/blob/main/' + rel,
         githubOwner: ghOwner(sh('git config --get remote.origin.url', ROOT)),
         livePagesUrl: null,
         isNestedRepo: false,
