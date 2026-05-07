@@ -429,30 +429,22 @@
                             {"Total enrollment by sector, 1940\u20132025 (estimated)"}
                         </p>
 
-                        <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
-                            <StatCard label="Current Year" value={Math.floor(progress)} />
-                            <StatCard label="Total Students" value={formatYAxis(Math.round(currentTotal))} detail={'Peak: ' + formatYAxis(peakTotal) + ' in ' + peakEntry.year} />
-                            <StatCard label="Public School Share" value={((currentEntry.public / currentTotal) * 100).toFixed(0) + '%'} detail={formatNumber(Math.round(currentEntry.public)) + ' students'} color="#dde44c" />
-                            <StatCard label="Charter Share" value={((currentEntry.charter / currentTotal) * 100).toFixed(1) + '%'} detail={currentEntry.charter > 0 ? formatNumber(Math.round(currentEntry.charter)) + ' students' : 'Not yet established'} color="#ff7c53" />
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#f8f8f8', border: '1px solid #ddd', marginBottom: '20px', flexWrap: 'wrap' }}>
-                            <button onClick={handlePlayPause} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050507', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                                {isPlaying ? <PauseIcon /> : <PlayIcon />}
-                            </button>
-                            <button onClick={handleReset} style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#050507', border: '1px solid #ddd', cursor: 'pointer' }}>
-                                <ResetIcon />
-                            </button>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#707175', fontVariantNumeric: 'tabular-nums' }}>1940</span>
-                                <input type="range" min="1940" max="2025" step="0.1" value={progress} onChange={(e) => { setProgress(parseFloat(e.target.value)); setIsPlaying(false); }} style={{ flex: 1 }} />
-                                <span style={{ fontSize: '13px', fontWeight: 900, color: '#050507', fontVariantNumeric: 'tabular-nums', width: '32px' }}>{Math.floor(progress)}</span>
-                            </div>
-                        </div>
+                        {(() => {
+                            var latest = compositionData[compositionData.length - 1];
+                            var latestTotal = latest.public + latest.religious + latest.nonReligious + latest.charter + latest.homeschool;
+                            return (
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                                    <StatCard label="Total Students (2025)" value={formatYAxis(Math.round(latestTotal))} detail={'Peak: ' + formatYAxis(peakTotal) + ' in ' + peakEntry.year} />
+                                    <StatCard label="Public School Share" value={((latest.public / latestTotal) * 100).toFixed(0) + '%'} detail={formatNumber(Math.round(latest.public)) + ' students'} color="#dde44c" />
+                                    <StatCard label="Charter Share" value={((latest.charter / latestTotal) * 100).toFixed(1) + '%'} detail={formatNumber(Math.round(latest.charter)) + ' students'} color="#ff7c53" />
+                                    <StatCard label="Religious / Parochial" value={((latest.religious / latestTotal) * 100).toFixed(0) + '%'} detail={formatNumber(Math.round(latest.religious)) + ' students'} color="#394882" />
+                                </div>
+                            );
+                        })()}
 
                         <div style={{ height: '420px', width: '100%' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={animatedData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                <AreaChart data={compositionData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                                     <XAxis dataKey="year" type="number" domain={[1940, 2025]} ticks={[1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} />
                                     <YAxis tickFormatter={formatYAxis} tick={{ fill: '#707175', fontSize: 11 }} axisLine={false} tickLine={false} width={45} />
