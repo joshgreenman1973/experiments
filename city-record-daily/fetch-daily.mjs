@@ -75,11 +75,26 @@ function extractNotice(raw) {
 
 // --- Flagging logic ---
 
-const KEY_AGENCIES_RE = /\b(nycha|housing authority|housing preservation|hpd|dept\.?\s*of\s*education|doe|police|nypd|correction\b|doc\b|homeless services|dhs|children.s services|acs|management and budget|omb|mocj|criminal justice|city planning)\b/i;
+const KEY_AGENCIES_RE = /\b(nycha|housing authority|housing preservation|hpd|dept\.?\s*of\s*education|doe|police|nypd|correction\b|doc\b|homeless services|dhs|children.s services|acs|management and budget|omb|mocj|criminal justice|city planning|office of the mayor|mayor.s office)\b/i;
 
 const POLICY_TERMS_RE = /\b(shelter|jail|rikers|rezoning|affordable housing|charter school|homelessness|public safety|eviction|supportive housing|mental health|opioid|overdose|gun violence|youth program)\b/i;
 
 const SOLE_SOURCE_RE = /\b(sole source|negotiated acquisition|non-competitive|single source)\b/i;
+
+// Special Materials patterns
+const EXECUTIVE_ORDER_RE = /executive\s+order/i;
+const CEQR_RE = /\b(ceqr|positive declaration|negative declaration|rezoning|environmental\s+(impact|review))\b/i;
+const CONCEPT_PAPER_RE = /concept\s+paper/i;
+const ROUTINE_SPECIAL_RE = /\b(weekly fuel price|monthly index|LL63)\b/i;
+
+// Newsworthy keyword bumps
+const EMERGENCY_RE = /\bemergency\s+(procurement|contract|declaration|order)\b/i;
+const SETTLEMENT_RE = /\b(settlement|stipulation of settlement|class action settlement)\b/i;
+const BOND_RE = /\bbond\s+(issuance|sale|series|anticipation)\b/i;
+const ULURP_RE = /\bULURP\b/i;
+const LANDMARK_RE = /\blandmark\s+(designation|hearing|preservation)\b/i;
+const CONSENT_DECREE_RE = /\bconsent\s+decree\b/i;
+const MONITOR_RE = /\b(court[-\s]appointed|independent|federal)\s+monitor\b/i;
 
 function parseAmount(raw) {
   if (!raw) return 0;
@@ -121,6 +136,48 @@ function flagNotice(notice, raw) {
   const category = notice.category_description || '';
   const allText = `${title} ${desc} ${type} ${category}`.toLowerCase();
 
+  // --- Highest priority: executive orders and special materials ---
+
+  // Executive orders from the Mayor
+  if (EXECUTIVE_ORDER_RE.test(title)) {
+    const isEmergency = /emergency/i.test(title);
+    const orderNum = title.match(/No\.?\s*(\d+(\.\d+)?)/i);
+    const label = orderNum ? `No. ${orderNum[1]}` : '';
+    return {
+      priority: 'notable',
+      summary: `${isEmergency ? 'Emergency executive' : 'Executive'} order ${label} from the Mayor. Executive orders carry the force of law and can reshape city policy, agency operations, and enforcement priorities.`
+    };
+  }
+
+  // CEQR environmental reviews and rezonings in Special Materials
+  if (section === 'Special Materials' && CEQR_RE.test(title)) {
+    return {
+      priority: 'notable',
+      summary: `Environmental review or rezoning action: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Land use and environmental reviews signal major development or infrastructure changes.`
+    };
+  }
+
+  // Concept papers (early signals of new programs)
+  if (section === 'Special Materials' && CONCEPT_PAPER_RE.test(title)) {
+    return {
+      priority: 'notable',
+      summary: `Concept paper from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Concept papers are the earliest public signal of a new program or contract -- the city is seeking feedback before procurement.`
+    };
+  }
+
+  // Skip routine Special Materials (fuel prices, monthly index, LL63)
+  if (section === 'Special Materials' && ROUTINE_SPECIAL_RE.test(title)) {
+    return null;
+  }
+
+  // Other non-routine Special Materials (comptroller reports, NYCHA intents, etc.)
+  if (section === 'Special Materials') {
+    return {
+      priority: 'notable',
+      summary: `Special notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Special Materials often contain significant policy actions, legal notices, or procurement intents that don't fit standard categories.`
+    };
+  }
+
   // --- High-priority checks ---
 
   // Contracts over $1M
@@ -144,6 +201,54 @@ function flagNotice(notice, raw) {
     return {
       priority: 'notable',
       summary: `${agency} property disposition: ${title}. Dispositions of public assets deserve scrutiny to ensure fair value and appropriate use.`
+    };
+  }
+
+  // Court Notices — always flag (rare; ~154 lifetime)
+  if (section === 'Court Notices') {
+    return {
+      priority: 'notable',
+      summary: `Court notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Court notices in the City Record are uncommon and usually involve forfeiture, judicial sales, or significant litigation.`
+    };
+  }
+
+  // Contract Award Hearings — always flag (rare in practice)
+  if (section === 'Contract Award Hearings') {
+    return {
+      priority: 'notable',
+      summary: `Public hearing on a contract award by ${agency}${vendor ? ' to ' + vendor : ''}${maxAmount ? ' (' + fmtMoney(maxAmount) + ')' : ''}. Award hearings are a public-comment step before a contract is finalized.`
+    };
+  }
+
+  // Newsworthy keyword matches across any section
+  if (EMERGENCY_RE.test(allText)) {
+    return {
+      priority: 'notable',
+      summary: `Emergency action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Emergency procurement or declarations bypass normal review and merit close attention.`
+    };
+  }
+  if (SETTLEMENT_RE.test(allText)) {
+    return {
+      priority: 'notable',
+      summary: `Settlement notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Settlements can resolve major litigation and commit the city to financial or policy obligations.`
+    };
+  }
+  if (BOND_RE.test(allText)) {
+    return {
+      priority: 'notable',
+      summary: `Bond action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Bond issuances signal major capital financing decisions.`
+    };
+  }
+  if (ULURP_RE.test(allText) || LANDMARK_RE.test(allText)) {
+    return {
+      priority: 'notable',
+      summary: `Land-use action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. ULURP and landmark proceedings shape city development and preservation.`
+    };
+  }
+  if (CONSENT_DECREE_RE.test(allText) || MONITOR_RE.test(allText)) {
+    return {
+      priority: 'notable',
+      summary: `Oversight notice involving ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Consent decrees and court-appointed monitors are major accountability mechanisms.`
     };
   }
 
@@ -223,31 +328,48 @@ async function main() {
   if (raw.length === 0) {
     const fallback = prevBusinessDay(targetDate);
     console.log(`No data for ${targetDate}, trying ${fallback}...`);
+
+    // Only try fallback if we don't already have that date's data
+    const fallbackPath = join(DATA_DIR, `${fallback}.json`);
+    if (existsSync(fallbackPath)) {
+      console.log(`${fallback}.json already exists and no new data for ${targetDate}. Nothing to do.`);
+      process.exit(0);
+    }
+
     raw = await fetchNotices(fallback);
     date = fallback;
   }
 
   if (raw.length === 0) {
-    console.error('No City Record data found. Exiting.');
-    process.exit(1);
+    console.log('No City Record data found. Nothing to do.');
+    process.exit(0);
   }
 
   console.log(`Found ${raw.length} notices for ${date}`);
 
-  // Check if file already exists
   const outPath = join(DATA_DIR, `${date}.json`);
-  if (existsSync(outPath)) {
-    console.log(`${date}.json already exists — overwriting with fresh data.`);
-  }
 
-  // Process notices
+  // Process notices — separate Changes in Personnel into a summary
   const notices = [];
   const notable = [];
   const watching = [];
+  const personnelByAction = {};
+  const personnelByAgency = {};
+  let personnelTotal = 0;
 
   for (const r of raw) {
     const cleaned = cleanRecord(r);
     const notice = extractNotice(cleaned);
+
+    if (notice.section_name === 'Changes in Personnel') {
+      personnelTotal += 1;
+      const action = (notice.short_title || 'OTHER').toUpperCase();
+      const agency = notice.agency_name || 'UNKNOWN';
+      personnelByAction[action] = (personnelByAction[action] || 0) + 1;
+      personnelByAgency[agency] = (personnelByAgency[agency] || 0) + 1;
+      continue;
+    }
+
     notices.push(notice);
 
     const flag = flagNotice(notice, cleaned);
@@ -258,10 +380,30 @@ async function main() {
     }
   }
 
+  const personnel = personnelTotal > 0 ? {
+    total: personnelTotal,
+    by_action: personnelByAction,
+    by_agency: Object.fromEntries(
+      Object.entries(personnelByAgency).sort((a, b) => b[1] - a[1]).slice(0, 10)
+    )
+  } : null;
+
+  // Sort notable: executive orders first, then by contract amount descending
+  notable.sort((a, b) => {
+    const aExec = EXECUTIVE_ORDER_RE.test(a.short_title) ? 0 : 1;
+    const bExec = EXECUTIVE_ORDER_RE.test(b.short_title) ? 0 : 1;
+    if (aExec !== bExec) return aExec - bExec;
+    const aSpecial = a.section_name === 'Special Materials' ? 0 : 1;
+    const bSpecial = b.section_name === 'Special Materials' ? 0 : 1;
+    if (aSpecial !== bSpecial) return aSpecial - bSpecial;
+    return parseAmount(b.contract_amount) - parseAmount(a.contract_amount);
+  });
+
   console.log(`Flagged: ${notable.length} notable, ${watching.length} watching`);
 
   // Write daily JSON
   const dayData = { date, notices, notable, watching };
+  if (personnel) dayData.personnel = personnel;
   writeFileSync(outPath, JSON.stringify(dayData, null, 2));
   console.log(`Wrote ${outPath}`);
 
