@@ -23,9 +23,11 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # Hard ceiling so a stuck run can't burn the day's budget. The loop itself
-    # is bounded to ~10 minutes; this is just belt-and-suspenders.
-    timeout-minutes: 15
+    # 18 iterations × ~50s each (30s sleep + 10-20s API+write at peak fleet) ~=
+    # 15 min for the loop alone. Plus checkout, npm install, and push = ~17 min
+    # at the high end. 20 min gives comfortable headroom; we hit the 15-min wall
+    # on 2026-05-08 (runs cancelled at 11:07 ET and 13:19 ET).
+    timeout-minutes: 20
 
     steps:
       - name: Operating-hours gate (6am-11pm ET)
