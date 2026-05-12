@@ -150,16 +150,172 @@ export const MAIN_QUESTIONS = [
   },
   {
     category: "Elections",
-    question: "Who won the June 2025 Democratic primary for Mayor of New York City?",
+    question: "Who won the November 2025 New York City mayoral general election?",
     options: [
-      "Eric Adams",
-      "Andrew Cuomo",
-      "Zohran Mamdani",
-      "Brad Lander",
+      "Eric Adams (independent)",
+      "Andrew Cuomo (independent)",
+      "Zohran Mamdani (Democratic)",
+      "Curtis Sliwa (Republican)",
       "Whichever candidate had the best TikTok"
     ],
     correct: 2,
-    explanation: 'State Assemblymember Zohran Mamdani defeated former Governor Andrew Cuomo in the June 2025 Democratic primary, with the result confirmed by ranked-choice tabulation. Adams skipped the Democratic primary and ran in the general election as an independent. The race became a national bellwether for left-of-center urban politics.'
+    explanation: 'Zohran Mamdani won the November 2025 general election after defeating Andrew Cuomo in the June Democratic primary. Cuomo and Adams both ran in the general as independents; Sliwa was the Republican nominee. Mamdani became the city\'s first Muslim mayor, first South Asian mayor, and first millennial mayor. He took office January 1, 2026.'
+  },
+  {
+    category: "Mayor's Office",
+    question: "Mayor Mamdani campaigned on a citywide rent freeze for stabilized apartments. Through which body would such a freeze actually be enacted?",
+    options: [
+      "By executive order from the Mayor",
+      "By a vote of the Rent Guidelines Board, whose members are appointed by the Mayor",
+      "By the City Council, with mayoral signature",
+      "By the State Legislature in Albany",
+      "By whoever holds the Excel sheet that day"
+    ],
+    correct: 1,
+    explanation: 'The Rent Guidelines Board sets annual rent adjustments for the roughly 1 million stabilized apartments in NYC. Its nine members are appointed by the Mayor — two from tenant ranks, two from owner ranks, and five "public" members including the chair. A "freeze" requires a board majority, which is why mayoral appointment power, not statute, is the lever. Mayor Mamdani named new members shortly after taking office; their first vote of his term comes in June 2026. <a href="https://www.nyc.gov/site/rentguidelinesboard/index.page" target="_blank" rel="noopener">RGB</a>.'
+  },
+  {
+    category: "Transit",
+    question: "Mayor Mamdani campaigned on fare-free city buses. What's the central legal obstacle to him simply ordering it?",
+    options: [
+      "The City Charter forbids subsidizing fares",
+      "Bus fares are set by the MTA, a state authority — not by the Mayor",
+      "Federal transit law prohibits zero-fare service",
+      "Only the City Council, not the Mayor, can change transit pricing",
+      "The B61 driver said no"
+    ],
+    correct: 1,
+    explanation: 'NYC Transit (which runs the buses) is a subsidiary of the MTA, a state public-benefit corporation. Fares are set by the MTA Board, whose chair and majority are appointed by the Governor. The Mayor recommends only four of 17 voting board members. Any free-bus program requires either MTA cooperation, a state law change, or a city payment that fully replaces lost fare revenue — which is why Mamdani has framed the policy as a city-funded subsidy negotiated with Albany rather than a unilateral move.'
+  },
+  {
+    category: "Budget",
+    question: "Mamdani has proposed funding much of his agenda by raising taxes on corporations and high-income earners. Which level of government must approve those increases?",
+    options: [
+      "The City Council alone",
+      "The Mayor by executive order, subject to Council override",
+      "The State Legislature and Governor — the city has no independent power to raise income or corporate tax rates",
+      "A citywide referendum",
+      "Whoever Albany owes a favor that week"
+    ],
+    correct: 2,
+    explanation: 'Under New York State law, NYC cannot unilaterally raise its personal income tax, corporate tax, or most other major tax rates. Each of those changes requires "home rule" approval from Albany — a State Legislature bill signed by the Governor. This is the structural reason Mamdani\'s revenue proposals depend on the Governor and the State Senate and Assembly leadership, not on City Hall alone.'
+  },
+  {
+    category: "Mayor's Office",
+    question: "Which of the following positions does the Mayor of New York City NOT directly appoint?",
+    options: [
+      "Police Commissioner",
+      "Schools Chancellor",
+      "Sanitation Commissioner",
+      "MTA Chair",
+      "Whoever the Mayor's chief of staff went to college with"
+    ],
+    correct: 3,
+    explanation: 'The MTA Chair is appointed by the Governor, with State Senate confirmation. The Police Commissioner, Schools Chancellor, and Sanitation Commissioner are all mayoral appointments. This split is why every NYC mayor — Mamdani included — must negotiate with the Governor on transit, even though city residents are most of the riders.'
+  },
+  {
+    category: "Government Structure",
+    question: "Mamdani has pledged to pilot city-owned grocery stores in food-insecure neighborhoods. Which existing city entity is the closest model for owning and operating retail outlets directly?",
+    options: [
+      "The Economic Development Corporation, which manages city real estate and waterfront concessions",
+      "Health + Hospitals, the public benefit corporation that runs city hospitals",
+      "NYCHA, the public housing authority",
+      "The Department of Citywide Administrative Services",
+      "A bodega that the city accidentally inherited in a tax foreclosure"
+    ],
+    correct: 1,
+    explanation: 'New York City Health + Hospitals is the public-benefit corporation that operates 11 acute-care hospitals and dozens of clinics directly — the largest municipal health system in the country. It is the closest existing precedent for a city entity that owns and runs public-facing service operations. Critics of city-owned grocery stores point to H+H\'s recurring fiscal strain; supporters point to the same agency as proof that direct public provision is possible at scale.'
+  },
+  {
+    category: "Legislation",
+    question: "Adrienne Adams, the previous Council Speaker, ran against Mamdani in the 2025 Democratic primary and did not return to the Council in 2026. Who is elected by the Council to lead it each term?",
+    options: [
+      "The most senior member by tenure",
+      "The Speaker, chosen by the 51 members at the start of each term",
+      "The Mayor's nominee, subject to Council confirmation",
+      "The Council Member representing the largest district by population",
+      "Whoever the borough chairs let win this round"
+    ],
+    correct: 1,
+    explanation: 'The Speaker is elected by the 51 members at the start of each two-year session and serves as the Council\'s presiding officer, chief negotiator with the Mayor, and arguably the second-most-powerful elected official in the city. Adrienne Adams (D-Queens), Speaker from 2022 through the end of 2025, ran for mayor in 2025 rather than seeking re-election to her seat. The new Speaker was elected by Council members in January 2026.'
+  },
+  {
+    category: "Charter",
+    question: "Mayor Adams convened a Charter Revision Commission in 2024 widely seen as an effort to blunt Council power. What is the only way Charter changes can take effect once a commission proposes them?",
+    options: [
+      "Ratification by a two-thirds Council vote",
+      "Approval by voters in a referendum",
+      "Signature by the Governor",
+      "Adoption by the Mayor as an executive order",
+      "Whatever the Daily News editorial board endorses"
+    ],
+    correct: 1,
+    explanation: 'Charter Revision Commission proposals must be approved by NYC voters at the next general election. Several Adams-era ballot proposals passed in November 2024, including one giving the Mayor more control over the timing of certain Council legislation. Critics, including then-candidate Mamdani, argued the commission was used to outflank the Council; defenders called it overdue process reform.'
+  },
+  {
+    category: "Budget",
+    question: "Mayor Mamdani must submit his first preliminary budget in January and a final executive budget in the spring. The City Charter requires a final adopted budget by what date?",
+    options: [
+      "January 1",
+      "April 1",
+      "June 5",
+      "July 1, the start of the fiscal year",
+      "Whenever the Council Speaker stops returning calls"
+    ],
+    correct: 3,
+    explanation: 'NYC\'s fiscal year runs July 1 through June 30, and the Charter requires the Council to adopt a budget by June 5 (with the Mayor\'s preliminary budget due in January and executive budget in the spring). In practice the deadline is honored most years; late-night handshake deals just before July 1 are a recurring tradition. Mamdani\'s first adopted budget — for FY 2027 — is due by June 5, 2026.'
+  },
+  {
+    category: "Public Safety",
+    question: "Mamdani campaigned on a new Department of Community Safety to handle mental-health and homelessness calls separate from the NYPD. Creating a new mayoral agency typically requires what?",
+    options: [
+      "A simple mayoral executive order",
+      "A Charter amendment approved by voters",
+      "Council legislation that establishes the agency, plus budget appropriation",
+      "State Legislature approval",
+      "A new acronym nobody can pronounce"
+    ],
+    correct: 2,
+    explanation: 'Standing up a new city agency generally requires Council legislation establishing it (defining its powers, head, and reporting structure) together with budget lines that fund it. The Mayor can reorganize within existing agencies by executive order, but a wholly new department with statutory authority — like Mamdani\'s proposed Department of Community Safety — typically goes through the Council. The B-HEARD pilot under Adams used a different model: it sat inside H+H and FDNY rather than as a standalone agency.'
+  },
+  {
+    category: "Elections",
+    question: "Andrew Cuomo lost the June 2025 Democratic primary to Mamdani after a ranked-choice tabulation. Roughly how many candidates can NYC voters rank in a primary using ranked-choice voting?",
+    options: [
+      "2",
+      "3",
+      "5",
+      "Up to 10",
+      "As many as fit on the touchscreen before it freezes"
+    ],
+    correct: 2,
+    explanation: 'NYC voters can rank up to five candidates in primaries that use ranked-choice voting, adopted by referendum in 2019 and first used at scale in 2021. If no one wins a majority of first-place votes, the lowest-ranked candidate is eliminated and their voters\' next choices are counted, repeating until someone has a majority. The 2025 mayoral primary went multiple rounds before Mamdani crossed the threshold against Cuomo.'
+  },
+  {
+    category: "Housing",
+    question: "Mamdani has called for the city to massively expand social housing. Which existing entity owns and operates the largest stock of permanently affordable, publicly owned apartments in NYC today?",
+    options: [
+      "HPD (Housing Preservation and Development)",
+      "NYCHA (New York City Housing Authority)",
+      "The Mitchell-Lama program",
+      "The Department of Citywide Administrative Services",
+      "A series of LLCs nobody can quite untangle"
+    ],
+    correct: 1,
+    explanation: 'NYCHA owns and operates roughly 175,000 apartments housing nearly 350,000 New Yorkers — about 1 in 17 city residents — making it by far the largest public housing authority in North America. Any city-led "social housing" expansion either builds on NYCHA, on HPD-financed mixed-income development, or on a new entity created for the purpose. Mamdani\'s plan leans toward a new public developer plus aggressive use of the city\'s land and capital budget.'
+  },
+  {
+    category: "Government Structure",
+    question: "Within his first months in office, Mayor Mamdani named several deputy mayors. How is the number of deputy mayors set?",
+    options: [
+      "Fixed at four by the City Charter",
+      "Set by the Mayor — the Charter does not cap the number",
+      "Set by the Council each term",
+      "Limited to one per borough",
+      "However many fit at the Gracie Mansion dinner table"
+    ],
+    correct: 1,
+    explanation: 'The number and portfolios of deputy mayors are set by the Mayor, not the Charter. Recent administrations have ranged from four to seven, with portfolios for operations, public safety, health and human services, housing and economic development, intergovernmental affairs, and communications. Each new mayor reshuffles to match priorities — Mamdani\'s lineup reflects his housing, transit, and affordability focus.'
   },
   {
     category: "Housing",
