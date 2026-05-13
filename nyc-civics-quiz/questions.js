@@ -333,7 +333,7 @@ export const MAIN_QUESTIONS = [
   {
     category: "Boroughs",
     question: "Which borough is the largest by land area?",
-    options: ["Manhattan", "Brooklyn", "Queens", "The Bronx", "Whichever one you're trying to leave at the moment"],
+    options: ["Manhattan", "Brooklyn", "Queens", "The Bronx", "Staten Island", "Whichever one you're trying to leave at the moment"],
     correct: 2,
     explanation: "Queens is by far the largest at about 109 square miles, more than four times the size of Manhattan (23 sq mi) and roughly 50% larger than Brooklyn (71 sq mi). The Bronx is 42 sq mi and Staten Island is 59. Queens also leads in residential population growth this decade."
   },
@@ -642,7 +642,7 @@ export const MAIN_QUESTIONS = [
   {
     category: "Boroughs",
     question: "Which borough has the largest population?",
-    options: ["Manhattan", "Brooklyn", "Queens", "The Bronx", "Whichever one had the cheapest rent five years ago"],
+    options: ["Manhattan", "Brooklyn", "Queens", "The Bronx", "Staten Island", "Whichever one had the cheapest rent five years ago"],
     correct: 1,
     explanation: "Brooklyn has the largest population at about 2.6 million, followed by Queens (~2.3M), Manhattan (~1.6M), the Bronx (~1.4M), and Staten Island (~490,000). Queens leads in land area; Brooklyn leads in people; Manhattan leads in jobs and offices."
   },
