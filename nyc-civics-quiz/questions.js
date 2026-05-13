@@ -1124,6 +1124,151 @@ export const MAIN_QUESTIONS = [
     correct: 1,
     explanation: "Mamdani used executive orders to stand up new mayor's offices for Mass Engagement (Jan 2), Community Safety (March 19), LGBTQIA+ Affairs (March 13), and Deed Theft Prevention (April 24), and reestablished the Mayor's Office to Protect Tenants. Critics called it bureaucratic proliferation; supporters called it organizing capacity around campaign priorities."
   },
+  // ---------- Narrative / scenario ---------- //
+
+  {
+    category: "City Stories",
+    question: "It's February. Your apartment has had no heat for four days, your landlord won't return calls, and the boiler is officially busted. Which path actually gets you results fastest?",
+    options: [
+      "Call 911 — no heat is a public-safety emergency",
+      "File a complaint with HPD via 311 or the city portal; an inspector visits, the violation is logged, and you can use it in Housing Court",
+      "Sue the landlord directly in Supreme Court for breach of warranty of habitability",
+      "Withhold rent unilaterally and assume the eviction case will sort it out",
+      "Light a small symbolic fire in the lobby"
+    ],
+    correct: 1,
+    explanation: "The standard, legally-protected path is: call 311 or file via HPD's portal, an HPD inspector documents the violation, and the violation supports remedies in Housing Court — including a rent abatement and an HP action to force repairs. Withholding rent without filing creates eviction risk; suing in Supreme Court is rarely cost-effective for an individual tenant. NYC heat law: 68°F by day, 62°F by night, October 1 through May 31."
+  },
+  {
+    category: "City Stories",
+    question: "The City Council passes a bill 35–16. Mayor Mamdani disagrees. He has how long to act before it becomes law on its own?",
+    options: [
+      "10 days, or it becomes law without his signature",
+      "30 days, or it becomes law without his signature",
+      "60 days, after which it must be reintroduced",
+      "He can sit on it indefinitely",
+      "Until the next New York Times editorial"
+    ],
+    correct: 1,
+    explanation: "Under the City Charter the Mayor has 30 days to sign, veto, or do nothing. If nothing, the bill becomes law on its own — exactly how the 2024 FARE Act (broker-fee reform) became law under Adams, and how a future bill might quietly pass under Mamdani. Vetoes need 34 of 51 Council votes to override."
+  },
+  {
+    category: "City Stories",
+    question: "In 1975, New York City came within hours of declaring bankruptcy. What actually saved it?",
+    options: [
+      "A federal bailout signed by President Ford on the eve of default",
+      "A new state-created Municipal Assistance Corporation (MAC, or 'Big MAC') to refinance city debt, plus an Emergency Financial Control Board with state-level authority over the city's budget — the city traded fiscal sovereignty for survival",
+      "Wall Street banks rolling over the city's short-term debt at the request of the mayor",
+      "An emergency property-tax surcharge approved by city voters",
+      "An impromptu telethon hosted by Bella Abzug"
+    ],
+    correct: 1,
+    explanation: "Albany created the Municipal Assistance Corporation in June 1975 to refinance NYC's debt and the Emergency Financial Control Board (later renamed the Financial Control Board) to oversee the city's budget. The federal government later provided seasonal loans, but the structural rescue was state-imposed fiscal supervision. The Daily News headline 'FORD TO CITY: DROP DEAD' came after Ford initially refused federal aid; he relented in December 1975. The FCB still technically exists in dormant 'monitoring' mode."
+  },
+  {
+    category: "City Stories",
+    question: "March 25, 1911: 146 garment workers, mostly young immigrant women, die in the Triangle Shirtwaist Factory fire near Washington Square. What lasting change in city and state government followed?",
+    options: [
+      "The creation of the FDNY",
+      "Sweeping new factory-safety, fire-code, and labor laws — driven by a state Factory Investigating Commission whose investigators included Frances Perkins, who later became the first woman in a U.S. presidential cabinet",
+      "The first NYC Building Code, written from scratch in response",
+      "The end of garment manufacturing in NYC",
+      "An annual press release that nobody reads"
+    ],
+    correct: 1,
+    explanation: "The Triangle fire spurred the New York State Factory Investigating Commission (1911–15), which produced 38 new state laws on fire safety, sweatshop conditions, and worker protection, and incubated the careers of Al Smith, Robert F. Wagner, and Frances Perkins (later FDR's Labor Secretary, the first woman in a U.S. cabinet). The disaster is widely cited as the legislative spark for the modern American workplace-safety state — much of it written in Albany, applied first in NYC."
+  },
+  {
+    category: "City Stories",
+    question: "How did the High Line — the elevated freight rail above the West Side that was scheduled for demolition in 1999 — become a park instead?",
+    options: [
+      "A federal court ordered the city to preserve it",
+      "Two neighborhood residents (Joshua David and Robert Hammond) founded Friends of the High Line, used a federal rail-banking law to block demolition, and persuaded the Bloomberg administration to back conversion via a city rezoning",
+      "Mayor Giuliani authorized conversion as an early second-term initiative",
+      "It was preserved by an act of Congress as a National Historic Landmark",
+      "A Goldman Sachs partner bought it personally and then donated it"
+    ],
+    correct: 1,
+    explanation: "Two neighborhood residents, Joshua David and Robert Hammond, founded Friends of the High Line in 1999 to fight Giuliani-era demolition plans. They invoked a federal rail-banking statute that lets dormant rail corridors be preserved for future transit use, then worked with the Bloomberg administration on the city rezoning that financed conversion. Section 1 opened in 2009. The High Line is now a cited model — and cautionary tale — for park-driven gentrification worldwide."
+  },
+  {
+    category: "City Stories",
+    question: "In 2013, a federal judge ruled in Floyd v. City of New York that the NYPD's stop-and-frisk practice was unconstitutional. What did the ruling actually order?",
+    options: [
+      "An immediate end to all NYPD stop-and-frisk encounters",
+      "Criminal charges against named NYPD officers",
+      "A federal monitor and reforms — including a body-camera pilot, supervisory changes, and updated training and stop documentation — while leaving the underlying tactic legally permissible if used constitutionally",
+      "The disbanding of the NYPD's Street Crime Unit",
+      "A polite suggestion that the NYPD do a little less of it"
+    ],
+    correct: 2,
+    explanation: "Judge Shira Scheindlin found that the NYPD's stop-and-frisk practice violated the Fourth and Fourteenth Amendments through racially disproportionate stops without reasonable suspicion. The remedy was structural: a federal monitor, a body-worn camera pilot, supervisory and training reforms, and a 'Joint Remedial Process' for community input. The tactic itself remained lawful when used constitutionally; recorded stops fell from a 2011 peak above 685,000 to a small fraction of that within a few years."
+  },
+  {
+    category: "City Stories",
+    question: "Times Square's pedestrian plazas — the painted barriers and folding chairs that took over Broadway in 2009 — were created how?",
+    options: [
+      "A binding referendum",
+      "An act of the State Legislature",
+      "An administrative DOT pilot under the Bloomberg/Sadik-Khan DOT, made permanent after data showed traffic actually improved and injuries dropped",
+      "A federal court order following a pedestrian-injury lawsuit",
+      "Whichever production company was filming a movie that week and never left"
+    ],
+    correct: 2,
+    explanation: "Bloomberg's DOT Commissioner Janette Sadik-Khan launched the Broadway pedestrianization as an administrative pilot — folding chairs, paint, and barriers — over Memorial Day weekend 2009. After data showed faster crosstown travel times and fewer pedestrian injuries, the change was made permanent. It is the most-cited modern example of a major street redesign accomplished entirely by agency action, no legislation required."
+  },
+  {
+    category: "City Stories",
+    question: "NYC's modern Landmarks Preservation Commission was created in 1965, two years after a transformative loss. Which loss?",
+    options: [
+      "The original Madison Square Garden",
+      "The original Pennsylvania Station, demolished in 1963 over public protest",
+      "The Brokaw Mansion on Fifth Avenue",
+      "The Singer Building, then the world's tallest demolished structure",
+      "Whatever bar the architecture critics drank at"
+    ],
+    correct: 1,
+    explanation: "The 1963 demolition of McKim, Mead & White's original Pennsylvania Station — replaced by the current underground station and Madison Square Garden — galvanized public outrage and produced the 1965 Landmarks Law, which created the Landmarks Preservation Commission. (The Brokaw Mansion and Singer Building demolitions later in the 1960s reinforced the case.) The U.S. Supreme Court upheld the law in Penn Central v. New York City (1978), one of the most consequential land-use rulings of the 20th century."
+  },
+  {
+    category: "City Stories",
+    question: "Until 2024, NYC could not lower the speed limit on its own streets below 25 mph without state permission. What changed?",
+    options: [
+      "The City Charter was amended by referendum",
+      "Sammy's Law, passed in Albany in 2024, gave the city the authority to set speed limits as low as 20 mph — the city used that authority almost immediately",
+      "A federal court ruled that home rule allowed it",
+      "Mayor Adams set lower limits by executive order",
+      "Drivers slowed down voluntarily, on the recommendation of a study"
+    ],
+    correct: 1,
+    explanation: "Sammy's Law — named for Sammy Cohen Eckstein, a 12-year-old killed by a van in 2013 — was passed by the State Legislature in April 2024 as part of the state budget, after years of advocacy by Families for Safe Streets. It authorized NYC to set speed limits as low as 20 mph on most streets. The city moved quickly to lower limits in pilot corridors. Before Sammy's Law, the citywide 25 mph limit set in 2014 itself required state authorization."
+  },
+  {
+    category: "City Stories",
+    question: "A developer wants to build a 12-story building where current zoning allows 6. They submit a rezoning application. Roughly how long does the public ULURP process take, and who has the final binding vote?",
+    options: [
+      "About 6 weeks; the City Planning Commission has the final vote",
+      "About 7 months; the City Council has the final vote (though the Borough President and Community Board vote first as advisory)",
+      "About 18 months; the Mayor signs off",
+      "About 2 years; the State Legislature has final say",
+      "Until somebody gets bored, usually"
+    ],
+    correct: 1,
+    explanation: "ULURP — the Uniform Land Use Review Procedure — runs roughly seven months. The Community Board votes first (advisory, ~60 days), then the Borough President (advisory, ~30 days), then the City Planning Commission (binding, ~60 days), then the City Council (binding, ~50 days). The Mayor can veto but the Council can override 34–17. Council 'member deference' often determines the outcome long before the formal vote."
+  },
+  {
+    category: "City Stories",
+    question: "In 1989, the U.S. Supreme Court unanimously ruled that NYC's Board of Estimate — which gave Brooklyn (then 2.3 million residents) and Staten Island (then about 380,000) equal voting power — violated 'one person, one vote.' What replaced it?",
+    options: [
+      "A weighted voting system that survived legal challenge",
+      "A 51-member City Council with primary land-use and budget authority, paired with a stronger Mayor — the basic structure of NYC government today",
+      "A Borough Mayor system, with five sub-mayors reporting to the citywide Mayor",
+      "A return to the pre-1898 county governments",
+      "An apologetic Borough President fundraiser circuit"
+    ],
+    correct: 1,
+    explanation: "Morris v. Board of Estimate (1989) struck down the Board of Estimate as malapportioned. The 1989 Charter Revision Commission, anticipating the ruling, produced a new structure: the 51-member City Council took on most of the Board's powers (land use, budget), the Mayor's executive authority was somewhat strengthened, and the Public Advocate was created to head the line of succession. The new Council was first elected in 1991. Modern NYC government is essentially a 1989 invention."
+  },
   {
     category: "Mamdani Watch",
     question: "As of mid-May 2026, how many of Mamdani's four MTA Board seats had he filled?",
