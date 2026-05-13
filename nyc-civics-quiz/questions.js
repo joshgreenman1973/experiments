@@ -214,19 +214,6 @@ export const MAIN_QUESTIONS = [
     explanation: 'The MTA Chair is appointed by the Governor, with State Senate confirmation. The Police Commissioner, Schools Chancellor, and Sanitation Commissioner are all mayoral appointments. This split is why every NYC mayor — Mamdani included — must negotiate with the Governor on transit, even though city residents are most of the riders.'
   },
   {
-    category: "Government Structure",
-    question: "Mamdani has pledged to pilot city-owned grocery stores in food-insecure neighborhoods. Which existing city entity is the closest model for owning and operating retail outlets directly?",
-    options: [
-      "The Economic Development Corporation, which manages city real estate and waterfront concessions",
-      "Health + Hospitals, the public benefit corporation that runs city hospitals",
-      "NYCHA, the public housing authority",
-      "The Department of Citywide Administrative Services",
-      "A bodega that the city accidentally inherited in a tax foreclosure"
-    ],
-    correct: 1,
-    explanation: 'New York City Health + Hospitals is the public-benefit corporation that operates 11 acute-care hospitals and dozens of clinics directly — the largest municipal health system in the country. It is the closest existing precedent for a city entity that owns and runs public-facing service operations. Critics of city-owned grocery stores point to H+H\'s recurring fiscal strain; supporters point to the same agency as proof that direct public provision is possible at scale.'
-  },
-  {
     category: "Legislation",
     question: "Adrienne Adams, the previous Council Speaker, ran against Mamdani in the 2025 Democratic primary and did not return to the Council in 2026. Who is elected by the Council to lead it each term?",
     options: [
