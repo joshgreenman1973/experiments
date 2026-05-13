@@ -778,10 +778,10 @@ export const MAIN_QUESTIONS = [
   },
   {
     category: "Boroughs",
-    question: "Which is the only borough connected to the rest of the city solely by tunnel or ferry, with no fixed rail or road bridge?",
+    question: "Which is the only borough with no subway connection to the rest of New York City?",
     options: ["Manhattan", "Brooklyn", "The Bronx", "Staten Island", "The borough that politely keeps to itself"],
     correct: 3,
-    explanation: 'Staten Island connects to the rest of New York City only via the Verrazzano-Narrows Bridge (to Brooklyn) — but that\'s tolled by the MTA, and there is no direct subway link. The Staten Island Ferry to Manhattan and the SI Railway are the main mass-transit links. Geographically, Staten Island is closer to New Jersey, to which it is connected by three free bridges. <a href="https://www.siferry.com" target="_blank" rel="noopener">SI Ferry</a>.'
+    explanation: 'Staten Island is the only borough not on the New York City subway map. Its main links to the rest of the city are the free Staten Island Ferry to Lower Manhattan and the Verrazzano-Narrows Bridge to Brooklyn (tolled by the MTA). The Staten Island Railway runs the length of the borough but is internal — it connects to the ferry terminal, not to the subway. Geographically, Staten Island is closer to New Jersey, to which it is connected by three free bridges. <a href="https://www.siferry.com" target="_blank" rel="noopener">SI Ferry</a>.'
   },
   {
     category: "Government Structure",
