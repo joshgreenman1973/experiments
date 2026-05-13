@@ -9,7 +9,7 @@ export const MAIN_QUESTIONS = [
     question: "How many members serve on the New York City Council?",
     options: ["35", "51", "59", "100", "However many can fit in a room without killing each other"],
     correct: 1,
-    explanation: 'The Council has 51 members, each representing a district of roughly 173,000 people. The body was expanded to 51 in 1991 after a Voting Rights Act lawsuit forced redistricting that better reflected the city\'s demographics. <a href="https://council.nyc.gov" target="_blank" rel="noopener">Council</a>.'
+    explanation: 'The Council has 51 members, each representing a district of roughly 173,000 people. The body was expanded to 51 by the 1989 Charter revision (post-Morris v. Board of Estimate), with the new lines first elected in 1991, after Voting Rights Act litigation forced districts that better reflected the city\'s demographics. <a href="https://council.nyc.gov" target="_blank" rel="noopener">Council</a>.'
   },
   {
     category: "Budget",
@@ -42,7 +42,7 @@ export const MAIN_QUESTIONS = [
       "Mostly leak things to The City"
     ],
     correct: 1,
-    explanation: 'The Department of Investigation, established in the 1873 Charter, is the city\'s independent inspector general. It investigates fraud, corruption, and misconduct across every city agency, and works alongside NYPD\'s Internal Affairs Bureau. The DOI Commissioner is appointed by the Mayor but the agency operates with structural independence. <a href="https://www.nyc.gov/site/doi/index.page" target="_blank" rel="noopener">DOI</a>.'
+    explanation: 'The Department of Investigation traces back to 1873, when post-Tweed reformers created the Office of the Commissioners of Accounts; the 1938 Charter revision renamed it DOI and gave it its current form as the city\'s independent inspector general. It investigates fraud, corruption, and misconduct across every city agency, and works alongside NYPD\'s Internal Affairs Bureau. The DOI Commissioner is appointed by the Mayor but the agency operates with structural independence. <a href="https://www.nyc.gov/site/doi/index.page" target="_blank" rel="noopener">DOI</a>.'
   },
   {
     category: "Transit",
@@ -81,7 +81,7 @@ export const MAIN_QUESTIONS = [
       "Made it illegal to charge a key fee, an application fee, or a 'just because' fee"
     ],
     correct: 1,
-    explanation: 'The Fairness in Apartment Rentals (FARE) Act, passed by the Council over Mayor Adams\'s veto in late 2024 and effective June 2025, ended the longstanding NYC practice of forcing tenants to pay a broker\'s commission (often 12–15% of annual rent) when the landlord — not the tenant — hired the broker. Real estate industry groups sued; the law has largely held up. <a href="https://council.nyc.gov" target="_blank" rel="noopener">Council</a>.'
+    explanation: 'The Fairness in Apartment Rentals (FARE) Act passed the Council 42–8 in November 2024. Mayor Adams declined to sign or veto it, so it became law by inaction in mid-December and took effect June 2025. It ended the longstanding NYC practice of forcing tenants to pay a broker\'s commission (often 12–15% of annual rent) when the landlord — not the tenant — hired the broker. Real estate industry groups sued; the law has largely held up. <a href="https://council.nyc.gov" target="_blank" rel="noopener">Council</a>.'
   },
   {
     category: "Housing",
@@ -133,7 +133,7 @@ export const MAIN_QUESTIONS = [
       "Tweet a lot and hope someone notices"
     ],
     correct: 1,
-    explanation: "The Public Advocate is a citywide elected official who serves as a watchdog over city agencies, fields citizen complaints, introduces legislation in the City Council (without a vote), and is first in line of mayoral succession. The role replaced the old City Council President position in 1993."
+    explanation: "The Public Advocate is a citywide elected official who serves as a watchdog over city agencies, fields citizen complaints, introduces legislation in the City Council (without a vote), and is first in line of mayoral succession. The 1989 Charter revision created the role and put it first in the line of succession; in 1993 the title was renamed from \"President of the Council\" to \"Public Advocate.\""
   },
   {
     category: "Elections",
@@ -289,7 +289,7 @@ export const MAIN_QUESTIONS = [
       "A series of LLCs nobody can quite untangle"
     ],
     correct: 1,
-    explanation: 'NYCHA owns and operates roughly 175,000 apartments housing nearly 350,000 New Yorkers — about 1 in 17 city residents — making it by far the largest public housing authority in North America. Any city-led "social housing" expansion either builds on NYCHA, on HPD-financed mixed-income development, or on a new entity created for the purpose. Mamdani\'s plan leans toward a new public developer plus aggressive use of the city\'s land and capital budget.'
+    explanation: 'NYCHA owns and operates roughly 175,000 apartments housing nearly 350,000 New Yorkers — about 1 in 16 New Yorkers when you include Section 8 voucher holders NYCHA also administers — making it by far the largest public housing authority in North America. Any city-led "social housing" expansion either builds on NYCHA, on HPD-financed mixed-income development, or on a new entity created for the purpose. Mamdani\'s plan leans toward a new public developer plus aggressive use of the city\'s land and capital budget.'
   },
   {
     category: "Government Structure",
@@ -335,7 +335,7 @@ export const MAIN_QUESTIONS = [
       "Yell at the Mayor on television"
     ],
     correct: 1,
-    explanation: "The Comptroller is the city's chief financial officer. The office audits agencies, oversees roughly $250 billion in city pension fund assets, registers contracts, and reviews the city's fiscal health. It is one of three citywide elected offices, along with Mayor and Public Advocate."
+    explanation: "The Comptroller is the city's chief financial officer. The office audits agencies, oversees roughly $295 billion in city pension fund assets, registers contracts, and reviews the city's fiscal health. It is one of three citywide elected offices, along with Mayor and Public Advocate."
   },
   {
     category: "Agencies",
@@ -387,7 +387,7 @@ export const MAIN_QUESTIONS = [
       "Where you go when you really, deeply need to yell at someone about a pothole"
     ],
     correct: 1,
-    explanation: 'The 311 system, launched under Bloomberg in 2003, is the city\'s non-emergency hotline and online portal for everything from noise complaints to pothole reports to lost-property questions. It handles roughly 40 million contacts a year and generates one of the city\'s most-used open datasets. <a href="https://portal.311.nyc.gov" target="_blank" rel="noopener">311</a>.'
+    explanation: 'The 311 system, launched under Bloomberg in 2003, is the city\'s non-emergency hotline and online portal for everything from noise complaints to pothole reports to lost-property questions. It handles nearly 40 million contacts a year and generates one of the city\'s most-used open datasets. <a href="https://portal.311.nyc.gov" target="_blank" rel="noopener">311</a>.'
   },
   {
     category: "Boroughs",
@@ -407,7 +407,7 @@ export const MAIN_QUESTIONS = [
     question: "When does New York City's fiscal year begin?",
     options: ["January 1", "April 1", "July 1", "October 1", "Whenever the budget actually gets passed"],
     correct: 2,
-    explanation: "NYC's fiscal year runs July 1 through June 30. The City Charter requires the Mayor to submit a preliminary budget in January, the Council to negotiate, and a final adopted budget by July 1. (The funny answer is closer to true than it should be — late budgets do happen.)"
+    explanation: "NYC's fiscal year runs July 1 through June 30. The City Charter requires the Mayor to submit a preliminary budget in January, the Council to negotiate, and a final adopted budget by June 5 — well before the July 1 fiscal year start. (The funny answer is closer to true than it should be — handshake deals just before the deadline are a recurring tradition.)"
   },
   {
     category: "Legislation",
@@ -420,7 +420,7 @@ export const MAIN_QUESTIONS = [
       "More than have ever agreed on anything in this city's history"
     ],
     correct: 2,
-    explanation: "A two-thirds supermajority — 34 of 51 — is required to override a mayoral veto. In practice, vetoes are rare; the Council more often shapes legislation through negotiation with City Hall before passage. The 2024 FARE Act override was a notable recent exception."
+    explanation: "A two-thirds supermajority — 34 of 51 — is required to override a mayoral veto. In practice, vetoes are rare; the Council more often shapes legislation through negotiation with City Hall before passage. The Council\'s January 2024 override of Mayor Adams\'s vetoes of the How Many Stops Act and the solitary-confinement ban was a notable recent example."
   },
   {
     category: "Legislation",
@@ -492,7 +492,7 @@ export const MAIN_QUESTIONS = [
     question: "Roughly how many uniformed officers does the NYPD have on payroll?",
     options: ["About 12,000", "About 24,000", "About 35,000", "About 55,000", "Enough to police a small country, statistically speaking"],
     correct: 2,
-    explanation: "The NYPD has roughly 33,000–36,000 uniformed officers, plus civilian employees, making it the largest municipal police force in the United States by a wide margin and larger than many national militaries. Headcount has trended down from a 40,000+ peak in the early 2000s."
+    explanation: "The NYPD has about 35,000 uniformed officers, plus civilian employees, making it the largest municipal police force in the United States by a wide margin and larger than many national militaries. Headcount fell into the low 30,000s after pandemic-era attrition; a recent hiring push aims to bring it back to the high 30,000s."
   },
   {
     category: "Education",
@@ -512,7 +512,7 @@ export const MAIN_QUESTIONS = [
       "A meeting where the loudest person wins"
     ],
     correct: 1,
-    explanation: "Each of the city's 59 community districts has a community board of up to 50 unpaid volunteer members appointed by the Borough President. They review ULURP applications, weigh in on liquor licenses and capital priorities, and run public hearings. Their votes are advisory, not binding — but politically meaningful."
+    explanation: "Each of the city's 59 community districts has a community board of up to 50 unpaid volunteer members appointed by the Borough President — half of them on the nomination of local Council Members. They review ULURP applications, weigh in on liquor licenses and capital priorities, and run public hearings. Their votes are advisory, not binding — but politically meaningful."
   },
   {
     category: "Mayor's Office",
@@ -552,7 +552,7 @@ export const MAIN_QUESTIONS = [
       "The most underfunded acronym in the five boroughs"
     ],
     correct: 1,
-    explanation: 'The New York City Housing Authority owns and operates roughly 175,000 apartments housing nearly 350,000 New Yorkers — about 1 in 17 city residents. It is the largest public housing authority in North America, and faces tens of billions of dollars of unmet capital needs. <a href="https://www.nyc.gov/site/nycha/index.page" target="_blank" rel="noopener">NYCHA</a>.'
+    explanation: 'The New York City Housing Authority owns and operates roughly 175,000 apartments housing nearly 350,000 New Yorkers — about 1 in 16 New Yorkers when you include Section 8 voucher holders NYCHA also administers. It is the largest public housing authority in North America, and faces tens of billions of dollars of unmet capital needs. <a href="https://www.nyc.gov/site/nycha/index.page" target="_blank" rel="noopener">NYCHA</a>.'
   },
   {
     category: "Housing",
@@ -807,7 +807,72 @@ export const MAIN_QUESTIONS = [
       "Whoever can read a 200-page brief without crying"
     ],
     correct: 1,
-    explanation: "The Corporation Counsel heads the city's Law Department and serves as the city's chief legal officer — defending the city in lawsuits, advising agencies, and prosecuting some matters in family court and civil enforcement. The Corporation Counsel is appointed by the Mayor with Council advice and consent."
+    explanation: "The Corporation Counsel heads the city's Law Department and serves as the city's chief legal officer — defending the city in lawsuits, advising agencies, and prosecuting some matters in family court and civil enforcement. The Corporation Counsel is appointed by the Mayor; since a 2019 Charter amendment, the appointment requires Council advice and consent."
+  },
+  {
+    category: "Land Use",
+    question: "If a Council Member opposes a rezoning in their own district, what usually happens?",
+    options: [
+      "The Council overrides them and approves it anyway",
+      "The Council typically defers to them and votes the project down — an unwritten norm called member deference",
+      "The Mayor can veto the Council Member's objection",
+      "The Borough President casts a tiebreaking vote",
+      "The project gets approved at half the size as a compromise nobody wanted"
+    ],
+    correct: 1,
+    explanation: "Member deference (sometimes called \"member item\" courtesy) is the unwritten Council convention that the body votes the way the affected district\'s Council Member wants on land-use items in their district. It is not in the Charter. Critics blame it for blocking housing in wealthy districts; defenders call it democratic localism. City of Yes was one of the rare modern citywide rezonings that worked around it by being citywide rather than parcel-specific."
+  },
+  {
+    category: "Elections",
+    question: "Roughly how much money did Andrew Cuomo and the super PACs supporting him spend in the 2025 Democratic mayoral primary, before losing to Mamdani?",
+    options: [
+      "Around $5 million",
+      "Around $15 million",
+      "Around $25 million",
+      "More than $35 million",
+      "Enough to make every TV ad you saw last June feel like a personal grudge"
+    ],
+    correct: 3,
+    explanation: "Cuomo\'s campaign and the affiliated Fix the City super PAC together spent more than $35 million in the primary — by far the most expensive Democratic primary for any office in NYC history. Mamdani\'s campaign spent a small fraction of that and qualified for matching funds at the city\'s 8-to-1 rate, which under NYC law cannot flow to super PACs. The race became a textbook case for proponents of public financing."
+  },
+  {
+    category: "Government Structure",
+    question: "Which of the following positions is filled by a competitive civil-service exam, not by mayoral appointment?",
+    options: [
+      "Police Commissioner",
+      "Sanitation Commissioner",
+      "Most uniformed sergeants, lieutenants, and captains in the NYPD and FDNY",
+      "Schools Chancellor",
+      "Whoever the Mayor\'s donor lunch was last Tuesday"
+    ],
+    correct: 2,
+    explanation: "Most rank-and-file and supervisory civil-service positions in NYC — including the uniformed promotional ranks at NYPD and FDNY — are filled through competitive exams under New York State civil-service law, with hiring lists ranked by score. The agency heads (Commissioner, Chancellor) are political appointees of the Mayor; the people doing the actual day-to-day work mostly aren\'t."
+  },
+  {
+    category: "Public Safety",
+    question: "What is the legal status of New York City\'s \"right to shelter\"?",
+    options: [
+      "A right written into the U.S. Constitution",
+      "A right written into New York State law",
+      "A right established by a 1981 consent decree (Callahan v. Carey) that the city has been bound to ever since",
+      "A right granted by City Council legislation in 2003",
+      "A polite suggestion, depending on the mayor"
+    ],
+    correct: 2,
+    explanation: "The right to shelter for single homeless men was established by the Callahan v. Carey consent decree in 1981, after a Coalition for the Homeless lawsuit; subsequent court rulings extended it to women and families. It is a court-enforced obligation specific to NYC — neither the U.S. nor New York State guarantees a right to shelter generally. The Adams administration successfully negotiated some flexibility around the decree during the migrant influx; advocates argue it remains binding."
+  },
+  {
+    category: "Tax",
+    question: "What is the \"421-a\" tax abatement (recently replaced by \"485-x\") best known for?",
+    options: [
+      "Capping property tax bills for one-to-three-family homes",
+      "A multi-decade property tax break for new multifamily rental construction, conditioned on affordability requirements",
+      "A sales tax holiday for purchases under $110",
+      "A small-business commercial rent tax exemption",
+      "Whichever loophole Crain\'s wrote about most recently"
+    ],
+    correct: 1,
+    explanation: "421-a (named for its section in the Real Property Tax Law) was a state-authorized property tax exemption used for the bulk of new rental construction in NYC for decades. It expired in 2022 and was replaced in 2024 by 485-x (\"Affordable Neighborhoods for New Yorkers\"), with stricter affordability and wage requirements. Both programs are set in Albany — the city can\'t change them on its own — and both are central to any NYC housing-supply debate."
   }
 ];
 
