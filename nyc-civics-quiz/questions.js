@@ -1124,6 +1124,126 @@ export const MAIN_QUESTIONS = [
     correct: 1,
     explanation: "Mamdani used executive orders to stand up new mayor's offices for Mass Engagement (Jan 2), Community Safety (March 19), LGBTQIA+ Affairs (March 13), and Deed Theft Prevention (April 24), and reestablished the Mayor's Office to Protect Tenants. Critics called it bureaucratic proliferation; supporters called it organizing capacity around campaign priorities."
   },
+  // ---------- Analogy / compare-and-contrast ---------- //
+
+  {
+    category: "Compare & Contrast",
+    question: "If the President of the United States is roughly analogous to the Mayor of NYC, who is the closest federal analogue to the Speaker of the City Council?",
+    options: [
+      "The Vice President",
+      "The Senate Majority Leader",
+      "The Speaker of the U.S. House of Representatives",
+      "The White House Chief of Staff",
+      "Whoever leaks fastest to Politico"
+    ],
+    correct: 2,
+    explanation: "Both Speakers are the elected presiding officer of the legislative chamber, control the calendar and committee assignments, negotiate directly with the executive, and command an independent power base. The analogy isn't perfect — the U.S. House Speaker is third in presidential succession, while the NYC Council Speaker is not in mayoral succession — but functionally they play the same role."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "Congress has the Congressional Budget Office for independent fiscal analysis. NYC has its closest analogue in which body?",
+    options: [
+      "The Office of Management and Budget (OMB)",
+      "The Independent Budget Office (IBO)",
+      "The Comptroller's Bureau of Budget",
+      "The Citizens Budget Commission",
+      "Whoever the New York Times's metro desk is talking to that day"
+    ],
+    correct: 1,
+    explanation: "The Independent Budget Office was created in the 1989 Charter revision and explicitly modeled on the federal CBO: nonpartisan, publicly-funded, separate from the Mayor's OMB, and tasked with producing independent revenue forecasts and policy analyses. Its numbers regularly diverge from OMB's — and Council members frequently cite IBO when negotiating with City Hall."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "If the Mayor is roughly analogous to the President, who in NYC plays the role most similar to the Vice President — first in line of succession, limited day-to-day formal power, often used as a watchdog or platform?",
+    options: [
+      "The Comptroller",
+      "The Public Advocate",
+      "The City Council Speaker",
+      "The First Deputy Mayor",
+      "The mayor's most-quoted critic on cable, automatically"
+    ],
+    correct: 1,
+    explanation: "The Public Advocate is first in mayoral succession (the Comptroller is second) and has structurally limited day-to-day power: they can introduce Council legislation but not vote on it, can field complaints, and can run citywide investigations. The role often functions as a launching pad for higher office — Bill de Blasio and Letitia James both became Mayor (de Blasio) and State AG (James) from it."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "The Federal Reserve sets interest rates. The closest NYC analogue — an independent expert-political board that sets a key price across millions of leases — is which body?",
+    options: [
+      "The Office of Management and Budget",
+      "The Department of Housing Preservation and Development",
+      "The Rent Guidelines Board",
+      "The Public Service Commission",
+      "Whoever your landlord blames"
+    ],
+    correct: 2,
+    explanation: "The Rent Guidelines Board sets annual rent-adjustment ranges for the roughly 1 million stabilized apartments in NYC. Like the Fed, it is a small board — nine members — appointed by an executive (the Mayor), structurally insulated from a single political vote, and required by law to weigh competing data inputs (here: operating costs vs. tenant ability to pay). Unlike the Fed, RGB members serve fixed terms but no Senate-style confirmation."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "Morris v. Board of Estimate (1989), which struck down NYC's old executive board, is the direct lineal descendant of which earlier U.S. Supreme Court ruling?",
+    options: [
+      "Brown v. Board of Education (1954)",
+      "Reynolds v. Sims (1964), which extended 'one person, one vote' to state legislatures",
+      "Roe v. Wade (1973)",
+      "Marbury v. Madison (1803)",
+      "Whichever case New York lawyers are quoting at parties"
+    ],
+    correct: 1,
+    explanation: "Reynolds v. Sims (1964) ruled that state legislative districts must be roughly equal in population — extending Baker v. Carr's 'one person, one vote' principle. Morris v. Board of Estimate (1989) applied the same principle to a municipal body: the Board of Estimate gave Brooklyn (then 2.3M) and Staten Island (then ~380K) equal voting weight. Morris is essentially Reynolds for cities."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "The MTA is a state public-benefit corporation that runs transit infrastructure NYC depends on but the city doesn't control. Which OTHER famous bistate or multi-jurisdictional authority is the closest structural analogue?",
+    options: [
+      "The U.S. Postal Service",
+      "Amtrak",
+      "The Port Authority of New York & New Jersey",
+      "FEMA",
+      "Whichever agency owns the bridge you're stuck on"
+    ],
+    correct: 2,
+    explanation: "The Port Authority of NY & NJ is the canonical structural cousin of the MTA: a public-benefit corporation, controlled by appointees from outside NYC (in PANYNJ's case, both governors split appointments), running transportation infrastructure (airports, PATH, tunnels, World Trade Center) that NYC residents and businesses depend on but the city has no formal authority over. Both authorities are constant tension points between city and state-level executives."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "NYC has had mayoral control of its public schools since 2002. Which other major U.S. city was the model — having adopted mayoral control nearly a decade earlier?",
+    options: [
+      "Los Angeles",
+      "Boston",
+      "Chicago",
+      "Philadelphia",
+      "Whichever city offered Bloomberg the best PowerPoint slide"
+    ],
+    correct: 2,
+    explanation: "Chicago has had mayoral control of its public schools since 1995, when Mayor Richard M. Daley took over Chicago Public Schools. Boston technically preceded both (1992). When Bloomberg pushed Albany to give NYC mayoral control in 2002, Chicago was the explicit model. Most U.S. school districts still use independently elected school boards; mayoral control remains a minority structure even among large cities."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "ULURP's months-long, multi-body sequence (Community Board → Borough President → CPC → Council) is most structurally analogous to which federal process?",
+    options: [
+      "How a federal bill becomes law",
+      "Federal environmental review under the National Environmental Policy Act (NEPA), which requires sequential agency review and public comment before a major project decision",
+      "The federal budget reconciliation process",
+      "How a federal judge gets confirmed",
+      "However many agencies the developer's lobbyist can fit on one phone call"
+    ],
+    correct: 1,
+    explanation: "Both ULURP and federal NEPA review are sequential, time-bounded, multi-stage public processes attached to discrete project decisions, with formal points for public comment and advisory and binding votes by different bodies. NEPA review can take years; ULURP is capped at roughly seven months. Both are blamed by reformers for delaying needed projects and credited by communities as essential checks."
+  },
+  {
+    category: "Compare & Contrast",
+    question: "The Manhattan, Brooklyn, Bronx, Queens, and Staten Island District Attorneys are independently elected — not appointed by the Mayor. Their federal counterpart, the U.S. Attorneys, are filled how?",
+    options: [
+      "Also independently elected",
+      "Appointed by the President with Senate confirmation; they serve at the President's pleasure and are typically replaced when the White House changes parties",
+      "Selected by a panel of senior federal judges",
+      "Promoted from within the Justice Department by civil-service exam",
+      "Whoever the most senior senator's law-school roommate recommends"
+    ],
+    correct: 1,
+    explanation: "U.S. Attorneys — including the SDNY and EDNY positions that prosecute many of the most consequential NYC federal cases — are presidentially appointed with Senate confirmation, and serve at the President's pleasure. The contrast is sharp: NYC's borough DAs answer to local voters every four years; U.S. Attorneys answer to the President. The structural difference shapes which kinds of cases each tends to bring."
+  },
+
   // ---------- Narrative / scenario ---------- //
 
   {
