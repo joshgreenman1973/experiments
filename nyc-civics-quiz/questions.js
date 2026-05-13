@@ -687,7 +687,7 @@ export const MAIN_QUESTIONS = [
   },
   {
     category: "Education",
-    question: "Who picks the eight 'specialized' high schools' admission method, including for Stuyvesant and Bronx Science?",
+    question: "Who controls the admissions method at Stuyvesant, Bronx Science, and Brooklyn Tech?",
     options: [
       "The Mayor",
       "The Schools Chancellor",
@@ -696,7 +696,7 @@ export const MAIN_QUESTIONS = [
       "Whatever judge gets the latest lawsuit"
     ],
     correct: 2,
-    explanation: "The Hecht-Calandra Act, passed in 1971, locked in the Specialized High Schools Admissions Test (SHSAT) as the sole admissions criterion for the original three specialized schools (Stuyvesant, Bronx Science, Brooklyn Tech). State law would need to change to alter that — a politically heavy lift that has failed repeatedly. The other five specialized schools, added later, fall under the same statutory framework."
+    explanation: "The Hecht-Calandra Act, passed in 1971, locked in the Specialized High Schools Admissions Test (SHSAT) as the sole admissions criterion for the three named schools — Stuyvesant, Bronx Science, and Brooklyn Tech. Changing their admissions requires Albany, a politically heavy lift that has failed repeatedly. The other five specialized schools (Brooklyn Latin, HSMSE at CCNY, HSAS at Lehman, Queens HS for the Sciences, and Staten Island Tech) were designated by the city and use the SHSAT by city policy, not state law — meaning the Mayor and Chancellor can change their admissions without Albany."
   },
   {
     category: "Government Structure",
