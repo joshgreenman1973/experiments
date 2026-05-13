@@ -873,6 +873,269 @@ export const MAIN_QUESTIONS = [
     ],
     correct: 1,
     explanation: "421-a (named for its section in the Real Property Tax Law) was a state-authorized property tax exemption used for the bulk of new rental construction in NYC for decades. It expired in 2022 and was replaced in 2024 by 485-x (\"Affordable Neighborhoods for New Yorkers\"), with stricter affordability and wage requirements. Both programs are set in Albany — the city can\'t change them on its own — and both are central to any NYC housing-supply debate."
+  },
+
+  // ---------- Mamdani administration: first 4.5 months ----------
+
+  {
+    category: "Mamdani Watch",
+    question: "Who is Mayor Mamdani's NYPD Commissioner?",
+    options: [
+      "He named a new commissioner from outside NYPD",
+      "Jessica Tisch — he kept Adams's commissioner",
+      "He elevated the NYPD Chief of Department to commissioner",
+      "The post is vacant pending Council confirmation",
+      "Whoever was willing to take the job and the press conferences"
+    ],
+    correct: 1,
+    explanation: "In one of the most-watched personnel decisions of the transition, Mamdani retained Jessica Tisch — the Adams-era NYPD Commissioner — over loud objections from parts of his left base. Tisch and Mamdani jointly announced in early February 2026 that January had set a modern record low for shootings (40) and murders (12)."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What was Mayor Mamdani's literal first official act on January 1, 2026?",
+    options: [
+      "Signing an executive order on rent stabilization",
+      "Riding the M15 bus to Gracie Mansion",
+      "Naming Mike Flynn as DOT Commissioner",
+      "Issuing a sanctuary city executive order",
+      "Posting a TikTok"
+    ],
+    correct: 2,
+    explanation: "Mamdani's first formal act as mayor was announcing Mike Flynn as Department of Transportation Commissioner. The signal: streets, buses, and bike infrastructure — the DOT portfolio — would be early administration priorities."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani's Executive Order 1, signed January 1, 2026, did what?",
+    options: [
+      "Froze all city hiring",
+      "Revoked all Eric Adams executive orders signed after his September 2024 federal indictment",
+      "Declared a citywide housing emergency",
+      "Ordered fare-free buses to start on January 5",
+      "Renamed Gracie Mansion 'The People's House'"
+    ],
+    correct: 1,
+    explanation: "EO 1 wiped out every executive order Adams signed after his federal indictment, including the order banning city contracts with firms that boycott Israel and the order adopting the IHRA antisemitism definition. The legal theory: a mayor under indictment shouldn't be making major policy via fiat in his lame-duck months."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Did Mamdani's appointed Rent Guidelines Board freeze stabilized-apartment rents in their May 2026 preliminary vote?",
+    options: [
+      "Yes — a clean 0% freeze on both one- and two-year leases",
+      "No — they passed double-digit increases anyway",
+      "They voted a preliminary range of 0–2% for one-year leases and 0–4% for two-year leases; the final vote is in June",
+      "They tabled the vote indefinitely",
+      "They froze rents only in zip codes that voted for Mamdani"
+    ],
+    correct: 2,
+    explanation: "On May 7, 2026, the Mamdani-appointed RGB majority set a preliminary range of 0–2% for one-year leases and 0–4% for two-year leases — the lowest preliminary range in years, but not the clean freeze Mamdani had promised on the campaign trail. The final binding vote comes in late June."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What happened to Mamdani's signature campaign promise of citywide fare-free buses?",
+    options: [
+      "It launched on January 5, 2026, citywide",
+      "It launched on all express buses only",
+      "It was scaled back to a 3-routes-per-borough pilot, plus a separate proposed free-bus program for the 5-week FIFA World Cup",
+      "It was abandoned entirely after MTA refused",
+      "It launched, but only on the buses MTA was already going to retire"
+    ],
+    correct: 2,
+    explanation: "The citywide free-bus pledge collided with the MTA's state control over fares. Mamdani's administration pivoted to a roughly $45M, three-routes-per-borough pilot plus a separate ~$100M proposal for fully free buses during the 2026 FIFA World Cup. MTA Chair Janno Lieber publicly said no one had spoken to him about the World Cup plan when reporters asked."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Where is the first city-owned grocery store, announced in April 2026, going to open?",
+    options: [
+      "Co-op City, the Bronx",
+      "East New York, Brooklyn",
+      "La Marqueta in East Harlem, Manhattan",
+      "Far Rockaway, Queens",
+      "Wherever the bodega association sued first"
+    ],
+    correct: 2,
+    explanation: "On April 13, 2026, Mamdani announced La Marqueta in East Harlem — already a city-owned public market under EDC — as the site of the first 9,000-square-foot city-owned grocery store, with construction projected at roughly $30 million and opening in late 2027 or 2028. Plans call for one store per borough."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani campaigned on ending mayoral control of NYC public schools. What did he do once in office?",
+    options: [
+      "Followed through and asked Albany to end mayoral control",
+      "Tried to end it but was blocked by the Council",
+      "Reversed the position and asked the State Legislature to extend mayoral control",
+      "Ended it unilaterally by executive order",
+      "Outsourced the question to a panel of teenagers"
+    ],
+    correct: 2,
+    explanation: "On December 31, 2025, alongside naming Kamar Samuels as Schools Chancellor, Mamdani announced he was reversing his campaign pledge and would ask Albany to extend mayoral control of schools. Education advocates split: some saw a betrayal, others saw governing pragmatism."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What did Mamdani do about homeless encampment sweeps after taking office?",
+    options: [
+      "Ended them permanently on day one",
+      "Ended them on January 5, then resumed them on February 18 after a cold-snap death toll, this time run by DHS instead of NYPD with 7-day notice",
+      "Continued the Adams-era sweep policy unchanged",
+      "Replaced sweeps with a guaranteed-shelter offer that homeless New Yorkers could refuse",
+      "Held a press conference about ending them but never actually did"
+    ],
+    correct: 1,
+    explanation: "Mamdani paused encampment sweeps January 5, 2026. After roughly 20 New Yorkers died during a January cold snap, he resumed them on February 18 — but with the operation moved from NYPD to the Department of Homeless Services and a 7-day notice requirement. The reversal was one of the administration's most contentious early moments."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What happened with the city's lawsuit over expanding CityFHEPS housing vouchers?",
+    options: [
+      "Mamdani dropped the lawsuit on day one as promised",
+      "Mamdani's administration appealed the court order requiring the expansion in March 2026, citing a $4 billion-plus annual cost",
+      "The Council overrode the Mayor and dropped the suit",
+      "The Court of Appeals ended the case before Mamdani took office",
+      "It was settled with a coupon"
+    ],
+    correct: 1,
+    explanation: "Mamdani had pledged on the trail to drop the city's appeal of the Council's CityFHEPS expansion law. In March 2026 his administration did the opposite — appealing the lower-court order requiring the expansion, citing a projected $4 billion-plus annual cost. Tenant advocates were furious; budget hawks argued it was responsible."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani's preliminary FY2027 budget assumed a 9.5% property tax rate increase. What ended up in his executive budget released May 12, 2026?",
+    options: [
+      "The same 9.5% property tax hike",
+      "A larger property tax hike to close the gap",
+      "No property tax hike, plus a new pied-à-terre tax on luxury second homes projected to raise around $500 million",
+      "A repeal of the Class 1 cap on assessed-value growth",
+      "A hike that exempted Park Slope on the grounds of vibes"
+    ],
+    correct: 2,
+    explanation: "After backlash to the February preliminary budget, Mamdani dropped the property tax rate increase from his executive budget and instead proposed a pied-à-terre tax on luxury second homes — projected at roughly $500 million annually. The pied-à-terre tax requires Albany approval and has failed there before."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "How much additional state aid did Governor Hochul commit to NYC alongside Mamdani's May 2026 executive budget?",
+    options: [
+      "Zero — Hochul refused to provide additional aid",
+      "Roughly $500 million one-time",
+      "Roughly $4 billion in additional aid (totaling nearly $8 billion over two years), paired with cuts to programs like CityFHEPS and special-ed tuition reimbursement",
+      "A blanket assumption of MTA debt service",
+      "Whatever was left over after the upstate canal budget"
+    ],
+    correct: 2,
+    explanation: "The Hochul-Mamdani deal announced alongside the May 2026 executive budget brought roughly $4 billion in additional state aid (nearly $8 billion over two years), paired with cuts to fast-growing city programs. The deal is widely read as a working detente between the city's left-flank mayor and a centrist governor with her own 2026 reelection on the horizon."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani's new Office of Community Safety launched March 19, 2026. How does its first-year funding compare with what he proposed on the campaign trail?",
+    options: [
+      "Larger — about $1.5 billion",
+      "About the same as promised — roughly $1.1 billion",
+      "Far smaller — about $260 million, with only 2 staff at launch",
+      "Funded entirely by federal grants",
+      "Funded by a GoFundMe his press shop is too embarrassed to acknowledge"
+    ],
+    correct: 2,
+    explanation: "Mamdani had pitched roughly $1.1 billion for a Department of Community Safety to handle mental-health and homelessness calls outside the NYPD. The office that actually launched in March 2026 — under Deputy Mayor Renita Francois — opened with about $260 million and 2 staff. Critics call it a fig leaf; supporters call it realistic phasing."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "How many times had Mamdani met with President Trump at the White House by April 2026?",
+    options: [
+      "Zero",
+      "Once",
+      "Twice — November 21, 2025 and February 26, 2026",
+      "Four times",
+      "He's blocked, but a friend of a friend got a message through"
+    ],
+    correct: 2,
+    explanation: "Mamdani met with Trump at the White House twice: November 21, 2025 (between the election and his inauguration) and February 26, 2026. Both meetings were described as cordial. At the February meeting, Mamdani pitched a $21 billion federal grant for 12,000 housing units in Queens and gave Susie Wiles a list of pro-Palestinian student detainees to consider for release."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani's February 6, 2026 sanctuary executive order did what?",
+    options: [
+      "Banned all federal law enforcement from entering NYC",
+      "Barred federal immigration agents from entering city-owned property without a judicial warrant; designated schools, hospitals, and shelters as protected; ordered an audit of sanctuary compliance",
+      "Repealed every Bloomberg-era cooperation agreement with ICE",
+      "Required city employees to interfere physically with ICE arrests",
+      "Renamed ICE 'The Federal People We Don't Talk To'"
+    ],
+    correct: 1,
+    explanation: "The February 6, 2026 sanctuary EO barred federal immigration agents from entering city-owned property without a judicial warrant and designated schools, hospitals, and shelters as protected. The Department of Homeland Security responded by demanding NYC turn over more than 7,000 immigrants in city custody with active detainers."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "How did the Mamdani administration respond to two major snowstorms in January and February 2026?",
+    options: [
+      "Closed the city for a week and called in the National Guard",
+      "Was caught flat-footed and lost two Sanitation Commissioners",
+      "Declared a local state of emergency, closed schools, raised emergency snow-shoveler pay to $30/hour, deployed about 2,600 sanitation workers per shift, and cleared 2,200 bus stops",
+      "Outsourced cleanup to a private contractor that immediately went bankrupt",
+      "Tweeted through it"
+    ],
+    correct: 2,
+    explanation: "The administration's snow response — particularly to Winter Storm Fern (Jan 25–26, 2026) and the February 22–24 blizzard — got generally favorable reviews. Mamdani raised emergency snow-shoveler pay to $30/hour, deployed roughly 2,600 sanitation workers per shift, and made bus-stop clearance an explicit priority for the first time."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What was the Williamsburg Bridge 'Zohramp,' completed January 6, 2026?",
+    options: [
+      "A new pedestrian-only entrance on the Manhattan side",
+      "A long-stalled accessibility ramp upgrade for cyclists, completed in Mamdani's first week",
+      "A literal ramp built so the Mayor could film a campaign-style video",
+      "A truck-restriction lane",
+      "Whatever the New York Post needed a one-word slur for"
+    ],
+    correct: 1,
+    explanation: "The 'Zohramp' was the community nickname for a long-stalled cyclist accessibility ramp on the Williamsburg Bridge that DOT completed in Mamdani's first week. It became an early viral signal that the new administration was actually going to build small things quickly."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Who is Steven Banks, named to a key Mamdani cabinet role and confirmed by the Council in February 2026?",
+    options: [
+      "Schools Chancellor",
+      "Police Commissioner",
+      "Corporation Counsel — the city's chief legal officer and head of the Law Department",
+      "Sanitation Commissioner",
+      "The mayor's apparently very patient press secretary"
+    ],
+    correct: 2,
+    explanation: "Steven Banks — a longtime legal-aid lawyer who later served as Human Resources Administration Commissioner under de Blasio — was named Corporation Counsel and confirmed by the Council in February 2026. The pick signaled the administration's intent to use the Law Department aggressively on tenant and immigration issues."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "What was Mamdani's approval rating in the early-April 2026 Marist poll, after roughly 100 days in office?",
+    options: [
+      "About 25% approve, 60% disapprove",
+      "About 35% approve, 50% disapprove",
+      "About 48% approve, 30% disapprove",
+      "About 65% approve, 20% disapprove",
+      "However many people answered the phone that week"
+    ],
+    correct: 2,
+    explanation: "An early-April 2026 Marist poll put Mamdani at 48% approve / 30% disapprove, with a 55% positive personal favorability rating and 33% unfavorable. Solid for a polarizing first-term mayor, but well below his honeymoon ceiling."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "Mamdani's first 4.5 months in office included new mayor's offices for which of the following?",
+    options: [
+      "Just one — Community Safety",
+      "Mass Engagement, LGBTQIA+ Affairs, Community Safety, and Deed Theft Prevention — four new mayor's offices, plus a reestablished Office to Protect Tenants",
+      "Only one new office, but he renamed five existing ones",
+      "None — he froze all new agency creation",
+      "An Office of Vibes (acting director: TBD)"
+    ],
+    correct: 1,
+    explanation: "Mamdani used executive orders to stand up new mayor's offices for Mass Engagement (Jan 2), Community Safety (March 19), LGBTQIA+ Affairs (March 13), and Deed Theft Prevention (April 24), and reestablished the Mayor's Office to Protect Tenants. Critics called it bureaucratic proliferation; supporters called it organizing capacity around campaign priorities."
+  },
+  {
+    category: "Mamdani Watch",
+    question: "As of mid-May 2026, how many of Mamdani's four MTA Board seats had he filled?",
+    options: [
+      "All four",
+      "Three of four",
+      "Two of four — with two vacancies still open and a hard June 4 deadline at the end of Albany's session",
+      "Zero of four",
+      "Trick question — the Mayor doesn't appoint MTA Board members"
+    ],
+    correct: 2,
+    explanation: "By mid-May 2026, Mamdani had filled only two of his four MTA Board seats, with the State Senate's June 4 confirmation deadline closing fast. Transit advocates noted the irony: a mayor whose signature issue was the buses had not yet seated his full slate at the agency that runs them."
   }
 ];
 
