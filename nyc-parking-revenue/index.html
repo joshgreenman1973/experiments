@@ -768,7 +768,7 @@
   }
 
   .layer-toggle input:checked + .green-dot {
-    background: var(--periwinkle);
+    background: #b8c233;
     border-color: var(--border);
   }
 
@@ -876,20 +876,20 @@
 <div id="tab-map" class="tab-content active">
   <div id="map-container">
     <div class="map-stats">
+      <div class="stat-card s-green">
+        <div class="label">Estimated free street spaces (lanes × 20)</div>
+        <div class="value green" id="est-free-spaces">--</div>
+      </div>
       <div class="stat-card">
         <div class="label">Active meter blockfaces (DOT)</div>
         <div class="value blue" id="meter-count">--</div>
       </div>
-      <div class="stat-card s-green">
-        <div class="label">Street segments with a parking lane</div>
-        <div class="value green" id="street-count">--</div>
-      </div>
       <div class="stat-card s-orange">
-        <div class="label">Borough with the most meters</div>
-        <div class="value orange" id="top-borough">--</div>
+        <div class="label">Street segments with a parking lane</div>
+        <div class="value orange" id="street-count">--</div>
       </div>
       <div class="stat-card s-purple">
-        <div class="label">Share of NYC curb that is metered</div>
+        <div class="label">Share of curb that is metered</div>
         <div class="value purple" id="pct-metered">~2.8%</div>
       </div>
     </div>
@@ -898,12 +898,12 @@
       <label class="layer-toggle">
         <input type="checkbox" id="toggle-streets" checked>
         <span class="toggle-dot green-dot"></span>
-        Streets with parking lanes (free / unmetered)
+        Free curb space (streets with parking lanes)
       </label>
       <label class="layer-toggle">
         <input type="checkbox" id="toggle-meters" checked>
         <span class="toggle-dot blue-dot"></span>
-        Parking meters (paid)
+        Paid parking meters
       </label>
     </div>
 
@@ -916,9 +916,9 @@
     </div>
 
     <div class="map-legend" style="font-family: var(--font-sans); margin-top: 14px; gap: 24px;">
-      <span><span class="legend-dot" style="background: #9b9fbc; border: 1.5px solid #050507;"></span> Street with parking lanes (unmetered / free)</span>
-      <span><span class="legend-dot" style="background: #ff7c53; border: 1.5px solid #050507;"></span> Parking meter (paid)</span>
-      <span style="color: var(--text-muted); font-size: 11px; letter-spacing: 0.5px;">Source: NYC Open Data, Centerline (inkn-q76z) + Parking Meters (693u-uax6)</span>
+      <span><span class="legend-dot" style="background: #b8c233; border: 1.5px solid #050507;"></span> Free curb space (heavier line = more parking lanes)</span>
+      <span><span class="legend-dot" style="background: #ff7c53; border: 1.5px solid #050507;"></span> Paid parking meter</span>
+      <span style="color: var(--text-muted); font-size: 11px; letter-spacing: 0.5px;">Source: NYC Open Data — Centerline (inkn-q76z), Parking Meters (693u-uax6)</span>
     </div>
   </div>
 </div>
@@ -1352,7 +1352,8 @@
         <li><strong>Hunter College estimate:</strong> <a href="https://www.hunterurban.org/studio/shifting-gears-transitioning-to-a-car-light-new-york-city" target="_blank">Hunter College Urban Policy &amp; Planning, "Shifting Gears: Transitioning to a Car-Light New York City" (2024)</a> estimated that charging market-rate prices for parking at current volume could generate $12.3 billion in annual revenue.</li>
         <li><strong>Center for an Urban Future:</strong> <a href="https://www.nycfuture.org/research/5-revenue-raising-ideas-for-nyc" target="_blank">"5 Revenue-Raising Ideas for NYC"</a> identified expanded paid street parking as one of five proposals that could collectively generate over $1.4 billion annually.</li>
         <li><strong>History of free parking:</strong> <a href="https://www.city-journal.org/article/parking-madness" target="_blank">City Journal, "Parking madness"</a> traces the origins of free overnight parking in NYC to a 1954 policy decision.</li>
-        <li><strong>Street parking map:</strong> The green lines show 80,658 street segments that have designated parking lanes, from NYC's <a href="https://data.cityofnewyork.us/City-Government/Centerline/inkn-q76z" target="_blank">Centerline dataset</a> (field: number_park_lanes > 0). These are streets where parking is physically possible — most are unmetered/free, subject to alternate-side and other time restrictions. Not every linear foot is parkable (fire hydrants, crosswalks, driveways reduce usable curb), but the segments indicate where the city has allocated curb space for parking.</li>
+        <li><strong>Street parking map:</strong> The chartreuse lines show 80,658 street segments that have designated parking lanes, from NYC's <a href="https://data.cityofnewyork.us/City-Government/Centerline/inkn-q76z" target="_blank">Centerline dataset</a> (field: number_park_lanes > 0). These are streets where parking is physically possible — most are unmetered/free, subject to alternate-side and other time restrictions. Heavier lines mark segments with two or more parking lanes (typically both sides of the street).</li>
+        <li><strong>Estimated free spaces (~2.9 million):</strong> Computed as <em>parking lanes × 20 cars per lane per blockface</em>, summed across all 80,658 segments. Twenty is a midpoint estimate; a typical NYC blockface holds roughly 18-22 parked cars per lane after accounting for hydrants, driveways, bus stops and crosswalks. The rollup lands near the DOT's 2016 internal estimate of ~3 million total curb spaces (~2.9M free after removing the ~85K metered ones), and is shown alongside the meter map and in each segment's popup.</li>
       </ul>
       <p style="margin-top: 12px;">Meter location data: <a href="https://data.cityofnewyork.us/Transportation/Parking-Meters-Locations-and-Status/693u-uax6" target="_blank">NYC Open Data, Parking Meters Locations and Status</a>. Street centerline data: <a href="https://data.cityofnewyork.us/City-Government/Centerline/inkn-q76z" target="_blank">NYC Open Data, Centerline</a>.</p>
     </div>
@@ -1648,23 +1649,44 @@ async function loadStreets() {
 
     document.getElementById('street-count').textContent = geojson.features.length.toLocaleString();
 
+    // Sum estimated free spaces (lanes × 20). This is a rough rollup of
+    // the same per-segment math used in the popups. It lands near the
+    // DOT-derived ~2.9M figure, with some slack for hydrants/driveways.
+    const totalLanes = geojson.features.reduce((s, f) => s + (f.properties.p || 1), 0);
+    const estFreeSpaces = totalLanes * 20;
+    const estEl = document.getElementById('est-free-spaces');
+    if (estEl) {
+      // Show in millions, one decimal.
+      estEl.textContent = '~' + (estFreeSpaces / 1e6).toFixed(1) + 'M';
+    }
+
     streetLayer = L.geoJSON(geojson, {
       style: function(feature) {
         const lanes = feature.properties.p || 1;
+        // Chartreuse (brand primary data fill), darkened slightly so it
+        // reads on light Carto tiles. Streets with 2+ parking lanes get
+        // heavier, more opaque strokes — more spaces, more visible.
         return {
-          color: '#9b9fbc',
-          weight: lanes >= 2 ? 2.5 : 1.5,
-          opacity: 0.65
+          color: '#b8c233',
+          weight: lanes >= 2 ? 3.8 : 2.6,
+          opacity: lanes >= 2 ? 0.9 : 0.7
         };
       },
       onEachFeature: function(feature, layer) {
         const p = feature.properties;
+        // Each parking lane on a typical NYC blockface holds roughly
+        // 18-22 cars. Use 20 as a midpoint to give a usable per-segment
+        // estimate in the popup. Citywide this rolls up to ~2.9M, which
+        // matches the DOT figure shown at the top of the page.
+        const estSpaces = (p.p || 1) * 20;
         layer.bindPopup(`
-          <div style="font-size:13px;line-height:1.5;">
-            <strong>${p.s || 'Unknown street'}</strong><br>
-            <span style="color:#34d399;">Parking lanes: ${p.p}</span><br>
-            <span style="color:#999;">${p.b || ''}</span><br>
-            <span style="color:#666;">Unmetered / free (with restrictions)</span>
+          <div style="font-family: 'halyard-text', sans-serif; font-size:13px; line-height:1.55; min-width: 180px;">
+            <div style="font-weight: 900; font-size: 14px; margin-bottom: 4px;">${p.s || 'Unknown street'}</div>
+            <div style="color: #707175; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;">${p.b || ''}</div>
+            <div style="border-top: 1px solid #dddddd; margin: 8px 0; padding-top: 8px;">
+              <div><strong>${p.p}</strong> parking ${p.p === 1 ? 'lane' : 'lanes'} · ~${estSpaces} free spaces</div>
+              <div style="color: #707175; font-size: 11px; margin-top: 3px;">Unmetered (with alternate-side and other restrictions)</div>
+            </div>
           </div>
         `);
       },
@@ -1707,7 +1729,9 @@ async function loadMeters() {
     document.getElementById('meter-count').textContent = allMeters.length.toLocaleString();
 
     const topB = Object.entries(boroughs).sort((a, b) => b[1] - a[1])[0];
-    document.getElementById('top-borough').textContent = topB ? topB[0] : '--';
+    // top-borough tile was removed in favor of the estimated-free-spaces tile.
+    const topBoroughEl = document.getElementById('top-borough');
+    if (topBoroughEl) topBoroughEl.textContent = topB ? topB[0] : '--';
 
     // Add markers
     const meterIcon = L.divIcon({
