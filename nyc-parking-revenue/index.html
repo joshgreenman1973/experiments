@@ -9,87 +9,121 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
 <style>
+  @font-face {
+    font-family: 'GascogneTS';
+    src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0b0d14;
-    --bg-grad: radial-gradient(ellipse at top, #151827 0%, #0b0d14 60%);
-    --surface: #151827;
-    --surface2: #1e2232;
-    --border: #2a2f42;
-    --border-soft: #232739;
-    --text: #eef0f4;
-    --text-muted: #96a0b5;
-    --text-dim: #6b7389;
-    --accent: #5b9dff;
-    --accent-light: #7fb4ff;
-    --accent-dim: rgba(91, 157, 255, 0.12);
-    --green: #3ddc97;
-    --orange: #fb923c;
-    --red: #f87171;
-    --yellow: #fbbf24;
-    --purple: #a78bfa;
+    /* Brand palette */
+    --bg: #ffffff;
+    --bg-grad: none;
+    --surface: #ffffff;
+    --surface2: #f6f5f0;          /* paper / off-white */
+    --border: #050507;             /* hard black borders */
+    --border-soft: #dddddd;        /* cloud */
+    --text: #050507;
+    --text-muted: #707175;         /* charcoal */
+    --text-dim: #9b9fbc;           /* periwinkle */
+    --accent: #ff7c53;             /* safety orange */
+    --accent-light: #f69577;
+    --accent-dim: rgba(255, 124, 83, 0.12);
+    --chartreuse: #dde44c;
+    --green: #57aa4a;              /* goodest green for revenue text */
+    --orange: #ff7c53;             /* safety orange */
+    --red: #d2232a;                /* baddest red */
+    --yellow: #dde44c;             /* chartreuse */
+    --purple: #394882;             /* indigo */
+    --magenta: #e7466d;            /* focal highlight */
+    --cerulean: #217ebe;
+    --periwinkle: #9b9fbc;
+    --rose: #cea9be;
+
+    --font-sans: "halyard-text", 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    --font-serif: 'GascogneTS', 'Source Serif 4', Georgia, 'Times New Roman', serif;
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    font-weight: 300;
     background: var(--bg);
-    background-image: var(--bg-grad);
-    background-attachment: fixed;
     color: var(--text);
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Big numerals — the data-display cue */
+  .serif-num {
+    font-family: var(--font-serif);
+    font-weight: 300;
+    letter-spacing: -0.5px;
+  }
+
   header {
-    padding: 36px 32px 8px;
+    padding: 44px 32px 8px;
     max-width: 1200px;
     margin: 0 auto;
   }
 
   header .eyebrow {
+    font-family: var(--font-sans);
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
     text-transform: uppercase;
     color: var(--accent);
-    margin-bottom: 10px;
+    margin-bottom: 14px;
   }
 
   header h1 {
-    font-size: 34px;
-    font-weight: 700;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    font-size: 44px;
     letter-spacing: -0.8px;
-    line-height: 1.15;
+    line-height: 1.1;
+    max-width: 920px;
+    color: var(--text);
   }
 
   header p.subtitle {
     color: var(--text-muted);
-    font-size: 16px;
-    margin-top: 8px;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 17px;
+    line-height: 1.45;
+    margin-top: 16px;
     max-width: 720px;
   }
 
   .tabs {
     display: flex;
-    gap: 4px;
-    margin: 28px auto 0;
+    gap: 0;
+    margin: 32px auto 0;
     max-width: 1200px;
     padding: 0 32px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
     overflow-x: auto;
     scrollbar-width: none;
   }
   .tabs::-webkit-scrollbar { display: none; }
 
   .tab {
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 14px 22px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
     color: var(--text-muted);
     cursor: pointer;
-    border-bottom: 2px solid transparent;
+    border-bottom: 3px solid transparent;
     transition: all 0.15s ease;
     background: none;
     border-top: none;
@@ -97,7 +131,8 @@
     border-right: none;
     white-space: nowrap;
     position: relative;
-    top: 1px;
+    top: 2px;
+    margin-bottom: -2px;
   }
 
   .tab:hover { color: var(--text); }
@@ -124,55 +159,57 @@
   }
 
   .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 0;
+    padding: 18px 18px 16px;
     position: relative;
     overflow: hidden;
-    transition: border-color 0.2s;
   }
-  .stat-card:hover { border-color: var(--border); }
   .stat-card::before {
     content: "";
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
+    height: 4px;
     background: var(--accent);
-    opacity: 0.6;
   }
-  .stat-card.s-green::before { background: var(--green); }
-  .stat-card.s-orange::before { background: var(--orange); }
-  .stat-card.s-purple::before { background: var(--purple); }
+  .stat-card.s-green::before { background: var(--chartreuse); }
+  .stat-card.s-orange::before { background: var(--accent); }
+  .stat-card.s-purple::before { background: var(--cerulean); }
 
   .stat-card .label {
-    font-size: 11px;
+    font-family: var(--font-sans);
+    font-size: 10.5px;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    font-weight: 500;
+    letter-spacing: 1.2px;
+    font-weight: 700;
+    line-height: 1.3;
   }
 
   .stat-card .value {
-    font-size: 26px;
-    font-weight: 700;
-    margin-top: 6px;
-    letter-spacing: -0.5px;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    font-size: 38px;
+    margin-top: 8px;
+    letter-spacing: -1px;
+    line-height: 1;
+    color: var(--text);
   }
 
   @media (max-width: 768px) {
     .map-stats { grid-template-columns: repeat(2, 1fr); }
   }
 
-  .stat-card .value.blue { color: var(--accent); }
-  .stat-card .value.green { color: var(--green); }
-  .stat-card .value.orange { color: var(--orange); }
-  .stat-card .value.purple { color: var(--purple); }
+  .stat-card .value.blue,
+  .stat-card .value.green,
+  .stat-card .value.orange,
+  .stat-card .value.purple { color: var(--text); }
 
   #map {
     height: 550px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    border-radius: 0;
+    border: 1.5px solid var(--border);
     overflow: hidden;
   }
 
@@ -196,20 +233,23 @@
   .loading-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15,17,23,0.85);
+    background: rgba(255,255,255,0.9);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    border-radius: 12px;
-    font-size: 15px;
-    color: var(--text-muted);
+    border-radius: 0;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.4px;
   }
 
   .loading-overlay .spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid var(--border);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-soft);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -229,11 +269,11 @@
     position: sticky;
     top: 0;
     z-index: 50;
-    background: rgba(11, 13, 20, 0.92);
+    background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 32px;
-    margin: 0 -32px 20px;
+    border-bottom: 1.5px solid var(--border);
+    padding: 12px 32px;
+    margin: 0 -32px 24px;
   }
   .compare-strip-inner {
     max-width: 1200px;
@@ -256,37 +296,44 @@
   }
   .compare-chip {
     flex-shrink: 0;
-    padding: 6px 10px;
+    padding: 6px 11px 7px;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    border-radius: 0;
     font-size: 11px;
     line-height: 1.3;
-    min-width: 92px;
+    min-width: 96px;
   }
-  .compare-chip.baseline { border-color: var(--border-soft); }
+  .compare-chip.baseline { background: var(--surface2); }
   .compare-chip .chip-label {
-    color: var(--text-dim);
-    font-size: 10px;
+    color: var(--text-muted);
+    font-size: 9.5px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.9px;
+    font-weight: 700;
+    font-family: var(--font-sans);
   }
   .compare-chip .chip-val {
-    color: var(--green);
-    font-weight: 700;
-    font-size: 14px;
+    color: var(--text);
+    font-weight: 300;
+    font-size: 18px;
     font-variant-numeric: tabular-nums;
+    font-family: var(--font-serif);
+    letter-spacing: -0.5px;
+    margin-top: 2px;
   }
   .compare-chip.baseline .chip-val { color: var(--text-muted); }
 
   .stakes-line {
-    margin-top: 6px;
-    font-size: 12px;
-    color: var(--text-dim);
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--text-muted);
     text-align: right;
-    line-height: 1.4;
+    line-height: 1.5;
+    font-family: var(--font-sans);
+    font-weight: 300;
   }
-  .stakes-line strong { color: var(--text-muted); font-weight: 600; }
+  .stakes-line strong { color: var(--text); font-weight: 700; }
 
   @media (max-width: 768px) {
     .compare-strip { padding: 8px 16px; margin: 0 -16px 16px; }
@@ -294,26 +341,31 @@
   }
 
   .calc-intro {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 0;
     padding: 28px 30px;
     margin-bottom: 24px;
   }
 
   .calc-intro h2 {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    letter-spacing: -0.3px;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    font-size: 28px;
+    margin-bottom: 14px;
+    letter-spacing: -0.4px;
+    line-height: 1.15;
+    color: var(--text);
   }
 
   .calc-intro p {
-    color: var(--text-muted);
-    font-size: 14.5px;
-    line-height: 1.7;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 15.5px;
+    line-height: 1.65;
   }
-  .calc-intro p strong { color: var(--text); font-weight: 600; }
+  .calc-intro p strong { color: var(--text); font-weight: 700; }
 
   .big-numbers {
     display: grid;
@@ -323,10 +375,10 @@
   }
 
   .big-num {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px 18px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 0;
+    padding: 24px 18px 20px;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -335,34 +387,39 @@
     content: "";
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 2px;
-    opacity: 0.7;
+    height: 4px;
   }
-  .big-num:nth-child(1)::before { background: var(--accent); }
-  .big-num:nth-child(2)::before { background: var(--green); }
-  .big-num:nth-child(3)::before { background: var(--orange); }
-  .big-num:nth-child(4)::before { background: var(--red); }
+  .big-num:nth-child(1)::before { background: var(--cerulean); }
+  .big-num:nth-child(2)::before { background: var(--chartreuse); }
+  .big-num:nth-child(3)::before { background: var(--accent); }
+  .big-num:nth-child(4)::before { background: var(--magenta); }
 
   .big-num .n {
-    font-size: 38px;
-    font-weight: 800;
-    letter-spacing: -1.2px;
+    font-family: var(--font-serif);
+    font-weight: 300;
+    font-size: 46px;
+    letter-spacing: -1.4px;
     line-height: 1;
+    color: var(--text);
   }
 
   @media (max-width: 640px) {
     .big-numbers { grid-template-columns: repeat(2, 1fr); }
   }
 
-  .big-num .n.blue { color: var(--accent); }
-  .big-num .n.green { color: var(--green); }
-  .big-num .n.orange { color: var(--orange); }
-  .big-num .n.red { color: var(--red); }
+  .big-num .n.blue,
+  .big-num .n.green,
+  .big-num .n.orange,
+  .big-num .n.red { color: var(--text); }
 
   .big-num .desc {
-    font-size: 13px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
     color: var(--text-muted);
-    margin-top: 6px;
+    margin-top: 10px;
   }
 
   .scenario-grid {
@@ -374,28 +431,31 @@
 
   .scenario-card {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 0;
     padding: 26px;
-    transition: border-color 0.2s;
     display: flex;
     flex-direction: column;
   }
-  .scenario-card:hover { border-color: #3a4056; }
   .scenario-card .result-box { margin-top: auto; }
 
   .scenario-card h3 {
+    font-family: var(--font-sans);
     font-size: 17px;
-    font-weight: 700;
-    margin-bottom: 6px;
-    letter-spacing: -0.2px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    letter-spacing: -0.1px;
+    line-height: 1.25;
+    color: var(--text);
   }
 
   .scenario-card .scenario-desc {
+    font-family: var(--font-sans);
+    font-weight: 300;
     font-size: 13.5px;
     color: var(--text-muted);
-    margin-bottom: 20px;
-    line-height: 1.6;
+    margin-bottom: 22px;
+    line-height: 1.55;
   }
 
   .slider-group {
@@ -411,9 +471,10 @@
   }
 
   .slider-label .val {
-    color: var(--accent-light);
+    color: var(--text);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    font-family: var(--font-sans);
   }
 
   input[type="range"] {
@@ -421,74 +482,87 @@
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: var(--border);
-    border-radius: 3px;
+    background: var(--border-soft);
+    border-radius: 0;
     outline: none;
   }
 
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
-    border: 3px solid var(--surface);
-    box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(91,157,255,0.35);
+    border: 2px solid var(--border);
     transition: transform 0.1s;
   }
-  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
   input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
-    border: 3px solid var(--surface);
-    box-shadow: 0 0 0 1px var(--accent);
+    border: 2px solid var(--border);
   }
 
+  .slider-label { font-family: var(--font-sans); font-weight: 300; }
+
   .result-box {
-    background: linear-gradient(180deg, var(--surface2) 0%, #1a1e2d 100%);
-    border-radius: 10px;
+    background: var(--surface2);
+    border-radius: 0;
     padding: 18px 20px;
     margin-top: 20px;
-    border: 1px solid var(--border-soft);
+    border-top: 1.5px solid var(--border);
   }
 
   .result-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
     padding: 6px 0;
     font-size: 14px;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    color: var(--text);
   }
 
   .result-row.total {
-    border-top: 1px solid var(--border);
-    margin-top: 8px;
-    padding-top: 12px;
+    border-top: 1.5px solid var(--border);
+    margin-top: 10px;
+    padding-top: 14px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .result-row .rv {
-    font-weight: 600;
+    font-weight: 700;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+  }
+  .result-row.total .rv {
+    font-family: var(--font-serif);
+    font-weight: 300;
+    font-size: 22px;
+    letter-spacing: -0.5px;
   }
 
-  .result-row .rv.green { color: var(--green); }
-  .result-row .rv.blue { color: var(--accent); }
+  .result-row .rv.green { color: var(--text); }
+  .result-row .rv.blue { color: var(--text); }
 
   .vs-current {
-    margin-top: 10px;
-    font-size: 13px;
+    margin-top: 12px;
+    font-size: 12px;
     color: var(--text-muted);
     text-align: right;
+    font-family: var(--font-sans);
   }
 
   .vs-current span {
-    color: var(--green);
+    color: var(--accent);
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   /* COMPARISON BAR CHART */
@@ -497,9 +571,13 @@
   }
 
   .comparison-section h3 {
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 16px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    color: var(--accent);
   }
 
   .bar-chart {
@@ -517,58 +595,70 @@
   .bar-label {
     width: 180px;
     flex-shrink: 0;
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 700;
     text-align: right;
-    color: var(--text-muted);
+    color: var(--text);
+    font-family: var(--font-sans);
+    letter-spacing: 0.3px;
   }
 
   .bar-track {
     flex: 1;
     height: 32px;
     background: var(--surface2);
-    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    border-radius: 0;
     position: relative;
     overflow: hidden;
   }
 
   .bar-fill {
     height: 100%;
-    border-radius: 6px;
+    border-radius: 0;
     transition: width 0.5s ease;
     display: flex;
     align-items: center;
     padding-left: 10px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     white-space: nowrap;
     min-width: fit-content;
+    font-family: var(--font-sans);
+    color: var(--text);
   }
 
-  .bar-fill.current { background: var(--border); color: var(--text-muted); }
-  .bar-fill.flat { background: var(--accent); }
-  .bar-fill.variable { background: var(--green); }
-  .bar-fill.auction { background: var(--orange); }
-  .bar-fill.permit { background: var(--purple); }
+  .bar-fill.current { background: var(--periwinkle); color: var(--text); }
+  .bar-fill.flat { background: var(--cerulean); color: #fff; }
+  .bar-fill.variable { background: var(--chartreuse); color: var(--text); }
+  .bar-fill.auction { background: var(--accent); color: var(--text); }
+  .bar-fill.permit { background: var(--rose); color: var(--text); }
 
   /* METHODOLOGY */
   .methodology {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 0;
+    padding: 26px 28px;
     margin-top: 32px;
   }
 
   .methodology h3 {
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 12px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
   }
 
   .methodology p, .methodology li {
+    font-family: var(--font-sans);
+    font-weight: 300;
     font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.7;
+    color: var(--text);
+    line-height: 1.65;
   }
 
   .methodology ul {
@@ -579,83 +669,76 @@
   .methodology li { margin-bottom: 4px; }
 
   .methodology a {
-    color: var(--accent);
-    text-decoration: none;
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
   }
 
-  .methodology a:hover { text-decoration: underline; }
+  .methodology a:hover { color: var(--accent); }
 
   .map-wrapper {
     position: relative;
   }
 
-  /* Leaflet dark tiles adjustments */
-  .leaflet-container { background: #1a1d27; }
+  .leaflet-container { background: var(--surface2); font-family: var(--font-sans); }
+  .leaflet-popup-content-wrapper { border-radius: 0 !important; border: 1.5px solid var(--border); box-shadow: 4px 4px 0 var(--border); }
+  .leaflet-popup-tip { background: var(--border); }
 
-  /* Custom cluster styles */
-  .marker-cluster-small {
-    background-color: rgba(79, 140, 255, 0.3) !important;
-  }
-  .marker-cluster-small div {
-    background-color: rgba(79, 140, 255, 0.6) !important;
-    color: white !important;
-  }
-  .marker-cluster-medium {
-    background-color: rgba(79, 140, 255, 0.4) !important;
-  }
-  .marker-cluster-medium div {
-    background-color: rgba(79, 140, 255, 0.7) !important;
-    color: white !important;
-  }
-  .marker-cluster-large {
-    background-color: rgba(79, 140, 255, 0.5) !important;
-  }
-  .marker-cluster-large div {
-    background-color: rgba(79, 140, 255, 0.8) !important;
-    color: white !important;
-  }
+  /* Custom cluster styles — safety orange */
+  .marker-cluster-small { background-color: rgba(255, 124, 83, 0.25) !important; }
+  .marker-cluster-small div { background-color: rgba(255, 124, 83, 0.85) !important; color: #050507 !important; font-family: var(--font-sans); font-weight: 700 !important; border: 1.5px solid #050507; }
+  .marker-cluster-medium { background-color: rgba(255, 124, 83, 0.3) !important; }
+  .marker-cluster-medium div { background-color: rgba(255, 124, 83, 0.9) !important; color: #050507 !important; font-family: var(--font-sans); font-weight: 700 !important; border: 1.5px solid #050507; }
+  .marker-cluster-large { background-color: rgba(255, 124, 83, 0.35) !important; }
+  .marker-cluster-large div { background-color: rgba(255, 124, 83, 1) !important; color: #050507 !important; font-family: var(--font-sans); font-weight: 700 !important; border: 1.5px solid #050507; }
 
   .city-caveat {
     font-size: 12px;
     color: var(--text-muted);
     font-style: italic;
-    margin-top: 10px;
-    line-height: 1.5;
+    margin-top: 12px;
+    line-height: 1.55;
     padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
-    border-left: 2px solid var(--border);
+    background: var(--surface2);
+    border-radius: 0;
+    border-left: 3px solid var(--accent);
+    font-family: var(--font-sans);
   }
 
 
   .city-detail {
+    font-family: var(--font-sans);
     font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.7;
+    color: var(--text);
+    line-height: 1.65;
     margin-top: 12px;
+    font-weight: 300;
   }
 
-  .city-detail strong { color: var(--text); }
+  .city-detail strong { color: var(--text); font-weight: 700; }
 
   .city-stat-row {
     display: flex;
     justify-content: space-between;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-soft);
     font-size: 13px;
+    font-family: var(--font-sans);
   }
 
   .city-stat-row:last-child { border-bottom: none; }
-  .city-stat-row .csv { color: var(--green); font-weight: 600; }
+  .city-stat-row .csv { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  .bar-fill.nyc { background: var(--accent); }
-  .bar-fill.london { background: #e74c3c; }
-  .bar-fill.paris { background: #9b59b6; }
-  .bar-fill.sf { background: var(--green); }
-  .bar-fill.chicago { background: var(--orange); }
-  .bar-fill.amsterdam { background: #f39c12; }
-  .bar-fill.tokyo { background: #1abc9c; }
-  .bar-fill.singapore { background: #e91e63; }
+  /* NYC = magenta (focal); peers = brand neutrals */
+  .bar-fill.nyc { background: var(--magenta); color: #fff; }
+  .bar-fill.london { background: var(--cerulean); color: #fff; }
+  .bar-fill.paris { background: var(--periwinkle); color: var(--text); }
+  .bar-fill.sf { background: var(--chartreuse); color: var(--text); }
+  .bar-fill.chicago { background: var(--accent); color: var(--text); }
+  .bar-fill.amsterdam { background: var(--rose); color: var(--text); }
+  .bar-fill.tokyo { background: var(--indigo, #394882); color: #fff; }
+  .bar-fill.singapore { background: var(--purple); color: #fff; }
 
   .map-controls {
     display: flex;
@@ -685,13 +768,13 @@
   }
 
   .layer-toggle input:checked + .green-dot {
-    background: var(--green);
-    border-color: var(--green);
+    background: var(--periwinkle);
+    border-color: var(--border);
   }
 
   .layer-toggle input:checked + .blue-dot {
     background: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--border);
   }
 
   @media (max-width: 768px) {
@@ -723,9 +806,9 @@
   .subway-car {
     display: flex;
     height: 48px;
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
-    border: 2px solid var(--border);
+    border: 1.5px solid var(--border);
     position: relative;
   }
 
@@ -733,15 +816,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: var(--font-sans);
     font-size: 11px;
-    font-weight: 600;
-    color: white;
+    font-weight: 700;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 6px;
     position: relative;
-    border-right: 1px solid rgba(0,0,0,0.2);
+    border-right: 1.5px solid var(--border);
     transition: opacity 0.2s;
     cursor: default;
   }
@@ -778,7 +862,7 @@
   <div class="eyebrow">Curb economics</div>
   <h1>New York City has 3 million curb parking spaces. It charges for 85,000 of them.</h1>
   <p class="subtitle">Here's the map of what's metered, the math on what the other 97% could be worth, and how peer cities price their curbs.</p>
-  <p style="font-size: 13px; color: var(--text-dim); margin-top: 14px;">Jump to: <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none;">meter map</a> · <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none;">revenue calculator</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">what it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">peer cities</a></p>
+  <p style="font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-top: 20px;">Jump to: <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none; margin-left: 4px;">Meter map</a> · <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none;">Revenue calculator</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">What it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">Peer cities</a></p>
 </header>
 
 <div class="tabs" id="tabs">
@@ -831,10 +915,10 @@
       </div>
     </div>
 
-    <div class="map-legend">
-      <span><span class="legend-dot" style="background: #34d399;"></span> Street with parking lanes (unmetered / free)</span>
-      <span><span class="legend-dot" style="background: #4f8cff;"></span> Parking meter (paid)</span>
-      <span style="color: var(--text-muted); font-size: 12px;">Data: NYC Open Data, Centerline (inkn-q76z) + Parking Meters (693u-uax6)</span>
+    <div class="map-legend" style="font-family: var(--font-sans); margin-top: 14px; gap: 24px;">
+      <span><span class="legend-dot" style="background: #9b9fbc; border: 1.5px solid #050507;"></span> Street with parking lanes (unmetered / free)</span>
+      <span><span class="legend-dot" style="background: #ff7c53; border: 1.5px solid #050507;"></span> Parking meter (paid)</span>
+      <span style="color: var(--text-muted); font-size: 11px; letter-spacing: 0.5px;">Source: NYC Open Data, Centerline (inkn-q76z) + Parking Meters (693u-uax6)</span>
     </div>
   </div>
 </div>
@@ -869,12 +953,12 @@
       </p>
     </div>
 
-    <div style="background: var(--surface); border: 1px solid var(--accent); border-radius: 14px; padding: 32px 28px; margin-bottom: 18px; text-align: center; position: relative; overflow: hidden;">
-      <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent);"></div>
-      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px;">The headline number</div>
-      <div style="font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1; color: var(--orange);">~2.9 million</div>
-      <div style="font-size: 16px; color: var(--text-muted); margin-top: 12px; max-width: 560px; margin-left: auto; margin-right: auto;">
-        Free on-street parking spaces in New York City — roughly 97% of all curb space. This figure matches the ~2.99 million total cited by <a href="https://toomanycars.nyc/" target="_blank" style="color: var(--accent);">toomanycars.nyc</a>, both derived from the same 2016 NYC DOT internal estimate (3 million total, ~85,000 metered).
+    <div style="background: var(--surface2); border: 1.5px solid var(--border); padding: 40px 32px 36px; margin-bottom: 22px; text-align: center; position: relative; overflow: hidden;">
+      <div style="position: absolute; top: 0; left: 0; right: 0; height: 6px; background: var(--accent);"></div>
+      <div style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px;">The headline number</div>
+      <div style="font-family: var(--font-serif); font-weight: 300; font-size: 96px; letter-spacing: -3px; line-height: 1; color: var(--text);">~2.9 million</div>
+      <div style="font-family: var(--font-sans); font-weight: 300; font-size: 16px; color: var(--text); margin-top: 16px; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.55;">
+        Free on-street parking spaces in New York City — roughly 97% of all curb space. This figure matches the ~2.99 million total cited by <a href="https://toomanycars.nyc/" target="_blank" style="color: var(--text); text-decoration: underline; text-underline-offset: 2px;">toomanycars.nyc</a>, both derived from the same 2016 New York City Department of Transportation internal estimate (3 million total, ~85,000 metered).
       </div>
     </div>
 
@@ -1327,16 +1411,15 @@
         <div class="subway-car" id="mta-revenue-bar"></div>
       </div>
       <div class="subway-legend">
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#4f8cff;"></span> Farebox $5.2B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#34d399;"></span> Payroll mobility tax $3.1B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#fb923c;"></span> Tolls $2.6B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#a78bfa;"></span> Franchise surcharge (MMTOA) $2.3B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#f87171;"></span> City subsidy $1.4B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#38bdf8;"></span> Sales tax $1.3B</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#fbbf24;"></span> Real estate taxes $841M</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#818cf8;"></span> Congestion pricing ~$500M</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#9ca3af;"></span> Parking meters $258M</span>
-        <span class="subway-legend-item"><span class="subway-swatch" style="background:#444857;"></span> Other ~$2.4B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#217ebe;"></span> Farebox $5.2B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#dde44c;"></span> Payroll mobility tax $3.1B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#ff7c53;"></span> Tolls $2.6B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#394882;"></span> Franchise surcharge (MMTOA) $2.3B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#cea9be;"></span> City subsidy $1.4B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#9b9fbc;"></span> Sales tax $1.3B</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#fde5dd;"></span> Real estate taxes $841M</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#e7466d;"></span> Congestion pricing ~$500M</span>
+        <span class="subway-legend-item"><span class="subway-swatch" style="background:#dddddd;"></span> Other ~$2.4B</span>
       </div>
       <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.5;">
         Sources: <a href="https://www.osc.ny.gov/press/releases/2025/05/dinapoli-report-tracks-mtas-shifting-revenue-streams" target="_blank" style="color: var(--accent);">NYS Comptroller (2025)</a>,
@@ -1351,16 +1434,16 @@
       <p class="scenario-desc">Fares cover roughly 35% of operating costs, down from more than 50% before the pandemic. The average NYC Transit trip costs about $5.63 to provide; riders pay about $1.97 on average (once unlimited passes and reduced fares are blended in). The rest is subsidy.</p>
       <div class="subway-car-wrapper">
         <div class="subway-car" style="height: 48px;">
-          <div class="subway-seg" style="width: 54%; background: #4f8cff;" title="NYC Transit (subway + bus): $10.7B">NYC Transit $10.7B</div>
-          <div class="subway-seg" style="width: 46%; background: #2e3345;" title="Other MTA agencies: $9.2B">Other MTA agencies $9.2B</div>
+          <div class="subway-seg" style="width: 54%; background: #217ebe; color: #fff;" title="NYC Transit (subway + bus): $10.7B">NYC Transit $10.7B</div>
+          <div class="subway-seg" style="width: 46%; background: #cea9be; color: #050507;" title="Other MTA agencies: $9.2B">Other MTA agencies $9.2B</div>
         </div>
       </div>
       <div style="font-size: 13px; color: var(--text-muted); margin-top: 12px; text-align: center;">Total operating budget: $19.9B</div>
       <div class="subway-car-wrapper" style="margin-top: 16px;">
         <div class="subway-car-label">How each trip is paid for</div>
         <div class="subway-car" style="height: 40px;">
-          <div class="subway-seg" style="width: 35%; background: #34d399;" title="Rider pays: ~$1.97 average per trip">Avg fare $1.97</div>
-          <div class="subway-seg" style="width: 65%; background: #fb923c;" title="Subsidized: ~$3.66 per trip">Subsidy $3.66</div>
+          <div class="subway-seg" style="width: 35%; background: #dde44c; color: #050507;" title="Rider pays: ~$1.97 average per trip">Avg fare $1.97</div>
+          <div class="subway-seg" style="width: 65%; background: #ff7c53; color: #050507;" title="Subsidized: ~$3.66 per trip">Subsidy $3.66</div>
         </div>
       </div>
       <div class="subway-legend" style="margin-top: 8px;">
@@ -1470,24 +1553,24 @@
 
     <!-- HOURLY RATE COMPARISON -->
     <div style="margin-bottom: 32px;">
-      <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Peak hourly meter rates</h3>
+      <h3 style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px;">Peak hourly meter rates</h3>
       <div class="bar-chart" id="rate-chart"></div>
     </div>
 
     <!-- ANNUAL REVENUE COMPARISON -->
     <div style="margin-bottom: 32px;">
-      <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Annual street parking revenue</h3>
+      <h3 style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px;">Annual street parking revenue</h3>
       <div class="bar-chart" id="revenue-chart"></div>
     </div>
 
     <!-- RESIDENTIAL PERMIT COMPARISON -->
     <div style="margin-bottom: 32px;">
-      <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">Annual residential parking permit cost</h3>
+      <h3 style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px;">Annual residential parking permit cost</h3>
       <div class="bar-chart" id="permit-chart"></div>
     </div>
 
     <!-- CITY CARDS -->
-    <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 16px;">City-by-city breakdown</h3>
+    <h3 style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--accent); margin-bottom: 18px;">City-by-city breakdown</h3>
     <div class="scenario-grid" id="city-cards"></div>
 
     <!-- SOURCES -->
@@ -1521,7 +1604,7 @@ window.mapInitialized = false;
 function initMap() {
   map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([40.7128, -73.98], 11);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     maxZoom: 19
   }).addTo(map);
@@ -1569,9 +1652,9 @@ async function loadStreets() {
       style: function(feature) {
         const lanes = feature.properties.p || 1;
         return {
-          color: lanes >= 2 ? '#34d399' : '#2dd4a0',
+          color: '#9b9fbc',
           weight: lanes >= 2 ? 2.5 : 1.5,
-          opacity: 0.5
+          opacity: 0.65
         };
       },
       onEachFeature: function(feature, layer) {
@@ -1628,8 +1711,8 @@ async function loadMeters() {
 
     // Add markers
     const meterIcon = L.divIcon({
-      html: '<div style="width:8px;height:8px;background:#4f8cff;border-radius:50%;border:1px solid rgba(79,140,255,0.4);box-shadow:0 0 6px rgba(79,140,255,0.5);"></div>',
-      iconSize: [8, 8],
+      html: '<div style="width:8px;height:8px;background:#ff7c53;border-radius:50%;border:1.5px solid #050507;"></div>',
+      iconSize: [10, 10],
       className: ''
     });
 
@@ -2103,15 +2186,15 @@ renderCitiesTab();
 
 // MTA REVENUE BAR (with scenario picker)
 const MTA_REV_BASE = [
-  { key: 'fares', label: 'Fares', amt: 5200, color: '#4f8cff' },
-  { key: 'payroll', label: 'Payroll mobility', amt: 3100, color: '#34d399' },
-  { key: 'tolls', label: 'Tolls', amt: 2600, color: '#fb923c' },
-  { key: 'mmtoa', label: 'MMTOA', amt: 2300, color: '#a78bfa' },
-  { key: 'city', label: 'City subsidy', amt: 1400, color: '#f87171' },
-  { key: 'sales', label: 'Sales tax', amt: 1300, color: '#38bdf8' },
-  { key: 're', label: 'RE taxes', amt: 841, color: '#fbbf24' },
-  { key: 'cp', label: 'Congestion pricing', amt: 500, color: '#818cf8' },
-  { key: 'other', label: 'Other', amt: 2400, color: '#444857' }
+  { key: 'fares', label: 'Fares', amt: 5200, color: '#217ebe' },
+  { key: 'payroll', label: 'Payroll mobility', amt: 3100, color: '#dde44c' },
+  { key: 'tolls', label: 'Tolls', amt: 2600, color: '#ff7c53' },
+  { key: 'mmtoa', label: 'MMTOA', amt: 2300, color: '#394882', textLight: true },
+  { key: 'city', label: 'City subsidy', amt: 1400, color: '#cea9be' },
+  { key: 'sales', label: 'Sales tax', amt: 1300, color: '#9b9fbc' },
+  { key: 're', label: 'RE taxes', amt: 841, color: '#fde5dd' },
+  { key: 'cp', label: 'Congestion pricing', amt: 500, color: '#e7466d', textLight: true },
+  { key: 'other', label: 'Other', amt: 2400, color: '#dddddd' }
 ];
 
 const SCENARIO_LABELS = {
@@ -2140,7 +2223,8 @@ window.renderMTABar = function() {
     key: 'parking',
     label: sel === 'none' ? 'Parking meters' : SCENARIO_LABELS[sel],
     amt: parkingMillions,
-    color: sel === 'none' ? '#9ca3af' : '#fb923c',
+    color: sel === 'none' ? '#9b9fbc' : '#e7466d',
+    textLight: sel !== 'none',
     highlight: sel !== 'none'
   });
 
@@ -2150,8 +2234,9 @@ window.renderMTABar = function() {
     const pct = (s.amt / total) * 100;
     const amtStr = s.amt >= 1000 ? '$' + (s.amt / 1000).toFixed(1) + 'B' : '$' + Math.round(s.amt) + 'M';
     const showLabel = pct > 4;
-    const ring = s.highlight ? 'box-shadow: inset 0 0 0 2px #fff;' : '';
-    return `<div class="subway-seg" style="width:${pct}%; background:${s.color}; ${ring}" title="${s.label}: ${amtStr}">${showLabel ? s.label + ' ' + amtStr : ''}</div>`;
+    const ring = s.highlight ? 'box-shadow: inset 0 0 0 2px #050507;' : '';
+    const color = s.textLight ? '#fff' : '#050507';
+    return `<div class="subway-seg" style="width:${pct}%; background:${s.color}; color:${color}; ${ring}" title="${s.label}: ${amtStr}">${showLabel ? s.label + ' ' + amtStr : ''}</div>`;
   }).join('');
 
   if (sel === 'none') {
