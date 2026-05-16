@@ -225,6 +225,74 @@
     margin: 0 auto;
   }
 
+  .compare-strip {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(11, 13, 20, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 32px;
+    margin: 0 -32px 20px;
+  }
+  .compare-strip-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .compare-strip-inner::-webkit-scrollbar { display: none; }
+  .compare-strip-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+  .compare-chip {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    min-width: 92px;
+  }
+  .compare-chip.baseline { border-color: var(--border-soft); }
+  .compare-chip .chip-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .compare-chip .chip-val {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .compare-chip.baseline .chip-val { color: var(--text-muted); }
+
+  .stakes-line {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: right;
+    line-height: 1.4;
+  }
+  .stakes-line strong { color: var(--text-muted); font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .compare-strip { padding: 8px 16px; margin: 0 -16px 16px; }
+    .compare-chip { min-width: 86px; padding: 5px 8px; }
+  }
+
   .calc-intro {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -705,11 +773,12 @@
 
 <header>
   <div class="eyebrow">Curb economics</div>
-  <h1>NYC street parking: the map and the math</h1>
-  <p class="subtitle">Where the city's ~85,000 meters are — and what pricing all 3 million curb spaces could raise.</p>
+  <h1>New York City has 3 million curb parking spaces. It charges for 85,000 of them.</h1>
+  <p class="subtitle">Here's the map of what's metered, the math on what the other 97% could be worth, and how peer cities price their curbs.</p>
+  <p style="font-size: 13px; color: var(--text-dim); margin-top: 14px;">Jump to: <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none;">meter map</a> · <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none;">revenue calculator</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">what it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">peer cities</a></p>
 </header>
 
-<div class="tabs">
+<div class="tabs" id="tabs">
   <button class="tab active" data-tab="map">Meter map</button>
   <button class="tab" data-tab="calc">Revenue calculator</button>
   <button class="tab" data-tab="transit">What it could fund</button>
@@ -721,19 +790,19 @@
   <div id="map-container">
     <div class="map-stats">
       <div class="stat-card">
-        <div class="label">Active meters</div>
+        <div class="label">Active meter blockfaces (DOT)</div>
         <div class="value blue" id="meter-count">--</div>
       </div>
       <div class="stat-card s-green">
-        <div class="label">Streets with parking</div>
+        <div class="label">Street segments with a parking lane</div>
         <div class="value green" id="street-count">--</div>
       </div>
       <div class="stat-card s-orange">
-        <div class="label">Most meters</div>
+        <div class="label">Borough with the most meters</div>
         <div class="value orange" id="top-borough">--</div>
       </div>
       <div class="stat-card s-purple">
-        <div class="label">% of curb metered</div>
+        <div class="label">Share of NYC curb that is metered</div>
         <div class="value purple" id="pct-metered">~2.8%</div>
       </div>
     </div>
@@ -770,6 +839,19 @@
 <!-- CALCULATOR TAB -->
 <div id="tab-calc" class="tab-content">
   <div id="calc-container">
+
+    <div class="compare-strip">
+      <div class="compare-strip-inner">
+        <span class="compare-strip-label">At a glance →</span>
+        <div class="compare-chip baseline"><div class="chip-label">Today</div><div class="chip-val">$258M</div></div>
+        <div class="compare-chip"><div class="chip-label">1. Flat fee</div><div class="chip-val" id="strip-flat">--</div></div>
+        <div class="compare-chip"><div class="chip-label">2. Demand</div><div class="chip-val" id="strip-var">--</div></div>
+        <div class="compare-chip"><div class="chip-label">3. Auction</div><div class="chip-val" id="strip-auction">--</div></div>
+        <div class="compare-chip"><div class="chip-label">4. Permit</div><div class="chip-val" id="strip-permit">--</div></div>
+        <div class="compare-chip"><div class="chip-label">5. Combined</div><div class="chip-val" id="strip-combo">--</div></div>
+        <div class="compare-chip"><div class="chip-label">6. Equity</div><div class="chip-val" id="strip-equity">--</div></div>
+      </div>
+    </div>
 
     <div class="calc-intro">
       <h2>What if NYC charged for street parking?</h2>
@@ -861,6 +943,7 @@
           <div class="vs-current">
             <span id="flat-mult">2.1x</span> current revenue
           </div>
+          <div class="stakes-line" id="flat-stakes"></div>
         </div>
       </div>
 
@@ -874,7 +957,7 @@
             <span>Average hourly rate</span>
             <span class="val" id="var-rate-val">$2.50</span>
           </div>
-          <input type="range" id="var-rate" min="0.50" max="8" step="0.25" value="2.50">
+          <input type="range" id="var-rate" min="0.50" max="8" step="0.25" value="2.75">
         </div>
 
         <div class="slider-group">
@@ -891,7 +974,7 @@
             <span>Average paid occupancy</span>
             <span class="val" id="var-occ-val">35%</span>
           </div>
-          <input type="range" id="var-occ" min="10" max="100" step="5" value="35">
+          <input type="range" id="var-occ" min="10" max="100" step="5" value="20">
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Share of metered hours a car is actually parked and paying. Blends busy commercial curbs with quiet residential blocks.</div>
         </div>
 
@@ -919,6 +1002,7 @@
           <div class="vs-current">
             <span id="var-mult">30.5x</span> current revenue
           </div>
+          <div class="stakes-line" id="var-stakes"></div>
         </div>
       </div>
 
@@ -955,6 +1039,7 @@
           <div class="vs-current">
             <span id="auction-mult">25.0x</span> current revenue
           </div>
+          <div class="stakes-line" id="auction-stakes"></div>
         </div>
       </div>
 
@@ -1003,6 +1088,7 @@
           <div class="vs-current">
             <span id="permit-mult">1.6x</span> current revenue
           </div>
+          <div class="stakes-line" id="permit-stakes"></div>
         </div>
       </div>
 
@@ -1097,6 +1183,7 @@
         <div class="vs-current" style="font-size: 14px;">
           <span id="combo-mult">11.9x</span> current revenue ($258 million)
         </div>
+        <div class="stakes-line" id="combo-stakes"></div>
       </div>
     </div>
 
@@ -1158,6 +1245,7 @@
         <div class="vs-current" style="font-size: 14px;">
           <span id="equity-mult">1.7x</span> current revenue
         </div>
+        <div class="stakes-line" id="equity-stakes"></div>
       </div>
     </div>
 
@@ -1216,20 +1304,24 @@
     <!-- Revenue subway car -->
     <div class="scenario-card" style="grid-column: 1 / -1;">
       <h3>Where MTA revenue comes from</h3>
-      <p class="scenario-desc">The MTA's $19.9 billion operating budget is funded by a mix of fares, dedicated taxes, tolls and government subsidies. Current parking meter revenue ($258 million) is a sliver.</p>
+      <p class="scenario-desc">The MTA's $19.9 billion operating budget is funded by a mix of fares, dedicated taxes, tolls and government subsidies. Current parking meter revenue ($258 million) is a sliver — but a priced-curb scenario from the calculator could replace one of the larger pieces.</p>
+
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; padding:10px 12px; background: var(--surface2); border-radius: 8px;">
+        <label for="mta-scenario-pick" style="font-size:12px; color: var(--text-muted); font-weight:600;">Add a calculator scenario →</label>
+        <select id="mta-scenario-pick" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size:13px; cursor:pointer;">
+          <option value="none">None — show today's mix</option>
+          <option value="flat">1. Flat annual permit fee</option>
+          <option value="var">2. Demand-based metering</option>
+          <option value="auction">3. Market-rate auction</option>
+          <option value="permit">4. Residential permit program</option>
+          <option value="combo" selected>5. Combined metering + permits</option>
+          <option value="equity">6. Equity-tiered permit</option>
+        </select>
+        <span id="mta-scenario-readout" style="font-size:12px; color: var(--text-dim);"></span>
+      </div>
+
       <div class="subway-car-wrapper">
-        <div class="subway-car">
-          <div class="subway-seg" style="width: 26.1%; background: #4f8cff;" title="Farebox: $5.2B">Fares $5.2B</div>
-          <div class="subway-seg" style="width: 15.6%; background: #34d399;" title="Payroll mobility tax: $3.1B">Payroll $3.1B</div>
-          <div class="subway-seg" style="width: 13.1%; background: #fb923c;" title="Toll revenue: $2.6B">Tolls $2.6B</div>
-          <div class="subway-seg" style="width: 11.6%; background: #a78bfa;" title="Metropolitan Mass Transportation Operating Assistance (MMTOA) franchise surcharge: $2.3B">MMTOA $2.3B</div>
-          <div class="subway-seg" style="width: 7.0%; background: #f87171;" title="City operating subsidy: $1.4B">City $1.4B</div>
-          <div class="subway-seg" style="width: 6.5%; background: #38bdf8;" title="Sales tax supplement: $1.3B">Sales $1.3B</div>
-          <div class="subway-seg" style="width: 4.2%; background: #fbbf24;" title="Real estate transfer taxes: $841M">RE $841M</div>
-          <div class="subway-seg" style="width: 2.5%; background: #818cf8;" title="Congestion pricing: ~$500M">CP</div>
-          <div class="subway-seg" style="width: 1.3%; background: #9ca3af;" title="Parking meters: $258M">Pkg</div>
-          <div class="subway-seg" style="width: 12.1%; background: #444857;" title="Other state aid, advertising, investment income: ~$2.4B">Other $2.4B</div>
-        </div>
+        <div class="subway-car" id="mta-revenue-bar"></div>
       </div>
       <div class="subway-legend">
         <span class="subway-legend-item"><span class="subway-swatch" style="background:#4f8cff;"></span> Farebox $5.2B</span>
@@ -1573,6 +1665,30 @@ const TOTAL_SPACES = 3000000;
 const METERED_SPACES = 85000;
 const FREE_SPACES = TOTAL_SPACES - METERED_SPACES;
 const CURRENT_REVENUE = 258000000;
+const MTA_OPERATING = 19.9e9;
+const MTA_CAPITAL_GAP = 33.4e9;
+
+// Latest revenue per scenario, used by sticky strip + MTA tab picker
+const scenarioRev = {
+  flat: 0, var: 0, auction: 0, permit: 0, combo: 0, equity: 0
+};
+
+function stakesText(annual) {
+  const pctMTA = (annual / MTA_OPERATING) * 100;
+  const yearsGap = MTA_CAPITAL_GAP / annual;
+  const pctStr = pctMTA >= 1 ? pctMTA.toFixed(1) + '%' : pctMTA.toFixed(2) + '%';
+  return `<strong>${pctStr}</strong> of MTA operating budget · closes the unfunded capital gap in <strong>${yearsGap < 100 ? yearsGap.toFixed(1) : '100+'}</strong> years`;
+}
+
+function updateStrip() {
+  document.getElementById('strip-flat').textContent = fmt(scenarioRev.flat);
+  document.getElementById('strip-var').textContent = fmt(scenarioRev.var);
+  document.getElementById('strip-auction').textContent = fmt(scenarioRev.auction);
+  document.getElementById('strip-permit').textContent = fmt(scenarioRev.permit);
+  document.getElementById('strip-combo').textContent = fmt(scenarioRev.combo);
+  document.getElementById('strip-equity').textContent = fmt(scenarioRev.equity);
+  if (window.renderMTABar) window.renderMTABar();
+}
 
 function fmt(n) {
   if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
@@ -1599,8 +1715,9 @@ function updateFlat() {
   document.getElementById('flat-new-rev').textContent = fmt(newRev);
   document.getElementById('flat-total').textContent = fmt(total);
   document.getElementById('flat-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-
-
+  document.getElementById('flat-stakes').innerHTML = stakesText(total);
+  scenarioRev.flat = total;
+  updateStrip();
 }
 
 function updateVariable() {
@@ -1621,6 +1738,9 @@ function updateVariable() {
   document.getElementById('var-daily').textContent = fmt(daily);
   document.getElementById('var-total').textContent = fmt(annual);
   document.getElementById('var-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
+  document.getElementById('var-stakes').innerHTML = stakesText(annual);
+  scenarioRev.var = annual;
+  updateStrip();
 }
 
 function updateAuction() {
@@ -1635,8 +1755,9 @@ function updateAuction() {
   document.getElementById('auction-spaces').textContent = fmtN(spaces);
   document.getElementById('auction-total').textContent = fmt(annual);
   document.getElementById('auction-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
-
-
+  document.getElementById('auction-stakes').innerHTML = stakesText(annual);
+  scenarioRev.auction = annual;
+  updateStrip();
 }
 
 function updatePermit() {
@@ -1655,8 +1776,9 @@ function updatePermit() {
   document.getElementById('permit-new-rev').textContent = fmt(newRev);
   document.getElementById('permit-total').textContent = fmt(total);
   document.getElementById('permit-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-
-
+  document.getElementById('permit-stakes').innerHTML = stakesText(total);
+  scenarioRev.permit = total;
+  updateStrip();
 }
 
 function updateEquity() {
@@ -1681,6 +1803,9 @@ function updateEquity() {
   document.getElementById('equity-new-rev').textContent = fmt(newRev);
   document.getElementById('equity-total').textContent = fmt(total);
   document.getElementById('equity-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
+  document.getElementById('equity-stakes').innerHTML = stakesText(total);
+  scenarioRev.equity = total;
+  updateStrip();
 }
 
 function updateCombo() {
@@ -1710,6 +1835,9 @@ function updateCombo() {
   document.getElementById('combo-permit-rev').textContent = fmt(permitRev);
   document.getElementById('combo-total').textContent = fmt(total);
   document.getElementById('combo-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
+  document.getElementById('combo-stakes').innerHTML = stakesText(total);
+  scenarioRev.combo = total;
+  updateStrip();
 }
 
 // Event listeners
@@ -1969,6 +2097,89 @@ function renderCitiesTab() {
 }
 
 renderCitiesTab();
+
+// MTA REVENUE BAR (with scenario picker)
+const MTA_REV_BASE = [
+  { key: 'fares', label: 'Fares', amt: 5200, color: '#4f8cff' },
+  { key: 'payroll', label: 'Payroll mobility', amt: 3100, color: '#34d399' },
+  { key: 'tolls', label: 'Tolls', amt: 2600, color: '#fb923c' },
+  { key: 'mmtoa', label: 'MMTOA', amt: 2300, color: '#a78bfa' },
+  { key: 'city', label: 'City subsidy', amt: 1400, color: '#f87171' },
+  { key: 'sales', label: 'Sales tax', amt: 1300, color: '#38bdf8' },
+  { key: 're', label: 'RE taxes', amt: 841, color: '#fbbf24' },
+  { key: 'cp', label: 'Congestion pricing', amt: 500, color: '#818cf8' },
+  { key: 'other', label: 'Other', amt: 2400, color: '#444857' }
+];
+
+const SCENARIO_LABELS = {
+  none: null,
+  flat: '1. Flat permit fee',
+  var: '2. Demand-based metering',
+  auction: '3. Market-rate auction',
+  permit: '4. Residential permits',
+  combo: '5. Combined metering + permits',
+  equity: '6. Equity-tiered permits'
+};
+
+window.renderMTABar = function() {
+  const bar = document.getElementById('mta-revenue-bar');
+  const pick = document.getElementById('mta-scenario-pick');
+  const readout = document.getElementById('mta-scenario-readout');
+  if (!bar || !pick) return;
+
+  const sel = pick.value;
+  const parkingMillions = sel === 'none' ? 258 : (scenarioRev[sel] || 258) / 1e6;
+
+  const segs = MTA_REV_BASE.slice();
+  // Insert parking just before "other"
+  const otherIdx = segs.findIndex(s => s.key === 'other');
+  segs.splice(otherIdx, 0, {
+    key: 'parking',
+    label: sel === 'none' ? 'Parking meters' : SCENARIO_LABELS[sel],
+    amt: parkingMillions,
+    color: sel === 'none' ? '#9ca3af' : '#fb923c',
+    highlight: sel !== 'none'
+  });
+
+  const total = segs.reduce((s, x) => s + x.amt, 0);
+
+  bar.innerHTML = segs.map(s => {
+    const pct = (s.amt / total) * 100;
+    const amtStr = s.amt >= 1000 ? '$' + (s.amt / 1000).toFixed(1) + 'B' : '$' + Math.round(s.amt) + 'M';
+    const showLabel = pct > 4;
+    const ring = s.highlight ? 'box-shadow: inset 0 0 0 2px #fff;' : '';
+    return `<div class="subway-seg" style="width:${pct}%; background:${s.color}; ${ring}" title="${s.label}: ${amtStr}">${showLabel ? s.label + ' ' + amtStr : ''}</div>`;
+  }).join('');
+
+  if (sel === 'none') {
+    readout.textContent = 'Today, parking meters contribute $258M (1.3% of MTA operating revenue).';
+  } else {
+    const newTotalB = (total / 1000).toFixed(1);
+    const pctOfMta = ((parkingMillions / total) * 100).toFixed(1);
+    readout.innerHTML = `<strong style="color: var(--orange);">${SCENARIO_LABELS[sel]}</strong> would contribute <strong style="color:var(--green);">${parkingMillions >= 1000 ? '$' + (parkingMillions/1000).toFixed(1) + 'B' : '$' + Math.round(parkingMillions) + 'M'}</strong> — ${pctOfMta}% of a new $${newTotalB}B operating mix.`;
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const pick = document.getElementById('mta-scenario-pick');
+  if (pick) pick.addEventListener('change', renderMTABar);
+});
+
+// Also bind immediately in case DOM already ready
+const mtaPick = document.getElementById('mta-scenario-pick');
+if (mtaPick) mtaPick.addEventListener('change', renderMTABar);
+renderMTABar();
+
+// Header jump links
+document.querySelectorAll('a[data-jump]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = a.dataset.jump;
+    const tab = document.querySelector(`.tab[data-tab="${target}"]`);
+    if (tab) tab.click();
+    document.getElementById('tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
 </script>
 
 </body>
