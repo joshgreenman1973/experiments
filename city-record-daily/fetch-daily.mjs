@@ -57,6 +57,9 @@ function cleanRecord(rec) {
 // --- Extract notice fields ---
 
 function extractNotice(raw) {
+  const desc = raw.additional_description_1 || '';
+  // Truncate very long descriptions to keep payload reasonable
+  const trimmedDesc = desc.length > 1200 ? desc.slice(0, 1200) + '…' : desc;
   return {
     request_id: raw.request_id || '',
     start_date: raw.start_date || '',
@@ -70,6 +73,7 @@ function extractNotice(raw) {
     due_date: raw.due_date || '',
     event_date: raw.event_date || '',
     selection_method_description: raw.selection_method_description || '',
+    description: trimmedDesc,
   };
 }
 
@@ -122,6 +126,33 @@ function fmtMoney(n) {
   return '$' + n.toLocaleString();
 }
 
+// Reason codes + short factual labels (no editorial prose).
+// Front-end maps these to UI chips; methodology.html documents thresholds.
+const REASON_LABELS = {
+  EXEC_ORDER: 'Mayoral executive order',
+  EXEC_ORDER_EMERGENCY: 'Emergency executive order',
+  CEQR: 'Environmental review / rezoning',
+  CONCEPT_PAPER: 'Concept paper (pre-procurement)',
+  SPECIAL_MATERIALS: 'Special Materials (non-routine)',
+  BIG_CONTRACT: 'Contract value ≥ $1M',
+  AGENCY_RULE: 'Agency rule (proposed or adopted)',
+  PROP_DISP: 'City property disposition',
+  COURT: 'Court notice',
+  AWARD_HEARING: 'Contract award hearing',
+  EMERGENCY: 'Emergency action',
+  SETTLEMENT: 'Litigation settlement',
+  BOND: 'Bond issuance / sale',
+  LAND_USE: 'ULURP / landmark action',
+  OVERSIGHT: 'Consent decree / monitor',
+  KEY_AGENCY: 'Key-agency activity',
+  SOLE_SOURCE: 'Sole-source / non-competitive',
+  POLICY_TERM: 'Policy-relevant topic',
+  BIG_CONSTRUCTION: 'Construction / capital ≥ $500K',
+  ENV_HEALTH_HEARING: 'Environmental / health hearing',
+  HUMAN_SERV_RENEWAL: 'Human-services renewal / extension',
+  CONSULTING: 'Consulting / communications ≥ $100K',
+};
+
 function flagNotice(notice, raw) {
   const agency = notice.agency_name || '';
   const section = notice.section_name || '';
@@ -132,187 +163,47 @@ function flagNotice(notice, raw) {
   const amount = parseAmount(notice.contract_amount);
   const descAmount = extractAmountsFromDesc(desc);
   const maxAmount = Math.max(amount, descAmount);
-  const vendor = notice.vendor_name || '';
   const category = notice.category_description || '';
   const allText = `${title} ${desc} ${type} ${category}`.toLowerCase();
 
-  // --- Highest priority: executive orders and special materials ---
+  const make = (priority, code) => ({ priority, code, reason: REASON_LABELS[code], max_amount: maxAmount || undefined });
 
-  // Executive orders from the Mayor
   if (EXECUTIVE_ORDER_RE.test(title)) {
-    const isEmergency = /emergency/i.test(title);
-    const orderNum = title.match(/No\.?\s*(\d+(\.\d+)?)/i);
-    const label = orderNum ? `No. ${orderNum[1]}` : '';
-    return {
-      priority: 'notable',
-      summary: `${isEmergency ? 'Emergency executive' : 'Executive'} order ${label} from the Mayor. Executive orders carry the force of law and can reshape city policy, agency operations, and enforcement priorities.`
-    };
+    return make('notable', /emergency/i.test(title) ? 'EXEC_ORDER_EMERGENCY' : 'EXEC_ORDER');
   }
+  if (section === 'Special Materials' && CEQR_RE.test(title)) return make('notable', 'CEQR');
+  if (section === 'Special Materials' && CONCEPT_PAPER_RE.test(title)) return make('notable', 'CONCEPT_PAPER');
+  if (section === 'Special Materials' && ROUTINE_SPECIAL_RE.test(title)) return null;
+  if (section === 'Special Materials') return make('notable', 'SPECIAL_MATERIALS');
 
-  // CEQR environmental reviews and rezonings in Special Materials
-  if (section === 'Special Materials' && CEQR_RE.test(title)) {
-    return {
-      priority: 'notable',
-      summary: `Environmental review or rezoning action: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Land use and environmental reviews signal major development or infrastructure changes.`
-    };
-  }
+  if (maxAmount >= 1_000_000) return make('notable', 'BIG_CONTRACT');
+  if (section === 'Agency Rules') return make('notable', 'AGENCY_RULE');
+  if (section === 'Property Disposition') return make('notable', 'PROP_DISP');
+  if (section === 'Court Notices') return make('notable', 'COURT');
+  if (section === 'Contract Award Hearings') return make('notable', 'AWARD_HEARING');
 
-  // Concept papers (early signals of new programs)
-  if (section === 'Special Materials' && CONCEPT_PAPER_RE.test(title)) {
-    return {
-      priority: 'notable',
-      summary: `Concept paper from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Concept papers are the earliest public signal of a new program or contract -- the city is seeking feedback before procurement.`
-    };
-  }
+  if (EMERGENCY_RE.test(allText)) return make('notable', 'EMERGENCY');
+  if (SETTLEMENT_RE.test(allText)) return make('notable', 'SETTLEMENT');
+  if (BOND_RE.test(allText)) return make('notable', 'BOND');
+  if (ULURP_RE.test(allText) || LANDMARK_RE.test(allText)) return make('notable', 'LAND_USE');
+  if (CONSENT_DECREE_RE.test(allText) || MONITOR_RE.test(allText)) return make('notable', 'OVERSIGHT');
 
-  // Skip routine Special Materials (fuel prices, monthly index, LL63)
-  if (section === 'Special Materials' && ROUTINE_SPECIAL_RE.test(title)) {
-    return null;
-  }
+  if (KEY_AGENCIES_RE.test(agency)) return make('notable', 'KEY_AGENCY');
+  if (SOLE_SOURCE_RE.test(selection) || SOLE_SOURCE_RE.test(allText)) return make('notable', 'SOLE_SOURCE');
+  if (POLICY_TERMS_RE.test(allText)) return make('notable', 'POLICY_TERM');
 
-  // Other non-routine Special Materials (comptroller reports, NYCHA intents, etc.)
-  if (section === 'Special Materials') {
-    return {
-      priority: 'notable',
-      summary: `Special notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Special Materials often contain significant policy actions, legal notices, or procurement intents that don't fit standard categories.`
-    };
-  }
-
-  // --- High-priority checks ---
-
-  // Contracts over $1M
-  if (maxAmount >= 1_000_000) {
-    return {
-      priority: 'notable',
-      summary: `${fmtMoney(maxAmount)} ${type.toLowerCase() || 'contract'} by ${agency}${vendor ? ' to ' + vendor : ''}. ${section === 'Procurement' ? 'Large procurement worth tracking for scope and competitiveness.' : 'Significant dollar value warrants attention.'}`
-    };
-  }
-
-  // Agency rules — always flag
-  if (section === 'Agency Rules') {
-    return {
-      priority: 'notable',
-      summary: `New rule proposed by ${agency}. Agency rules represent binding policy changes that affect how city services operate and who they reach.`
-    };
-  }
-
-  // Property dispositions — always flag
-  if (section === 'Property Disposition') {
-    return {
-      priority: 'notable',
-      summary: `${agency} property disposition: ${title}. Dispositions of public assets deserve scrutiny to ensure fair value and appropriate use.`
-    };
-  }
-
-  // Court Notices — always flag (rare; ~154 lifetime)
-  if (section === 'Court Notices') {
-    return {
-      priority: 'notable',
-      summary: `Court notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Court notices in the City Record are uncommon and usually involve forfeiture, judicial sales, or significant litigation.`
-    };
-  }
-
-  // Contract Award Hearings — always flag (rare in practice)
-  if (section === 'Contract Award Hearings') {
-    return {
-      priority: 'notable',
-      summary: `Public hearing on a contract award by ${agency}${vendor ? ' to ' + vendor : ''}${maxAmount ? ' (' + fmtMoney(maxAmount) + ')' : ''}. Award hearings are a public-comment step before a contract is finalized.`
-    };
-  }
-
-  // Newsworthy keyword matches across any section
-  if (EMERGENCY_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Emergency action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Emergency procurement or declarations bypass normal review and merit close attention.`
-    };
-  }
-  if (SETTLEMENT_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Settlement notice from ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Settlements can resolve major litigation and commit the city to financial or policy obligations.`
-    };
-  }
-  if (BOND_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Bond action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Bond issuances signal major capital financing decisions.`
-    };
-  }
-  if (ULURP_RE.test(allText) || LANDMARK_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Land-use action by ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. ULURP and landmark proceedings shape city development and preservation.`
-    };
-  }
-  if (CONSENT_DECREE_RE.test(allText) || MONITOR_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Oversight notice involving ${agency}: ${title.length > 80 ? title.slice(0, 80) + '...' : title}. Consent decrees and court-appointed monitors are major accountability mechanisms.`
-    };
-  }
-
-  // Key agencies
-  if (KEY_AGENCIES_RE.test(agency)) {
-    const shortAgency = agency.length > 40 ? agency.slice(0, 40) + '…' : agency;
-    return {
-      priority: 'notable',
-      summary: `${type || 'Notice'} from ${shortAgency}: ${title.length > 80 ? title.slice(0, 80) + '…' : title}. Key agency activity worth monitoring.`
-    };
-  }
-
-  // Sole source / non-competitive
-  if (SOLE_SOURCE_RE.test(selection) || SOLE_SOURCE_RE.test(allText)) {
-    return {
-      priority: 'notable',
-      summary: `Non-competitive ${type.toLowerCase() || 'procurement'} by ${agency}${vendor ? ' to ' + vendor : ''}${maxAmount ? ' for ' + fmtMoney(maxAmount) : ''}. Sole-source contracts bypass competitive bidding and merit public scrutiny.`
-    };
-  }
-
-  // Policy-relevant terms
-  if (POLICY_TERMS_RE.test(allText)) {
-    const match = allText.match(POLICY_TERMS_RE);
-    const term = match ? match[0] : 'policy issue';
-    return {
-      priority: 'notable',
-      summary: `${type || 'Notice'} from ${agency} related to ${term}. Policy-relevant topic for city watchers and advocates.`
-    };
-  }
-
-  // --- Medium-priority checks ---
-
-  // Construction/infrastructure over $500K
   if (maxAmount >= 500_000 && /construction|infrastructure|capital|renovation|repair/i.test(allText)) {
-    return {
-      priority: 'watching',
-      summary: `${fmtMoney(maxAmount)} construction/infrastructure ${type.toLowerCase() || 'contract'} by ${agency}. Large capital spend worth monitoring.`
-    };
+    return make('watching', 'BIG_CONSTRUCTION');
   }
-
-  // Environmental or health hearings
   if (/hearing|meeting/i.test(type) && /environment|health|water|air quality|toxic|lead|asbestos|climate/i.test(allText)) {
-    return {
-      priority: 'watching',
-      summary: `${type} from ${agency} on environmental/health topic. Public input opportunity on quality-of-life issues.`
-    };
+    return make('watching', 'ENV_HEALTH_HEARING');
   }
-
-  // Human services extensions/renewals
   if (/extension|renewal|amendment/i.test(type) && /human services/i.test(category)) {
-    return {
-      priority: 'watching',
-      summary: `Human services contract ${type.toLowerCase()} by ${agency}${vendor ? ' with ' + vendor : ''}. Continuity of social services contracts worth tracking.`
-    };
+    return make('watching', 'HUMAN_SERV_RENEWAL');
   }
-
-  // Consulting, lobbying, communications
   if (/consult|lobbying|communications|public relations|advertising/i.test(allText) && maxAmount >= 100_000) {
-    return {
-      priority: 'watching',
-      summary: `${fmtMoney(maxAmount)} consulting/communications ${type.toLowerCase() || 'contract'} by ${agency}. Discretionary spending category that merits transparency.`
-    };
+    return make('watching', 'CONSULTING');
   }
-
   return null;
 }
 
@@ -374,7 +265,10 @@ async function main() {
 
     const flag = flagNotice(notice, cleaned);
     if (flag) {
-      const flagged = { ...notice, summary: flag.summary };
+      const flagged = { ...notice, flag_code: flag.code, flag_reason: flag.reason };
+      if (flag.max_amount && flag.max_amount > parseAmount(notice.contract_amount)) {
+        flagged.max_amount = flag.max_amount;
+      }
       if (flag.priority === 'notable') notable.push(flagged);
       else watching.push(flagged);
     }

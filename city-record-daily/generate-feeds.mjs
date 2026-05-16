@@ -88,9 +88,12 @@ function buildRssFeed({ title, description, link, feedUrl, items }) {
     const agency = item.agency_name || '';
     const section = item.section_name || '';
     const amount = item.contract_amount ? ` | ${fmtMoney(item.contract_amount)}` : '';
-    const desc = item.summary
-      ? `${item.summary}\n\n${agency} | ${section}${amount}`
-      : `${agency} | ${section} | ${item.type_of_notice_description || ''}${amount}`;
+    const vendor = item.vendor_name ? ` | Vendor: ${item.vendor_name}` : '';
+    const reason = item.flag_reason ? ` | Flagged: ${item.flag_reason}` : '';
+    const due = item.due_date ? ` | Due: ${item.due_date.slice(0, 10)}` : '';
+    const event = item.event_date ? ` | Hearing: ${item.event_date.slice(0, 10)}` : '';
+    const factLine = `${agency} | ${section} | ${item.type_of_notice_description || ''}${amount}${vendor}${due}${event}${reason}`;
+    const desc = item.description ? `${factLine}\n\n${item.description}` : (item.summary ? `${factLine}\n\n${item.summary}` : factLine);
 
     xml += `  <item>
     <title>${escXml(item.short_title || 'Untitled Notice')}</title>

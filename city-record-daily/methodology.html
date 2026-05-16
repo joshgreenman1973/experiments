@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Methodology — City Record Digest</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: #1a1a1a; background: #f5f5f5; line-height: 1.6; font-size: 14px;
+    }
+    .container { max-width: 740px; margin: 0 auto; padding: 24px 20px 60px; }
+    header { border-bottom: 2px solid #1a1a1a; padding-bottom: 12px; margin-bottom: 24px; }
+    h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    h2 {
+      font-size: 14px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.4px; margin-top: 28px; margin-bottom: 12px; color: #434343;
+    }
+    p, li { color: #333; }
+    p { margin-bottom: 10px; }
+    ul { margin-left: 22px; margin-bottom: 14px; }
+    li { margin-bottom: 4px; }
+    code { font-family: ui-monospace, monospace; background: #eef1f5; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; background: #fff; border: 1px solid #e8e8e8; border-radius: 3px; overflow: hidden; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 13px; vertical-align: top; }
+    th { background: #fafafa; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }
+    a { color: #5b8db8; }
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e8e8e8; font-size: 11px; color: #999; }
+    .nav-back { font-size: 12px; font-weight: 600; color: #5b8db8; text-decoration: none; }
+    .nav-back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <a href="index.html" class="nav-back">← Back to digest</a>
+    <h1 style="margin-top:8px;">Methodology</h1>
+    <p style="color:#777;font-size:13px;margin-top:6px;">How City Record Digest selects, flags, and presents NYC government notices.</p>
+  </header>
+
+  <h2>Data source</h2>
+  <p>All notices are pulled directly from <a href="https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx">NYC Open Data dataset <code>dg92-zbpx</code></a> (City Record Online), which the Department of Citywide Administrative Services publishes daily. We fetch each business day's notices via the Socrata API:</p>
+  <p><code>https://data.cityofnewyork.us/resource/dg92-zbpx.json?$where=start_date='YYYY-MM-DD'</code></p>
+  <p>The published archive runs from the date the digest started collecting forward. Every card on the site links back to the underlying Open Data row and to the original notice on <a href="https://a856-cityrecord.nyc.gov/">a856-cityrecord.nyc.gov</a>.</p>
+
+  <h2>How a notice gets flagged</h2>
+  <p>Flagging is rule-based — no human curation and no model. Rules run in order; the first matching rule wins. Notices that match no rule appear only in the All Notices table.</p>
+  <p>Two priority tiers:</p>
+  <ul>
+    <li><strong>Notable Developments</strong> — items the rules judge most likely to be newsworthy.</li>
+    <li><strong>Worth Watching</strong> — secondary signals (mid-size capital spend, environmental hearings, human-services renewals, discretionary consulting).</li>
+  </ul>
+
+  <h2>Flagging rules</h2>
+  <table>
+    <thead><tr><th>Code</th><th>Rule</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td><code>EXEC_ORDER</code></td><td>Title contains "executive order"</td><td>Notable</td></tr>
+      <tr><td><code>EXEC_ORDER_EMERGENCY</code></td><td>Executive order with "emergency" in title</td><td>Notable</td></tr>
+      <tr><td><code>CEQR</code></td><td>Special Materials notice naming CEQR, rezoning, or environmental review</td><td>Notable</td></tr>
+      <tr><td><code>CONCEPT_PAPER</code></td><td>Special Materials concept paper (pre-procurement signal)</td><td>Notable</td></tr>
+      <tr><td><code>SPECIAL_MATERIALS</code></td><td>Other Special Materials, except routine fuel/LL63/monthly index</td><td>Notable</td></tr>
+      <tr><td><code>BIG_CONTRACT</code></td><td>Contract amount ≥ $1,000,000 (in <code>contract_amount</code> or extracted from body)</td><td>Notable</td></tr>
+      <tr><td><code>AGENCY_RULE</code></td><td>Section = Agency Rules</td><td>Notable</td></tr>
+      <tr><td><code>PROP_DISP</code></td><td>Section = Property Disposition</td><td>Notable</td></tr>
+      <tr><td><code>COURT</code></td><td>Section = Court Notices</td><td>Notable</td></tr>
+      <tr><td><code>AWARD_HEARING</code></td><td>Section = Contract Award Hearings</td><td>Notable</td></tr>
+      <tr><td><code>EMERGENCY</code></td><td>"emergency procurement / contract / declaration / order" anywhere in title or body</td><td>Notable</td></tr>
+      <tr><td><code>SETTLEMENT</code></td><td>"settlement", "stipulation of settlement", "class action settlement"</td><td>Notable</td></tr>
+      <tr><td><code>BOND</code></td><td>"bond issuance / sale / series / anticipation"</td><td>Notable</td></tr>
+      <tr><td><code>LAND_USE</code></td><td>ULURP or landmark designation / hearing / preservation</td><td>Notable</td></tr>
+      <tr><td><code>OVERSIGHT</code></td><td>Consent decree or court-appointed / independent / federal monitor</td><td>Notable</td></tr>
+      <tr><td><code>KEY_AGENCY</code></td><td>Agency matches: NYCHA, HPD, NYPD, DOE, DOC, DHS, ACS, OMB, MOCJ, City Planning, Mayor's Office</td><td>Notable</td></tr>
+      <tr><td><code>SOLE_SOURCE</code></td><td>Selection method or body text contains "sole source", "negotiated acquisition", "non-competitive", "single source"</td><td>Notable</td></tr>
+      <tr><td><code>POLICY_TERM</code></td><td>Body or title mentions: shelter, jail, Rikers, rezoning, affordable housing, charter school, homelessness, eviction, supportive housing, mental health, opioid, overdose, gun violence, youth program</td><td>Notable</td></tr>
+      <tr><td><code>BIG_CONSTRUCTION</code></td><td>≥ $500K AND keywords: construction, infrastructure, capital, renovation, repair</td><td>Watching</td></tr>
+      <tr><td><code>ENV_HEALTH_HEARING</code></td><td>Hearing/meeting on environment, health, water, air quality, lead, asbestos, climate</td><td>Watching</td></tr>
+      <tr><td><code>HUMAN_SERV_RENEWAL</code></td><td>Extension/renewal/amendment in Human Services category</td><td>Watching</td></tr>
+      <tr><td><code>CONSULTING</code></td><td>≥ $100K AND keywords: consulting, lobbying, communications, PR, advertising</td><td>Watching</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Personnel notices</h2>
+  <p>"Changes in Personnel" entries (hires, separations, transfers) are pulled out of the main notice list and shown as a summary callout: total entries, breakdown by action, and the top agencies. Individual personnel rows are not displayed because they are bulk-published and aren't useful at the individual level.</p>
+
+  <h2>Routine Special Materials</h2>
+  <p>Three categories of Special Materials are intentionally excluded because they are repetitive and rarely newsworthy:</p>
+  <ul>
+    <li>Weekly fuel price notices</li>
+    <li>Monthly index notices</li>
+    <li>Local Law 63 (LL63) notices</li>
+  </ul>
+
+  <h2>Visual hierarchy</h2>
+  <ul>
+    <li>Cards with a deadline within <strong>2 days</strong> get a red left border + bold red deadline.</li>
+    <li>Cards with a deadline within <strong>7 days</strong> get an amber left border + amber deadline.</li>
+    <li>Cards with a contract amount ≥ $1M get a heavier red border.</li>
+    <li>All other cards use a neutral gray border.</li>
+  </ul>
+
+  <h2>Trailing 30-day baseline</h2>
+  <p>The stat strip on each day's digest compares the day's counts to the trailing 30-day median of available data (excluding the current day). Days with no published data are skipped. If fewer than 30 days exist in the archive, the median is computed over whatever days are available.</p>
+
+  <h2>Filters and URL state</h2>
+  <p>Filter chips reflect in the URL as query parameters: <code>?agency=…&amp;reason=…&amp;type=…&amp;min=…&amp;deadline=…&amp;date=…</code>. Any filtered view is shareable as a direct link.</p>
+
+  <h2>Limitations</h2>
+  <ul>
+    <li>Dollar amounts come from the <code>contract_amount</code> field or, when missing, from the largest dollar figure parsed out of the notice body. Amounts in the body may include estimates, line items, or unrelated figures.</li>
+    <li>"Vendor: TBD" appears when a Procurement notice has no vendor listed in the dataset — common for solicitations and intents-to-award before bidding closes.</li>
+    <li>Notice descriptions are truncated to 1,200 characters in the digest. For the full text, follow the "View on City Record" link.</li>
+    <li>Rules are conservative: when in doubt, items end up in All Notices rather than Notable. Reporters should treat Notable as a starting point, not a final list.</li>
+  </ul>
+
+  <h2>Reproducing the digest</h2>
+  <p>The pipeline is two Node scripts in the repository: <code>fetch-daily.mjs</code> (pulls the day's notices, applies the flagging rules, writes <code>data/YYYY-MM-DD.json</code>) and <code>generate-feeds.mjs</code> (rebuilds RSS feeds). Both run on a daily schedule via GitHub Actions.</p>
+
+  <footer>
+    <a href="index.html">← Back to City Record Digest</a>
+  </footer>
+</div>
+</body>
+</html>
