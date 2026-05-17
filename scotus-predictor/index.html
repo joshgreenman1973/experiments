@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SCOTUS Question Predictor</title>
+  <style>
+    :root {
+      --bg: #faf8f4;
+      --ink: #1a1a1a;
+      --muted: #555;
+      --rule: #d8d2c4;
+      --accent: #7a1f1f;
+      --card: #fff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: Georgia, "Source Serif 4", serif; line-height: 1.5; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+    h1 { font-family: Georgia, serif; font-size: 30px; margin: 0 0 4px; letter-spacing: -0.01em; }
+    .sub { color: var(--muted); font-size: 15px; margin-bottom: 28px; }
+    .sub a { color: var(--accent); }
+    .panel { background: var(--card); border: 1px solid var(--rule); padding: 20px 22px; margin-bottom: 20px; }
+    label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 6px; }
+    select, textarea, input { font: inherit; width: 100%; padding: 10px 12px; border: 1px solid var(--rule); background: #fff; }
+    textarea { min-height: 140px; resize: vertical; font-size: 15px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+    .ctrl { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+    button { background: var(--accent); color: #fff; border: 0; padding: 12px 22px; font: inherit; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: progress; }
+    button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .meta { color: var(--muted); font-size: 13px; }
+    .qcount { font-size: 12px; color: var(--muted); }
+
+    .q { border-left: 3px solid var(--accent); padding: 12px 16px; margin: 14px 0; background: #fff; }
+    .q .qtext { font-size: 17px; line-height: 1.55; }
+    .q .qmeta { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .q .qmeta a { color: var(--accent); cursor: pointer; text-decoration: underline dotted; }
+
+    .ex { background: #f3efe6; border: 1px solid var(--rule); padding: 12px 14px; margin: 8px 0; font-size: 14px; }
+    .ex .case { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .ex .qt { font-style: italic; }
+    .ex .ctx { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+    details { margin: 8px 0; }
+    summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+    .voice { background: #efe7d8; padding: 10px 14px; font-style: italic; color: #4a3b1d; border-left: 3px solid #b8985c; margin: 12px 0; }
+    .err { color: #a01a1a; padding: 10px 14px; background: #fff0f0; border: 1px solid #f0c4c4; margin: 12px 0; }
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; background: #f6f1e4; padding: 10px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SCOTUS Question Predictor</h1>
+  <div class="sub">For any of the nine current justices, project the kinds of questions they'd ask at oral argument — grounded in their actual past questions. Retrieval over the Oyez transcript corpus; predictions are generated in the justice's voice via Claude.</div>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="justice">Justice</label>
+        <select id="justice"></select>
+      </div>
+      <div>
+        <label for="num">How many questions</label>
+        <select id="num">
+          <option>3</option>
+          <option selected>5</option>
+          <option>7</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <label for="case">Case description (real or hypothetical)</label>
+      <textarea id="case" placeholder="e.g. A state law requires social-media platforms with more than 1 million users to host all 'lawful' political speech and bans them from moderating based on viewpoint. Platform challenges under the First Amendment."></textarea>
+    </div>
+    <div class="ctrl">
+      <button id="go">Predict questions</button>
+      <button id="sample" class="secondary">Show 5 real questions from this justice</button>
+      <span class="meta" id="status"></span>
+    </div>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $('out');
+const status = $('status');
+
+let justices = [];
+let lastResult = null;
+
+async function loadJustices() {
+  const r = await fetch('/api/justices');
+  const data = await r.json();
+  justices = data.justices;
+  const sel = $('justice');
+  sel.innerHTML = '';
+  for (const j of justices) {
+    const opt = document.createElement('option');
+    opt.value = j.justice_id;
+    opt.textContent = `${j.display_name}  (${j.question_count.toLocaleString()} questions)`;
+    sel.appendChild(opt);
+  }
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderPrediction(res) {
+  lastResult = res;
+  let h = '';
+  h += `<div class="panel"><h2 style="margin:0 0 8px;font-size:20px;">${escapeHtml(res.justice_name)}</h2>`;
+  if (res.voice_notes) h += `<div class="voice">${escapeHtml(res.voice_notes)}</div>`;
+  if (res.raw) {
+    h += `<div class="err">Model returned non-JSON output:</div><pre>${escapeHtml(res.raw)}</pre>`;
+  }
+  for (let i = 0; i < (res.predicted_questions || []).length; i++) {
+    const q = res.predicted_questions[i];
+    const cpi = q.closest_precedent_index;
+    const precedent = (cpi != null && res.retrieved_examples[cpi]) ? res.retrieved_examples[cpi] : null;
+    h += `<div class="q">`;
+    h += `<div class="qtext">${escapeHtml(q.question)}</div>`;
+    h += `<div class="qmeta">`;
+    if (q.rationale) h += `${escapeHtml(q.rationale)}`;
+    if (precedent) {
+      h += ` &middot; <a onclick="document.getElementById('ex-${cpi}').open=true;document.getElementById('ex-${cpi}').scrollIntoView({behavior:'smooth',block:'center'})">closest real precedent: ${escapeHtml(precedent.case_name)} (${precedent.term})</a>`;
+    }
+    h += `</div></div>`;
+  }
+  h += `<details><summary>Retrieved real questions (${res.retrieved_examples.length}) used as grounding</summary>`;
+  for (let i = 0; i < res.retrieved_examples.length; i++) {
+    const ex = res.retrieved_examples[i];
+    h += `<details id="ex-${i}" class="ex" style="margin:8px 0;"><summary><span class="case">[${i}] ${escapeHtml(ex.case_name)} &middot; term ${ex.term} &middot; BM25 ${ex.score.toFixed(2)}</span></summary>`;
+    h += `<div class="qt">${escapeHtml(ex.question)}</div>`;
+    if (ex.context_before) h += `<div class="ctx"><b>Advocate before:</b> ${escapeHtml(ex.context_before)}</div>`;
+    h += `</details>`;
+  }
+  h += `</details>`;
+  if (res.usage) h += `<div class="qcount" style="margin-top:14px;">Tokens: ${res.usage.input_tokens} in / ${res.usage.output_tokens} out</div>`;
+  h += `</div>`;
+  out.innerHTML = h;
+}
+
+async function predict() {
+  const justice_id = $('justice').value;
+  const case_description = $('case').value.trim();
+  const num_questions = parseInt($('num').value, 10);
+  if (!case_description) { status.textContent = 'enter a case description'; return; }
+  $('go').disabled = true;
+  status.innerHTML = '<span class="spin"></span>retrieving real questions and generating predictions...';
+  out.innerHTML = '';
+  try {
+    const r = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ justice_id, case_description, num_questions }),
+    });
+    const data = await r.json();
+    if (data.error) { out.innerHTML = `<div class="err">${escapeHtml(data.error)}</div>`; }
+    else { renderPrediction(data); }
+  } catch (e) {
+    out.innerHTML = `<div class="err">${escapeHtml(String(e))}</div>`;
+  } finally {
+    $('go').disabled = false;
+    status.textContent = '';
+  }
+}
+
+async function showSample() {
+  const justice_id = $('justice').value;
+  status.innerHTML = '<span class="spin"></span>loading sample...';
+  try {
+    const r = await fetch('/api/sample/' + encodeURIComponent(justice_id));
+    const data = await r.json();
+    let h = `<div class="panel"><h2 style="margin:0 0 8px;font-size:18px;">Real questions sample</h2>`;
+    for (const s of data.samples) {
+      h += `<div class="ex"><div class="case">${escapeHtml(s.case_name)} &middot; term ${s.term}</div><div class="qt">${escapeHtml(s.question)}</div>`;
+      if (s.context_before) h += `<div class="ctx"><b>Advocate before:</b> ${escapeHtml(s.context_before)}</div>`;
+      h += `</div>`;
+    }
+    h += `</div>`;
+    out.innerHTML = h;
+  } finally {
+    status.textContent = '';
+  }
+}
+
+$('go').onclick = predict;
+$('sample').onclick = showSample;
+loadJustices();
+</script>
+</body>
+</html>
