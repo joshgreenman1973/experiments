@@ -102,7 +102,8 @@ async function loadJustices() {
   for (const j of justices) {
     const opt = document.createElement('option');
     opt.value = j.justice_id;
-    opt.textContent = `${j.display_name}  (${j.question_count.toLocaleString()} questions)`;
+    const oc = j.opinion_chunk_count || 0;
+    opt.textContent = `${j.display_name}  (${j.question_count.toLocaleString()} questions, ${oc.toLocaleString()} opinion chunks)`;
     sel.appendChild(opt);
   }
 }
@@ -119,20 +120,26 @@ function renderPrediction(res) {
   if (res.raw) {
     h += `<div class="err">Model returned non-JSON output:</div><pre>${escapeHtml(res.raw)}</pre>`;
   }
+  const opinions = res.retrieved_opinions || [];
   for (let i = 0; i < (res.predicted_questions || []).length; i++) {
     const q = res.predicted_questions[i];
     const cpi = q.closest_precedent_index;
     const precedent = (cpi != null && res.retrieved_examples[cpi]) ? res.retrieved_examples[cpi] : null;
+    const doi = q.drew_from_opinion_index;
+    const op = (doi != null && opinions[doi]) ? opinions[doi] : null;
     h += `<div class="q">`;
     h += `<div class="qtext">${escapeHtml(q.question)}</div>`;
     h += `<div class="qmeta">`;
     if (q.rationale) h += `${escapeHtml(q.rationale)}`;
     if (precedent) {
-      h += ` &middot; <a onclick="document.getElementById('ex-${cpi}').open=true;document.getElementById('ex-${cpi}').scrollIntoView({behavior:'smooth',block:'center'})">closest real precedent: ${escapeHtml(precedent.case_name)} (${precedent.term})</a>`;
+      h += ` &middot; <a onclick="document.getElementById('ex-${cpi}').open=true;document.getElementById('ex-${cpi}').scrollIntoView({behavior:'smooth',block:'center'})">closest question: ${escapeHtml(precedent.case_name)} (${precedent.term})</a>`;
+    }
+    if (op) {
+      h += ` &middot; <a onclick="document.getElementById('op-${doi}').open=true;document.getElementById('op-${doi}').scrollIntoView({behavior:'smooth',block:'center'})">drew on ${escapeHtml(op.opinion_type || 'opinion')}: ${escapeHtml(op.case_name)} (${op.term})</a>`;
     }
     h += `</div></div>`;
   }
-  h += `<details><summary>Retrieved real questions (${res.retrieved_examples.length}) used as grounding</summary>`;
+  h += `<details><summary>Retrieved oral-argument questions (${res.retrieved_examples.length}) used as grounding</summary>`;
   for (let i = 0; i < res.retrieved_examples.length; i++) {
     const ex = res.retrieved_examples[i];
     h += `<details id="ex-${i}" class="ex" style="margin:8px 0;"><summary><span class="case">[${i}] ${escapeHtml(ex.case_name)} &middot; term ${ex.term} &middot; BM25 ${ex.score.toFixed(2)}</span></summary>`;
@@ -141,6 +148,17 @@ function renderPrediction(res) {
     h += `</details>`;
   }
   h += `</details>`;
+  if (opinions.length) {
+    h += `<details open><summary>Retrieved written-opinion excerpts (${opinions.length}) used as grounding</summary>`;
+    for (let i = 0; i < opinions.length; i++) {
+      const op = opinions[i];
+      h += `<details id="op-${i}" class="ex" style="margin:8px 0;background:#efe7d8;border-color:#b8985c;">`;
+      h += `<summary><span class="case">[${i}] ${escapeHtml(op.opinion_type || 'opinion').toUpperCase()} &middot; ${escapeHtml(op.case_name)} &middot; term ${op.term} &middot; BM25 ${op.score.toFixed(2)}</span></summary>`;
+      h += `<div class="qt" style="white-space:pre-wrap;font-style:normal;">${escapeHtml(op.text)}</div>`;
+      h += `</details>`;
+    }
+    h += `</details>`;
+  }
   if (res.usage) h += `<div class="qcount" style="margin-top:14px;">Tokens: ${res.usage.input_tokens} in / ${res.usage.output_tokens} out</div>`;
   h += `</div>`;
   out.innerHTML = h;

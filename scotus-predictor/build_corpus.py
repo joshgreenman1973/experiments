@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 CASES_DIR = ROOT / "data" / "cases"
 TRANSCRIPTS_DIR = ROOT / "data" / "transcripts"
+OPINIONS_DIR = ROOT / "data" / "opinions"
 DB_PATH = ROOT / "corpus.db"
 
 # Current 9 justices (Oyez identifiers). Keep ordered by seniority.
@@ -29,6 +30,19 @@ CURRENT_JUSTICES = {
     "brett_m_kavanaugh": "Justice Brett M. Kavanaugh",
     "amy_coney_barrett": "Justice Amy Coney Barrett",
     "ketanji_brown_jackson": "Justice Ketanji Brown Jackson",
+}
+
+# Map of last name -> justice_id for matching opinion-author entries.
+LASTNAME_TO_JUSTICE_ID = {
+    "Roberts": "john_g_roberts_jr",
+    "Thomas": "clarence_thomas",
+    "Alito": "samuel_a_alito_jr",
+    "Sotomayor": "sonia_sotomayor",
+    "Kagan": "elena_kagan",
+    "Gorsuch": "neil_gorsuch",
+    "Kavanaugh": "brett_m_kavanaugh",
+    "Barrett": "amy_coney_barrett",
+    "Jackson": "ketanji_brown_jackson",
 }
 
 
@@ -179,8 +193,104 @@ def extract_questions(case: dict):
             }
 
 
+def iter_opinion_files():
+    if not OPINIONS_DIR.exists():
+        return
+    for f in sorted(OPINIONS_DIR.glob("*.json")):
+        try:
+            yield json.loads(f.read_text())
+        except Exception as e:
+            print(f"  ! skip opinion {f}: {e}")
+
+
+# Heuristics for skipping the boilerplate header that prefixes every Justia
+# opinion ("SUPREME COURT OF THE UNITED STATES", "[June 2, 2008]", etc.).
+# The actual prose starts with the first paragraph that looks like a sentence.
+def _is_header_line(line: str) -> bool:
+    s = line.strip()
+    if not s:
+        return True
+    # ALL-CAPS lines or single-bracket date lines are header furniture.
+    if len(s) < 80 and s.upper() == s and re.search(r"[A-Z]", s):
+        return True
+    if re.match(r"^\[[^\]]+\]\s*$", s):
+        return True
+    if re.match(r"^(NO\.|No\.) ?[\d\-]+\s*$", s):
+        return True
+    return False
+
+
+def _strip_opinion_header(text: str) -> str:
+    lines = text.split("\n")
+    # Drop leading header lines until we hit something that looks like body prose.
+    i = 0
+    while i < len(lines) and _is_header_line(lines[i]):
+        i += 1
+    return "\n".join(lines[i:]).strip()
+
+
+def chunk_opinion(text: str, target_words: int = 220, max_chunks: int = 8) -> list[str]:
+    """Split an opinion into ~target_words-sized chunks on paragraph boundaries.
+
+    We keep paragraphs intact (they're the natural unit of legal prose) and
+    accumulate them into chunks until each chunk hits the target word count.
+    Caps at max_chunks per opinion so a single 60-page dissent doesn't
+    dominate one justice's index.
+    """
+    text = _strip_opinion_header(text)
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    # Fallback for opinions cached before paragraph-preservation was fixed:
+    # group sentences into ~5-sentence paragraphs.
+    if len(paragraphs) <= 1 and len(text.split()) > 400:
+        sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z\"\(\[])", text.replace("\n", " "))
+        paragraphs = []
+        buf: list[str] = []
+        for s in sentences:
+            s = s.strip()
+            if not s:
+                continue
+            buf.append(s)
+            if len(buf) >= 5:
+                paragraphs.append(" ".join(buf))
+                buf = []
+        if buf:
+            paragraphs.append(" ".join(buf))
+    chunks: list[str] = []
+    buf: list[str] = []
+    buf_words = 0
+    for p in paragraphs:
+        wc = len(p.split())
+        if buf and buf_words + wc > target_words * 1.4:
+            chunks.append("\n\n".join(buf))
+            buf = [p]
+            buf_words = wc
+        else:
+            buf.append(p)
+            buf_words += wc
+        if buf_words >= target_words:
+            chunks.append("\n\n".join(buf))
+            buf = []
+            buf_words = 0
+    if buf:
+        chunks.append("\n\n".join(buf))
+    # Drop very short tail chunks (signature blocks, footnotes scraps).
+    chunks = [c for c in chunks if len(c.split()) >= 60]
+    if len(chunks) > max_chunks:
+        # Spread the selection: take the first chunk (intro framing) plus
+        # evenly-spaced chunks across the body. Intro is usually the most
+        # signal-dense for voice/doctrinal positioning.
+        idxs = [0]
+        step = (len(chunks) - 1) / (max_chunks - 1)
+        for k in range(1, max_chunks):
+            idxs.append(round(k * step))
+        chunks = [chunks[i] for i in sorted(set(idxs))]
+    return chunks
+
+
 def init_db(conn: sqlite3.Connection):
     conn.executescript("""
+    DROP TABLE IF EXISTS opinion_chunks;
+    DROP TABLE IF EXISTS opinions;
     DROP TABLE IF EXISTS questions;
     DROP TABLE IF EXISTS cases;
     DROP TABLE IF EXISTS justices;
@@ -188,7 +298,8 @@ def init_db(conn: sqlite3.Connection):
     CREATE TABLE justices (
         justice_id TEXT PRIMARY KEY,
         display_name TEXT NOT NULL,
-        question_count INTEGER DEFAULT 0
+        question_count INTEGER DEFAULT 0,
+        opinion_chunk_count INTEGER DEFAULT 0
     );
 
     CREATE TABLE cases (
@@ -226,9 +337,40 @@ def init_db(conn: sqlite3.Connection):
         FOREIGN KEY (case_id) REFERENCES cases (case_id)
     );
 
+    CREATE TABLE opinions (
+        justia_opinion_id INTEGER PRIMARY KEY,
+        justice_id TEXT NOT NULL,
+        judge_full_name TEXT,
+        case_id TEXT,
+        case_name TEXT,
+        term INTEGER,
+        opinion_type TEXT,            -- majority | concurring | dissenting | per_curiam | ...
+        title TEXT,
+        justia_url TEXT,
+        text_length INTEGER,
+        FOREIGN KEY (justice_id) REFERENCES justices (justice_id),
+        FOREIGN KEY (case_id) REFERENCES cases (case_id)
+    );
+
+    CREATE TABLE opinion_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        justia_opinion_id INTEGER NOT NULL,
+        justice_id TEXT NOT NULL,
+        case_id TEXT,
+        case_name TEXT,
+        term INTEGER,
+        opinion_type TEXT,
+        chunk_index INTEGER,
+        text TEXT NOT NULL,
+        FOREIGN KEY (justia_opinion_id) REFERENCES opinions (justia_opinion_id),
+        FOREIGN KEY (justice_id) REFERENCES justices (justice_id)
+    );
+
     CREATE INDEX idx_q_justice ON questions(justice_id);
     CREATE INDEX idx_q_case ON questions(case_id);
     CREATE INDEX idx_q_term ON questions(term);
+    CREATE INDEX idx_oc_justice ON opinion_chunks(justice_id);
+    CREATE INDEX idx_oc_opinion ON opinion_chunks(justia_opinion_id);
     """)
     for jid, name in CURRENT_JUSTICES.items():
         conn.execute("INSERT INTO justices (justice_id, display_name) VALUES (?, ?)", (jid, name))
@@ -283,16 +425,60 @@ def main():
             cr["decision_summary"], cr["majority_author"], cr["citation"], cr["justia_url"], cr["oyez_href"],
         ))
 
+    opinions_seen = 0
+    opinion_chunks_added = 0
+    for op in iter_opinion_files():
+        last = op.get("judge_last_name")
+        jid = LASTNAME_TO_JUSTICE_ID.get(last)
+        if not jid:
+            continue
+        text = op.get("text") or ""
+        if len(text) < 400:
+            continue
+        op_id = op.get("justia_opinion_id")
+        if op_id is None:
+            continue
+        conn.execute("""
+            INSERT OR REPLACE INTO opinions (
+                justia_opinion_id, justice_id, judge_full_name, case_id, case_name,
+                term, opinion_type, title, justia_url, text_length
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            op_id, jid, op.get("judge_full_name"), op.get("case_id"), op.get("case_name"),
+            op.get("term"), op.get("type"), op.get("title"), op.get("justia_url"), len(text),
+        ))
+        opinions_seen += 1
+        for idx, chunk in enumerate(chunk_opinion(text)):
+            conn.execute("""
+                INSERT INTO opinion_chunks (
+                    justia_opinion_id, justice_id, case_id, case_name, term,
+                    opinion_type, chunk_index, text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                op_id, jid, op.get("case_id"), op.get("case_name"), op.get("term"),
+                op.get("type"), idx, chunk,
+            ))
+            opinion_chunks_added += 1
+
     conn.execute("""
         UPDATE justices SET question_count = (
             SELECT COUNT(*) FROM questions WHERE questions.justice_id = justices.justice_id
         )
     """)
+    conn.execute("""
+        UPDATE justices SET opinion_chunk_count = (
+            SELECT COUNT(*) FROM opinion_chunks WHERE opinion_chunks.justice_id = justices.justice_id
+        )
+    """)
 
     conn.commit()
-    print(f"Built corpus: {len(case_rows)} cases, {question_count} questions")
-    for row in conn.execute("SELECT display_name, question_count FROM justices ORDER BY question_count DESC"):
-        print(f"  {row[0]}: {row[1]} questions")
+    print(f"Built corpus: {len(case_rows)} cases, {question_count} questions, "
+          f"{opinions_seen} opinions ({opinion_chunks_added} chunks)")
+    for row in conn.execute("""
+        SELECT display_name, question_count, opinion_chunk_count
+        FROM justices ORDER BY question_count DESC
+    """):
+        print(f"  {row[0]}: {row[1]} questions, {row[2]} opinion chunks")
     conn.close()
 
 
