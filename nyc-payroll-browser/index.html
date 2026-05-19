@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NYC Payroll Browser</title>
-<meta name="description" content="An interactive browser for the NYC Citywide Payroll dataset — top earners, overtime, agency spending, and headcount trends.">
+<meta name="description" content="An interactive browser for the NYC Citywide Payroll and MTA payroll datasets — top and lowest earners, overtime, agency spending, and headcount trends.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -921,7 +921,7 @@ footer a{color:var(--cream);}
     <div>
       <div class="kicker">New York City data</div>
       <h1 class="title">NYC payroll browser</h1>
-      <p class="subtitle">Top earners, overtime, agency spending, and headcount trends across roughly 300,000 city employees, drawn live from the NYC Citywide Payroll dataset.</p>
+      <p class="subtitle">Top and lowest earners, overtime, agency spending, and headcount trends across roughly 300,000 city employees, drawn live from the NYC Citywide Payroll dataset — plus an MTA payroll section (75,000 workers) inside the Agency analysis tab, drawn from the New York State Open Data MTA feed.</p>
       <div class="freshness" id="freshness"></div>
     </div>
     <div class="year-row">
@@ -986,6 +986,7 @@ footer a{color:var(--cream);}
   <div class="tabs-inner">
     <button class="tab active" data-view="overview">Overview</button>
     <button class="tab" data-view="earners">Top earners</button>
+    <button class="tab" data-view="lowest">Lowest earners</button>
     <button class="tab" data-view="perdiem">Per-diem &amp; hourly</button>
     <button class="tab" data-view="agencies">Agency analysis</button>
     <button class="tab" data-view="overtime">Overtime</button>
@@ -1111,6 +1112,60 @@ footer a{color:var(--cream);}
         <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>Other pay</span>
       </div>
       <div id="earnersBody"><div class="loading-state"><div class="spinner"></div><div>Loading payroll data...</div></div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-lowest">
+    <div class="view-header">
+      <h2>Lowest earners</h2>
+      <p>The lowest-paid full-year salaried city employees (<code>pay_basis = "per Annum"</code>) for the selected fiscal year, ranked by base salary. Drawn from the bottom 500 records returned by the API. By default, ceremonial $0/$1 appointments and partial-year records (regular pay below 85% of base) are excluded — toggle them in if you want to see them.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="lowestAgency">Agency</label>
+        <select id="lowestAgency"><option value="">All agencies</option></select>
+      </div>
+      <div class="control">
+        <label for="lowestSearch">Last name contains</label>
+        <input type="text" id="lowestSearch" placeholder="e.g. smith">
+      </div>
+      <div class="control">
+        <label for="lowestSort">Sort by</label>
+        <select id="lowestSort">
+          <option value="base_salary">Base salary (lowest first)</option>
+          <option value="regular">Regular gross (lowest first)</option>
+          <option value="total">Total pay (lowest first)</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="lowestPartial">Partial-year records</label>
+        <select id="lowestPartial">
+          <option value="exclude">Exclude (default)</option>
+          <option value="include">Include</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="lowestZero">$0 / $1 records</label>
+        <select id="lowestZero">
+          <option value="exclude">Exclude (default)</option>
+          <option value="include">Include</option>
+        </select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>Lowest earners</h3>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="lowestMeta"></div>
+          <button class="export-btn" data-export="lowest">Export CSV</button>
+        </div>
+      </div>
+      <div class="chart-legend" style="padding:14px 22px 0;">
+        <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Regular pay</span>
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Overtime</span>
+        <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>Other pay</span>
+      </div>
+      <div id="lowestBody"><div class="loading-state"><div class="spinner"></div><div>Loading payroll data...</div></div></div>
     </div>
   </section>
 
@@ -1264,6 +1319,86 @@ footer a{color:var(--cream);}
       <div id="commishBody"><div class="loading-state"><div class="spinner"></div><div>Loading agency heads...</div></div></div>
       <p class="chart-note">Identified by title — Commissioner, Chancellor, Chairperson, Executive Director, District Attorney, Borough President, Public Advocate, Comptroller, and Mayor. When more than one person held a head-of-agency title at the same agency in a fiscal year (e.g., a mid-year transition), the highest-paid is shown. Acting and interim heads may not appear if they retained a different civil-service title. Pay reflects what was actually paid during the fiscal year, so partial-year tenure shows as a lower figure than the annualized salary.</p>
     </div>
+
+    <div class="section-break" id="mtaSection" style="margin:48px 0 0;padding-top:32px;border-top:2px solid var(--rule);">
+      <h3 style="font-family:var(--serif);font-size:32px;font-weight:600;letter-spacing:-0.02em;color:var(--ink);margin-bottom:12px;">MTA payroll</h3>
+      <p style="color:var(--muted);max-width:78ch;margin-bottom:24px;">The Metropolitan Transportation Authority is a New York State public benefit corporation, not a city agency — so its roughly 75,000 employees are <strong>not</strong> in the citywide dataset above. We pull them in here from the New York State Open Data MTA Employee Payroll feed for context: New York City Transit (subway), MaBSTOA and MTA Bus (city buses), Staten Island Railway, Long Island Rail Road, Metro-North, MTA Bridges and Tunnels, and MTA headquarters. MTA payroll is reported by <strong>calendar year</strong> (Jan–Dec), so totals are not directly comparable to the city's fiscal-year figures above — the year selector defaults to the closest calendar year to the city fiscal year you've selected.</p>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="mtaYear">Year (calendar)</label>
+        <select id="mtaYear"></select>
+      </div>
+      <div class="control">
+        <label for="mtaAgency">MTA agency</label>
+        <select id="mtaAgency"><option value="">All MTA</option></select>
+      </div>
+      <div class="control">
+        <label for="mtaSearch">Name contains</label>
+        <input type="text" id="mtaSearch" placeholder="e.g. smith">
+      </div>
+      <div class="control">
+        <label for="mtaSort">Sort by</label>
+        <select id="mtaSort">
+          <option value="total">Total earnings (highest first)</option>
+          <option value="regular">Regular pay (highest first)</option>
+          <option value="ot">Overtime pay (highest first)</option>
+          <option value="total_asc">Total earnings (lowest first)</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="mtaActive">Status</label>
+        <select id="mtaActive">
+          <option value="active">Active only (no separation)</option>
+          <option value="all">Include separated</option>
+        </select>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3 id="mtaStatTitle">MTA workforce snapshot</h3>
+        <div class="meta" id="mtaStatMeta"></div>
+      </div>
+      <div style="padding:0;">
+        <div class="ov-headline">
+          <div class="ov-stat">
+            <div class="ov-stat-label">Headcount</div>
+            <div class="ov-stat-value loading" id="mtaStatHc">Loading...</div>
+            <div class="ov-stat-sub">Employees who received any pay</div>
+          </div>
+          <div class="ov-stat">
+            <div class="ov-stat-label">Total earnings</div>
+            <div class="ov-stat-value loading" id="mtaStatTotal">Loading...</div>
+            <div class="ov-stat-sub">Regular + OT + other</div>
+          </div>
+          <div class="ov-stat">
+            <div class="ov-stat-label">Average total pay</div>
+            <div class="ov-stat-value loading" id="mtaStatAvg">Loading...</div>
+            <div class="ov-stat-sub">Per employee, all-in</div>
+          </div>
+          <div class="ov-stat ov-stat-emphasis">
+            <div class="ov-stat-label">Total overtime</div>
+            <div class="ov-stat-value loading" id="mtaStatOt">Loading...</div>
+            <div class="ov-stat-sub">OT as share of regular pay shown below</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="data-card">
+      <div class="data-card-header">
+        <h3>MTA earners</h3>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="meta" id="mtaMeta"></div>
+          <button class="export-btn" data-export="mta">Export CSV</button>
+        </div>
+      </div>
+      <div class="chart-legend" style="padding:14px 22px 0;">
+        <span class="leg"><span class="leg-sw" style="background:#0a1628"></span>Regular pay</span>
+        <span class="leg"><span class="leg-sw" style="background:#c94c24"></span>Overtime</span>
+        <span class="leg"><span class="leg-sw" style="background:#c8a43a"></span>Other (retro, cash-outs, etc.)</span>
+      </div>
+      <div id="mtaBody"><div class="loading-state"><div class="spinner"></div><div>Loading MTA payroll...</div></div></div>
+    </div>
   </section>
 
   <section class="view" id="view-tiers">
@@ -1334,6 +1469,7 @@ footer a{color:var(--cream);}
     <h3>Original sources</h3>
     <ul>
       <li><strong>Citywide Payroll dataset (k397-673e):</strong> <a href="https://data.cityofnewyork.us/City-Government/Citywide-Payroll-Data-Fiscal-Year-/k397-673e" target="_blank" rel="noopener">data.cityofnewyork.us/City-Government/Citywide-Payroll-Data-Fiscal-Year-</a></li>
+      <li><strong>MTA Employee Payroll (kcjb-nf3e):</strong> <a href="https://data.ny.gov/Transportation/MTA-Employee-Payroll-Beginning-2025/kcjb-nf3e" target="_blank" rel="noopener">data.ny.gov/Transportation/MTA-Employee-Payroll-Beginning-2025</a> — used in the MTA payroll section at the bottom of the Agency analysis tab. New York State Open Data, published by the Metropolitan Transportation Authority. Currently includes calendar years 2025 and 2026; pre-2025 MTA employee-level payroll is available only at <a href="https://www.seethroughny.net/payrolls" target="_blank" rel="noopener">SeeThroughNY</a> (no public API).</li>
       <li><strong>Socrata API documentation:</strong> <a href="https://dev.socrata.com/foundry/data.cityofnewyork.us/k397-673e" target="_blank" rel="noopener">dev.socrata.com/foundry/data.cityofnewyork.us/k397-673e</a></li>
       <li><strong>NYC Office of Payroll Administration:</strong> <a href="https://www.nyc.gov/site/opa/index.page" target="_blank" rel="noopener">nyc.gov/site/opa</a> (data steward)</li>
       <li><strong>NYC Office of Management and Budget:</strong> <a href="https://www.nyc.gov/site/omb/index.page" target="_blank" rel="noopener">nyc.gov/site/omb</a> &middot; <a href="https://www.nyc.gov/site/omb/publications/financial-plan.page" target="_blank" rel="noopener">Financial Plan</a> (source of the blended fringe-benefit rate)</li>
@@ -1385,7 +1521,10 @@ footer a{color:var(--cream);}
       <li>Headcount is <strong>not point-in-time</strong>. The dataset counts every distinct employee record paid during the fiscal year, including those who left mid-year and those who joined mid-year, so the total is higher than any single-day headcount.</li>
       <li>Coverage excludes some entities. Most notably, employees of NYC Health + Hospitals, the Department of Education pedagogical staff in some years, and other independent authorities may not appear or may appear inconsistently across years.</li>
       <li>The Top earners and Overtime tabs draw from the top 500 API records by the relevant ranking before client-side filtering. Filtering for a small agency may therefore return fewer than expected results.</li>
-      <li>Names appear as recorded in the city payroll system and may include data-entry inconsistencies.</li>
+      <li>The Lowest earners tab is restricted to <code>pay_basis='per Annum'</code> (full-year salaried) with <code>base_salary &gt; 0</code>, drawn from the bottom 500 records by base salary. By default, ceremonial $0/$1 appointments and partial-year records (regular pay below 85% of authorized base) are excluded, but both can be toggled on. Per-diem and per-hour workers — substitute teachers, election poll workers, hourly support staff — are surfaced separately on the Per-diem &amp; hourly tab.</li>
+      <li>The MTA payroll section (at the bottom of the Agency analysis tab) draws from a <strong>separate dataset</strong>. The Metropolitan Transportation Authority is a New York State public benefit corporation, not a New York City agency, and its payroll is published by the State (data.ny.gov), not the city. Years are <strong>calendar years</strong> (Jan–Dec), not fiscal years (Jul–Jun), so totals are not directly comparable to city figures without a half-year adjustment — when you change the citywide fiscal-year selector, the MTA section auto-snaps to the closest calendar year (FY 2025 → CY 2025, FY 2026 → CY 2026). The dataset spans nine working agencies — NYC Transit Authority (NYCTA, subways and earlier the Staten Island Railway), MaBSTOA (Manhattan/Bronx buses), MTA Bus Company (Queens/Brooklyn/Staten Island buses formerly run by private operators), Staten Island Railway (SIR/SIRTOA), Long Island Rail Road (LIRR/LIR), Metro-North Railroad (MNR), MTA Bridges and Tunnels (BTA, formerly the Triborough Bridge and Tunnel Authority), MTA Construction &amp; Development (MTA-C), and MTA HQ / Police (MTA-P). The section draws the top 500 records for the selected year, agency, and active/separated filter; the "Total earnings" stat reflects every employee matching the filter (not just the 500 in the table). MTA records are stored as a single "Last,First M" field; the tool reformats names for display.</li>
+      <li><strong>Not in this tool:</strong> Port Authority of New York and New Jersey employees, New York City Health and Hospitals (NYC Health + Hospitals), New York City Housing Authority (NYCHA), and School Construction Authority workers — none publish payroll through a public API. Port Authority payroll is on <a href="https://www.seethroughny.net/payrolls" target="_blank" rel="noopener">SeeThroughNY</a> (Empire Center) and on the Port Authority's own <a href="https://www.panynj.gov/corporate/en/transparency/payroll.html" target="_blank" rel="noopener">transparency portal</a> as annual disclosures.</li>
+      <li>Names appear as recorded in the source payroll system and may include data-entry inconsistencies.</li>
     </ul>
 
     <h3>Reproducibility</h3>
@@ -1622,6 +1761,7 @@ function writeUrlState(){
   if(state.overview.real)parts.push('real=1');
   let agency='';
   if(tab==='earners')agency=document.getElementById('earnersAgency')?.value||'';
+  else if(tab==='lowest')agency=document.getElementById('lowestAgency')?.value||'';
   else if(tab==='overtime')agency=document.getElementById('otAgency')?.value||'';
   else if(tab==='perdiem')agency=document.getElementById('pdAgency')?.value||'';
   else if(tab==='trends')agency=document.getElementById('trendAgency')?.value||'';
@@ -1632,6 +1772,27 @@ function writeUrlState(){
     const sort=document.getElementById('earnersSort')?.value||'';
     if(sort&&sort!=='total')parts.push('sort='+sort);
   }
+  if(tab==='lowest'){
+    const q=document.getElementById('lowestSearch')?.value.trim()||'';
+    if(q)parts.push('q='+encodeURIComponent(q));
+    const sort=document.getElementById('lowestSort')?.value||'';
+    if(sort&&sort!=='base_salary')parts.push('sort='+sort);
+    const partial=document.getElementById('lowestPartial')?.value||'';
+    if(partial==='include')parts.push('partial=1');
+    const zero=document.getElementById('lowestZero')?.value||'';
+    if(zero==='include')parts.push('zero=1');
+  }
+  if(tab==='agencies'&&state.mta.didInit){
+    if(state.mta.year)parts.push('mtayear='+encodeURIComponent(state.mta.year));
+    const mag=document.getElementById('mtaAgency')?.value||'';
+    if(mag)parts.push('mtaag='+encodeURIComponent(mag));
+    const mq=document.getElementById('mtaSearch')?.value.trim()||'';
+    if(mq)parts.push('mtaq='+encodeURIComponent(mq));
+    const ms=document.getElementById('mtaSort')?.value||'';
+    if(ms&&ms!=='total')parts.push('mtasort='+ms);
+    const macv=document.getElementById('mtaActive')?.value||'';
+    if(macv&&macv!=='active')parts.push('mtaactive='+macv);
+  }
   history.replaceState(null,'','#'+parts.join('&'));
 }
 
@@ -1641,6 +1802,42 @@ async function api(params){
   const r=await fetch(url);
   if(!r.ok)throw new Error('API error '+r.status+': '+(await r.text()));
   return r.json();
+}
+
+// MTA payroll lives on the New York State Open Data portal — different host, same Socrata API.
+const MTA_API_BASE='https://data.ny.gov/resource/kcjb-nf3e.json';
+async function mtaApi(params){
+  const url=MTA_API_BASE+'?'+Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+  console.log('[mta]',url);
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('MTA API error '+r.status+': '+(await r.text()));
+  return r.json();
+}
+// Friendly labels for the MTA's three-letter agency codes. Where the dataset uses inconsistent
+// codes across years (LIR vs LIRR, SIR vs SIRTOA, "MTA Bus" vs "MTA BUS"), we normalize on lookup.
+const MTA_AGENCY_LABELS={
+  'NYCTA':'NYC Transit (subway)',
+  'MABSTOA':'MTA NYC Bus — MaBSTOA (Manhattan/Bronx)',
+  'MTA BUS':'MTA Bus Company (Queens/Brooklyn/SI)',
+  'MTA Bus':'MTA Bus Company (Queens/Brooklyn/SI)',
+  'SIR':'Staten Island Railway',
+  'SIRTOA':'Staten Island Railway',
+  'LIRR':'Long Island Rail Road',
+  'LIR':'Long Island Rail Road',
+  'MNR':'Metro-North Railroad',
+  'BTA':'MTA Bridges and Tunnels',
+  'MTA-C':'MTA HQ / Construction & Development',
+  'MTA-P':'MTA HQ / Police',
+  'MTA HQ':'MTA Headquarters'
+};
+const mtaAgencyLabel=code=>MTA_AGENCY_LABELS[code]||code||'(unknown)';
+// Pretty-print "Last,First M" (MTA format) as "First M Last" with proper case.
+function mtaFmtName(raw){
+  if(!raw)return '';
+  const parts=raw.split(',');
+  const last=titleCase(parts[0]||'');
+  const firstMid=titleCase((parts[1]||'').trim());
+  return (firstMid?firstMid+' ':'')+last;
 }
 
 const FRINGE_RATE=1.39;
@@ -1661,6 +1858,8 @@ const state={
   years:[],
   fringe:false,
   earners:{data:null,page:1,pageSize:25,err:null,loading:false},
+  lowest:{data:null,page:1,pageSize:25,err:null,loading:false},
+  mta:{data:null,stats:null,year:null,years:[],agencies:[],page:1,pageSize:25,err:null,loading:false,statsLoading:false,didInit:false},
   ot:{data:null,page:1,pageSize:25,err:null,loading:false},
   agencies:{data:null,err:null,loading:false,metric:'avg_salary',sortBy:'total',sortDir:'desc'},
   commish:{data:null,err:null,loading:false,sortBy:'total',sortDir:'desc'},
@@ -1732,6 +1931,7 @@ async function loadAgencies(){
     state.agencyList=rows.map(r=>r.agency_name).filter(Boolean);
     const opts='<option value="">All agencies</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${cleanAgencyName(a)}</option>`).join('');
     document.getElementById('earnersAgency').innerHTML=opts;
+    document.getElementById('lowestAgency').innerHTML=opts;
     document.getElementById('otAgency').innerHTML=opts;
     document.getElementById('pdAgency').innerHTML=opts;
     document.getElementById('trendAgency').innerHTML='<option value="">All agencies combined</option>'+state.agencyList.map(a=>`<option value="${a.replace(/"/g,'&quot;')}">${cleanAgencyName(a)}</option>`).join('');
@@ -1899,6 +2099,337 @@ function renderEarners(){
   `;
   document.getElementById('earnPrev').onclick=()=>{state.earners.page--;renderEarners();};
   document.getElementById('earnNext').onclick=()=>{state.earners.page++;renderEarners();};
+}
+
+async function loadLowest(){
+  state.lowest.loading=true;
+  state.lowest.err=null;
+  state.lowest.page=1;
+  renderLowest();
+  try{
+    const rows=await api({
+      $select:'last_name,first_name,mid_init,agency_name,title_description,agency_start_date,pay_basis,base_salary,regular_gross_paid,total_ot_paid,total_other_pay,(regular_gross_paid+total_ot_paid+total_other_pay) as total_gross',
+      $where:`fiscal_year='${escapeSoql(state.year)}' AND pay_basis='per Annum' AND base_salary > 0`,
+      $order:'base_salary ASC',
+      $limit:500
+    });
+    state.lowest.data=rows.map(r=>({
+      ...r,
+      base:Number(r.regular_gross_paid||0),
+      ot:Number(r.total_ot_paid||0),
+      other:Number(r.total_other_pay||0),
+      total:Number(r.total_gross||0),
+      base_salary_n:Number(r.base_salary||0),
+      tier:pensionTier(r.agency_start_date),
+      tenure:tenureYears(r.agency_start_date,state.year)
+    }));
+  }catch(e){state.lowest.err=e.message;}
+  state.lowest.loading=false;
+  renderLowest();
+}
+
+function filterLowest(){
+  const ag=document.getElementById('lowestAgency').value;
+  const q=document.getElementById('lowestSearch').value.trim().toLowerCase();
+  const sort=document.getElementById('lowestSort').value;
+  const partial=document.getElementById('lowestPartial').value;
+  const zero=document.getElementById('lowestZero').value;
+  let data=state.lowest.data||[];
+  if(zero==='exclude')data=data.filter(r=>r.base_salary_n>1);
+  if(partial==='exclude')data=data.filter(r=>r.base_salary_n>0&&r.base>=r.base_salary_n*0.85);
+  if(ag)data=data.filter(r=>r.agency_name===ag);
+  if(q)data=data.filter(r=>(r.last_name||'').toLowerCase().includes(q));
+  if(sort==='regular')data=[...data].sort((a,b)=>a.base-b.base);
+  else if(sort==='total')data=[...data].sort((a,b)=>a.total-b.total);
+  else data=[...data].sort((a,b)=>a.base_salary_n-b.base_salary_n);
+  return data;
+}
+
+function renderLowest(){
+  const body=document.getElementById('lowestBody');
+  const meta=document.getElementById('lowestMeta');
+  if(state.lowest.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading lowest earners...</div></div>';
+    meta.textContent='';return;
+  }
+  if(state.lowest.err){
+    body.innerHTML=`<div class="error-state">Could not load lowest earners: ${state.lowest.err}</div>`;
+    return;
+  }
+  const data=filterLowest();
+  meta.textContent=`${data.length.toLocaleString()} of ${(state.lowest.data||[]).length.toLocaleString()} records  ·  FY ${state.year}`;
+  if(!data.length){
+    body.innerHTML='<div class="empty-state">No matching salaried employees in the bottom 500 for this filter.</div>';
+    return;
+  }
+  const ps=state.lowest.pageSize;
+  const totalPages=Math.max(1,Math.ceil(data.length/ps));
+  if(state.lowest.page>totalPages)state.lowest.page=totalPages;
+  const start=(state.lowest.page-1)*ps;
+  const page=data.slice(start,start+ps);
+  const maxTotal=Math.max(...data.map(r=>r.total),1);
+  const mixCell=r=>{
+    const total=r.total||0;
+    if(total<=0)return '<div class="paymix"><div class="paymix-bar"></div></div>';
+    const w=(total/maxTotal)*100;
+    const reg=Math.max(0,r.base||0);
+    const ot=Math.max(0,r.ot||0);
+    const other=Math.max(0,r.other||0);
+    const sum=reg+ot+other||1;
+    const pReg=reg/sum*100,pOt=ot/sum*100,pOther=other/sum*100;
+    return `<div class="paymix"><div class="paymix-bar" style="width:${w.toFixed(2)}%"><span style="width:${pReg.toFixed(2)}%;background:#0a1628"></span><span style="width:${pOt.toFixed(2)}%;background:#c94c24"></span><span style="width:${pOther.toFixed(2)}%;background:#c8a43a"></span></div></div>`;
+  };
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Name</th><th>Agency</th><th>Title</th><th>Tenure</th>
+        <th class="num">Base salary</th><th class="num">Regular gross</th>
+        <th class="num">OT pay</th><th class="num">Other pay</th><th class="num">Total pay${state.fringe?' <span class="fringe-tag">+ fringe</span>':''}</th>
+        <th class="paymix-col">Pay mix</th>
+      </tr></thead>
+      <tbody>
+        ${page.map((r,i)=>`
+          <tr>
+            <td class="rank">${start+i+1}</td>
+            <td class="name">${fmtName(r)}${tierBadge(r.tier)}</td>
+            <td class="agency">${cleanAgencyName(r.agency_name||'')}</td>
+            <td class="title-cell muted">${titleCase(r.title_description||'')}</td>
+            <td class="tenure">${fmtTenure(r.tenure)}</td>
+            <td class="num">${fmtMoneyFull(fr(r.base_salary_n))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.base))}${proratedMark(r)}</td>
+            <td class="num">${fmtMoneyFull(fr(r.ot))}</td>
+            <td class="num">${fmtMoneyFull(fr(r.other))}</td>
+            <td class="num"><strong>${fmtMoneyFull(fr(r.total))}</strong></td>
+            <td class="paymix-col">${mixCell(r)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table></div>
+    ${PRORATED_FOOTNOTE}
+    <div class="pagination">
+      <div class="page-info">Page ${state.lowest.page} of ${totalPages}  ·  Rank 1 = lowest paid</div>
+      <div class="page-buttons">
+        <button class="page-btn" id="lowPrev" ${state.lowest.page<=1?'disabled':''}>Previous</button>
+        <button class="page-btn" id="lowNext" ${state.lowest.page>=totalPages?'disabled':''}>Next</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('lowPrev').onclick=()=>{state.lowest.page--;renderLowest();};
+  document.getElementById('lowNext').onclick=()=>{state.lowest.page++;renderLowest();};
+}
+
+// --- MTA payroll (data.ny.gov, calendar year) ----------------------------------------------
+// Given the currently selected city fiscal year, return the closest available MTA calendar year.
+// NYC fiscal year N runs Jul (N-1) through Jun N, so the natural CY match is N.
+function closestMtaYear(fy){
+  if(!state.mta.years||!state.mta.years.length)return null;
+  const want=Number(fy);
+  if(!Number.isFinite(want))return state.mta.years[0];
+  const nums=state.mta.years.map(Number).filter(Number.isFinite);
+  // Exact match preferred.
+  if(nums.includes(want))return String(want);
+  // Otherwise pick the closest available year (ties broken toward the lower CY, since FY ends in that CY).
+  let best=nums[0],bestDist=Math.abs(nums[0]-want);
+  for(const n of nums){const d=Math.abs(n-want);if(d<bestDist||(d===bestDist&&n<best)){best=n;bestDist=d;}}
+  return String(best);
+}
+async function initMtaIfNeeded(){
+  if(state.mta.didInit)return;
+  state.mta.didInit=true;
+  await loadMtaYears();
+  const p=state.mta.pendingUrl;
+  if(p&&p.mtayear&&state.mta.years.includes(p.mtayear)){
+    state.mta.year=p.mtayear;
+  }else{
+    state.mta.year=closestMtaYear(state.year);
+  }
+  const yearSel=document.getElementById('mtaYear');
+  if(yearSel&&state.mta.year)yearSel.value=state.mta.year;
+  if(p){
+    if(p.mtasort)document.getElementById('mtaSort').value=p.mtasort;
+    if(p.mtaactive)document.getElementById('mtaActive').value=p.mtaactive;
+    if(p.mtaq)document.getElementById('mtaSearch').value=p.mtaq;
+    state.mta.pendingUrl=null;
+  }
+  if(state.mta.year){
+    await loadMtaAgencies();
+    if(p&&p.mtaag){const el=document.getElementById('mtaAgency');if(el)el.value=p.mtaag;}
+    writeUrlState();
+    loadMtaStats();
+    loadMta();
+  }
+}
+// When the city fiscal year changes and the MTA panel has already loaded, snap MTA to the closest CY.
+function syncMtaToCityYear(){
+  if(!state.mta.didInit||!state.mta.years.length)return;
+  const closest=closestMtaYear(state.year);
+  if(!closest||closest===state.mta.year)return;
+  state.mta.year=closest;
+  const yearSel=document.getElementById('mtaYear');
+  if(yearSel)yearSel.value=closest;
+  state.mta.data=null;
+  loadMtaAgencies().then(()=>{loadMtaStats();loadMta();});
+}
+
+async function loadMtaYears(){
+  try{
+    const rows=await mtaApi({$select:'year',$group:'year',$order:'year DESC',$limit:50});
+    state.mta.years=rows.map(r=>String(r.year)).filter(Boolean);
+    const sel=document.getElementById('mtaYear');
+    sel.innerHTML=state.mta.years.map(y=>`<option value="${y}">CY ${y}</option>`).join('');
+    state.mta.year=state.mta.years[0]||null;
+    if(state.mta.year)sel.value=state.mta.year;
+  }catch(e){
+    document.getElementById('mtaYear').innerHTML='<option>Error</option>';
+    console.error('MTA years load failed',e);
+  }
+}
+async function loadMtaAgencies(){
+  try{
+    const rows=await mtaApi({$select:'working_agency',$where:`year=${Number(state.mta.year)}`,$group:'working_agency',$order:'working_agency ASC',$limit:100});
+    state.mta.agencies=rows.map(r=>r.working_agency).filter(Boolean);
+    const opts='<option value="">All MTA</option>'+state.mta.agencies.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">${mtaAgencyLabel(c)}</option>`).join('');
+    document.getElementById('mtaAgency').innerHTML=opts;
+  }catch(e){console.error('MTA agencies load failed',e);}
+}
+async function loadMtaStats(){
+  state.mta.statsLoading=true;
+  const ids=['mtaStatHc','mtaStatTotal','mtaStatAvg','mtaStatOt'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='Loading...';el.classList.add('loading');}});
+  try{
+    const ag=document.getElementById('mtaAgency').value;
+    const active=document.getElementById('mtaActive').value;
+    let where=`year=${Number(state.mta.year)}`;
+    if(ag)where+=` AND working_agency='${escapeSoql(ag)}'`;
+    if(active==='active')where+=' AND separation_date IS NULL';
+    const rows=await mtaApi({$select:'count(*) as hc,sum(regular_pay) as reg,sum(overtime_pay) as ot,sum(cash_outs+retro_pay+other_pay) as other,sum(total_earnings) as total',$where:where,$limit:1});
+    const r=rows[0]||{};
+    const hc=Number(r.hc||0),total=Number(r.total||0),ot=Number(r.ot||0),reg=Number(r.reg||0);
+    state.mta.stats={hc,total,ot,reg,avg:hc>0?total/hc:0,otPct:reg>0?ot/reg*100:0};
+    const fmt=v=>'$'+(v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':Math.round(v).toLocaleString());
+    const set=(id,t)=>{const el=document.getElementById(id);if(el){el.textContent=t;el.classList.remove('loading');}};
+    set('mtaStatHc',hc.toLocaleString());
+    set('mtaStatTotal',fmt(total));
+    set('mtaStatAvg',fmt(state.mta.stats.avg));
+    set('mtaStatOt',`${fmt(ot)}  ·  ${state.mta.stats.otPct.toFixed(1)}% of regular`);
+    const metaEl=document.getElementById('mtaStatMeta');
+    if(metaEl)metaEl.textContent=`CY ${state.mta.year}${ag?'  ·  '+mtaAgencyLabel(ag):''}${active==='active'?'  ·  active employees only':''}`;
+  }catch(e){
+    console.error('MTA stats failed',e);
+    ids.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='—';el.classList.remove('loading');}});
+  }
+  state.mta.statsLoading=false;
+}
+async function loadMta(){
+  state.mta.loading=true;
+  state.mta.err=null;
+  state.mta.page=1;
+  renderMta();
+  try{
+    const ag=document.getElementById('mtaAgency').value;
+    const sort=document.getElementById('mtaSort').value;
+    const active=document.getElementById('mtaActive').value;
+    let where=`year=${Number(state.mta.year)}`;
+    if(ag)where+=` AND working_agency='${escapeSoql(ag)}'`;
+    if(active==='active')where+=' AND separation_date IS NULL';
+    const order={total:'total_earnings DESC',regular:'regular_pay DESC',ot:'overtime_pay DESC',total_asc:'total_earnings ASC'}[sort]||'total_earnings DESC';
+    const rows=await mtaApi({
+      $select:'name,working_agency,title,department,start_date,separation_date,pay_basis,hourly_rate,regular_pay,overtime_pay,cash_outs,retro_pay,other_pay,total_earnings',
+      $where:where,
+      $order:order,
+      $limit:500
+    });
+    state.mta.data=rows.map(r=>({
+      ...r,
+      reg:Number(r.regular_pay||0),
+      ot:Number(r.overtime_pay||0),
+      otherPay:Number(r.cash_outs||0)+Number(r.retro_pay||0)+Number(r.other_pay||0),
+      total:Number(r.total_earnings||0),
+      tenure:tenureYears(r.start_date,state.mta.year)
+    }));
+  }catch(e){state.mta.err=e.message;}
+  state.mta.loading=false;
+  renderMta();
+}
+function filterMta(){
+  const q=document.getElementById('mtaSearch').value.trim().toLowerCase();
+  let data=state.mta.data||[];
+  if(q)data=data.filter(r=>(r.name||'').toLowerCase().includes(q));
+  return data;
+}
+function renderMta(){
+  const body=document.getElementById('mtaBody');
+  const meta=document.getElementById('mtaMeta');
+  if(state.mta.loading){
+    body.innerHTML='<div class="loading-state"><div class="spinner"></div><div>Loading MTA payroll...</div></div>';
+    meta.textContent='';return;
+  }
+  if(state.mta.err){
+    body.innerHTML=`<div class="error-state">Could not load MTA payroll: ${state.mta.err}</div>`;
+    return;
+  }
+  const data=filterMta();
+  const sortMode=document.getElementById('mtaSort').value;
+  const isLowestSort=sortMode==='total_asc';
+  meta.textContent=`${data.length.toLocaleString()} of ${(state.mta.data||[]).length.toLocaleString()} records  ·  CY ${state.mta.year}`;
+  if(!data.length){
+    body.innerHTML='<div class="empty-state">No MTA records match this filter.</div>';
+    return;
+  }
+  const ps=state.mta.pageSize;
+  const totalPages=Math.max(1,Math.ceil(data.length/ps));
+  if(state.mta.page>totalPages)state.mta.page=totalPages;
+  const start=(state.mta.page-1)*ps;
+  const page=data.slice(start,start+ps);
+  const maxTotal=Math.max(...data.map(r=>r.total),1);
+  const mixCell=r=>{
+    const total=r.total||0;
+    if(total<=0)return '<div class="paymix"><div class="paymix-bar"></div></div>';
+    const w=(total/maxTotal)*100;
+    const reg=Math.max(0,r.reg||0);
+    const ot=Math.max(0,r.ot||0);
+    const other=Math.max(0,r.otherPay||0);
+    const sum=reg+ot+other||1;
+    const pReg=reg/sum*100,pOt=ot/sum*100,pOther=other/sum*100;
+    return `<div class="paymix"><div class="paymix-bar" style="width:${w.toFixed(2)}%"><span style="width:${pReg.toFixed(2)}%;background:#0a1628"></span><span style="width:${pOt.toFixed(2)}%;background:#c94c24"></span><span style="width:${pOther.toFixed(2)}%;background:#c8a43a"></span></div></div>`;
+  };
+  const cleanDept=d=>(d||'').replace(/^\d+-/,'').trim();
+  body.innerHTML=`
+    <div class="table-scroll"><table>
+      <thead><tr>
+        <th>Rank</th><th>Name</th><th>Agency</th><th>Title</th><th>Department</th><th>Tenure</th>
+        <th class="num">Regular pay</th><th class="num">Overtime</th><th class="num">Other</th><th class="num">Total earnings</th>
+        <th class="paymix-col">Pay mix</th>
+      </tr></thead>
+      <tbody>
+        ${page.map((r,i)=>`
+          <tr>
+            <td class="rank">${start+i+1}</td>
+            <td class="name">${mtaFmtName(r.name)}${r.separation_date?' <span class="fringe-tag" title="Separated '+(r.separation_date||'').slice(0,10)+'">separated</span>':''}</td>
+            <td class="agency">${mtaAgencyLabel(r.working_agency)}</td>
+            <td class="title-cell muted">${titleCase(r.title||'')}</td>
+            <td class="title-cell muted">${titleCase(cleanDept(r.department))}</td>
+            <td class="tenure">${fmtTenure(r.tenure)}</td>
+            <td class="num">${fmtMoneyFull(r.reg)}</td>
+            <td class="num">${fmtMoneyFull(r.ot)}</td>
+            <td class="num">${fmtMoneyFull(r.otherPay)}</td>
+            <td class="num"><strong>${fmtMoneyFull(r.total)}</strong></td>
+            <td class="paymix-col">${mixCell(r)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table></div>
+    <div class="table-footnote">Pay mix: navy = regular pay, orange = overtime, gold = other (retro pay, cash-outs of accrued leave, other one-time payments). MTA payroll is reported by calendar year. "Separated" tag indicates an employee with a separation date in the dataset — included only when "Include separated" is selected. Fringe-benefit toggle does not apply to MTA: the city's 39% fringe rate is an OPA estimate that doesn't carry to MTA, where benefits costs are reported separately by the authority.</div>
+    <div class="pagination">
+      <div class="page-info">Page ${state.mta.page} of ${totalPages}${isLowestSort?'  ·  Rank 1 = lowest earnings':''}</div>
+      <div class="page-buttons">
+        <button class="page-btn" id="mtaPrev" ${state.mta.page<=1?'disabled':''}>Previous</button>
+        <button class="page-btn" id="mtaNext" ${state.mta.page>=totalPages?'disabled':''}>Next</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('mtaPrev').onclick=()=>{state.mta.page--;renderMta();};
+  document.getElementById('mtaNext').onclick=()=>{state.mta.page++;renderMta();};
 }
 
 async function loadOvertime(){
@@ -3092,6 +3623,7 @@ function applyFringe(){
   tog.classList.toggle('on',state.fringe);
   renderStats();
   if(state.earners.data)renderEarners();
+  if(state.lowest.data)renderLowest();
   if(state.ot.data)renderOvertime();
   if(state.perdiem.data)renderPerDiem();
   if(state.agencies.data)renderAgencyAnalysis();
@@ -3127,6 +3659,8 @@ document.querySelectorAll('.tab').forEach(btn=>{
     const v=btn.dataset.view;
     document.getElementById('view-'+v).classList.add('active');
     if(v==='overview'&&!state.overview.wages&&!state.overview.loading)loadOverview();
+    if(v==='lowest'&&!state.lowest.data&&!state.lowest.loading)loadLowest();
+    if(v==='agencies')initMtaIfNeeded();
     if(v==='overtime'&&!state.overview.wages&&!state.overview.loading)loadOverview();
     if(v==='overtime'&&state.overview.wages)renderOtTrendChart();
     if(v==='perdiem'&&!state.perdiem.data&&!state.perdiem.loading)loadPerDiem();
@@ -3143,9 +3677,10 @@ document.querySelectorAll('.tab').forEach(btn=>{
 
 document.getElementById('yearSelect').addEventListener('change',async e=>{
   state.year=e.target.value;
-  state.earners.data=null;state.ot.data=null;state.perdiem.data=null;state.agencies.data=null;state.tiers.data=null;state.commish.data=null;state.pdAgencyData=null;
+  state.earners.data=null;state.lowest.data=null;state.ot.data=null;state.perdiem.data=null;state.agencies.data=null;state.tiers.data=null;state.commish.data=null;state.pdAgencyData=null;
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
+  loadLowest();
   loadOvertime();
   // overview headline stats depend on selected year — re-render if loaded
   if(state.overview.wages)renderOverviewStats();
@@ -3154,6 +3689,7 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
   if(document.getElementById('view-overtime').classList.contains('active'))loadOtByAgency();
   if(document.getElementById('view-tiers').classList.contains('active'))loadTiers();
   if(document.getElementById('view-trends').classList.contains('active'))loadHcByAgency();
+  syncMtaToCityYear();
   writeUrlState();
 });
 
@@ -3162,6 +3698,31 @@ document.getElementById('yearSelect').addEventListener('change',async e=>{
 });
 document.getElementById('earnersSearch').addEventListener('input',()=>{
   state.earners.page=1;renderEarners();
+  if(urlSearchTimer)clearTimeout(urlSearchTimer);
+  urlSearchTimer=setTimeout(writeUrlState,300);
+});
+['lowestAgency','lowestSort','lowestPartial','lowestZero'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{state.lowest.page=1;renderLowest();writeUrlState();});
+});
+document.getElementById('lowestSearch').addEventListener('input',()=>{
+  state.lowest.page=1;renderLowest();
+  if(urlSearchTimer)clearTimeout(urlSearchTimer);
+  urlSearchTimer=setTimeout(writeUrlState,300);
+});
+document.getElementById('mtaYear').addEventListener('change',async e=>{
+  state.mta.year=e.target.value;
+  state.mta.data=null;
+  await loadMtaAgencies();
+  loadMtaStats();
+  loadMta();
+  writeUrlState();
+});
+['mtaAgency','mtaActive'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{state.mta.page=1;loadMtaStats();loadMta();writeUrlState();});
+});
+document.getElementById('mtaSort').addEventListener('change',()=>{state.mta.page=1;loadMta();writeUrlState();});
+document.getElementById('mtaSearch').addEventListener('input',()=>{
+  state.mta.page=1;renderMta();
   if(urlSearchTimer)clearTimeout(urlSearchTimer);
   urlSearchTimer=setTimeout(writeUrlState,300);
 });
@@ -3183,6 +3744,18 @@ function buildCsvRows(kind){
     const data=filterEarners();
     const head=['rank','name','agency','title','tenure_years','base_salary','regular_gross','ot_pay','other_pay','total_pay'];
     const rows=data.map((r,i)=>[i+1,fmtName(r),cleanAgencyName(r.agency_name||''),titleCase(r.title_description||''),r.tenure!=null?r.tenure.toFixed(1):'',Math.round(fr(r.base_salary_n)),Math.round(fr(r.base)),Math.round(fr(r.ot)),Math.round(fr(r.other)),Math.round(fr(r.total))]);
+    return [head,...rows];
+  }
+  if(kind==='lowest'){
+    const data=filterLowest();
+    const head=['rank','name','agency','title','tenure_years','base_salary','regular_gross','ot_pay','other_pay','total_pay'];
+    const rows=data.map((r,i)=>[i+1,fmtName(r),cleanAgencyName(r.agency_name||''),titleCase(r.title_description||''),r.tenure!=null?r.tenure.toFixed(1):'',Math.round(fr(r.base_salary_n)),Math.round(fr(r.base)),Math.round(fr(r.ot)),Math.round(fr(r.other)),Math.round(fr(r.total))]);
+    return [head,...rows];
+  }
+  if(kind==='mta'){
+    const data=filterMta();
+    const head=['rank','name','agency','title','department','tenure_years','start_date','separation_date','pay_basis','regular_pay','overtime_pay','other_pay','total_earnings','calendar_year'];
+    const rows=data.map((r,i)=>[i+1,mtaFmtName(r.name),mtaAgencyLabel(r.working_agency),titleCase(r.title||''),(r.department||'').replace(/^\d+-/,''),r.tenure!=null?r.tenure.toFixed(1):'',(r.start_date||'').slice(0,10),(r.separation_date||'').slice(0,10),r.pay_basis||'',Math.round(r.reg),Math.round(r.ot),Math.round(r.otherPay),Math.round(r.total),state.mta.year||'']);
     return [head,...rows];
   }
   if(kind==='ot'){
@@ -3236,7 +3809,8 @@ document.addEventListener('click',e=>{
   const kind=btn.dataset.export;
   const rows=buildCsvRows(kind);
   if(!rows.length)return;
-  downloadCsv(`nyc-payroll-${kind}-${state.year||'all'}-${isoDate()}.csv`,rows);
+  const yr=kind==='mta'?(state.mta.year||'all'):(state.year||'all');
+  downloadCsv(`nyc-payroll-${kind}-${yr}-${isoDate()}.csv`,rows);
 });
 
 let urlSearchTimer=null;
@@ -3260,23 +3834,38 @@ function applyUrlStatePostAgencies(s){
     if(tab)tab.click();
   }
   if(s.agency){
-    ['earnersAgency','otAgency','pdAgency','trendAgency'].forEach(id=>{
+    ['earnersAgency','lowestAgency','otAgency','pdAgency','trendAgency'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.value=s.agency;
     });
     if(state.trends)state.trends.agency=s.agency;
   }
   if(s.q){
-    const q=document.getElementById('earnersSearch');
+    const targetId=s.tab==='lowest'?'lowestSearch':'earnersSearch';
+    const q=document.getElementById(targetId);
     if(q)q.value=s.q;
   }
   if(s.sort){
-    const so=document.getElementById('earnersSort');
+    const targetId=s.tab==='lowest'?'lowestSort':'earnersSort';
+    const so=document.getElementById(targetId);
     if(so)so.value=s.sort;
+  }
+  if(s.partial==='1'){
+    const el=document.getElementById('lowestPartial');
+    if(el)el.value='include';
+  }
+  if(s.zero==='1'){
+    const el=document.getElementById('lowestZero');
+    if(el)el.value='include';
+  }
+  // MTA URL restore is handled inside initMtaIfNeeded when the Agency analysis tab is opened.
+  if(s.tab==='agencies'&&(s.mtayear||s.mtaag||s.mtaq||s.mtasort||s.mtaactive)){
+    state.mta.pendingUrl=s;
   }
   state.urlReady=true;
   writeUrlState();
   if(state.earners.data)renderEarners();
+  if(state.lowest.data)renderLowest();
   if(state.ot.data)renderOvertime();
   if(state.perdiem.data)renderPerDiem();
 }
@@ -3289,6 +3878,7 @@ function applyUrlStatePostAgencies(s){
   applyUrlState(url);
   await Promise.all([loadAgencies(),loadStats()]);
   loadEarners();
+  loadLowest();
   loadOvertime();
   loadOverview();
   loadFreshness();

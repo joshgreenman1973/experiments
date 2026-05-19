@@ -173,6 +173,8 @@ function getGitInfo(dir) {
       homepage: getGhHomepage(remote),
       lastCommit: sh('git log -1 --format=%cI', dir),
       lastCommitMsg: sh('git log -1 --format=%s', dir),
+      // First commit (creation) — `--reverse | head -1` returns the oldest.
+      created: sh("git log --reverse --format=%cI 2>/dev/null | head -1", dir),
     };
   }
   // Fall back to parent repo history for this path
@@ -182,6 +184,7 @@ function getGitInfo(dir) {
     remote: sh('git config --get remote.origin.url', ROOT),
     lastCommit: sh(`git log -1 --format=%cI -- "${rel}"`, ROOT),
     lastCommitMsg: sh(`git log -1 --format=%s -- "${rel}"`, ROOT),
+    created: sh(`git log --reverse --format=%cI -- "${rel}" 2>/dev/null | head -1`, ROOT),
   };
 }
 
@@ -265,6 +268,7 @@ function projectRecord(fullPath, category) {
     lastCommit: git.lastCommit || null,
     lastCommitMsg: git.lastCommitMsg || null,
     lastModified: git.lastCommit || null,
+    created: git.created || null,
   });
 }
 
@@ -300,6 +304,7 @@ function scan() {
       const rel = e.name;
       const lastCommit = sh(`git log -1 --format=%cI -- "${rel}"`, ROOT);
       const lastCommitMsg = sh(`git log -1 --format=%s -- "${rel}"`, ROOT);
+      const created = sh(`git log --reverse --format=%cI -- "${rel}" 2>/dev/null | head -1`, ROOT);
       out.push({
         name: e.name.replace(/\.html$/, ''),
         title,
@@ -319,6 +324,7 @@ function scan() {
         lastCommit: lastCommit || null,
         lastCommitMsg: lastCommitMsg || null,
         lastModified: lastCommit || null,
+        created: created || null,
         isLooseFile: true,
       });
     }
@@ -394,6 +400,7 @@ async function discoverViaGitHub() {
         lastCommit: r.pushed_at,
         lastCommitMsg: null,
         lastModified: r.pushed_at,
+        created: r.created_at,
         _source: 'github-api',
       });
     }

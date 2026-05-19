@@ -622,9 +622,10 @@
     <div class="filter-group">
       <label>Sort</label>
       <select id="sort">
+        <option value="created">Newest first</option>
         <option value="category">By category</option>
         <option value="name">A–Z</option>
-        <option value="modified">Recent</option>
+        <option value="modified">Recently updated</option>
       </select>
     </div>
   </div>
@@ -817,16 +818,21 @@ function render() {
     return hay.includes(term);
   });
 
-  // Default sort: alphabetical by title. "By category" groups by subcategory
-  // and alphabetizes within each section. "Recent" sorts by last commit.
+  // Default sort: newest first (creation date desc). Other options group by
+  // category (alpha within), sort A-Z, or sort by last commit.
   if (sort === 'name' || sort === 'category') {
     list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
-  } else {
-    // Prefer lastCommit (real activity) over lastModified (filesystem mtime)
-    // since CI freshly checks out files and sets every mtime equal.
+  } else if (sort === 'modified') {
     list.sort((a,b) => {
       const aT = a.lastCommit || a.lastModified || '';
       const bT = b.lastCommit || b.lastModified || '';
+      return bT.localeCompare(aT);
+    });
+  } else {
+    // 'created' (default): reverse chron by creation date.
+    list.sort((a,b) => {
+      const aT = a.created || a.lastCommit || '';
+      const bT = b.created || b.lastCommit || '';
       return bT.localeCompare(aT);
     });
   }
