@@ -661,14 +661,21 @@
   const heatYears = Object.keys(monthlyDeaths).map(Number).sort();
   const heatClass = v => v === 0 ? 'h0' : v === 1 ? 'h1' : v === 2 ? 'h2' : v === 3 ? 'h3' : v === 4 ? 'h4' : v === 5 ? 'h5' : v >= 6 ? 'h6' : 'h0';
 
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth(); // 0-indexed
   heatYears.forEach(yr => {
     const months = monthlyDeaths[yr];
-    const total = months.reduce((s, v) => s + v, 0);
+    const lastMonthIdx = (yr === thisYear) ? thisMonth : 11;
+    const total = months.slice(0, lastMonthIdx + 1).reduce((s, v) => s + v, 0);
     const h = hist.find(x => x.year === yr);
     const rate = h ? h.rate.toFixed(1) : '—';
+    const cells = months.map((v, i) => {
+      if (i > lastMonthIdx) return '<td class="h0" style="background:transparent;color:transparent">·</td>';
+      return '<td class="' + heatClass(v) + '">' + v + '</td>';
+    }).join('');
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + yr + '</td>' +
-      months.map(v => '<td class="' + heatClass(v) + '">' + v + '</td>').join('') +
+    tr.innerHTML = '<td>' + yr + '</td>' + cells +
       '<td class="total-col">' + total + '</td>' +
       '<td class="rate-col">' + rate + '</td>';
     heatBody.appendChild(tr);
