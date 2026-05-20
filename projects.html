@@ -527,6 +527,12 @@
     min-height: 16px;
     margin-bottom: 12px;
   }
+  .gate-remember {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--ink-2);
+    margin-bottom: 16px; cursor: pointer; user-select: none;
+  }
+  .gate-remember input { accent-color: var(--accent); cursor: pointer; }
   .gate-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .gate-actions button {
     font-family: "Instrument Sans", system-ui, sans-serif;
@@ -597,6 +603,7 @@
     <p id="gate-msg">These projects are private. Enter the gallery password.</p>
     <input type="password" id="gate-password" placeholder="Password" autocomplete="current-password" autofocus>
     <div class="err" id="gate-err">&nbsp;</div>
+    <label class="gate-remember"><input type="checkbox" id="gate-remember"> Keep me unlocked on this device</label>
     <div class="gate-actions">
       <button type="button" id="gate-cancel">Cancel</button>
       <button type="submit" class="primary">Unlock</button>
@@ -725,6 +732,9 @@ async function load() {
   const saved = localStorage.getItem('experiments-theme');
   if (saved) document.documentElement.dataset.theme = saved;
 
+  // Auto-unlock private tab if the user previously chose to stay unlocked.
+  await tryRememberedUnlock();
+
   render();
 }
 
@@ -749,6 +759,8 @@ function closeGate(abort) {
   if (abort) pendingTab = null;
 }
 
+const REMEMBER_KEY = 'gallery-unlock-pw';
+
 async function tryUnlock() {
   const pw = $('gate-password').value;
   const tab = pendingTab;
@@ -760,11 +772,35 @@ async function tryUnlock() {
     const records = await decryptGroup(blob, pw);
     UNLOCKED[tab] = records;
     document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('unlocked');
+    // "Keep me unlocked on this device" — stash the password locally so future
+    // visits auto-decrypt. Soft security: anyone on this device/browser gets in.
+    if ($('gate-remember')?.checked) {
+      try { localStorage.setItem(REMEMBER_KEY, pw); } catch {}
+    }
     closeGate(false);
     setActiveTab(tab);
   } catch (err) {
     $('gate-err').textContent = 'Wrong password.';
     $('gate-password').select();
+  }
+}
+
+// On load, if a remembered password is stored, silently decrypt the locked
+// groups so the private tab opens without prompting.
+async function tryRememberedUnlock() {
+  let pw = null;
+  try { pw = localStorage.getItem(REMEMBER_KEY); } catch {}
+  if (!pw || !DATA.locked) return;
+  for (const [tab, blob] of Object.entries(DATA.locked)) {
+    if (UNLOCKED[tab]) continue;
+    try {
+      UNLOCKED[tab] = await decryptGroup(blob, pw);
+      document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('unlocked');
+    } catch {
+      // Stored password no longer valid (e.g. password changed) — forget it.
+      try { localStorage.removeItem(REMEMBER_KEY); } catch {}
+      return;
+    }
   }
 }
 
