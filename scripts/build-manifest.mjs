@@ -460,6 +460,39 @@ for (const p of projects) {
   byName.set(p.name, pick);
 }
 projects = [...byName.values()];
+
+// Manual entries — local-only projects that aren't on GitHub Pages and can't
+// be auto-discovered. Defined in project-overrides.json with `"manual": true`.
+// They get listed (title, description, copy-path) but have no preview/Open link.
+const presentNames = new Set(projects.map(p => p.name));
+for (const [name, o] of Object.entries(OVERRIDES)) {
+  if (name === '_comment' || !o || !o.manual) continue;
+  if (presentNames.has(name)) continue;
+  const rec = applyOverrides({
+    name,
+    title: o.title || name,
+    description: null,
+    category: 'manual',
+    localPath: o.localPath || null,
+    relPath: null,
+    hasIndex: false,
+    indexUrl: null,
+    previewUrl: null,
+    github: null,
+    githubOwner: null,
+    livePagesUrl: null,
+    isNestedRepo: false,
+    gitRemote: null,
+    lastCommit: null,
+    lastCommitMsg: null,
+    lastModified: null,
+    created: null,
+    localOnly: true,
+    _source: 'manual',
+  });
+  if (rec) projects.push(rec);
+}
+
 // Sort newest-first by lastModified, with name as a stable tiebreaker so the
 // output is fully deterministic (otherwise two projects sharing a timestamp
 // could swap order between runs and dirty the manifest).
