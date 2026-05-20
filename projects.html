@@ -932,6 +932,7 @@ function render() {
   // (general tab, no active search or filters). Curated via the admin.
   let featIdx = 0;
   const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner;
+  const featuredShown = new Set();
   if (isDefaultView) {
     const featured = source.filter(p => p.featured && p.status !== 'dropped');
     if (featured.length) {
@@ -944,14 +945,18 @@ function render() {
         `<span class="count">${featured.length}</span>`;
       grid.appendChild(heading);
       featured.sort((a,b) => (a.title||a.name).localeCompare(b.title||b.name));
-      for (const p of featured) grid.appendChild(card(p, featIdx++, true));
+      for (const p of featured) { grid.appendChild(card(p, featIdx++, true)); featuredShown.add(p.name); }
     }
   }
+
+  // Projects shown in the sections below — exclude anything already in the
+  // featured hero so it isn't listed twice.
+  const below = featuredShown.size ? list.filter(p => !featuredShown.has(p.name)) : list;
 
   if (sort === 'category') {
     const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
     const groups = {};
-    for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
+    for (const p of below) (groups[p.subcategory || 'Other'] ||= []).push(p);
     const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()];
     let idx = 0;
     for (const key of ordered) {
@@ -976,7 +981,7 @@ function render() {
       for (const p of groups[key]) grid.appendChild(card(p, idx++));
     }
   } else {
-    list.forEach((p, i) => grid.appendChild(card(p, i)));
+    below.forEach((p, i) => grid.appendChild(card(p, i)));
   }
   observeThumbnails();
 }
