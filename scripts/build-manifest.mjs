@@ -396,7 +396,9 @@ async function discoverViaGitHub() {
       if (r.full_name === 'joshgreenman1973/experiments') continue;
       if (r.archived) continue;
       const liveUrl = r.homepage || `https://${owner}.github.io/${r.name}/`;
-      out.push({
+      // Run through applyOverrides so featured/audience/polish/skip work for
+      // repos that exist only on GitHub (never cloned locally).
+      const rec = applyOverrides({
         name: r.name,
         title: r.description || r.name,
         description: r.description || null,
@@ -417,6 +419,7 @@ async function discoverViaGitHub() {
         created: r.created_at,
         _source: 'github-api',
       });
+      if (rec) out.push(rec);
     }
   }
   return out;
