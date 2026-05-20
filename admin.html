@@ -209,6 +209,18 @@
   .audience-buttons label.checked-professional { background: var(--accent); color: var(--paper); border-color: var(--accent); }
   .audience-buttons label.checked-hide { background: var(--ink-3); color: var(--paper); border-color: var(--ink-3); text-decoration: line-through; }
 
+  .polish-select {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    padding: 4px 6px; background: var(--paper);
+    border: 1px solid var(--rule); color: var(--ink); cursor: pointer;
+  }
+  .polish-select:focus { outline: none; border-color: var(--accent); }
+  .col-featured { text-align: center; }
+  .star-label { cursor: pointer; display: inline-flex; align-items: center; }
+  .star-label input { display: none; }
+  .star-label .star { font-size: 18px; color: var(--ink-4); line-height: 1; transition: color 0.15s; }
+  .star-label input:checked + .star { color: var(--accent); }
+
   /* ===== Gates / modals ===== */
   .gate {
     position: fixed; inset: 0;
@@ -398,9 +410,11 @@
         <th>Project</th>
         <th>Last update</th>
         <th>Audience</th>
+        <th>Polish</th>
+        <th>Start here</th>
       </tr>
     </thead>
-    <tbody id="rows"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+    <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
   </table>
 
   <div class="danger-zone" id="danger-zone" style="display:none">
@@ -658,34 +672,64 @@ function render() {
 
   const tbody = $('rows');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty">No matches</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No matches</td></tr>';
   } else {
     tbody.innerHTML = list.map(rowHtml).join('');
     for (const input of tbody.querySelectorAll('input[type=radio]')) {
       input.addEventListener('change', onAudienceChange);
+    }
+    for (const sel of tbody.querySelectorAll('select.polish-select')) {
+      sel.addEventListener('change', onPolishChange);
+    }
+    for (const cb of tbody.querySelectorAll('input.featured-check')) {
+      cb.addEventListener('change', onFeaturedChange);
     }
   }
   $('count').innerHTML = `<b>${list.length}</b> of ${allProjects.length}`;
   refreshSaveBar();
 }
 
+// ---- Unified edit model: editing[name] is the full intended override object.
+function ensureEdit(name) {
+  if (!editing[name]) editing[name] = { ...(overrides[name] || {}) };
+  return editing[name];
+}
+function normOverride(o) {
+  const out = {};
+  for (const k of Object.keys(o).sort()) {
+    const v = o[k];
+    if (v === false || v === '' || v == null) continue;
+    out[k] = v;
+  }
+  return JSON.stringify(out);
+}
+function commitEdit(name) {
+  const w = editing[name];
+  if (w && normOverride(w) === normOverride(overrides[name] || {})) delete editing[name];
+  render();
+}
+function effOverride(name) { return editing[name] || overrides[name] || {}; }
+
 function currentChoice(p) {
-  // Edits override committed state
-  const e = editing[p.name];
-  if (e) {
-    if (e.skip) return 'hide';
-    if (e.audience) return e.audience;
-  }
-  const ov = overrides[p.name];
-  if (ov) {
-    if (ov.skip) return 'hide';
-    if (ov.audience) return ov.audience;
-  }
+  const o = effOverride(p.name);
+  if (o.skip) return 'hide';
+  if (o.audience) return o.audience;
   return p._currentAudience || 'general';
+}
+function currentPolish(p) {
+  const o = effOverride(p.name);
+  return o.polish || p.polish || 'alpha';
+}
+function currentFeatured(p) {
+  const o = effOverride(p.name);
+  if ('featured' in o) return !!o.featured;
+  return !!p.featured;
 }
 
 function rowHtml(p) {
   const choice = currentChoice(p);
+  const polish = currentPolish(p);
+  const feat = currentFeatured(p);
   const dirty = !!editing[p.name];
   const source = p._source === 'github-api' ? 'GitHub Pages' : (p.category || 'local');
   const repoLink = p.github
@@ -694,11 +738,12 @@ function rowHtml(p) {
   const liveLink = p.livePagesUrl
     ? ` · <a href="${esc(p.livePagesUrl)}" target="_blank">live ↗</a>`
     : '';
-  const opt = (val, label, cls) =>
+  const opt = (val, label) =>
     `<label class="${choice === val ? 'checked-' + val : ''}">
        <input type="radio" name="aud-${esc(p.name)}" value="${val}" data-name="${esc(p.name)}" ${choice === val ? 'checked' : ''}>
        <span>${label}</span>
      </label>`;
+  const polishOpt = (v) => `<option value="${v}" ${polish === v ? 'selected' : ''}>${v}</option>`;
   return `<tr class="${dirty ? 'dirty' : ''}">
     <td class="col-name">
       <div>${esc(p.title || p.name)}</div>
@@ -713,38 +758,35 @@ function rowHtml(p) {
         ${opt('hide', 'Hide')}
       </div>
     </td>
+    <td class="col-polish">
+      <select class="polish-select" data-name="${esc(p.name)}">
+        ${polishOpt('beta')}${polishOpt('alpha')}${polishOpt('pre-alpha')}
+      </select>
+    </td>
+    <td class="col-featured">
+      <label class="star-label">
+        <input type="checkbox" class="featured-check" data-name="${esc(p.name)}" ${feat ? 'checked' : ''}>
+        <span class="star">${feat ? '★' : '☆'}</span>
+      </label>
+    </td>
   </tr>`;
 }
 
 function onAudienceChange(e) {
-  const name = e.target.dataset.name;
-  const val = e.target.value;
-  const project = allProjects.find(p => p.name === name);
-  if (!project) return;
-
-  // Compute the patch needed against COMMITTED state (overrides + audience derived from manifest)
-  const committed = (overrides && overrides[name]) || {};
-  const committedSkip = committed.skip || false;
-  const committedAudience = committed.audience || project._currentAudience || 'general';
-
-  const newSkip = val === 'hide';
-  const newAudience = val === 'hide' ? committedAudience : val;
-
-  // No change?
-  if (newSkip === committedSkip && newAudience === committedAudience) {
-    delete editing[name];
-  } else {
-    const patch = { ...committed };
-    if (newSkip) patch.skip = true; else delete patch.skip;
-    // Only set audience if it differs from default classification
-    if (val === 'hide') {
-      // keep audience as-is
-    } else {
-      patch.audience = val;
-    }
-    editing[name] = patch;
-  }
-  render();
+  const w = ensureEdit(e.target.dataset.name);
+  if (e.target.value === 'hide') w.skip = true;
+  else { w.audience = e.target.value; w.skip = false; }
+  commitEdit(e.target.dataset.name);
+}
+function onPolishChange(e) {
+  const w = ensureEdit(e.target.dataset.name);
+  w.polish = e.target.value;
+  commitEdit(e.target.dataset.name);
+}
+function onFeaturedChange(e) {
+  const w = ensureEdit(e.target.dataset.name);
+  w.featured = e.target.checked;
+  commitEdit(e.target.dataset.name);
 }
 
 // ===================================================================
@@ -802,17 +844,17 @@ async function saveEdits() {
   $('btn-discard').disabled = true;
   setStatus('saving…');
 
-  // Apply edits to committed overrides
+  // Apply edits to committed overrides. Prune false/empty values; if nothing
+  // meaningful remains, drop the override entry entirely.
   const updated = { ...overrides };
   for (const name of names) {
-    const patch = editing[name];
-    // If patch ends up empty (no audience, no skip, no other fields), drop it
-    const cleaned = { ...patch };
-    if (!cleaned.audience && !cleaned.skip && !cleaned.description && !cleaned.status && !cleaned.liveUrl && !cleaned.previewUrl) {
-      delete updated[name];
-    } else {
-      updated[name] = cleaned;
+    const cleaned = {};
+    for (const [k, v] of Object.entries(editing[name])) {
+      if (v === false || v === '' || v == null) continue;
+      cleaned[k] = v;
     }
+    if (Object.keys(cleaned).length === 0) delete updated[name];
+    else updated[name] = cleaned;
   }
 
   // Preserve the leading _comment field

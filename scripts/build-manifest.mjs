@@ -36,6 +36,18 @@ function classifySubcategory(p) {
   return 'Cities';
 }
 
+// Polish level — rough first pass from whether the project has a real
+// description. Josh refines in the admin. Tiers match the "alphas and betas"
+// framing: beta (presentable) / alpha / pre-alpha (early).
+function classifyPolish(p) {
+  // Conservative auto-pass: a real description earns 'beta', everything else
+  // defaults to 'alpha'. Never auto-assigns 'pre-alpha' — Josh marks the
+  // genuinely rough ones himself in the admin.
+  const desc = (p.description || '').trim();
+  if (desc.length >= 60) return 'beta';
+  return 'alpha';
+}
+
 // Audience classification for the tabbed UI.
 const VC_OWNERS = new Set(['vitalcity-nyc', 'vital-city-nyc']);
 const PERSONAL_NAMES = new Set([
@@ -70,6 +82,8 @@ function applyOverrides(record) {
   if (o.status) record.status = o.status;
   if (o.audience) record.audience = o.audience;
   if (o.subcategory) record.subcategory = o.subcategory;
+  if (o.polish) record.polish = o.polish;
+  if (o.featured) record.featured = true;
   return record;
 }
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);
@@ -450,10 +464,11 @@ projects.sort((a, b) => {
   return cmp !== 0 ? cmp : (a.name || '').localeCompare(b.name || '');
 });
 
-// Classify each project's audience (unless overridden)
+// Classify each project's audience, subcategory, polish (unless overridden)
 for (const p of projects) {
   if (!p.audience) p.audience = classifyAudience(p);
   if (!p.subcategory) p.subcategory = classifySubcategory(p);
+  if (!p.polish) p.polish = classifyPolish(p);
 }
 const general = projects.filter(p => p.audience === 'general');
 // Personal + Vital City are merged into one private group so the manifest

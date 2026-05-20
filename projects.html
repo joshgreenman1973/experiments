@@ -82,11 +82,11 @@
   .theme-toggle:hover { border-color: var(--ink); }
 
   .masthead {
-    padding: 28px 40px 20px;
+    padding: 28px 40px 22px;
     border-bottom: 1px solid var(--rule);
     position: relative;
-    display: flex; justify-content: space-between; align-items: baseline;
-    gap: 24px; flex-wrap: wrap;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 32px; flex-wrap: wrap;
   }
   .masthead h1 {
     font-family: "Fraunces", serif;
@@ -97,22 +97,22 @@
     margin: 0;
     color: var(--ink);
   }
-  .masthead .path {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
-    color: var(--ink-3);
-    margin-left: 2px;
-  }
-  .masthead .caveat {
+  .masthead .intro-blurb {
     font-family: "Fraunces", serif;
-    font-style: italic;
-    font-variation-settings: "opsz" 18, "SOFT" 80, "wght" 340;
-    font-size: 13.5px;
+    font-variation-settings: "opsz" 18, "SOFT" 70, "wght" 350;
+    font-size: 15px;
     color: var(--ink-2);
-    margin: 8px 0 0 2px;
-    line-height: 1.4;
-    max-width: 56ch;
+    margin: 12px 0 0;
+    line-height: 1.5;
+    max-width: 64ch;
   }
+  .masthead .intro-blurb a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+  .masthead .intro-blurb a:hover { color: var(--ink); }
   .masthead .stats {
     font-family: "JetBrains Mono", monospace;
     font-size: 11px; letter-spacing: 0.04em;
@@ -275,6 +275,10 @@
     transition: background 0.25s ease;
     animation: reveal 0.5s cubic-bezier(0.25, 0.8, 0.3, 1) backwards;
   }
+  .card.featured {
+    background: var(--card);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
   .card:hover {
     background: var(--card);
   }
@@ -432,6 +436,11 @@
   .flag.nested { color: var(--accent); }
   .flag.loose { color: var(--accent-soft); }
   .flag.dropped { color: var(--ink-3); border-style: dashed; }
+  /* Polish level — solid fill so it reads as a status chip */
+  .flag.polish { border: 0; color: var(--paper); padding: 2px 6px; }
+  .flag.polish.beta { background: var(--ok, #4a6b3e); }
+  .flag.polish.alpha { background: var(--accent-soft); }
+  .flag.polish.pre-alpha { background: var(--ink-3); }
 
   /* Tabs */
   .tabs {
@@ -585,8 +594,7 @@
 <header class="masthead">
   <div>
     <h1>experiments</h1>
-    <div class="path">~/Experiments</div>
-    <p class="caveat">Alphas, betas, and in some cases whatever comes before alpha.</p>
+    <p class="intro-blurb">I like cities and, like the rest of the privileged class, have been playing with <a href="https://joshgreenman.substack.com/p/psst-have-you-heard-about-ai" target="_blank" rel="noopener">AI</a>. Here are some of the things I had it build for me. I've tried my best to do these well but freely admit these are all works in progress. Please <a href="mailto:josh.greenman@gmail.com">let me know</a> if you find mistakes or can suggest improvements.</p>
   </div>
   <div class="stats" id="stats">loading…</div>
   <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"></button>
@@ -639,9 +647,9 @@
     <div class="filter-group">
       <label>Sort</label>
       <select id="sort">
+        <option value="category">By category</option>
         <option value="modified">Recently updated</option>
         <option value="created">Newest first</option>
-        <option value="category">By category</option>
         <option value="name">A–Z</option>
       </select>
     </div>
@@ -889,6 +897,26 @@ function render() {
     return;
   }
 
+  // "Start here" featured row — only on the default Gallery landing view
+  // (general tab, no active search or filters). Curated via the admin.
+  let featIdx = 0;
+  const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner;
+  if (isDefaultView) {
+    const featured = source.filter(p => p.featured && p.status !== 'dropped');
+    if (featured.length) {
+      const heading = document.createElement('div');
+      heading.className = 'group-heading featured-heading';
+      heading.innerHTML =
+        `<span class="kicker">★ start here</span>` +
+        `<div class="head-text"><h3>Start here</h3>` +
+        `<p class="blurb">A few worth opening first.</p></div>` +
+        `<span class="count">${featured.length}</span>`;
+      grid.appendChild(heading);
+      featured.sort((a,b) => (a.title||a.name).localeCompare(b.title||b.name));
+      for (const p of featured) grid.appendChild(card(p, featIdx++, true));
+    }
+  }
+
   if (sort === 'category') {
     const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
     const groups = {};
@@ -921,9 +949,9 @@ function render() {
   observeThumbnails();
 }
 
-function card(p, i) {
+function card(p, i, isFeatured) {
   const d = document.createElement('article');
-  d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '');
+  d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '') + (isFeatured ? ' featured' : '');
   d.style.animationDelay = `${Math.min(i * 20, 600)}ms`;
 
   const idx = String(i + 1).padStart(2, '0');
@@ -954,6 +982,7 @@ function card(p, i) {
 
   const flags = [];
   if (p.status === 'dropped') flags.push('<span class="flag dropped">dropped</span>');
+  if (p.polish) flags.push(`<span class="flag polish ${p.polish}">${escapeHtml(p.polish)}</span>`);
   if (p.isNestedRepo) flags.push('<span class="flag nested">own·repo</span>');
   if (p.isLooseFile) flags.push('<span class="flag loose">loose</span>');
 
