@@ -43,8 +43,9 @@ function classifyPolish(p) {
   // Conservative auto-pass: a real description earns 'beta', everything else
   // defaults to 'alpha'. Never auto-assigns 'pre-alpha' — Josh marks the
   // genuinely rough ones himself in the admin.
-  const desc = (p.description || '').trim();
-  if (desc.length >= 60) return 'beta';
+  // Every project now has a written description, so length is no longer a useful
+  // polish signal. Default to 'alpha'; Josh promotes to 'beta' / demotes to
+  // 'pre-alpha' per-project in the admin.
   return 'alpha';
 }
 
