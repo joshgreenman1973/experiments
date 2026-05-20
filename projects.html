@@ -136,6 +136,7 @@
     text-transform: uppercase;
     color: var(--accent);
   }
+  .group-heading .head-text { display: flex; flex-direction: column; gap: 4px; }
   .group-heading h3 {
     font-family: "Fraunces", serif;
     font-variation-settings: "opsz" 48, "SOFT" 60, "wght" 380;
@@ -145,12 +146,22 @@
     margin: 0;
     color: var(--ink);
   }
+  .group-heading .blurb {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 18, "SOFT" 80, "wght" 340;
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 60ch;
+  }
   .group-heading .count {
     font-family: "JetBrains Mono", monospace;
     font-size: 11px;
     color: var(--ink-3);
     margin-left: auto;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   /* ---- Controls ---- */
@@ -576,9 +587,8 @@
 </header>
 
 <nav class="tabs" role="tablist" id="tabs">
-  <button class="tab" role="tab" data-tab="general" aria-selected="true">General <span class="tab-count" id="count-general"></span></button>
-  <button class="tab" role="tab" data-tab="personal" aria-selected="false"><span class="lock"></span>Personal <span class="tab-count" id="count-personal"></span></button>
-  <button class="tab" role="tab" data-tab="professional" aria-selected="false"><span class="lock"></span>Vital City <span class="tab-count" id="count-professional"></span></button>
+  <button class="tab" role="tab" data-tab="general" aria-selected="true">Gallery <span class="tab-count" id="count-general"></span></button>
+  <button class="tab" role="tab" data-tab="private" aria-selected="false"><span class="lock"></span>Personal / In development <span class="tab-count" id="count-private"></span></button>
 </nav>
 
 <div class="gate-backdrop" id="gate">
@@ -642,7 +652,7 @@
 let DATA = null;
 // Holds the decrypted project arrays per audience. Populated as the user
 // successfully unlocks each tab. Session-scoped only — cleared on tab close.
-const UNLOCKED = { general: null, professional: null, personal: null };
+const UNLOCKED = { general: null, private: null };
 let ACTIVE_TAB = 'general';
 
 const $ = (id) => document.getElementById(id);
@@ -665,10 +675,9 @@ async function load() {
   UNLOCKED.general = DATA.projects;
 
   // Tab counts
-  const counts = DATA.counts || { general: (DATA.projects||[]).length, professional: 0, personal: 0 };
+  const counts = DATA.counts || { general: (DATA.projects||[]).length, private: 0 };
   $('count-general').textContent = '· ' + counts.general;
-  $('count-professional').textContent = '· ' + (counts.professional || (DATA.locked?.professional?.count || 0));
-  $('count-personal').textContent = '· ' + (counts.personal || (DATA.locked?.personal?.count || 0));
+  $('count-private').textContent = '· ' + (counts.private || (DATA.locked?.private?.count || 0));
 
   // Tab wiring
   for (const btn of document.querySelectorAll('.tab')) {
@@ -727,10 +736,8 @@ function onTabClick(tab) {
   if (tab === ACTIVE_TAB) return;
   if (tab === 'general' || UNLOCKED[tab]) { setActiveTab(tab); return; }
   pendingTab = tab;
-  $('gate-title').textContent = tab === 'professional' ? 'Unlock Vital City projects' : 'Unlock Personal projects';
-  $('gate-msg').textContent = tab === 'professional'
-    ? 'Vital City–branded projects are private. Enter the gallery password to view.'
-    : 'Family, personal, and kid projects are private. Enter the gallery password to view.';
+  $('gate-title').textContent = 'Personal / In development';
+  $('gate-msg').textContent = 'These projects are private — works in progress and personal pieces. Enter the password to view.';
   $('gate-err').innerHTML = '&nbsp;';
   $('gate-password').value = '';
   $('gate').classList.add('open');
@@ -856,14 +863,19 @@ function render() {
       if (!groups[key]) continue;
       const heading = document.createElement('div');
       heading.className = 'group-heading';
-      const kickers = {
-        'Cities': '§ 1',
-        'The wider world': '§ 2',
-        'Tools & feeds': '§ 3',
-        'Fun stuff': '§ 4',
+      const SECTION_META = {
+        'Cities':           { kicker: '§ 1', blurb: 'How New York and other cities actually work — maps, dashboards and trackers.' },
+        'The wider world':  { kicker: '§ 2', blurb: 'National and global data — beyond the five boroughs.' },
+        'Tools & feeds':    { kicker: '§ 3', blurb: 'Scrapers, daily digests and research tools that run on their own.' },
+        'Fun stuff':        { kicker: '§ 4', blurb: 'Food, history, oddities and things made for the joy of it.' },
       };
-      const kicker = kickers[key] || 'section';
-      heading.innerHTML = `<span class="kicker">${escapeHtml(kicker)}</span><h3>${escapeHtml(key)}</h3><span class="count">${groups[key].length} ${groups[key].length === 1 ? 'project' : 'projects'}</span>`;
+      const meta = SECTION_META[key] || { kicker: 'section', blurb: '' };
+      heading.innerHTML =
+        `<span class="kicker">${escapeHtml(meta.kicker)}</span>` +
+        `<div class="head-text"><h3>${escapeHtml(key)}</h3>` +
+        (meta.blurb ? `<p class="blurb">${escapeHtml(meta.blurb)}</p>` : '') +
+        `</div>` +
+        `<span class="count">${groups[key].length} ${groups[key].length === 1 ? 'project' : 'projects'}</span>`;
       grid.appendChild(heading);
       for (const p of groups[key]) grid.appendChild(card(p, idx++));
     }

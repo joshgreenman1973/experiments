@@ -456,8 +456,10 @@ for (const p of projects) {
   if (!p.subcategory) p.subcategory = classifySubcategory(p);
 }
 const general = projects.filter(p => p.audience === 'general');
-const professional = projects.filter(p => p.audience === 'professional');
-const personal = projects.filter(p => p.audience === 'personal');
+// Personal + Vital City are merged into one private group so the manifest
+// doesn't reveal which is which (or even their separate counts). The records
+// keep their `audience` field inside the encrypted blob for the admin UI.
+const privateProjects = projects.filter(p => p.audience === 'professional' || p.audience === 'personal');
 
 // Encrypt a group with AES-256-GCM via PBKDF2-SHA256. The salt is public
 // (stored alongside the ciphertext) — it's the password that's secret.
@@ -490,18 +492,16 @@ function encryptGroup(records, password) {
 
 const manifest = {
   count: projects.length,
-  counts: { general: general.length, professional: professional.length, personal: personal.length },
+  counts: { general: general.length, private: privateProjects.length },
   categories: [...new Set(projects.map(p => p.category))].sort(),
   owners: [...new Set(projects.map(p => p.githubOwner).filter(Boolean))].sort(),
   projects: general,
   locked: {
-    professional: encryptGroup(professional, GALLERY_PASSWORD),
-    personal: encryptGroup(personal, GALLERY_PASSWORD),
+    private: encryptGroup(privateProjects, GALLERY_PASSWORD),
   },
 };
 
 writeFileSync(join(ROOT, 'projects-manifest.json'), JSON.stringify(manifest, null, 2));
 console.log(`Wrote projects-manifest.json — ${projects.length} total`);
 console.log(`  general: ${general.length} (public)`);
-console.log(`  professional: ${professional.length} (encrypted)`);
-console.log(`  personal: ${personal.length} (encrypted)`);
+console.log(`  private: ${privateProjects.length} (encrypted — personal + vital city)`);

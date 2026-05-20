@@ -600,19 +600,24 @@ async function decryptLocked(blob, password) {
 
 async function buildProjectList() {
   const general = manifest.projects || [];
-  let professional = [], personal = [];
-  if (manifest.locked?.professional) {
-    try { professional = await decryptLocked(manifest.locked.professional, GALLERY_PASSWORD); } catch {}
-  }
-  if (manifest.locked?.personal) {
-    try { personal = await decryptLocked(manifest.locked.personal, GALLERY_PASSWORD); } catch {}
+  let priv = [];
+  // New single 'private' blob (personal + vital city merged). Fall back to the
+  // old two-blob shape for backward compatibility with stale manifests.
+  if (manifest.locked?.private) {
+    try { priv = await decryptLocked(manifest.locked.private, GALLERY_PASSWORD); } catch {}
+  } else {
+    for (const key of ['professional', 'personal']) {
+      if (manifest.locked?.[key]) {
+        try { priv.push(...await decryptLocked(manifest.locked[key], GALLERY_PASSWORD)); } catch {}
+      }
+    }
   }
   for (const p of general) p._currentAudience = 'general';
-  for (const p of professional) p._currentAudience = 'professional';
-  for (const p of personal) p._currentAudience = 'personal';
+  // Each private record keeps its real audience (professional/personal) inside.
+  for (const p of priv) p._currentAudience = p.audience || 'personal';
   // Hidden projects are in overrides but not in manifest.projects/locked.
   // We can't surface their metadata without rebuilding — leave them off.
-  allProjects = [...general, ...professional, ...personal];
+  allProjects = [...general, ...priv];
   // Sort by last update desc
   // Sort by last commit (real project activity) descending; fall back to
   // lastModified (filesystem mtime) only when no commit data is available.
