@@ -21,6 +21,12 @@
     --accent:       #7a2b28;
     --accent-soft:  #c27169;
     --highlight:    #e8cfa3;
+    /* section accent palette — deep, earthy, harmonized on cream */
+    --c-cities:     #9c3329;
+    --c-world:      #335b6e;
+    --c-tools:      #9a6a1f;
+    --c-fun:        #9e2f5e;
+    --section:      var(--accent); /* default; set per section/card */
     --shadow-sm:    0 1px 0 rgba(26,22,18,0.04);
     --shadow-md:    0 2px 8px rgba(26,22,18,0.06), 0 12px 32px -8px rgba(26,22,18,0.08);
     --shadow-lg:    0 8px 40px -8px rgba(26,22,18,0.18);
@@ -38,6 +44,10 @@
     --accent:       #e09a7e;
     --accent-soft:  #bf6a4e;
     --highlight:    #3d2f1d;
+    --c-cities:     #e0846b;
+    --c-world:      #6fb3c4;
+    --c-tools:      #d6a23f;
+    --c-fun:        #de6f9c;
     --shadow-sm:    0 1px 0 rgba(0,0,0,0.3);
     --shadow-md:    0 2px 8px rgba(0,0,0,0.3), 0 12px 32px -8px rgba(0,0,0,0.5);
     --shadow-lg:    0 8px 40px -8px rgba(0,0,0,0.7);
@@ -82,18 +92,22 @@
   .theme-toggle:hover { border-color: var(--ink); }
 
   .masthead {
-    padding: 28px 40px 22px;
-    border-bottom: 1px solid var(--rule);
+    padding: 30px 40px 24px;
     position: relative;
     display: flex; justify-content: space-between; align-items: flex-start;
     gap: 32px; flex-wrap: wrap;
+    /* four-color stripe rule along the bottom edge introduces the palette */
+    border-bottom: 3px solid transparent;
+    border-image: linear-gradient(90deg,
+      var(--c-cities) 0 25%, var(--c-world) 25% 50%,
+      var(--c-tools) 50% 75%, var(--c-fun) 75% 100%) 1;
   }
   .masthead h1 {
     font-family: "Fraunces", serif;
-    font-variation-settings: "opsz" 48, "SOFT" 30, "wght" 420;
-    font-size: 36px;
-    line-height: 1;
-    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 144, "SOFT" 40, "wght" 400;
+    font-size: clamp(44px, 6vw, 72px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
     margin: 0;
     color: var(--ink);
   }
@@ -126,7 +140,7 @@
     grid-column: 1 / -1;
     padding: 48px 22px 14px;
     display: flex; align-items: baseline; gap: 14px;
-    border-bottom: 1px solid var(--rule-strong);
+    border-bottom: 2px solid var(--section);
   }
   .group-heading:first-child { padding-top: 24px; }
   .group-heading .kicker {
@@ -134,7 +148,8 @@
     font-size: 10px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--section);
+    font-weight: 600;
   }
   .group-heading .head-text { display: flex; flex-direction: column; gap: 4px; }
   .group-heading h3 {
@@ -272,20 +287,35 @@
     border-bottom: 1px solid var(--rule);
     background: var(--paper);
     position: relative;
-    transition: background 0.25s ease;
+    transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
     animation: reveal 0.5s cubic-bezier(0.25, 0.8, 0.3, 1) backwards;
   }
-  .card.featured {
-    background: var(--card);
-    box-shadow: inset 3px 0 0 var(--accent);
+  /* a thin section-colored top edge appears on hover */
+  .card::before {
+    content: ""; position: absolute; top: -1px; left: 0; right: 0; height: 2px;
+    background: var(--section); transform: scaleX(0); transform-origin: left;
+    transition: transform 0.25s ease;
   }
+  .card:hover::before { transform: scaleX(1); }
+  .card.featured {
+    background:
+      linear-gradient(var(--paper-2), var(--paper-2)) padding-box,
+      var(--card);
+    box-shadow: inset 3px 0 0 var(--section);
+  }
+  .card.featured .card-title { font-size: 22px; }
+  .card.featured .thumb { aspect-ratio: 16 / 10; }
   .card:hover {
     background: var(--card);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    z-index: 2;
   }
-  .card:hover .thumb iframe,
-  .card:hover .thumb .no-preview {
+  .card:hover .thumb iframe {
     filter: none;
+    transform: scale(0.3433);
   }
+  .card:hover .thumb .no-preview { filter: none; }
   @keyframes reveal {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
@@ -298,8 +328,8 @@
     font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--ink-3);
   }
-  .card-head .idx { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--ink); }
-  .card-head .cat { }
+  .card-head .idx { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--section); }
+  .card-head .cat { color: var(--section); }
   .card-head .cat .slash { color: var(--ink-4); margin: 0 4px; }
 
   .thumb {
@@ -934,6 +964,7 @@ function render() {
         'Fun stuff':        { kicker: '§ 4', blurb: 'Food, history, oddities and things made for the joy of it.' },
       };
       const meta = SECTION_META[key] || { kicker: 'section', blurb: '' };
+      heading.style.setProperty('--section', sectionVar(key));
       heading.innerHTML =
         `<span class="kicker">${escapeHtml(meta.kicker)}</span>` +
         `<div class="head-text"><h3>${escapeHtml(key)}</h3>` +
@@ -949,10 +980,21 @@ function render() {
   observeThumbnails();
 }
 
+// Map a subcategory to its accent CSS variable (falls back to oxblood).
+function sectionVar(subcat) {
+  return ({
+    'Cities': 'var(--c-cities)',
+    'The wider world': 'var(--c-world)',
+    'Tools & feeds': 'var(--c-tools)',
+    'Fun stuff': 'var(--c-fun)',
+  })[subcat] || 'var(--accent)';
+}
+
 function card(p, i, isFeatured) {
   const d = document.createElement('article');
   d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '') + (isFeatured ? ' featured' : '');
   d.style.animationDelay = `${Math.min(i * 20, 600)}ms`;
+  d.style.setProperty('--section', sectionVar(p.subcategory));
 
   const idx = String(i + 1).padStart(2, '0');
   const catDisplay = p.subcategory || (p.category === 'root' ? 'general' : p.category);
