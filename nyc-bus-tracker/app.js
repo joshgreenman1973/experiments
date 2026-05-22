@@ -198,8 +198,11 @@ async function loadRouteShapes() {
 async function prefetchLiveData() {
   try {
     // VehicleMonitoringDetailLevel=basic keeps route/direction/destination
-    // but drops onward calls and stop-level details we don't need
-    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&version=2&VehicleMonitoringDetailLevel=basic`;
+    // but drops onward calls and stop-level details we don't need.
+    // NOTE: no &version=2 — the version is now in the path (-v2.json). Passing
+    // version=2 as a query param makes the endpoint return an XML error page
+    // instead of JSON.
+    const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&VehicleMonitoringDetailLevel=basic`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
