@@ -348,27 +348,92 @@ function parseVehicles(activities) {
 }
 
 // ═══ RENDERING ═══
-function renderBuses(snapshot) {
-  const geojson = {
-    type: 'FeatureCollection',
-    features: snapshot.vehicles.map(v => ({
+
+// ── Real-time movement engine ──
+// The MTA feed only gives new positions every ~30s. To make dots move
+// continuously instead of snapping, we glide each bus from its last-rendered
+// position to its newest reported position across the whole inter-fetch gap.
+// A persistent rAF loop interpolates every frame; when a new snapshot arrives,
+// we re-anchor the tween from wherever each dot currently sits on screen.
+const BUS_TWEEN_MS = 30000;          // span one fetch interval — continuous motion
+const BUS_RENDER_THROTTLE_MS = 100;  // ~10 fps setData; smooth for slow dots, easy on CPU
+let busTweenTargets = [];            // [{ id, from:[lon,lat], to:[lon,lat], props }]
+let busRenderedPos = new Map();      // id -> [lon,lat] currently shown (tween anchor)
+let busTweenStart = 0;
+let busRafHandle = null;
+let busLastRenderTs = 0;
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function busFrameFeatures(t) {
+  // cubic-ease-out feels natural and avoids a hard stop at the end
+  const e = 1 - Math.pow(1 - t, 3);
+  return busTweenTargets.map(item => {
+    const lon = lerp(item.from[0], item.to[0], e);
+    const lat = lerp(item.from[1], item.to[1], e);
+    return {
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [v.lon, v.lat] },
-      properties: {
-        id: v.id,
-        route: v.route,
-        color: routeColor(v.route),
-        dir: v.dir,
-        dest: v.dest,
-        bearing: v.bearing,
-        nextStop: v.nextStop,
-        distFromStop: v.distFromStop,
-        stopsAway: v.stopsAway,
-        phase: v.phase,
-        bunched: v.bunched || 0,
-      },
-    })),
-  };
+      geometry: { type: 'Point', coordinates: [lon, lat] },
+      properties: item.props,
+    };
+  });
+}
+
+function busAnimationStep(now) {
+  if (!busTweenStart) busTweenStart = now;
+  const t = Math.min(1, (now - busTweenStart) / BUS_TWEEN_MS);
+
+  // Throttle the actual setData calls; interpolation math stays per-frame-cheap.
+  if (now - busLastRenderTs >= BUS_RENDER_THROTTLE_MS || t >= 1) {
+    busLastRenderTs = now;
+    const features = busFrameFeatures(t);
+    const src = map.getSource('buses');
+    if (src) src.setData({ type: 'FeatureCollection', features });
+    // Remember where each dot is now, so the next snapshot tweens from here.
+    for (const f of features) {
+      busRenderedPos.set(f.properties.id, f.geometry.coordinates);
+    }
+  }
+
+  // Keep looping while still gliding. Once we've arrived (t>=1) we idle the
+  // loop to save CPU; the next snapshot restarts it.
+  if (t < 1) {
+    busRafHandle = requestAnimationFrame(busAnimationStep);
+  } else {
+    busRafHandle = null;
+  }
+}
+
+function renderBuses(snapshot) {
+  const buildProps = v => ({
+    id: v.id,
+    route: v.route,
+    color: routeColor(v.route),
+    dir: v.dir,
+    dest: v.dest,
+    bearing: v.bearing,
+    nextStop: v.nextStop,
+    distFromStop: v.distFromStop,
+    stopsAway: v.stopsAway,
+    phase: v.phase,
+    bunched: v.bunched || 0,
+  });
+
+  // Build tween targets: each bus glides from where it's currently drawn
+  // (or its own new position, if we've never seen it) to the new reading.
+  busTweenTargets = snapshot.vehicles.map(v => {
+    const to = [v.lon, v.lat];
+    const from = busRenderedPos.get(v.id) || to;
+    return { id: v.id, from, to, props: buildProps(v) };
+  });
+  // Drop stale anchors for buses no longer present so the Map doesn't grow.
+  const liveIds = new Set(snapshot.vehicles.map(v => v.id));
+  for (const id of busRenderedPos.keys()) {
+    if (!liveIds.has(id)) busRenderedPos.delete(id);
+  }
+
+  // Initial frame (t=0) so the source has data immediately on first render.
+  const geojson = { type: 'FeatureCollection', features: busFrameFeatures(0) };
 
   if (map.getSource('buses')) {
     map.getSource('buses').setData(geojson);
@@ -457,6 +522,12 @@ function renderBuses(snapshot) {
       },
     });
   }
+
+  // (Re)start the glide toward the new positions. Re-anchoring from the
+  // current on-screen position means an early snapshot doesn't cause a jump.
+  busTweenStart = 0;
+  if (busRafHandle) cancelAnimationFrame(busRafHandle);
+  busRafHandle = requestAnimationFrame(busAnimationStep);
 
   // Highlight selected route
   if (selectedRoute) {
