@@ -509,6 +509,26 @@
 
   .slider-label { font-family: var(--font-sans); font-weight: 300; }
 
+  .period-btn {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .period-btn.active { background: var(--accent); color: var(--text); }
+
+  .det-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  @media (max-width: 720px) {
+    .det-cols { grid-template-columns: 1fr; gap: 8px; }
+  }
+
   .result-box {
     background: var(--surface2);
     border-radius: 0;
@@ -931,12 +951,8 @@
       <div class="compare-strip-inner">
         <span class="compare-strip-label">At a glance →</span>
         <div class="compare-chip baseline"><div class="chip-label">Today</div><div class="chip-val">$258M</div></div>
-        <div class="compare-chip"><div class="chip-label">1. Flat fee</div><div class="chip-val" id="strip-flat">--</div></div>
-        <div class="compare-chip"><div class="chip-label">2. Demand</div><div class="chip-val" id="strip-var">--</div></div>
-        <div class="compare-chip"><div class="chip-label">3. Auction</div><div class="chip-val" id="strip-auction">--</div></div>
-        <div class="compare-chip"><div class="chip-label">4. Permit</div><div class="chip-val" id="strip-permit">--</div></div>
-        <div class="compare-chip"><div class="chip-label">5. Combined</div><div class="chip-val" id="strip-combo">--</div></div>
-        <div class="compare-chip"><div class="chip-label">6. Equity</div><div class="chip-val" id="strip-equity">--</div></div>
+        <div class="compare-chip"><div class="chip-label">Quick: avg fee</div><div class="chip-val" id="strip-quick">--</div></div>
+        <div class="compare-chip"><div class="chip-label">Detailed: meter + permit</div><div class="chip-val" id="strip-detailed">--</div></div>
       </div>
     </div>
 
@@ -989,352 +1005,149 @@
         Not all 3 million curb spaces are alike. <strong>Metered zones</strong> make sense for commercial corridors, transit hubs and high-traffic streets — the kinds of blocks where drivers circle for spots and turnover matters. Today's ~85,000 meters are concentrated in Manhattan below 96th Street, downtown Brooklyn, Long Island City and commercial strips in the Bronx and Staten Island. Expanding metering to all major commercial and mixed-use streets citywide could cover roughly 300,000 to 500,000 spaces.
       </p>
       <p style="margin-top: 10px;">
-        <strong>Residential permits</strong> target a different problem: the vast majority of curb space sits on neighborhood streets, occupied overnight and on weekends by local residents. These spaces — estimated at 1.5 million to 2.5 million — are not candidates for hourly meters, but a modest annual permit fee could generate revenue and deter commuters from storing cars in residential neighborhoods. The two policies are not mutually exclusive: a city could meter commercial streets and charge residential permits at the same time. The first four cards below model each approach independently; the fifth shows what combining metering with residential permits could raise, and the sixth tests a permit program with senior- and family-exempt tiers.
+        <strong>Residential permits</strong> target a different problem: the vast majority of curb space sits on neighborhood streets, occupied overnight and on weekends by local residents. These spaces — estimated at 1.5 million to 2.5 million — are not candidates for hourly meters, but a modest permit fee could generate revenue and deter commuters from storing cars in residential neighborhoods. The two policies are not mutually exclusive: a city could meter commercial streets and charge residential permits at the same time.
+      </p>
+      <p style="margin-top: 10px;">
+        A growing number of cities now blend the two strategies on the very same blocks — a "pay and permit" model. Residents park on their annual permit, while non-residents can buy a few hours at an hourly rate during the day, so a quiet residential curb earns money from visitors without displacing the people who live there. Paris, much of London and many U.S. cities run some version of this hybrid. The calculator below offers two ways to model the math: a <strong>quick estimate</strong> built on a single average fee, and a <strong>detailed model</strong> that splits the curb between metered and permit blocks and prices each side separately.
       </p>
     </div>
 
     <div class="scenario-grid">
 
-      <!-- SCENARIO 1: Flat annual fee -->
-      <div class="scenario-card">
-        <h3>1. Flat annual permit fee</h3>
-        <p class="scenario-desc">Charge a flat annual fee for the right to park on any city curb — a universal price tag on space that is currently given away for free.</p>
+      <!-- QUICK: average fee -->
+      <div class="scenario-card" style="grid-column: 1 / -1;">
+        <h3>The quick estimate: one average fee</h3>
+        <p class="scenario-desc">The back-of-envelope version. Imagine charging a single average fee for a curb space — framed as a small daily or weekly amount rather than a big annual bill. Pick the fee and how much of the free curb it covers.</p>
 
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Annual fee per space</span>
-            <span class="val" id="flat-fee-val">$200</span>
-          </div>
-          <input type="range" id="flat-fee" min="50" max="2000" step="25" value="200">
+        <div style="display:flex; gap:6px; margin-bottom:20px;">
+          <button type="button" class="period-btn active" data-period="week">Weekly fee</button>
+          <button type="button" class="period-btn" data-period="day">Daily fee</button>
         </div>
 
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Spaces covered (% of free spots)</span>
-            <span class="val" id="flat-pct-val">50%</span>
+        <div class="det-cols">
+          <div>
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>Average fee per space, per <span id="quick-period-word">week</span></span>
+                <span class="val" id="quick-fee-val">$10</span>
+              </div>
+              <input type="range" id="quick-fee" min="1" max="100" step="1" value="10">
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-label">
+                <span>Share of free curb charged</span>
+                <span class="val" id="quick-pct-val">50%</span>
+              </div>
+              <input type="range" id="quick-pct" min="10" max="100" step="5" value="50">
+            </div>
           </div>
-          <input type="range" id="flat-pct" min="10" max="100" step="5" value="50">
+
+          <div class="result-box" style="margin-top:0;">
+            <div class="result-row">
+              <span>Spaces charged</span>
+              <span class="rv blue" id="quick-spaces">1,457,500</span>
+            </div>
+            <div class="result-row">
+              <span>Works out to</span>
+              <span class="rv" id="quick-annualized">$520 / space / year</span>
+            </div>
+            <div class="result-row total">
+              <span>Annual revenue (+ current meters)</span>
+              <span class="rv green" id="quick-total">$1.0B</span>
+            </div>
+            <div class="vs-current">
+              <span id="quick-mult">3.9x</span> current revenue
+            </div>
+            <div class="stakes-line" id="quick-stakes"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAILED: metering + residential permits -->
+      <div class="scenario-card" style="grid-column: 1 / -1;">
+        <h3>The detailed model: metering plus residential permits</h3>
+        <p class="scenario-desc">The fuller version. First decide how much curb stays free, then split the priced curb between metered blocks and residential-permit blocks. Tune each side separately — metering and permits target different streets and can run at the same time.</p>
+
+        <!-- ALLOCATION -->
+        <div style="background: var(--surface2); border: 1.5px solid var(--border); padding: 18px 20px; margin-bottom: 24px;">
+          <div style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px;">How the 3 million spaces are split</div>
+          <div class="slider-group">
+            <div class="slider-label">
+              <span>Curb left free (no charge)</span>
+              <span class="val" id="det-free-val">40%</span>
+            </div>
+            <input type="range" id="det-free" min="0" max="100" step="5" value="40">
+          </div>
+          <div class="slider-group" style="margin-bottom:6px;">
+            <div class="slider-label">
+              <span>Of the priced curb: metered vs. residential permit</span>
+              <span class="val"><span id="det-split-meter-val">25%</span> meter / <span id="det-split-permit-val">75%</span> permit</span>
+            </div>
+            <input type="range" id="det-split" min="0" max="100" step="5" value="25">
+          </div>
+          <div id="det-alloc-readout" style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;"></div>
+        </div>
+
+        <!-- TWO COLUMNS -->
+        <div class="det-cols">
+
+          <!-- METERED -->
+          <div>
+            <div style="font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid var(--border); padding-bottom: 6px;">Metered blocks</div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Average hourly rate</span><span class="val" id="det-rate-val">$3.00</span></div>
+              <input type="range" id="det-rate" min="0.50" max="8" step="0.25" value="3.00">
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Metered hours per day</span><span class="val" id="det-hours-val">10</span></div>
+              <input type="range" id="det-hours" min="4" max="14" step="1" value="10">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">e.g., 8 AM to 6 PM = 10 hours.</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Average paid occupancy</span><span class="val" id="det-occ-val">50%</span></div>
+              <input type="range" id="det-occ" min="10" max="100" step="5" value="50">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Share of metered hours a space is parked and paying.</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Operating days per year</span><span class="val" id="det-days-val">300</span></div>
+              <input type="range" id="det-days" min="250" max="365" step="5" value="300">
+            </div>
+          </div>
+
+          <!-- PERMIT -->
+          <div>
+            <div style="font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid var(--border); padding-bottom: 6px;">Residential-permit blocks</div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Permit price per month</span><span class="val" id="det-permit-val">$300</span></div>
+              <input type="range" id="det-permit" min="10" max="600" step="10" value="300">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">A city could set this directly, or let an <strong>auction</strong> discover the market price. $300/month is a mid-range market estimate; London and San Francisco charge far less, dense private lots far more.</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Reduced rate for eligible households</span><span class="val" id="det-reduced-val">50%</span></div>
+              <input type="range" id="det-reduced" min="0" max="100" step="5" value="50">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Discount off the full price. 0% = free for eligible households; 100% = no discount.</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Share of parkers eligible for reduced rate</span><span class="val" id="det-eligible-val">30%</span></div>
+              <input type="range" id="det-eligible" min="0" max="80" step="5" value="30">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">e.g., seniors, households with young children, or income-qualified residents (a Fair Fares-style means test).</div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Compliance / uptake rate</span><span class="val" id="det-uptake-val">70%</span></div>
+              <input type="range" id="det-uptake" min="30" max="100" step="5" value="70">
+            </div>
+          </div>
         </div>
 
         <div class="result-box">
-          <div class="result-row">
-            <span>Spaces priced</span>
-            <span class="rv blue" id="flat-spaces">1,457,500</span>
-          </div>
-          <div class="result-row">
-            <span>New revenue</span>
-            <span class="rv green" id="flat-new-rev">$291.5M</span>
-          </div>
-          <div class="result-row total">
-            <span>Total (+ current meters)</span>
-            <span class="rv green" id="flat-total">$549.5M</span>
-          </div>
-          <div class="vs-current">
-            <span id="flat-mult">2.1x</span> current revenue
-          </div>
-          <div class="stakes-line" id="flat-stakes"></div>
+          <div class="result-row"><span>Metering revenue</span><span class="rv blue" id="det-meter-rev">--</span></div>
+          <div class="result-row"><span>Permit revenue</span><span class="rv blue" id="det-permit-rev">--</span></div>
+          <div class="result-row total" style="font-size:18px;"><span>Combined annual revenue</span><span class="rv green" id="det-total">--</span></div>
+          <div class="vs-current" style="font-size:14px;"><span id="det-mult">--</span> current revenue ($258 million)</div>
+          <div class="stakes-line" id="det-stakes"></div>
         </div>
       </div>
-
-      <!-- SCENARIO 2: Variable metering -->
-      <div class="scenario-card">
-        <h3>2. Demand-based metering</h3>
-        <p class="scenario-desc">Meter all curb spaces with rates that vary by location and time of day — higher in busy commercial areas, lower in quiet residential blocks. Based on TransAlt's EasyPark model.</p>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Average hourly rate</span>
-            <span class="val" id="var-rate-val">$2.50</span>
-          </div>
-          <input type="range" id="var-rate" min="0.50" max="8" step="0.25" value="2.75">
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Metered hours per day (when meters operate)</span>
-            <span class="val" id="var-hours-val">10</span>
-          </div>
-          <input type="range" id="var-hours" min="4" max="14" step="1" value="10">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">e.g., 8 AM to 6 PM = 10 hours. Sets the window when parking could be priced.</div>
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Average paid occupancy</span>
-            <span class="val" id="var-occ-val">35%</span>
-          </div>
-          <input type="range" id="var-occ" min="10" max="100" step="5" value="20">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Share of metered hours a car is actually parked and paying. Blends busy commercial curbs with quiet residential blocks.</div>
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Operating days / year (excl. Sundays, holidays)</span>
-            <span class="val" id="var-days-val">300</span>
-          </div>
-          <input type="range" id="var-days" min="250" max="365" step="5" value="300">
-        </div>
-
-        <div class="result-box">
-          <div class="result-row">
-            <span>Paid space-hours / day</span>
-            <span class="rv blue" id="var-eff-spaces">10.5M</span>
-          </div>
-          <div class="result-row">
-            <span>Daily revenue</span>
-            <span class="rv blue" id="var-daily">$26.3M</span>
-          </div>
-          <div class="result-row total">
-            <span>Annual revenue</span>
-            <span class="rv green" id="var-total">$7.9B</span>
-          </div>
-          <div class="vs-current">
-            <span id="var-mult">30.5x</span> current revenue
-          </div>
-          <div class="stakes-line" id="var-stakes"></div>
-        </div>
-      </div>
-
-      <!-- SCENARIO 3: Auction / market price -->
-      <div class="scenario-card">
-        <h3>3. Market-rate auction</h3>
-        <p class="scenario-desc">Auction parking rights at market clearing prices, as proposed in City Journal. Prices adjust to keep ~15% of spots open, eliminating cruising for parking.</p>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Implied monthly value per space</span>
-            <span class="val" id="auction-monthly-val">$300</span>
-          </div>
-          <input type="range" id="auction-monthly" min="50" max="1500" step="25" value="300">
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Spaces participating (% of total)</span>
-            <span class="val" id="auction-pct-val">60%</span>
-          </div>
-          <input type="range" id="auction-pct" min="10" max="100" step="5" value="60">
-        </div>
-
-        <div class="result-box">
-          <div class="result-row">
-            <span>Spaces auctioned</span>
-            <span class="rv blue" id="auction-spaces">1,800,000</span>
-          </div>
-          <div class="result-row total">
-            <span>Annual revenue</span>
-            <span class="rv green" id="auction-total">$6.5B</span>
-          </div>
-          <div class="vs-current">
-            <span id="auction-mult">25.0x</span> current revenue
-          </div>
-          <div class="stakes-line" id="auction-stakes"></div>
-        </div>
-      </div>
-
-      <!-- SCENARIO 4: Residential permit -->
-      <div class="scenario-card">
-        <h3>4. Residential permit program</h3>
-        <p class="scenario-desc">Issue annual permits for residential streets only, keeping commuters from occupying neighborhood spots. Purely residential — does not affect commercial or metered zones.</p>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Annual permit cost</span>
-            <span class="val" id="permit-cost-val">$150</span>
-          </div>
-          <input type="range" id="permit-cost" min="25" max="500" step="25" value="150">
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Residential spaces covered</span>
-            <span class="val" id="permit-spaces-val">1,500,000</span>
-          </div>
-          <input type="range" id="permit-spaces" min="500000" max="2500000" step="100000" value="1500000">
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Compliance / uptake rate</span>
-            <span class="val" id="permit-uptake-val">70%</span>
-          </div>
-          <input type="range" id="permit-uptake" min="30" max="100" step="5" value="70">
-        </div>
-
-        <div class="result-box">
-          <div class="result-row">
-            <span>Permits issued</span>
-            <span class="rv blue" id="permit-issued">1,050,000</span>
-          </div>
-          <div class="result-row">
-            <span>New revenue</span>
-            <span class="rv green" id="permit-new-rev">$157.5M</span>
-          </div>
-          <div class="result-row total">
-            <span>Total (+ current meters)</span>
-            <span class="rv green" id="permit-total">$415.5M</span>
-          </div>
-          <div class="vs-current">
-            <span id="permit-mult">1.6x</span> current revenue
-          </div>
-          <div class="stakes-line" id="permit-stakes"></div>
-        </div>
-      </div>
-
-    <!-- SCENARIO 5: Combined -->
-    <div class="scenario-card">
-      <h3>5. Combined: metering + residential permits</h3>
-      <p class="scenario-desc">Meter commercial and high-traffic streets while charging annual permits on residential blocks. These target different spaces and can run simultaneously.</p>
-
-      <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Metered zones</div>
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Average hourly rate</span>
-          <span class="val" id="combo-rate-val">$3.00</span>
-        </div>
-        <input type="range" id="combo-rate" min="0.50" max="8" step="0.25" value="3.00">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Metered spaces</span>
-          <span class="val" id="combo-meter-spaces-val">400,000</span>
-        </div>
-        <input type="range" id="combo-meter-spaces" min="85000" max="1000000" step="25000" value="400000">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Currently ~85,000. Expanding to all commercial/mixed-use streets could reach 300,000-500,000.</div>
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Metered hours per day</span>
-          <span class="val" id="combo-hours-val">10</span>
-        </div>
-        <input type="range" id="combo-hours" min="4" max="14" step="1" value="10">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Average paid occupancy</span>
-          <span class="val" id="combo-occ-val">55%</span>
-        </div>
-        <input type="range" id="combo-occ" min="10" max="100" step="5" value="55">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Commercial curbs run higher than the citywide scenario — busier blocks, shorter stays.</div>
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Operating days per year</span>
-          <span class="val" id="combo-days-val">300</span>
-        </div>
-        <input type="range" id="combo-days" min="250" max="365" step="5" value="300">
-      </div>
-
-      <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px;">Residential permits</div>
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Annual permit cost</span>
-          <span class="val" id="combo-permit-cost-val">$150</span>
-        </div>
-        <input type="range" id="combo-permit-cost" min="25" max="500" step="25" value="150">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Residential spaces covered</span>
-          <span class="val" id="combo-permit-spaces-val">1,500,000</span>
-        </div>
-        <input type="range" id="combo-permit-spaces" min="500000" max="2500000" step="100000" value="1500000">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Uptake rate</span>
-          <span class="val" id="combo-uptake-val">70%</span>
-        </div>
-        <input type="range" id="combo-uptake" min="30" max="100" step="5" value="70">
-      </div>
-
-      <div class="result-box">
-        <div class="result-row">
-          <span>Metering revenue</span>
-          <span class="rv blue" id="combo-meter-rev">$2.9B</span>
-        </div>
-        <div class="result-row">
-          <span>Permit revenue</span>
-          <span class="rv blue" id="combo-permit-rev">$157.5M</span>
-        </div>
-        <div class="result-row total" style="font-size: 18px;">
-          <span>Combined annual revenue</span>
-          <span class="rv green" id="combo-total">$3.1B</span>
-        </div>
-        <div class="vs-current" style="font-size: 14px;">
-          <span id="combo-mult">11.9x</span> current revenue ($258 million)
-        </div>
-        <div class="stakes-line" id="combo-stakes"></div>
-      </div>
-    </div>
-
-    <!-- SCENARIO 6: Equity-tiered residential permit -->
-    <div class="scenario-card">
-      <h3>6. Equity-tiered residential permit</h3>
-      <p class="scenario-desc">A different cut at residential permits: free for households with a senior (65+) or a child under 6, paid for everyone else. The idea is to protect the residents who most depend on a private vehicle while charging those who use the curb as free car storage.</p>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Annual permit cost (non-exempt)</span>
-          <span class="val" id="equity-cost-val">$250</span>
-        </div>
-        <input type="range" id="equity-cost" min="50" max="1000" step="25" value="250">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Residential spaces covered</span>
-          <span class="val" id="equity-spaces-val">1,500,000</span>
-        </div>
-        <input type="range" id="equity-spaces" min="500000" max="2500000" step="100000" value="1500000">
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Share of parkers exempt (seniors + young kids)</span>
-          <span class="val" id="equity-exempt-val">30%</span>
-        </div>
-        <input type="range" id="equity-exempt" min="10" max="60" step="5" value="30">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">About 16% of New York City residents are 65+ and roughly 8% of households have a child under 6. Among car-owning households the overlap is higher; 25-35% is a plausible range.</div>
-      </div>
-
-      <div class="slider-group">
-        <div class="slider-label">
-          <span>Compliance / uptake rate (non-exempt)</span>
-          <span class="val" id="equity-uptake-val">70%</span>
-        </div>
-        <input type="range" id="equity-uptake" min="30" max="100" step="5" value="70">
-      </div>
-
-      <div class="result-box">
-        <div class="result-row">
-          <span>Exempt permits (free)</span>
-          <span class="rv blue" id="equity-free">450,000</span>
-        </div>
-        <div class="result-row">
-          <span>Paid permits issued</span>
-          <span class="rv blue" id="equity-paid">735,000</span>
-        </div>
-        <div class="result-row">
-          <span>New revenue</span>
-          <span class="rv green" id="equity-new-rev">$183.8M</span>
-        </div>
-        <div class="result-row total" style="font-size: 18px;">
-          <span>Total (+ current meters)</span>
-          <span class="rv green" id="equity-total">$441.8M</span>
-        </div>
-        <div class="vs-current" style="font-size: 14px;">
-          <span id="equity-mult">1.7x</span> current revenue
-        </div>
-        <div class="stakes-line" id="equity-stakes"></div>
-      </div>
-    </div>
 
     </div><!-- end .scenario-grid -->
 
@@ -1346,9 +1159,10 @@
         <li><strong>3 million curb spaces:</strong> Widely cited figure confirmed by NYC DOT Commissioner testimony and multiple transportation studies.</li>
         <li><strong>~85,000 metered spaces (2.8%):</strong> NYC DOT data; the Open Data portal lists ~12,900 active meter records, but each record represents a blockface segment with multiple physical meters. DOT reports ~85,000 individual metered spaces.</li>
         <li><strong>$258 million current revenue:</strong> NYC Comptroller reports on parking meter cash collection, FY2023-2024 estimates.</li>
-        <li><strong>Demand-based model:</strong> Based on <a href="https://transalt.org/blog/why-new-york-city-needs-demand-based-metered-parking" target="_blank">Transportation Alternatives' EasyPark proposal</a>, which estimated $4.59 billion at ~$2.93/hr average. Formula here: <em>spaces × hours × occupancy × rate × days</em>. Defaults ($2.50/hr, 10 metered hrs, 35% paid occupancy, 300 days) reproduce roughly $7.9B — somewhat above TransAlt because this tool applies metering to all 3M spaces rather than a narrower "metered zones" subset. Lowering hours or occupancy quickly brings the total into the TransAlt range.</li>
-        <li><strong>Auction model:</strong> Inspired by <a href="https://www.city-journal.org/article/the-case-for-auctioning-new-york-citys-parking-spaces" target="_blank">City Journal's "The case for auctioning New York City's parking spaces"</a> by Adam Lehodey (March 2026).</li>
-        <li><strong>Equity-tiered permit:</strong> Exempts households with a resident 65+ or a child under 6, charges everyone else. Default 30% exempt share is a midpoint between the share of New York City residents 65+ (~16% per ACS) and the share of households with a child under 6 (~8%), adjusted upward because seniors are over-represented among car-owning households. The exempt share is a parker-level estimate, not a household-level one; the slider lets you test other assumptions.</li>
+        <li><strong>Quick estimate (average fee):</strong> A single average fee per space, framed as a small daily or weekly amount to keep the number intuitive. Formula: <em>free spaces × share charged × fee × (52 if weekly, 365 if daily)</em>, plus the current $258M from existing meters. It is deliberately crude — a back-of-envelope figure, not a forecast.</li>
+        <li><strong>Detailed model — metered side:</strong> Based on <a href="https://transalt.org/blog/why-new-york-city-needs-demand-based-metered-parking" target="_blank">Transportation Alternatives' EasyPark proposal</a>, which estimated $4.59 billion at ~$2.93/hr average. Formula: <em>metered spaces × hours × occupancy × rate × days</em>. The number of metered spaces is set by the allocation sliders (how much curb stays free, then the meter/permit split), so you can model anything from today's ~85,000 meters to citywide metering.</li>
+        <li><strong>Detailed model — permit side:</strong> Annual revenue is <em>permit spaces × uptake × monthly price × 12</em>, with a reduced-rate tier for eligible households. The permit price is monthly ($300 default), reflecting that a market-clearing price — what an <strong>auction</strong> would discover — is far higher than a token annual sticker fee. The auction concept is drawn from <a href="https://www.city-journal.org/article/the-case-for-auctioning-new-york-citys-parking-spaces" target="_blank">City Journal's "The case for auctioning New York City's parking spaces"</a> by Adam Lehodey (March 2026).</li>
+        <li><strong>Reduced-rate tier:</strong> The permit side includes a discount for eligible households — seniors, families with young children, or income-qualified residents (a Fair Fares-style means test). The "reduced rate" slider sets the discount (0% means free for eligible households); the "share eligible" slider sets how many parkers qualify. The default 30% eligible share is a midpoint between the share of New York City residents 65+ (~16% per American Community Survey) and the share of households with a child under 6 (~8%), adjusted upward because seniors are over-represented among car-owning households. These are parker-level estimates, not household-level; the sliders let you test other assumptions.</li>
         <li><strong>Residential permit pricing:</strong> Modeled on London's resident parking permits (~$150-225/year) and San Francisco's residential parking permit program.</li>
         <li><strong>Donald Shoup research:</strong> Shoup documented 366,000 excess vehicle miles traveled per year from cruising for parking in just a 15-block Upper West Side study area.</li>
         <li><strong>Hunter College estimate:</strong> <a href="https://www.hunterurban.org/studio/shifting-gears-transitioning-to-a-car-light-new-york-city" target="_blank">Hunter College Urban Policy &amp; Planning, "Shifting Gears: Transitioning to a Car-Light New York City" (2024)</a> estimated that charging market-rate prices for parking at current volume could generate $12.3 billion in annual revenue.</li>
@@ -1391,6 +1205,36 @@
       </div>
     </div>
 
+    <!-- WHAT NEW REVENUE COULD BUY -->
+    <div class="scenario-card" style="grid-column: 1 / -1;">
+      <h3>What that money could buy</h3>
+      <p class="scenario-desc">"Reducing the government subsidy" is abstract. Here is what priced-curb revenue could pay for instead — riders would feel each of these directly. Every figure is an approximate annual cost; compare them against the combined number from the calculator's detailed model.</p>
+      <div class="big-numbers" style="margin-bottom: 0;">
+        <div class="big-num">
+          <div class="n">~$652M</div>
+          <div class="desc">Make every local bus in the city free</div>
+        </div>
+        <div class="big-num">
+          <div class="n">~$100M</div>
+          <div class="desc">Fair Fares: half-price fares for low-income riders (current funding)</div>
+        </div>
+        <div class="big-num">
+          <div class="n">~$250M</div>
+          <div class="desc">A $1,000 "transportation wallet" transit credit for 250,000 car-free households</div>
+        </div>
+        <div class="big-num">
+          <div class="n">~$1B</div>
+          <div class="desc">All three of the above, combined</div>
+        </div>
+      </div>
+      <div style="font-size: 13px; color: var(--text); margin-top: 18px; line-height: 1.6;">
+        Even the calculator's most modest detailed scenarios clear $1 billion — enough to fund free buses, expand Fair Fares and seed a transportation-wallet program at the same time, with room left for other budget priorities like street redesign, accessibility upgrades or paratransit. The point is not that the city should spend every dollar on transit, but that pricing the curb turns a free public asset into a recurring stream the city could direct anywhere.
+      </div>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: 14px; line-height: 1.55;">
+        Free buses: New York City Independent Budget Office estimate of forgone local-bus fare revenue, net of subway-transfer recapture (<a href="https://www.ibo.nyc.gov/assets/ibo/downloads/pdf/infrastructure/2023/2023-february-estimating-the-cost-of-fare-free-local-bus-service.pdf" target="_blank" style="color: var(--accent);">IBO, 2023</a>; ~$652M in updated reporting). Fair Fares: just over $100 million baselined in the New York City FY2025 budget (<a href="https://www.nyc.gov/site/fairfares/index.page" target="_blank" style="color: var(--accent);">NYC Fair Fares</a>). Transportation wallet is illustrative — $1,000 &times; 250,000 households — modeled on Portland's transit-credit program; it is not a costed New York City proposal.
+      </div>
+    </div>
+
     <!-- Revenue subway car -->
     <div class="scenario-card" style="grid-column: 1 / -1;">
       <h3>Where MTA revenue comes from</h3>
@@ -1400,12 +1244,8 @@
         <label for="mta-scenario-pick" style="font-size:12px; color: var(--text-muted); font-weight:600;">Add a calculator scenario →</label>
         <select id="mta-scenario-pick" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size:13px; cursor:pointer;">
           <option value="none">None — show today's mix</option>
-          <option value="flat">1. Flat annual permit fee</option>
-          <option value="var">2. Demand-based metering</option>
-          <option value="auction">3. Market-rate auction</option>
-          <option value="permit">4. Residential permit program</option>
-          <option value="combo" selected>5. Combined metering + permits</option>
-          <option value="equity">6. Equity-tiered permit</option>
+          <option value="quick">Quick estimate: average fee</option>
+          <option value="detailed" selected>Detailed: metering + permits</option>
         </select>
         <span id="mta-scenario-readout" style="font-size:12px; color: var(--text-dim);"></span>
       </div>
@@ -1782,7 +1622,7 @@ const MTA_CAPITAL_GAP = 33.4e9;
 
 // Latest revenue per scenario, used by sticky strip + MTA tab picker
 const scenarioRev = {
-  flat: 0, var: 0, auction: 0, permit: 0, combo: 0, equity: 0
+  quick: 0, detailed: 0
 };
 
 function stakesText(annual) {
@@ -1793,12 +1633,8 @@ function stakesText(annual) {
 }
 
 function updateStrip() {
-  document.getElementById('strip-flat').textContent = fmt(scenarioRev.flat);
-  document.getElementById('strip-var').textContent = fmt(scenarioRev.var);
-  document.getElementById('strip-auction').textContent = fmt(scenarioRev.auction);
-  document.getElementById('strip-permit').textContent = fmt(scenarioRev.permit);
-  document.getElementById('strip-combo').textContent = fmt(scenarioRev.combo);
-  document.getElementById('strip-equity').textContent = fmt(scenarioRev.equity);
+  document.getElementById('strip-quick').textContent = fmt(scenarioRev.quick);
+  document.getElementById('strip-detailed').textContent = fmt(scenarioRev.detailed);
   if (window.renderMTABar) window.renderMTABar();
 }
 
@@ -1813,171 +1649,103 @@ function fmtN(n) {
   return n.toLocaleString();
 }
 
-function updateFlat() {
-  const fee = parseInt(document.getElementById('flat-fee').value);
-  const pct = parseInt(document.getElementById('flat-pct').value);
-  document.getElementById('flat-fee-val').textContent = '$' + fee;
-  document.getElementById('flat-pct-val').textContent = pct + '%';
+// QUICK ESTIMATE (average fee, daily or weekly)
+let quickPeriod = 'week';
+
+function updateQuick() {
+  const fee = parseInt(document.getElementById('quick-fee').value);
+  const pct = parseInt(document.getElementById('quick-pct').value);
+  document.getElementById('quick-fee-val').textContent = '$' + fee;
+  document.getElementById('quick-pct-val').textContent = pct + '%';
+  document.getElementById('quick-period-word').textContent = quickPeriod;
 
   const spaces = Math.round(FREE_SPACES * pct / 100);
-  const newRev = spaces * fee;
+  const annualPerSpace = quickPeriod === 'week' ? fee * 52 : fee * 365;
+  const newRev = spaces * annualPerSpace;
   const total = newRev + CURRENT_REVENUE;
 
-  document.getElementById('flat-spaces').textContent = fmtN(spaces);
-  document.getElementById('flat-new-rev').textContent = fmt(newRev);
-  document.getElementById('flat-total').textContent = fmt(total);
-  document.getElementById('flat-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('flat-stakes').innerHTML = stakesText(total);
-  scenarioRev.flat = total;
+  document.getElementById('quick-spaces').textContent = fmtN(spaces);
+  document.getElementById('quick-annualized').textContent = '$' + annualPerSpace.toLocaleString() + ' / space / year';
+  document.getElementById('quick-total').textContent = fmt(total);
+  document.getElementById('quick-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
+  document.getElementById('quick-stakes').innerHTML = stakesText(total);
+  scenarioRev.quick = total;
   updateStrip();
 }
 
-function updateVariable() {
-  const rate = parseFloat(document.getElementById('var-rate').value);
-  const hours = parseInt(document.getElementById('var-hours').value);
-  const occ = parseInt(document.getElementById('var-occ').value);
-  const days = parseInt(document.getElementById('var-days').value);
-  document.getElementById('var-rate-val').textContent = '$' + rate.toFixed(2);
-  document.getElementById('var-hours-val').textContent = hours;
-  document.getElementById('var-occ-val').textContent = occ + '%';
-  document.getElementById('var-days-val').textContent = days;
+document.querySelectorAll('.period-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    quickPeriod = b.dataset.period;
+    updateQuick();
+  });
+});
 
-  const paidSpaceHours = TOTAL_SPACES * hours * (occ / 100);
-  const daily = paidSpaceHours * rate;
-  const annual = daily * days;
+// DETAILED MODEL (allocation + metering + permits with reduced-rate tier)
+function updateDetailed() {
+  const freePct = parseInt(document.getElementById('det-free').value);
+  const split = parseInt(document.getElementById('det-split').value); // % of priced curb that is metered
+  const rate = parseFloat(document.getElementById('det-rate').value);
+  const hours = parseInt(document.getElementById('det-hours').value);
+  const occ = parseInt(document.getElementById('det-occ').value);
+  const days = parseInt(document.getElementById('det-days').value);
+  const permit = parseInt(document.getElementById('det-permit').value);
+  const reduced = parseInt(document.getElementById('det-reduced').value);
+  const eligible = parseInt(document.getElementById('det-eligible').value);
+  const uptake = parseInt(document.getElementById('det-uptake').value);
 
-  document.getElementById('var-eff-spaces').textContent = (paidSpaceHours / 1e6).toFixed(1) + 'M';
-  document.getElementById('var-daily').textContent = fmt(daily);
-  document.getElementById('var-total').textContent = fmt(annual);
-  document.getElementById('var-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('var-stakes').innerHTML = stakesText(annual);
-  scenarioRev.var = annual;
-  updateStrip();
-}
+  document.getElementById('det-free-val').textContent = freePct + '%';
+  document.getElementById('det-split-meter-val').textContent = split + '%';
+  document.getElementById('det-split-permit-val').textContent = (100 - split) + '%';
+  document.getElementById('det-rate-val').textContent = '$' + rate.toFixed(2);
+  document.getElementById('det-hours-val').textContent = hours;
+  document.getElementById('det-occ-val').textContent = occ + '%';
+  document.getElementById('det-days-val').textContent = days;
+  document.getElementById('det-permit-val').textContent = '$' + permit;
+  document.getElementById('det-reduced-val').textContent = reduced + '%';
+  document.getElementById('det-eligible-val').textContent = eligible + '%';
+  document.getElementById('det-uptake-val').textContent = uptake + '%';
 
-function updateAuction() {
-  const monthly = parseInt(document.getElementById('auction-monthly').value);
-  const pct = parseInt(document.getElementById('auction-pct').value);
-  document.getElementById('auction-monthly-val').textContent = '$' + monthly;
-  document.getElementById('auction-pct-val').textContent = pct + '%';
+  const freeSpaces = TOTAL_SPACES * freePct / 100;
+  const priced = TOTAL_SPACES - freeSpaces;
+  const meterSpaces = priced * split / 100;
+  const permitSpaces = priced - meterSpaces;
 
-  const spaces = Math.round(TOTAL_SPACES * pct / 100);
-  const annual = spaces * monthly * 12;
+  const meterRev = meterSpaces * rate * hours * (occ / 100) * days;
 
-  document.getElementById('auction-spaces').textContent = fmtN(spaces);
-  document.getElementById('auction-total').textContent = fmt(annual);
-  document.getElementById('auction-mult').textContent = (annual / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('auction-stakes').innerHTML = stakesText(annual);
-  scenarioRev.auction = annual;
-  updateStrip();
-}
+  const eligibleSpaces = permitSpaces * eligible / 100;
+  const fullSpaces = permitSpaces - eligibleSpaces;
+  const reducedMonthly = permit * (1 - reduced / 100);
+  const fullPaid = fullSpaces * uptake / 100;
+  const reducedPaid = eligibleSpaces * uptake / 100;
+  const permitRev = (fullPaid * permit + reducedPaid * reducedMonthly) * 12;
 
-function updatePermit() {
-  const cost = parseInt(document.getElementById('permit-cost').value);
-  const spaces = parseInt(document.getElementById('permit-spaces').value);
-  const uptake = parseInt(document.getElementById('permit-uptake').value);
-  document.getElementById('permit-cost-val').textContent = '$' + cost;
-  document.getElementById('permit-spaces-val').textContent = fmtN(spaces);
-  document.getElementById('permit-uptake-val').textContent = uptake + '%';
-
-  const issued = Math.round(spaces * uptake / 100);
-  const newRev = issued * cost;
-  const total = newRev + CURRENT_REVENUE;
-
-  document.getElementById('permit-issued').textContent = fmtN(issued);
-  document.getElementById('permit-new-rev').textContent = fmt(newRev);
-  document.getElementById('permit-total').textContent = fmt(total);
-  document.getElementById('permit-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('permit-stakes').innerHTML = stakesText(total);
-  scenarioRev.permit = total;
-  updateStrip();
-}
-
-function updateEquity() {
-  const cost = parseInt(document.getElementById('equity-cost').value);
-  const spaces = parseInt(document.getElementById('equity-spaces').value);
-  const exempt = parseInt(document.getElementById('equity-exempt').value);
-  const uptake = parseInt(document.getElementById('equity-uptake').value);
-
-  document.getElementById('equity-cost-val').textContent = '$' + cost;
-  document.getElementById('equity-spaces-val').textContent = fmtN(spaces);
-  document.getElementById('equity-exempt-val').textContent = exempt + '%';
-  document.getElementById('equity-uptake-val').textContent = uptake + '%';
-
-  const exemptCount = Math.round(spaces * exempt / 100);
-  const nonExemptCount = spaces - exemptCount;
-  const paidIssued = Math.round(nonExemptCount * uptake / 100);
-  const newRev = paidIssued * cost;
-  const total = newRev + CURRENT_REVENUE;
-
-  document.getElementById('equity-free').textContent = fmtN(exemptCount);
-  document.getElementById('equity-paid').textContent = fmtN(paidIssued);
-  document.getElementById('equity-new-rev').textContent = fmt(newRev);
-  document.getElementById('equity-total').textContent = fmt(total);
-  document.getElementById('equity-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('equity-stakes').innerHTML = stakesText(total);
-  scenarioRev.equity = total;
-  updateStrip();
-}
-
-function updateCombo() {
-  const rate = parseFloat(document.getElementById('combo-rate').value);
-  const mSpaces = parseInt(document.getElementById('combo-meter-spaces').value);
-  const hours = parseInt(document.getElementById('combo-hours').value);
-  const occ = parseInt(document.getElementById('combo-occ').value);
-  const days = parseInt(document.getElementById('combo-days').value);
-  const pCost = parseInt(document.getElementById('combo-permit-cost').value);
-  const pSpaces = parseInt(document.getElementById('combo-permit-spaces').value);
-  const uptake = parseInt(document.getElementById('combo-uptake').value);
-
-  document.getElementById('combo-rate-val').textContent = '$' + rate.toFixed(2);
-  document.getElementById('combo-meter-spaces-val').textContent = fmtN(mSpaces);
-  document.getElementById('combo-hours-val').textContent = hours;
-  document.getElementById('combo-occ-val').textContent = occ + '%';
-  document.getElementById('combo-days-val').textContent = days;
-  document.getElementById('combo-permit-cost-val').textContent = '$' + pCost;
-  document.getElementById('combo-permit-spaces-val').textContent = fmtN(pSpaces);
-  document.getElementById('combo-uptake-val').textContent = uptake + '%';
-
-  const meterRev = mSpaces * rate * hours * (occ / 100) * days;
-  const permitRev = Math.round(pSpaces * uptake / 100) * pCost;
   const total = meterRev + permitRev;
 
-  document.getElementById('combo-meter-rev').textContent = fmt(meterRev);
-  document.getElementById('combo-permit-rev').textContent = fmt(permitRev);
-  document.getElementById('combo-total').textContent = fmt(total);
-  document.getElementById('combo-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
-  document.getElementById('combo-stakes').innerHTML = stakesText(total);
-  scenarioRev.combo = total;
+  document.getElementById('det-alloc-readout').innerHTML =
+    fmtN(Math.round(freeSpaces)) + ' free &middot; <strong>' + fmtN(Math.round(meterSpaces)) +
+    '</strong> metered &middot; <strong>' + fmtN(Math.round(permitSpaces)) + '</strong> residential permit';
+  document.getElementById('det-meter-rev').textContent = fmt(meterRev);
+  document.getElementById('det-permit-rev').textContent = fmt(permitRev);
+  document.getElementById('det-total').textContent = fmt(total);
+  document.getElementById('det-mult').textContent = (total / CURRENT_REVENUE).toFixed(1) + 'x';
+  document.getElementById('det-stakes').innerHTML = stakesText(total);
+  scenarioRev.detailed = total;
   updateStrip();
 }
 
 // Event listeners
-document.getElementById('flat-fee').addEventListener('input', updateFlat);
-document.getElementById('flat-pct').addEventListener('input', updateFlat);
-document.getElementById('var-rate').addEventListener('input', updateVariable);
-document.getElementById('var-hours').addEventListener('input', updateVariable);
-document.getElementById('var-occ').addEventListener('input', updateVariable);
-document.getElementById('var-days').addEventListener('input', updateVariable);
-document.getElementById('auction-monthly').addEventListener('input', updateAuction);
-document.getElementById('auction-pct').addEventListener('input', updateAuction);
-document.getElementById('permit-cost').addEventListener('input', updatePermit);
-document.getElementById('permit-spaces').addEventListener('input', updatePermit);
-document.getElementById('permit-uptake').addEventListener('input', updatePermit);
-['equity-cost','equity-spaces','equity-exempt','equity-uptake'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateEquity);
+['quick-fee','quick-pct'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateQuick);
 });
-['combo-rate','combo-meter-spaces','combo-hours','combo-occ','combo-days','combo-permit-cost','combo-permit-spaces','combo-uptake'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateCombo);
+['det-free','det-split','det-rate','det-hours','det-occ','det-days','det-permit','det-reduced','det-eligible','det-uptake'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateDetailed);
 });
 
 // Initialize
-updateFlat();
-updateVariable();
-updateAuction();
-updatePermit();
-updateEquity();
-updateCombo();
+updateQuick();
+updateDetailed();
 
 // CITIES TAB DATA
 const cities = [
@@ -2225,12 +1993,8 @@ const MTA_REV_BASE = [
 
 const SCENARIO_LABELS = {
   none: null,
-  flat: '1. Flat permit fee',
-  var: '2. Demand-based metering',
-  auction: '3. Market-rate auction',
-  permit: '4. Residential permits',
-  combo: '5. Combined metering + permits',
-  equity: '6. Equity-tiered permits'
+  quick: 'Quick estimate (avg fee)',
+  detailed: 'Metering + permits'
 };
 
 window.renderMTABar = function() {
