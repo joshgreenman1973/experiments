@@ -6,7 +6,10 @@
 // ═══ CONFIG ═══
 const CONFIG = {
   // MTA SIRI API (client-side — supports CORS)
-  apiBase: 'https://bustime.mta.info/api/siri/vehicle-monitoring.json',
+  // MTA renamed this endpoint in 2026: the old vehicle-monitoring.json now
+  // 302-redirects to -v2 and drops the query string on the way, so fetches
+  // silently came back empty. Point straight at the v2 path.
+  apiBase: 'https://bustime.mta.info/api/siri/vehicle-monitoring-v2.json',
   // API key — defaults to the baked-in MTA BusTime key (public, rate-limited
   // per-key by MTA). Override via URL param ?key=XXX to use a different one.
   apiKey: new URLSearchParams(window.location.search).get('key')
