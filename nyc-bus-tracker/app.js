@@ -1360,15 +1360,18 @@ function renderTrends(data, weeklyAll) {
   const thisWeek = data?.thisWeek?.days >= 7 ? data.thisWeek : null;
   const lastWeek = data?.lastWeek?.days >= 7 ? data.lastWeek : null;
 
-  // Collapsed-row summary text
+  // Collapsed-row summary text — lead with the time-of-day-normalized figures
+  // (the comparable ones), falling back to raw for any legacy pre-norm row.
   if (summaryEl) {
-    if (thisWeek?.avgSpeed != null) {
+    const twSpeed = thisWeek?.avgSpeedHourNorm ?? thisWeek?.avgSpeed;
+    const twWait = thisWeek?.avgWaitHourNorm ?? thisWeek?.avgWait;
+    if (twSpeed != null) {
       const bits = [
-        `${thisWeek.avgSpeed} mph`,
-        thisWeek.avgWait != null ? `${thisWeek.avgWait} min wait` : null,
+        `${twSpeed} mph`,
+        twWait != null ? `${twWait} min wait` : null,
         thisWeek.avgReliability != null ? `${thisWeek.avgReliability}% reliable` : null,
-        thisWeek.avgActiveBuses != null ? `${Math.round(thisWeek.avgActiveBuses).toLocaleString()} buses avg` : null,
-        thisWeek.avgBigGap20PerSnap != null ? `${thisWeek.avgBigGap20PerSnap} routes w/ 20+ min gaps` : null,
+        thisWeek.bunchPer100Buses != null ? `${thisWeek.bunchPer100Buses} bunched/100 buses` : null,
+        thisWeek.coveragePct != null ? `${thisWeek.coveragePct}% coverage` : null,
       ].filter(Boolean);
       summaryEl.textContent = `Week of ${thisWeek.startDate}: ${bits.join(' · ')}`;
     } else if (weeklyAll && weeklyAll.length > 0) {
@@ -1401,10 +1404,11 @@ function renderTrends(data, weeklyAll) {
         fullWeeksField(data?.weeklyHistory, field),
       ));
     };
-    pushIfPresent('Avg speed', 'mph', 'avgSpeed', 'higher is better');
-    pushIfPresent('Avg wait', 'min', 'avgWait', 'lower is better');
+    // Cards use the time-of-day-normalized metrics (comparable week-over-week).
+    pushIfPresent('Avg speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
+    pushIfPresent('Avg wait', 'min', 'avgWaitHourNorm', 'lower is better');
     pushIfPresent('Reliability', '%', 'avgReliability', 'higher is better');
-    pushIfPresent('Bunching', '/snap', 'avgBunchingRate', 'lower is better');
+    pushIfPresent('Bunching', '/100 buses', 'bunchPer100Buses', 'lower is better');
     pushIfPresent('20+ min gaps', '/snap', 'avgBigGap20PerSnap', 'lower is better');
     pushIfPresent('Active buses', '', 'avgActiveBuses', 'higher is better');
 
@@ -1425,9 +1429,9 @@ function renderTrends(data, weeklyAll) {
         fullMonthsField(data?.monthlyHistory, field),
       ));
     };
-    pushMonth('Monthly speed', 'mph', 'avgSpeed', 'higher is better');
+    pushMonth('Monthly speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
     pushMonth('Monthly reliability', '%', 'avgReliability', 'higher is better');
-    pushMonth('Monthly bunching', '/snap', 'avgBunchingRate', 'lower is better');
+    pushMonth('Monthly bunching', '/100 buses', 'bunchPer100Buses', 'lower is better');
 
     if (cards.length > 0) {
       if (emptyEl) emptyEl.style.display = 'none';
@@ -1468,28 +1472,37 @@ function renderTrends(data, weeklyAll) {
   if (tbody) {
     const rows = Array.isArray(weeklyAll) ? [...weeklyAll] : [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="13">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
+      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="11">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
     } else {
       rows.reverse(); // newest first
       const currentPeriod = thisWeek?.period;
       const cell = v => v == null ? '\u2014' : (typeof v === 'number' ? v.toLocaleString() : v);
       tbody.innerHTML = rows.map(w => {
         const isPartial = w.days < 7;
-        const rowCls = w.period === currentPeriod ? 'current' : (isPartial ? 'partial' : '');
+        // A week is "not comparable" if it's partial or thin on coverage; mark
+        // it so it isn't read head-to-head with full weeks.
+        const lowCoverage = w.coveragePct != null && w.coveragePct < 50;
+        const notComparable = isPartial || lowCoverage;
+        const rowCls = w.period === currentPeriod ? 'current' : (notComparable ? 'partial' : '');
         const daysCell = isPartial ? `${w.days}/7 *` : `${w.days}`;
+        // Prefer the time-of-day-normalized figures (fall back to raw only if a
+        // legacy row predates normalization).
+        const spd = w.avgSpeedHourNorm ?? w.avgSpeed;
+        const wait = w.avgWaitHourNorm ?? w.avgWait;
+        const bunch = w.bunchPer100Buses;
+        const covCell = w.coveragePct != null
+          ? `${w.coveragePct}%${lowCoverage ? ' *' : ''}` : '\u2014';
         return `<tr class="${rowCls}">
           <td>${w.period}</td>
           <td>${w.startDate} &ndash; ${w.endDate}</td>
           <td class="num">${daysCell}</td>
-          <td class="num">${cell(w.totalSnapshots)}</td>
-          <td class="num">${cell(w.avgSpeed)}</td>
-          <td class="num">${cell(w.avgWait)}</td>
+          <td class="num">${covCell}</td>
+          <td class="num">${cell(spd)}</td>
+          <td class="num">${cell(wait)}</td>
           <td class="num">${cell(w.avgReliability)}</td>
-          <td class="num">${cell(w.avgBunchingRate)}</td>
+          <td class="num">${cell(bunch)}</td>
           <td class="num">${cell(w.avgBigGap20PerSnap)}</td>
-          <td class="num">${cell(w.avgBigGap30PerSnap)}</td>
           <td class="num">${cell(w.avgActiveBuses)}</td>
-          <td class="num">${cell(w.peakActiveBuses)}</td>
           <td class="num">${cell(w.avgRoutes)}</td>
         </tr>`;
       }).join('');

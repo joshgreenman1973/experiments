@@ -1,14 +1,20 @@
 name: Collect Bus Data
 
-# Hourly cron is reliable on GitHub Actions in a way "*/5" is not — short-interval
-# crons get heavily throttled on free runners. Inside each hourly run we call
-# collect.js 18 times with 30-second pauses, so we get dense 30-second samples
-# (18 lines per hour × 17 operating hours = ~306 snapshots/day) without relying
-# on cron precision. Public repos get unlimited Actions minutes, so cost is $0.
+# Inside each run we call collect.js 18 times with 30-second pauses → dense
+# 30-second samples. Public repos get unlimited Actions minutes, so cost is $0.
+#
+# RELIABILITY: GitHub frequently drops scheduled runs at the top of the hour
+# (xx:00 is the most congested slot cluster-wide). Earlier we were capturing
+# only ~half the operating hours, which skewed the weekly averages. Two fixes:
+#   1. Fire TWICE an hour (:09 and :39) so a dropped run still leaves one shot.
+#   2. Use off-peak minute offsets (not :00) — far less likely to be throttled.
+# Result: most operating hours now get at least one burst, and many get two
+# (better within-hour temporal spread too). The operating-hours gate below
+# still limits actual collection to 6am-11pm ET.
 on:
   schedule:
-    - cron: '0 10-23 * * *'  # 10:00-23:00 UTC (covers 6am-7pm ET in EDT, 5am-6pm ET in EST)
-    - cron: '0 0-4 * * *'    # 00:00-04:00 UTC  (covers 8pm-12am ET in EDT, 7pm-11pm ET in EST)
+    - cron: '9,39 10-23 * * *'  # ~6am-7pm ET (EDT) / ~5am-6pm ET (EST)
+    - cron: '9,39 0-4 * * *'    # late evening ET
 
   workflow_dispatch:
     inputs:

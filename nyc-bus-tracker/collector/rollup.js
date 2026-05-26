@@ -62,6 +62,34 @@ function meanOf(days, field) {
   return nums.length > 0 ? round1(avg(nums)) : null;
 }
 
+// Operating window is 6am–11pm ET = 17 distinct clock-hours collected per day.
+// Used to express how complete a period's hourly coverage is.
+const OPERATING_HOURS_PER_DAY = 17;
+
+/** Equal-weight mean across the per-hour-of-day values of a metric.
+ *  THIS is the apples-to-apples number: it gives every hour of the day equal
+ *  say, so a week is NOT skewed by which hours collection happened to capture
+ *  (raw snapshot-weighted means over-represent whatever hours got more runs).
+ *  `hourly` is the per-hour aggregate built below: { "7": { avgSpeed, ... } }. */
+function hourNormMean(hourly, field) {
+  const vals = Object.values(hourly)
+    .map(h => h[field])
+    .filter(v => v != null && !Number.isNaN(v));
+  return vals.length > 0 ? round1(avg(vals)) : null;
+}
+
+/** Fleet-size-normalized bunching: bunched pairs per 100 active buses,
+ *  equal-weighted across hours. Raw "pairs per snapshot" is confounded by how
+ *  many buses are running (more buses → mechanically more pairs), so it can't
+ *  be compared across weeks with different service levels. Per-100-buses can. */
+function hourNormBunchPer100(hourly) {
+  const vals = Object.values(hourly)
+    .map(h => (h.bunchPairsPerSnap != null && h.avgBuses)
+      ? (h.bunchPairsPerSnap / h.avgBuses) * 100 : null)
+    .filter(v => v != null && !Number.isNaN(v));
+  return vals.length > 0 ? round1(avg(vals)) : null;
+}
+
 /** Aggregate an array of daily summaries into a single period summary.
  *  Captures every system-level metric so we can build pre/post-free baselines. */
 function aggregatePeriod(days, periodLabel) {
@@ -112,6 +140,20 @@ function aggregatePeriod(days, periodLabel) {
     };
   }
 
+  // ── Coverage: how complete was this period's hourly sampling? ──
+  // Sum of per-hour "daysSeen" = total hour-slots actually captured. Expected
+  // = operating hours × days. Low coverage means the raw means rest on a
+  // partial, possibly skewed slice of the day — flagged so thin periods aren't
+  // naively compared to full ones.
+  const hourSlotsCaptured = Object.values(hourly)
+    .reduce((s, h) => s + (h.daysSeen || 0), 0);
+  const expectedSlots = OPERATING_HOURS_PER_DAY * days.length;
+  const coveragePct = expectedSlots > 0
+    ? Math.round((hourSlotsCaptured / expectedSlots) * 100) : 0;
+  // "Comparable" = a full 7-day week with at least half the operating hours
+  // represented. Tune the threshold as collection reliability improves.
+  const comparable = days.length === 7 && coveragePct >= 50;
+
   return {
     period: periodLabel,
     days: days.length,
@@ -123,7 +165,23 @@ function aggregatePeriod(days, periodLabel) {
     totalBunchingEvents: totalBunching,
     avgRoutes: round1(avg(days.map(d => d.totalRoutes || 0))),
 
-    // ── Headline system metrics (mean of daily means) ──
+    // ── Coverage / comparability ──
+    coveragePct,                       // % of operating-hour slots captured
+    hoursCaptured: Object.keys(hourly).length,
+    comparable,                        // safe to compare week-over-week?
+
+    // ── PRIMARY comparison metrics: time-of-day normalized ──
+    // Equal weight per hour-of-day, so two periods are compared on the same
+    // daily profile regardless of which hours collection happened to hit.
+    // USE THESE for week-over-week / pre-vs-post-free-bus comparisons.
+    avgSpeedHourNorm:  hourNormMean(hourly, 'avgSpeed'),
+    avgWaitHourNorm:   hourNormMean(hourly, 'avgWait'),
+    bunchPer100Buses:  hourNormBunchPer100(hourly),  // fleet-size normalized
+
+    // ── Raw headline metrics (snapshot-weighted mean of daily means) ──
+    // Kept for transparency, but NOT apples-to-apples across periods because
+    // they over-weight whichever hours got more samples. Prefer the *HourNorm
+    // values above for comparisons.
     avgSpeed:           meanOf(days, 'systemAvgSpeed'),
     avgWait:            meanOf(days, 'systemAvgWait'),
     avgReliability:     meanOf(days, 'systemReliability'),
