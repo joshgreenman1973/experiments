@@ -32,9 +32,12 @@ jobs:
       - name: Pull snapshot files from bus-data branch
         run: |
           git fetch origin bus-data --depth=1
-          # Replace working-tree snapshots with the latest from bus-data.
-          # We don't add them to the index — they stay on bus-data, not main.
+          # Materialize bus-data's snapshots into the working tree so process.js
+          # can read them. NOTE: `git checkout <ref> -- <path>` ALSO stages the
+          # files, so we immediately unstage them — snapshots must never be
+          # committed to main (they live on bus-data; main stays lean for Pages).
           git checkout origin/bus-data -- nyc-bus-tracker/data/snapshots/
+          git reset -q -- nyc-bus-tracker/data/snapshots/
           echo "Snapshot files now in working tree:"
           ls nyc-bus-tracker/data/snapshots/ | tail -10
 
@@ -62,8 +65,10 @@ jobs:
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
-          # Only stage the rollup outputs. Snapshots stay on bus-data.
+          # Only stage the rollup outputs. Snapshots stay on bus-data — defensively
+          # unstage them in case anything above re-staged the path.
           git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/
+          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
 
           if git diff --staged --quiet; then
             echo "No new summaries to commit"
