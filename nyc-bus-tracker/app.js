@@ -421,9 +421,20 @@ function renderBuses(snapshot) {
 
   // Build tween targets: each bus glides from where it's currently drawn
   // (or its own new position, if we've never seen it) to the new reading.
+  // GUARD: if the new position is implausibly far from the last one — more
+  // than a bus could travel in one fetch interval — don't glide across it.
+  // That "teleport" comes from a stale snapshot (e.g. after a backgrounded
+  // tab), a GPS glitch, or a vehicle re-assigned to another route, and gliding
+  // it over BUS_TWEEN_MS looks like the dot rocketing across the map. Snap
+  // instead (from = to) so it just appears at the new spot.
+  // ~50 mph express bus over a 30s interval ≈ 670 m; cap a bit above that.
+  const MAX_GLIDE_M = 900;
   busTweenTargets = snapshot.vehicles.map(v => {
     const to = [v.lon, v.lat];
-    const from = busRenderedPos.get(v.id) || to;
+    let from = busRenderedPos.get(v.id) || to;
+    if (from !== to && haversine(from[1], from[0], to[1], to[0]) > MAX_GLIDE_M) {
+      from = to; // snap — don't animate an unrealistic jump
+    }
     return { id: v.id, from, to, props: buildProps(v) };
   });
   // Drop stale anchors for buses no longer present so the Map doesn't grow.
