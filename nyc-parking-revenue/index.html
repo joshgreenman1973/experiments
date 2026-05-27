@@ -1697,11 +1697,28 @@ function updateQuick() {
   updateStrip();
 }
 
+// Sensible fee range per unit: a weekly curb fee and a daily one live on very
+// different scales, so the slider re-scales when you toggle.
+const QUICK_PERIOD_CFG = { week: { min: 1, max: 100, step: 1 }, day: { min: 1, max: 25, step: 1 } };
+
 document.querySelectorAll('.period-btn').forEach(b => {
   b.addEventListener('click', () => {
+    const newPeriod = b.dataset.period;
+    if (newPeriod === quickPeriod) return;
+
+    // Convert the fee into the new unit so the scenario's economics stay roughly
+    // constant — a ~$35/week curb is the same as ~$5/day, not $35/day.
+    const slider = document.getElementById('quick-fee');
+    const oldFee = parseInt(slider.value);
+    let newFee = newPeriod === 'day' ? Math.round(oldFee / 7) : Math.round(oldFee * 7);
+    const cfg = QUICK_PERIOD_CFG[newPeriod];
+    newFee = Math.min(cfg.max, Math.max(cfg.min, newFee));
+    slider.min = cfg.min; slider.max = cfg.max; slider.step = cfg.step;
+    slider.value = newFee;
+
     document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    quickPeriod = b.dataset.period;
+    quickPeriod = newPeriod;
     updateQuick();
   });
 });
