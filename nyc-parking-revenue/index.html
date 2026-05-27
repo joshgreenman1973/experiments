@@ -1457,6 +1457,9 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'map' && !window.mapInitialized) {
       initMap();
     }
+    if (tab.dataset.tab === 'transit' && window.renderMTABar) {
+      window.renderMTABar();
+    }
   });
 });
 
@@ -2020,7 +2023,7 @@ renderCitiesTab();
 // MTA REVENUE BAR (with scenario picker)
 const MTA_REV_BASE = [
   { key: 'fares', label: 'Fares', amt: 5200, color: '#217ebe' },
-  { key: 'payroll', label: 'Payroll mobility', amt: 3100, color: '#dde44c' },
+  { key: 'payroll', label: 'Payroll tax', amt: 3100, color: '#dde44c' },
   { key: 'tolls', label: 'Tolls', amt: 2600, color: '#ff7c53' },
   { key: 'mmtoa', label: 'MMTOA', amt: 2300, color: '#394882', textLight: true },
   { key: 'city', label: 'City subsidy', amt: 1400, color: '#cea9be' },
@@ -2062,11 +2065,21 @@ window.renderMTABar = function() {
   bar.innerHTML = segs.map(s => {
     const pct = (s.amt / total) * 100;
     const amtStr = s.amt >= 1000 ? '$' + (s.amt / 1000).toFixed(1) + 'B' : '$' + Math.round(s.amt) + 'M';
-    const showLabel = pct > 4;
     const ring = s.highlight ? 'box-shadow: inset 0 0 0 2px #050507;' : '';
     const color = s.textLight ? '#fff' : '#050507';
-    return `<div class="subway-seg" style="width:${pct}%; background:${s.color}; color:${color}; ${ring}" title="${s.label}: ${amtStr}">${showLabel ? s.label + ' ' + amtStr : ''}</div>`;
+    return `<div class="subway-seg" style="width:${pct}%; background:${s.color}; color:${color}; ${ring}" title="${s.label}: ${amtStr}" data-full="${s.label} ${amtStr}" data-amt="${amtStr}"></div>`;
   }).join('');
+
+  // Fit pass: print the richest label that actually fits each segment's real width
+  // (full name+amount → amount only → blank). Avoids the mid-clipped garbage labels.
+  // Names for every color also live in the legend below, so blanks stay legible.
+  [...bar.children].forEach(el => {
+    el.textContent = el.dataset.full;
+    if (el.scrollWidth > el.clientWidth) {
+      el.textContent = el.dataset.amt;
+      if (el.scrollWidth > el.clientWidth) el.textContent = '';
+    }
+  });
 
   if (sel === 'none') {
     readout.textContent = 'Today, parking meters contribute $258M (1.3% of MTA operating revenue).';
