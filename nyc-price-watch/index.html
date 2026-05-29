@@ -114,6 +114,22 @@
     font-size: 0.58rem;
     color: var(--ink-faint);
   }
+  .sparkbox .maxis {
+    position: relative;
+    height: 11px;
+    margin-top: 1px;
+    border-top: 1px solid var(--paper-dark);
+    padding-top: 1px;
+  }
+  .sparkbox .maxis span {
+    position: absolute;
+    transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .sparkbox .maxis span.edge0 { transform: none; }
 
   .work { background: var(--panel); border: 1px solid var(--rule); padding: 0.6rem 0.75rem; margin-bottom: 0.6rem; font-size: 0.76rem; line-height: 1.45; color: var(--ink-soft); }
   .work .work-title { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.35rem; }
@@ -272,6 +288,13 @@
       with the latest weekly read at the end. <b>Survey items</b> stay
       dashed until the first in-person collection.
     </p>
+    <p>
+      Each dot is an actual observation; the red dot is the latest. On
+      <b>est.</b> series the line between two known readings is a straight
+      interpolation — it shows direction, not a month-exact value — so the
+      real, dated points are the dots, and the segments connecting them
+      fill in with real readings as the months accumulate.
+    </p>
 
     <h3>Back-fill provenance</h3>
     <p>
@@ -367,7 +390,7 @@
       name: "Regular gas, NYC metro", unit: "AAA NYC metro · per gallon",
       current: "$4.63", format: v => "$" + v.toFixed(2),
       status: "verified", est: true,
-      data: pts([[0,3.85],[3,3.65],[6,3.45],[9,3.40],[12,3.55],[15,3.40],[18,3.40],[21,3.80],[24,4.63]]),
+      data: pts([[0,3.85],[3,3.65],[6,3.45],[9,3.40],[12,3.55],[15,3.40],[18,3.40],[21,3.80],[23,4.13],[24,4.63]]),
       source: "AAA / FRED APUS12A7471A", sourceUrl: "https://gasprices.aaa.com/?state=NY",
       asof: "Retrieved May 26, 2026",
       work: [
@@ -551,7 +574,7 @@
       name: "Case-Shiller NY home prices", unit: "S&P / Cotality · YoY % change",
       current: "+4.7%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
       status: "verified", est: true,
-      data: pts([[0,9.0],[3,7.5],[6,6.5],[9,5.5],[12,4.5],[15,4.5],[18,4.5],[21,4.7]]),
+      data: pts([[0,9.0],[3,7.5],[6,6.5],[9,5.5],[12,4.5],[15,4.5],[18,4.5],[20,4.9],[21,4.7]]),
       source: "S&P Cotality Case-Shiller (FRED NYXRSA)", sourceUrl: "https://fred.stlouisfed.org/series/NYXRSA",
       asof: "Through Feb 2026 (released late May)",
       work: [
@@ -724,14 +747,25 @@
     const stroke = est ? "#8a7f73" : "#1a1612";
     const fill = est ? "rgba(138,127,115,0.08)" : "rgba(26,22,18,0.06)";
 
-    // x-axis tick marks at year boundaries (May '24, Jan '25, Jan '26)
-    const ticks = YEAR_TICKS.map(i => `<line x1="${x(i)}" y1="${H-PAD+1}" x2="${x(i)}" y2="${H-PAD-1}" stroke="#8a7f73" stroke-width="1"/>`).join("");
+    // monthly x-axis: a faint tick every month, darker/taller at year boundaries
+    const baseY = H - PAD;
+    const mticks = Array.from({length: NM}, (_, i) =>
+      `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-2).toFixed(1)}" stroke="#cdc2ac" stroke-width="0.5"/>`).join("");
+    const yticks = YEAR_TICKS.map(i =>
+      `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-5).toFixed(1)}" stroke="#8a7f73" stroke-width="1"/>`).join("");
+    const baseline = `<line x1="${PAD}" y1="${baseY}" x2="${(W-PAD).toFixed(1)}" y2="${baseY}" stroke="#ddd2bc" stroke-width="0.5"/>`;
+    // a dot at every actual observation; the latest one emphasized
+    const dots = P.map((p, j) => j === P.length - 1
+      ? `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.8" fill="#b82c1a"/>`
+      : `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.5" fill="${stroke}"/>`).join("");
 
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       ${areaD ? `<path d="${areaD}" fill="${fill}" stroke="none"/>` : ""}
+      ${baseline}
       <path d="${pathD}" fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
-      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="#b82c1a"/>
-      ${ticks}
+      ${mticks}
+      ${yticks}
+      ${dots}
     </svg>`;
   }
 
@@ -841,6 +875,7 @@
             <div class="spark-title"><span>Monthly · May '24 → May '26</span>${it.est ? "<span>est.</span>" : ""}</div>
             ${sparkline(it.data, it.est)}
             ${axisRow}
+            <div class="maxis"><span class="edge0" style="left:0%">May '24</span><span style="left:33.3%">Jan '25</span><span style="left:83.3%">Jan '26</span></div>
           </div>
           ${tbdHtml}
           ${workHtml}
