@@ -235,11 +235,11 @@
   <div class="summary">
     <div class="cell">
       <div class="lbl">Items tracked</div>
-      <div class="val">27</div>
+      <div class="val">30</div>
     </div>
     <div class="cell">
       <div class="lbl">Verified this period</div>
-      <div class="val up">20</div>
+      <div class="val up">23</div>
     </div>
     <div class="cell">
       <div class="lbl">Months in frame</div>
@@ -317,6 +317,9 @@
       <tr><td>Citywide rent</td><td>Verified (Apr '26)</td><td>Back-filling</td><td>StreetEasy</td></tr>
       <tr><td>Grocery CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
       <tr><td>Restaurant CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
+      <tr><td>Overall CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
+      <tr><td>Energy CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
+      <tr><td>Shelter CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
       <tr><td>Manhattan rent</td><td>Verified (Apr '26)</td><td>Back-filling</td><td>StreetEasy</td></tr>
       <tr><td>Brooklyn rent</td><td>Verified (Apr '26)</td><td>Back-filling</td><td>StreetEasy</td></tr>
       <tr><td>Queens rent</td><td>Verified (Apr '26)</td><td>Back-filling</td><td>StreetEasy</td></tr>
@@ -380,7 +383,7 @@
   function pts(pairs) { const a = nulls(); pairs.forEach(([i, v]) => a[i] = v); return a; }
   // Broadway: 2024-25 season average held Jun '24-May '25, latest weekly read at May '26
   const BROADWAY = (() => { const a = pts([[24, 120.43]]); for (let i = 1; i <= 12; i++) a[i] = 129.12; return a; })();
-  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "wage_eci"]); // % or season series: YoY badge would mislead
+  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "wage_eci", "cpi_allitems", "cpi_energy", "cpi_shelter"]); // % or season series: YoY badge would mislead
   const CLUSTER_RENT = new Set(["rent", "manhattan_rent", "brooklyn_rent", "queens_rent", "bronx_rent"]);
   const CLUSTER_INCOME = new Set(["wage_qcew", "wage_eci"]); // the income side — shown distinct from the cost cards
 
@@ -649,6 +652,54 @@
       ]
     },
     {
+      id: "cpi_allitems", num: "10c · PRICES", icon: "🧾",
+      name: "Overall prices (CPI, YoY)", unit: "BLS all items · NY-Newark-JC · YoY %",
+      current: "+4.6%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      status: "verified", est: false,
+      data: pts([[24,4.6]]),
+      source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
+      asof: "April 2026 release · Retrieved May 29 2026",
+      work: [
+        ["April 2026 YoY","+4.6%"],
+        ["April MoM","+1.0%"],
+        ["Core (ex food/energy)","+3.3%"],
+        ["Reading","headline metro inflation"],
+        ["Series","CUURA101SA0"]
+      ]
+    },
+    {
+      id: "cpi_energy", num: "10d · PRICES", icon: "⚡",
+      name: "Energy (CPI, YoY)", unit: "BLS energy · NY-Newark-JC · YoY %",
+      current: "+24.0%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      status: "verified", est: false,
+      data: pts([[24,24.0]]),
+      source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
+      asof: "April 2026 release · Retrieved May 29 2026",
+      work: [
+        ["April 2026 YoY","+24.0%"],
+        ["Covers","gasoline + electric + gas"],
+        ["vs food YoY","+4.9%"],
+        ["Note","most volatile CPI line"],
+        ["Cadence","monthly"]
+      ]
+    },
+    {
+      id: "cpi_shelter", num: "10e · PRICES", icon: "🏘️",
+      name: "Shelter (CPI, YoY)", unit: "BLS shelter · NY-Newark-JC · YoY %",
+      current: "+4.1%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      status: "verified", est: false,
+      data: pts([[24,4.1]]),
+      source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
+      asof: "April 2026 release · Retrieved May 29 2026",
+      work: [
+        ["April 2026 YoY","+4.1%"],
+        ["Owners' equiv rent","+4.1%"],
+        ["Rent of residence","+4.3%"],
+        ["Captures","what tenants actually pay"],
+        ["Series","CUURA101SAH1"]
+      ]
+    },
+    {
       id: "pizza", num: "11 · FOOD", icon: "🍕",
       name: "Plain cheese slice", unit: "10-shop panel · arithmetic mean",
       current: "TBD", format: v => v == null ? "—" : "$" + v.toFixed(2),
@@ -851,6 +902,9 @@
     bronx_rent: { level: "caveat", text: "Median ASKING rent on currently-listed units, not signed leases. The most affordable borough. The Bronx listing sample is thinner than Manhattan/Brooklyn, so month-to-month moves are noisier — read the trend, not a single month." },
     case_shiller: { level: "caveat", text: "A repeat-sales index for the NY metro (bigger than the five boroughs), reported as YoY % and lagged about two months. Highly consistent over time — just remember the geography and that the latest point is always two months old." },
     cpi: { level: "caveat", text: "An index reported as YoY %, not a dollar price. Tracks a fixed BLS grocery basket for the NY-Newark-Jersey City metro. Very comparable over time; covers the metro, not just the city. Published monthly." },
+    cpi_allitems: { level: "caveat", text: "The headline inflation number — how all consumer prices in the NY metro moved over the year. Monthly, highly comparable over time. Metro-wide (includes parts of New Jersey) and a broad average across everything households buy. The single best summary of whether the city is getting pricier overall." },
+    cpi_energy: { level: "caveat", text: "The energy slice of the metro CPI — gasoline, electricity and utility gas combined. Monthly, very comparable. Energy is the most volatile line in the index (it jumped 24% over the year), which is exactly why it's stripped out of core inflation. This card is why the gas and ConEd cards are climbing." },
+    cpi_shelter: { level: "caveat", text: "The official cost-of-shelter measure: rent of primary residence plus owners' equivalent rent. Unlike the StreetEasy asking-rent cards (advertised prices on vacant units), shelter CPI captures what tenants are ACTUALLY paying across all leases — which is why it rises more slowly (+4.1% vs asking rents). Monthly, metro-wide." },
     restaurant_cpi: { level: "caveat", text: "The restaurant-side twin of the grocery line — a fixed BLS basket of meals out, reported as YoY % for the NY-Newark-Jersey City metro, published monthly. Comparable over time; metro-wide, not city-only." },
     dinner: { level: "caveat", text: "Drawn from the sister 500-restaurant project, itself a fixed panel. Comparable across quarters as long as that panel holds; pulled quarterly, not monthly." },
     pizza: { level: "hard", text: "Not published anywhere — needs prices observed in person. Systematic method: a fixed 10-shop panel surveyed the same week each month, plain slice only, cash price. Until that walking route runs, it stays TBD. Proxy option: a national chain's NYC plain-pie delivery price is scrapeable but less authentic." },
@@ -878,6 +932,7 @@
     pizza: "city", bagel: "city", coffee: "city", halal: "city", bec: "city",
     uber: "city", dinner: "city",
     gas: "metro", case_shiller: "metro", cpi: "metro", restaurant_cpi: "metro",
+    cpi_allitems: "metro", cpi_energy: "metro", cpi_shelter: "metro",
     wage_eci: "metro",
     wage_qcew: "city",
     bec_ingredient: "us"
