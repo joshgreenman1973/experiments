@@ -1,122 +1,117 @@
 # Family Dinner Prices — Methodology
 
-This project answers one question — *what does a weeknight dinner for a family of
-four cost at everyday New York City restaurants?* — in two deliberately separate
-parts. Keeping them apart is the whole point: one is a broad one-time photo, the
-other is a narrow but trustworthy ongoing measurement.
+A monthly **price index** for everyday New York City family restaurants, built the
+way the Consumer Price Index is built: pin specific items and re-price the *same*
+items over time. Plus a one-time citywide cross-section for context.
 
-## 1. The cross-section (the map)
+## 1. The tracked index (the product)
 
-A one-time snapshot of **360+ restaurants** across all five boroughs, compiled in
-**spring 2026**.
+**31 restaurants** across all five boroughs whose menus are reliably readable
+online, with **~298 pinned menu items** (about ten per restaurant). See
+`data/panel.json`.
 
-- Restaurants were drawn from every NYC neighborhood, weighted toward everyday,
-  family-friendly spots with **at least 25 Google reviews**.
-- Each was validated against the **Google Places API**: must exist, be currently
-  open, not flagged permanently closed, and sit within 500 m of Google's
-  coordinates.
-- For each restaurant we selected the most ordered-looking items — the signature
-  entrée or pie, a plain kid-friendly option, and a standard shared side.
-- **This is a dated snapshot, not a live feed.** The prices on the map are not
-  re-checked every month. Treat them as "around spring 2026."
+### Construction
 
-The map, the distribution chart, the cuisine/neighborhood breakdowns, and the
-big-number stats are all derived from this cross-section.
+1. **Pinning** (`scripts/scout-trackable.js` → `scripts/build-panel.js`): for
+   each restaurant we extract every clearly-named, clearly-priced item and store
+   the **exact line text**, price, and any size descriptor. A restaurant joins
+   the panel if the deterministic matcher can lock ≥4 of its items.
+2. **Monthly re-check** (`scripts/check-panel.js`): re-fetch each menu and
+   re-price every pinned line by string match — no AI, deterministic, free.
+3. **Aggregation — Jevons index** (`scripts/build-panel-history.js`):
+   - Each item's *price relative* = current price ÷ baseline price.
+   - Each restaurant's monthly figure = **geometric mean** of its item relatives.
+   - The headline index = geometric mean across restaurants, **= 100 at baseline**.
+   - Geometric means are scale-free, so a $40 and a $100 restaurant count equally;
+     the index is not dominated by the most expensive places (this is why we use
+     Jevons, not an average of dollar totals).
 
-## 2. The tracked panel (the trend)
+### Index-quality rules
 
-A smaller set of **22 restaurants** (current count; see `data/panel.json`) chosen
-because their menus are **reliably readable online**, used to track price change
-*over time*.
+- **Matched-model only.** A dish is only ever compared to its own past price. No
+  cross-restaurant bundle is imposed; each restaurant carries its own basket.
+- **Cell-relative imputation.** If a pinned line is missing/unreadable in a given
+  month, it is dropped for that month and the restaurant's change is computed from
+  the items observed (i.e. the missing item inherits the restaurant's own mean
+  change). We never substitute a different dish.
+- **Winsorize-and-flag.** An item relative outside [0.5×, 2×] is clipped to the
+  bound and flagged for review — large real moves stay in (bounded), mis-reads
+  don't whipsaw the index, and nothing is silently deleted.
+- **Freshness signal.** Each fetch records `Last-Modified` / `ETag`. A price that
+  "holds" on a page unchanged since last month is flagged, so website staleness is
+  not mistaken for genuine price stability — the central risk of any web-menu index.
+- **Shrinkflation.** Each item's size descriptor is stored; when a price moves we
+  surface the size for review (a same-price portion cut is real inflation the
+  headline would otherwise miss). Detection is review-assisted, not fully automated.
+- **Standardized drinks.** Soft drinks fixed at **$2.50** citywide; NYC sales tax
+  (8.875%) applied consistently. The index tracks menu prices, not tip.
+- **Dispersion.** We report the median, a 10% trimmed mean, and the 25th–75th
+  percentile band of restaurant relatives, so readers see whether a move is broad.
 
-### Why only 22, and not all 360?
+### Staple watch (BEC-style core sub-index)
 
-Most restaurant menus today are rendered by JavaScript or sit behind ordering
-widgets (Toast, Square, Wix, BentoBox, etc.). A simple HTTP fetch receives an
-empty shell — no prices. A probe of the 251 cross-section restaurants that had a
-menu URL found only **~19%** exposed prices in static HTML; the rest were
-JS-rendered, bot-blocked (403), empty, or gone. And when an AI is asked to
-free-pick a "similar" item each month, it grabs *different dishes* month to month
-(a whole pie one month, a slice the next), manufacturing fake price swings.
+Where ≥4 restaurants carry the *identical* ubiquitous dish, we publish its plain
+average dollar price over time (cleanest apples-to-apples). Currently only **fried
+rice** (4 restaurants) qualifies; chicken-over-rice and plain-slice are close.
+These grow by **targeted recruitment** (deliberately adding pizzerias for a slice
+index, halal carts for chicken-over-rice, etc.) — the main growth lever.
 
-We would rather track 22 restaurants honestly than 360 unreliably.
+## 2. The one-time cross-section (context only)
 
-### Pinned line items + same-item verification
+The map: a one-time snapshot of **360+ restaurants** compiled in **spring 2026**,
+validated against the Google Places API (exists, open, ≥25 reviews, within 500 m).
+It is a dated landscape, **not re-checked monthly**. Closures fire only on a real
+signal (Google permanently-closed, or HTTP 404/410); an unreadable menu is a
+scrape failure, never a closure.
 
-This is what makes the trend trustworthy:
+## Why only 31, and how to grow
 
-1. **Baseline pinning** (`scripts/pin-panel.js` → `scripts/build-panel.js`): for
-   each panel restaurant we extract and store the **exact menu line text** for
-   each component (e.g. `"Saigon Shack Phở"`, `"Chicken Samosa (Each)"`), copied
-   verbatim, plus its price. Stored in `data/panel.json`.
-2. **Monthly re-check** (`scripts/check-panel.js`): we re-fetch the menu and look
-   for *that same pinned line*. We read the price attached to that same line —
-   skipping quantity numbers like "24 oz" or "6 pcs" — and accept it only if it's
-   within a plausible band (0.5×–2× the known price; anything wilder is treated as
-   a mis-read). **If the pinned line is gone or unreadable, we carry its last
-   price forward and flag it** (the amber ● on the page) rather than substituting
-   a different dish. No AI is used at re-check time — it's pure string matching,
-   so it's free and deterministic.
+A probe of the 316 cross-section restaurants with a menu URL found only ~64 expose
+prices in **static HTML**; the rest are JavaScript-rendered, bot-blocked (403),
+empty, or gone. Of those, 31 yield ≥4 reliably-lockable items. Readable menus
+cluster on a few platforms (WordPress, Squarespace, Wix, and a family of `.shop`
+builder sites) — the efficient path to grow N toward 50–100 (rec) is to recruit
+new restaurants on those platforms, and to recruit by core staple to thicken the
+sub-indices.
 
-### The meal
+## Cadence and revisions
 
-`2 adult entrées + 2 kid meals + 1 shared appetizer + 2 soft drinks`, then **NYC
-sales tax (8.875%)**. Soft drinks are **standardized at $2.50 citywide** — menus
-almost never list soda prices in readable HTML, and a can of soda costs about the
-same everywhere, so standardizing removes a noise source and lets drinks add zero
-false month-to-month movement.
-
-> Note: the page's *cross-section* meal also adds an 18% tip in its displayed
-> "total bill"; the *panel* total is food + tax (no tip) so its month-over-month
-> change reflects menu prices only. Both formulas are shown on the page.
-
-### Selection rules (a baseline is only kept if it's a credible family meal)
-
-Applied in `scripts/build-panel.js`:
-
-- adult entrée price in **[$8, $40]**
-- kid meal in **[$2, $16]** and **cheaper than the adult entrée**
-- appetizer **≤ 1.15 × adult entrée**
-- whole-meal total in **[$25, $110]**
-- item strings contain no price/HTML cruft (so they can be re-matched)
-
-Restaurants whose auto-extracted baseline failed these rules (e.g. a whole
-"Cheese Pizza" mistakenly picked as a kid meal) were dropped, not shipped. The
-panel can grow as more menus are hand-pinned.
+Fixed monthly cadence, run manually (no always-on automation). **Published index
+points are not silently revised** — once a month is posted it stays; corrections
+are noted. Month-to-month moves are noisy at this panel size; **year-over-year**
+will be the meaningful comparison once 12 months exist.
 
 ## Files
 
 | File | What it is |
 |---|---|
+| `data/panel.json` | The tracked panel: per-restaurant pinned baskets + baseline |
+| `data/panel-snapshots/<date>.json` | One monthly re-check (per-item prices, relatives, freshness) |
+| `data/trackable-scan.json` | Raw scout output across all readable menus (audit trail) |
+| `panel-history.js` | `PANEL_HISTORY` — Jevons index, dispersion, core, panel; drives the page |
 | `data/restaurants.json` | The cross-section registry (360+) |
-| `data/panel.json` | The locked tracked panel + pinned line items + baseline |
-| `data/panel-snapshots/<date>.json` | One monthly re-check of the panel |
-| `data/panel-candidates.json` | Raw output of the pinning pass (audit trail) |
-| `panel-history.js` | `PANEL_HISTORY` — drives the page's panel section + trend |
-| `scripts/pin-panel.js` | One-time: extract pinned line items from readable menus (uses Claude Haiku) |
-| `scripts/build-panel.js` | Apply selection rules, lock `data/panel.json` |
-| `scripts/check-panel.js` | **Monthly:** re-price the pinned lines (no AI, string match) |
-| `scripts/build-panel-history.js` | Rebuild `panel-history.js` from snapshots |
-| `scripts/check-prices.js` | Legacy cross-section scraper (closures only fire on 404/410 or closure keywords) |
+| `scripts/scout-trackable.js` | One-time/periodic: find readable menus, extract candidate items (Haiku) |
+| `scripts/build-panel.js` | Select panel, lock `data/panel.json` |
+| `scripts/check-panel.js` | **Monthly:** re-price pinned items (deterministic, no AI) |
+| `scripts/build-panel-history.js` | Rebuild `panel-history.js` (Jevons + dispersion + core) |
+| `scripts/lib-core.js` | Shared core-category tagging |
 
 ## Running a monthly update
 
 ```sh
-node scripts/check-panel.js          # re-price pinned lines → new panel snapshot
-node scripts/build-panel-history.js  # rebuild panel-history.js
-# review the diff, then commit + push
+node scripts/check-panel.js          # re-price pinned items -> new snapshot
+node scripts/build-panel-history.js  # rebuild the index
+# review the diff (esp. winsorize/size/freshness flags), then commit + push
 ```
-
-No always-on automation runs this — it is executed manually.
 
 ## Known limitations
 
-- The panel is small (22) and skewed toward menus that happen to be readable;
-  it is **not** a representative sample of all NYC restaurants. It measures
-  *change over time* for a fixed basket, not the citywide level.
-- Borough coverage is uneven (the Bronx is thin) because reliably-readable menus
-  are unevenly distributed.
-- A pinned item that is renamed or removed drops out (carried forward + flagged)
-  until re-pinned by hand.
-- Drinks are assumed, not measured.
-- The cross-section is a single dated snapshot; do not read its prices as current.
+- The panel measures *price change over time* for a fixed basket, **not** the
+  citywide price level, and is not a representative sample.
+- Selection toward machine-readable menus skews to chains / fast-casual / digital
+  spots, which reprice more cheaply than printed-menu restaurants — so the panel
+  may move sooner and more often than the city overall.
+- Borough coverage is uneven (Bronx thinner).
+- A renamed or removed dish drops out until re-pinned by hand; drinks are assumed.
+- Web-menu staleness can lag true price changes; the freshness flag mitigates but
+  does not eliminate this.

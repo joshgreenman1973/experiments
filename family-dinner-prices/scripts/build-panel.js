@@ -1,79 +1,60 @@
 #!/usr/bin/env node
 /**
- * Locks the tracked panel from data/panel-candidates.json.
+ * Locks the tracked panel from data/trackable-scan.json.
  *
- * Selection rules (a baseline is only included if it's a credible family meal):
- *   - adult entree price in [8, 40]
- *   - kid meal in [2, 16] AND cheaper than the adult entree
- *   - appetizer <= 1.15 x adult entree
- *   - whole-meal total in [25, 110]
- *   - item strings contain no price/HTML cruft (so they can be re-matched)
- * Drinks are standardized at a fixed price citywide (menus almost never list
- * soda prices in static HTML, and a can of soda is ~the same everywhere), so
- * drinks contribute no month-to-month noise.
+ * Each restaurant contributes a BASKET of its reliably-locked, clearly-named
+ * menu items (not a rigid identical bundle) — so the index is a per-restaurant
+ * price relative, the way CPI elementary aggregates work. A restaurant is
+ * included if the deterministic matcher locked at least MIN_ITEMS of its items.
  *
- * Output: data/panel.json — the locked panel with pinned line items + baseline.
- *
- * Usage: node scripts/build-panel.js <baselineDate YYYY-MM-DD>
+ * Output: data/panel.json
+ * Usage: node scripts/build-panel.js <baselineDate YYYY-MM-DD> [minItems=4]
  */
 const fs = require('fs');
 const path = require('path');
+const { coreCategory, itemKey } = require('./lib-core');
 const dataDir = path.join(__dirname, '..', 'data');
 
-const SODA_PRICE = 2.50;       // per soft drink, standardized
-const TAX = 1.08875;           // NYC sales tax
 const baselineDate = process.argv[2];
-if (!/^\d{4}-\d{2}-\d{2}$/.test(baselineDate || '')) {
-  console.error('Usage: node scripts/build-panel.js <YYYY-MM-DD>');
-  process.exit(1);
-}
+const MIN_ITEMS = parseInt(process.argv[3] || '4', 10);
+if (!/^\d{4}-\d{2}-\d{2}$/.test(baselineDate || '')) { console.error('Usage: build-panel.js <YYYY-MM-DD> [minItems]'); process.exit(1); }
 
-const cand = JSON.parse(fs.readFileSync(path.join(dataDir, 'panel-candidates.json'), 'utf8'));
-const ok = x => x && typeof x.item === 'string' && x.item.trim().length >= 3 &&
-                typeof x.price === 'number' && isFinite(x.price) && x.price > 0;
-
-function familyTotal(a, k, ap) {
-  const sub = a * 2 + k * 2 + ap + SODA_PRICE * 2;
-  return Math.round(sub * TAX * 100) / 100;
-}
+const scan = JSON.parse(fs.readFileSync(path.join(dataDir, 'trackable-scan.json'), 'utf8'));
+const SODA = 2.50, TAX = 1.08875;
 
 const panel = {};
 let kept = 0, dropped = 0;
-for (const [id, v] of Object.entries(cand)) {
-  if (!v.readable) continue;
-  const p = v.pinned || {};
-  if (!(ok(p.adultEntree) && ok(p.kidMeal) && ok(p.appetizer))) { dropped++; continue; }
-  const a = p.adultEntree.price, k = p.kidMeal.price, ap = p.appetizer.price;
-  const tot = familyTotal(a, k, ap);
-  const messy = /\$|&#/.test(p.adultEntree.item + p.kidMeal.item + p.appetizer.item);
-  const sane = a >= 8 && a <= 40 && k >= 2 && k <= 16 && k < a && ap <= a * 1.15 && tot >= 25 && tot <= 110 && !messy;
-  if (!sane) { dropped++; continue; }
-
+for (const [id, v] of Object.entries(scan)) {
+  if (!v.readable || !Array.isArray(v.items)) { dropped++; continue; }
+  // sane individual prices, de-duped, reasonable basket
+  const seen = new Set();
+  const basket = [];
+  for (const it of v.items) {
+    if (!it || typeof it.item !== 'string' || typeof it.price !== 'number') continue;
+    if (!(it.price >= 1 && it.price <= 200)) continue;
+    const key = itemKey(it.item);
+    if (!key || seen.has(key)) continue; seen.add(key);
+    basket.push({ key, item: it.item.trim(), size: (it.size || '').toString().trim(), base: it.price, core: coreCategory(it.item) });
+  }
+  if (basket.length < MIN_ITEMS) { dropped++; continue; }
   panel[id] = {
-    name: v.name, borough: v.borough, cuisine: v.cuisine, neighborhood: v.neighborhood, menuUrl: v.menuUrl,
-    pinned: {
-      adultEntree: { item: p.adultEntree.item.trim(), price: a },
-      kidMeal: { item: p.kidMeal.item.trim(), price: k },
-      appetizer: { item: p.appetizer.item.trim(), price: ap },
-      drinks: { item: 'Soft drink (standardized)', price: SODA_PRICE, standardized: true },
-    },
-    baselineTotal: tot,
-    baselineDate,
+    name: v.name, borough: v.borough, cuisine: v.cuisine, neighborhood: v.neighborhood,
+    menuUrl: v.menuUrl, platform: v.platform || null,
+    baselineFreshness: v.freshness || { lastModified: null, etag: null },
+    basket,
   };
   kept++;
 }
 
 const out = {
   meta: {
-    baselineDate,
-    sodaPrice: SODA_PRICE,
-    tax: TAX,
-    formula: '2 adult entrees + 2 kid meals + 1 appetizer + 2 soft drinks, x sales tax',
-    note: 'Tracked panel of restaurants whose menus are reliably readable and whose exact line items are pinned for same-item month-over-month comparison. Drinks standardized citywide.',
+    baselineDate, sodaPrice: SODA, tax: TAX, indexBase: 100, minItems: MIN_ITEMS,
+    method: 'Per-restaurant basket of pinned named items; index is the geometric mean (Jevons) of price relatives vs baseline, =100 at base.',
     count: kept,
   },
   panel,
 };
 fs.writeFileSync(path.join(dataDir, 'panel.json'), JSON.stringify(out, null, 2));
-console.log(`Panel locked: ${kept} restaurants (dropped ${dropped}). Baseline ${baselineDate}.`);
-console.log(`Wrote data/panel.json`);
+const sizes = Object.values(panel).map(p => p.basket.length);
+const tot = sizes.reduce((a, b) => a + b, 0);
+console.log(`Panel locked: ${kept} restaurants (dropped ${dropped}), ${tot} pinned items, avg basket ${(tot / (kept||1)).toFixed(1)}. Baseline ${baselineDate}, min ${MIN_ITEMS} items.`);
