@@ -201,11 +201,11 @@
   <div class="summary">
     <div class="cell">
       <div class="lbl">Items tracked</div>
-      <div class="val">20</div>
+      <div class="val">22</div>
     </div>
     <div class="cell">
       <div class="lbl">Current quarter verified</div>
-      <div class="val up">14</div>
+      <div class="val up">15</div>
     </div>
     <div class="cell">
       <div class="lbl">Quarters in frame</div>
@@ -213,7 +213,7 @@
     </div>
     <div class="cell">
       <div class="lbl">Panel surveys pending</div>
-      <div class="val tbd">6</div>
+      <div class="val tbd">7</div>
     </div>
   </div>
 
@@ -224,13 +224,36 @@
     <p style="font-size: 0.95rem;"><b>📋 See <a href="https://github.com/joshgreenman1973/experiments/blob/main/nyc-price-watch/TRACKING.md" target="_blank" rel="noopener">TRACKING.md</a></b> for a candid breakdown of how each price gets refreshed, the difficulty tier, who does the work, and which items are realistically sustainable for a one-person operation.</p>
 
 
-    <h3>Why quarterly?</h3>
+    <h3>Can every line be tracked monthly?</h3>
     <p>
-      Monthly reads too noisy for some series (gas, rent), and quarterly
-      events (toll hikes, water rate resets, Broadway seasons) fit cleanly
-      on a quarterly axis. We still collect monthly where possible and
-      roll up to the quarter's average (or quarter-ending value for step
-      series like tolls).
+      Mostly yes — the data cadence supports monthly for nearly all of
+      them. The quarterly axis shown here is just the longest <i>honest
+      backfill</i> we have; collection going forward is monthly, and the
+      trendline will densify to monthly as real readings accumulate in
+      <code>readings.json</code>. Three honest limits remain.
+    </p>
+    <table>
+      <tr><th>Monthly, no problem</th><th>Monthly but with a catch</th><th>Monthly only with legwork</th></tr>
+      <tr>
+        <td>Gas (AAA daily), ConEd electric &amp; gas, StreetEasy rent, Manhattan &amp; Brooklyn rent (Miller Samuel <i>monthly</i> report), grocery &amp; restaurant CPI, Broadway (weekly grosses → monthly), and the five rare-change tariffs (verify monthly).</td>
+        <td><b>Case-Shiller</b> is monthly but always ~2 months lagged — the lag is constant, so it stays comparable. <b>Family dinner</b> is monthly only if the 500-restaurant panel is re-run that often (heavy); quarterly is the realistic cap.</td>
+        <td><b>Pizza, bagel, coffee, halal cart, bacon-egg-and-cheese, Uber.</b> The data exists nowhere public — monthly requires a fixed in-person survey route (and a phone for Uber). Doable monthly, but it's the one place the limit is human effort, not data.</td>
+      </tr>
+    </table>
+    <p>
+      Bottom line: <b>15 of 22 lines can be truly monthly today</b>; the
+      seven survey/quote items can be monthly too, but only if someone
+      walks the route. None are stuck at quarterly for data reasons except
+      the deliberately heavy family-dinner panel.
+    </p>
+
+    <h3>Why a quarterly axis on the chart?</h3>
+    <p>
+      Some events (toll hikes, water-rate resets, Broadway seasons) are
+      naturally quarterly or annual, and our verifiable historical backfill
+      is quarterly. So the chart frame is quarterly while the refresh is
+      monthly: each month we record the latest value, and the closed
+      quarter's point locks into the trendline.
     </p>
 
     <h3>Three kinds of series, three kinds of math</h3>
@@ -259,6 +282,7 @@
       <tr><td>Yellow taxi</td><td>Verified</td><td>Exact</td><td>NYC TLC</td></tr>
       <tr><td>Citywide rent</td><td>Verified (Apr '26)</td><td>Back-filling</td><td>StreetEasy</td></tr>
       <tr><td>Grocery CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
+      <tr><td>Restaurant CPI (NY)</td><td>Verified (Apr '26 YoY)</td><td>Back-filling</td><td>BLS</td></tr>
       <tr><td>Manhattan rent</td><td>Verified (Q1 '26)</td><td>Est. quarters</td><td>Douglas Elliman</td></tr>
       <tr><td>Brooklyn rent</td><td>Verified (Q1 '26)</td><td>Est. quarters</td><td>Douglas Elliman</td></tr>
       <tr><td>Case-Shiller NY</td><td>Verified (Feb '26)</td><td>Est. quarters</td><td>S&amp;P / FRED</td></tr>
@@ -268,7 +292,8 @@
       <tr><td>Coffee</td><td>TBD</td><td>Collection starts May 2026</td><td>Panel survey</td></tr>
       <tr><td>Uber benchmark</td><td>TBD</td><td>Collection starts May 2026</td><td>App quotes</td></tr>
       <tr><td>Family dinner</td><td>TBD</td><td>Quarterly from sister project</td><td>Family Dinner Prices</td></tr>
-      <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, quarterly</td><td>In-person panel</td></tr>
+      <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, monthly</td><td>In-person panel</td></tr>
+      <tr><td>Bacon, egg &amp; cheese</td><td>TBD (hard)</td><td>Fixed-deli survey, monthly</td><td>In-person panel</td></tr>
     </table>
 
     <h3>What this doesn't measure</h3>
@@ -514,6 +539,22 @@
       ]
     },
     {
+      id: "restaurant_cpi", num: "10b · FOOD", icon: "🍴",
+      name: "Restaurants (CPI, YoY)", unit: "BLS food away from home · NY-Newark-JC · YoY %",
+      current: "+3.4%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      status: "verified", est: true,
+      data: [null,null,null,null,null,null,null,null,null,null,null,null,3.4],
+      source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
+      asof: "April 2026 release · Retrieved May 26 2026",
+      work: [
+        ["April 2026 YoY","+3.4%"],
+        ["Groceries YoY","+5.9%"],
+        ["Food index YoY","+4.9%"],
+        ["Cadence","monthly (BLS)"],
+        ["Series","CUURA101SEFV"]
+      ]
+    },
+    {
       id: "pizza", num: "11 · FOOD", icon: "🍕",
       name: "Plain cheese slice", unit: "10-shop panel · arithmetic mean",
       current: "TBD", format: v => v == null ? "—" : "$" + v.toFixed(2),
@@ -566,8 +607,17 @@
       current: "TBD", format: v => v == null ? "—" : "$" + v.toFixed(2),
       status: "tbd", est: false,
       data: [null,null,null,null,null,null,null,null,null,null,null,null,null],
-      source: "Fixed-cart panel survey, quarterly", asof: "Baseline survey: Q3 2026",
+      source: "Fixed-cart panel survey, monthly", asof: "Baseline survey: Q3 2026",
       tbdNote: "Panel of named, fixed-location carts: The Halal Guys (W 53rd & 6th) plus one vetted cart per borough. Chicken-over-rice platter, white + hot sauce, cash price."
+    },
+    {
+      id: "bec", num: "17 · FOOD", icon: "🥪",
+      name: "Bacon, egg & cheese", unit: "Fixed deli/bodega panel · on a roll · cash",
+      current: "TBD", format: v => v == null ? "—" : "$" + v.toFixed(2),
+      status: "tbd", est: false,
+      data: [null,null,null,null,null,null,null,null,null,null,null,null,null],
+      source: "Fixed-deli panel survey, monthly", asof: "Baseline survey: Q3 2026",
+      tbdNote: "Panel of fixed delis/bodegas, one per borough. Standard bacon-egg-and-cheese on a roll, salt-pepper-ketchup, cash price."
     }
   ];
 
@@ -651,16 +701,18 @@
     coned_gas: { level: "caveat", text: "Same discipline as the electric bill: fixed at 100 therms so the number tracks the rate, not winter demand." },
     broadway: { level: "caveat", text: "Two comparability traps. (1) 'Average paid admission' is gross ÷ attendance — not the list price you see. (2) The season figure is annual; the weekly figure swings with which shows are running. We trend the season average and note the live weekly read separately. Don't mix them." },
     rent: { level: "caveat", text: "StreetEasy's median is asking rent on active listings, so it moves with what's listed, not what's signed, and skews market-rate. Comparable month to month because the method is fixed — but it is not 'what the typical New Yorker pays.'" },
-    manhattan_rent: { level: "caveat", text: "Miller Samuel's quarterly median, comparable across quarters by design. Like any listings-based median it reflects units on the market, not rent-stabilized leases." },
-    brooklyn_rent: { level: "caveat", text: "Same quarterly Miller Samuel method as Manhattan. Comparable over time; reflects the market-rate listing pool, not stabilized units." },
+    manhattan_rent: { level: "caveat", text: "Miller Samuel's median, comparable over time by design. Like any listings-based median it reflects units on the market, not rent-stabilized leases. Note: Miller Samuel publishes a MONTHLY rental report too, so this can move to a monthly basis (the April 2026 monthly Manhattan median was $5,099); we show the quarterly series here because that's the backfill we have." },
+    brooklyn_rent: { level: "caveat", text: "Same Miller Samuel method as Manhattan, and likewise available monthly. Comparable over time; reflects the market-rate listing pool, not stabilized units." },
     case_shiller: { level: "caveat", text: "A repeat-sales index for the NY metro (bigger than the five boroughs), reported as YoY % and lagged about two months. Highly consistent over time — just remember the geography and that the latest point is always two months old." },
-    cpi: { level: "caveat", text: "An index reported as YoY %, not a dollar price. Tracks a fixed BLS grocery basket for the NY-Newark-Jersey City metro. Very comparable over time; covers the metro, not just the city." },
+    cpi: { level: "caveat", text: "An index reported as YoY %, not a dollar price. Tracks a fixed BLS grocery basket for the NY-Newark-Jersey City metro. Very comparable over time; covers the metro, not just the city. Published monthly." },
+    restaurant_cpi: { level: "caveat", text: "The restaurant-side twin of the grocery line — a fixed BLS basket of meals out, reported as YoY % for the NY-Newark-Jersey City metro, published monthly. Comparable over time; metro-wide, not city-only." },
     dinner: { level: "caveat", text: "Drawn from the sister 500-restaurant project, itself a fixed panel. Comparable across quarters as long as that panel holds; pulled quarterly, not monthly." },
     pizza: { level: "hard", text: "Not published anywhere — needs prices observed in person. Systematic method: a fixed 10-shop panel surveyed the same week each quarter, plain slice only, cash price. Until that walking route runs, it stays TBD. Proxy option: a national chain's NYC plain-pie delivery price is scrapeable but less authentic." },
     bagel: { level: "hard", text: "No published feed. Method: fixed 10-shop panel, plain bagel with plain cream cheese, surveyed quarterly. No clean chain proxy exists — this one is survey-or-nothing." },
     coffee: { level: "hard", text: "No single feed. Method: fixed 10-shop panel, 12 oz drip, posted price. Partial proxy: a chain's app price (one fixed New York City store, tall brewed coffee) is scrapeable and could anchor the panel." },
     uber: { level: "hard", text: "A generated quote, not a published price. Method is fixed: identical pickup, dropoff, day and time, five quotes averaged. Surge makes any single quote noisy, which is why we fix the slot and average — but it needs a phone in hand and can't be automated remotely." },
-    halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person each quarter. Apples-to-apples only if the same carts and the same platter are used every time." }
+    halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person monthly. Apples-to-apples only if the same carts and the same platter are used every time." },
+    bec: { level: "hard", text: "The other quintessential New York breakfast, and like the slice and the bagel it isn't published anywhere. Method: a fixed deli/bodega panel (one per borough), standard bacon-egg-and-cheese on a roll, cash, surveyed in person monthly. Apples-to-apples only with the same delis and the same sandwich." }
   };
 
   function render() {
