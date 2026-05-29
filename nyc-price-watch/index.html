@@ -73,6 +73,8 @@
   /* Rent family — subtly linked with a shared left accent + faint tint */
   .card.cluster-rent { border-left: 3px solid #2f5d8a; background-color: #eef3f8; }
   .card.cluster-rent.tbd { background: repeating-linear-gradient(135deg, #eef3f8, #eef3f8 10px, #dde7f1 10px, #dde7f1 11px); }
+  /* Income side — distinct green accent so it never reads as a cost */
+  .card.cluster-income { border-left: 3px solid #2d6a4f; background-color: #eef6f1; }
   .card .num { position: absolute; top: -12px; left: -1px; background: var(--ink); color: var(--paper); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; letter-spacing: 0.1em; }
   .card .status { position: absolute; top: -12px; right: -1px; font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; letter-spacing: 0.1em; }
   .card .status.verified { background: var(--down); color: var(--paper); }
@@ -233,11 +235,11 @@
   <div class="summary">
     <div class="cell">
       <div class="lbl">Items tracked</div>
-      <div class="val">25</div>
+      <div class="val">27</div>
     </div>
     <div class="cell">
-      <div class="lbl">Verified this month</div>
-      <div class="val up">18</div>
+      <div class="lbl">Verified this period</div>
+      <div class="val up">20</div>
     </div>
     <div class="cell">
       <div class="lbl">Months in frame</div>
@@ -329,13 +331,25 @@
       <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, monthly</td><td>In-person panel</td></tr>
       <tr><td>Bacon, egg &amp; cheese</td><td>TBD (hard)</td><td>Fixed-deli survey, monthly</td><td>In-person panel</td></tr>
       <tr><td>BEC ingredient index</td><td>Verified ($2.05)</td><td>BLS prices, monthly</td><td>BLS APU series</td></tr>
+      <tr><td>Avg weekly wage (income)</td><td>Verified (Q3 '25)</td><td>Quarterly, ~2-qtr lag</td><td>BLS QCEW</td></tr>
+      <tr><td>Pay growth / ECI (income)</td><td>Verified (Q1 '26)</td><td>Quarterly</td><td>BLS ECI</td></tr>
     </table>
+
+    <h3>The income side</h3>
+    <p>
+      Costs only tell half the affordability story, so two wage gauges sit
+      in a green <b>income</b> group: the <b>QCEW average weekly wage</b>
+      (the comprehensive UI-records figure, bonus-inclusive and lagged) and
+      the <b>Employment Cost Index</b> (the cleanest pay-growth signal, which
+      holds the job mix constant). Both are averages — useful for direction,
+      but they don't capture the typical worker as well as a median would.
+    </p>
 
     <h3>What this doesn't measure</h3>
     <p>
-      Wages, income-adjusted burden, tip inflation, shrinkflation, rent-stabilized
-      contracts, or the full cost of owning a car. Directional gauge, not a
-      cost-of-living index.
+      A true wages-minus-costs burden, median (vs. average) pay, tip
+      inflation, shrinkflation, rent-stabilized contracts, or the full cost
+      of owning a car. Directional gauge, not a cost-of-living index.
     </p>
   </section>
 
@@ -366,8 +380,9 @@
   function pts(pairs) { const a = nulls(); pairs.forEach(([i, v]) => a[i] = v); return a; }
   // Broadway: 2024-25 season average held Jun '24-May '25, latest weekly read at May '26
   const BROADWAY = (() => { const a = pts([[24, 120.43]]); for (let i = 1; i <= 12; i++) a[i] = 129.12; return a; })();
-  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway"]); // % or season series: YoY badge would mislead
+  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "wage_eci"]); // % or season series: YoY badge would mislead
   const CLUSTER_RENT = new Set(["rent", "manhattan_rent", "brooklyn_rent", "queens_rent", "bronx_rent"]);
+  const CLUSTER_INCOME = new Set(["wage_qcew", "wage_eci"]); // the income side — shown distinct from the cost cards
 
   const ITEMS = [
     {
@@ -713,6 +728,38 @@
         ["Roll (bread proxy)","$0.29"],
         ["Coffee, 12 oz","$0.44"]
       ]
+    },
+    {
+      id: "wage_qcew", num: "18 · INCOME", icon: "💼",
+      name: "Average weekly wage", unit: "QCEW · New York County (Manhattan) · per week",
+      current: "$2,837", format: v => v == null ? "—" : "$" + v.toLocaleString(),
+      status: "verified", est: true,
+      data: pts([[4,2679],[16,2837]]),
+      source: "BLS QCEW", sourceUrl: "https://www.bls.gov/cew/",
+      asof: "Q3 2025 · released Mar 2026",
+      work: [
+        ["Q3 2025 avg weekly","$2,837"],
+        ["YoY change","+5.9%"],
+        ["Coverage","~95% of jobs (UI records)"],
+        ["Lag","~2 quarters"],
+        ["Year-ago (est.)","$2,679"]
+      ]
+    },
+    {
+      id: "wage_eci", num: "19 · INCOME", icon: "📊",
+      name: "Pay growth (ECI, YoY)", unit: "Employment Cost Index · NY metro · total comp · YoY %",
+      current: "+3.4%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      status: "verified", est: false,
+      data: pts([[22,3.4]]),
+      source: "BLS Employment Cost Index", sourceUrl: "https://www.bls.gov/eci/",
+      asof: "Year ending Q1 2026",
+      work: [
+        ["Comp growth YoY","+3.4%"],
+        ["Holds constant","the job mix"],
+        ["Measure","wages + benefits"],
+        ["Cadence","quarterly"],
+        ["Geography","NY metro"]
+      ]
     }
   ];
 
@@ -811,6 +858,8 @@
     coffee: { level: "hard", text: "No single feed. Method: fixed 10-shop panel, 12 oz drip, posted price. Partial proxy: a chain's app price (one fixed New York City store, tall brewed coffee) is scrapeable and could anchor the panel." },
     uber: { level: "hard", text: "A generated quote, not a published price. Method is fixed: identical pickup, dropoff, day and time, five quotes averaged. Surge makes any single quote noisy, which is why we fix the slot and average — but it needs a phone in hand and can't be automated remotely." },
     halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person monthly. Apples-to-apples only if the same carts and the same platter are used every time." },
+    wage_qcew: { level: "caveat", text: "The gold-standard wage figure: average weekly wage from unemployment-insurance records (~95% of jobs), for New York County (Manhattan), the city's main jobs center. Comprehensive and comparable over time — but two catches: it's an AVERAGE lifted by high earners and includes bonuses (so finance bonus season spikes Q1), and it lags about two quarters. A five-county citywide figure runs somewhat lower." },
+    wage_eci: { level: "caveat", text: "The cleanest 'are wages actually rising' signal — the Employment Cost Index holds the job mix constant, so it isn't distorted by which jobs grew or shrank. Quarterly, for the NY metro (not city-only), and it measures total compensation (wages plus benefits). Reported as YoY %. The honest income-side counterweight to the cost cards above." },
     bec_ingredient: { level: "clean", text: "A free, public reconstruction of Bloomberg's Terminal BEC index. Five BLS average-price series (bacon, egg, cheese, bread, coffee) times a fixed recipe — one sandwich plus a 12 oz coffee. Fully comparable month to month as long as the recipe stays frozen. It tracks raw ingredient cost (~$2), NOT the ~$8 you pay at the counter; the gap between this card and the deli-survey card is the labor, rent and markup. One scope caveat: the BLS average prices are U.S. CITY AVERAGES, not New York-specific — so this is a national ingredient-cost proxy, not a NYC number." },
     bec: { level: "hard", text: "Two ways to measure this. (1) The DELI-COUNTER price of the finished sandwich — what you actually pay — isn't published anywhere: HARD, needs a fixed deli/bodega panel (one per borough), same sandwich, surveyed in person monthly. (2) The INGREDIENT cost (bacon, egg, cheese, bread, coffee) IS public via BLS average-price series, and is exactly what Bloomberg's proprietary Terminal index {ECAN US BEC} tracks — so a free monthly reconstruction is CLEAN and trackable. We track the deli price as the authentic read and can add the public ingredient index alongside it." }
   };
@@ -829,6 +878,8 @@
     pizza: "city", bagel: "city", coffee: "city", halal: "city", bec: "city",
     uber: "city", dinner: "city",
     gas: "metro", case_shiller: "metro", cpi: "metro", restaurant_cpi: "metro",
+    wage_eci: "metro",
+    wage_qcew: "city",
     bec_ingredient: "us"
   };
   const GEO_LABEL = { city: "New York City", metro: "NYC metro area", us: "U.S. city average" };
@@ -857,7 +908,7 @@
       const axisRow = hasData
         ? `<div class="axis"><span>${it.format(axisMin)}</span><span>${it.format(axisMax)}</span></div>`
         : `<div class="axis"><span>May '24</span><span>May '26</span></div>`;
-      const clusterCls = CLUSTER_RENT.has(it.id) ? " cluster-rent" : "";
+      const clusterCls = CLUSTER_RENT.has(it.id) ? " cluster-rent" : CLUSTER_INCOME.has(it.id) ? " cluster-income" : "";
 
       return `
         <div class="card ${tbd ? "tbd" : ""}${clusterCls}">
