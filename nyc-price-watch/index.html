@@ -201,11 +201,11 @@
   <div class="summary">
     <div class="cell">
       <div class="lbl">Items tracked</div>
-      <div class="val">22</div>
+      <div class="val">23</div>
     </div>
     <div class="cell">
       <div class="lbl">Current quarter verified</div>
-      <div class="val up">15</div>
+      <div class="val up">16</div>
     </div>
     <div class="cell">
       <div class="lbl">Quarters in frame</div>
@@ -235,7 +235,7 @@
     <table>
       <tr><th>Monthly, no problem</th><th>Monthly but with a catch</th><th>Monthly only with legwork</th></tr>
       <tr>
-        <td>Gas (AAA daily), ConEd electric &amp; gas, StreetEasy rent, Manhattan &amp; Brooklyn rent (Miller Samuel <i>monthly</i> report), grocery &amp; restaurant CPI, Broadway (weekly grosses → monthly), and the five rare-change tariffs (verify monthly).</td>
+        <td>Gas (AAA daily), ConEd electric &amp; gas, StreetEasy rent, Manhattan &amp; Brooklyn rent (Miller Samuel <i>monthly</i> report), grocery &amp; restaurant CPI, the BEC ingredient index (BLS average prices), Broadway (weekly grosses → monthly), and the five rare-change tariffs (verify monthly).</td>
         <td><b>Case-Shiller</b> is monthly but always ~2 months lagged — the lag is constant, so it stays comparable. <b>Family dinner</b> is monthly only if the 500-restaurant panel is re-run that often (heavy); quarterly is the realistic cap.</td>
         <td><b>Pizza, bagel, coffee, halal cart, bacon-egg-and-cheese, Uber.</b> The data exists nowhere public — monthly requires a fixed in-person survey route (and a phone for Uber). Doable monthly, but it's the one place the limit is human effort, not data.</td>
       </tr>
@@ -294,6 +294,7 @@
       <tr><td>Family dinner</td><td>TBD</td><td>Quarterly from sister project</td><td>Family Dinner Prices</td></tr>
       <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, monthly</td><td>In-person panel</td></tr>
       <tr><td>Bacon, egg &amp; cheese</td><td>TBD (hard)</td><td>Fixed-deli survey, monthly</td><td>In-person panel</td></tr>
+      <tr><td>BEC ingredient index</td><td>Verified ($2.05)</td><td>BLS prices, monthly</td><td>BLS APU series</td></tr>
     </table>
 
     <h3>What this doesn't measure</h3>
@@ -618,6 +619,22 @@
       data: [null,null,null,null,null,null,null,null,null,null,null,null,null],
       source: "Fixed-deli panel survey, monthly", asof: "Baseline survey: Q3 2026",
       tbdNote: "Panel of fixed delis/bodegas, one per borough. Standard bacon-egg-and-cheese on a roll, salt-pepper-ketchup, cash price."
+    },
+    {
+      id: "bec_ingredient", num: "17b · FOOD", icon: "🍳",
+      name: "BEC ingredient index", unit: "Raw ingredient cost · 1 sandwich + coffee",
+      current: "$2.05", format: v => v == null ? "—" : "$" + v.toFixed(2),
+      status: "verified", est: false,
+      data: [null,null,null,null,null,null,null,null,null,null,null,null,2.05],
+      source: "BLS average-price (APU) series", sourceUrl: "https://www.bls.gov/charts/consumer-price-index/consumer-price-index-average-price-data.htm",
+      asof: "April 2026 BLS prices · computed May 29 2026",
+      work: [
+        ["Bacon, 2 strips","$0.85"],
+        ["Egg, 1","$0.19"],
+        ["Cheese, 1 slice","$0.28"],
+        ["Roll (bread proxy)","$0.29"],
+        ["Coffee, 12 oz","$0.44"]
+      ]
     }
   ];
 
@@ -712,6 +729,7 @@
     coffee: { level: "hard", text: "No single feed. Method: fixed 10-shop panel, 12 oz drip, posted price. Partial proxy: a chain's app price (one fixed New York City store, tall brewed coffee) is scrapeable and could anchor the panel." },
     uber: { level: "hard", text: "A generated quote, not a published price. Method is fixed: identical pickup, dropoff, day and time, five quotes averaged. Surge makes any single quote noisy, which is why we fix the slot and average — but it needs a phone in hand and can't be automated remotely." },
     halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person monthly. Apples-to-apples only if the same carts and the same platter are used every time." },
+    bec_ingredient: { level: "clean", text: "A free, public reconstruction of Bloomberg's Terminal BEC index. Five BLS average-price series (bacon, egg, cheese, bread, coffee) times a fixed recipe — one sandwich plus a 12 oz coffee. Fully comparable month to month as long as the recipe stays frozen. It tracks raw ingredient cost (~$2), NOT the ~$8 you pay at the counter; the gap between this card and the deli-survey card is the labor, rent and markup." },
     bec: { level: "hard", text: "Two ways to measure this. (1) The DELI-COUNTER price of the finished sandwich — what you actually pay — isn't published anywhere: HARD, needs a fixed deli/bodega panel (one per borough), same sandwich, surveyed in person monthly. (2) The INGREDIENT cost (bacon, egg, cheese, bread, coffee) IS public via BLS average-price series, and is exactly what Bloomberg's proprietary Terminal index {ECAN US BEC} tracks — so a free monthly reconstruction is CLEAN and trackable. We track the deli price as the authentic read and can add the public ingredient index alongside it." }
   };
 
