@@ -126,6 +126,12 @@
 
   .tbd-note { font-size: 0.8rem; color: var(--ink-soft); background: var(--paper-dark); border: 1px dashed var(--tbd); padding: 0.55rem 0.7rem; margin-bottom: 0.5rem; }
 
+  .track { font-size: 0.76rem; line-height: 1.42; color: var(--ink-soft); border-top: 1px dotted var(--ink-faint); padding-top: 0.55rem; margin-bottom: 0.6rem; }
+  .track .tlabel { font-family: 'IBM Plex Mono', monospace; font-size: 0.56rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; padding: 1px 5px; margin-right: 6px; white-space: nowrap; }
+  .track .tlabel.clean { color: var(--down); border: 1px solid var(--down); }
+  .track .tlabel.caveat { color: var(--flat); border: 1px solid var(--flat); }
+  .track .tlabel.hard { color: var(--tbd); border: 1px solid var(--tbd); }
+
   .method { margin-top: 3rem; padding: 1.75rem 2rem; background: var(--paper); border: 1px solid var(--rule); border-left: 6px solid var(--accent); }
   .method h2 { font-family: 'Playfair Display', serif; font-weight: 900; font-size: 1.5rem; margin-bottom: 0.75rem; }
   .method h3 { font-family: 'Inter', sans-serif; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 1.1rem; margin-bottom: 0.4rem; color: var(--ink); }
@@ -183,12 +189,19 @@
       <li><b>Same spec each quarter.</b> Same tariff, same panel, same collection rule. No silent sample changes.</li>
       <li><b>Work shown.</b> Each quarter's values and their source notes live in <code>readings.json</code> in the repo.</li>
     </ul>
+    <p style="margin-top:0.75rem;"><b>Trackability label on every card:</b>
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--down); border:1px solid var(--down); padding:0 4px;">CLEAN</span>
+      = one published number, comparable by construction ·
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--flat); border:1px solid var(--flat); padding:0 4px;">CAVEAT</span>
+      = comparable only if you hold one assumption fixed (we say which) ·
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--tbd); border:1px solid var(--tbd); padding:0 4px;">HARD</span>
+      = not trackable without a deliberate survey method, which the card spells out.</p>
   </div>
 
   <div class="summary">
     <div class="cell">
       <div class="lbl">Items tracked</div>
-      <div class="val">19</div>
+      <div class="val">20</div>
     </div>
     <div class="cell">
       <div class="lbl">Current quarter verified</div>
@@ -200,7 +213,7 @@
     </div>
     <div class="cell">
       <div class="lbl">Panel surveys pending</div>
-      <div class="val tbd">5</div>
+      <div class="val tbd">6</div>
     </div>
   </div>
 
@@ -255,6 +268,7 @@
       <tr><td>Coffee</td><td>TBD</td><td>Collection starts May 2026</td><td>Panel survey</td></tr>
       <tr><td>Uber benchmark</td><td>TBD</td><td>Collection starts May 2026</td><td>App quotes</td></tr>
       <tr><td>Family dinner</td><td>TBD</td><td>Quarterly from sister project</td><td>Family Dinner Prices</td></tr>
+      <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, quarterly</td><td>In-person panel</td></tr>
     </table>
 
     <h3>What this doesn't measure</h3>
@@ -545,6 +559,15 @@
       sourceUrl: "https://joshgreenman1973.github.io/experiments/family-dinner-prices/",
       asof: "Baseline pull: Q3 2026 refresh",
       tbdNote: "Sister project — pulled quarterly from family-dinner-prices repo."
+    },
+    {
+      id: "halal", num: "16 · FOOD", icon: "🍛",
+      name: "Halal cart chicken over rice", unit: "Fixed-cart panel · platter · cash price",
+      current: "TBD", format: v => v == null ? "—" : "$" + v.toFixed(2),
+      status: "tbd", est: false,
+      data: [null,null,null,null,null,null,null,null,null,null,null,null,null],
+      source: "Fixed-cart panel survey, quarterly", asof: "Baseline survey: Q3 2026",
+      tbdNote: "Panel of named, fixed-location carts: The Halal Guys (W 53rd & 6th) plus one vetted cart per borough. Chicken-over-rice platter, white + hot sauce, cash price."
     }
   ];
 
@@ -611,6 +634,35 @@
     return `<span class="delta ${cls}">${arrow} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% YoY</span>`;
   }
 
+  // =======================================================================
+  // TRACKABILITY: for each card, is the number cleanly comparable quarter
+  // to quarter? CLEAN = yes, by construction. CAVEAT = yes if you respect
+  // a fixed assumption. HARD = not trackable without deliberate method,
+  // which is then spelled out.
+  // =======================================================================
+  const TRACK = {
+    subway: { level: "clean", text: "One published fare from one source. Perfectly comparable — it only moves on an MTA board vote, and when it does the step is unambiguous." },
+    gas: { level: "clean", text: "AAA already averages thousands of stations every day. Apples-to-apples by construction; we just snapshot the same metro figure on the same day each month." },
+    toll: { level: "clean", text: "A single published toll for one fixed crossing and vehicle class. Fully comparable across time." },
+    citibike: { level: "clean", text: "One published annual membership price. Fully comparable; changes only when Lyft resets pricing, usually in January." },
+    water: { level: "clean", text: "A single combined rate per 100 cubic feet, set once a year by the Water Board. Fully comparable." },
+    taxi: { level: "clean", text: "A modeled fixed trip (3 miles, no traffic, no tip) built from the published meter tariff. Comparable as long as the trip spec never changes — and it doesn't." },
+    coned: { level: "caveat", text: "Comparable only with usage held fixed. We freeze it at 300 kWh and rebuild from the posted tariff, so moves reflect rates, not weather. If ConEd restructures the tariff we re-state the series and flag it." },
+    coned_gas: { level: "caveat", text: "Same discipline as the electric bill: fixed at 100 therms so the number tracks the rate, not winter demand." },
+    broadway: { level: "caveat", text: "Two comparability traps. (1) 'Average paid admission' is gross ÷ attendance — not the list price you see. (2) The season figure is annual; the weekly figure swings with which shows are running. We trend the season average and note the live weekly read separately. Don't mix them." },
+    rent: { level: "caveat", text: "StreetEasy's median is asking rent on active listings, so it moves with what's listed, not what's signed, and skews market-rate. Comparable month to month because the method is fixed — but it is not 'what the typical New Yorker pays.'" },
+    manhattan_rent: { level: "caveat", text: "Miller Samuel's quarterly median, comparable across quarters by design. Like any listings-based median it reflects units on the market, not rent-stabilized leases." },
+    brooklyn_rent: { level: "caveat", text: "Same quarterly Miller Samuel method as Manhattan. Comparable over time; reflects the market-rate listing pool, not stabilized units." },
+    case_shiller: { level: "caveat", text: "A repeat-sales index for the NY metro (bigger than the five boroughs), reported as YoY % and lagged about two months. Highly consistent over time — just remember the geography and that the latest point is always two months old." },
+    cpi: { level: "caveat", text: "An index reported as YoY %, not a dollar price. Tracks a fixed BLS grocery basket for the NY-Newark-Jersey City metro. Very comparable over time; covers the metro, not just the city." },
+    dinner: { level: "caveat", text: "Drawn from the sister 500-restaurant project, itself a fixed panel. Comparable across quarters as long as that panel holds; pulled quarterly, not monthly." },
+    pizza: { level: "hard", text: "Not published anywhere — needs prices observed in person. Systematic method: a fixed 10-shop panel surveyed the same week each quarter, plain slice only, cash price. Until that walking route runs, it stays TBD. Proxy option: a national chain's NYC plain-pie delivery price is scrapeable but less authentic." },
+    bagel: { level: "hard", text: "No published feed. Method: fixed 10-shop panel, plain bagel with plain cream cheese, surveyed quarterly. No clean chain proxy exists — this one is survey-or-nothing." },
+    coffee: { level: "hard", text: "No single feed. Method: fixed 10-shop panel, 12 oz drip, posted price. Partial proxy: a chain's app price (one fixed New York City store, tall brewed coffee) is scrapeable and could anchor the panel." },
+    uber: { level: "hard", text: "A generated quote, not a published price. Method is fixed: identical pickup, dropoff, day and time, five quotes averaged. Surge makes any single quote noisy, which is why we fix the slot and average — but it needs a phone in hand and can't be automated remotely." },
+    halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person each quarter. Apples-to-apples only if the same carts and the same platter are used every time." }
+  };
+
   function render() {
     const grid = document.getElementById("grid");
     grid.innerHTML = ITEMS.map(it => {
@@ -621,6 +673,8 @@
           ${it.work.map(r => `<div class="row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join("")}
         </div>` : "";
       const tbdHtml = tbd ? `<div class="tbd-note">${it.tbdNote || ""}</div>` : "";
+      const tk = TRACK[it.id];
+      const trackHtml = tk ? `<div class="track"><span class="tlabel ${tk.level}">${tk.level}</span>${tk.text}</div>` : "";
       const srcHtml = it.sourceUrl
         ? `<a href="${it.sourceUrl}" target="_blank" rel="noopener">${it.source}</a>`
         : it.source;
@@ -650,6 +704,7 @@
           </div>
           ${tbdHtml}
           ${workHtml}
+          ${trackHtml}
           <div class="src">
             Source: ${srcHtml}
             <div class="asof">${it.asof}</div>
