@@ -8,9 +8,11 @@
  *   3. Detects closures (page gone, "permanently closed" signals)
  *   4. Saves a new dated snapshot
  *
- * Closure detection:
- *   - If a page returns 404/410 or contains closure keywords, marks as closed
- *   - 3 consecutive monthly failures → auto-flagged as closed
+ * Closure detection (closures ONLY fire on real signals):
+ *   - A page that returns 404/410 or contains closure keywords → marked closed
+ *   - Scrape failures (JS-rendered/empty pages, timeouts, 403 bot-blocks, low
+ *     confidence) are NOT closures — they carry the last known price forward.
+ *     failCount is tracked for reporting only; it never auto-closes a restaurant.
  *   - Closed restaurants are excluded from averages (not carried forward)
  *
  * Restaurants without a menuUrl keep their last known price.
@@ -215,8 +217,6 @@ function isValidPriceSet(p) {
 async function main() {
   console.log(`\nGenerating snapshot for ${today}\n`);
 
-  const FAIL_THRESHOLD = 3; // consecutive failures before auto-closing
-
   const active = registry.filter(r => r.status !== 'closed');
   const closed = registry.filter(r => r.status === 'closed');
   const scrapeable = active.filter(r => r.menuUrl);
@@ -262,15 +262,13 @@ async function main() {
 
       if (menuText.length < 50) {
         console.log('too little text, carrying forward');
+        // A thin/unreadable page is a SCRAPE failure, not a closure. Many menus
+        // are JS-rendered and return an empty shell to a static fetch. Track the
+        // count for reporting, but never auto-close on it — only real closure
+        // signals (closure keywords, 404/410) close a restaurant.
         r.failCount = (r.failCount || 0) + 1;
         registryChanged = true;
-        if (r.failCount >= FAIL_THRESHOLD) {
-          console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
-          r.status = 'closed';
-          r.closedDate = today;
-          r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
-          newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
-        } else if (lastSnapshot.prices[r.id]) {
+        if (lastSnapshot.prices[r.id]) {
           newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
         }
         continue;
@@ -280,15 +278,10 @@ async function main() {
 
       if (!prices || prices.confidence === 'low' || !isValidPriceSet(prices)) {
         console.log('low confidence, carrying forward');
+        // Couldn't extract clean prices — a scrape failure, not a closure.
         r.failCount = (r.failCount || 0) + 1;
         registryChanged = true;
-        if (r.failCount >= FAIL_THRESHOLD) {
-          console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
-          r.status = 'closed';
-          r.closedDate = today;
-          r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
-          newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
-        } else if (lastSnapshot.prices[r.id]) {
+        if (lastSnapshot.prices[r.id]) {
           newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
         }
         failed++;
@@ -344,16 +337,11 @@ async function main() {
       }
 
       console.log(`error: ${err.message}`);
+      // Network errors (timeout, refused, TLS, 403 bot-block) are scrape
+      // failures, not closures. Carry forward; never auto-close on them.
       r.failCount = (r.failCount || 0) + 1;
       registryChanged = true;
-
-      if (r.failCount >= FAIL_THRESHOLD) {
-        console.log(`  ⚠ ${FAIL_THRESHOLD} consecutive failures — flagging as closed`);
-        r.status = 'closed';
-        r.closedDate = today;
-        r.closureReason = `${FAIL_THRESHOLD} consecutive scrape failures`;
-        newClosures.push({ name: r.name, borough: r.borough, reason: 'repeated failures' });
-      } else if (lastSnapshot.prices[r.id]) {
+      if (lastSnapshot.prices[r.id]) {
         newSnapshot.prices[r.id] = { ...lastSnapshot.prices[r.id], source: 'carried' };
       }
       failed++;

@@ -683,9 +683,14 @@
       <p class="chart-note">Average across 3+ restaurants sampled in each neighborhood. Reflects our sample, not the full neighborhood.</p>
       <canvas id="expensiveNeighborhoodChart"></canvas>
     </div>
+    <div class="chart-card full-width" id="panelCard">
+      <h3>The tracked panel</h3>
+      <p class="chart-note" id="panelNote"></p>
+      <div id="panelList" style="font-family:'Inter',sans-serif;"></div>
+    </div>
     <div class="chart-card full-width" id="trendChartCard" style="display:none">
-      <h3>Price Trends Over Time</h3>
-      <p class="chart-note">Monthly city-wide and borough averages — tracking starts after the first update</p>
+      <h3>Tracked panel: price trend</h3>
+      <p class="chart-note">City-wide and borough averages for the tracked panel only. The line grows by one point each month.</p>
       <canvas id="trendChart"></canvas>
     </div>
     <div class="chart-card" id="moversUpCard" style="display:none">
@@ -779,8 +784,13 @@
       <h3>Tax and tip</h3>
       <p>NYC sales tax (<strong>8.875%</strong>) is applied to the food subtotal. An <strong>18%</strong> tip is added on the pre-tax subtotal — the standard etiquette benchmark. All "total bill" figures on this page are fully loaded (food + tax + tip).</p>
 
-      <h3>How freshness is tracked</h3>
-      <p>The baseline snapshot was compiled in <strong>March 2026</strong>. The "Prices verified" badge at the top of the page shows the date of the most recent snapshot, and each receipt shows the date that restaurant's prices were last confirmed. Prices are re-checked monthly: for each restaurant with a tracked menu URL, an automated fetcher pulls the current menu page and an AI extractor (Claude Haiku) pulls updated prices; a human spot-checks the diffs before the new snapshot is published. Historical snapshots are preserved in <code>data/snapshots/</code> so trends can be charted over time.</p>
+      <h3>Two parts: a cross-section and a tracked panel</h3>
+      <p>This project is two things, and we keep them separate on purpose:</p>
+      <ul>
+        <li><strong>The cross-section (the map):</strong> a one-time snapshot of 360+ restaurants across all five boroughs, compiled in <strong>spring 2026</strong>. It answers "what does a family dinner cost around the city right now?" It is a dated snapshot, not a live feed — the prices on the map are not re-checked every month.</li>
+        <li><strong>The tracked panel (the trend):</strong> a smaller set of <strong>22 restaurants</strong> whose menus are reliably readable online. For each one we <em>pinned the exact menu line items</em> (the specific dishes, copied verbatim) at a baseline. Each month we re-fetch the menu and re-price <em>those same lines</em> — and only those. If a pinned line is gone or unreadable, we carry its last price forward and flag it rather than substituting a different dish. This is what makes the month-over-month trend trustworthy: we are always comparing the same bill.</li>
+      </ul>
+      <p>Why a panel instead of tracking all 360? Most restaurant menus today are rendered by JavaScript or sit behind ordering widgets, so a simple fetch can't read their prices — and an AI that free-picks a "similar" item each month produces fake price swings, not real ones. We would rather track 22 restaurants honestly than 360 unreliably. Soft drinks are standardized at <strong>$2.50</strong> citywide (menus rarely list soda prices), so drinks add no false month-to-month movement. The panel can grow as we hand-pin more menus. Re-checking is run manually, not on a cron — there is no always-on automated fetcher.</p>
 
       <h3>Known limitations</h3>
       <ul>
@@ -800,7 +810,7 @@
 
 <div class="footer">
   <p class="signoff">Thanks for dining with us!</p>
-  <p>In-restaurant menu prices, March 2026. Re-checked monthly. Not a review.</p>
+  <p>In-restaurant menu prices. Cross-section: spring 2026. Tracked panel of 22 re-priced monthly. Not a review.</p>
 </div>
 
 </div><!-- /placemat -->
@@ -810,6 +820,7 @@
 <script src="diner-data.js"></script>
 <script src="chinese-data.js"></script>
 <script src="price-history.js"></script>
+<script src="panel-history.js"></script>
 <script>
 // ══════════════════════════════════════════════
 // DATASETS & TIP CALC
@@ -968,8 +979,7 @@ function buildReceipt(d) {
   const tip = foodSubtotal * TIP_RATE;
   const total = subtotalWithTax + tip;
 
-  const asOf = getRestaurantAsOf(d);
-  const asOfLine = asOf ? `<div class="receipt-asof">Prices as of ${formatVerifiedDate(asOf)}</div>` : '';
+  const asOfLine = `<div class="receipt-asof">Spring 2026 cross-section</div>`;
 
   return `<div class="receipt">
     <div class="receipt-name">${d.name}</div>
@@ -1274,12 +1284,53 @@ function setupTableSort() {
 // ══════════════════════════════════════════════
 // TREND CHARTS (activated after 2+ snapshots)
 // ══════════════════════════════════════════════
-const hasHistory = typeof PRICE_HISTORY !== 'undefined' && PRICE_HISTORY.snapshotCount >= 2;
+const hasPanel = typeof PANEL_HISTORY !== 'undefined' && PANEL_HISTORY.panel;
+const hasHistory = hasPanel && PANEL_HISTORY.snapshotCount >= 2;
+
+function fmtMonthYear(ymd) {
+  const [y, m] = ymd.split('-');
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return months[parseInt(m) - 1] + ' ' + y;
+}
+
+// Always-visible transparency: the panel members and their pinned line items.
+function renderPanel() {
+  if (!hasPanel) return;
+  const P = PANEL_HISTORY;
+  const note = document.getElementById('panelNote');
+  const avg = P.trends.citywide[P.trends.citywide.length - 1];
+  const verb = P.snapshotCount >= 2 ? `re-checked ${P.snapshotCount} times` : 'baseline set';
+  if (note) note.innerHTML = `${P.stats.count} restaurants across all five boroughs whose menus are reliably readable online. ` +
+    `Each restaurant's exact menu line items are pinned so the same bill is re-priced month over month — ${verb}. ` +
+    `Panel baseline: ${fmtMonthYear(P.baselineDate)} · current average bill <strong>$${avg}</strong>. ` +
+    `Soft drinks are standardized at $${P.stats.sodaPrice.toFixed(2)} citywide.`;
+
+  const list = document.getElementById('panelList');
+  if (!list) return;
+  const byB = {};
+  P.panel.forEach(r => { (byB[r.borough] = byB[r.borough] || []).push(r); });
+  const order = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+  let html = '';
+  for (const b of order) {
+    if (!byB[b]) continue;
+    html += `<div style="margin:0.9rem 0 0.3rem;font-weight:700;color:#264653;font-size:0.9rem;border-bottom:1px solid #e0d5c1;padding-bottom:2px;">${b} <span style="font-weight:400;color:#999;">(${byB[b].length})</span></div>`;
+    byB[b].sort((a, c) => (c.latestTotal || c.baselineTotal) - (a.latestTotal || a.baselineTotal));
+    for (const r of byB[b]) {
+      const tot = r.latestTotal != null ? r.latestTotal : r.baselineTotal;
+      const items = `${r.items.adultEntree.item} · ${r.items.kidMeal.item} · ${r.items.appetizer.item}`;
+      const flag = r.fullyVerified ? '' : ' <span title="One item could not be re-verified this cycle; carried forward" style="color:#b8860b;font-size:0.7rem;">●</span>';
+      html += `<div style="display:flex;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:3px 0;border-bottom:1px dotted #eee;">` +
+        `<span style="color:#444;"><strong>${r.name}</strong>${flag}<br><span style="color:#999;font-size:0.72rem;">${items}</span></span>` +
+        `<span style="font-weight:700;color:#264653;white-space:nowrap;">$${tot.toFixed(2)}</span></div>`;
+    }
+  }
+  list.innerHTML = html;
+}
 
 function renderTrendCharts() {
   if (!hasHistory) return;
 
-  const H = PRICE_HISTORY;
+  const H = PANEL_HISTORY;
 
   // Show trend chart cards
   document.getElementById('trendChartCard').style.display = '';
@@ -1370,7 +1421,8 @@ function renderTrackingNote() {
     note.id = 'trackingNote';
     note.className = 'tracking-note';
     note.style.gridColumn = '1 / -1';
-    note.textContent = 'Price tracking begins March 2026. Trend charts will appear after the first monthly update.';
+    const base = hasPanel ? fmtMonthYear(PANEL_HISTORY.baselineDate) : 'May 2026';
+    note.textContent = `The tracked-panel baseline was set in ${base}. The trend line appears once the panel has been re-checked a second time next month.`;
     chartsSection.appendChild(note);
   }
 }
@@ -1473,6 +1525,7 @@ function init() {
   renderCuisineChart();
   renderNeighborhoodCharts();
 
+  renderPanel();
   renderTrendCharts();
   renderTrackingNote();
   renderVerifiedDate();
@@ -1494,13 +1547,12 @@ function formatVerifiedDate(ymd) {
 function renderVerifiedDate() {
   const el = document.getElementById('verifiedDate');
   if (!el) return;
-  if (typeof PRICE_HISTORY === 'undefined' || !PRICE_HISTORY.dates || !PRICE_HISTORY.dates.length) return;
-  const dates = PRICE_HISTORY.dates;
-  const latest = formatVerifiedDate(dates[dates.length - 1]);
-  const suffix = dates.length === 1
-    ? 'baseline'
-    : `${dates.length} monthly checks`;
-  el.innerHTML = `<span class="dot"></span>Prices verified: ${latest} · ${suffix} · <a href="#methodology" onclick="document.querySelector('.methodology-details').open=true;document.querySelector('.methodology-details').scrollIntoView({behavior:'smooth'});return false;" style="color:var(--green);text-decoration:underline;">See sources</a>`;
+  const panelBit = hasPanel
+    ? `Tracked panel: ${PANEL_HISTORY.stats.count} restaurants, baseline ${fmtMonthYear(PANEL_HISTORY.baselineDate)}`
+    : '';
+  el.innerHTML = `<span class="dot"></span>Cross-section: 360+ restaurants, spring 2026` +
+    (panelBit ? ` · ${panelBit}` : '') +
+    ` · <a href="#methodology" onclick="document.querySelector('.methodology-details').open=true;document.querySelector('.methodology-details').scrollIntoView({behavior:'smooth'});return false;" style="color:var(--green);text-decoration:underline;">See methodology</a>`;
 }
 
 function slugify(s) {
