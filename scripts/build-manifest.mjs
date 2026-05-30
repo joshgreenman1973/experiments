@@ -508,15 +508,19 @@ for (const p of projects) {
   if (!p.polish) p.polish = classifyPolish(p);
 }
 const general = projects.filter(p => p.audience === 'general');
-// Personal + Vital City are merged into one private group so the manifest
-// doesn't reveal which is which (or even their separate counts). The records
-// keep their `audience` field inside the encrypted blob for the admin UI.
-const privateProjects = projects.filter(p => p.audience === 'professional' || p.audience === 'personal');
+// Two locked groups, each behind its own password:
+//   - "professional" (Vital City / in-development) → GALLERY_PASSWORD
+//   - "personal" (family, kids, creative)          → PERSONAL_PASSWORD
+// The "Personal / In development" tab unlocks the professional group; the
+// personal group is further gated behind a second "Personal" link inside it.
+const professionalProjects = projects.filter(p => p.audience === 'professional');
+const personalProjects = projects.filter(p => p.audience === 'personal');
 
 // Encrypt a group with AES-256-GCM via PBKDF2-SHA256. The salt is public
 // (stored alongside the ciphertext) — it's the password that's secret.
 // Matches WebCrypto's AES-GCM format (ciphertext || 16-byte tag).
 const GALLERY_PASSWORD = '#9701SW72ct!!!';
+const PERSONAL_PASSWORD = '#9701SW72ct???';
 const PBKDF2_ITER = 250000;
 function encryptGroup(records, password) {
   // Derive salt/iv deterministically from the plaintext so unchanged inputs
@@ -544,16 +548,18 @@ function encryptGroup(records, password) {
 
 const manifest = {
   count: projects.length,
-  counts: { general: general.length, private: privateProjects.length },
+  counts: { general: general.length, professional: professionalProjects.length, personal: personalProjects.length },
   categories: [...new Set(projects.map(p => p.category))].sort(),
   owners: [...new Set(projects.map(p => p.githubOwner).filter(Boolean))].sort(),
   projects: general,
   locked: {
-    private: encryptGroup(privateProjects, GALLERY_PASSWORD),
+    professional: encryptGroup(professionalProjects, GALLERY_PASSWORD),
+    personal: encryptGroup(personalProjects, PERSONAL_PASSWORD),
   },
 };
 
 writeFileSync(join(ROOT, 'projects-manifest.json'), JSON.stringify(manifest, null, 2));
 console.log(`Wrote projects-manifest.json — ${projects.length} total`);
 console.log(`  general: ${general.length} (public)`);
-console.log(`  private: ${privateProjects.length} (encrypted — personal + vital city)`);
+console.log(`  professional: ${professionalProjects.length} (encrypted — Vital City / in development)`);
+console.log(`  personal: ${personalProjects.length} (encrypted — separate password)`);

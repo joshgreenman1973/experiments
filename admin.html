@@ -431,6 +431,7 @@ const REPO_NAME = 'experiments';
 const OVERRIDES_PATH = 'project-overrides.json';
 const BRANCH = 'main';
 const GALLERY_PASSWORD = '#9701SW72ct!!!';
+const PERSONAL_PASSWORD = '#9701SW72ct???';
 
 const $ = (id) => document.getElementById(id);
 
@@ -615,16 +616,18 @@ async function decryptLocked(blob, password) {
 async function buildProjectList() {
   const general = manifest.projects || [];
   let priv = [];
-  // New single 'private' blob (personal + vital city merged). Fall back to the
-  // old two-blob shape for backward compatibility with stale manifests.
-  if (manifest.locked?.private) {
-    try { priv = await decryptLocked(manifest.locked.private, GALLERY_PASSWORD); } catch {}
-  } else {
-    for (const key of ['professional', 'personal']) {
-      if (manifest.locked?.[key]) {
-        try { priv.push(...await decryptLocked(manifest.locked[key], GALLERY_PASSWORD)); } catch {}
-      }
+  // Two-password split: locked.professional uses GALLERY_PASSWORD,
+  // locked.personal uses PERSONAL_PASSWORD. Fall back to the merged 'private'
+  // blob and the older shape for backward compatibility with stale manifests.
+  if (manifest.locked?.professional || manifest.locked?.personal) {
+    if (manifest.locked?.professional) {
+      try { priv.push(...await decryptLocked(manifest.locked.professional, GALLERY_PASSWORD)); } catch {}
     }
+    if (manifest.locked?.personal) {
+      try { priv.push(...await decryptLocked(manifest.locked.personal, PERSONAL_PASSWORD)); } catch {}
+    }
+  } else if (manifest.locked?.private) {
+    try { priv = await decryptLocked(manifest.locked.private, GALLERY_PASSWORD); } catch {}
   }
   for (const p of general) p._currentAudience = 'general';
   // Each private record keeps its real audience (professional/personal) inside.

@@ -516,6 +516,56 @@
   }
   .tab.unlocked .lock { opacity: 0.25; }
 
+  /* Inline "Personal" locked link — appears inside the professional tab and
+     opens the second-password gate when clicked. Spans the full grid width. */
+  .personal-lock {
+    grid-column: 1 / -1;
+    margin: 32px 0 8px;
+    padding: 22px 24px;
+    display: flex; align-items: center; gap: 14px;
+    background: var(--paper-2, rgba(0,0,0,0.03));
+    border: 1px dashed var(--rule, rgba(0,0,0,0.25));
+    border-radius: 6px;
+    font-family: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+  .personal-lock:hover {
+    background: var(--paper-3, rgba(0,0,0,0.06));
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .personal-lock .lock {
+    display: inline-block;
+    width: 18px; height: 18px;
+    background: currentColor;
+    opacity: 0.7;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-.5V4.5A3.5 3.5 0 0 0 8 1zm0 1.5a2 2 0 0 1 2 2V7H6V4.5a2 2 0 0 1 2-2z'/></svg>") no-repeat center / contain;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='black' d='M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-.5V4.5A3.5 3.5 0 0 0 8 1zm0 1.5a2 2 0 0 1 2 2V7H6V4.5a2 2 0 0 1 2-2z'/></svg>") no-repeat center / contain;
+  }
+  .personal-lock-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .personal-lock-text b {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .personal-lock-text small {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    opacity: 0.65;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .personal-lock-cta {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+
   /* Password modal */
   .gate-backdrop {
     position: fixed; inset: 0;
@@ -825,15 +875,30 @@ async function load() {
 }
 
 // ==== Audience tab + gate ====
+//
+// Two locked groups, each behind its own password:
+//   - "professional"  → opened via the "Personal / In development" tab
+//   - "personal"      → opened via a "Personal" link rendered inside that
+//                       tab once professional is unlocked
+// The gate is generic over `pendingGroup` ('professional' | 'personal').
 
-let pendingTab = null;
+let pendingGroup = null;
 
 function onTabClick(tab) {
   if (tab === ACTIVE_TAB) return;
   if (tab === 'general' || UNLOCKED[tab]) { setActiveTab(tab); return; }
-  pendingTab = tab;
-  $('gate-title').textContent = 'Personal / In development';
-  $('gate-msg').textContent = 'These projects are private — works in progress and personal pieces. Enter the password to view.';
+  openGate(tab);
+}
+
+function openGate(group) {
+  pendingGroup = group;
+  if (group === 'personal') {
+    $('gate-title').textContent = 'Personal';
+    $('gate-msg').textContent = 'Personal pieces — family, kids and things made for fun. Enter the personal password to view.';
+  } else {
+    $('gate-title').textContent = 'Personal / In development';
+    $('gate-msg').textContent = 'These projects are private — works in progress and professional pieces. Enter the password to view.';
+  }
   $('gate-err').innerHTML = '&nbsp;';
   $('gate-password').value = '';
   $('gate').classList.add('open');
@@ -842,50 +907,85 @@ function onTabClick(tab) {
 
 function closeGate(abort) {
   $('gate').classList.remove('open');
-  if (abort) pendingTab = null;
+  if (abort) pendingGroup = null;
 }
 
 const REMEMBER_KEY = 'gallery-unlock-pw';
 
+function rememberPassword(pw) {
+  let arr = [];
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      arr = Array.isArray(parsed) ? parsed : [String(parsed)];
+    }
+  } catch {
+    // Legacy plain-string value — promote it to the array form.
+    try { const raw = localStorage.getItem(REMEMBER_KEY); if (raw) arr = [raw]; } catch {}
+  }
+  if (!arr.includes(pw)) arr.push(pw);
+  try { localStorage.setItem(REMEMBER_KEY, JSON.stringify(arr)); } catch {}
+}
+
 async function tryUnlock() {
   const pw = $('gate-password').value;
-  const tab = pendingTab;
-  if (!tab || !pw) return;
-  const blob = DATA.locked && DATA.locked[tab];
-  if (!blob) { $('gate-err').textContent = 'Nothing locked for this tab.'; return; }
+  const group = pendingGroup;
+  if (!group || !pw) return;
+  const blob = DATA.locked && DATA.locked[group];
+  if (!blob) { $('gate-err').textContent = 'Nothing locked here.'; return; }
   $('gate-err').innerHTML = '<em>decrypting…</em>';
   try {
     const records = await decryptGroup(blob, pw);
-    UNLOCKED[tab] = records;
-    document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('unlocked');
+    UNLOCKED[group] = records;
+    if (group === 'professional') {
+      document.querySelector('.tab[data-tab="professional"]')?.classList.add('unlocked');
+    }
     // "Keep me unlocked on this device" — stash the password locally so future
     // visits auto-decrypt. Soft security: anyone on this device/browser gets in.
-    if ($('gate-remember')?.checked) {
-      try { localStorage.setItem(REMEMBER_KEY, pw); } catch {}
-    }
+    if ($('gate-remember')?.checked) rememberPassword(pw);
     closeGate(false);
-    setActiveTab(tab);
+    if (group === 'professional') {
+      setActiveTab('professional');
+    } else {
+      // Personal unlocked from within the professional tab — just re-render so
+      // the locked "Personal" link is replaced by the actual personal section.
+      render();
+    }
   } catch (err) {
     $('gate-err').textContent = 'Wrong password.';
     $('gate-password').select();
   }
 }
 
-// On load, if a remembered password is stored, silently decrypt the locked
-// groups so the private tab opens without prompting.
+// On load, if any remembered passwords are stored, silently try each one
+// against each locked group so the private content opens without prompting.
 async function tryRememberedUnlock() {
-  let pw = null;
-  try { pw = localStorage.getItem(REMEMBER_KEY); } catch {}
-  if (!pw || !DATA.locked) return;
-  for (const [tab, blob] of Object.entries(DATA.locked)) {
-    if (UNLOCKED[tab]) continue;
-    try {
-      UNLOCKED[tab] = await decryptGroup(blob, pw);
-      document.querySelector(`.tab[data-tab="${tab}"]`)?.classList.add('unlocked');
-    } catch {
-      // Stored password no longer valid (e.g. password changed) — forget it.
-      try { localStorage.removeItem(REMEMBER_KEY); } catch {}
-      return;
+  if (!DATA.locked) return;
+  let pws = [];
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        pws = Array.isArray(parsed) ? parsed : [String(parsed)];
+      } catch {
+        // Legacy plain-string value (pre two-password split) — try it as-is.
+        pws = [raw];
+      }
+    }
+  } catch {}
+  if (!pws.length) return;
+  for (const [group, blob] of Object.entries(DATA.locked)) {
+    if (UNLOCKED[group]) continue;
+    for (const pw of pws) {
+      try {
+        UNLOCKED[group] = await decryptGroup(blob, pw);
+        if (group === 'professional') {
+          document.querySelector('.tab[data-tab="professional"]')?.classList.add('unlocked');
+        }
+        break;
+      } catch { /* try next password */ }
     }
   }
 }
@@ -933,38 +1033,8 @@ function render() {
   const owner = $('owner').value;
 
   const source = UNLOCKED[ACTIVE_TAB] || [];
-  let list = source.filter(p => {
-    if (cat && p.category !== cat) return false;
-    if (owner && p.githubOwner !== owner) return false;
-    if (show === 'active' && p.status === 'dropped') return false;
-    if (show === 'dropped' && p.status !== 'dropped') return false;
-    if (show === 'hasIndex' && !p.previewUrl) return false;
-    if (show === 'ownRepo' && !p.isNestedRepo) return false;
-    if (show === 'loose' && p.category !== 'root') return false;
-    if (!term) return true;
-    const hay = [p.name, p.title, p.description, p.category, p.lastCommitMsg, p.gitRemote]
-      .filter(Boolean).join(' ').toLowerCase();
-    return hay.includes(term);
-  });
-
-  // Default sort: newest first (creation date desc). Other options group by
-  // category (alpha within), sort A-Z, or sort by last commit.
-  if (sort === 'name' || sort === 'category') {
-    list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
-  } else if (sort === 'modified') {
-    list.sort((a,b) => {
-      const aT = a.lastCommit || a.lastModified || '';
-      const bT = b.lastCommit || b.lastModified || '';
-      return bT.localeCompare(aT);
-    });
-  } else {
-    // 'created' (default): reverse chron by creation date.
-    list.sort((a,b) => {
-      const aT = a.created || a.lastCommit || '';
-      const bT = b.created || b.lastCommit || '';
-      return bT.localeCompare(aT);
-    });
-  }
+  let list = source.filter(p => matchesFilters(p, term, cat, owner, show));
+  sortList(list, sort);
 
   $('count').innerHTML = `<b>${list.length}</b> of ${source.length}`;
 
@@ -972,6 +1042,10 @@ function render() {
   grid.innerHTML = '';
   if (!list.length) {
     grid.innerHTML = '<div class="empty">No matches.<small>try clearing a filter</small></div>';
+    if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
+      renderPersonalAppendix(grid, term, cat, owner, show, sort);
+      observeThumbnails();
+    }
     return;
   }
 
@@ -1030,7 +1104,80 @@ function render() {
   } else {
     below.forEach((p, i) => grid.appendChild(card(p, i)));
   }
+
+  // The "Personal / In development" tab has a second locked group inside it:
+  // a single "Personal" link that opens a separate gate (PW2). Once unlocked,
+  // those projects render in their own section appended below.
+  if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
+    renderPersonalAppendix(grid, term, cat, owner, show, sort);
+  }
+
   observeThumbnails();
+}
+
+function matchesFilters(p, term, cat, owner, show) {
+  if (cat && p.category !== cat) return false;
+  if (owner && p.githubOwner !== owner) return false;
+  if (show === 'active' && p.status === 'dropped') return false;
+  if (show === 'dropped' && p.status !== 'dropped') return false;
+  if (show === 'hasIndex' && !p.previewUrl) return false;
+  if (show === 'ownRepo' && !p.isNestedRepo) return false;
+  if (show === 'loose' && p.category !== 'root') return false;
+  if (!term) return true;
+  const hay = [p.name, p.title, p.description, p.category, p.lastCommitMsg, p.gitRemote]
+    .filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(term);
+}
+
+function sortList(list, sort) {
+  if (sort === 'name' || sort === 'category') {
+    list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
+  } else if (sort === 'modified') {
+    list.sort((a,b) => {
+      const aT = a.lastCommit || a.lastModified || '';
+      const bT = b.lastCommit || b.lastModified || '';
+      return bT.localeCompare(aT);
+    });
+  } else {
+    // 'created' (default): reverse chron by creation date.
+    list.sort((a,b) => {
+      const aT = a.created || a.lastCommit || '';
+      const bT = b.created || b.lastCommit || '';
+      return bT.localeCompare(aT);
+    });
+  }
+}
+
+function renderPersonalAppendix(grid, term, cat, owner, show, sort) {
+  if (UNLOCKED.personal) {
+    // Decrypted — render the personal projects in their own grouped section.
+    let pers = UNLOCKED.personal.filter(p => matchesFilters(p, term, cat, owner, show));
+    sortList(pers, sort);
+    if (!pers.length) return;
+    const heading = document.createElement('div');
+    heading.className = 'group-heading';
+    heading.style.setProperty('--section', 'var(--accent)');
+    heading.innerHTML =
+      `<span class="kicker">★ personal</span>` +
+      `<div class="head-text"><h3>Personal</h3>` +
+      `<p class="blurb">Family, kids and things made for the joy of it.</p></div>` +
+      `<span class="count">${pers.length} ${pers.length === 1 ? 'project' : 'projects'}</span>`;
+    grid.appendChild(heading);
+    pers.forEach((p, i) => grid.appendChild(card(p, i)));
+  } else {
+    // Locked — show a single "Personal" call-to-action that opens the gate.
+    const n = DATA.locked.personal.count || 0;
+    const lock = document.createElement('button');
+    lock.type = 'button';
+    lock.className = 'personal-lock';
+    lock.innerHTML =
+      `<span class="lock"></span>` +
+      `<span class="personal-lock-text"><b>Personal</b>` +
+      `<small>${n} ${n === 1 ? 'project' : 'projects'} · separate password</small></span>` +
+      `<span class="personal-lock-cta">Unlock →</span>`;
+    lock.addEventListener('click', () => openGate('personal'));
+    grid.appendChild(lock);
+  }
 }
 
 // Map a subcategory to its accent CSS variable (falls back to oxblood).
