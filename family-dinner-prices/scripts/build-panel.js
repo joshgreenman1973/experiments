@@ -31,7 +31,8 @@ const panel = {};
 let kept = 0, dropped = 0;
 for (const v of verified) {
   if (v.valid === false || !ok(v.adultEntree) || !ok(v.kidPortion)) { dropped++; continue; }
-  if (!(v.kidPortion.price < v.adultEntree.price)) { dropped++; continue; }   // hard guard
+  if (!(v.kidPortion.price < v.adultEntree.price)) { dropped++; continue; }   // hard guard: kid < adult
+  if (v.adultEntree.price > 32) { dropped++; continue; }                      // hard bound: not a family-budget entree
   const meta = byId[v.id]; if (!meta) { dropped++; continue; }
   const fresh = oldFresh[v.id] || sheetFresh[(v.name || '').toLowerCase()] || { lastModified: null, etag: null };
   panel[v.id] = {
