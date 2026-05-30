@@ -3,121 +3,78 @@
  * Builds panel-history.js (PANEL_HISTORY) from data/panel.json + the dated
  * snapshots in data/panel-snapshots/.
  *
- *  - Jevons index (rec #1): citywide & per-borough index = 100 x geometric mean
- *    of restaurant price relatives vs baseline. Scale-free, robust to high-end.
- *  - Dispersion (rec #5): median / trimmed mean / IQR of restaurant relatives
- *    each month, as a confidence band.
- *  - Core dollar sub-indices (rec #6): for homogeneous categories carried by >=4
- *    restaurants, the actual average dollar price over time (BEC-style).
+ * The headline is the DOLLAR family-of-four bill (not an index): average and
+ * median across the panel, with the 25th-75th percentile spread and per-borough
+ * averages. Each restaurant's bill = (2 adult + 2 kid + 2 beverages) x (1+tax+tip).
  *
  * Usage: node scripts/build-panel-history.js
  */
 const fs = require('fs');
 const path = require('path');
-const { CORE_LABELS } = require('./lib-core');
 const dataDir = path.join(__dirname, '..', 'data');
 const snapDir = path.join(dataDir, 'panel-snapshots');
 
-const panelDoc = JSON.parse(fs.readFileSync(path.join(dataDir, 'panel.json'), 'utf8'));
+const doc = JSON.parse(fs.readFileSync(path.join(dataDir, 'panel.json'), 'utf8'));
 const files = fs.readdirSync(snapDir).filter(f => f.endsWith('.json')).sort();
-if (!files.length) { console.error('No panel snapshots. Run check-panel.js first.'); process.exit(1); }
+if (!files.length) { console.error('No snapshots. Run check-panel.js first.'); process.exit(1); }
 const snaps = files.map(f => JSON.parse(fs.readFileSync(path.join(snapDir, f), 'utf8')));
 const dates = snaps.map(s => s.date);
 
-const geomean = a => a.length ? Math.round(Math.exp(a.reduce((s, x) => s + Math.log(x), 0) / a.length) * 1e4) / 1e4 : null;
-const idx = a => a == null ? null : Math.round(a * 1000) / 10; // relative -> index point (100 base)
+const r2 = x => x == null ? null : Math.round(x * 100) / 100;
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
 const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-const quantile = (a, q) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const pos = (s.length - 1) * q; const lo = Math.floor(pos); return s[lo] + (s[lo + 1] - s[lo] || 0) * (pos - lo); };
-const trimmedMean = (a, p = 0.1) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const k = Math.floor(s.length * p); const t = s.slice(k, s.length - k); return t.reduce((x, y) => x + y, 0) / (t.length || 1); };
-
+const quantile = (a, q) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const p = (s.length - 1) * q, lo = Math.floor(p); return s[lo] + (s[lo + 1] - s[lo] || 0) * (p - lo); };
 const boroughs = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
 
-// Index series (geomean of relatives -> index=100 base)
-const citywide = snaps.map(s => idx(geomean(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null))));
-const byBorough = {};
-for (const b of boroughs) byBorough[b] = snaps.map(s => idx(geomean(Object.values(s.restaurants).filter(r => r.borough === b).map(r => r.relative).filter(x => x != null))));
-
-// Dispersion of restaurant relatives (as index points)
-const dispersion = {
-  median: snaps.map(s => idx(median(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null)))),
-  trimmedMean: snaps.map(s => idx(trimmedMean(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null)))),
-  p25: snaps.map(s => idx(quantile(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null), 0.25))),
-  p75: snaps.map(s => idx(quantile(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null), 0.75))),
+const billsOf = s => Object.values(s.restaurants).map(r => r.bill).filter(x => x != null);
+const billSeries = {
+  avg: snaps.map(s => r2(mean(billsOf(s)))),
+  median: snaps.map(s => r2(median(billsOf(s)))),
+  p25: snaps.map(s => r2(quantile(billsOf(s), 0.25))),
+  p75: snaps.map(s => r2(quantile(billsOf(s), 0.75))),
 };
+const byBorough = {};
+for (const b of boroughs) byBorough[b] = snaps.map(s => r2(mean(Object.values(s.restaurants).filter(r => r.borough === b).map(r => r.bill))));
 
-// Core "typical price" sub-indices. To stay honest these are CATEGORY medians,
-// not a matched-item claim: one representative item per restaurant (the plainest
-// = lowest-priced variant), then the MEDIAN across restaurants each month
-// (robust to a mis-read or an outlier order). Requires >=4 distinct restaurants.
-const catRestaurants = {}; // cat -> { id -> [keys] }
-for (const [id, r] of Object.entries(panelDoc.panel)) {
-  for (const b of r.basket) if (b.core) {
-    (catRestaurants[b.core] = catRestaurants[b.core] || {});
-    (catRestaurants[b.core][id] = catRestaurants[b.core][id] || []).push(b.key);
-  }
-}
-const core = {};
-for (const [cat, byRest] of Object.entries(catRestaurants)) {
-  const ids = Object.keys(byRest);
-  if (ids.length < 4) continue;
-  const series = snaps.map(s => {
-    // one representative price per restaurant = the lowest-priced matched variant that month
-    const repPrices = ids.map(id => {
-      const ps = byRest[id].map(k => s.restaurants[id]?.items?.[k]?.price).filter(p => p != null);
-      return ps.length ? Math.min(...ps) : null;
-    }).filter(p => p != null);
-    const m = median(repPrices);
-    return m == null ? null : Math.round(m * 100) / 100;
-  });
-  core[cat] = { label: CORE_LABELS[cat] || cat, restaurantCount: ids.length, series, baseline: series[0], latest: series[series.length - 1] };
-}
-
-// Per-restaurant panel list
-const last = snaps[snaps.length - 1];
-const panelList = Object.entries(panelDoc.panel).map(([id, r]) => {
+const last = snaps[snaps.length - 1], first = snaps[0];
+const panelList = Object.entries(doc.panel).map(([id, p]) => {
   const sr = last.restaurants[id] || {};
-  const itemPrices = r.basket.map(b => sr.items?.[b.key]?.price ?? b.base);
   return {
-    id, name: r.name, borough: r.borough, cuisine: r.cuisine, neighborhood: r.neighborhood, platform: r.platform,
-    basketSize: r.basket.length,
-    sampleItems: r.basket.slice(0, 4).map(b => b.item),
-    medianPrice: Math.round(median(itemPrices) * 100) / 100,
-    index: idx(sr.relative ?? 1.0),
-    observed: sr.observed ?? r.basket.length,
-    pageChanged: sr.pageChanged ?? null,
+    id, name: p.name, borough: p.borough, cuisine: p.cuisine, neighborhood: p.neighborhood, platform: p.platform,
+    adultItem: p.adultEntree.item, adultPrice: sr.adultEntree?.price ?? p.adultEntree.base,
+    kidItem: p.kidPortion.item, kidPrice: sr.kidPortion?.price ?? p.kidPortion.base,
+    beverage: doc.meta.beveragePrice,
+    bill: sr.bill ?? p.baselineBill,
+    observed: sr.observed ?? 2, pageChanged: sr.pageChanged ?? null, overCeiling: !!p.overCeiling,
   };
 });
+panelList.sort((a, b) => b.bill - a.bill);
 
-// Movers (only restaurants with full-ish observation latest)
-const movers = panelList
-  .filter(p => p.index != null && Math.abs(p.index - 100) > 0.5 && snaps.length >= 2)
-  .map(p => ({ name: p.name, borough: p.borough, change: Math.round((p.index - 100) * 10) / 10 }))
-  .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
-
-const staleCount = Object.values(last.restaurants).filter(r => r.pageChanged === false).length;
+const movers = (snaps.length >= 2 ? panelList : []).map(p => {
+  const base = first.restaurants[p.id]?.bill, now = last.restaurants[p.id]?.bill;
+  return (base != null && now != null) ? { name: p.name, borough: p.borough, change: r2(now - base) } : null;
+}).filter(Boolean).filter(m => Math.abs(m.change) > 0.25).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
 
 const out = {
   generatedAt: new Date().toISOString(),
-  baselineDate: panelDoc.meta.baselineDate,
+  baselineDate: doc.meta.baselineDate,
   snapshotCount: snaps.length,
   dates,
-  indexBase: 100,
-  index: { citywide },
+  mealModel: doc.meta.mealModel,
+  bill: billSeries,
   byBorough,
-  dispersion,
-  core,
   panel: panelList,
   movers,
   stats: {
-    count: Object.keys(panelDoc.panel).length,
-    totalItems: Object.values(panelDoc.panel).reduce((a, r) => a + r.basket.length, 0),
-    observedLatest: Object.values(last.restaurants).reduce((a, r) => a + (r.observed || 0), 0),
-    stalePages: staleCount,
-    sodaPrice: panelDoc.meta.sodaPrice,
+    count: Object.keys(doc.panel).length,
+    beveragePrice: doc.meta.beveragePrice, tax: doc.meta.tax, tip: doc.meta.tip,
+    stalePages: Object.values(last.restaurants).filter(r => r.pageChanged === false).length,
+    partialLatest: Object.values(last.restaurants).filter(r => (r.observed ?? 2) < 2).length,
+    avgBill: billSeries.avg[billSeries.avg.length - 1],
+    medianBill: billSeries.median[billSeries.median.length - 1],
   },
+  bls: doc.meta.bls || null,
 };
-
 const header = `// Auto-generated by build-panel-history.js — do not edit\n// Generated: ${out.generatedAt}\n// Snapshots: ${snaps.length}\n\n`;
 fs.writeFileSync(path.join(__dirname, '..', 'panel-history.js'), header + 'const PANEL_HISTORY = ' + JSON.stringify(out, null, 2) + ';\n');
-console.log(`Wrote panel-history.js — ${out.stats.count} restaurants, ${snaps.length} snapshot(s), index ${citywide[citywide.length - 1]}`);
-console.log(`Core sub-indices: ${Object.keys(core).map(c => CORE_LABELS[c] || c).join(', ') || '(none yet)'}`);
+console.log(`Wrote panel-history.js — ${out.stats.count} restaurants, avg bill $${out.stats.avgBill}, median $${out.stats.medianBill}`);

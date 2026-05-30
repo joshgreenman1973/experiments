@@ -622,27 +622,29 @@
 <div class="header">
   <p class="diner-label">— NYC Family Dining Costs —</p>
   <h1>What Does Dinner<br>Actually Cost?</h1>
-  <p class="dek">A monthly price index built from the real menus of everyday New York City family restaurants. We pin the exact dishes at a panel of restaurants across all five boroughs and re-price those same items every month — so the trend is genuinely apples-to-apples, the way the Consumer Price Index works.</p>
+  <p class="dek">What does dinner out cost a family of four in New York City? Each month we add up a real bill — two adult entrees, two kid portions, two non-alcoholic drinks, plus tax and tip — at a panel of everyday family restaurants across the five boroughs, re-pricing the same dishes so the change is genuinely apples-to-apples.</p>
   <p id="verifiedDate" class="verified-date"></p>
 </div>
 
 <!-- ============ TRACKED PRICE INDEX (the headline) ============ -->
 <div class="charts-section" id="indexSection">
-  <h2 class="section-title">The family-dinner price index</h2>
+  <h2 class="section-title">What a family of four pays for dinner</h2>
   <p class="section-subtitle" id="indexSubtitle"></p>
   <div class="charts-grid">
     <div class="chart-card full-width" style="text-align:center;">
       <div id="indexHeadline" style="font-family:'Inter',sans-serif;"></div>
       <p class="chart-note" id="idxFreshness" style="margin-top:0.6rem;"></p>
     </div>
-    <div class="chart-card full-width" id="coreCard">
-      <h3>Staple watch</h3>
-      <p class="chart-note">Typical price of ubiquitous dishes — the median across panel restaurants that serve each one (one representative item per restaurant). A rough cross-section for color; the rigorous month-over-month tracking is the index above.</p>
-      <div id="coreTiles" style="display:flex;flex-wrap:wrap;gap:0.8rem;font-family:'Inter',sans-serif;"></div>
+    <div class="chart-card full-width" id="methodCard">
+      <h3>The bill we add up — and how we source it</h3>
+      <div id="methodBody" style="font-family:'Inter',sans-serif;font-size:0.82rem;line-height:1.55;color:#444;"></div>
+      <div style="margin-top:0.8rem;padding:0.7rem 0.9rem;background:#fdf6ec;border:1px solid #e7d3a8;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.78rem;line-height:1.5;color:#6b5836;">
+        <strong>A note on what this can and can't see.</strong> We can only track restaurants that post a readable menu with prices online — which is roughly one in five family restaurants we check. That tilts the panel toward more-digitized spots and away from the cash-only, menu-on-the-wall immigrant places that are often the most affordable. So read this as a trend for the restaurants we <em>can</em> follow, not a census of the cheapest dinner in the city. We use each restaurant's own menu or direct ordering page — never delivery-app prices, which run 15–25% higher and move with platform fees, not the kitchen.
+      </div>
     </div>
     <div class="chart-card full-width" id="trendChartCard" style="display:none">
-      <h3>Index over time</h3>
-      <p class="chart-note" id="trendNote">Index = 100 at baseline. Shaded band shows the middle half of restaurants (25th–75th percentile). The line grows by one point each month.</p>
+      <h3>The bill over time</h3>
+      <p class="chart-note" id="trendNote">Average family bill across the panel. Shaded band shows the middle half of restaurants (25th–75th percentile). The line grows by one point each month.</p>
       <canvas id="trendChart"></canvas>
     </div>
     <div class="chart-card full-width" id="panelCard">
@@ -793,38 +795,42 @@
         <li>A restaurant is treated as closed only on a real signal — Google marks it permanently closed, or its page returns 404/410. A menu that simply can't be read (JavaScript-rendered, bot-blocked) is a scrape failure, never a closure.</li>
       </ul>
 
-      <h3>How the index works</h3>
-      <p>For each panel restaurant we <strong>pin the exact menu line items</strong> — the specific dishes, copied verbatim (about ten per restaurant) — at a baseline. Each month we re-fetch the menu and re-price <em>those same lines</em> by string match (no AI at re-check time, so it's deterministic and free).</p>
+      <h3>How the bill is built</h3>
+      <p>For each restaurant we pin two specific dishes — an <strong>adult entree</strong> and a <strong>kid portion</strong> — chosen by an AI pass and then adversarially double-checked by a second AI (which rejects, for example, a whole specialty pizza miscast as a kid meal, or a price that can't be a real portion). The monthly bill is:</p>
+      <p style="text-align:center;font-size:0.95rem;"><strong>(2 × adult entree + 2 × kid portion + 2 × beverage) × (1 + tax + tip)</strong></p>
       <ul>
-        <li><strong>Apples-to-apples by construction.</strong> We only ever compare a dish to its own past price. This is the matched-model method the Consumer Price Index uses.</li>
-        <li><strong>Jevons index.</strong> Each restaurant's monthly change is the geometric mean of its items' price relatives; the headline index is the geometric mean across restaurants, set to <strong>100 at baseline</strong>. Geometric means are scale-free, so a $40 restaurant and a $100 restaurant count equally — the index isn't dominated by the priciest places.</li>
-        <li><strong>Spread, not just the average.</strong> The shaded band on the trend chart is the middle half of restaurants (25th–75th percentile), so you can see whether a move is broad or driven by a few outliers.</li>
+        <li><strong>Apples-to-apples by construction.</strong> Each month we re-fetch the menu and re-price <em>those same two dishes</em> by deterministic string match — no AI at re-check time. We only ever compare a dish to its own past price (the matched-model method the CPI uses).</li>
+        <li><strong>Median headline.</strong> The big number is the median bill across the panel, which a few pricey institutions (a $29 pastrami sandwich) can't drag around; we show the average and the 25th–75th percentile range alongside.</li>
+        <li><strong>Tax & tip, standardized drinks.</strong> 8.875% NYC sales tax and an 18% tip are included. Beverages are fixed at <strong>$2.50</strong> each citywide (menus rarely list soda prices), so drinks add no false movement.</li>
       </ul>
 
       <h3>How we keep it honest</h3>
       <ul>
-        <li><strong>Same-item only.</strong> If a pinned line is gone or unreadable, that item is dropped for the month and the restaurant's change is computed from the items we <em>did</em> read (cell-relative imputation) — we never substitute a different dish.</li>
-        <li><strong>Winsorize-and-flag.</strong> An item that appears to jump beyond ±100% is almost always a mis-read; we cap its effect and flag it for review rather than letting it whipsaw the index — but we don't silently delete large moves.</li>
-        <li><strong>Freshness signal.</strong> We record each page's last-modified date. A price that "holds" on a website that hasn't been touched in months is flagged, so website staleness isn't mistaken for genuine price stability — the central risk for any web-menu index.</li>
-        <li><strong>Standardized drinks.</strong> Soft drinks are fixed at <strong>$2.50</strong> citywide (menus rarely list soda prices), so beverages add no false movement. NYC sales tax (8.875%) is applied consistently; the index tracks menu prices, not tip.</li>
-        <li><strong>Shrinkflation.</strong> We store each item's size descriptor; when a price moves we surface the size for review, since a same-price portion cut is real inflation the headline number would otherwise miss.</li>
+        <li><strong>Direct prices only — never delivery.</strong> We read each restaurant's own website or direct ordering page. We never use Grubhub/DoorDash/Uber Eats (or Grubhub-owned MenuPages/Allmenus): their menu prices run 15–25% higher and move with platform commissions, not the kitchen.</li>
+        <li><strong>Same-item only.</strong> If a pinned dish is gone or unreadable in a given month, we carry its last price forward and flag it rather than substituting a different dish.</li>
+        <li><strong>Mis-read guard.</strong> A dish that appears to jump beyond ±100% is almost always a scrape error; we cap and flag it rather than let it whipsaw the bill.</li>
+        <li><strong>Freshness signal.</strong> We record each page's last-modified date, so a price that "holds" on a website nobody has touched in months is flagged — website staleness isn't mistaken for a stable price, the central risk for any web-menu tracker.</li>
+        <li><strong>Price ceiling.</strong> The panel targets entrees under $25; the handful of signature dishes above it (Katz's pastrami, a chicken parm) are marked with a ● so you can see them.</li>
       </ul>
 
-      <h3>The "staple watch"</h3>
-      <p>Where enough restaurants carry the <em>identical</em> ubiquitous dish (a plain slice, chicken over rice, fried rice), we also publish its plain average dollar price over time — the cleanest possible apples-to-apples comparison, in the spirit of the bacon-egg-and-cheese index. These are provisional until each staple has broad coverage; we grow them by targeted recruitment.</p>
+      <h3>Selection bias — what this can and can't see</h3>
+      <p>We can only track restaurants that post a readable menu with prices online, which is roughly <strong>one in five</strong> of the family restaurants we check. That tilts the panel toward more-digitized spots and <em>away</em> from the cash-only, menu-on-the-wall immigrant places that are often the most affordable food in the city. Read this as a trustworthy trend for the restaurants we can follow — not a census of the cheapest dinner in New York. Closing that gap would take occasional on-the-ground price checks, which this automated panel doesn't do.</p>
+
+      <h3>Benchmark</h3>
+      <p>For context we show the official yardstick: the U.S. Bureau of Labor Statistics' "food away from home" CPI for the New York–Newark–Jersey City metro, which rose <strong>3.4% over the 12 months ending April 2026</strong>. Our panel is more local and granular; how it diverges from the BLS series is itself the story.</p>
 
       <h3>The one-time cross-section</h3>
-      <p>Separately, the map is a one-time snapshot of 360+ restaurants compiled in <strong>spring 2026</strong>, validated against the Google Places API (open, 25+ reviews, location within 500 m). It is a dated landscape, <em>not</em> re-checked monthly. Treat its prices as "around spring 2026," and the index above as the thing that actually moves over time.</p>
+      <p>Separately, the map is a one-time snapshot of 360+ restaurants compiled in <strong>spring 2026</strong>, validated against the Google Places API (open, 25+ reviews, location within 500 m). It is a dated landscape, <em>not</em> re-checked monthly. Treat its prices as "around spring 2026," and the monthly bill above as the thing that actually moves over time.</p>
 
       <h3>Cadence and revisions</h3>
-      <p>The index is re-checked on a fixed monthly cadence, run manually — there is no always-on automated fetcher. <strong>Published index points are not silently revised:</strong> once a month is posted it stays, and any correction is noted. Month-to-month moves are noisy at this panel size; year-over-year will be the more meaningful comparison once twelve months of history exist.</p>
+      <p>The bill is re-checked on a fixed monthly cadence, run manually — there is no always-on automated fetcher. <strong>Published months are not silently revised:</strong> once a month is posted it stays, and any correction is noted. Month-to-month moves are noisy at this panel size; year-over-year will be the more meaningful comparison once twelve months exist.</p>
 
       <h3>Known limitations</h3>
       <ul>
-        <li>The panel is skewed toward restaurants whose menus happen to be machine-readable (about 1 in 5 family restaurants we test); it measures <em>price change over time</em> for a fixed basket, not the citywide price level, and is not a representative sample.</li>
-        <li>Borough coverage is uneven (the Bronx is thinner) because readable menus are unevenly distributed.</li>
-        <li>Digital-menu restaurants reprice more cheaply than printed-menu spots, so the panel may show price changes a bit sooner and more often than the city as a whole.</li>
-        <li>A renamed or removed dish drops out until it is re-pinned by hand; drinks are assumed, not measured.</li>
+        <li>The panel measures the bill <em>over time</em> for a fixed set of trackable restaurants — not the citywide price level, and not a representative sample (see selection bias above).</li>
+        <li>Borough coverage is uneven because readable menus are unevenly distributed.</li>
+        <li>Digital-menu restaurants reprice more cheaply than printed-menu spots, so the panel may move a bit sooner and more often than the city as a whole.</li>
+        <li>A renamed or removed dish drops out until it is re-pinned by hand; drinks are standardized, not measured.</li>
       </ul>
 
       <h3>Code and data</h3>
@@ -837,7 +843,7 @@
 
 <div class="footer">
   <p class="signoff">Thanks for dining with us!</p>
-  <p>A monthly index of family restaurants across the five boroughs, 100 = baseline. Plus a one-time spring 2026 cross-section. In-restaurant menu prices, not delivery. Not a review.</p>
+  <p>A monthly family-of-four dinner bill, tracked at everyday restaurants across the five boroughs. Direct menu prices, never delivery. Plus a one-time spring 2026 cross-section. Not a review.</p>
 </div>
 
 </div><!-- /placemat -->
@@ -1320,56 +1326,53 @@ function fmtMonthYear(ymd) {
   return months[parseInt(m) - 1] + ' ' + y;
 }
 
-// Headline index + staple watch + panel transparency.
+// Headline dollar bill + meal/method card + panel transparency.
 function renderIndex() {
   if (!hasPanel) return;
   const P = PANEL_HISTORY;
-  const latest = P.index.citywide[P.index.citywide.length - 1];
   const base = fmtMonthYear(P.baselineDate);
+  const avg = P.bill.avg[P.bill.avg.length - 1];
+  const med = P.bill.median[P.bill.median.length - 1];
 
   const sub = document.getElementById('indexSubtitle');
-  if (sub) sub.innerHTML = `${P.stats.count} restaurants · ${P.stats.totalItems} pinned menu items · all five boroughs · re-priced monthly`;
+  if (sub) sub.innerHTML = `${P.stats.count} restaurants · all five boroughs · the same dishes re-priced every month`;
 
-  // Big headline number
+  // Headline dollar figure (median = robust; average shown alongside)
   const head = document.getElementById('indexHeadline');
   if (head) {
-    const chg = latest - 100;
-    const chgTxt = P.snapshotCount >= 2
-      ? `<div style="font-size:1rem;color:${chg > 0 ? '#c23616' : chg < 0 ? '#2d6a4f' : '#888'};margin-top:0.2rem;">${chg > 0 ? '+' : ''}${chg.toFixed(1)}% since ${base}</div>`
-      : `<div style="font-size:0.85rem;color:#888;margin-top:0.3rem;">Baseline = 100 · set ${base}. The index moves from here as we re-price each month.</div>`;
-    head.innerHTML = `<div style="font-family:'Playfair Display',serif;font-size:3.4rem;font-weight:800;color:#2c1810;line-height:1;">${latest.toFixed(1)}</div>` +
-      `<div style="font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:#999;margin-top:0.3rem;">Family-dinner price index</div>` + chgTxt;
+    let chgTxt;
+    if (P.snapshotCount >= 2) {
+      const prev = P.bill.median[P.bill.median.length - 2];
+      const d = med - prev, pct = prev ? d / prev * 100 : 0;
+      chgTxt = `<div style="font-size:1rem;color:${d > 0 ? '#c23616' : d < 0 ? '#2d6a4f' : '#888'};margin-top:0.2rem;">${d > 0 ? '+' : ''}$${d.toFixed(2)} (${d > 0 ? '+' : ''}${pct.toFixed(1)}%) vs last month</div>`;
+    } else {
+      chgTxt = `<div style="font-size:0.85rem;color:#888;margin-top:0.3rem;">Baseline set ${base}. We re-price the same dishes each month and the bill moves from here.</div>`;
+    }
+    head.innerHTML = `<div style="font-family:'Playfair Display',serif;font-size:3.6rem;font-weight:800;color:#2c1810;line-height:1;">$${med.toFixed(2)}</div>` +
+      `<div style="font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;color:#999;margin-top:0.3rem;">median family-of-four dinner bill</div>` +
+      `<div style="font-size:0.82rem;color:#666;margin-top:0.2rem;">average $${avg.toFixed(2)} · typical range $${P.bill.p25[P.bill.p25.length-1].toFixed(0)}–$${P.bill.p75[P.bill.p75.length-1].toFixed(0)}</div>` + chgTxt;
   }
 
-  // Freshness signal
+  // BLS benchmark + freshness
   const fresh = document.getElementById('idxFreshness');
   if (fresh) {
-    fresh.innerHTML = P.snapshotCount >= 2
-      ? `${P.stats.stalePages} of ${P.stats.count} restaurant pages were unchanged since last month — flagged so a stale website isn't mistaken for a stable price.`
-      : `We also record each page's last-modified date, so next month we can tell a real price hold from a website that simply wasn't updated.`;
+    let s = '';
+    if (P.bls) s += `Benchmark: food away from home in the ${P.bls.metro} metro rose <strong>${P.bls.yoy}%</strong> over the 12 months ending ${P.bls.asOf} (<a href="${P.bls.source}" target="_blank" rel="noopener" style="color:var(--green);">BLS</a>). `;
+    s += P.snapshotCount >= 2
+      ? `${P.stats.stalePages} of ${P.stats.count} menu pages were unchanged since last month — flagged so a stale website isn't read as a stable price.`
+      : `We also record each page's last-modified date, so a real price hold can be told apart from a website that simply wasn't updated.`;
+    fresh.innerHTML = s;
   }
 
-  // Staple watch (core dollar sub-indices)
-  const tiles = document.getElementById('coreTiles');
-  if (tiles) {
-    const cats = Object.values(P.core || {});
-    if (!cats.length) {
-      tiles.innerHTML = `<p class="chart-note" style="margin:0;">No staple yet has enough restaurants in common to publish — this fills in as the panel grows by targeted recruitment (e.g. more pizzerias for a slice index).</p>`;
-    } else {
-      tiles.innerHTML = cats.map(c => {
-        const chg = (c.latest != null && c.baseline) ? (c.latest / c.baseline - 1) * 100 : null;
-        const chgTxt = (P.snapshotCount >= 2 && chg != null) ? `<div style="font-size:0.72rem;color:${chg > 0 ? '#c23616' : '#2d6a4f'};">${chg > 0 ? '+' : ''}${chg.toFixed(1)}%</div>` : '';
-        return `<div style="flex:1;min-width:130px;background:#f9f6f0;border:1px solid #e0d5c1;border-radius:6px;padding:0.7rem 0.9rem;">` +
-          `<div style="font-size:0.78rem;color:#264653;font-weight:700;">${c.label}</div>` +
-          `<div style="font-family:'Playfair Display',serif;font-size:1.6rem;color:#2c1810;">$${(c.latest ?? c.baseline).toFixed(2)}</div>` +
-          `<div style="font-size:0.68rem;color:#999;">median of ${c.restaurantCount} restaurants</div>${chgTxt}</div>`;
-      }).join('');
-    }
-  }
+  // Meal + method card
+  const mb = document.getElementById('methodBody');
+  if (mb) mb.innerHTML = `Each restaurant's bill = <strong>2 adult entrees + 2 kid portions + 2 non-alcoholic drinks</strong>, plus ${(P.stats.tax*100).toFixed(3)}% sales tax and an ${(P.stats.tip*100).toFixed(0)}% tip. ` +
+    `We pin the exact adult and kid dishes at each place and re-price <em>those same items</em> every month (drinks standardized at $${P.stats.beveragePrice.toFixed(2)}). ` +
+    `The headline is the <strong>median</strong> bill across the panel — robust to a few pricey institutions; we show the average and the middle-half range too.`;
 
-  // Panel note + list
+  // Panel note + list (grouped by borough, with each restaurant's bill)
   const note = document.getElementById('panelNote');
-  if (note) note.innerHTML = `${P.stats.count} restaurants whose menus are reliably readable online. We pin ${P.stats.totalItems} exact menu items and re-price those same lines each month; the index is the geometric mean of each restaurant's price change (a Jevons index, 100 at ${base}). Soft drinks are standardized at $${P.stats.sodaPrice.toFixed(2)} citywide.`;
+  if (note) note.innerHTML = `Every restaurant we track, with the two pinned dishes and the full family bill. A ${'●'} marks a place whose signature entree tops $25.`;
 
   const list = document.getElementById('panelList');
   if (list) {
@@ -1379,14 +1382,14 @@ function renderIndex() {
     let html = '';
     for (const b of order) {
       if (!byB[b]) continue;
-      html += `<div style="margin:0.9rem 0 0.3rem;font-weight:700;color:#264653;font-size:0.9rem;border-bottom:1px solid #e0d5c1;padding-bottom:2px;">${b} <span style="font-weight:400;color:#999;">(${byB[b].length})</span></div>`;
-      byB[b].sort((a, c) => c.medianPrice - a.medianPrice);
+      const avgB = byB[b].reduce((s, r) => s + r.bill, 0) / byB[b].length;
+      html += `<div style="margin:0.9rem 0 0.3rem;font-weight:700;color:#264653;font-size:0.9rem;border-bottom:1px solid #e0d5c1;padding-bottom:2px;">${b} <span style="font-weight:400;color:#999;">(${byB[b].length} · avg $${avgB.toFixed(0)})</span></div>`;
+      byB[b].sort((a, c) => c.bill - a.bill);
       for (const r of byB[b]) {
-        const items = (r.sampleItems || []).slice(0, 3).join(' · ');
-        const idxTxt = P.snapshotCount >= 2 ? ` · index ${r.index.toFixed(1)}` : '';
+        const flag = r.overCeiling ? ' <span title="Signature entree over $25" style="color:#b8860b;">●</span>' : '';
         html += `<div style="display:flex;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:3px 0;border-bottom:1px dotted #eee;">` +
-          `<span style="color:#444;"><strong>${r.name}</strong> <span style="color:#bbb;font-size:0.7rem;">${r.cuisine}</span><br><span style="color:#999;font-size:0.72rem;">${r.basketSize} items pinned: ${items}…</span></span>` +
-          `<span style="font-weight:700;color:#264653;white-space:nowrap;">~$${r.medianPrice.toFixed(2)}<span style="font-weight:400;color:#aaa;font-size:0.68rem;">${idxTxt}</span></span></div>`;
+          `<span style="color:#444;"><strong>${r.name}</strong>${flag} <span style="color:#bbb;font-size:0.7rem;">${r.cuisine}</span><br><span style="color:#999;font-size:0.72rem;">${r.adultItem} ($${r.adultPrice.toFixed(2)}) · kid: ${r.kidItem} ($${r.kidPrice.toFixed(2)})</span></span>` +
+          `<span style="font-weight:700;color:#264653;white-space:nowrap;">$${r.bill.toFixed(2)}</span></div>`;
       }
     }
     list.innerHTML = html;
@@ -1397,51 +1400,39 @@ function renderTrendCharts() {
   if (!hasHistory) return;
   const H = PANEL_HISTORY;
   document.getElementById('trendChartCard').style.display = '';
-
-  const boroughColors = {
-    'Manhattan': '#c23616', 'Brooklyn': '#1d3557',
-    'Queens': '#2d6a4f', 'Bronx': '#e76f51', 'Staten Island': '#7b1fa2'
-  };
+  const boroughColors = { 'Manhattan': '#c23616', 'Brooklyn': '#1d3557', 'Queens': '#2d6a4f', 'Bronx': '#e76f51', 'Staten Island': '#7b1fa2' };
   const datasets = [
-    { label: 'p25–p75 band', data: H.dispersion.p75, borderColor: 'transparent', backgroundColor: 'rgba(44,24,16,0.08)', pointRadius: 0, fill: '+1' },
-    { label: '_p25', data: H.dispersion.p25, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, fill: false },
-    { label: 'Index (city)', data: H.index.citywide, borderColor: '#2c1810', borderWidth: 2.5, pointRadius: 4, tension: 0.3 },
+    { label: 'p25–p75 band', data: H.bill.p75, borderColor: 'transparent', backgroundColor: 'rgba(44,24,16,0.08)', pointRadius: 0, fill: '+1' },
+    { label: '_p25', data: H.bill.p25, borderColor: 'transparent', backgroundColor: 'transparent', pointRadius: 0, fill: false },
+    { label: 'Average bill', data: H.bill.avg, borderColor: '#2c1810', borderWidth: 2.5, pointRadius: 4, tension: 0.3 },
+    { label: 'Median bill', data: H.bill.median, borderColor: '#c23616', borderWidth: 2, pointRadius: 3, tension: 0.3 },
   ];
   for (const [borough, color] of Object.entries(boroughColors)) {
-    datasets.push({ label: borough, data: H.byBorough[borough], borderColor: color, borderWidth: 1.3, pointRadius: 2, borderDash: [4, 2], tension: 0.3 });
+    datasets.push({ label: borough, data: H.byBorough[borough], borderColor: color, borderWidth: 1.1, pointRadius: 2, borderDash: [4, 2], tension: 0.3 });
   }
-  const labels = H.dates.map(d => {
-    const [y, m] = d.split('-');
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return months[parseInt(m) - 1] + ' ' + y.slice(2);
-  });
+  const labels = H.dates.map(d => { const [y, m] = d.split('-'); const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return mo[parseInt(m) - 1] + ' ' + y.slice(2); });
   chartInstances.trend = new Chart(document.getElementById('trendChart'), {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      ...chartDefaults,
+    type: 'line', data: { labels, datasets },
+    options: { ...chartDefaults,
       plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, filter: i => !i.text.startsWith('_') } } },
-      scales: { y: { ticks: { callback: v => v, font: { size: 9 } }, title: { display: true, text: 'Index (100 = baseline)', font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } }
-    }
+      scales: { y: { ticks: { callback: v => '$' + v, font: { size: 9 } }, title: { display: true, text: 'Family bill ($)', font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } } }
   });
 
-  // Movers, in index points (% vs baseline)
+  // Movers, in dollars vs baseline
   const moversUp = H.movers.filter(m => m.change > 0).slice(0, 8);
   const moversDown = H.movers.filter(m => m.change < 0).slice(0, 8);
   if (moversUp.length > 0) {
     document.getElementById('moversUpCard').style.display = '';
     chartInstances.moversUp = new Chart(document.getElementById('moversUpChart'), {
-      type: 'bar',
-      data: { labels: moversUp.map(m => m.name), datasets: [{ data: moversUp.map(m => m.change), backgroundColor: '#c23616', borderRadius: 3 }] },
-      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '+' + v + '%', font: { size: 8 } } } } }
+      type: 'bar', data: { labels: moversUp.map(m => m.name), datasets: [{ data: moversUp.map(m => m.change), backgroundColor: '#c23616', borderRadius: 3 }] },
+      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '+$' + v, font: { size: 8 } } } } }
     });
   }
   if (moversDown.length > 0) {
     document.getElementById('moversDownCard').style.display = '';
     chartInstances.moversDown = new Chart(document.getElementById('moversDownChart'), {
-      type: 'bar',
-      data: { labels: moversDown.map(m => m.name), datasets: [{ data: moversDown.map(m => Math.abs(m.change)), backgroundColor: '#2d6a4f', borderRadius: 3 }] },
-      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '-' + v + '%', font: { size: 8 } } } } }
+      type: 'bar', data: { labels: moversDown.map(m => m.name), datasets: [{ data: moversDown.map(m => Math.abs(m.change)), backgroundColor: '#2d6a4f', borderRadius: 3 }] },
+      options: { ...chartDefaults, indexAxis: 'y', scales: { x: { ticks: { callback: v => '-$' + v, font: { size: 8 } } } } }
     });
   }
 }
@@ -1584,9 +1575,9 @@ function renderVerifiedDate() {
   const el = document.getElementById('verifiedDate');
   if (!el) return;
   const panelBit = hasPanel
-    ? `${PANEL_HISTORY.stats.count} restaurants · ${PANEL_HISTORY.stats.totalItems} pinned items · baseline ${fmtMonthYear(PANEL_HISTORY.baselineDate)}`
+    ? `${PANEL_HISTORY.stats.count} restaurants · all five boroughs · baseline ${fmtMonthYear(PANEL_HISTORY.baselineDate)}`
     : '';
-  el.innerHTML = `<span class="dot"></span>${panelBit ? panelBit : 'Tracked monthly index'}` +
+  el.innerHTML = `<span class="dot"></span>${panelBit ? panelBit : 'Tracked monthly'}` +
     ` · <a href="#methodology" onclick="document.querySelector('.methodology-details').open=true;document.querySelector('.methodology-details').scrollIntoView({behavior:'smooth'});return false;" style="color:var(--green);text-decoration:underline;">See methodology</a>`;
 }
 

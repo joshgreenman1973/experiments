@@ -17,7 +17,9 @@ const dataDir = path.join(__dirname, '..', 'data');
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 if (!API_KEY) { console.error('ANTHROPIC_API_KEY required'); process.exit(1); }
 
-const candidates = JSON.parse(fs.readFileSync(path.join(dataDir, 'new-candidates.json'), 'utf8'));
+const INPUT = process.argv[2] || 'new-candidates.json';
+const OUTPUT = INPUT.replace(/\.json$/, '') + '-scan.json';
+const candidates = JSON.parse(fs.readFileSync(path.join(dataDir, INPUT), 'utf8'));
 const registry = JSON.parse(fs.readFileSync(path.join(dataDir, 'restaurants.json'), 'utf8'));
 
 const rootDomain = u => { try { return new URL(u).hostname.replace(/^www\./, '').split('.').slice(-2).join('.'); } catch { return null; } };
@@ -109,7 +111,7 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: limit }, () => worker()));
-  fs.writeFileSync(path.join(dataDir, 'new-candidates-scan.json'), JSON.stringify(out, null, 2));
+  fs.writeFileSync(path.join(dataDir, OUTPUT), JSON.stringify(out, null, 2));
   console.log(`\n────────────────────────────`);
   console.log(`Duplicates skipped: ${stats.dupes} | Readable: ${stats.readable} | Unreadable: ${stats.unreadable} | Unreachable: ${stats.unreachable}`);
   for (const n of [3, 4, 5]) console.log(`NEW trackable with >=${n} locked items: ${Object.values(out).filter(v => v.readable && v.locked >= n).length}`);
