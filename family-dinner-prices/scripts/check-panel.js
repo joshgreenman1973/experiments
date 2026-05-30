@@ -88,9 +88,19 @@ async function main() {
   for (const id of ids) {
     const r = panel[id];
     process.stdout.write(`${r.name}... `);
-    let menu = null, headers = {}, gone = false, reachable = false;
-    try { const res = await fetchPage(r.menuUrl); menu = normalize(res.body); headers = res.headers; reachable = menu.length > 200; }
-    catch (e) { if (String(e.message).startsWith('GONE_')) gone = true; process.stdout.write(`(${e.message}) `); }
+    let menu = null, headers = {}, gone = false, reachable = false, lastErr = '';
+    // Retry transient network errors so a blip (ECONNRESET/timeout) doesn't drop
+    // a good restaurant. Deterministic failures (404/410/403) are not retried.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { const res = await fetchPage(r.menuUrl); menu = normalize(res.body); headers = res.headers; reachable = menu.length > 200; lastErr = ''; break; }
+      catch (e) {
+        lastErr = e.message;
+        if (String(e.message).startsWith('GONE_')) { gone = true; break; }
+        if (/^HTTP_4\d\d/.test(e.message)) break; // 403/401/etc — deterministic block, no retry
+        await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); // transient — back off and retry
+      }
+    }
+    if (lastErr) process.stdout.write(`(${lastErr}) `);
 
     if (gone) { r.status = 'dropped'; r.droppedReason = 'page gone (404/410)'; r.droppedDate = today; snap.dropped.push(r.name); console.log('DROPPED (gone)'); continue; }
 
