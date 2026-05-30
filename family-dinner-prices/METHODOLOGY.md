@@ -6,9 +6,11 @@ items over time. Plus a one-time citywide cross-section for context.
 
 ## 1. The tracked index (the product)
 
-**31 restaurants** across all five boroughs whose menus are reliably readable
-online, with **~298 pinned menu items** (about ten per restaurant). See
-`data/panel.json`.
+**53 restaurants** across all five boroughs whose menus are reliably readable
+online, with **~520 pinned menu items** (about ten per restaurant). See
+`data/panel.json`. (Panel grown by web-search discovery of new family
+restaurants + scrapability testing; ~1 in 5 tested restaurants has a readable
+static menu.)
 
 ### Construction
 
@@ -51,10 +53,11 @@ online, with **~298 pinned menu items** (about ten per restaurant). See
 ### Staple watch (BEC-style core sub-index)
 
 Where ≥4 restaurants carry the *identical* ubiquitous dish, we publish its plain
-average dollar price over time (cleanest apples-to-apples). Currently only **fried
-rice** (4 restaurants) qualifies; chicken-over-rice and plain-slice are close.
-These grow by **targeted recruitment** (deliberately adding pizzerias for a slice
-index, halal carts for chicken-over-rice, etc.) — the main growth lever.
+average dollar price over time (cleanest apples-to-apples). At 53 restaurants,
+**five** qualify: fried rice (7), wonton soup (5), chicken over rice (4),
+mozzarella sticks (4), spring roll (4). These thicken by **targeted recruitment**
+(deliberately adding pizzerias for a slice index, halal carts for chicken over
+rice, etc.) — the main growth lever, alongside more readable Brooklyn spots.
 
 ## 2. The one-time cross-section (context only)
 

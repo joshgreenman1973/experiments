@@ -5,7 +5,9 @@
 const CORE_RULES = [
   ['pizza_slice', /\b(plain|cheese|regular)\s+slice\b|\bslice of (cheese|plain)\b|\bpizza slice\b/],
   ['garlic_knots', /\bgarlic knots?\b/],
-  ['chicken_over_rice', /\bchicken (over|&|and) rice\b|\bchicken (platter|rice)\b|\bover rice\b/],
+  // chicken over rice: require chicken tied directly to over-rice / rice-platter,
+  // and never a soup. Avoids catching "chicken rice soup" or "grilled meat over rice".
+  ['chicken_over_rice', /\bchicken\s+(over\s+(white\s+)?rice|rice\s+(platter|plate|bowl))\b(?!.*soup)/],
   ['fried_rice', /\bfried rice\b/],
   ['lo_mein', /\blo mein\b/],
   ['wonton_soup', /\bwonton soup\b/],

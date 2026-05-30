@@ -45,21 +45,31 @@ const dispersion = {
   p75: snaps.map(s => idx(quantile(Object.values(s.restaurants).map(r => r.relative).filter(x => x != null), 0.75))),
 };
 
-// Core dollar sub-indices: collect items by core category from panel baskets,
-// then average their actual prices per snapshot.
-const catItems = {}; // cat -> [{id, key}]
+// Core "typical price" sub-indices. To stay honest these are CATEGORY medians,
+// not a matched-item claim: one representative item per restaurant (the plainest
+// = lowest-priced variant), then the MEDIAN across restaurants each month
+// (robust to a mis-read or an outlier order). Requires >=4 distinct restaurants.
+const catRestaurants = {}; // cat -> { id -> [keys] }
 for (const [id, r] of Object.entries(panelDoc.panel)) {
-  for (const b of r.basket) if (b.core) (catItems[b.core] = catItems[b.core] || []).push({ id, key: b.key });
+  for (const b of r.basket) if (b.core) {
+    (catRestaurants[b.core] = catRestaurants[b.core] || {});
+    (catRestaurants[b.core][id] = catRestaurants[b.core][id] || []).push(b.key);
+  }
 }
 const core = {};
-for (const [cat, list] of Object.entries(catItems)) {
-  const restaurantCount = new Set(list.map(x => x.id)).size;
-  if (restaurantCount < 4) continue; // need coverage to be a sub-index
+for (const [cat, byRest] of Object.entries(catRestaurants)) {
+  const ids = Object.keys(byRest);
+  if (ids.length < 4) continue;
   const series = snaps.map(s => {
-    const prices = list.map(({ id, key }) => s.restaurants[id]?.items?.[key]?.price).filter(p => p != null);
-    return prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length * 100) / 100 : null;
+    // one representative price per restaurant = the lowest-priced matched variant that month
+    const repPrices = ids.map(id => {
+      const ps = byRest[id].map(k => s.restaurants[id]?.items?.[k]?.price).filter(p => p != null);
+      return ps.length ? Math.min(...ps) : null;
+    }).filter(p => p != null);
+    const m = median(repPrices);
+    return m == null ? null : Math.round(m * 100) / 100;
   });
-  core[cat] = { label: CORE_LABELS[cat] || cat, restaurantCount, series, baseline: series[0], latest: series[series.length - 1] };
+  core[cat] = { label: CORE_LABELS[cat] || cat, restaurantCount: ids.length, series, baseline: series[0], latest: series[series.length - 1] };
 }
 
 // Per-restaurant panel list
