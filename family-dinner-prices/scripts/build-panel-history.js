@@ -36,24 +36,39 @@ const billSeries = {
 const byBorough = {};
 for (const b of boroughs) byBorough[b] = snaps.map(s => r2(mean(Object.values(s.restaurants).filter(r => r.borough === b).map(r => r.bill))));
 
-const last = snaps[snaps.length - 1], first = snaps[0];
-const panelList = Object.entries(doc.panel).map(([id, p]) => {
-  const sr = last.restaurants[id] || {};
+const last = snaps[snaps.length - 1], prevSnap = snaps[snaps.length - 2] || null;
+const activeIds = Object.entries(doc.panel).filter(([id, p]) => p.status !== 'dropped').map(([id]) => id);
+
+const panelList = activeIds.map(id => {
+  const p = doc.panel[id];
+  const sr = last.restaurants[id]; // present only if priced this month
   return {
     id, name: p.name, borough: p.borough, cuisine: p.cuisine, neighborhood: p.neighborhood, platform: p.platform,
-    adultItem: p.adultEntree.item, adultPrice: sr.adultEntree?.price ?? p.adultEntree.base,
-    kidItem: p.kidPortion.item, kidPrice: sr.kidPortion?.price ?? p.kidPortion.base,
+    adultItem: p.adultEntree.item, adultPrice: sr?.adultEntree?.price ?? p.adultEntree.base,
+    kidItem: p.kidPortion.item, kidPrice: sr?.kidPortion?.price ?? p.kidPortion.base,
     beverage: doc.meta.beveragePrice,
-    bill: sr.bill ?? p.baselineBill,
-    observed: sr.observed ?? 2, pageChanged: sr.pageChanged ?? null, overCeiling: !!p.overCeiling,
+    bill: sr?.bill ?? p.baselineBill,
+    pricedThisMonth: !!sr, pageChanged: sr?.pageChanged ?? null, overCeiling: !!p.overCeiling,
   };
 });
 panelList.sort((a, b) => b.bill - a.bill);
 
-const movers = (snaps.length >= 2 ? panelList : []).map(p => {
-  const base = first.restaurants[p.id]?.bill, now = last.restaurants[p.id]?.bill;
-  return (base != null && now != null) ? { name: p.name, borough: p.borough, change: r2(now - base) } : null;
-}).filter(Boolean).filter(m => Math.abs(m.change) > 0.25).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+// Matched-sample month-over-month change (restaurants priced in BOTH last two
+// months) — so drops/adds don't create a fake jump in the headline.
+let matchedChange = null, movers = [];
+if (prevSnap) {
+  const pairs = Object.keys(last.restaurants)
+    .filter(id => prevSnap.restaurants[id])
+    .map(id => ({ id, name: last.restaurants[id].name, borough: last.restaurants[id].borough, d: last.restaurants[id].bill - prevSnap.restaurants[id].bill }));
+  if (pairs.length) {
+    const dollars = pairs.map(p => p.d).sort((a, b) => a - b);
+    matchedChange = { medianDollar: r2(median(dollars)), n: pairs.length };
+  }
+  movers = pairs.filter(p => Math.abs(p.d) > 0.25).map(p => ({ name: p.name, borough: p.borough, change: r2(p.d) }))
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+}
+
+const droppedAll = Object.values(doc.panel).filter(p => p.status === 'dropped').map(p => ({ name: p.name, borough: p.borough, reason: p.droppedReason || 'dropped' }));
 
 const out = {
   generatedAt: new Date().toISOString(),
@@ -65,11 +80,15 @@ const out = {
   byBorough,
   panel: panelList,
   movers,
+  matchedChange,
+  dropped: droppedAll,
   stats: {
-    count: Object.keys(doc.panel).length,
+    count: activeIds.length,
+    pricedLatest: Object.keys(last.restaurants).length,
+    missedLatest: (last.missed || []).length,
+    droppedTotal: droppedAll.length,
     beveragePrice: doc.meta.beveragePrice, tax: doc.meta.tax, tip: doc.meta.tip,
     stalePages: Object.values(last.restaurants).filter(r => r.pageChanged === false).length,
-    partialLatest: Object.values(last.restaurants).filter(r => (r.observed ?? 2) < 2).length,
     avgBill: billSeries.avg[billSeries.avg.length - 1],
     medianBill: billSeries.median[billSeries.median.length - 1],
   },

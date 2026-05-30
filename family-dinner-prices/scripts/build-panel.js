@@ -50,7 +50,8 @@ const out = {
   meta: {
     baselineDate, beveragePrice: BEV, tax: TAX, tip: TIP,
     mealModel: '2 adult entrees + 2 kid portions + 2 non-alcoholic beverages, plus 8.875% tax and 18% tip',
-    count: kept, bls: null,
+    count: kept,
+    bls: { metro: 'New York-Newark-Jersey City', measure: 'Food away from home', yoy: 3.4, asOf: 'April 2026', source: 'https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm' },
   },
   panel,
 };

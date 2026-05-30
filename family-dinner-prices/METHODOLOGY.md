@@ -36,10 +36,17 @@ Built in three passes:
 - **Direct prices only — never delivery.** Delivery-app menu prices run 15–25%
   above dine-in and move with platform commissions, not the kitchen. We exclude
   Grubhub/DoorDash/Uber Eats and Grubhub-owned MenuPages/Allmenus entirely.
-- **Same-item, matched-model.** Each month we re-price the *same two pinned dishes*
-  by deterministic string match (no AI at re-check time). A dish is only ever
-  compared to its own past price. If a pinned dish is gone/unreadable, we carry its
-  last price forward and flag it — never substitute a different dish.
+- **Same-item, matched-model, no stale prices.** Each month we re-price the *same
+  two pinned dishes* by deterministic string match (no AI at re-check time). A dish
+  is only ever compared to its own past price. A restaurant counts that month only
+  if BOTH dishes re-price cleanly; a miss is **excluded** (never carried forward as
+  a frozen price), and the restaurant is **dropped** from the panel if it can't be
+  re-priced for two consecutive checks or its page returns 404/closed. We never
+  substitute a different dish. (EJ's Luncheonette was dropped at baseline — its
+  pinned "thanksgiving turkey dinner" is seasonal and unverifiable in May.)
+- **No composition distortion.** The headline month-over-month change is the median
+  change at restaurants priced in *both* months (a matched sample), so dropping or
+  adding a restaurant can't manufacture a fake jump in the bill.
 - **Mis-read guard.** A dish that appears to move beyond ±100% is capped and
   flagged (almost always a scrape error), not allowed to whipsaw the bill.
 - **Freshness signal.** We record each page's Last-Modified/ETag; a price that

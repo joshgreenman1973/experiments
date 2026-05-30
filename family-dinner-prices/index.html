@@ -807,7 +807,8 @@
       <h3>How we keep it honest</h3>
       <ul>
         <li><strong>Direct prices only — never delivery.</strong> We read each restaurant's own website or direct ordering page. We never use Grubhub/DoorDash/Uber Eats (or Grubhub-owned MenuPages/Allmenus): their menu prices run 15–25% higher and move with platform commissions, not the kitchen.</li>
-        <li><strong>Same-item only.</strong> If a pinned dish is gone or unreadable in a given month, we carry its last price forward and flag it rather than substituting a different dish.</li>
+        <li><strong>Same-item only, no stale prices.</strong> A restaurant counts in a given month only if <em>both</em> its pinned dishes re-price cleanly. A miss is excluded from that month's number — never carried forward as a frozen price — and the restaurant is <strong>dropped from the panel</strong> if it can't be re-priced for two straight months or its page goes 404/closed. We never substitute a different dish.</li>
+        <li><strong>No composition distortion.</strong> The month-over-month change is the median change at the restaurants priced in <em>both</em> months (a matched sample), so dropping or adding a restaurant can't create a fake jump in the headline.</li>
         <li><strong>Mis-read guard.</strong> A dish that appears to jump beyond ±100% is almost always a scrape error; we cap and flag it rather than let it whipsaw the bill.</li>
         <li><strong>Freshness signal.</strong> We record each page's last-modified date, so a price that "holds" on a website nobody has touched in months is flagged — website staleness isn't mistaken for a stable price, the central risk for any web-menu tracker.</li>
         <li><strong>Price ceiling.</strong> The panel targets entrees under $25; the handful of signature dishes above it (Katz's pastrami, a chicken parm) are marked with a ● so you can see them.</li>
@@ -1341,10 +1342,9 @@ function renderIndex() {
   const head = document.getElementById('indexHeadline');
   if (head) {
     let chgTxt;
-    if (P.snapshotCount >= 2) {
-      const prev = P.bill.median[P.bill.median.length - 2];
-      const d = med - prev, pct = prev ? d / prev * 100 : 0;
-      chgTxt = `<div style="font-size:1rem;color:${d > 0 ? '#c23616' : d < 0 ? '#2d6a4f' : '#888'};margin-top:0.2rem;">${d > 0 ? '+' : ''}$${d.toFixed(2)} (${d > 0 ? '+' : ''}${pct.toFixed(1)}%) vs last month</div>`;
+    if (P.snapshotCount >= 2 && P.matchedChange) {
+      const d = P.matchedChange.medianDollar;
+      chgTxt = `<div style="font-size:1rem;color:${d > 0 ? '#c23616' : d < 0 ? '#2d6a4f' : '#888'};margin-top:0.2rem;">${d > 0 ? '+' : ''}$${d.toFixed(2)} vs last month <span style="color:#aaa;font-size:0.78rem;">(median change at the ${P.matchedChange.n} restaurants priced both months)</span></div>`;
     } else {
       chgTxt = `<div style="font-size:0.85rem;color:#888;margin-top:0.3rem;">Baseline set ${base}. We re-price the same dishes each month and the bill moves from here.</div>`;
     }
