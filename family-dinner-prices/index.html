@@ -622,7 +622,7 @@
 <div class="header">
   <p class="diner-label">— NYC Family Dining Costs —</p>
   <h1>What Does Dinner<br>Actually Cost?</h1>
-  <p class="dek">What does dinner out cost a family of four in New York City? Each month we add up a real bill — two adult entrees, two kid portions, two non-alcoholic drinks, plus tax and tip — at a panel of everyday family restaurants across the five boroughs, re-pricing the same dishes so the change is genuinely apples-to-apples.</p>
+  <p class="dek">What does dinner out cost a family of four in New York City? Each month we add up a real bill — a meal sized to how families actually order (a large pie at a pizzeria, two shared dishes plus egg rolls at a Chinese spot, two adult and two kid entrees elsewhere), with drinks, tax and tip — at a panel of everyday restaurants across the five boroughs, re-pricing the same dishes so the change is genuinely apples-to-apples.</p>
   <p id="verifiedDate" class="verified-date"></p>
 </div>
 
@@ -796,12 +796,16 @@
       </ul>
 
       <h3>How the bill is built</h3>
-      <p>For each restaurant we pin two specific dishes — an <strong>adult entree</strong> and a <strong>kid portion</strong> — chosen by an AI pass and then adversarially double-checked by a second AI (which rejects, for example, a whole specialty pizza miscast as a kid meal, or a price that can't be a real portion). The monthly bill is:</p>
-      <p style="text-align:center;font-size:0.95rem;"><strong>(2 × adult entree + 2 × kid portion + 2 × beverage) × (1 + tax + tip)</strong></p>
+      <p>We pin specific dishes that fit how a family actually orders at each kind of restaurant, chosen by an AI pass with deterministic guards (no desserts/drinks as an entree, kid cheaper than adult, sane price ranges):</p>
       <ul>
-        <li><strong>Apples-to-apples by construction.</strong> Each month we re-fetch the menu and re-price <em>those same two dishes</em> by deterministic string match — no AI at re-check time. We only ever compare a dish to its own past price (the matched-model method the CPI uses).</li>
-        <li><strong>Median headline.</strong> The big number is the median bill across the panel, which a few pricey institutions (a $29 pastrami sandwich) can't drag around; we show the average and the 25th–75th percentile range alongside.</li>
-        <li><strong>Tax & tip, standardized drinks.</strong> 8.875% NYC sales tax and an 18% tip are included. Beverages are fixed at <strong>$2.50</strong> each citywide (menus rarely list soda prices), so drinks add no false movement.</li>
+        <li><strong>Pizzerias:</strong> one large pizza + 2 drinks.</li>
+        <li><strong>Chinese:</strong> two different shared dishes + an order of egg rolls + 2 drinks.</li>
+        <li><strong>Everywhere else:</strong> two adult entrees + two kid portions (from a kids' menu where one exists) + 2 drinks.</li>
+      </ul>
+      <p>Every bundle then adds <strong>8.875% sales tax and an 18% tip</strong>. Beverages are standardized at <strong>$2.50</strong> each (menus rarely list soda prices), so drinks add no false movement.</p>
+      <ul>
+        <li><strong>Apples-to-apples by construction.</strong> Each month we re-fetch the menu and re-price <em>those same pinned dishes</em> by deterministic string match — no AI at re-check time. We only ever compare a dish to its own past price (the matched-model method the CPI uses).</li>
+        <li><strong>Median headline.</strong> The big number is the median bill across the panel, which a few pricey institutions (a $29 pastrami sandwich, a chicken Kiev) can't drag around; we show the average and the 25th–75th percentile range alongside.</li>
       </ul>
 
       <h3>How we keep it honest</h3>
@@ -1366,13 +1370,16 @@ function renderIndex() {
 
   // Meal + method card
   const mb = document.getElementById('methodBody');
-  if (mb) mb.innerHTML = `Each restaurant's bill = <strong>2 adult entrees + 2 kid portions + 2 non-alcoholic drinks</strong>, plus ${(P.stats.tax*100).toFixed(3)}% sales tax and an ${(P.stats.tip*100).toFixed(0)}% tip. ` +
-    `We pin the exact adult and kid dishes at each place and re-price <em>those same items</em> every month (drinks standardized at $${P.stats.beveragePrice.toFixed(2)}). ` +
-    `The headline is the <strong>median</strong> bill across the panel — robust to a few pricey institutions; we show the average and the middle-half range too.`;
+  if (mb) mb.innerHTML = `The bundle fits how a family actually orders, by cuisine — all + ${(P.stats.tax*100).toFixed(3)}% sales tax, an ${(P.stats.tip*100).toFixed(0)}% tip, and 2 drinks (standardized at $${P.stats.beveragePrice.toFixed(2)}):` +
+    `<ul style="margin:0.5rem 0 0;padding-left:1.1rem;">` +
+    `<li><strong>Pizzerias:</strong> one large pizza</li>` +
+    `<li><strong>Chinese:</strong> two shared dishes + an order of egg rolls</li>` +
+    `<li><strong>Everywhere else:</strong> two adult entrees + two kid portions (from a kids' menu where there is one)</li></ul>` +
+    `<div style="margin-top:0.4rem;">We pin the exact dishes at each place and re-price <em>those same items</em> every month. The headline is the <strong>median</strong> bill — robust to a few pricey institutions; the average and middle-half range are shown too.</div>`;
 
   // Panel note + list (grouped by borough, with each restaurant's bill)
   const note = document.getElementById('panelNote');
-  if (note) note.innerHTML = `Every restaurant we track, with the two pinned dishes and the full family bill. A ${'●'} marks a place whose signature entree tops $25.`;
+  if (note) note.innerHTML = `Every restaurant we track, with its pinned dishes and full family bill. A ${'●'} marks a pricier signature entree (over $25).`;
 
   const list = document.getElementById('panelList');
   if (list) {
@@ -1387,8 +1394,9 @@ function renderIndex() {
       byB[b].sort((a, c) => c.bill - a.bill);
       for (const r of byB[b]) {
         const flag = r.overCeiling ? ' <span title="Signature entree over $25" style="color:#b8860b;">●</span>' : '';
+        const items = (r.components || []).map(c => `${c.qty > 1 ? c.qty + '× ' : ''}${c.item} ($${(c.price ?? c.base).toFixed(2)})`).join(' · ');
         html += `<div style="display:flex;justify-content:space-between;gap:1rem;font-size:0.8rem;padding:3px 0;border-bottom:1px dotted #eee;">` +
-          `<span style="color:#444;"><strong>${r.name}</strong>${flag} <span style="color:#bbb;font-size:0.7rem;">${r.cuisine}</span><br><span style="color:#999;font-size:0.72rem;">${r.adultItem} ($${r.adultPrice.toFixed(2)}) · kid: ${r.kidItem} ($${r.kidPrice.toFixed(2)})</span></span>` +
+          `<span style="color:#444;"><strong>${r.name}</strong>${flag} <span style="color:#bbb;font-size:0.7rem;">${r.cuisine}</span><br><span style="color:#999;font-size:0.72rem;">${items}</span></span>` +
           `<span style="font-weight:700;color:#264653;white-space:nowrap;">$${r.bill.toFixed(2)}</span></div>`;
       }
     }

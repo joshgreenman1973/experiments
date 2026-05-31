@@ -5,16 +5,22 @@ City restaurants, plus a one-time citywide cross-section for context.
 
 ## The number we track
 
-For each panel restaurant the monthly bill is:
+A real family-of-four dinner bill, with the bundle sized to how families
+actually order at each kind of restaurant:
 
 ```
-(2 × adult entree + 2 × kid portion + 2 × beverage) × (1 + tax + tip)
-tax = 8.875% (NYC sales tax) · tip = 18% · beverage = $2.50 (standardized)
+pizzerias : 1 large pizza
+chinese   : 2 different shared dishes + 1 order of egg rolls
+everywhere else (standard): 2 adult entrees + 2 kid portions (kids' menu where one exists)
++ 2 drinks ($2.50 each, standardized) ; then x (1 + 8.875% tax + 18% tip)
 ```
 
 The published headline is the **median bill across the panel** (robust to a few
 pricey institutions), shown with the average and the 25th–75th percentile range.
-This is a dollar figure, not an index.
+This is a dollar figure, not an index. Each restaurant's pinned dishes are
+re-priced monthly by deterministic string match. Deterministic guards reject
+desserts/drinks as an entree, require the kid item to be cheaper than the adult,
+and enforce sane price ranges (adult $6–$32; a $25+ signature entree is flagged).
 
 ## The panel (76 restaurants, all five boroughs)
 

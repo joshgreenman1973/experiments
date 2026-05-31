@@ -42,11 +42,10 @@ const activeIds = Object.entries(doc.panel).filter(([id, p]) => p.status !== 'dr
 const panelList = activeIds.map(id => {
   const p = doc.panel[id];
   const sr = last.restaurants[id]; // present only if priced this month
+  const comps = (sr?.components || p.components).map(c => ({ role: c.role, item: c.item, price: c.price ?? c.base, qty: c.qty }));
   return {
     id, name: p.name, borough: p.borough, cuisine: p.cuisine, neighborhood: p.neighborhood, platform: p.platform,
-    adultItem: p.adultEntree.item, adultPrice: sr?.adultEntree?.price ?? p.adultEntree.base,
-    kidItem: p.kidPortion.item, kidPrice: sr?.kidPortion?.price ?? p.kidPortion.base,
-    beverage: doc.meta.beveragePrice,
+    mealType: p.mealType, components: comps, beverage: doc.meta.beveragePrice, beverageQty: doc.meta.beverageQty,
     bill: sr?.bill ?? p.baselineBill,
     pricedThisMonth: !!sr, pageChanged: sr?.pageChanged ?? null, overCeiling: !!p.overCeiling,
   };
