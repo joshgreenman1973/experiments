@@ -874,6 +874,12 @@
     border-radius: 2px;
     flex-shrink: 0;
   }
+
+  /* Embed mode (?embed=1): hide the page header so the host article supplies
+     its own headline. Background stays white so it blends inside Ghost cards. */
+  html.embed body { background: transparent; }
+  html.embed header { display: none; }
+  html.embed .tabs { margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -881,19 +887,19 @@
 <header>
   <div class="eyebrow">Curb economics</div>
   <h1>New York City has 3 million curb parking spaces. It charges for 85,000 of them.</h1>
-  <p class="subtitle">Here's the map of what's metered, the math on what the other 97% could be worth, and how peer cities price their curbs.</p>
-  <p style="font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-top: 20px;">Jump to: <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none; margin-left: 4px;">Meter map</a> · <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none;">Revenue calculator</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">What it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">Peer cities</a></p>
+  <p class="subtitle">Here's the math on what the other 97% could be worth, the map of what's metered, and how peer cities price their curbs.</p>
+  <p style="font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-top: 20px;">Jump to: <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none; margin-left: 4px;">Revenue calculator</a> · <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none;">Meter map</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">What it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">Peer cities</a></p>
 </header>
 
 <div class="tabs" id="tabs">
-  <button class="tab active" data-tab="map">Meter map</button>
-  <button class="tab" data-tab="calc">Revenue calculator</button>
+  <button class="tab active" data-tab="calc">Revenue calculator</button>
+  <button class="tab" data-tab="map">Meter map</button>
   <button class="tab" data-tab="transit">What it could fund</button>
   <button class="tab" data-tab="cities">How other cities do it</button>
 </div>
 
 <!-- MAP TAB -->
-<div id="tab-map" class="tab-content active">
+<div id="tab-map" class="tab-content">
   <div id="map-container">
     <div class="map-stats">
       <div class="stat-card s-green">
@@ -944,7 +950,7 @@
 </div>
 
 <!-- CALCULATOR TAB -->
-<div id="tab-calc" class="tab-content">
+<div id="tab-calc" class="tab-content active">
   <div id="calc-container">
 
     <div class="compare-strip">
@@ -960,6 +966,9 @@
       <h2>What if NYC charged for street parking?</h2>
       <p>
         New York City has roughly 3 million curb-side parking spaces. About 85,000 — just 2.8% — are metered, generating roughly $258 million a year. The rest are free. Adjust the sliders below to model what different pricing structures could raise.
+      </p>
+      <p style="margin-top: 10px;">
+        The policy questions here are not just "parkers versus everyone else." They are also tradeoffs <em>within</em> the parking world. A residential-permit fee would cost current parkers money — but in exchange it would push out commuters from other neighborhoods, vehicles with out-of-state plates and people using the curb as long-term car storage, making spots dramatically more available and reliable on permit blocks. For many residents, paying a modest monthly fee for a near-guaranteed spot is a better deal than paying nothing to circle for twenty minutes after work.
       </p>
       <p style="margin-top: 10px;">
         Economist Donald Shoup has argued that free curb parking generates excess traffic, raises the cost of housing and that the market value of the land devoted to free parking in the U.S. may exceed the value of all the cars parked on it. At the same time, car owners in New York City value free parking precisely because owning a car here is already expensive and often inconvenient — and many people, including families, residents with mobility issues and workers with difficult commutes or odd-hour shifts, genuinely depend on private vehicles.
@@ -1639,8 +1648,8 @@ async function loadMeters() {
   }
 }
 
-// Init map on load since it's the default tab
-initMap();
+// Map initializes lazily when its tab is first opened (see tab-switch handler).
+// Initializing Leaflet into a display:none container produces broken tiles.
 
 // CALCULATOR
 const TOTAL_SPACES = 3000000;
@@ -2137,6 +2146,33 @@ document.querySelectorAll('a[data-jump]').forEach(a => {
     document.getElementById('tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 });
+
+// EMBED MODE: ?embed=1 hides the page header and posts a height message to the
+// parent frame so the embedding article (Ghost, etc.) can autosize the iframe.
+// Embedding snippet for the parent page:
+//   <iframe src="https://joshgreenman1973.github.io/experiments/nyc-parking-revenue/index.html?embed=1"
+//           style="width:100%;border:0;display:block" scrolling="no" id="parking-embed"><\/iframe>
+//   <script>
+//     window.addEventListener('message', e => {
+//       if (e.data && e.data.type === 'parking-embed-height') {
+//         document.getElementById('parking-embed').style.height = e.data.height + 'px';
+//       }
+//     });
+//   <\/script>
+// (the "<\/" escapes are only for the inline comment; copy them as "</" when you paste.)
+(function() {
+  if (!new URLSearchParams(location.search).has('embed')) return;
+  document.documentElement.classList.add('embed');
+  const post = () => {
+    const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    try { parent.postMessage({ type: 'parking-embed-height', height: h }, '*'); } catch (e) {}
+  };
+  window.addEventListener('load', post);
+  if (window.ResizeObserver) new ResizeObserver(post).observe(document.body);
+  document.addEventListener('click', () => setTimeout(post, 80));
+  document.addEventListener('input', () => setTimeout(post, 80));
+  setInterval(post, 1500);
+})();
 </script>
 
 </body>
