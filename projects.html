@@ -795,7 +795,7 @@
 let DATA = null;
 // Holds the decrypted project arrays per audience. Populated as the user
 // successfully unlocks each tab. Session-scoped only — cleared on tab close.
-const UNLOCKED = { general: null, private: null };
+const UNLOCKED = { general: null, professional: null, personal: null };
 let ACTIVE_TAB = 'general';
 
 const $ = (id) => document.getElementById(id);
@@ -817,10 +817,12 @@ async function load() {
   // General projects are public — load them immediately
   UNLOCKED.general = DATA.projects;
 
-  // Tab counts
-  const counts = DATA.counts || { general: (DATA.projects||[]).length, private: 0 };
+  // Tab counts. The visible "Personal / In development" tab shows the
+  // professional/in-development count; the personal group has its own count
+  // surfaced on the locked "Personal" link inside that tab.
+  const counts = DATA.counts || { general: (DATA.projects||[]).length, professional: 0, personal: 0 };
   $('count-general').textContent = '· ' + counts.general;
-  $('count-private').textContent = '· ' + (counts.private || (DATA.locked?.private?.count || 0));
+  $('count-professional').textContent = '· ' + (counts.professional || (DATA.locked?.professional?.count || 0));
 
   // Tab wiring
   for (const btn of document.querySelectorAll('.tab')) {
