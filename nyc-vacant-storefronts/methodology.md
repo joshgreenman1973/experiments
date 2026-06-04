@@ -1,55 +1,61 @@
-# Methodology: NYC vacant storefronts
+# Methodology: NYC vacant storefronts, six years of the registry
+
+## What this tool is
+
+An interactive map and dashboard built on the **Storefronts Reported Vacant or Not (SRVN)** registry published by the New York City Department of Finance (DOF). It is a companion and counterpoint to the NYC Comptroller's 2026 report ["Who's Minding the Storefronts?"](https://comptroller.nyc.gov/reports/whos-minding-the-storefronts/).
+
+The two use different data and answer different questions:
+
+| | Comptroller report | This tool |
+|---|---|---|
+| Source | Live XYZ (private vendor) | NYC DOF registry (public) |
+| Observation | One field snapshot (April 2026) | Six annual owner filings (2020–2025) |
+| Coverage | ~142,000 storefronts surveyed | ~67,000 storefronts that owners registered |
+| Strength | A true citywide vacancy *rate* | The *duration* of vacancy at a given address |
+
+The comptroller's snapshot is better for the citywide rate (it observes every visible storefront). The registry is better for **persistence** — because the same owner re-files year after year, you can follow a single storefront through time and see how long it has actually sat empty, rather than estimating it.
 
 ## Data source
 
-This dashboard draws from the **Storefronts Reported Vacant or Not (SRVN)** dataset published by the NYC Department of Finance (DOF) on NYC Open Data.
-
-**API endpoint:** `https://data.cityofnewyork.us/resource/92iy-9c3n.json`
+- **Dataset:** [Storefronts Reported Vacant or Not (92iy-9c3n)](https://data.cityofnewyork.us/dataset/92iy-9c3n), NYC Open Data
+- **API endpoint:** `https://data.cityofnewyork.us/resource/92iy-9c3n.json`
+- **Rows pulled for this build:** 414,884 registration records
+- **Reporting periods:** ending December 2019/June 2020 through 2025
 
 ### Background: Local Law 157 of 2019
 
-In 2019, the New York City Council passed Local Law 157, which required the Department of Finance to establish and maintain a public registry of commercial storefronts and their vacancy status. The law was designed to improve transparency around commercial vacancy patterns across the city, particularly in response to growing concerns about empty storefronts in retail corridors.
+Local Law 157 directed the Department of Finance to maintain a public registry of ground-floor and second-floor commercial storefronts and their vacancy status. Owners of covered properties report annually whether each storefront is vacant or occupied. The registry is the result.
 
-Under the law, owners of ground-floor or second-floor commercial properties are required to report annually whether their storefronts are vacant or occupied. The resulting dataset -- the SRVN registry -- is published on NYC Open Data and updated as new filings come in.
+## How the data is processed
 
-## What counts as "vacant"
+The raw registry has one row per filing. A build script (`build_data.py`) collapses these into one record per **storefront**, then writes a compact `data/storefronts.json` the page loads directly.
 
-A storefront is classified as vacant based on the property owner's self-reported filing. The dataset contains two vacancy fields depending on the reporting period:
+1. **Storefront identity.** Rows are grouped by `BBL` (borough-block-lot) + property number + unit. A single building (BBL) can contain several storefronts; the unit number keeps them separate.
+2. **Year normalization.** Reporting-period labels like "2019 and 2020" are reduced to the period's **end year** (here, 2020). The years on the map therefore run 2020–2025.
+3. **Vacancy per year.** For each storefront and year, it is coded **vacant** if either `vacant_on_12_31` or `vacant_6_30_or_date_sold` is "YES." If any filing in a year reports vacancy, that year is counted vacant.
+4. **Consecutive-year streak.** The headline persistence number is the count of consecutive years a storefront was reported vacant, ending at the most recent year it appears. "Vacant 6 years running" means the owner filed in all six periods and reported the space vacant each time.
 
-- `vacant_on_12_31`: Whether the storefront was vacant as of December 31 of the reporting year
-- `vacant_6_30_or_date_sold`: Whether the storefront was vacant as of June 30 or the date sold
+## The numbers on the page
 
-A storefront is coded as vacant if either field contains "YES." If both fields are absent or contain "NO," the storefront is coded as occupied.
+- **Reported vacant** — storefronts vacant at their most recent filing.
+- **Chronic (2+ years running)** — vacant in at least two consecutive filings.
+- **Vacant all six years** — reported vacant in every one of the six periods (the longest-empty list).
+- **Clustering ("76% more likely")** — among registered storefronts, those within ~75 meters of at least one storefront that was vacant at last filing have a ~19.8% vacancy rate, versus ~11.2% for those with no vacant neighbor in range — about 76% higher. This independently reproduces the comptroller's finding that vacancy clusters spatially. Computed citywide at build time.
+- **Reported vacancies by year** — the count of storefronts reported vacant in each calendar period. This rises and falls partly with how many owners filed that year, so read it as a trend in *the registry*, not a precise citywide count.
+- **Year slider / Play** — for any year 2020–2025, the map shows storefronts reported vacant in that year, shaded by how many consecutive years they had been vacant up to that point.
 
-## Deduplication
+## Important caveats
 
-When multiple filings exist for the same property (identified by BBL -- borough, block, lot), the dashboard uses only the most recent reporting year for each property. This prevents double-counting properties that have filed in multiple years.
+- **Self-reported and not a census.** Everything here is what owners told the city. Coverage is incomplete and compliance varies, so these figures describe **registered** storefronts, not all storefronts. The registry "vacancy rate" (~17% at last filing) is higher than the comptroller's observed 11% partly because owners are more likely to file — or keep filing — when a space is empty. Do not read it as the true citywide rate; use the comptroller's snapshot for that.
+- **Filing gaps look like absences.** If an owner stops filing, the storefront simply drops out of later years. A streak counts only years actually filed, so a six-year streak is strong evidence of persistent vacancy, but a *short* streak can reflect a missing filing rather than a re-occupancy.
+- **No reason for vacancy.** The data does not say whether a space is actively marketed, mid-renovation, warehoused, or awaiting demolition. Where the owner reported active construction, the popup notes it.
+- **Lease-expiration dates** (`expir_dt_of_most_recent_lease`) are present for only a minority of vacant records and are shown only where reported.
+- **Geocoding.** Coordinates are derived from the property address and may sit at the building rather than the exact storefront entrance, especially on corner lots and large buildings.
 
-## How the vacancy rate is calculated
+## Reproducing this
 
-The vacancy rate displayed is:
-
-**Vacancy rate = (number of vacant storefronts) / (total registered storefronts) x 100**
-
-This is the vacancy rate among properties that have filed with DOF, not among all commercial storefronts citywide. The denominator includes only storefronts in the registry.
-
-## Community district labels
-
-Community district codes in the dataset are three-digit numbers where the first digit represents the borough (1 = Manhattan, 2 = Bronx, 3 = Brooklyn, 4 = Queens, 5 = Staten Island) and the remaining digits represent the district number. The dashboard translates these into labels like "MN 1" (Manhattan Community District 1) or "BK 7" (Brooklyn Community District 7).
-
-## Limitations
-
-- **Self-reported data.** Vacancy status is reported by property owners, not independently verified. Owners may have incentives to misreport, and compliance with the filing requirement varies.
-- **Incomplete coverage.** Not all commercial storefronts in the city are captured. The registry depends on owners filing as required by law, and enforcement of the filing requirement has been inconsistent.
-- **Lag.** The data reflects conditions at specific reporting dates (December 31 or June 30), not real-time vacancy. A storefront that became vacant or occupied between reporting dates will not be reflected until the next filing.
-- **Definition of vacancy.** The law defines vacancy based on owner reporting. A storefront with a signed lease but no active business may or may not be reported as vacant, depending on how the owner interprets the question.
-- **No distinction between types of vacancy.** The data does not distinguish between storefronts that are actively marketed for lease, those undergoing renovation, those held vacant for other reasons, or those in buildings slated for demolition or redevelopment.
-- **Geographic accuracy.** Latitude and longitude coordinates are derived from property addresses and may not precisely reflect the storefront entrance location, especially for corner properties or large buildings.
-
-## Other data considered
-
-The DOB NOW: Build - Approved Permits dataset (`https://data.cityofnewyork.us/resource/rbx6-tga4.json`) was considered as a secondary source to provide context on new retail construction near vacant storefronts. It is not currently integrated into the dashboard but could be added in future iterations to show where new commercial space is being built relative to existing vacancies.
+Run `python3 build_data.py` to re-pull the registry and regenerate `data/storefronts.json`. The script is self-contained (standard-library `urllib` only) and prints the summary metadata it writes.
 
 ## Update frequency
 
-The SRVN dataset is updated on a rolling basis as property owners file their annual reports. The dashboard fetches fresh data each time it loads and displays only the most recent filing for each property.
+The DOF registry updates on a rolling basis as owners file. Re-running the build script refreshes the underlying file; the page itself loads the pre-built JSON for speed.
