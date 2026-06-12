@@ -644,6 +644,68 @@ body::before {
 }
 .timeline-msg a { color: var(--gold-dim); }
 
+/* ── CLICK-TO-EXPAND RECORDS ── */
+.request-item { cursor: pointer; transition: background 0.15s; }
+.request-item:hover { background: rgba(13, 27, 42, 0.025); }
+.request-item .request-foil-id { cursor: pointer; }
+.request-chevron {
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--slate);
+  transition: transform 0.18s;
+  user-select: none;
+}
+.request-item.expanded .request-chevron { transform: rotate(90deg); }
+.request-detail {
+  grid-column: 1 / -1;
+  display: none;
+  margin-top: 0.6rem;
+  padding-top: 0.8rem;
+  border-top: 1px dashed var(--rule);
+  cursor: default;
+}
+.request-item.expanded .request-detail { display: block; }
+.detail-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem 1.2rem;
+  margin-bottom: 0.6rem;
+}
+.detail-fact .label {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.6rem;
+  margin-bottom: 0.1rem;
+}
+.detail-fact .value { font-size: 0.82rem; color: var(--slate); }
+.detail-fact .value.overdue { color: var(--red); font-weight: 600; }
+.detail-letter {
+  font-size: 0.8rem;
+  color: var(--slate);
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0.4rem 0 0.6rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--rule);
+}
+.detail-openrecords {
+  display: inline-block;
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  padding: 0.35rem 0.7rem;
+  text-decoration: none;
+}
+.detail-openrecords:hover { background: var(--ink); color: var(--paper, #faf7ef); }
+
 /* ── TOPIC GRID ── */
 .topic-grid {
   display: grid;
@@ -1215,6 +1277,15 @@ function init() {
   hydrateFromURL();
 
   // Events
+  // Click anywhere on a record to expand/collapse its detail panel.
+  // Delegated so it survives feed re-renders; clicks on links are left alone.
+  document.getElementById('request-feed').addEventListener('click', (e) => {
+    if (e.target.closest('a')) return; // let FOIL-ID / OpenRecords links work
+    if (e.target.closest('.request-detail')) return; // don't collapse on panel clicks
+    const item = e.target.closest('.request-item');
+    if (item) item.classList.toggle('expanded');
+  });
+
   document.getElementById('search-input').addEventListener('input', debounce(applyFilters, 200));
   document.getElementById('agency-filter').addEventListener('change', applyFilters);
   document.getElementById('status-filter').addEventListener('change', applyFilters);
@@ -1623,18 +1694,42 @@ function renderFeed() {
       detMsg = `<div class="request-determination">“${escapeHtml(truncate(r.determinationMessage, 200))}”</div>`;
     }
 
-    // Richer detail: expected completion date, referral, full action timeline
-    let extra = '';
-    const extraLines = [];
+    // Expandable detail panel: key facts + full determination letter + timeline
+    const facts = [];
+    facts.push(`<div class="detail-fact"><span class="label">Status</span><span class="value">${escapeHtml(r.status || '—')}</span></div>`);
+    facts.push(`<div class="detail-fact"><span class="label">Filed</span><span class="value">${formatDate(r.dateSubmitted) || '—'}</span></div>`);
+    if (r.dateDue) {
+      facts.push(`<div class="detail-fact"><span class="label">Response due</span><span class="value">${formatDate(r.dateDue)}</span></div>`);
+    }
+    const overdue = businessDaysOverdue(r);
+    const pending = daysPending(r);
+    if (overdue != null) {
+      facts.push(`<div class="detail-fact"><span class="label">Overdue by</span><span class="value overdue">${overdue} day${overdue !== 1 ? 's' : ''}</span></div>`);
+    } else if (pending != null) {
+      facts.push(`<div class="detail-fact"><span class="label">Open for</span><span class="value">${pending} day${pending !== 1 ? 's' : ''}</span></div>`);
+    }
+    if (r.responseTimeDays != null) {
+      facts.push(`<div class="detail-fact"><span class="label">Response time</span><span class="value">${r.responseTimeDays} day${r.responseTimeDays !== 1 ? 's' : ''}</span></div>`);
+    }
     if (r.expectedCompletionDate) {
-      extraLines.push(`<span class="label">Agency promised by</span> ${escapeHtml(r.expectedCompletionDate)}`);
+      facts.push(`<div class="detail-fact"><span class="label">Agency promised by</span><span class="value">${escapeHtml(r.expectedCompletionDate)}</span></div>`);
+    }
+    if (r.determination) {
+      facts.push(`<div class="detail-fact"><span class="label">Determination</span><span class="value">${escapeHtml(r.determination)}</span></div>`);
     }
     if (r.referralAgency && r.referralAgency !== 'Unspecified') {
-      extraLines.push(`<span class="label">Referred to</span> ${escapeHtml(r.referralAgency)}`);
+      facts.push(`<div class="detail-fact"><span class="label">Referred to</span><span class="value">${escapeHtml(r.referralAgency)}</span></div>`);
     }
-    if (extraLines.length) {
-      extra += `<div class="request-extra">${extraLines.join('<br>')}</div>`;
+    if (r.submissionMethod) {
+      facts.push(`<div class="detail-fact"><span class="label">Filed via</span><span class="value">${escapeHtml(r.submissionMethod)}</span></div>`);
     }
+
+    let letterHtml = '';
+    if (r.determinationMessage) {
+      letterHtml = `<div class="detail-letter">“${linkify(r.determinationMessage)}”</div>`;
+    }
+
+    let timelineHtml = '';
     if (Array.isArray(r.timeline) && r.timeline.length) {
       const steps = r.timeline.map(t => {
         const msg = t.message ? `<div class="timeline-msg">${linkify(t.message)}</div>` : '';
@@ -1643,11 +1738,25 @@ function renderFeed() {
             ${msg}
           </div>`;
       }).join('');
-      extra += `<details class="request-timeline">
-          <summary>Agency action timeline (${r.timeline.length})</summary>
+      timelineHtml = `<div class="request-timeline-block">
+          <div class="request-extra"><span class="label">Agency action timeline (${r.timeline.length})</span></div>
           ${steps}
-        </details>`;
+        </div>`;
     }
+
+    const noExtra = !r.determination && !(r.timeline && r.timeline.length) && !r.expectedCompletionDate;
+    const detailNote = noExtra
+      ? `<div class="request-extra">No agency response recorded yet. Open the request on OpenRecords for the latest status.</div>`
+      : '';
+
+    const detailPanel = `
+        <div class="request-detail">
+          <div class="detail-facts">${facts.join('')}</div>
+          ${letterHtml}
+          ${timelineHtml}
+          ${detailNote}
+          <a class="detail-openrecords" href="${r.url || '#'}" target="_blank" rel="noopener">View full request on OpenRecords ↗</a>
+        </div>`;
 
     const kickerLabel = r.isUnderReview
       ? 'Subject pending'
@@ -1658,15 +1767,16 @@ function renderFeed() {
         <div class="request-meta">
           <a class="request-foil-id" href="${r.url || '#'}" target="_blank" rel="noopener">${escapeHtml(r.foilId)}</a>
           <span class="request-date">${formatDateShort(r.dateSubmitted)}</span>
+          <span class="request-chevron" aria-hidden="true">›</span>
         </div>
         <div class="request-body">
           <div class="request-subject-kicker">${kickerLabel}</div>
           <h3${titleClass}>${displayTitle}</h3>
           <div class="request-agency">${agencyDisplay}</div>
           ${detMsg}
-          ${extra}
         </div>
         <div class="request-badges">${badges}</div>
+        ${detailPanel}
       </div>`;
   }).join('');
 
