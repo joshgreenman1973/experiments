@@ -502,6 +502,42 @@ body::before {
   font-weight: 400;
 }
 
+.request-body h3.spam {
+  font-weight: 400;
+  color: var(--slate);
+  text-decoration: line-through;
+  text-decoration-color: rgba(100, 116, 139, 0.5);
+}
+
+/* Explainer note + spam flag */
+.feed-note {
+  font-size: 0.78rem;
+  color: var(--slate);
+  line-height: 1.5;
+  margin: 0.2rem 0 1rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(100, 116, 139, 0.07);
+  border-left: 2px solid rgba(100, 116, 139, 0.35);
+  border-radius: 2px;
+}
+.feed-note .info {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  line-height: 1rem;
+  text-align: center;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: help;
+  margin-left: 0.15rem;
+}
+.spam-flag {
+  color: var(--red);
+  cursor: help;
+}
+
 .request-agency {
   font-size: 0.85rem;
   color: var(--slate);
@@ -1022,6 +1058,10 @@ body::before {
     </div>
   </div>
 
+  <div class="feed-note">
+    Some subjects are spam or test submissions, not genuine records requests. OpenRecords is a public web form, so — like any open submission system — it draws SEO and tech-support-scam spam (fake QuickBooks, crypto or airline &ldquo;support&rdquo; listings posted to get indexed by search engines) plus placeholder or test entries. Every subject is shown exactly as filed; obvious spam is flagged.<span class="info" title="Spammers post fake customer-support content to public sites so search engines index it, lending bogus support-line scams credibility from a government-adjacent domain. Junk entries are often test submissions, or a placeholder subject where the real request sits in the body — which OpenRecords does not publish. None of these are NYC government records requests.">i</span>
+  </div>
+
   <div class="filter-bar">
     <div class="filter-group search">
       <label class="filter-label" for="search-input">Search</label>
@@ -1403,6 +1443,29 @@ function primaryTopic(title) {
   return topicsFor(title)[0] || null;
 }
 
+// SEO / tech-support-scam spam injected into the public OpenRecords form.
+// Conservative: requires a scam-support signal, not just a brand mention, so a
+// genuine FOIL about (e.g.) a QuickBooks contract isn't falsely flagged.
+function looksLikeSpam(t) {
+  if (!t) return false;
+  const s = t.toLowerCase();
+  const supportWord = /support|help(line| ?desk)?|service|care|customer|payroll|wallet|crypto|call/;
+  // Unambiguous scam-template formatting paired with a support word
+  if (/\{\{.*\}\}|【.*】|\[\(.*\)\]|~~/.test(s) && supportWord.test(s)) return true;
+  // A real toll-free support number (1-800/833/844/855/866/877/888 + 7 digits)
+  if (/\b1[\s.-]?8(00|33|44|55|66|77|88)[\s.-]?\d{3}[\s.-]?\d{4}\b/.test(s)) return true;
+  // 24/7 (or "24 hour") availability + a support word
+  if (/24[\/x]7|24\s?hours?/.test(s) && supportWord.test(s)) return true;
+  // Brand + support/helpline combos typical of these posts
+  if (/(quickbooks|coinbase|crypto\.com|binance|metamask|ledger|robinhood|cash app|venmo|paypal|norton|mcafee|wizz air|expedia|gemini)\b/.test(s)
+      && /(support|customer (service|care)|help(line| ?desk)?|contact|wallet|recover|safe)/.test(s)) {
+    return true;
+  }
+  // Generic "customer support number/helpline/desk" listings
+  if (/customer (service|support|care)\s*(number|phone|helpline|desk)/.test(s)) return true;
+  return false;
+}
+
 function looksLikeLowQualityTitle(t) {
   if (!t) return false;
   const s = t.trim();
@@ -1654,8 +1717,9 @@ function renderFeed() {
   const page = filtered.slice(start, start + PER_PAGE);
 
   feed.innerHTML = page.map((r, i) => {
-    const lowQuality = !r.isUnderReview && looksLikeLowQualityTitle(r.title);
-    const titleClass = r.isUnderReview ? ' class="under-review"' : (lowQuality ? ' class="low-quality"' : '');
+    const isSpam = !r.isUnderReview && looksLikeSpam(r.title);
+    const lowQuality = !r.isUnderReview && !isSpam && looksLikeLowQualityTitle(r.title);
+    const titleClass = r.isUnderReview ? ' class="under-review"' : (isSpam ? ' class="spam"' : (lowQuality ? ' class="low-quality"' : ''));
     const displayTitle = r.isUnderReview ? 'Under review' : escapeHtml(r.title || 'Untitled');
 
     let badges = '';
@@ -1760,6 +1824,8 @@ function renderFeed() {
 
     const kickerLabel = r.isUnderReview
       ? 'Subject pending'
+      : isSpam
+      ? '<span class="spam-flag" title="Not a genuine records request — SEO or tech-support-scam spam posted to the public OpenRecords form to get indexed by search engines. Shown verbatim for transparency.">⚑ Likely spam — not a real request</span>'
       : (lowQuality ? 'Subject as filed (verbatim)' : 'Subject as filed');
 
     return `
