@@ -141,6 +141,7 @@
     padding: 48px 22px 14px;
     display: flex; align-items: baseline; gap: 14px;
     border-bottom: 2px solid var(--section);
+    scroll-margin-top: 84px; /* clear the sticky controls bar on jump */
   }
   .group-heading:first-child { padding-top: 24px; }
   .group-heading .kicker {
@@ -319,11 +320,45 @@
   }
   .index-rail-toggle:hover { color: var(--accent); }
   .index-list { display: flex; flex-direction: column; }
+  /* Quick-jump chips across the top of the rail */
+  .index-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 0 0 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .index-chip {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 600;
+    color: var(--section, var(--ink-3));
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .index-chip:hover { border-color: var(--section); background: color-mix(in srgb, var(--section) 8%, transparent); }
+  /* Section header doubles as a jump button */
   .index-list .index-section {
+    display: flex; align-items: baseline; gap: 6px;
+    width: 100%;
+    text-align: left;
+    background: none; border: 0; cursor: pointer;
     font-family: "JetBrains Mono", monospace;
     font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--section, var(--ink-3)); font-weight: 600;
     margin: 18px 0 7px;
+    padding: 0 0 4px;
+    border-bottom: 1px solid transparent;
+  }
+  .index-list .index-section:hover { border-bottom-color: var(--section); }
+  .index-section-n {
+    margin-left: auto;
+    color: var(--ink-4);
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
   }
   .index-list .index-section:first-child { margin-top: 0; }
   .index-list a, .index-list span.no-link {
@@ -1205,6 +1240,7 @@ function render() {
         'Fun stuff':        { kicker: '§ 4', blurb: 'Food, history, oddities and things made for the joy of it.' },
       };
       const meta = SECTION_META[key] || { kicker: 'section', blurb: '' };
+      heading.id = 'sec-' + slugify(key);
       heading.style.setProperty('--section', sectionVar(key));
       heading.innerHTML =
         `<span class="kicker">${escapeHtml(meta.kicker)}</span>` +
@@ -1229,9 +1265,14 @@ function render() {
   observeThumbnails();
 }
 
+function slugify(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 // Clean text index in the side rail: every project name → its live GitHub
 // Pages link. Mirrors the current tab's filtered/sorted list. Grouped by
-// section when sorting "By category", otherwise a flat list.
+// section when sorting "By category" — and there the section headers double
+// as jump links that scroll the grid to that section, with quick chips up top.
 function renderIndexRail(list, sort) {
   const nav = $('indexList');
   nav.innerHTML = '';
@@ -1250,14 +1291,29 @@ function renderIndexRail(list, sort) {
     const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
     const groups = {};
     for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
-    const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()];
+    const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()]
+      .filter(k => groups[k]);
+    // Quick-jump chips across the top, one per section.
+    if (ordered.length > 1) {
+      const chips = ordered.map(key =>
+        `<button type="button" class="index-chip" data-jump="${slugify(key)}" style="--section:${sectionVar(key)}">${escapeHtml(key)}</button>`
+      ).join('');
+      nav.insertAdjacentHTML('beforeend', `<div class="index-chips">${chips}</div>`);
+    }
     let html = '';
     for (const key of ordered) {
-      if (!groups[key]) continue;
-      html += `<div class="index-section" style="--section:${sectionVar(key)}">${escapeHtml(key)}</div>`;
+      html += `<button type="button" class="index-section" data-jump="${slugify(key)}" style="--section:${sectionVar(key)}">` +
+        `${escapeHtml(key)}<span class="index-section-n">${groups[key].length}</span></button>`;
       for (const p of groups[key]) html += linkFor(p);
     }
-    nav.innerHTML = html;
+    nav.insertAdjacentHTML('beforeend', html);
+    // Wire jump-to-section scrolling (chips + headers).
+    for (const el of nav.querySelectorAll('[data-jump]')) {
+      el.addEventListener('click', () => {
+        const target = document.getElementById('sec-' + el.dataset.jump);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   } else {
     nav.innerHTML = list.map(linkFor).join('');
   }

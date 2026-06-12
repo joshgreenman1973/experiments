@@ -79,6 +79,7 @@ function applyOverrides(record) {
     if (!o.previewUrl) record.previewUrl = o.liveUrl;
   }
   if (o.previewUrl) record.previewUrl = o.previewUrl;
+  if (o.title) record.title = o.title;
   if (o.description) record.description = o.description;
   if (o.status) record.status = o.status;
   if (o.audience) record.audience = o.audience;
@@ -320,7 +321,7 @@ function scan() {
       const lastCommit = sh(`git log -1 --format=%cI -- "${rel}"`, ROOT);
       const lastCommitMsg = sh(`git log -1 --format=%s -- "${rel}"`, ROOT);
       const created = sh(`git log --reverse --format=%cI -- "${rel}" 2>/dev/null | head -1`, ROOT);
-      out.push({
+      const looseRec = applyOverrides({
         name: e.name.replace(/\.html$/, ''),
         title,
         description: null,
@@ -342,6 +343,7 @@ function scan() {
         created: created || null,
         isLooseFile: true,
       });
+      if (looseRec) out.push(looseRec);
     }
   }
   return out;
