@@ -379,8 +379,19 @@ async function scrapeDetail(page, foilId) {
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
 
-    // Wait for responses section to load (they load via AJAX)
-    await page.waitForTimeout(5000);
+    // Responses load via AJAX. Wait until the "Loading responses..." placeholder
+    // is gone (or 15s elapse) instead of a fixed sleep — slow loads were the main
+    // reason responses came back empty.
+    await page
+      .waitForFunction(
+        () => {
+          const t = document.body.innerText;
+          return /Responses/.test(t) && !/Loading responses\.\.\./.test(t);
+        },
+        { timeout: 15000 }
+      )
+      .catch(() => {});
+    await page.waitForTimeout(1500);
 
     const detail = await page.evaluate(() => {
       const bodyText = document.body.innerText;
@@ -430,7 +441,30 @@ async function scrapeDetail(page, foilId) {
         responses.push({ number: num, type, message, date: dateStr });
       }
 
-      return { title, responses };
+      // The full agency letter for each response lives in a hidden modal
+      // (#response-modal-<id>). Modals are in the same newest-first order as the
+      // numbered response rows, so zip them positionally to recover the complete
+      // letter text the response list truncates or omits.
+      const modalBodies = [...document.querySelectorAll("[id^='response-modal-']")]
+        .map((m) => {
+          const body = m.querySelector(".modal-body") || m;
+          return (body.innerText || "").trim();
+        });
+      responses.forEach((r, idx) => {
+        const full = modalBodies[idx];
+        if (full && full.length > (r.message || "").length) r.message = full;
+        if (full) r.letter = full;
+      });
+
+      // Expected completion date the agency promised in its acknowledgment
+      // (distinct from the statutory due date already tracked).
+      let expectedCompletionDate = "";
+      for (const b of modalBodies) {
+        const m = b.match(/Expected date of completion:\s*(.+)/i);
+        if (m) { expectedCompletionDate = m[1].trim(); break; }
+      }
+
+      return { title, responses, expectedCompletionDate };
     });
 
     return detail;
@@ -438,6 +472,83 @@ async function scrapeDetail(page, foilId) {
     console.error(`  Failed to scrape ${foilId}: ${err.message}`);
     return null;
   }
+}
+
+// Merge a scraped detail payload into an existing entry: full action timeline,
+// expected-completion date, determination (incl. no-records/referral), response
+// time. Shared by the live scraper and the one-off backfill.
+function applyDetail(entry, detail) {
+  if (detail.title && detail.title !== "* Under Review") {
+    entry.title = detail.title;
+  }
+  entry.responses = detail.responses;
+  entry.detailScraped = true;
+  if (detail.expectedCompletionDate) {
+    entry.expectedCompletionDate = detail.expectedCompletionDate;
+  }
+
+  // Full ordered action timeline (oldest -> newest) of everything the agency
+  // did: acknowledgment, extension(s), closing/determination, with full letters.
+  // OpenRecords numbers responses newest-first (#1 = most recent), so sort by
+  // number descending to get oldest -> newest chronological order.
+  entry.timeline = [...detail.responses]
+    .sort((a, b) => (b.number || 0) - (a.number || 0))
+    .map((r) => ({ type: r.type, date: r.date, message: r.message || "" }));
+
+  // Derive determination from responses
+  const closing = detail.responses.find((r) => r.type === "CLOSING");
+  const denial = detail.responses.find((r) => r.type === "DENIAL");
+  const partialDenial = detail.responses.find((r) => r.type.includes("PARTIAL"));
+  if (denial) {
+    entry.determination = "Denied";
+    entry.determinationMessage = denial.message;
+    entry.determinationDate = denial.date;
+  } else if (partialDenial) {
+    entry.determination = "Partially Denied";
+    entry.determinationMessage = partialDenial.message;
+    entry.determinationDate = partialDenial.date;
+  } else if (closing) {
+    // A "CLOSING" can mean the records were produced OR that the agency had no
+    // responsive records and is referring the requester elsewhere. Distinguish
+    // them from the letter text so "Fulfilled" stays accurate.
+    const msg = closing.message || "";
+    const noRecords =
+      /does not (?:have|maintain) the records|no records|direct your request to|not the (?:correct|appropriate) agency/i.test(
+        msg
+      );
+    entry.determination = noRecords ? "No responsive records" : "Fulfilled";
+    entry.determinationMessage = msg;
+    entry.determinationDate = closing.date;
+    // Capture a referral target when the agency names one.
+    const ref = msg.match(/direct your request to (?:the )?([A-Z][^.,;]{3,60})/);
+    entry.referralAgency = ref ? ref[1].trim() : noRecords ? "Unspecified" : "";
+  }
+
+  // Calculate response time
+  const lastResp = detail.responses[0]; // responses are in reverse chronological
+  if (entry.dateSubmitted && lastResp?.date) {
+    try {
+      const parseDate = (d) => {
+        const match = d.match(
+          /(\d{2})\/(\d{2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s+(AM|PM)/
+        );
+        if (!match) return null;
+        let [, mm, dd, yyyy, hh, min, ampm] = match;
+        hh = parseInt(hh);
+        if (ampm === "PM" && hh !== 12) hh += 12;
+        if (ampm === "AM" && hh === 12) hh = 0;
+        return new Date(`${yyyy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${min}:00`);
+      };
+      const submitted = new Date(entry.dateSubmitted);
+      const responded = parseDate(lastResp.date);
+      if (submitted && responded) {
+        entry.responseTimeDays = Math.round(
+          (responded - submitted) / (1000 * 60 * 60 * 24)
+        );
+      }
+    } catch {}
+  }
+  return entry;
 }
 
 async function main() {
@@ -499,7 +610,14 @@ async function main() {
   // Step 2: Scrape detail pages for requests that need it
   // Prioritize closed requests (they have titles and determinations)
   const needsDetail = Array.from(existingMap.values())
-    .filter((r) => !r.detailScraped || (r.status === "Closed" && (!r.responses || r.responses.length === 0)))
+    .filter(
+      (r) =>
+        !r.detailScraped ||
+        (r.status === "Closed" && (!r.responses || r.responses.length === 0)) ||
+        // Re-scrape already-detailed closed requests that predate the richer
+        // extraction (no timeline yet) so the new fields backfill over time.
+        (r.status === "Closed" && !r.timeline)
+    )
     .sort((a, b) => {
       // Closed first, then by date
       if (a.status === "Closed" && b.status !== "Closed") return -1;
@@ -535,58 +653,7 @@ async function main() {
 
       if (detail) {
         const entry = existingMap.get(req.foilId);
-        if (entry) {
-          if (detail.title && detail.title !== "* Under Review") {
-            entry.title = detail.title;
-          }
-          entry.responses = detail.responses;
-          entry.detailScraped = true;
-
-          // Derive determination from responses
-          const closing = detail.responses.find((r) => r.type === "CLOSING");
-          const denial = detail.responses.find((r) => r.type === "DENIAL");
-          const partialDenial = detail.responses.find((r) =>
-            r.type.includes("PARTIAL")
-          );
-          if (denial) {
-            entry.determination = "Denied";
-            entry.determinationMessage = denial.message;
-            entry.determinationDate = denial.date;
-          } else if (partialDenial) {
-            entry.determination = "Partially Denied";
-            entry.determinationMessage = partialDenial.message;
-            entry.determinationDate = partialDenial.date;
-          } else if (closing) {
-            entry.determination = "Fulfilled";
-            entry.determinationMessage = closing.message;
-            entry.determinationDate = closing.date;
-          }
-
-          // Calculate response time
-          const lastResp = detail.responses[0]; // responses are in reverse chronological
-          if (entry.dateSubmitted && lastResp?.date) {
-            try {
-              const parseDate = (d) => {
-                const match = d.match(
-                  /(\d{2})\/(\d{2})\/(\d{4})\s+at\s+(\d{1,2}):(\d{2})\s+(AM|PM)/
-                );
-                if (!match) return null;
-                let [, mm, dd, yyyy, hh, min, ampm] = match;
-                hh = parseInt(hh);
-                if (ampm === "PM" && hh !== 12) hh += 12;
-                if (ampm === "AM" && hh === 12) hh = 0;
-                return new Date(`${yyyy}-${mm}-${dd}T${String(hh).padStart(2, "0")}:${min}:00`);
-              };
-              const submitted = new Date(entry.dateSubmitted);
-              const responded = parseDate(lastResp.date);
-              if (submitted && responded) {
-                entry.responseTimeDays = Math.round(
-                  (responded - submitted) / (1000 * 60 * 60 * 24)
-                );
-              }
-            } catch {}
-          }
-        }
+        if (entry) applyDetail(entry, detail);
       }
 
       if ((i + 1) % 10 === 0 || i === needsDetail.length - 1) {
@@ -665,7 +732,14 @@ async function main() {
   console.log("Done!");
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+// Only auto-run the full scrape when executed directly (`node scrape.mjs`),
+// so the helpers can be imported for testing without kicking off a backfill.
+import { pathToFileURL } from "node:url";
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}
+
+export { launchBrowser, scrapeDetail, applyDetail };

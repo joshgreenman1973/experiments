@@ -569,11 +569,80 @@ body::before {
   border: 1px solid rgba(200, 164, 58, 0.3);
 }
 
+.badge-norecords {
+  background: rgba(100, 116, 139, 0.1);
+  color: var(--slate);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
 .badge-days {
   font-size: 0.6rem;
   color: var(--slate);
   text-align: right;
 }
+
+/* ── RICHER DETAIL: expected completion, referral, action timeline ── */
+.request-extra {
+  margin-top: 0.4rem;
+  font-size: 0.74rem;
+  color: var(--slate);
+  line-height: 1.5;
+}
+.request-extra .label {
+  font-weight: 600;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.64rem;
+}
+.request-timeline {
+  margin-top: 0.5rem;
+  max-width: 560px;
+}
+.request-timeline > summary {
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gold-dim);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  list-style: none;
+}
+.request-timeline > summary::-webkit-details-marker { display: none; }
+.request-timeline > summary::before { content: '▸ '; }
+.request-timeline[open] > summary::before { content: '▾ '; }
+.timeline-step {
+  border-left: 2px solid var(--line, rgba(13,27,42,0.12));
+  padding: 0.3rem 0 0.5rem 0.7rem;
+  margin-left: 0.2rem;
+  margin-top: 0.4rem;
+  position: relative;
+}
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 0.5rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.timeline-type {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.timeline-date { font-size: 0.64rem; color: var(--slate); margin-left: 0.4rem; }
+.timeline-msg {
+  font-size: 0.74rem;
+  color: var(--slate);
+  margin-top: 0.2rem;
+  line-height: 1.45;
+  font-style: italic;
+}
+.timeline-msg a { color: var(--gold-dim); }
 
 /* ── TOPIC GRID ── */
 .topic-grid {
@@ -917,6 +986,7 @@ body::before {
         <option value="Fulfilled">Fulfilled</option>
         <option value="Denied">Denied</option>
         <option value="Partially Denied">Partially denied</option>
+        <option value="No responsive records">No responsive records</option>
       </select>
     </div>
     <div class="filter-group">
@@ -1040,6 +1110,11 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+function linkify(s) {
+  return escapeHtml(s || '').replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)\]]/g, m =>
+    `<a href="${m}" target="_blank" rel="noopener">${m}</a>`);
+}
+
 function truncate(s, n) {
   if (!s || s.length <= n) return s || '';
   return s.substring(0, n) + '…';
@@ -1101,7 +1176,11 @@ function init() {
     footParts.push(`Avg. response is the mean days from filing to final agency action across ${withTime.length} closed requests with known response dates.`);
   }
   if (determined.length > 0) {
-    footParts.push(`Denial rate is denials as a share of all ${determined.length} requests with a recorded determination (${denied.length} denied, ${determined.length - denied.length} fulfilled or partially granted).`);
+    const noRecords = allData.requests.filter(r => r.determination === 'No responsive records').length;
+    const granted = determined.length - denied.length - noRecords;
+    const breakdown = [`${denied.length} denied`, `${granted} fulfilled or partially granted`];
+    if (noRecords > 0) breakdown.push(`${noRecords} closed with no responsive records`);
+    footParts.push(`Denial rate is denials as a share of all ${determined.length} requests with a recorded determination (${breakdown.join(', ')}).`);
   }
   if (parts.length > 0 || footParts.length > 0) {
     document.getElementById('stats-footnote').textContent = parts.concat(footParts).join(' ');
@@ -1523,6 +1602,8 @@ function renderFeed() {
       badges += '<span class="badge badge-denied">Denied</span>';
     } else if (r.determination === 'Partially Denied') {
       badges += '<span class="badge badge-partial">Partial</span>';
+    } else if (r.determination === 'No responsive records') {
+      badges += '<span class="badge badge-norecords">No records</span>';
     }
 
     // Response time
@@ -1542,6 +1623,32 @@ function renderFeed() {
       detMsg = `<div class="request-determination">“${escapeHtml(truncate(r.determinationMessage, 200))}”</div>`;
     }
 
+    // Richer detail: expected completion date, referral, full action timeline
+    let extra = '';
+    const extraLines = [];
+    if (r.expectedCompletionDate) {
+      extraLines.push(`<span class="label">Agency promised by</span> ${escapeHtml(r.expectedCompletionDate)}`);
+    }
+    if (r.referralAgency && r.referralAgency !== 'Unspecified') {
+      extraLines.push(`<span class="label">Referred to</span> ${escapeHtml(r.referralAgency)}`);
+    }
+    if (extraLines.length) {
+      extra += `<div class="request-extra">${extraLines.join('<br>')}</div>`;
+    }
+    if (Array.isArray(r.timeline) && r.timeline.length) {
+      const steps = r.timeline.map(t => {
+        const msg = t.message ? `<div class="timeline-msg">${linkify(t.message)}</div>` : '';
+        return `<div class="timeline-step">
+            <span class="timeline-type">${escapeHtml(t.type)}</span><span class="timeline-date">${escapeHtml(t.date || '')}</span>
+            ${msg}
+          </div>`;
+      }).join('');
+      extra += `<details class="request-timeline">
+          <summary>Agency action timeline (${r.timeline.length})</summary>
+          ${steps}
+        </details>`;
+    }
+
     const kickerLabel = r.isUnderReview
       ? 'Subject pending'
       : (lowQuality ? 'Subject as filed (verbatim)' : 'Subject as filed');
@@ -1557,6 +1664,7 @@ function renderFeed() {
           <h3${titleClass}>${displayTitle}</h3>
           <div class="request-agency">${agencyDisplay}</div>
           ${detMsg}
+          ${extra}
         </div>
         <div class="request-badges">${badges}</div>
       </div>`;
