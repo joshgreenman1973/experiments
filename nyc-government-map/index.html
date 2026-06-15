@@ -265,6 +265,7 @@ canvas:active { cursor: grabbing; }
 <div id="toolbar">
   <button class="toolbar-btn" id="btn-recenter" title="Re-center on Mayor">&#x21BA; Reset</button>
   <button class="toolbar-btn" id="btn-random" title="Random entity">&#x1F3B2;</button>
+  <button class="toolbar-btn" id="btn-names-toggle" title="Toggle name labels">Names: on</button>
   <button class="toolbar-btn" id="btn-legend-toggle" title="Toggle legend">Legend</button>
 </div>
 
@@ -483,9 +484,21 @@ const nodeSize = 10;
 let currentTransform = d3.zoomIdentity;
 let selectedNode = null;
 let hoveredNode = null;
+let labelsAlwaysOn = true;
 
 // Node map for quick lookup
 const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+// Precompute the person in each role (for always-on name labels)
+nodes.forEach(n => {
+  let p = n.head || null;
+  if (!p && (n.category === "official" || n.category === "elected")) p = n.subtitle || null;
+  if (n.id === "city-council") p = "Julie Menin";
+  if (n.id === "community-boards") p = null;
+  n.person = p;
+  // What to print under the node: the person if known, else a short identifier
+  n.nodeLabel = p || (n.subtitle && n.subtitle.length <= 14 ? n.subtitle : n.name);
+});
 
 // Build children map
 const childrenMap = new Map();
@@ -714,11 +727,15 @@ function render() {
     drawShape(hitCtx, cat.shape, n.x, n.y, s + 4/t.k, n.hitColor, null, 0);
   });
 
-  // Labels - show at higher zoom or for active/related nodes
+  // Labels - holder name under every node (always-on, toggleable), with
+  // role name added on zoom-in or for the active/related nodes
   const showAllLabels = t.k > 2.5;
   const showSomeLabels = t.k > 1.2;
 
   ctx.globalAlpha = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.lineJoin = "round";
   nodes.forEach(n => {
     const isActive = activeNode && n.id === activeNode.id;
     const isRelated = relatedIds && relatedIds.has(n.id);
@@ -726,21 +743,37 @@ function render() {
 
     if (dim) return;
 
-    const shouldLabel = isActive || (isRelated && relatedIds) ||
+    const shouldLabel = labelsAlwaysOn || isActive || (isRelated && relatedIds) ||
       showAllLabels ||
       (showSomeLabels && (n.ring <= 1 || n.id === "mayor"));
 
     if (!shouldLabel) return;
 
     const s = n.id === "mayor" ? mayorSize : sizeScale;
-    const label = n.subtitle && n.subtitle.length < 12 ? n.subtitle : n.name;
     const fontSize = Math.min(11 / t.k, 14);
+    let y = n.y + s + 4/t.k;
 
-    ctx.font = `${isActive ? "600" : "500"} ${fontSize}px Inter, sans-serif`;
-    ctx.fillStyle = isActive ? "#ffffff" : "rgba(226,232,240,0.85)";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText(label, n.x, n.y + s + 4/t.k);
+    // Line 1: the person in the role (or a short identifier if unknown)
+    const primary = n.nodeLabel;
+    ctx.font = `${isActive ? "700" : "600"} ${fontSize}px Inter, sans-serif`;
+    ctx.strokeStyle = "rgba(15,23,42,0.92)";
+    ctx.lineWidth = 3.5/t.k;
+    ctx.strokeText(primary, n.x, y);
+    ctx.fillStyle = isActive ? "#ffffff" : "rgba(237,242,250,0.92)";
+    ctx.fillText(primary, n.x, y);
+
+    // Line 2: the role itself, when zoomed in or focused (skip if line 1 already is the role)
+    const showRole = (isActive || (isRelated && relatedIds) || showAllLabels);
+    if (showRole && n.person) {
+      y += fontSize + 2/t.k;
+      const roleSize = fontSize * 0.85;
+      ctx.font = `500 ${roleSize}px Inter, sans-serif`;
+      ctx.strokeStyle = "rgba(15,23,42,0.92)";
+      ctx.lineWidth = 3/t.k;
+      ctx.strokeText(n.name, n.x, y);
+      ctx.fillStyle = "rgba(148,163,184,0.95)";
+      ctx.fillText(n.name, n.x, y);
+    }
   });
 
   ctx.restore();
@@ -1065,6 +1098,12 @@ function makeLegendShape(shape, color) {
 document.getElementById("btn-legend-toggle").addEventListener("click", () => {
   legendVisible = !legendVisible;
   document.getElementById("legend").style.display = legendVisible ? "block" : "none";
+});
+
+document.getElementById("btn-names-toggle").addEventListener("click", (e) => {
+  labelsAlwaysOn = !labelsAlwaysOn;
+  e.currentTarget.textContent = "Names: " + (labelsAlwaysOn ? "on" : "off");
+  render();
 });
 
 // ============================================================
