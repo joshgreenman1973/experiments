@@ -1210,6 +1210,47 @@ function agencyHtml(name) {
   return `<a class="agency-link" onclick="searchByAgency('${safe}')">${escHtml(name)}</a>`;
 }
 
+// Some City Record sections (notably Property Disposition) publish titles in
+// SCREAMING ALL-CAPS while most arrive pre-cased. Normalize only the all-caps
+// ones to title case so they match the rest of the page; titles that already
+// contain lowercase letters pass through untouched.
+const TITLE_MINOR = new Set(['a','an','and','as','at','but','by','for','from','if','in','nor','of','on','or','per','the','to','vs','via','with']);
+const TITLE_KEEP_UPPER = new Set(['NYC','NYS','US','USA','DEP','DOT','DOE','DSNY','DDC','EDC','HPD','NYCHA','FDNY','NYPD','DCAS','DOB','DOC','DOF','ACS','DHS','DOHMH','MTA','SBS','RFP','RFQ','RFEI','EIS','EAS','CEQR','ULURP','MWBE','LLC','LLP','LP','PC','PS','IS','II','III','IV','V','VI','VII']);
+
+function cleanTitle(s) {
+  if (!s) return '';
+  if (/[a-z]/.test(s)) return s;                 // already cased — leave alone
+  const words = s.trim().split(/\s+/);
+  return words.map((w, i) => {
+    const core = w.replace(/[^A-Za-z0-9]/g, '');
+    if (TITLE_KEEP_UPPER.has(core)) return w;     // known acronym
+    if (/\d/.test(w)) return w;                   // keep number tokens (#5202, 2026)
+    const lower = w.toLowerCase();
+    if (i !== 0 && i !== words.length - 1 && TITLE_MINOR.has(core.toLowerCase())) return lower;
+    return lower.replace(/[a-z]/, c => c.toUpperCase()); // capitalize first letter
+  }).join(' ');
+}
+
+// Escaped, case-normalized title for display.
+function titleHtml(s) {
+  return escHtml(cleanTitle(s));
+}
+
+// Source descriptions/summaries arrive as HTML fragments (<p>, <span style=…>,
+// entities like &amp; and &nbsp;). Convert them to clean plain text so the
+// markup doesn't show up as literal garble. Parsing via DOMParser is safe:
+// scripts don't run and external resources aren't fetched.
+function htmlToText(html) {
+  if (!html) return '';
+  const prepped = String(html)
+    .replace(/<\s*br\s*\/?>/gi, ' ')                  // <br> → space
+    .replace(/<\/(p|div|li|h[1-6]|tr|td|ul|ol)\s*>/gi, '$& '); // block ends → space
+  const doc = new DOMParser().parseFromString(prepped, 'text/html');
+  return (doc.body.textContent || '')
+    .replace(/\s+/g, ' ')   // \s also matches &nbsp; (U+00A0)
+    .trim();
+}
+
 // ── Render daily digest ─────────────────────────────────────
 
 // Compute trailing 30-day median for a metric. metricFn takes a day and returns a number.
@@ -1378,7 +1419,7 @@ async function renderDaily() {
   if (propDisp.length > 0) {
     html += `<div class="callout-box aside">
       <div class="callout-label">Property Disposition (${propDisp.length})</div>
-      <ul>${propDisp.map(n => `<li><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a> — ${agencyHtml(n.agency_name)}</li>`).join('')}</ul>
+      <ul>${propDisp.map(n => `<li><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a> — ${agencyHtml(n.agency_name)}</li>`).join('')}</ul>
     </div>`;
   }
 
@@ -1436,7 +1477,7 @@ async function renderDaily() {
         if (n.event_date) metaParts.push('hearing ' + fmtShortDate(n.event_date.slice(0, 10)));
         if (n.due_date) metaParts.push('due ' + fmtShortDate(n.due_date.slice(0, 10)));
         html += `<li>
-          <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+          <a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a>
           <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' · ' + escHtml(metaParts.join(' · ')) : ''}</span>
         </li>`;
       });
@@ -1514,7 +1555,7 @@ function renderNoticesTable(rows) {
     const safeAgency = escHtml(n.agency_name || '').replace(/'/g, "\\'");
     html += `<tr>
       <td><span class="agency-cell" onclick="activeDailyFilters.agency='${safeAgency}';writeUrlFilters();renderDaily();">${escHtml(n.agency_name || '')}</span></td>
-      <td><a href="${RECORD_BASE}${n.request_id}" target="_blank" rel="noopener">${escHtml(n.short_title || '')}</a> <span style="color:#aaa;font-size:11px;">${escHtml(n.section_name || '')}</span></td>
+      <td><a href="${RECORD_BASE}${n.request_id}" target="_blank" rel="noopener">${titleHtml(n.short_title || '')}</a> <span style="color:#aaa;font-size:11px;">${escHtml(n.section_name || '')}</span></td>
       <td>${escHtml(n.type_of_notice_description || '')}</td>
       <td class="col-amount">${amt > 0 ? fmtMoney(amt) : '<span style="color:#bbb;">—</span>'}</td>
       <td class="col-deadline ${dlClass}">${dlText || '<span style="color:#bbb;">—</span>'}</td>
@@ -1630,8 +1671,9 @@ function renderNoticeCard(item, isWatching) {
   }
   if (item.category_description) facts.push(`<span class="fact"><span class="fact-label">Category</span><span class="fact-val">${escHtml(item.category_description)}</span></span>`);
 
-  const descHtml = item.description
-    ? `<div class="card-desc" id="desc-${item.request_id}">${escHtml(item.description)}</div>
+  const descText = htmlToText(item.description);
+  const descHtml = descText
+    ? `<div class="card-desc" id="desc-${item.request_id}">${escHtml(descText)}</div>
        <span class="card-desc-toggle" onclick="document.getElementById('desc-${item.request_id}').classList.toggle('expanded'); this.textContent = this.textContent === 'Show more' ? 'Show less' : 'Show more';">Show more</span>`
     : '';
 
@@ -1642,7 +1684,7 @@ function renderNoticeCard(item, isWatching) {
   const odataLink = `https://data.cityofnewyork.us/resource/dg92-zbpx.json?request_id=${encodeURIComponent(item.request_id)}`;
 
   return `<div class="notice-card ${weightClass}" data-agency="${escHtml(item.agency_name)}" data-type="${escHtml(item.type_of_notice_description)}" data-code="${code || ''}">
-    <h3><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h3>
+    <h3><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h3>
     <div class="notice-meta" aria-label="${escHtml(item.agency_name)}, ${escHtml(item.section_name)}, ${escHtml(item.type_of_notice_description)}">${agencyHtml(item.agency_name)} <span aria-hidden="true">·</span> ${escHtml(item.section_name)} <span aria-hidden="true">·</span> ${escHtml(item.type_of_notice_description)}</div>
     ${facts.length ? '<div class="fact-row">' + facts.join('') + '</div>' : ''}
     ${descHtml}
@@ -1711,7 +1753,7 @@ async function renderWeekly() {
     html += '<h3 style="margin-top:24px;">Largest Contracts This Week</h3>';
     withAmount.forEach(n => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
@@ -1730,9 +1772,9 @@ async function renderWeekly() {
 
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
-        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+        ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
   }
@@ -1812,7 +1854,7 @@ async function renderMonthly() {
     html += '<h3 style="margin-top:24px;">Largest Contracts This Month</h3>';
     topContracts.forEach(n => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
@@ -1830,9 +1872,9 @@ async function renderMonthly() {
 
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
-        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+        ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
   }
@@ -1954,7 +1996,7 @@ async function renderYearly() {
     html += '<h3 style="margin-top:24px;">Largest Contracts</h3>';
     topContracts.forEach(n => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
       </div>`;
     });
@@ -1974,9 +2016,9 @@ async function renderYearly() {
 
     uniqueNotable.forEach(item => {
       html += `<div class="top-item">
-        <h4><a href="${RECORD_BASE}${item.request_id}">${escHtml(item.short_title)}</a></h4>
+        <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
-        ${item.summary ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(item.summary) + '</p>' : ''}
+        ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
   }
@@ -2012,8 +2054,8 @@ async function loadAllNotices() {
   // Build searchable index: flatten all notices with their summaries
   const notableLookup = {};
   days.forEach(day => {
-    (day.notable || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
-    (day.watching || []).forEach(n => { notableLookup[n.request_id] = n.summary || ''; });
+    (day.notable || []).forEach(n => { notableLookup[n.request_id] = htmlToText(n.summary); });
+    (day.watching || []).forEach(n => { notableLookup[n.request_id] = htmlToText(n.summary); });
   });
 
   allSearchableNotices = days.flatMap(day =>
@@ -2165,8 +2207,8 @@ function doSearch() {
   }
 
   shown.forEach(n => {
-    let title = escHtml(n.short_title);
-    let summary = n.summary ? escHtml(n.summary) : '';
+    let title = titleHtml(n.short_title);
+    let summary = n.summary ? escHtml(htmlToText(n.summary)) : '';
 
     // Highlight search terms
     if (terms.length > 0) {
@@ -2211,7 +2253,7 @@ function renderAgencyCard(agency, value, count, notices, borderColor) {
     if (n.type_of_notice_description) meta.push(n.type_of_notice_description);
     if (n.start_date) meta.push(fmtShortDate(n.start_date.slice(0, 10)));
     detailHtml += `<li>
-      <a href="${RECORD_BASE}${n.request_id}">${escHtml(n.short_title)}</a>
+      <a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a>
       ${meta.length ? '<span class="li-meta"> — ' + escHtml(meta.join(' | ')) + '</span>' : ''}
     </li>`;
   });
