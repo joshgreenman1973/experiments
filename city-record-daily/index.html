@@ -1021,25 +1021,31 @@ let activeDailyFilters = { agency: '', reason: '', type: '', min: 0, deadline: '
 
 // ── Initialization ──────────────────────────────────────────
 
+// Fill every tab panel with the same message (used for load/empty states).
+function fillAllPanels(html) {
+  ['daily', 'weekly', 'monthly', 'yearly'].forEach(t => {
+    const el = document.getElementById(t + '-content');
+    if (el) el.innerHTML = html;
+  });
+}
+
 async function init() {
   try {
     const resp = await fetch(DATA_DIR + 'manifest.json');
-    if (!resp.ok) throw new Error('No manifest');
-    availableDates = await resp.json();
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const parsed = await resp.json();
+    if (!Array.isArray(parsed)) throw new Error('Manifest is not an array');
+    // Keep only well-formed YYYY-MM-DD entries so one bad row can't break sorting.
+    availableDates = parsed.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d));
     availableDates.sort((a, b) => b.localeCompare(a)); // newest first
-  } catch {
-    document.getElementById('daily-content').innerHTML =
-      '<div class="empty-state">No digest data available yet. Check back after the first scheduled run.</div>';
-    document.getElementById('weekly-content').innerHTML =
-      '<div class="empty-state">No data available yet.</div>';
-    document.getElementById('monthly-content').innerHTML =
-      '<div class="empty-state">No data available yet.</div>';
+  } catch (err) {
+    console.error('Failed to load digest manifest:', err);
+    fillAllPanels('<div class="empty-state">Couldn\'t load the digest index. Please refresh the page &mdash; if the problem persists, the data may still be generating.</div>');
     return;
   }
 
   if (availableDates.length === 0) {
-    document.getElementById('daily-content').innerHTML =
-      '<div class="empty-state">No digest data available yet.</div>';
+    fillAllPanels('<div class="empty-state">No digest data available yet. Check back after the first scheduled run.</div>');
     return;
   }
 
@@ -1251,6 +1257,15 @@ function htmlToText(html) {
     .trim();
 }
 
+// A notice is sole-source / non-competitive if either its selection method or
+// its notice type signals a non-competitive award. Single source of truth for
+// the daily stat, the filter, the trailing median and the weekly/monthly rollups.
+const SOLE_SOURCE_RE = /sole source|negotiated|non-competitive|single source/i;
+function isSoleSource(n) {
+  return SOLE_SOURCE_RE.test(n.selection_method_description || '') ||
+         SOLE_SOURCE_RE.test(n.type_of_notice_description || '');
+}
+
 // ── Render daily digest ─────────────────────────────────────
 
 // Compute trailing 30-day median for a metric. metricFn takes a day and returns a number.
@@ -1295,10 +1310,7 @@ async function renderDaily() {
   const allWatching = data.watching || [];
 
   const totalValue = allNotices.reduce((sum, n) => sum + (parseFloat(n.contract_amount) || 0), 0);
-  const soleSources = allNotices.filter(n =>
-    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
-    /sole source|negotiated acquisition|non-competitive|single source/i.test(n.selection_method_description || '')
-  );
+  const soleSources = allNotices.filter(isSoleSource);
   const notableCount = allNotable.length;
 
   // Trailing 30-day medians (lazy)
@@ -1306,7 +1318,7 @@ async function renderDaily() {
     trailing30Median(d => (d.notices || []).length),
     trailing30Median(d => (d.notices || []).reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0)),
     trailing30Median(d => (d.notable || []).length),
-    trailing30Median(d => (d.notices || []).filter(n => /sole source|negotiated|non-competitive|single source/i.test(n.selection_method_description || '')).length),
+    trailing30Median(d => (d.notices || []).filter(isSoleSource).length),
   ]);
 
   const f = activeDailyFilters;
@@ -1399,7 +1411,7 @@ async function renderDaily() {
     if (f.statFilter === 'flagged') {
       // handled by source list (notable+watching) below
     } else if (f.statFilter === 'sole') {
-      if (!/sole source|negotiated|non-competitive|single source/i.test(n.selection_method_description || '')) return false;
+      if (!isSoleSource(n)) return false;
     } else if (f.statFilter === 'value') {
       if (!(parseFloat(n.contract_amount) > 0)) return false;
     }
@@ -1488,6 +1500,19 @@ async function renderDaily() {
   }
 
   container.innerHTML = html;
+  pruneDescToggles(container);
+}
+
+// The .card-desc clamp (max-height) hides overflow, but the "Show more" link was
+// shown unconditionally. Hide it on descriptions short enough to fit uncut.
+function pruneDescToggles(root) {
+  root.querySelectorAll('.card-desc').forEach(desc => {
+    const toggle = desc.nextElementSibling;
+    if (toggle && toggle.classList.contains('card-desc-toggle') &&
+        desc.scrollHeight <= desc.clientHeight + 1) {
+      toggle.style.display = 'none';
+    }
+  });
 }
 
 function setTableSort(col) {
@@ -1597,7 +1622,6 @@ function inferFlagCode(item) {
   const section = item.section_name || '';
   const agency = item.agency_name || '';
   const type = item.type_of_notice_description || '';
-  const selection = item.selection_method_description || '';
   const amount = parseFloat(item.contract_amount) || 0;
   const allText = `${title} ${type} ${item.category_description || ''}`.toLowerCase();
 
@@ -1610,7 +1634,7 @@ function inferFlagCode(item) {
   if (section === 'Property Disposition') return 'PROP_DISP';
   if (section === 'Court Notices') return 'COURT';
   if (section === 'Contract Award Hearings') return 'AWARD_HEARING';
-  if (/sole source|negotiated acquisition|non-competitive|single source/i.test(selection)) return 'SOLE_SOURCE';
+  if (isSoleSource(item)) return 'SOLE_SOURCE';
   if (/\b(nycha|hpd|nypd|housing authority|housing preservation|education|police|correction|homeless|acs|omb|city planning|mayor)\b/i.test(agency)) return 'KEY_AGENCY';
   if (/shelter|jail|rikers|rezoning|affordable housing|charter school|homelessness|eviction|opioid|gun violence/i.test(allText)) return 'POLICY_TERM';
   return null;
@@ -1826,10 +1850,7 @@ async function renderMonthly() {
     : fmtShortDate(monthDates[0]);
 
   // Sole source tracking
-  const soleSources = allNotices.filter(n =>
-    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
-    (n.type_of_notice_description || '').toLowerCase().includes('negotiated')
-  );
+  const soleSources = allNotices.filter(isSoleSource);
   const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
 
   let html = `<div class="summary-period">
@@ -1930,10 +1951,7 @@ async function renderYearly() {
   });
 
   // Sole source tracking
-  const soleSources = allNotices.filter(n =>
-    (n.selection_method_description || '').toLowerCase().includes('sole source') ||
-    (n.selection_method_description || '').toLowerCase().includes('negotiated')
-  );
+  const soleSources = allNotices.filter(isSoleSource);
   const soleSourceValue = soleSources.reduce((s, n) => s + (parseFloat(n.contract_amount) || 0), 0);
 
   // Monthly trends
