@@ -975,6 +975,51 @@
   /* Beneath a setup text piece the long narrative intro is redundant — the
      article supplies the "why." Keep the data context, drop the essay. */
   html.embed .calc-intro--narrative { display: none; }
+
+  /* Embed teaser: collapsed, the embed shows an enticing slice of the landing
+     (calculator) tab — through the headline number and the Schwartz finding —
+     then a chartreuse gate that reveals the full interactive inline. Expanding
+     (or switching tabs) drops the cap and shows everything. */
+  .embed-expand-bar { display: none; }
+  html.embed:not(.embed-expanded) #tab-calc.active {
+    max-height: var(--embed-cap, 1480px);
+    overflow: hidden;
+  }
+  html.embed:not(.embed-expanded) .vc-colophon { display: none; }
+  html.embed:not(.embed-expanded) .embed-expand-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 1200px;
+    margin: -130px auto 0;
+    padding: 104px 32px 36px;
+    position: relative;
+    z-index: 5;
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, var(--bg) 58%);
+  }
+  .embed-expand-hint {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+  .embed-expand-btn {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text);
+    background: var(--chartreuse);
+    border: 1.5px solid var(--border);
+    box-shadow: 3px 3px 0 var(--border);
+    padding: 12px 22px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .embed-expand-btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--border); }
+  .embed-expand-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--border); }
 </style>
 </head>
 <body>
@@ -983,7 +1028,6 @@
   <div class="eyebrow">Curb economics</div>
   <h1>New York City has about a million parkable curb spaces. It charges for 85,000 of them.</h1>
   <p class="subtitle">Here's the math on what the other ~92% could be worth, the map of what's metered and how peer cities price their curbs.</p>
-  <p style="font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-top: 20px;">Jump to: <a href="#tabs" data-jump="calc" style="color: var(--accent); text-decoration: none; margin-left: 4px;">Revenue calculator</a> · <a href="#tabs" data-jump="map" style="color: var(--accent); text-decoration: none;">Meter map</a> · <a href="#tabs" data-jump="transit" style="color: var(--accent); text-decoration: none;">What it could fund</a> · <a href="#tabs" data-jump="cities" style="color: var(--accent); text-decoration: none;">Peer cities</a></p>
 </header>
 
 <div class="tabs" id="tabs">
@@ -1601,6 +1645,12 @@
     </div>
 
   </div>
+</div>
+
+<!-- EMBED TEASER GATE (only shown in collapsed embed mode) -->
+<div class="embed-expand-bar">
+  <span class="embed-expand-hint">Revenue calculator, meter map, transit context and peer cities below</span>
+  <button type="button" class="embed-expand-btn">Explore the full interactive ↓</button>
 </div>
 
 <!-- CREDITS / METHODOLOGY -->
@@ -2325,6 +2375,18 @@ document.querySelectorAll('a[data-jump]').forEach(a => {
     const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
     try { parent.postMessage({ type: 'parking-embed-height', height: h }, '*'); } catch (e) {}
   };
+
+  // Teaser → expand. Collapsed, the embed caps the calculator tab and shows a
+  // gate. The gate button, or switching to any other tab, reveals everything.
+  const expand = () => {
+    if (document.documentElement.classList.contains('embed-expanded')) return;
+    document.documentElement.classList.add('embed-expanded');
+    setTimeout(post, 60);
+  };
+  const gate = document.querySelector('.embed-expand-btn');
+  if (gate) gate.addEventListener('click', expand);
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', expand));
+
   window.addEventListener('load', post);
   if (window.ResizeObserver) new ResizeObserver(post).observe(document.body);
   document.addEventListener('click', () => setTimeout(post, 80));
