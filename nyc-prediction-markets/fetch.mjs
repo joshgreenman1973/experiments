@@ -10,8 +10,18 @@ const HISTORY_DIR = path.join(DATA_DIR, "history");
 
 // ---------- keyword config ----------
 
-// Strong NY signals — a hit on any of these alone qualifies a market.
+// Strong NY signals — a hit on any of these alone qualifies a market, no
+// geographic context required. These are either unambiguous NY phrases or
+// people/institutions that are NY-specific even when "New York" isn't written
+// out (e.g. a "Will AOC win the 2028 nomination?" market never says New York).
+//
+// NOTE: this list is a convenience layer, NOT the primary mechanism. Most NY
+// races and topics are caught structurally by GEO + CONTEXT or by DISTRICT_RE
+// below, so the tracker keeps working when new names appear without anyone
+// editing this file. Add a name here only when it needs to qualify a market
+// that contains no NY geography at all.
 const STRONG_KEYWORDS = [
+  // Statewide / citywide figures
   "Mamdani",
   "Hochul",
   "Cuomo",
@@ -31,25 +41,142 @@ const STRONG_KEYWORDS = [
   "Schumer",
   "Ocasio-Cortez",
   "AOC",
+  "Hakeem Jeffries",
+  "Jamaal Bowman",
+  "Antonio Delgado",
+  "Mark Levine",
+  // Unambiguous NY geography phrases
   "New York City",
-  "NYC",
   "New York State",
+  "NYC",
+  "NYS",
   "NY governor",
   "NY Governor",
   "NY-Gov",
   "NY Senate",
   "NY senate",
-  "Albany",
+  // Agencies / institutions
   "MTA",
   "NYPD",
+  "FDNY",
+  "NYCHA",
   "Rikers",
   "congestion pricing",
   "City Hall",
   "rent stabilization",
-  "Bronx",
-  "Brooklyn",
-  "Queens DA",
+  "Rent Guidelines Board",
+  // District attorney offices
   "Manhattan DA",
+  "Brooklyn DA",
+  "Queens DA",
+  "Bronx DA",
+  "Staten Island DA",
+];
+
+// NY geography — qualifies a market ONLY in combination with a CONTEXT keyword
+// (below). This is what lets the tracker surface civic markets it has never
+// seen before, e.g. "Will Brooklyn elect..." or "New York ... ballot measure".
+const GEO_KEYWORDS = [
+  "New York",
+  "Manhattan",
+  "Brooklyn",
+  "Queens",
+  "the Bronx",
+  "Bronx",
+  "Staten Island",
+  "Albany",
+  "Long Island",
+  "Hudson Valley",
+  "Westchester",
+  "Buffalo",
+  "Rochester",
+  "Syracuse",
+  "Yonkers",
+  "upstate New York",
+];
+
+// Civic / governance context — the second half of a GEO + CONTEXT match. Broad
+// by design ("all civic" scope): elections, offices, budgets, policy, demography.
+const CONTEXT_KEYWORDS = [
+  // Offices & elections
+  "governor",
+  "lieutenant governor",
+  "mayor",
+  "comptroller",
+  "attorney general",
+  "public advocate",
+  "borough president",
+  "city council",
+  "council member",
+  "councilmember",
+  "state senate",
+  "state assembly",
+  "assembly member",
+  "assemblymember",
+  "assembly",
+  "district attorney",
+  "congress",
+  "congressional",
+  "house seat",
+  "senate seat",
+  "representative",
+  "primary",
+  "general election",
+  "election",
+  "nominee",
+  "candidate",
+  "ballot",
+  "ballot measure",
+  "proposition",
+  "referendum",
+  "redistricting",
+  "incumbent",
+  "reelect",
+  "re-elect",
+  "re-elected",
+  "term limit",
+  "special election",
+  "runoff",
+  "recall",
+  "impeach",
+  // Policy & civic life
+  "budget",
+  "deficit",
+  "tax",
+  "taxes",
+  "rent",
+  "housing",
+  "zoning",
+  "homeless",
+  "shelter",
+  "migrant",
+  "asylum",
+  "immigration",
+  "minimum wage",
+  "school",
+  "education",
+  "healthcare",
+  "public health",
+  "population",
+  "census",
+  "unemployment",
+  "economy",
+  "inflation",
+  "infrastructure",
+  "transit",
+  "subway",
+  "bus fare",
+  "crime",
+  "police",
+  "shooting",
+  "homicide",
+  "overdose",
+  "eviction",
+  "blackout",
+  "pension",
+  "legislature",
+  "law",
+  "bill",
 ];
 
 // Ambiguous tokens — must co-occur with a NY context keyword to qualify.
@@ -63,10 +190,13 @@ const AMBIGUOUS = [
   { token: "Williams", context: ["Jumaane", "public advocate"] },
 ];
 
-// Sports/entertainment exclusions — if any of these appear in the title, skip.
-// "New York" alone shouldn't qualify a Knicks/Mets/Yankees market.
+// Sports / entertainment / weather exclusions — if any appear anywhere in the
+// market text or tags, the market is dropped before any NY test runs. This is
+// what keeps "all civic" scope from pulling in Knicks games, Broadway openings
+// or daily NYC temperature markets. Word-list is intentionally specific to
+// avoid clobbering civic markets (e.g. no bare "Bills" — that's legislation).
 const EXCLUDE_RE =
-  /\b(Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|NYCFC|New York City FC|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|Eurovision|Oscars|Grammys|Emmys|box office|temperature|rainfall|snowfall|inches of (?:rain|snow))\b/i;
+  /\b(?:Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|Sabres|Buffalo Bills|NYCFC|New York City FC|Subway Series|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|PGA|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|playoffs?|championship|Heisman|box office|Oscars?|Grammys?|Emmys?|Tonys?|Tony Award|Met Gala|Fashion Week|Broadway|Eurovision|temperatures?|rainfall|snowfall|snowiest|Fahrenheit|Celsius|heat wave|blizzard|hurricane|inches of (?:rain|snow))\b/i;
 
 // Word-boundary regex for a list of literal phrases (case-insensitive).
 function buildRegex(phrases) {
@@ -77,13 +207,18 @@ function buildRegex(phrases) {
 }
 
 const STRONG_RE = buildRegex(STRONG_KEYWORDS);
+const GEO_RE = buildRegex(GEO_KEYWORDS);
+const CONTEXT_RE = buildRegex(CONTEXT_KEYWORDS);
 
-// Congressional / state legislative districts. Catches both the Polymarket
-// format ("NY-12", "NY12", "NY 7") and the Kalshi format ("New York 21 House").
-// The "New York NN" branch requires an office/election word nearby so it doesn't
-// fire on things like the cable channel "New York 1".
+// Congressional / state legislative / city council districts. Catches:
+//   - Polymarket congressional format: "NY-12", "NY12", "NY 7"
+//   - Kalshi congressional format: "New York 21 House"
+//   - Spelled-out state/council districts: "State Senate District 12",
+//     "Assembly District 36", "City Council District 7"
+// The "New York NN" branch requires an office/election word nearby so it does
+// not fire on the cable channel "New York 1".
 const DISTRICT_RE =
-  /\bNY[- ]?\d{1,2}\b|\bnew york\s+\d{1,2}\b(?=.*\b(?:house|senate|assembly|congress|congressional|district|primary|general election|nominee|representative)\b)/i;
+  /\bNY[- ]?\d{1,2}\b|\bnew york\s+\d{1,2}\b(?=.*\b(?:house|senate|assembly|congress|congressional|district|primary|general election|nominee|representative)\b)|\b(?:state senate|state assembly|assembly|city council|council)\s+district\s+\d{1,2}\b/i;
 
 // ---------- topic rules ----------
 // Each rule: a question matching `pattern` gets tagged with `id` + human label.
@@ -174,6 +309,13 @@ function matchesNY(text, extraTags = []) {
     const ctxRe = buildRegex(context);
     if (ctxRe.test(haystack)) hits.push(`${token}+context`);
   }
+
+  // Structural match: NY geography + a civic/governance context word. This is
+  // the self-maintaining core — it surfaces NY races and policy markets the
+  // tracker has never seen before without anyone touching the name lists.
+  const geo = haystack.match(GEO_RE);
+  const ctx = haystack.match(CONTEXT_RE);
+  if (geo && ctx) hits.push(`${geo[0]}+${ctx[0]}`);
 
   return { match: hits.length > 0, hits: [...new Set(hits)] };
 }

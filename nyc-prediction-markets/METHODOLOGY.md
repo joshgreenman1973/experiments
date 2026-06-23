@@ -2,7 +2,9 @@
 
 ## What this is
 
-A consolidated view of every active prediction market touching New York City or New York State politics and policy, refreshed every six hours via GitHub Actions.
+A consolidated view of every active prediction market touching New York City or New York State civic life — elections, government, policy, the economy, demographics, transit, crime and public health — refreshed every six hours via GitHub Actions. Sports, entertainment and daily weather markets are deliberately excluded.
+
+The relevance filter is **structural, not a hand-kept roster of names**: a market qualifies when it pairs a New York place with a civic context, or matches any electoral-district pattern. That means new races, candidates and topics surface on their own, without anyone editing a keyword list when the news changes.
 
 ## Data sources
 
@@ -10,27 +12,44 @@ All three are public APIs, no authentication required.
 
 | Source | Endpoint | Pagination | Pricing |
 |---|---|---|---|
-| Polymarket | `https://gamma-api.polymarket.com/markets?closed=false` | `limit` + `offset`, capped at 20 pages × 500 | `outcomePrices` (decimal, JSON-encoded) |
+| Polymarket | `https://gamma-api.polymarket.com/markets?closed=false&active=true` | `limit=100` + `offset`, up to 60 pages | `outcomePrices` (decimal, JSON-encoded) |
 | Kalshi | `https://api.elections.kalshi.com/trade-api/v2/events?status=open&with_nested_markets=true` | `cursor`, capped at 60 pages × 200 | `last_price_dollars` (decimal string) |
 | Manifold | `https://api.manifold.markets/v0/search-markets?term=…` | per-keyword search × 22 queries | `probability` (decimal) |
 
 Polymarket and Kalshi are real-money venues; their volumes are USD. Manifold is play-money — its volumes are mana ("M") and shouldn't be compared dollar-for-dollar.
 
+Note on Polymarket pagination: the Gamma API now hard-caps every response at 100 items regardless of the requested `limit`. The fetcher pages by 100 via `offset` until the list is exhausted (a `422` past the end is treated as the stop signal). An earlier version asked for `limit=500`, received 100, saw `100 < 500` and stopped after the first page — which silently scanned only the top ~100 of ~2,100 open markets and was why most New York races never appeared.
+
 ## Filter logic — `matchesNY()` in `fetch.mjs`
 
-A market qualifies if its title, subtitle, event title, or category text matches one of three buckets, **and** does not match any sports/entertainment/weather exclusion.
+A market is first dropped if its text or tags match any **hard exclusion** (sports, entertainment, weather). Otherwise it qualifies if it satisfies **any one** of the four tests below. The design goal is that the structural tests (geography + context, and districts) carry the load, so the tracker keeps finding New York markets as the cast of names changes.
 
-### Strong keywords (any match qualifies)
+### 1. Geography + context (the self-maintaining core)
 
-People: Mamdani, Hochul, Cuomo, Letitia James, Tish James, Jumaane Williams, Brad Lander, Zellnor Myrie, Scott Stringer, Ritchie Torres, Dan Goldman, Jessica Ramos, Curtis Sliwa, Sliwa, Stefanik, Gillibrand, Schumer, Ocasio-Cortez, AOC.
+A market qualifies when it contains **both** a New York place **and** a civic/governance word. This is what surfaces races and policy markets the tracker has never seen before.
 
-Places / offices: New York City, NYC, New York State, NY governor, NY-Gov, NY Senate, Albany, Bronx, Brooklyn, Queens DA, Manhattan DA.
+- **Places:** New York, New York City, NYC, the five boroughs, Albany, Long Island, Hudson Valley, Westchester, Buffalo, Rochester, Syracuse, Yonkers, upstate New York.
+- **Context:** any office (governor, mayor, comptroller, attorney general, public advocate, borough president, city council, state senate/assembly, district attorney, congress), any electoral word (primary, general election, nominee, candidate, ballot, proposition, referendum, redistricting, incumbent, special election, runoff, recall, impeach, term limit), or any policy word (budget, tax, rent, housing, zoning, homeless, migrant, immigration, minimum wage, school, education, healthcare, public health, population, census, economy, inflation, transit, subway, crime, police, eviction, pension, legislature, law, bill, and more).
 
-Topics: MTA, NYPD, Rikers, congestion pricing, City Hall, rent stabilization.
+Example: "Will New York tax QSBS gains?" matches on `New York + tax`; "New York Attorney General winner?" matches on `New York + attorney general`.
 
-### Ambiguous tokens (require co-occurring NY context)
+### 2. Electoral districts (`DISTRICT_RE`)
 
-To avoid false positives like Amy Adams / John Adams / LeBron James / Knicks games:
+Any congressional, state legislative or city council district pattern qualifies on its own:
+
+- Congressional, Polymarket style: `NY-12`, `NY12`, `NY 7`.
+- Congressional, Kalshi style: `New York 21 House` (the spelled-out form requires an office/election word nearby so it doesn't fire on the cable channel "New York 1").
+- Spelled-out districts: `State Senate District 12`, `Assembly District 36`, `City Council District 7`.
+
+This is what brings in the down-ballot House primaries (NY-07, NY-12, NY-13, NY-21 and the rest) regardless of who the candidates are.
+
+### 3. Strong keywords (any match qualifies, no geography needed)
+
+A convenience layer for markets that are unmistakably New York but contain no New York place name — e.g. "Will AOC win the 2028 nomination?" People: Mamdani, Hochul, Cuomo, Letitia/Tish James, Jumaane Williams, Brad Lander, Zellnor Myrie, Scott Stringer, Ritchie Torres, Dan Goldman, Jessica Ramos, Curtis Sliwa, Stefanik, Gillibrand, Schumer, Ocasio-Cortez/AOC, Hakeem Jeffries, Jamaal Bowman, Antonio Delgado, Mark Levine. Phrases/agencies: New York City, New York State, NYC, NYS, NY governor, NY Senate, MTA, NYPD, FDNY, NYCHA, Rikers, congestion pricing, City Hall, rent stabilization, Rent Guidelines Board, and the five borough DA offices. This list is deliberately short — it is not where coverage comes from.
+
+### 4. Ambiguous tokens (require co-occurring NY context)
+
+To avoid false positives like Amy Adams / John Adams / LeBron James:
 
 | Token | Required context |
 |---|---|
@@ -40,13 +59,13 @@ To avoid false positives like Amy Adams / John Adams / LeBron James / Knicks gam
 | James | "Letitia", "Tish", "attorney general" |
 | Williams | "Jumaane", "public advocate" |
 
-Note: "James" deliberately excludes "New York" from its context — otherwise every NBA game involving LeBron + a New York team would qualify.
-
 ### Hard exclusions
 
-A market is rejected outright if its text matches any of:
+A market is rejected outright, before any New York test runs, if its text or tags match any of:
 
-Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bulls, NYCFC, New York City FC, NY/NYC Marathon, MLS Cup, MLB, NBA, NHL, NFL, UFC, WNBA, NCAA, Champions League, Premier League, Bundesliga, La Liga, Super Bowl, World Series, Stanley Cup, Final Four, Eurovision, Oscars, Grammys, Emmys, box office, temperature, rainfall, snowfall, "inches of rain/snow".
+Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bulls, Sabres, Buffalo Bills, NYCFC, New York City FC, Subway Series, NY/NYC Marathon, MLS Cup, MLB, NBA, NHL, NFL, UFC, PGA, WNBA, NCAA, Champions League, Premier League, Bundesliga, La Liga, Super Bowl, World Series, Stanley Cup, Final Four, playoffs, championship, Heisman, box office, Oscars, Grammys, Emmys, Tonys, Tony Award, Met Gala, Fashion Week, Broadway, Eurovision, temperature, rainfall, snowfall, snowiest, Fahrenheit, Celsius, heat wave, blizzard, hurricane, "inches of rain/snow".
+
+The list is kept specific on purpose — there is no bare "Bills" (that would swallow legislation) and no bare "degrees" or "hottest" (those collide with housing and economy markets).
 
 Kalshi event tickers starting with `KXNFL`, `KXNBA`, `KXNHL`, `KXMLB`, `KXSOCCER`, `KXMVE…`, `KXUFC`, `KXTENNIS`, `KXGOLF`, `KXOSCAR`, `KXGRAMM`, `KXEMMY` are skipped before keyword matching.
 
@@ -85,10 +104,11 @@ Each run also writes a snapshot to `data/history/YYYY-MM-DD-HH.json`. The 24h-ch
 ## Limitations
 
 - **No authentication = no markets behind logins.** Kalshi has some markets only visible to logged-in users; we see only what the public API returns.
-- **Pagination caps.** We stop at 10,000 Polymarket markets, 12,000 Kalshi events, and 22 Manifold keyword searches × 100 results each. In practice this captures the entire active universe with room to spare, but extreme-tail markets could be missed.
+- **Pagination caps.** We stop at 6,000 Polymarket markets (60 pages × 100, against ~2,100 currently open), 12,000 Kalshi events, and 22 Manifold keyword searches × 100 results each. In practice this captures the entire active universe with room to spare, but extreme-tail markets could be missed.
 - **Manifold play-money.** Manifold prices reflect crowd belief but no real money is at stake; treat them as forecast aggregators, not market prices.
 - **Volume is lifetime, not recent.** Polymarket and Kalshi report total contract volume since launch. A "$10M" market may have done all of that volume months ago.
-- **Keyword false negatives.** Markets that talk about NY policy without naming any of the listed people, places, offices, or topics will slip through. The keyword list is in `fetch.mjs` (`STRONG_KEYWORDS`, `AMBIGUOUS`, `MANIFOLD_QUERIES`) and is the single thing to edit when something is missed.
+- **Residual false negatives.** Because relevance is now structural (geography + context), most New York markets are caught automatically. The remaining gaps are markets that mention neither a New York place nor a strong keyword — e.g. a market that refers only to a candidate by name with no district, office or place. If something is missed, the levers in `fetch.mjs` are `GEO_KEYWORDS`, `CONTEXT_KEYWORDS`, `DISTRICT_RE`, `STRONG_KEYWORDS` and `MANIFOLD_QUERIES`.
+- **False positives.** A national market that happens to name a New York place alongside a context word could qualify. Spot checks find these are rare and almost always genuinely New York; the volume filter on the page hides the low-stakes noise.
 - **Multi-outcome markets.** For events like "NYC Mayor 2025 winner" with N candidates, every candidate's contract appears as its own row. This is intentional — it's the only way to see how each contract is priced — but it means one event can dominate the table.
 
 ## Cross-platform topic consolidation
