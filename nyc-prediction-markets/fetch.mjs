@@ -283,6 +283,33 @@ function tagTopic(question) {
   return { topic_id: null, topic_label: null };
 }
 
+// ---------- category classification ----------
+// Assigns each market ONE primary category for the dashboard's filter chips.
+// First match wins, so order is precedence. Kept deliberately simple and in
+// sync with the identical fallback classifier in index.html. To retune the
+// buckets, edit both (or just this one and re-run the fetch).
+//
+//   1. Mamdani   - any Mamdani market (mayoralty, policies, even his 2028 bid)
+//   2. Presidential - national White House / 2028 nomination markets
+//   3. Elections - other NY races (gov, House, state leg, Senate, AG, local)
+//   4. Policy & government - congestion pricing, rent, MTA, NYPD, budget, tax…
+//   5. Other     - everything else (Waymo, population, demographics, misc)
+const PRESIDENTIAL_RE =
+  /\b(?:us president|president of the united states|white house|elected president|become president|for president\b|presidential (?:nomination|nominee|election|run|primary|bid))\b|2028.*(?:nomination|nominee|presidential)/i;
+const ELECTIONS_RE =
+  /\bNY-?(?:\d|Gov)|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bcongress(?:ional)?\b|\bhouse\b|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
+const POLICY_RE =
+  /congestion pricing|\brent\b|\bMTA\b|subway|\bNYPD\b|\bpolice\b|\bcrime\b|budget|\btax(?:es)?\b|housing|zoning|homeless|shelter|migrant|asylum|immigration|minimum wage|\bschool\b|education|healthcare|public health|pension|infrastructure|transit|eviction|\blaw\b|\bbill\b|\bpolicy\b/i;
+
+function categorize(question) {
+  const q = question || "";
+  if (/\bmamdani\b/i.test(q)) return "Mamdani";
+  if (PRESIDENTIAL_RE.test(q)) return "Presidential";
+  if (ELECTIONS_RE.test(q)) return "Elections";
+  if (POLICY_RE.test(q)) return "Policy & government";
+  return "Other";
+}
+
 function matchesNY(text, extraTags = []) {
   if (!text) return { match: false, hits: [] };
   const haystack = [text, ...extraTags].join(" ");
@@ -648,6 +675,11 @@ async function main() {
   console.log(`  ${manifold.length} matched`);
 
   const all = [...poly, ...kalshi, ...manifold];
+
+  // Assign a primary category to each market for the dashboard filter chips.
+  for (const m of all) {
+    m.category = categorize(m.question);
+  }
 
   // 24h price-change merge from history
   const yesterday = await loadMostRecentBefore(Date.now() - 23 * 3600 * 1000);

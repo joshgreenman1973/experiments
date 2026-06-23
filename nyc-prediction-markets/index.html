@@ -196,6 +196,38 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .cat-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .cat-chip {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .cat-chip:hover { border-color: var(--accent); }
+  .cat-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .cat-chip .count {
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    opacity: 0.7;
+  }
+  .cat-chip.active .count { opacity: 0.85; }
   @media (max-width: 720px) {
     .hide-narrow { display: none; }
     th, td { padding: 8px 8px; font-size: 13px; }
@@ -217,6 +249,7 @@
     <label><input type="checkbox" id="hideLow" checked> Hide volume &lt; $1k</label>
     <label><input type="checkbox" id="hideManifold"> Hide play-money</label>
   </div>
+  <div id="catChips" class="cat-chips"></div>
   <div id="compareWrap" class="compare-section"></div>
   <div id="tableWrap"></div>
   <div class="footer-note">
@@ -228,6 +261,31 @@
 <script>
 let MARKETS = [];
 let SORT = { key: "abs_change", dir: "desc" };
+let CATEGORY = "All";
+
+// Fixed display order for the category chips.
+const CATEGORY_ORDER = ["Mamdani", "Elections", "Presidential", "Policy & government", "Other"];
+
+// Fallback classifier — kept in sync with categorize() in fetch.mjs. Only used
+// for markets whose data predates the category field (e.g. old history files);
+// fresh data already carries m.category.
+const PRESIDENTIAL_RE =
+  /\b(?:us president|president of the united states|white house|elected president|become president|for president\b|presidential (?:nomination|nominee|election|run|primary|bid))\b|2028.*(?:nomination|nominee|presidential)/i;
+const ELECTIONS_RE =
+  /\bNY-?(?:\d|Gov)|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bcongress(?:ional)?\b|\bhouse\b|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
+const POLICY_RE =
+  /congestion pricing|\brent\b|\bMTA\b|subway|\bNYPD\b|\bpolice\b|\bcrime\b|budget|\btax(?:es)?\b|housing|zoning|homeless|shelter|migrant|asylum|immigration|minimum wage|\bschool\b|education|healthcare|public health|pension|infrastructure|transit|eviction|\blaw\b|\bbill\b|\bpolicy\b/i;
+
+function categorize(question) {
+  const q = question || "";
+  if (/\bmamdani\b/i.test(q)) return "Mamdani";
+  if (PRESIDENTIAL_RE.test(q)) return "Presidential";
+  if (ELECTIONS_RE.test(q)) return "Elections";
+  if (POLICY_RE.test(q)) return "Policy & government";
+  return "Other";
+}
+
+const marketCategory = (m) => m.category || categorize(m.question);
 
 const fmtPct = (p) => p == null ? "—" : (p * 100).toFixed(0) + "%";
 const fmtDelta = (d) => {
@@ -306,6 +364,29 @@ function renderCompare(filtered) {
   wrap.innerHTML = html;
 }
 
+function renderChips(base) {
+  const counts = {};
+  for (const m of base) {
+    const c = marketCategory(m);
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  // "All" first, then the fixed order — but only chips that have markets.
+  const cats = ["All", ...CATEGORY_ORDER.filter((c) => counts[c])];
+  // If the active category vanished (e.g. filtered away), fall back to All.
+  if (CATEGORY !== "All" && !counts[CATEGORY]) CATEGORY = "All";
+  const wrap = document.getElementById("catChips");
+  wrap.innerHTML = cats
+    .map((c) => {
+      const n = c === "All" ? base.length : counts[c];
+      const active = c === CATEGORY ? " active" : "";
+      return `<button class="cat-chip${active}" data-cat="${escapeHtml(c)}">${escapeHtml(c)} <span class="count">${n}</span></button>`;
+    })
+    .join("");
+  wrap.querySelectorAll(".cat-chip").forEach((btn) => {
+    btn.onclick = () => { CATEGORY = btn.dataset.cat; render(); };
+  });
+}
+
 function render() {
   const sources = new Set(
     [...document.querySelectorAll('.controls input[data-src]')]
@@ -329,6 +410,10 @@ function render() {
     }
     return true;
   });
+
+  // Category chips reflect the set after all OTHER filters, then narrow rows.
+  renderChips(rows);
+  if (CATEGORY !== "All") rows = rows.filter((m) => marketCategory(m) === CATEGORY);
 
   renderCompare(rows);
 

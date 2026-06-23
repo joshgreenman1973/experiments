@@ -92,6 +92,7 @@ Polymarket events sometimes have a parent event title like "New York City Mayora
       "open_interest_usd": null,
       "close_date": "2027-01-01T00:00:00Z",
       "matched_keywords": ["Mamdani"],
+      "category": "Mamdani",        // one of: Mamdani, Presidential, Elections, Policy & government, Other
       "price_24h_ago": 0.24,        // null until two snapshots exist
       "price_change_24h": 0.03
     }
@@ -110,6 +111,20 @@ Each run also writes a snapshot to `data/history/YYYY-MM-DD-HH.json`. The 24h-ch
 - **Residual false negatives.** Because relevance is now structural (geography + context), most New York markets are caught automatically. The remaining gaps are markets that mention neither a New York place nor a strong keyword — e.g. a market that refers only to a candidate by name with no district, office or place. If something is missed, the levers in `fetch.mjs` are `GEO_KEYWORDS`, `CONTEXT_KEYWORDS`, `DISTRICT_RE`, `STRONG_KEYWORDS` and `MANIFOLD_QUERIES`.
 - **False positives.** A national market that happens to name a New York place alongside a context word could qualify. Spot checks find these are rare and almost always genuinely New York; the volume filter on the page hides the low-stakes noise.
 - **Multi-outcome markets.** For events like "NYC Mayor 2025 winner" with N candidates, every candidate's contract appears as its own row. This is intentional — it's the only way to see how each contract is priced — but it means one event can dominate the table.
+
+## Category classification
+
+Every market is assigned exactly one primary `category` for the dashboard's filter chips. The chips show live counts and narrow both the comparison strip and the table; counts reflect whatever other filters (source, volume, search) are active.
+
+Classification is first-match-wins, so the order is the precedence — `categorize()` in `fetch.mjs`:
+
+1. **Mamdani** — any market naming Mamdani (his mayoralty, policy pledges, even his 2028 presidential odds). The person bucket wins first so a click on "Mamdani" shows everything about him.
+2. **Presidential** — national White House markets: 2028 nominations, "elected president", presidential runs (for everyone other than Mamdani, who is already caught above).
+3. **Elections** — every other New York race: governor, the House/congressional districts, state senate and assembly, Senate, attorney general, comptroller, borough president, district attorney, ballot measures.
+4. **Policy & government** — congestion pricing, rent, the MTA, NYPD, crime, budget, taxes, housing, immigration, transit and the rest of the policy vocabulary.
+5. **Other** — genuinely uncategorized civic markets (population and demographics, city efficiency savings, a Waymo launch, and so on).
+
+The same classifier is mirrored in `index.html` as a fallback, so the chips still work on older history snapshots written before the `category` field existed. To retune the buckets, edit the regexes in both places (or just `fetch.mjs` and re-run).
 
 ## Cross-platform topic consolidation
 
