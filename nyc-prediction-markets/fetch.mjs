@@ -78,6 +78,13 @@ function buildRegex(phrases) {
 
 const STRONG_RE = buildRegex(STRONG_KEYWORDS);
 
+// Congressional / state legislative districts. Catches both the Polymarket
+// format ("NY-12", "NY12", "NY 7") and the Kalshi format ("New York 21 House").
+// The "New York NN" branch requires an office/election word nearby so it doesn't
+// fire on things like the cable channel "New York 1".
+const DISTRICT_RE =
+  /\bNY[- ]?\d{1,2}\b|\bnew york\s+\d{1,2}\b(?=.*\b(?:house|senate|assembly|congress|congressional|district|primary|general election|nominee|representative)\b)/i;
+
 // ---------- topic rules ----------
 // Each rule: a question matching `pattern` gets tagged with `id` + human label.
 // First matching rule wins. The dashboard groups markets sharing an id and
@@ -156,6 +163,10 @@ function matchesNY(text, extraTags = []) {
   const strong = haystack.match(STRONG_RE);
   if (strong) hits.push(strong[0]);
 
+  // Congressional / state legislative districts
+  const district = haystack.match(DISTRICT_RE);
+  if (district) hits.push(district[0]);
+
   // Ambiguous tokens (require co-occurring context)
   for (const { token, context } of AMBIGUOUS) {
     const tokenRe = new RegExp(`\\b${token}\\b`, "i");
@@ -194,11 +205,15 @@ function num(x) {
 
 async function fetchPolymarket() {
   const out = [];
-  const limit = 500;
+  // Gamma now hard-caps responses at 100 items regardless of the requested
+  // limit, so we page by 100 and keep going until a page comes back empty.
+  // (The old code asked for 500, got 100, saw 100 < 500 and stopped after the
+  // very first page — scanning ~100 of ~2,100 open markets.)
+  const limit = 100;
   let offset = 0;
   // Cap pagination so we don't loop forever if the API misbehaves.
-  for (let page = 0; page < 20; page++) {
-    const url = `https://gamma-api.polymarket.com/markets?closed=false&limit=${limit}&offset=${offset}`;
+  for (let page = 0; page < 60; page++) {
+    const url = `https://gamma-api.polymarket.com/markets?closed=false&active=true&limit=${limit}&offset=${offset}`;
     let batch;
     try {
       batch = await getJson(url);
