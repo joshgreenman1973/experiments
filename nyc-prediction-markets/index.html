@@ -153,6 +153,23 @@
     margin: 0 0 4px;
     letter-spacing: -0.01em;
   }
+  .compare-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compare-toggle:hover { color: var(--accent); }
+  .compare-count {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    background: #ecebe4;
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
   .compare-section .lede {
     font-size: 13px;
     color: var(--muted);
@@ -262,6 +279,7 @@
 let MARKETS = [];
 let SORT = { key: "vol24", dir: "desc" };
 let CATEGORY = "All";
+let COMPARE_OPEN = false;
 
 // Fixed display order for the category chips.
 const CATEGORY_ORDER = ["Mamdani", "House / Congress", "Elections", "Presidential", "Policy & government", "Other"];
@@ -346,8 +364,14 @@ function renderCompare(filtered) {
 
   const wrap = document.getElementById("compareWrap");
   if (cards.length === 0) { wrap.innerHTML = ""; return; }
-  let html = `<h2>Same question, different platforms</h2>
-    <div class="lede">When two or more platforms have a market on the exact same outcome and time window, they appear here side-by-side. Big spreads = biggest disagreement between markets.</div>
+  const caret = COMPARE_OPEN ? "▾" : "▸";
+  let html = `<h2 class="compare-toggle" id="compareToggle">${caret} Same question, different platforms <span class="compare-count">${cards.length}</span></h2>`;
+  if (!COMPARE_OPEN) {
+    wrap.innerHTML = html;
+    document.getElementById("compareToggle").onclick = () => { COMPARE_OPEN = true; renderCompare(filtered); };
+    return;
+  }
+  html += `<div class="lede">When two or more platforms have a market on the exact same outcome and time window, they appear here side-by-side. Big spreads = biggest disagreement between markets.</div>
     <div class="compare-grid">`;
   for (const c of cards) {
     const label = c.arr[0].topic_label || c.topicId;
@@ -366,6 +390,7 @@ function renderCompare(filtered) {
   }
   html += `</div>`;
   wrap.innerHTML = html;
+  document.getElementById("compareToggle").onclick = () => { COMPARE_OPEN = false; renderCompare(filtered); };
 }
 
 function renderChips(base) {

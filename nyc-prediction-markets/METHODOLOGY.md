@@ -79,6 +79,8 @@ Polymarket events sometimes have a parent event title like "New York City Mayora
 
 The table sorts by **24-hour volume, descending** out of the box, so the markets people are actually trading right now sit on top. This is deliberately *not* lifetime volume (which is dominated by big national-flavored markets that did all their trading months ago) and *not* 24h price change (which floats thin markets that swung on a few dollars). Every column header is clickable to re-sort — 24h Δ, total volume, posted date, close date — and the category chips and search box narrow the set first. Manifold's 24h volume is in mana, so its play-money markets naturally rank below the real-money ones in the default view.
 
+The "Same question, different platforms" comparison block is **collapsed by default** (a one-line toggle above the table), so the active markets lead the page instead of being pushed below a screen of comparison cards. Click the heading to expand it.
+
 ## Schema (`data/markets.json`)
 
 ```jsonc
