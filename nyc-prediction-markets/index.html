@@ -253,14 +253,14 @@
   <div id="compareWrap" class="compare-section"></div>
   <div id="tableWrap"></div>
   <div class="footer-note">
-    Yes price is the implied probability the market is currently assigning. 24h Δ compares to the snapshot taken roughly 24 hours ago; "—" means no prior snapshot exists yet for that contract. Volume is lifetime in USD for Polymarket and Kalshi, in mana for Manifold (play-money — note the M).
+    Sorted by default on 24h volume — the markets with the most trading in the last day, so the busiest races sit on top. Yes price is the implied probability the market is currently assigning. 24h Δ compares to the snapshot taken roughly 24 hours ago; "—" means no prior snapshot exists yet for that contract. 24h vol is money traded in the last day; Total vol is lifetime — both in USD for Polymarket and Kalshi, in mana for Manifold (play-money — note the M). Click any column header to re-sort.
     Methodology and keyword list: <a href="METHODOLOGY.md">METHODOLOGY.md</a>.
     Data refreshed every 6 hours via GitHub Actions. Source: <a href="data/markets.json">markets.json</a>.
   </div>
 </main>
 <script>
 let MARKETS = [];
-let SORT = { key: "abs_change", dir: "desc" };
+let SORT = { key: "vol24", dir: "desc" };
 let CATEGORY = "All";
 
 // Fixed display order for the category chips.
@@ -312,6 +312,7 @@ const fmtDate = (s) => {
 
 function getValue(m, key) {
   if (key === "abs_change") return Math.abs(m.price_change_24h ?? 0);
+  if (key === "vol24") return m.volume_24h_usd ?? m.volume_24h_mana ?? 0;
   if (key === "volume") return m.volume_usd ?? m.volume_mana ?? 0;
   if (key === "yes_price") return m.yes_price ?? -1;
   if (key === "change") return m.price_change_24h ?? -Infinity;
@@ -441,7 +442,8 @@ function render() {
     <th data-sort="source" class="hide-narrow">Source${arrow("source")}</th>
     <th data-sort="yes_price" class="num">Yes${arrow("yes_price")}</th>
     <th data-sort="change" class="num">24h Δ${arrow("change")}</th>
-    <th data-sort="volume" class="num">Volume${arrow("volume")}</th>
+    <th data-sort="vol24" class="num">24h vol${arrow("vol24")}</th>
+    <th data-sort="volume" class="num hide-narrow">Total vol${arrow("volume")}</th>
     <th data-sort="posted" class="num hide-narrow">Posted${arrow("posted")}</th>
     <th data-sort="close" class="num hide-narrow">Closes${arrow("close")}</th>
   </tr></thead><tbody>`;
@@ -449,6 +451,7 @@ function render() {
   for (const m of rows) {
     const isMana = m.source === "manifold";
     const vol = m.volume_usd ?? m.volume_mana;
+    const vol24 = m.volume_24h_usd ?? m.volume_24h_mana;
     const dCls = m.price_change_24h == null ? "" : m.price_change_24h >= 0 ? "delta-pos" : "delta-neg";
     const link = m.url ? `<a href="${m.url}" target="_blank" rel="noopener">${escapeHtml(m.question)}</a>` : escapeHtml(m.question);
     html += `<tr>
@@ -456,7 +459,8 @@ function render() {
       <td class="hide-narrow"><span class="src ${m.source}">${m.source}</span></td>
       <td class="num price">${fmtPct(m.yes_price)}</td>
       <td class="num ${dCls}">${fmtDelta(m.price_change_24h)}</td>
-      <td class="num">${fmtMoney(vol, isMana)}</td>
+      <td class="num">${fmtMoney(vol24, isMana)}</td>
+      <td class="num hide-narrow">${fmtMoney(vol, isMana)}</td>
       <td class="num hide-narrow">${fmtDate(m.created_at)}</td>
       <td class="num hide-narrow">${fmtDate(m.close_date)}</td>
     </tr>`;

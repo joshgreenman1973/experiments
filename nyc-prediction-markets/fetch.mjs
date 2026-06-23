@@ -441,6 +441,7 @@ async function fetchPolymarket() {
         url: eventSlug ? `https://polymarket.com/event/${eventSlug}` : null,
         yes_price: yesPrice,
         volume_usd: num(m.volume),
+        volume_24h_usd: num(m.volume24hr),
         liquidity_usd: num(m.liquidity),
         open_interest_usd: null,
         created_at: m.createdAt || m.startDateIso || m.startDate || null,
@@ -493,9 +494,13 @@ async function fetchKalshi() {
       const subtitle = ev.sub_title || "";
       const tags = [ev.category, ev.series_ticker, ev.event_ticker].filter(Boolean);
 
-      // Skip obvious sports/entertainment series tickers
+      // Skip obvious sports/entertainment series tickers. The trailing
+      // `KX[A-Z]*GAME` catches every per-game head-to-head sports market across
+      // all leagues (e.g. KXISLGAME = Israeli basketball) — these use team
+      // abbreviations like "MTA" (Maccabi Tel-Aviv) that collide with NY
+      // keywords (MTA the transit agency).
       if (
-        /^(KXNFL|KXNBA|KXNHL|KXMLB|KXSOCCER|KXMVE|KXMVECROSSCATEGORY|KXMVESPORTS|KXUFC|KXTENNIS|KXGOLF|KXOSCAR|KXGRAMM|KXEMMY)/i.test(
+        /^(KXNFL|KXNBA|KXNHL|KXMLB|KXSOCCER|KXMVE|KXMVECROSSCATEGORY|KXMVESPORTS|KXUFC|KXTENNIS|KXGOLF|KXOSCAR|KXGRAMM|KXEMMY|KX[A-Z]*GAME)/i.test(
           ev.event_ticker || "",
         )
       ) {
@@ -519,6 +524,7 @@ async function fetchKalshi() {
           num(m.yes_ask_dollars) ??
           (num(m.last_price) !== null ? num(m.last_price) / 100 : null);
         const volume = num(m.volume_fp) ?? num(m.volume);
+        const volume24 = num(m.volume_24h_fp) ?? num(m.volume_24h);
         const oi = num(m.open_interest_fp) ?? num(m.open_interest);
         const fullQuestion = mTitle ? `${title} — ${mTitle}` : title;
         const topic = tagTopic(fullQuestion);
@@ -531,6 +537,7 @@ async function fetchKalshi() {
             : null,
           yes_price: yesPrice,
           volume_usd: volume,
+          volume_24h_usd: volume24,
           liquidity_usd: num(m.liquidity_dollars),
           open_interest_usd: oi,
           created_at: m.created_time || m.open_time || null,
@@ -615,7 +622,9 @@ async function fetchManifold() {
         url: m.url,
         yes_price: num(m.probability),
         volume_mana: num(m.volume),
+        volume_24h_mana: num(m.volume24Hours),
         volume_usd: null, // Manifold uses play money
+        volume_24h_usd: null,
         liquidity_usd: null,
         open_interest_usd: null,
         created_at: m.createdTime ? new Date(m.createdTime).toISOString() : null,

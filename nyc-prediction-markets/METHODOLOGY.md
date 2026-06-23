@@ -18,6 +18,8 @@ All three are public APIs, no authentication required.
 
 Polymarket and Kalshi are real-money venues; their volumes are USD. Manifold is play-money — its volumes are mana ("M") and shouldn't be compared dollar-for-dollar.
 
+Each source also reports **24-hour trading volume**, which the table sorts on by default (see "Default view" below): Polymarket `volume24hr`, Kalshi `volume_24h_fp`, Manifold `volume24Hours`.
+
 Note on Polymarket pagination: the Gamma API now hard-caps every response at 100 items regardless of the requested `limit`. The fetcher pages by 100 via `offset` until the list is exhausted (a `422` past the end is treated as the stop signal). An earlier version asked for `limit=500`, received 100, saw `100 < 500` and stopped after the first page — which silently scanned only the top ~100 of ~2,100 open markets and was why most New York races never appeared.
 
 ## Filter logic — `matchesNY()` in `fetch.mjs`
@@ -67,11 +69,15 @@ Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bull
 
 The list is kept specific on purpose — there is no bare "Bills" (that would swallow legislation) and no bare "degrees" or "hottest" (those collide with housing and economy markets).
 
-Kalshi event tickers starting with `KXNFL`, `KXNBA`, `KXNHL`, `KXMLB`, `KXSOCCER`, `KXMVE…`, `KXUFC`, `KXTENNIS`, `KXGOLF`, `KXOSCAR`, `KXGRAMM`, `KXEMMY` are skipped before keyword matching.
+Kalshi event tickers starting with `KXNFL`, `KXNBA`, `KXNHL`, `KXMLB`, `KXSOCCER`, `KXMVE…`, `KXUFC`, `KXTENNIS`, `KXGOLF`, `KXOSCAR`, `KXGRAMM`, `KXEMMY`, or matching `KX…GAME` are skipped before keyword matching. The `KX…GAME` catch-all covers every per-game head-to-head sports market across all leagues — these use team abbreviations (e.g. "MTA" for Maccabi Tel-Aviv) that would otherwise collide with NY keywords like MTA the transit agency.
 
 ### Tag-based catch-all
 
 Polymarket events sometimes have a parent event title like "New York City Mayoral Election 2025" — those qualify even if the per-market question doesn't mention NYC by name. Same for Kalshi `category` and Manifold `groupSlugs` containing "new york".
+
+## Default view
+
+The table sorts by **24-hour volume, descending** out of the box, so the markets people are actually trading right now sit on top. This is deliberately *not* lifetime volume (which is dominated by big national-flavored markets that did all their trading months ago) and *not* 24h price change (which floats thin markets that swung on a few dollars). Every column header is clickable to re-sort — 24h Δ, total volume, posted date, close date — and the category chips and search box narrow the set first. Manifold's 24h volume is in mana, so its play-money markets naturally rank below the real-money ones in the default view.
 
 ## Schema (`data/markets.json`)
 
@@ -86,8 +92,10 @@ Polymarket events sometimes have a parent event title like "New York City Mayora
       "question": "Will Mamdani freeze NYC rents before 2027?",
       "url": "https://polymarket.com/event/...",
       "yes_price": 0.27,            // decimal probability for the Yes contract
-      "volume_usd": 253802,         // null for Manifold (play-money)
-      "volume_mana": null,          // populated only for Manifold
+      "volume_usd": 253802,         // lifetime; null for Manifold (play-money)
+      "volume_24h_usd": 4120,       // last 24h; null for Manifold
+      "volume_mana": null,          // lifetime, populated only for Manifold
+      "volume_24h_mana": null,      // last 24h, populated only for Manifold
       "liquidity_usd": null,
       "open_interest_usd": null,
       "close_date": "2027-01-01T00:00:00Z",
@@ -107,7 +115,7 @@ Each run also writes a snapshot to `data/history/YYYY-MM-DD-HH.json`. The 24h-ch
 - **No authentication = no markets behind logins.** Kalshi has some markets only visible to logged-in users; we see only what the public API returns.
 - **Pagination caps.** We stop at 6,000 Polymarket markets (60 pages × 100, against ~2,100 currently open), 12,000 Kalshi events, and 22 Manifold keyword searches × 100 results each. In practice this captures the entire active universe with room to spare, but extreme-tail markets could be missed.
 - **Manifold play-money.** Manifold prices reflect crowd belief but no real money is at stake; treat them as forecast aggregators, not market prices.
-- **Volume is lifetime, not recent.** Polymarket and Kalshi report total contract volume since launch. A "$10M" market may have done all of that volume months ago.
+- **Two volume figures.** "Total vol" is lifetime contract volume since launch — a "$10M" market may have done all of it months ago — so the table also carries "24h vol" (the last day's trading) and sorts on it by default. Both come straight from each platform's reported numbers.
 - **Residual false negatives.** Because relevance is now structural (geography + context), most New York markets are caught automatically. The remaining gaps are markets that mention neither a New York place nor a strong keyword — e.g. a market that refers only to a candidate by name with no district, office or place. If something is missed, the levers in `fetch.mjs` are `GEO_KEYWORDS`, `CONTEXT_KEYWORDS`, `DISTRICT_RE`, `STRONG_KEYWORDS` and `MANIFOLD_QUERIES`.
 - **False positives.** A national market that happens to name a New York place alongside a context word could qualify. Spot checks find these are rare and almost always genuinely New York; the volume filter on the page hides the low-stakes noise.
 - **Multi-outcome markets.** For events like "NYC Mayor 2025 winner" with N candidates, every candidate's contract appears as its own row. This is intentional — it's the only way to see how each contract is priced — but it means one event can dominate the table.
