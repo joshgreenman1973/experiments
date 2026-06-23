@@ -264,15 +264,17 @@ let SORT = { key: "abs_change", dir: "desc" };
 let CATEGORY = "All";
 
 // Fixed display order for the category chips.
-const CATEGORY_ORDER = ["Mamdani", "Elections", "Presidential", "Policy & government", "Other"];
+const CATEGORY_ORDER = ["Mamdani", "House / Congress", "Elections", "Presidential", "Policy & government", "Other"];
 
 // Fallback classifier — kept in sync with categorize() in fetch.mjs. Only used
 // for markets whose data predates the category field (e.g. old history files);
 // fresh data already carries m.category.
 const PRESIDENTIAL_RE =
   /\b(?:us president|president of the united states|white house|elected president|become president|for president\b|presidential (?:nomination|nominee|election|run|primary|bid))\b|2028.*(?:nomination|nominee|presidential)/i;
+const HOUSE_RE =
+  /\bNY-?\d{1,2}\b|\bnew york\s+\d{1,2}\b(?=.*\bhouse\b)|\bcongress(?:ional)?\b|\bhouse\b\s*(?:primary|seat|district|race|general election)|(?:democratic|republican)\s+house\s+primary/i;
 const ELECTIONS_RE =
-  /\bNY-?(?:\d|Gov)|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bcongress(?:ional)?\b|\bhouse\b|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
+  /\bNY-?Gov|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
 const POLICY_RE =
   /congestion pricing|\brent\b|\bMTA\b|subway|\bNYPD\b|\bpolice\b|\bcrime\b|budget|\btax(?:es)?\b|housing|zoning|homeless|shelter|migrant|asylum|immigration|minimum wage|\bschool\b|education|healthcare|public health|pension|infrastructure|transit|eviction|\blaw\b|\bbill\b|\bpolicy\b/i;
 
@@ -280,6 +282,7 @@ function categorize(question) {
   const q = question || "";
   if (/\bmamdani\b/i.test(q)) return "Mamdani";
   if (PRESIDENTIAL_RE.test(q)) return "Presidential";
+  if (HOUSE_RE.test(q)) return "House / Congress";
   if (ELECTIONS_RE.test(q)) return "Elections";
   if (POLICY_RE.test(q)) return "Policy & government";
   return "Other";

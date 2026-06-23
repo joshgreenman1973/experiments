@@ -196,7 +196,7 @@ const AMBIGUOUS = [
 // or daily NYC temperature markets. Word-list is intentionally specific to
 // avoid clobbering civic markets (e.g. no bare "Bills" — that's legislation).
 const EXCLUDE_RE =
-  /\b(?:Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|Sabres|Buffalo Bills|NYCFC|New York City FC|Subway Series|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|PGA|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|playoffs?|championship|Heisman|box office|Oscars?|Grammys?|Emmys?|Tonys?|Tony Award|Met Gala|Fashion Week|Broadway|Eurovision|temperatures?|rainfall|snowfall|snowiest|Fahrenheit|Celsius|heat wave|blizzard|hurricane|inches of (?:rain|snow))\b/i;
+  /\b(?:Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|Sabres|Buffalo Bills|NYCFC|New York City FC|Subway Series|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|PGA|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|playoffs?|championship|Heisman|box office|Oscars?|Grammys?|Emmys?|Tonys?|Tony Award|Met Gala|Fashion Week|Broadway|Eurovision|Dancing with the Stars|DWTS|temperatures?|rainfall|snowfall|snowiest|Fahrenheit|Celsius|heat wave|blizzard|hurricane|inches of (?:rain|snow))\b/i;
 
 // Word-boundary regex for a list of literal phrases (case-insensitive).
 function buildRegex(phrases) {
@@ -296,8 +296,12 @@ function tagTopic(question) {
 //   5. Other     - everything else (Waymo, population, demographics, misc)
 const PRESIDENTIAL_RE =
   /\b(?:us president|president of the united states|white house|elected president|become president|for president\b|presidential (?:nomination|nominee|election|run|primary|bid))\b|2028.*(?:nomination|nominee|presidential)/i;
+// Congressional House races — the single biggest cluster, split out of Elections
+// so that chip is usable. Catches NY district shorthands and House wording.
+const HOUSE_RE =
+  /\bNY-?\d{1,2}\b|\bnew york\s+\d{1,2}\b(?=.*\bhouse\b)|\bcongress(?:ional)?\b|\bhouse\b\s*(?:primary|seat|district|race|general election)|(?:democratic|republican)\s+house\s+primary/i;
 const ELECTIONS_RE =
-  /\bNY-?(?:\d|Gov)|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bcongress(?:ional)?\b|\bhouse\b|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
+  /\bNY-?Gov|gubernatorial|\bgovernor\b|\bmayor(?:al)?\b|comptroller|attorney general|public advocate|borough president|city council|state senate|state assembly|\bassembly\b|district attorney|\bsenate\b|\bprimary\b|\bnominee\b|\belection\b|\bballot\b|referendum|proposition|redistricting|incumbent|runoff|special election|\bseat\b/i;
 const POLICY_RE =
   /congestion pricing|\brent\b|\bMTA\b|subway|\bNYPD\b|\bpolice\b|\bcrime\b|budget|\btax(?:es)?\b|housing|zoning|homeless|shelter|migrant|asylum|immigration|minimum wage|\bschool\b|education|healthcare|public health|pension|infrastructure|transit|eviction|\blaw\b|\bbill\b|\bpolicy\b/i;
 
@@ -305,6 +309,7 @@ function categorize(question) {
   const q = question || "";
   if (/\bmamdani\b/i.test(q)) return "Mamdani";
   if (PRESIDENTIAL_RE.test(q)) return "Presidential";
+  if (HOUSE_RE.test(q)) return "House / Congress";
   if (ELECTIONS_RE.test(q)) return "Elections";
   if (POLICY_RE.test(q)) return "Policy & government";
   return "Other";

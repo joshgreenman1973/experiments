@@ -63,7 +63,7 @@ To avoid false positives like Amy Adams / John Adams / LeBron James:
 
 A market is rejected outright, before any New York test runs, if its text or tags match any of:
 
-Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bulls, Sabres, Buffalo Bills, NYCFC, New York City FC, Subway Series, NY/NYC Marathon, MLS Cup, MLB, NBA, NHL, NFL, UFC, PGA, WNBA, NCAA, Champions League, Premier League, Bundesliga, La Liga, Super Bowl, World Series, Stanley Cup, Final Four, playoffs, championship, Heisman, box office, Oscars, Grammys, Emmys, Tonys, Tony Award, Met Gala, Fashion Week, Broadway, Eurovision, temperature, rainfall, snowfall, snowiest, Fahrenheit, Celsius, heat wave, blizzard, hurricane, "inches of rain/snow".
+Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bulls, Sabres, Buffalo Bills, NYCFC, New York City FC, Subway Series, NY/NYC Marathon, MLS Cup, MLB, NBA, NHL, NFL, UFC, PGA, WNBA, NCAA, Champions League, Premier League, Bundesliga, La Liga, Super Bowl, World Series, Stanley Cup, Final Four, playoffs, championship, Heisman, box office, Oscars, Grammys, Emmys, Tonys, Tony Award, Met Gala, Fashion Week, Broadway, Eurovision, Dancing with the Stars, DWTS, temperature, rainfall, snowfall, snowiest, Fahrenheit, Celsius, heat wave, blizzard, hurricane, "inches of rain/snow".
 
 The list is kept specific on purpose — there is no bare "Bills" (that would swallow legislation) and no bare "degrees" or "hottest" (those collide with housing and economy markets).
 
@@ -92,7 +92,7 @@ Polymarket events sometimes have a parent event title like "New York City Mayora
       "open_interest_usd": null,
       "close_date": "2027-01-01T00:00:00Z",
       "matched_keywords": ["Mamdani"],
-      "category": "Mamdani",        // one of: Mamdani, Presidential, Elections, Policy & government, Other
+      "category": "Mamdani",        // one of: Mamdani, Presidential, House / Congress, Elections, Policy & government, Other
       "price_24h_ago": 0.24,        // null until two snapshots exist
       "price_change_24h": 0.03
     }
@@ -120,9 +120,10 @@ Classification is first-match-wins, so the order is the precedence — `categori
 
 1. **Mamdani** — any market naming Mamdani (his mayoralty, policy pledges, even his 2028 presidential odds). The person bucket wins first so a click on "Mamdani" shows everything about him.
 2. **Presidential** — national White House markets: 2028 nominations, "elected president", presidential runs (for everyone other than Mamdani, who is already caught above).
-3. **Elections** — every other New York race: governor, the House/congressional districts, state senate and assembly, Senate, attorney general, comptroller, borough president, district attorney, ballot measures.
-4. **Policy & government** — congestion pricing, rent, the MTA, NYPD, crime, budget, taxes, housing, immigration, transit and the rest of the policy vocabulary.
-5. **Other** — genuinely uncategorized civic markets (population and demographics, city efficiency savings, a Waymo launch, and so on).
+3. **House / Congress** — congressional district races, the single largest cluster (~460 rows, since every candidate in every district is its own contract). Split out of Elections so that chip stays usable: NY district shorthands (NY-12, "New York 21 House"), "congressional", and House primary/seat/district/general-election wording.
+4. **Elections** — every *other* New York race: governor, state senate and assembly, US Senate, attorney general, comptroller, mayor, borough president, district attorney, city council, ballot measures (~74 rows).
+5. **Policy & government** — congestion pricing, rent, the MTA, NYPD, crime, budget, taxes, housing, immigration, transit and the rest of the policy vocabulary.
+6. **Other** — genuinely uncategorized civic markets (population and demographics, city efficiency savings, a Waymo launch, and so on).
 
 The same classifier is mirrored in `index.html` as a fallback, so the chips still work on older history snapshots written before the `category` field existed. To retune the buckets, edit the regexes in both places (or just `fetch.mjs` and re-run).
 
