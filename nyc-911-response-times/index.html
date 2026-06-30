@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC 911 response times</title>
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+@font-face {
+  font-family: 'GascogneTS';
+  src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --vc-black: #050507;
+  --vc-white: #ffffff;
+  --vc-cloud: #dddddd;
+  --vc-chartreuse: #dde44c;
+  --vc-orange: #ff7c53;
+  --vc-periwinkle: #9b9fbc;
+  --vc-charcoal: #707175;
+  --vc-indigo: #394882;
+  --vc-cerulean: #217ebe;
+  --vc-magenta: #e7466d;
+  --vc-goodest-green: #57aa4a;
+  --vc-baddest-red: #d2232a;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-weight: 300;
+  background: var(--vc-white);
+  color: var(--vc-black);
+  line-height: 1.6;
+}
+
+.top-accent-bar {
+  height: 3px;
+  background: var(--vc-orange);
+  width: 100%;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  background: #fff;
+  margin: -2rem -1.5rem 1.5rem;
+  padding: 2.5rem 1.5rem 1.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+header h1 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--vc-black);
+  margin-bottom: 0.4rem;
+  line-height: 1.15;
+}
+
+header .subtitle {
+  font-size: 1rem;
+  font-weight: 200;
+  color: var(--vc-charcoal);
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  background: #fafafa;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.control-group label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+}
+
+.control-group select {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  transition: border-color 0.15s;
+}
+
+.control-group select:focus {
+  outline: none;
+  border-color: var(--vc-indigo);
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: 55% 45%;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.map-column {
+  min-height: 500px;
+}
+
+.map-wrap {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.map-wrap h2 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.map-wrap .map-subtitle {
+  font-size: 0.8rem;
+  color: var(--vc-charcoal);
+  padding: 0 1.25rem 0.75rem;
+}
+
+#map {
+  flex: 1;
+  min-height: 400px;
+}
+
+.map-legend {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  color: #555;
+  border-top: 1px solid #eee;
+  flex-wrap: wrap;
+  background: #fafafa;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.map-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.stats-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.headline-stat {
+  background: linear-gradient(135deg, #f0f2f8 0%, #fff 60%);
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  border-top: 3px solid var(--vc-indigo);
+}
+
+.headline-stat .stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  margin-bottom: 0.35rem;
+}
+
+.headline-stat .stat-value {
+  font-family: 'GascogneTS', 'Source Serif 4', Georgia, serif;
+  font-size: 2.8rem;
+  font-weight: 300;
+  color: var(--vc-indigo);
+  line-height: 1.1;
+}
+
+.headline-stat .stat-detail {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.35rem;
+}
+
+.selected-district-banner {
+  background: #f0f4ff;
+  border: 1px solid #b0bce8;
+  border-left: 4px solid var(--vc-indigo);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--vc-indigo);
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(57,72,130,0.1);
+}
+
+.selected-district-banner button {
+  background: none;
+  border: none;
+  color: var(--vc-indigo);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: 'halyard-text', 'Inter', sans-serif;
+}
+
+.selected-district-banner button:hover {
+  text-decoration: underline;
+}
+
+.panel-section {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  border-top: 2px solid var(--vc-indigo);
+}
+
+.panel-section + .panel-section {
+  margin-top: 0;
+}
+
+.panel-section h3 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 900;
+  margin-bottom: 0.75rem;
+}
+
+.panel-section .chart-container {
+  position: relative;
+  width: 100%;
+}
+
+.bottom-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-section {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  border-top: 2px solid var(--vc-indigo);
+}
+
+.chart-section h2 {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-bottom: 0.25rem;
+}
+
+.chart-section .chart-subtitle {
+  font-size: 0.85rem;
+  color: var(--vc-charcoal);
+  margin-bottom: 1rem;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+}
+
+.legend-bar {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.fastest-slowest {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.agency-breakdown-section {
+  margin-bottom: 1.5rem;
+}
+
+.agency-breakdown-row {
+  padding: 1rem 0;
+  border-top: 1px solid #eee;
+}
+
+.agency-breakdown-row:first-child {
+  border-top: none;
+}
+
+.agency-breakdown-name {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agency-breakdown-count {
+  font-size: 0.75rem;
+  color: var(--vc-charcoal);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agency-breakdown-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.breakdown-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vc-charcoal);
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--vc-indigo);
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.breakdown-header.fast {
+  border-bottom-color: var(--vc-goodest-green);
+}
+
+.breakdown-header.slow {
+  border-bottom-color: var(--vc-baddest-red);
+}
+
+.agency-breakdown-lists ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.agency-breakdown-lists li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f3f3f3;
+}
+
+.agency-breakdown-lists li .dname {
+  color: #333;
+}
+
+.agency-breakdown-lists li .dtime {
+  color: var(--vc-charcoal);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .agency-breakdown-lists {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fs-col h4 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vc-charcoal);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 2px solid var(--vc-indigo);
+}
+
+.fs-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.85rem;
+}
+
+.fs-row:nth-child(even) {
+  background: #f8f8f6;
+}
+
+.fs-row .fs-district {
+  font-weight: 500;
+}
+
+.fs-row .fs-time {
+  color: #555;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e5e5;
+  border-top-color: var(--vc-indigo);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.error-message {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.data-note {
+  font-size: 0.78rem;
+  color: #999;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e5e5;
+  line-height: 1.7;
+  background: #fafafa;
+  border-radius: 0 0 8px 8px;
+}
+
+.page-footer {
+  margin-top: 2rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--vc-cloud);
+  font-size: 0.78rem;
+  color: var(--vc-charcoal);
+  line-height: 1.6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-footer a {
+  color: var(--vc-indigo);
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}
+
+.maplibregl-popup-content {
+  font-family: 'halyard-text', 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.popup-district {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.popup-time {
+  color: #555;
+}
+
+.popup-count {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-column {
+    min-height: 350px;
+  }
+
+  .bottom-sections {
+    grid-template-columns: 1fr;
+  }
+
+  header h1 {
+    font-size: 2rem;
+  }
+
+  .headline-stat .stat-value {
+    font-size: 2.2rem;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .control-group select {
+    width: 100%;
+  }
+
+  .fastest-slowest {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem;
+  }
+
+  header {
+    margin: -1rem -1rem 1.5rem;
+    padding: 1.5rem 1rem 1.25rem;
+  }
+
+  .headline-stat .stat-value {
+    font-size: 1.8rem;
+  }
+}
+</style>
+</head>
+<body>
+<div class="top-accent-bar"></div>
+<div class="container">
+  <header>
+    <h1>NYC 911 response times</h1>
+    <p class="subtitle">How long does it take police to arrive after a 911 call? Median time from when a job is entered into the dispatch system until the first NYPD unit arrives on scene, broken out by precinct and call type.</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="complaint-select">Call type</label>
+      <select id="complaint-select">
+        <option value="" selected>All call types</option>
+        <optgroup label="Priority emergencies">
+          <option value="CIP">All critical (CIP) jobs</option>
+        </optgroup>
+        <optgroup label="Common call types">
+          <option value="DISPUTE: INSIDE">Dispute (inside)</option>
+          <option value="DISPUTE: FAMILY">Dispute (family)</option>
+          <option value="ALARMS: COMMERCIAL/BURGLARY">Burglary alarm (commercial)</option>
+          <option value="QUALITY OF LIFE COMPLAINT">Quality of life complaint</option>
+          <option value="INVESTIGATE/POSSIBLE CRIME: CALLS FOR HELP/INSIDE">Calls for help (inside)</option>
+          <option value="INVESTIGATE/POSSIBLE CRIME: SUSP PERSON/OUTSIDE (PROWLER)">Suspicious person / prowler</option>
+          <option value="INVESTIGATE/POSSIBLE CRIME: SERIOUS/OTHER">Serious crime investigation</option>
+          <option value="VEHICLE ACCIDENT: SPECIAL CONDITION">Vehicle accident</option>
+          <option value="AMBULANCE CASE: EDP/INSIDE">EDP / emotionally disturbed person</option>
+          <option value="AMBULANCE CASE: SERIOUS/INSIDE">Ambulance, serious (inside)</option>
+          <option value="AMBULANCE CASE: UNCONSCIOUS/INSIDE">Ambulance, unconscious (inside)</option>
+          <option value="DISORDERLY: PERSON/INSIDE">Disorderly person (inside)</option>
+          <option value="OTHER CRIMES (IN PROGRESS): HARASSMENT/INSIDE">Harassment in progress</option>
+          <option value="LARCENY (PAST): OTHER/INSIDE">Past larceny</option>
+          <option value="SEE COMPLAINANT: OTHER/INSIDE">See complainant (inside)</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="borough-select">Borough</label>
+      <select id="borough-select">
+        <option value="">All boroughs</option>
+        <option value="MANHATTAN">Manhattan</option>
+        <option value="BROOKLYN">Brooklyn</option>
+        <option value="QUEENS">Queens</option>
+        <option value="BRONX">Bronx</option>
+        <option value="STATEN ISLAND">Staten Island</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="period-select">Time range</label>
+      <select id="period-select">
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="180">Last 6 months</option>
+        <option value="365">Last year</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="error-container"></div>
+
+  <div id="loading" class="loading-container">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading NYPD 911 call data...</div>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div class="main-layout">
+      <div class="map-column">
+        <div class="map-wrap">
+          <h2>Median 911 response time by NYPD precinct</h2>
+          <p class="map-subtitle">Click a precinct to filter the call-type chart</p>
+          <div id="map"></div>
+          <div class="map-legend" id="map-legend">
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#57aa4a;"></div><span id="legend-l1">Much faster than citywide</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#dde44c;"></div><span id="legend-l2">Near citywide median</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#ff7c53;"></div><span id="legend-l3">Slower than citywide</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#d2232a;"></div><span id="legend-l4">Much slower than citywide</span></div>
+            <div class="map-legend-item"><div class="map-legend-swatch" style="background:#ddd;"></div> No data</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-column">
+        <div class="headline-stat">
+          <div class="stat-label">Citywide median response time</div>
+          <div class="stat-value" id="stat-median">--</div>
+          <div class="stat-detail" id="stat-count"></div>
+        </div>
+
+        <div id="selected-banner" class="selected-district-banner">
+          <span id="selected-text"></span>
+          <button id="clear-selection">Clear</button>
+        </div>
+
+        <div class="panel-section">
+          <h3 id="district-chart-title">5 fastest and 5 slowest precincts</h3>
+          <div class="chart-container" id="district-chart-container" style="height:280px;">
+            <canvas id="district-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3 id="agency-chart-title">Median response time by call type</h3>
+          <div class="chart-container" id="agency-chart-container" style="height:380px;">
+            <canvas id="agency-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-sections">
+      <div class="chart-section">
+        <h2>Summary statistics</h2>
+        <div id="summary-stats"></div>
+      </div>
+    </div>
+
+    <div class="chart-section agency-breakdown-section">
+      <h2>Fastest and slowest precincts, by call type</h2>
+      <p class="chart-subtitle">For each common call type, the 5 NYPD precincts where police arrive fastest and the 5 where they arrive slowest. A precinct needs at least 20 calls of that type to be included.</p>
+      <div id="agency-district-breakdown"></div>
+    </div>
+
+    <p class="data-note" id="data-note"></p>
+  </div>
+
+  <footer class="page-footer">
+    <p>Data source: <a href="https://data.cityofnewyork.us/Public-Safety/NYPD-Calls-for-Service-Year-to-Date-/n2zq-pubd" target="_blank" rel="noopener">NYPD Calls for Service (Year to Date)</a> via NYC Open Data (Socrata API).
+    Precinct boundaries from <a href="https://data.cityofnewyork.us/Public-Safety/Police-Precincts/y76i-bdw7" target="_blank" rel="noopener">NYC Police Precincts</a>.
+    See the <a href="https://github.com/joshgreenman1973/experiments/blob/main/nyc-911-response-times/methodology.md" target="_blank" rel="noopener">full methodology</a> for data sources, calculations, and limitations.</p>
+  </footer>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  var API_BASE = "https://data.cityofnewyork.us/resource/n2zq-pubd.json";
+  var GEO_URL = "https://data.cityofnewyork.us/resource/y76i-bdw7.geojson?$limit=200";
+
+  var complaintSelect = document.getElementById("complaint-select");
+  var boroughSelect = document.getElementById("borough-select");
+  var periodSelect = document.getElementById("period-select");
+  var loadingEl = document.getElementById("loading");
+  var dashboardEl = document.getElementById("dashboard");
+  var errorContainer = document.getElementById("error-container");
+  var selectedBanner = document.getElementById("selected-banner");
+  var selectedText = document.getElementById("selected-text");
+  var clearBtn = document.getElementById("clear-selection");
+
+  var map = null;
+  var districtChart = null;
+  var agencyChart = null;
+  var geoData = null;
+  var currentDistricts = [];
+  var currentAgencies = [];
+  var citywideMedian = 0;
+  var selectedDistrict = null;
+  var popup = null;
+  var allRecords = [];
+  // Anchor the time window on the dataset's most recent record rather
+  // than the system clock. NYPD's public release lags behind real time
+  // by months, so "last 30 days from today" can return zero rows even
+  // when there's plenty of recent data in the dataset.
+  var datasetLatest = null;
+
+  async function getDatasetLatest() {
+    if (datasetLatest) return datasetLatest;
+    try {
+      var resp = await fetch(API_BASE + "?$select=add_ts&$order=add_ts%20DESC&$limit=1");
+      var rows = await resp.json();
+      if (Array.isArray(rows) && rows[0] && rows[0].add_ts) {
+        datasetLatest = new Date(rows[0].add_ts);
+        return datasetLatest;
+      }
+    } catch (err) {
+      console.warn("Could not fetch dataset latest date; falling back to system clock", err);
+    }
+    datasetLatest = new Date();
+    return datasetLatest;
+  }
+
+  function getDateOffset(days, anchor) {
+    var d = new Date(anchor.getTime());
+    d.setDate(d.getDate() - days);
+    return d.toISOString().slice(0, 19);
+  }
+
+  // All response-time values in this file are in MINUTES.
+  function formatMinutes(m) {
+    if (m == null || isNaN(m)) return "--";
+    if (m < 1) {
+      var secs = Math.round(m * 60);
+      return secs + " sec";
+    }
+    if (m < 60) {
+      var rounded = m < 10 ? Math.round(m * 10) / 10 : Math.round(m);
+      return rounded + (rounded === 1 ? " min" : " min");
+    }
+    var hours = m / 60;
+    var hRounded = Math.round(hours * 10) / 10;
+    return hRounded + (hRounded === 1 ? " hr" : " hr");
+  }
+
+  // Precise version for tooltips so two precincts both labeled "8 min"
+  // but in different color bins don't look identical.
+  function formatMinutesPrecise(m) {
+    if (m == null || isNaN(m)) return "--";
+    if (m < 60) return m.toFixed(2) + " min";
+    return (m / 60).toFixed(2) + " hr";
+  }
+
+  // Legacy alias so the chart code that still calls formatDays keeps working
+  // during incremental refactoring. Routes everything through formatMinutes.
+  var formatDays = formatMinutes;
+  var formatDaysPrecise = formatMinutesPrecise;
+
+  function formatNumber(n) {
+    return n.toLocaleString("en-US");
+  }
+
+  // NYPD call types come back in screaming caps with colons separating
+  // category from detail. Render them readable without losing meaning.
+  // Self-initiated patrol and administrative categories where dispatch
+  // and arrival are recorded at the same instant — the officer was
+  // already there. Excluding these is what turns "median response time"
+  // back into something meaningful.
+  var SELF_INITIATED_PREFIXES = [
+    "VISIBILITY PATROL",
+    "STATION INSPECTION",
+    "TRAIN RUN/MOBILE ORDER MAINTENANCE",
+    "TRAIN ORDER MAINTENANCE SWEEP",
+    "TRANSIT PATROL",
+    "HOUSE OF WORSHIP VISIT",
+    "VERIFY AMB NEEDED"
+  ];
+  function isSelfInitiated(typDesc) {
+    if (!typDesc) return false;
+    for (var i = 0; i < SELF_INITIATED_PREFIXES.length; i++) {
+      if (typDesc.indexOf(SELF_INITIATED_PREFIXES[i]) === 0) return true;
+    }
+    return false;
+  }
+
+  var KEEP_ACRONYMS = {
+    "EDP": 1, "AMB": 1, "NYPD": 1, "FDNY": 1, "TOMS": 1, "SUSP": 1,
+    "ID": 1, "DV": 1, "DOA": 1, "DWI": 1, "MTA": 1, "ESU": 1, "TLC": 1
+  };
+  function prettyCallType(raw) {
+    if (!raw) return "Unknown";
+    var parts = raw.split(":").map(function(s) { return s.trim(); });
+    return parts.map(function(p) {
+      return p.split(/\s+/).map(function(w) {
+        if (w.length === 0) return w;
+        // Split on slash to title-case each side: "EDP/INSIDE" -> "EDP/Inside"
+        return w.split("/").map(function(seg) {
+          if (KEEP_ACRONYMS[seg]) return seg;
+          return seg.charAt(0).toUpperCase() + seg.slice(1).toLowerCase();
+        }).join("/");
+      }).join(" ");
+    }).join(" — ");
+  }
+
+  function calcMedian(arr) {
+    if (arr.length === 0) return 0;
+    var sorted = arr.slice().sort(function(a, b) { return a - b; });
+    var mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  function barColor(mins) {
+    // Bar-chart absolute thresholds keyed to NYPD response time norms
+    // (critical-priority target = ~7 min; non-critical = ~10-15 min).
+    if (mins < 5) return "#57aa4a";
+    if (mins <= 10) return "#dde44c";
+    if (mins <= 20) return "#ff7c53";
+    return "#d2232a";
+  }
+
+  function mapColor(mins) {
+    // Relative to citywide median so the map stays meaningful for fast
+    // call types (e.g. shots fired) and slow ones (e.g. quality of life).
+    var m = citywideMedian || 1;
+    if (mins < m * 0.67) return "#57aa4a";
+    if (mins < m * 1.33) return "#dde44c";
+    if (mins < m * 2) return "#ff7c53";
+    return "#d2232a";
+  }
+
+  var BORO_MAP = {
+    "MANHATTAN": "MN",
+    "BROOKLYN": "BK",
+    "QUEENS": "QN",
+    "BRONX": "BX",
+    "STATEN ISLAND": "SI"
+  };
+
+  // NYPD precinct numbers map to recognizable neighborhood names. Not
+  // every precinct is here (a few transit/housing units don't show up
+  // on the precinct map at all); unknowns fall back to "Precinct N".
+  var PRECINCT_NAMES = {
+    "1": "Tribeca / Financial District",
+    "5": "Chinatown / Little Italy",
+    "6": "West Village",
+    "7": "Lower East Side",
+    "9": "East Village",
+    "10": "Chelsea",
+    "13": "Gramercy / Flatiron",
+    "14": "Midtown South / Times Square",
+    "17": "Murray Hill / Sutton Place",
+    "18": "Midtown North",
+    "19": "Upper East Side",
+    "20": "Upper West Side",
+    "22": "Central Park",
+    "23": "East Harlem",
+    "24": "Manhattan Valley",
+    "25": "East Harlem North",
+    "26": "Morningside Heights / Columbia",
+    "28": "Central Harlem South",
+    "30": "Hamilton Heights",
+    "32": "Harlem North",
+    "33": "Washington Heights South",
+    "34": "Washington Heights North / Inwood",
+    "40": "Mott Haven / Melrose",
+    "41": "Hunts Point",
+    "42": "Morrisania / Crotona",
+    "43": "Soundview / Castle Hill",
+    "44": "Highbridge / Concourse",
+    "45": "Throgs Neck / Co-op City",
+    "46": "Fordham / University Heights",
+    "47": "Wakefield / Williamsbridge",
+    "48": "Belmont / East Tremont",
+    "49": "Pelham Parkway / Morris Park",
+    "50": "Riverdale / Kingsbridge",
+    "52": "Norwood / Bedford Park",
+    "60": "Coney Island / Brighton Beach",
+    "61": "Sheepshead Bay / Manhattan Beach",
+    "62": "Bensonhurst",
+    "63": "Mill Basin / Flatlands",
+    "66": "Borough Park",
+    "67": "East Flatbush",
+    "68": "Bay Ridge / Dyker Heights",
+    "69": "Canarsie",
+    "70": "Midwood / Kensington",
+    "71": "Crown Heights South",
+    "72": "Sunset Park",
+    "73": "Brownsville",
+    "75": "East New York",
+    "76": "Carroll Gardens / Red Hook",
+    "77": "Crown Heights North",
+    "78": "Park Slope",
+    "79": "Bedford-Stuyvesant North",
+    "81": "Bedford-Stuyvesant South",
+    "83": "Bushwick",
+    "84": "Brooklyn Heights / DUMBO / Fort Greene",
+    "88": "Clinton Hill / Fort Greene",
+    "90": "Williamsburg South",
+    "94": "Greenpoint / Williamsburg North",
+    "100": "Rockaways (Far Rockaway / Belle Harbor)",
+    "101": "Far Rockaway / Edgemere",
+    "102": "Richmond Hill / Woodhaven",
+    "103": "Jamaica",
+    "104": "Ridgewood / Glendale / Maspeth",
+    "105": "Queens Village / Cambria Heights",
+    "106": "Ozone Park / Howard Beach",
+    "107": "Fresh Meadows / Briarwood",
+    "108": "Long Island City / Sunnyside",
+    "109": "Flushing / Whitestone",
+    "110": "Elmhurst / Corona",
+    "111": "Bayside",
+    "112": "Forest Hills / Rego Park",
+    "113": "Jamaica South / St. Albans",
+    "114": "Astoria",
+    "115": "Jackson Heights / East Elmhurst",
+    "120": "St. George / Stapleton (North Shore)",
+    "121": "Mariners Harbor / Port Richmond",
+    "122": "New Dorp / South Beach",
+    "123": "Tottenville / Great Kills"
+  };
+
+  function cdDisplayName(precinctKey) {
+    var key = String(precinctKey);
+    var name = PRECINCT_NAMES[key];
+    return name ? name + " (Precinct " + key + ")" : "Precinct " + key;
+  }
+
+  function cdShortName(precinctKey) {
+    return cdDisplayName(precinctKey);
+  }
+
+  function parsePrecinct(raw) {
+    if (raw == null || raw === "") return null;
+    var num = parseInt(raw, 10);
+    if (isNaN(num) || num <= 0) return null;
+    return String(num);
+  }
+
+  function geoCdKey(feature) {
+    var props = feature.properties || {};
+    var raw = props.precinct || props.Precinct || props.PRECINCT;
+    return parsePrecinct(raw);
+  }
+
+  async function loadGeoData() {
+    try {
+      var resp = await fetch(GEO_URL);
+      if (!resp.ok) throw new Error("GeoJSON fetch failed");
+      geoData = await resp.json();
+      // Add cd_key to each feature
+      geoData.features = geoData.features.filter(function(f) {
+        var key = geoCdKey(f);
+        if (key) {
+          f.properties._cd_key = key;
+          return true;
+        }
+        return false;
+      });
+    } catch (err) {
+      console.error("Failed to load precinct boundaries:", err);
+      geoData = null;
+    }
+  }
+
+  function initMap() {
+    if (map) return;
+    map = new maplibregl.Map({
+      container: "map",
+      style: {
+        version: 8,
+        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+        sources: {
+          "carto": {
+            type: "raster",
+            tiles: ["https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"],
+            tileSize: 256,
+            attribution: "&copy; CARTO &copy; OpenStreetMap"
+          }
+        },
+        layers: [{
+          id: "carto-tiles",
+          type: "raster",
+          source: "carto",
+          minzoom: 0,
+          maxzoom: 19
+        }]
+      },
+      center: [-73.95, 40.73],
+      zoom: 10,
+      attributionControl: false
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    popup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false
+    });
+
+    map.on("load", function() {
+      addMapLayers();
+    });
+  }
+
+  function addMapLayers() {
+    if (!geoData || !map.loaded()) return;
+
+    if (map.getSource("districts")) {
+      map.getSource("districts").setData(geoData);
+      return;
+    }
+
+    map.addSource("districts", {
+      type: "geojson",
+      data: geoData
+    });
+
+    map.addLayer({
+      id: "district-fills",
+      type: "fill",
+      source: "districts",
+      paint: {
+        "fill-color": "#ddd",
+        "fill-opacity": 0.7
+      }
+    });
+
+    map.addLayer({
+      id: "district-borders",
+      type: "line",
+      source: "districts",
+      paint: {
+        "line-color": "#999",
+        "line-width": 1
+      }
+    });
+
+    map.addLayer({
+      id: "district-highlight",
+      type: "line",
+      source: "districts",
+      paint: {
+        "line-color": "#394882",
+        "line-width": 3.5
+      },
+      filter: ["==", "_cd_key", ""]
+    });
+
+    map.on("mousemove", "district-fills", function(e) {
+      map.getCanvas().style.cursor = "pointer";
+      if (e.features.length > 0) {
+        var f = e.features[0];
+        var key = f.properties._cd_key;
+        var districtData = currentDistricts.find(function(d) { return d.district === key; });
+        var html = '<div class="popup-district">' + cdDisplayName(key) + '</div>';
+        if (districtData) {
+          html += '<div class="popup-time">Median: ' + formatDaysPrecise(districtData.median) + '</div>';
+          html += '<div class="popup-count">' + formatNumber(districtData.total) + ' calls</div>';
+        } else {
+          html += '<div class="popup-time">No data</div>';
+        }
+        popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+      }
+    });
+
+    map.on("mouseleave", "district-fills", function() {
+      map.getCanvas().style.cursor = "";
+      popup.remove();
+    });
+
+    map.on("click", "district-fills", function(e) {
+      if (e.features.length > 0) {
+        var key = e.features[0].properties._cd_key;
+        selectDistrict(key);
+      }
+    });
+  }
+
+  function updateMapColors() {
+    if (!map || !map.getLayer("district-fills")) return;
+
+    var districtMedians = {};
+    currentDistricts.forEach(function(d) {
+      districtMedians[d.district] = d.median;
+    });
+
+    // Build a match expression for fill-color
+    var matchExpr = ["match", ["get", "_cd_key"]];
+    var hasEntries = false;
+    currentDistricts.forEach(function(d) {
+      matchExpr.push(d.district);
+      matchExpr.push(mapColor(d.median));
+      hasEntries = true;
+    });
+    matchExpr.push("#ddd"); // fallback
+
+    if (hasEntries) {
+      map.setPaintProperty("district-fills", "fill-color", matchExpr);
+    } else {
+      map.setPaintProperty("district-fills", "fill-color", "#ddd");
+    }
+  }
+
+  function selectDistrict(key) {
+    var d = currentDistricts.find(function(d) { return d.district === key; });
+    if (!d) return;
+    selectedDistrict = key;
+    selectedBanner.style.display = "flex";
+    selectedText.textContent = "Showing data for " + cdDisplayName(key) + " — median " + formatDays(d.median) + " (" + formatNumber(d.total) + " calls)";
+
+    if (map && map.getLayer("district-highlight")) {
+      map.setFilter("district-highlight", ["==", "_cd_key", key]);
+    }
+
+    updateAgencyChart(key);
+  }
+
+  function clearSelection() {
+    selectedDistrict = null;
+    selectedBanner.style.display = "none";
+    if (map && map.getLayer("district-highlight")) {
+      map.setFilter("district-highlight", ["==", "_cd_key", ""]);
+    }
+    updateAgencyChart(null);
+  }
+
+  clearBtn.addEventListener("click", clearSelection);
+
+  async function fetchData() {
+    var callType = complaintSelect.value;
+    var borough = boroughSelect.value;
+    var days = parseInt(periodSelect.value, 10);
+    var anchor = await getDatasetLatest();
+    var startDate = getDateOffset(days, anchor);
+    var endDate = anchor.toISOString().slice(0, 19);
+
+    loadingEl.style.display = "flex";
+    dashboardEl.style.display = "none";
+    errorContainer.innerHTML = "";
+    selectedDistrict = null;
+    selectedBanner.style.display = "none";
+
+    var whereParts = [];
+    if (callType === "CIP") {
+      whereParts.push("cip_jobs='CIP'");
+    } else if (callType) {
+      whereParts.push("typ_desc='" + callType.replace(/'/g, "''") + "'");
+    }
+    if (borough) {
+      whereParts.push("boro_nm='" + borough + "'");
+    }
+    whereParts.push("add_ts>'" + startDate + "'");
+    whereParts.push("add_ts IS NOT NULL");
+    whereParts.push("arrivd_ts IS NOT NULL");
+
+    var whereClause = whereParts.join(" AND ");
+
+    // 911 call volume is enormous (~5M/year). Cap aggressively unless a
+    // specific call type or borough is selected. Without a filter we sample
+    // the most recent N records rather than fetch the universe.
+    var MAX_RECORDS = 300000;
+    var PAGE = 50000;
+    var collected = [];
+
+    try {
+      var offset = 0;
+      while (collected.length < MAX_RECORDS) {
+        var params = new URLSearchParams({
+          "$where": whereClause,
+          "$select": "add_ts,arrivd_ts,nypd_pct_cd,typ_desc,boro_nm,cip_jobs",
+          "$limit": String(PAGE),
+          "$offset": String(offset),
+          "$order": "add_ts DESC"
+        });
+        var response = await fetch(API_BASE + "?" + params.toString());
+        if (!response.ok) throw new Error("API returned status " + response.status);
+        var chunk = await response.json();
+        if (!Array.isArray(chunk)) throw new Error("Unexpected API response format");
+        collected = collected.concat(chunk);
+        if (chunk.length < PAGE) break;
+        offset += PAGE;
+      }
+      allRecords = collected;
+      processData(collected);
+    } catch (err) {
+      loadingEl.style.display = "none";
+      errorContainer.innerHTML = '<div class="error-message">Failed to load data: ' + err.message + '. Try refreshing the page or selecting a different call type.</div>';
+    }
+  }
+
+  function processData(records) {
+    var districtMap = {};   // keyed by precinct number
+    var agencyMap = {};     // keyed by typ_desc (call type)
+    var allTimes = [];
+
+    records.forEach(function(r) {
+      if (isSelfInitiated(r.typ_desc)) return;
+      var added = new Date(r.add_ts);
+      var arrived = new Date(r.arrivd_ts);
+      if (isNaN(added.getTime()) || isNaN(arrived.getTime())) return;
+      var diffMin = (arrived - added) / 60000;
+      // Drop obviously broken timestamps: anything under ~5 seconds
+      // (officer already on scene; not a real dispatch) and anything
+      // over 12 hours (closeout artifact, not a real wait).
+      if (diffMin < 5 / 60 || diffMin > 12 * 60) return;
+
+      allTimes.push(diffMin);
+
+      var precinct = parsePrecinct(r.nypd_pct_cd);
+      if (precinct) {
+        if (!districtMap[precinct]) {
+          districtMap[precinct] = { times: [], under7m: 0, over30m: 0 };
+        }
+        districtMap[precinct].times.push(diffMin);
+        if (diffMin < 7) districtMap[precinct].under7m++;
+        if (diffMin > 30) districtMap[precinct].over30m++;
+      }
+
+      var typeKey = r.typ_desc || "Unknown";
+      if (!agencyMap[typeKey]) {
+        agencyMap[typeKey] = { label: prettyCallType(typeKey), times: [] };
+      }
+      agencyMap[typeKey].times.push(diffMin);
+    });
+
+    // Build precinct array
+    var districts = [];
+    Object.keys(districtMap).forEach(function(name) {
+      var d = districtMap[name];
+      var med = calcMedian(d.times);
+      districts.push({
+        district: name,
+        median: med,
+        total: d.times.length,
+        fast: d.times.length > 0 ? (d.under7m / d.times.length * 100) : 0,
+        slow: d.times.length > 0 ? (d.over30m / d.times.length * 100) : 0
+      });
+    });
+
+    districts = districts.filter(function(d) { return d.total >= 5; });
+    districts.sort(function(a, b) { return b.median - a.median; });
+
+    // Build call-type array
+    var agencies = [];
+    Object.keys(agencyMap).forEach(function(key) {
+      var a = agencyMap[key];
+      if (a.times.length < 20) return;
+      agencies.push({
+        agency: key,
+        label: a.label,
+        median: calcMedian(a.times),
+        total: a.times.length
+      });
+    });
+    agencies.sort(function(a, b) { return b.median - a.median; });
+
+    citywideMedian = calcMedian(allTimes);
+    currentDistricts = districts;
+    currentAgencies = agencies;
+
+    // Update headline
+    document.getElementById("stat-median").textContent = formatDays(citywideMedian);
+    document.getElementById("stat-count").textContent = formatNumber(allTimes.length) + " 911 calls analyzed";
+
+    // Update legend to reflect citywide median thresholds
+    var m = citywideMedian || 1;
+    document.getElementById("legend-l1").textContent = "< " + formatDays(m * 0.67) + " (much faster)";
+    document.getElementById("legend-l2").textContent = formatDays(m * 0.67) + "-" + formatDays(m * 1.33) + " (near median)";
+    document.getElementById("legend-l3").textContent = formatDays(m * 1.33) + "-" + formatDays(m * 2) + " (slower)";
+    document.getElementById("legend-l4").textContent = "> " + formatDays(m * 2) + " (much slower)";
+
+    // Show dashboard BEFORE rendering charts so Chart.js has valid layout
+    loadingEl.style.display = "none";
+    dashboardEl.style.display = "block";
+
+    // Update map
+    updateMapColors();
+
+    // Render charts
+    renderDistrictChart(districts);
+    updateAgencyChart(null);
+    renderSummaryStats(allTimes, districts);
+    renderAgencyDistrictBreakdown();
+
+    // Data note
+    var complaintLabel = complaintSelect.value
+      ? complaintSelect.options[complaintSelect.selectedIndex].text
+      : "all call types";
+    var periodText = periodSelect.options[periodSelect.selectedIndex].text.toLowerCase();
+    var anchorStr = datasetLatest ? datasetLatest.toISOString().slice(0, 10) : "the most recent available date";
+    document.getElementById("data-note").textContent =
+      "Source: NYPD Calls for Service via NYC Open Data (Socrata API). Showing " +
+      complaintLabel + " from the " + periodText +
+      " of available data (anchored to " + anchorStr + ", the latest record in the dataset; NYPD publishes with a lag). " +
+      "Response time = arrived-on-scene minus call-entered (arrivd_ts minus add_ts). " +
+      "Precincts with fewer than 5 calls excluded; values over 12 hours discarded as data errors. " +
+      formatNumber(allTimes.length) + " calls analyzed. Median used to reduce outlier impact.";
+
+    // Resize map after display
+    if (map) {
+      setTimeout(function() { map.resize(); }, 100);
+    }
+  }
+
+  function renderDistrictChart(districts) {
+    // 5 fastest and 5 slowest, ordered fastest-at-top to slowest-at-bottom.
+    var asc = districts.slice().sort(function(a, b) { return a.median - b.median; });
+    var fastest = asc.slice(0, 5);
+    var slowest = asc.slice(-5);
+    // Insert a spacer row between the two groups so fastest and slowest
+    // read as distinct sections rather than one continuous ranking.
+    var SPACER = { district: "__spacer__", median: null, isSpacer: true };
+    var combined = fastest.concat([SPACER]).concat(slowest);
+    var labels = combined.map(function(d) { return d.isSpacer ? "" : cdShortName(d.district); });
+    var values = combined.map(function(d) { return d.isSpacer ? null : Math.round(d.median * 100) / 100; });
+    var colors = combined.map(function(d) { return d.isSpacer ? "transparent" : barColor(d.median); });
+
+    var container = document.getElementById("district-chart-container");
+    if (districtChart) districtChart.destroy();
+    container.innerHTML = "";
+    var canvas = document.createElement("canvas");
+    container.appendChild(canvas);
+
+    districtChart = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderWidth: 0,
+          barThickness: 18
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return formatDays(ctx.raw); }
+            },
+            backgroundColor: "#050507",
+            titleFont: { family: "halyard-text" },
+            bodyFont: { family: "halyard-text" }
+          },
+          annotation: {
+            annotations: {
+              medianLine: {
+                type: "line",
+                xMin: citywideMedian,
+                xMax: citywideMedian,
+                borderColor: "#394882",
+                borderWidth: 2,
+                borderDash: [5, 3],
+                label: {
+                  display: true,
+                  content: "Citywide: " + formatDays(citywideMedian),
+                  position: "start",
+                  backgroundColor: "#394882",
+                  color: "#fff",
+                  font: { family: "halyard-text", size: 10 },
+                  padding: { top: 2, bottom: 2, left: 5, right: 5 }
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "Minutes", font: { family: "halyard-text", size: 11 }, color: "#666" },
+            grid: { color: "#f0f0f0" },
+            ticks: { font: { family: "halyard-text", size: 10 }, color: "#666" }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { font: { family: "halyard-text", size: 11 }, color: "#1a1a1a" }
+          }
+        }
+      }
+    });
+  }
+
+  function updateAgencyChart(districtKey) {
+    var agencies;
+    if (districtKey) {
+      // Recalculate call-type medians for the selected precinct
+      var agencyMap = {};
+      allRecords.forEach(function(r) {
+        if (isSelfInitiated(r.typ_desc)) return;
+        var precinct = parsePrecinct(r.nypd_pct_cd);
+        if (precinct !== districtKey) return;
+        var added = new Date(r.add_ts);
+        var arrived = new Date(r.arrivd_ts);
+        if (isNaN(added.getTime()) || isNaN(arrived.getTime())) return;
+        var diffMin = (arrived - added) / 60000;
+        if (diffMin < 5 / 60 || diffMin > 12 * 60) return;
+        var key = r.typ_desc || "Unknown";
+        if (!agencyMap[key]) agencyMap[key] = { label: prettyCallType(key), times: [] };
+        agencyMap[key].times.push(diffMin);
+      });
+      agencies = [];
+      Object.keys(agencyMap).forEach(function(k) {
+        var a = agencyMap[k];
+        if (a.times.length < 5) return;
+        agencies.push({ agency: k, label: a.label, median: calcMedian(a.times), total: a.times.length });
+      });
+      agencies.sort(function(a, b) { return b.median - a.median; });
+      document.getElementById("agency-chart-title").textContent = "Call type response times in " + cdShortName(districtKey);
+    } else {
+      agencies = currentAgencies;
+      document.getElementById("agency-chart-title").textContent = "Median response time by call type";
+    }
+
+    // Select top 15 by volume, then sort by median for display
+    var byVolume = agencies.slice().sort(function(a, b) { return b.total - a.total; });
+    var top = byVolume.slice(0, 15)
+      .sort(function(a, b) { return b.median - a.median; })
+      .reverse();
+    var labels = top.map(function(a) { return a.label || a.agency; });
+    var values = top.map(function(a) { return Math.round(a.median * 100) / 100; });
+    var colors = top.map(function(a) { return barColor(a.median); });
+
+    var container = document.getElementById("agency-chart-container");
+    if (agencyChart) agencyChart.destroy();
+    container.innerHTML = "";
+
+    if (agencies.length <= 1) {
+      var note = document.createElement("div");
+      note.style.cssText = "padding:1.5rem 0;color:#707175;font-size:0.9rem;line-height:1.6;";
+      if (agencies.length === 1) {
+        note.innerHTML = "Filtered to a single call type: <strong>" + (agencies[0].label || agencies[0].agency) + "</strong> (median " + formatDays(agencies[0].median) + ", " + formatNumber(agencies[0].total) + " calls). Switch to All call types to compare across categories.";
+      } else {
+        note.textContent = "No call-type data available for this selection.";
+      }
+      container.appendChild(note);
+      return;
+    }
+    var canvas = document.createElement("canvas");
+    container.appendChild(canvas);
+
+    agencyChart = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderWidth: 0,
+          barThickness: 18
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return formatDays(ctx.raw); }
+            },
+            backgroundColor: "#050507",
+            titleFont: { family: "halyard-text" },
+            bodyFont: { family: "halyard-text" }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "Minutes", font: { family: "halyard-text", size: 11 }, color: "#666" },
+            grid: { color: "#f0f0f0" },
+            ticks: { font: { family: "halyard-text", size: 10 }, color: "#666" }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { font: { family: "halyard-text", size: 11 }, color: "#1a1a1a" }
+          }
+        }
+      }
+    });
+  }
+
+  function renderFastestSlowest(districts) {
+    var container = document.getElementById("fs-table");
+    if (districts.length === 0) {
+      container.innerHTML = '<p style="color:#888;font-size:0.9rem;">No district data available.</p>';
+      return;
+    }
+
+    var sorted = districts.slice().sort(function(a, b) { return a.median - b.median; });
+    var fastest = sorted.slice(0, 5);
+    var slowest = sorted.slice(-5).reverse();
+
+    var html = '<div class="fs-col"><h4>5 fastest districts</h4>';
+    fastest.forEach(function(d) {
+      html += '<div class="fs-row"><span class="fs-district">' + cdShortName(d.district) + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
+    });
+    html += '</div>';
+
+    html += '<div class="fs-col"><h4>5 slowest districts</h4>';
+    slowest.forEach(function(d) {
+      html += '<div class="fs-row"><span class="fs-district">' + cdShortName(d.district) + '</span><span class="fs-time">' + formatDays(d.median) + '</span></div>';
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+  }
+
+  function renderAgencyDistrictBreakdown() {
+    var container = document.getElementById("agency-district-breakdown");
+    // typ_desc -> { label, total, byDistrict: { precinct: [times] } }
+    var map = {};
+    allRecords.forEach(function(r) {
+      if (isSelfInitiated(r.typ_desc)) return;
+      var added = new Date(r.add_ts);
+      var arrived = new Date(r.arrivd_ts);
+      if (isNaN(added.getTime()) || isNaN(arrived.getTime())) return;
+      var diff = (arrived - added) / 60000;
+      if (diff < 5 / 60 || diff > 12 * 60) return;
+      var precinct = parsePrecinct(r.nypd_pct_cd);
+      if (!precinct) return;
+      var key = r.typ_desc || "Unknown";
+      if (!map[key]) {
+        map[key] = { label: prettyCallType(key), byDistrict: {}, total: 0 };
+      }
+      if (!map[key].byDistrict[precinct]) map[key].byDistrict[precinct] = [];
+      map[key].byDistrict[precinct].push(diff);
+      map[key].total++;
+    });
+
+    var rows = [];
+    Object.keys(map).forEach(function(callType) {
+      var info = map[callType];
+      if (info.total < 500) return;
+      var districtRows = [];
+      Object.keys(info.byDistrict).forEach(function(d) {
+        var t = info.byDistrict[d];
+        if (t.length < 20) return;
+        districtRows.push({ district: d, median: calcMedian(t), count: t.length });
+      });
+      if (districtRows.length < 10) return;
+      districtRows.sort(function(a, b) { return a.median - b.median; });
+      rows.push({
+        agency: callType,
+        label: info.label,
+        total: info.total,
+        fastest: districtRows.slice(0, 5),
+        slowest: districtRows.slice(-5).reverse()
+      });
+    });
+    rows.sort(function(a, b) { return b.total - a.total; });
+    // Only the top 12 most common call types — beyond that the page is
+    // a wall of admin/transit/inspection categories that aren't really
+    // "911 calls" in the public sense.
+    rows = rows.slice(0, 12);
+
+    if (rows.length === 0) {
+      container.innerHTML = '<p style="color:#888;font-size:0.9rem;">Not enough per-call-type, per-precinct volume in this selection to build meaningful rankings. Try a longer time range or broader call-type filter.</p>';
+      return;
+    }
+
+    var html = "";
+    rows.forEach(function(row) {
+      html += '<div class="agency-breakdown-row">';
+      html += '<div class="agency-breakdown-name">' + row.label + '<span class="agency-breakdown-count">' + formatNumber(row.total) + ' calls</span></div>';
+      html += '<div class="agency-breakdown-lists">';
+      html += '<div><span class="breakdown-header fast">5 fastest precincts</span><ul>';
+      row.fastest.forEach(function(d) {
+        html += '<li><span class="dname">' + cdDisplayName(d.district) + '</span><span class="dtime">' + formatDays(d.median) + '</span></li>';
+      });
+      html += '</ul></div>';
+      html += '<div><span class="breakdown-header slow">5 slowest precincts</span><ul>';
+      row.slowest.forEach(function(d) {
+        html += '<li><span class="dname">' + cdDisplayName(d.district) + '</span><span class="dtime">' + formatDays(d.median) + '</span></li>';
+      });
+      html += '</ul></div>';
+      html += '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function renderSummaryStats(allTimes, districts) {
+    var container = document.getElementById("summary-stats");
+    if (allTimes.length === 0) {
+      container.innerHTML = '<p style="color:#888;font-size:0.9rem;">No data available.</p>';
+      return;
+    }
+
+    var sorted = allTimes.slice().sort(function(a, b) { return a - b; });
+    var under7 = allTimes.filter(function(t) { return t < 7; }).length;
+    var under15 = allTimes.filter(function(t) { return t < 15; }).length;
+    var over30 = allTimes.filter(function(t) { return t > 30; }).length;
+    var over60 = allTimes.filter(function(t) { return t > 60; }).length;
+    var p25 = sorted[Math.floor(sorted.length * 0.25)];
+    var p75 = sorted[Math.floor(sorted.length * 0.75)];
+
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">';
+
+    var stats = [
+      { label: "Total calls", value: formatNumber(allTimes.length),
+        desc: "Every 911 call matching the current filters with a usable add and arrival time. The denominator for everything below." },
+      { label: "Precincts with data", value: districts.length,
+        desc: "Of NYC's 77 NYPD precincts, how many have at least 5 calls in this filter. Tiny-sample precincts are excluded from charts." },
+      { label: "25th percentile", value: formatDays(p25),
+        desc: "A quarter of calls get an officer on scene faster than this." },
+      { label: "75th percentile", value: formatDays(p75),
+        desc: "Three-quarters arrive faster than this; the slowest quarter takes longer. The middle half of calls falls between the 25th and 75th." },
+      { label: "Arrived in <7 minutes", value: ((under7 / allTimes.length) * 100).toFixed(1) + "%",
+        desc: "Share of calls where police arrived within 7 minutes — NYPD's internal target for critical-priority jobs." },
+      { label: "Arrived in <15 minutes", value: ((under15 / allTimes.length) * 100).toFixed(1) + "%",
+        desc: "Share where police arrived within a quarter hour." },
+      { label: "Took over 30 minutes", value: ((over30 / allTimes.length) * 100).toFixed(1) + "%",
+        desc: "Share where it took more than half an hour for the first unit to arrive." },
+      { label: "Took over 1 hour", value: ((over60 / allTimes.length) * 100).toFixed(1) + "%",
+        desc: "Share where the wait was more than 60 minutes. Most of these are lower-priority jobs that wait behind active emergencies." }
+    ];
+
+    stats.forEach(function(s) {
+      html += '<div style="padding:0.5rem 0;border-bottom:1px solid #f0f0f0;">' +
+        '<div style="font-size:0.75rem;color:#888;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;">' + s.label + '</div>' +
+        '<div style="font-family:GascogneTS,Source Serif 4,Georgia,serif;font-size:1.3rem;font-weight:700;">' + s.value + '</div>' +
+        '<div style="font-size:0.72rem;color:#888;line-height:1.4;margin-top:0.2rem;">' + s.desc + '</div>' +
+        '</div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // Event listeners
+  complaintSelect.addEventListener("change", fetchData);
+  boroughSelect.addEventListener("change", fetchData);
+  periodSelect.addEventListener("change", fetchData);
+
+  // Initialize
+  async function init() {
+    // Start GeoJSON and data fetch in parallel
+    var geoPromise = loadGeoData();
+    await fetchData();
+    await geoPromise;
+
+    // Now that dashboard is visible, init map
+    initMap();
+    if (map.loaded()) {
+      addMapLayers();
+      updateMapColors();
+    } else {
+      map.on("load", function() {
+        addMapLayers();
+        updateMapColors();
+      });
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
