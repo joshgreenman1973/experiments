@@ -19,9 +19,9 @@ on:
   workflow_dispatch:
     inputs:
       duration_minutes:
-        description: 'How many minutes of dense collection (default 9, max 50)'
+        description: 'How many minutes of dense collection (default 6, max 50)'
         required: false
-        default: '9'
+        default: '6'
 
 permissions:
   contents: write
@@ -29,11 +29,15 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # 18 iterations × ~50s each (30s sleep + 10-20s API+write at peak fleet) ~=
-    # 15 min for the loop alone. Plus checkout, npm install, and push = ~17 min
-    # at the high end. 20 min gives comfortable headroom; we hit the 15-min wall
-    # on 2026-05-08 (runs cancelled at 11:07 ET and 13:19 ET).
-    timeout-minutes: 20
+    # 2026-06-30: every run was being killed at the 20-min wall. Cold-start
+    # checkout + npm install was eating ~11 min on busy runners, leaving the
+    # sampling loop no margin. Three changes together:
+    #   - Cache npm so install is ~5–10s instead of minutes (setup-node cache).
+    #   - Bump timeout to 25 min for extra headroom.
+    #   - Halve default sampling burst (12 iters × 30s = ~6 min) — since we now
+    #     fire twice an hour, total samples per hour go UP (24 vs the old 18),
+    #     not down, with comfortable margin.
+    timeout-minutes: 25
 
     steps:
       - name: Operating-hours gate (6am-11pm ET)
@@ -73,6 +77,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # Cache npm so `npm ci` is near-instant on subsequent runs (was eating
+          # several minutes per run before, which kept blowing the timeout).
+          cache: 'npm'
+          cache-dependency-path: nyc-bus-tracker/collector/package-lock.json
 
       - name: Install dependencies
         if: steps.gate.outputs.skip != 'true'
@@ -82,10 +90,10 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         env:
           MTA_API_KEY: ${{ secrets.MTA_BUSTIME_API_KEY }}
-          DURATION_MIN: ${{ github.event.inputs.duration_minutes || '9' }}
+          DURATION_MIN: ${{ github.event.inputs.duration_minutes || '6' }}
         run: |
           # Cap duration to 50 minutes so we always finish before the next hourly cron.
-          DUR_MIN=${DURATION_MIN:-9}
+          DUR_MIN=${DURATION_MIN:-6}
           if [ "$DUR_MIN" -gt 50 ]; then DUR_MIN=50; fi
           # 30-second cadence -> 2 calls/minute. Iterations = duration * 2.
           ITERATIONS=$(( DUR_MIN * 2 ))
