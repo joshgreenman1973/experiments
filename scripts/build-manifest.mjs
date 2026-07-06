@@ -22,18 +22,34 @@ try {
 // Subcategory: four buckets used to group the General view.
 // Tools & feeds checked first (federal-register-daily would otherwise hit
 // "wider world" via "federal"). Override per-project via project-overrides.json.
+// Section order for the gallery. The NYC work is split into specific topic
+// sections (rather than one giant "Cities") so the grid and index rail stay
+// browsable. classifySubcategory is a first-match keyword pass; Josh refines
+// individual projects with a `subcategory` override in project-overrides.json.
+const SUBCATEGORY_ORDER = [
+  'People & population', 'Housing & buildings', 'Transit & streets',
+  'Crime & safety', 'Money & budget', 'Government & politics',
+  'Schools & families', 'Health & environment', 'Arts & culture',
+  'Maps & city data', 'The wider world', 'Tools & feeds', 'Fun stuff',
+];
 function classifySubcategory(p) {
-  const text = [p.name, p.title, p.description].filter(Boolean).join(' ').toLowerCase();
-  if (/\b(register[- ]?daily|record[- ]?daily|scanner|data[- ]?finder|story[- ]?finder|news[- ]?engine|open[- ]?data[- ]?weekly|foil[- ]?tracker|daily data)\b/.test(text)) {
-    return 'Tools & feeds';
-  }
-  if (/\b(world|global|federal|scotus|america|americans|national|nationwide|countries|country|paris|france|tokyo|london|seoul|saint[- ]?sernin|nvdrs|u\.?s\.?|usa|supreme court)\b/.test(text)) {
-    return 'The wider world';
-  }
-  if (/\b(time[- ]machine|menus?|bagels?|donuts?|talent[- ]show|ginos?|family[- ]dinner|movies?|good[- ]time|knit|animal[- ]adventure|library|paris density|midnight)\b/.test(text)) {
-    return 'Fun stuff';
-  }
-  return 'Cities';
+  const t = [p.name, p.title, p.description].filter(Boolean).join(' ').toLowerCase();
+  const any = (...kw) => kw.some(k => t.includes(k));
+  // Pull-outs first: automated feeds/tools, personal fun, and non-NYC work.
+  if (any('register-daily','record-daily','record digest','scanner','data finder','data-finder','story finder','news engine','news-engine','open data weekly','foil tracker','compstat scraper','content catalogue','citywide performance','data pulse','data diary','evidence radar','evidence-radar','design system','mockups','assembly line','special issue','algorithmic city')) return 'Tools & feeds';
+  if (any('midnight','talent show','knit','animal adventure','lola','library','gino','bagel','donut','family dinner','family tree','good time','when the lights went out','menu','portfolio','dinner cost')) return 'Fun stuff';
+  if (any('world','global','federal','scotus','america','national','nationwide','countries','paris','france','tokyo','london','seoul','sernin','nvdrs','supreme court','captive','wildlife','gun violence','cornwall','highlands','hudson','nba','lottery','multi-city','13 large','other cities','metro area','waymo','world cup','young-child','young child','showdown')) return 'The wider world';
+  // NYC topic sections (Schools before People so "schools" wins over "density").
+  if (any('school','student','k-12','enrollment','instructional','per-pupil','teacher','college','childcare','summer job','summer youth','syep','education','playground')) return 'Schools & families';
+  if (any('population','demographic','density','who lives','came from','a century of new york','residential turnover','middle class','immigrant','foreign-born','people vs','three eras','in every language','languages')) return 'People & population';
+  if (any('building','housing','apartment','rent ','rents',' rent','stabiliz','landlord','who owns','parcel','own land','sidewalk shed','permit','construction','water tower','rooftop','solar','pied','combinations','topograph','arm vs','15-year fixed','refi')) return 'Housing & buildings';
+  if (any('bus ','buses','transit','subway','traffic','parking','pedestrian','walk','45-minute','harbor','boat','helicopter','rotor','speed map','collision','crash','commute','block pulse')) return 'Transit & streets';
+  if (any('crime','shooting','gunfire','homicide','assault','felony','misdemeanor','compstat','nypd','police','precinct','911','super speeder','speeding','darkness','dark-spot','dark spot','long retreat','violence','street lighting','streetlight','street light','fire & medical','disorder')) return 'Crime & safety';
+  if (any('budget','payroll','salary','salaries','pay and benefit','pay gap','pay and benefits','wage','labor','union contract','municipal labor','municipal union','settlement','settle','special education','affordab','price watch','economy','income','wealth','billion','fiscal','pension','restaurant math')) return 'Money & budget';
+  if (any('charter','government map','government performance','governance','agency decision','foil','records request','testimony','commission','mamdani','prediction market','policy calendar','press feed','jail','in-custody','appointee','personnel tracker','consent','decisions','graveyard')) return 'Government & politics';
+  if (any('water infrastructure','flood','grid pulse','electric','energy','injury','hospitaliz','reservoir','pipes','senior density','older residents')) return 'Health & environment';
+  if (any('art','museum','gallery','cultural','theater','worship','cemeter','permanent residents','on screen','landmark','day trip','restaurant','cuisine','film')) return 'Arts & culture';
+  return 'Maps & city data';
 }
 
 // Polish level — rough first pass from whether the project has a real

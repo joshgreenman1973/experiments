@@ -21,11 +21,21 @@
     --accent:       #7a2b28;
     --accent-soft:  #c27169;
     --highlight:    #e8cfa3;
-    /* section accent palette — deep, earthy, harmonized on cream */
-    --c-cities:     #9c3329;
-    --c-world:      #335b6e;
-    --c-tools:      #9a6a1f;
-    --c-fun:        #9e2f5e;
+    /* section accent palette — deep, earthy, harmonized on cream. One hue per
+       gallery section; ordered so neighbors don't blend in the chip bar/rail. */
+    --c-people:     #2f6d7d;
+    --c-housing:    #9c3329;
+    --c-transit:    #557089;
+    --c-crime:      #7a2b28;
+    --c-money:      #7a6a1f;
+    --c-govt:       #45467e;
+    --c-schools:    #3f7a4b;
+    --c-health:     #2f7d68;
+    --c-arts:       #9e2f5e;
+    --c-maps:       #b5602a;
+    --c-world:      #6a4a8a;
+    --c-tools:      #6e5d4a;
+    --c-fun:        #b58a2a;
     --section:      var(--accent); /* default; set per section/card */
     --shadow-sm:    0 1px 0 rgba(26,22,18,0.04);
     --shadow-md:    0 2px 8px rgba(26,22,18,0.06), 0 12px 32px -8px rgba(26,22,18,0.08);
@@ -44,10 +54,19 @@
     --accent:       #e09a7e;
     --accent-soft:  #bf6a4e;
     --highlight:    #3d2f1d;
-    --c-cities:     #e0846b;
-    --c-world:      #6fb3c4;
-    --c-tools:      #d6a23f;
-    --c-fun:        #de6f9c;
+    --c-people:     #6fb8c8;
+    --c-housing:    #e0846b;
+    --c-transit:    #9ab0c8;
+    --c-crime:      #d98a7f;
+    --c-money:      #cbb04a;
+    --c-govt:       #9a9ad6;
+    --c-schools:    #83c48f;
+    --c-health:     #6fc4a8;
+    --c-arts:       #de6f9c;
+    --c-maps:       #e8a06a;
+    --c-world:      #b39ad6;
+    --c-tools:      #b39c82;
+    --c-fun:        #e5c46a;
     --shadow-sm:    0 1px 0 rgba(0,0,0,0.3);
     --shadow-md:    0 2px 8px rgba(0,0,0,0.3), 0 12px 32px -8px rgba(0,0,0,0.5);
     --shadow-lg:    0 8px 40px -8px rgba(0,0,0,0.7);
@@ -96,11 +115,16 @@
     position: relative;
     display: flex; justify-content: space-between; align-items: flex-start;
     gap: 32px; flex-wrap: wrap;
-    /* four-color stripe rule along the bottom edge introduces the palette */
+    /* section-palette stripe along the bottom edge introduces the colors */
     border-bottom: 3px solid transparent;
     border-image: linear-gradient(90deg,
-      var(--c-cities) 0 25%, var(--c-world) 25% 50%,
-      var(--c-tools) 50% 75%, var(--c-fun) 75% 100%) 1;
+      var(--c-people)  0 8%,   var(--c-housing) 8% 16%,
+      var(--c-transit) 16% 24%, var(--c-crime)  24% 32%,
+      var(--c-money)   32% 40%, var(--c-govt)   40% 48%,
+      var(--c-schools) 48% 56%, var(--c-health) 56% 64%,
+      var(--c-arts)    64% 72%, var(--c-maps)   72% 80%,
+      var(--c-world)   80% 88%, var(--c-tools)  88% 94%,
+      var(--c-fun)     94% 100%) 1;
   }
   .masthead h1 {
     font-family: "Fraunces", serif;
@@ -985,6 +1009,28 @@ let ACTIVE_TAB = 'general';
 
 const $ = (id) => document.getElementById(id);
 
+// Single source of truth for gallery sections: display order, accent color and
+// the heading kicker/blurb. Used by the grid, the index rail and the sticky
+// section bar so they never drift apart. Keys match project `subcategory`.
+const SECTIONS = [
+  { key: 'People & population',   color: 'var(--c-people)',  blurb: 'Who New Yorkers are and where they live — density, demographics and change over time.' },
+  { key: 'Housing & buildings',   color: 'var(--c-housing)', blurb: 'Homes, towers, land and rent — how the city is built and who owns it.' },
+  { key: 'Transit & streets',     color: 'var(--c-transit)', blurb: 'Getting around — buses, traffic, parking, walking and the harbor and skies.' },
+  { key: 'Crime & safety',        color: 'var(--c-crime)',   blurb: 'Crime, policing, traffic danger and the emergency response — plus street lighting.' },
+  { key: 'Money & budget',        color: 'var(--c-money)',   blurb: 'The city budget, payroll, labor contracts, settlements and the cost of living.' },
+  { key: 'Government & politics',  color: 'var(--c-govt)',    blurb: 'How the city is run and held to account — the charter, agencies, Mamdani and watchdogs.' },
+  { key: 'Schools & families',    color: 'var(--c-schools)', blurb: 'Schools, enrollment, spending, childcare and programs for kids and families.' },
+  { key: 'Health & environment',  color: 'var(--c-health)',  blurb: 'Water, floods, energy and injuries — the city’s health and infrastructure.' },
+  { key: 'Arts & culture',        color: 'var(--c-arts)',    blurb: 'Museums, public art, houses of worship, restaurants and places worth a visit.' },
+  { key: 'Maps & city data',      color: 'var(--c-maps)',    blurb: 'Point-and-look civic maps and 311 trackers across the five boroughs.' },
+  { key: 'The wider world',       color: 'var(--c-world)',   blurb: 'National and global data — beyond the five boroughs.' },
+  { key: 'Tools & feeds',         color: 'var(--c-tools)',   blurb: 'Scrapers, daily digests and research tools that run on their own.' },
+  { key: 'Fun stuff',             color: 'var(--c-fun)',     blurb: 'Food, history, oddities and things made for the joy of it.' },
+];
+const GROUP_ORDER = SECTIONS.map(s => s.key);
+const SECTION_META = {};
+SECTIONS.forEach((s, i) => { SECTION_META[s.key] = { kicker: '§ ' + (i + 1), blurb: s.blurb, color: s.color }; });
+
 function monthShort(d) {
   return d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
 }
@@ -1276,10 +1322,9 @@ function render() {
   const below = featuredShown.size ? list.filter(p => !featuredShown.has(p.name)) : list;
 
   if (sort === 'category') {
-    const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
     const groups = {};
     for (const p of below) (groups[p.subcategory || 'Other'] ||= []).push(p);
-    const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()];
+    const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()];
     let idx = 0;
     const renderedSections = [];
     for (const key of ordered) {
@@ -1287,12 +1332,6 @@ function render() {
       renderedSections.push({ key, slug: slugify(key), n: groups[key].length });
       const heading = document.createElement('div');
       heading.className = 'group-heading';
-      const SECTION_META = {
-        'Cities':           { kicker: '§ 1', blurb: 'How New York and other cities actually work — maps, dashboards and trackers.' },
-        'The wider world':  { kicker: '§ 2', blurb: 'National and global data — beyond the five boroughs.' },
-        'Tools & feeds':    { kicker: '§ 3', blurb: 'Scrapers, daily digests and research tools that run on their own.' },
-        'Fun stuff':        { kicker: '§ 4', blurb: 'Food, history, oddities and things made for the joy of it.' },
-      };
       const meta = SECTION_META[key] || { kicker: 'section', blurb: '' };
       heading.id = 'sec-' + slugify(key);
       heading.style.setProperty('--section', sectionVar(key));
@@ -1345,10 +1384,9 @@ function renderIndexRail(list, sort) {
       : `<span class="no-link" title="No live page">${name}</span>`;
   };
   if (sort === 'category') {
-    const groupOrder = ['Cities', 'The wider world', 'Tools & feeds', 'Fun stuff'];
     const groups = {};
     for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
-    const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()]
+    const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()]
       .filter(k => groups[k]);
     // Quick-jump chips across the top, one per section.
     if (ordered.length > 1) {
@@ -1506,12 +1544,7 @@ function renderPersonalAppendix(grid, term, cat, owner, show, sort) {
 
 // Map a subcategory to its accent CSS variable (falls back to oxblood).
 function sectionVar(subcat) {
-  return ({
-    'Cities': 'var(--c-cities)',
-    'The wider world': 'var(--c-world)',
-    'Tools & feeds': 'var(--c-tools)',
-    'Fun stuff': 'var(--c-fun)',
-  })[subcat] || 'var(--accent)';
+  return SECTION_META[subcat]?.color || 'var(--accent)';
 }
 
 function card(p, i, isFeatured) {
