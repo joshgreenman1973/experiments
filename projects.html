@@ -266,6 +266,50 @@
   }
   .count b { color: var(--ink); font-weight: 500; }
 
+  /* ---- Sticky section-jump bar (mobile/tablet, where the rail is hidden) ---- */
+  .section-bar {
+    display: none; /* enabled at <=1024px when there are sections */
+    position: sticky; top: 0; z-index: 25;
+    gap: 7px;
+    padding: 9px 18px;
+    overflow-x: auto;
+    white-space: nowrap;
+    background: rgba(243,239,230,0.94);
+    backdrop-filter: saturate(180%) blur(8px);
+    -webkit-backdrop-filter: saturate(180%) blur(8px);
+    border-bottom: 1px solid var(--rule);
+    scrollbar-width: none;
+  }
+  [data-theme="ink"] .section-bar { background: rgba(20,17,16,0.94); }
+  .section-bar::-webkit-scrollbar { display: none; }
+  .section-bar .sb-chip {
+    flex: 0 0 auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 600;
+    color: var(--section, var(--ink-3));
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .section-bar .sb-chip .sb-n { opacity: 0.6; margin-left: 5px; font-variant-numeric: tabular-nums; }
+  .section-bar .sb-chip.active {
+    color: var(--paper);
+    background: var(--section);
+    border-color: var(--section);
+  }
+  /* Active-section highlight carried into the desktop rail too (scroll-spy) */
+  .index-chip.active {
+    color: var(--paper);
+    background: var(--section);
+    border-color: var(--section);
+  }
+  .index-list .index-section.active { border-bottom-color: var(--section); }
+  .index-list .index-section.active > * { color: var(--section); }
+
   /* ---- Body layout: grid + side index rail ---- */
   .body-layout {
     display: flex;
@@ -402,6 +446,8 @@
     .index-rail { display: none; }
     .index-show, .index-show.visible { display: none; }
     .body-layout { display: block; }
+    /* Rail is gone here — the sticky section bar becomes the section nav. */
+    .section-bar.on { display: flex; }
   }
 
   .card {
@@ -909,6 +955,11 @@
   <div class="count" id="count"></div>
 </section>
 
+<!-- Sticky section-jump bar. Shown where the side rail is hidden (<=1024px)
+     so there's a way to jump between sections; scroll-spy marks the current
+     one. Populated only when the grid is grouped "By category". -->
+<nav class="section-bar" id="sectionBar" aria-label="Jump to section"></nav>
+
 <div class="body-layout">
   <main class="grid" id="grid"></main>
   <aside class="index-rail" id="indexRail">
@@ -1190,6 +1241,7 @@ function render() {
   const grid = $('grid');
   grid.innerHTML = '';
   if (!list.length) {
+    renderSectionBar([]);
     grid.innerHTML = '<div class="empty">No matches.<small>try clearing a filter</small></div>';
     if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
       renderPersonalAppendix(grid, term, cat, owner, show, sort);
@@ -1229,8 +1281,10 @@ function render() {
     for (const p of below) (groups[p.subcategory || 'Other'] ||= []).push(p);
     const ordered = [...groupOrder, ...Object.keys(groups).filter(k => !groupOrder.includes(k)).sort()];
     let idx = 0;
+    const renderedSections = [];
     for (const key of ordered) {
       if (!groups[key]) continue;
+      renderedSections.push({ key, slug: slugify(key), n: groups[key].length });
       const heading = document.createElement('div');
       heading.className = 'group-heading';
       const SECTION_META = {
@@ -1251,8 +1305,11 @@ function render() {
       grid.appendChild(heading);
       for (const p of groups[key]) grid.appendChild(card(p, idx++));
     }
+    renderSectionBar(renderedSections);
+    setupScrollSpy(renderedSections);
   } else {
     below.forEach((p, i) => grid.appendChild(card(p, i)));
+    renderSectionBar([]);
   }
 
   // The "Personal / In development" tab has a second locked group inside it:
@@ -1317,6 +1374,69 @@ function renderIndexRail(list, sort) {
   } else {
     nav.innerHTML = list.map(linkFor).join('');
   }
+}
+
+// Sticky section-jump bar shown where the rail is hidden (<=1024px). Given the
+// sections actually rendered, builds a horizontal chip per section that jumps
+// the grid to it. Empty list -> clear and hide.
+function renderSectionBar(sections) {
+  const bar = $('sectionBar');
+  if (!sections || sections.length < 2) {
+    bar.classList.remove('on');
+    bar.innerHTML = '';
+    return;
+  }
+  bar.innerHTML = sections.map(s =>
+    `<button type="button" class="sb-chip" data-jump="${s.slug}" style="--section:${sectionVar(s.key)}">` +
+    `${escapeHtml(s.key)}<span class="sb-n">${s.n}</span></button>`
+  ).join('');
+  bar.classList.add('on');
+  for (const el of bar.querySelectorAll('[data-jump]')) {
+    el.addEventListener('click', () => {
+      const target = document.getElementById('sec-' + el.dataset.jump);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
+// Mark one section active across both the sticky bar and the rail.
+function setActiveSection(slug) {
+  for (const el of document.querySelectorAll('[data-jump]')) {
+    el.classList.toggle('active', el.dataset.jump === slug);
+  }
+}
+
+// Scroll-spy: highlight the section currently under the sticky header as the
+// user scrolls. Re-created on each render; cleared when there are no sections.
+let _spy = null;
+function setupScrollSpy(sections) {
+  if (_spy) { _spy.disconnect(); _spy = null; }
+  if (!sections || sections.length < 2) return;
+  const headings = sections
+    .map(s => document.getElementById('sec-' + s.slug))
+    .filter(Boolean);
+  if (!headings.length) return;
+  const visible = new Set();
+  _spy = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) visible.add(e.target.id);
+      else visible.delete(e.target.id);
+    }
+    // Active = the last heading at or above the spy band (topmost still-in-view,
+    // or the last one we scrolled past when none are in the band).
+    let active = null;
+    for (const h of headings) {
+      const top = h.getBoundingClientRect().top;
+      if (top < 140) active = h.id; // scrolled at/above the sticky band
+    }
+    if (visible.size) {
+      // Prefer the topmost currently in the band for snappier feedback.
+      const inBand = headings.filter(h => visible.has(h.id));
+      if (inBand.length) active = inBand[0].id;
+    }
+    if (active) setActiveSection(active.replace(/^sec-/, ''));
+  }, { rootMargin: '-72px 0px -70% 0px', threshold: 0 });
+  for (const h of headings) _spy.observe(h);
 }
 
 function matchesFilters(p, term, cat, owner, show) {

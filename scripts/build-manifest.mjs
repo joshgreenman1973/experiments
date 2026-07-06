@@ -112,6 +112,8 @@ const NAMED_ENTITIES = {
   ldquo: '\u201c', rdquo: '\u201d', lsquo: '\u2018', rsquo: '\u2019',
   laquo: '«', raquo: '»', deg: '°', sect: '§', para: '¶',
   times: '×', divide: '÷', plusmn: '±',
+  middot: '·', bull: '•', dagger: '†',
+  euro: '€', pound: '£', cent: '¢', frac12: '½', frac14: '¼', frac34: '¾',
 };
 function decodeEntities(s) {
   if (!s) return s;
