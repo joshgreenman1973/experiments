@@ -141,65 +141,87 @@ jobs:
           # Fail the run only if everything failed (partial loss is acceptable)
           if [ "$OK" -eq 0 ]; then exit 1; fi
 
-      - name: Push TODAY's snapshots to bus-data
+      - name: Push TODAY's snapshots to bus-data (Git Data API)
         if: steps.gate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
-          set -u
-          git config user.name "Bus Tracker Bot"
-          git config user.email "bus-bot@users.noreply.github.com"
-
+          set -euo pipefail
           DATE_ET=$(TZ='America/New_York' date '+%Y-%m-%d')
-          SNAP="nyc-bus-tracker/data/snapshots/${DATE_ET}"
+          export SNAP="nyc-bus-tracker/data/snapshots/${DATE_ET}"
+          export STAMP="$(TZ='America/New_York' date '+%Y-%m-%d %H:%M') ET"
           if [ ! -d "$SNAP" ] || [ -z "$(ls -A "$SNAP" 2>/dev/null)" ]; then
-            echo "Nothing collected this run — nothing to push."
-            exit 0
+            echo "Nothing collected this run — nothing to push."; exit 0
           fi
 
-          # Commit ONLY today's folder onto bus-data WITHOUT checking out the
-          # multi-GB history into the working tree (that checkout was the source
-          # of the timeout). Plumbing: load bus-data's tree into a scratch index,
-          # overlay today's files, write the tree, make a commit, push the ref.
-          # bus-data's tree + blobs are present locally from the fetch above, so
-          # this stays fast and scale-invariant as the archive grows.
-          commit_today () {
-            local parent tree
-            parent=$(git rev-parse origin/bus-data)
-            GIT_INDEX_FILE="$(mktemp)"; export GIT_INDEX_FILE
-            git read-tree "$parent"
-            git add "$SNAP"
-            tree=$(git write-tree)
-            rm -f "$GIT_INDEX_FILE"; unset GIT_INDEX_FILE
-            if [ "$tree" = "$(git rev-parse "${parent}^{tree}")" ]; then
-              echo ""   # identical tree → no change
-            else
-              git commit-tree "$tree" -p "$parent" \
-                -m "Bus data: $(TZ='America/New_York' date '+%Y-%m-%d %H:%M') ET"
-            fi
-          }
+          # Build the bus-data commit SERVER-SIDE via the GitHub Git Data API.
+          # Rationale: with a blobless clone, `git push` kept lazily re-fetching
+          # the ~5.8 GB history to build delta bases (9+ min, unbounded growth).
+          # The API creates the new tree from bus-data's existing tree (base_tree)
+          # plus only today's changed files — nothing is ever downloaded, so the
+          # cost is flat regardless of how large the archive grows. We upload only
+          # the hour files whose content differs from what's already on bus-data
+          # (detected by comparing local git-hash to the tree's blob OID — trees
+          # are present locally from the blobless fetch, no blob content needed).
+          python3 - <<'PY'
+          import base64, glob, json, os, subprocess, sys, time, urllib.request, urllib.error
 
-          # Push ONLY the new objects (today's changed blob + new trees + commit).
-          # Two guards keep git from dragging the whole archive back down:
-          #   - GIT_NO_LAZY_FETCH=1: never lazily re-fetch the missing (blobless)
-          #     history — without it, pack-objects refetched ~5.8 GB to hunt for
-          #     delta bases (a 9-min push before this fix).
-          #   - pack.window/depth=0: skip delta compression entirely, so git
-          #     never wants those old blobs as delta bases in the first place.
-          # The remote already has every unchanged object (reachable from the
-          # parent commit), so only today's delta is uploaded.
-          push_bus_data () {
-            GIT_NO_LAZY_FETCH=1 git -c pack.window=0 -c pack.depth=0 \
-              push origin "${1}:refs/heads/bus-data"
-          }
+          REPO, TOKEN, SNAP, STAMP = (os.environ[k] for k in ("REPO","GH_TOKEN","SNAP","STAMP"))
+          API = f"https://api.github.com/repos/{REPO}"
 
-          NEW=$(commit_today)
-          if [ -z "$NEW" ]; then echo "No snapshot changes vs bus-data."; exit 0; fi
+          def api(method, path, body=None):
+              data = json.dumps(body).encode() if body is not None else None
+              req = urllib.request.Request(API+path, data=data, method=method)
+              req.add_header("Authorization", f"Bearer {TOKEN}")
+              req.add_header("Accept", "application/vnd.github+json")
+              if data: req.add_header("Content-Type", "application/json")
+              with urllib.request.urlopen(req) as r:
+                  return json.load(r)
 
-          if push_bus_data "$NEW"; then
-            echo "Pushed ${NEW} to bus-data."
-          else
-            echo "Push rejected (overlapping run) — refetching tip and retrying once."
-            git fetch --filter=blob:none --no-tags origin bus-data --depth=1
-            NEW=$(commit_today)
-            if [ -z "$NEW" ]; then echo "Nothing to push after refetch."; exit 0; fi
-            push_bus_data "$NEW"
-          fi
+          def git(*a):
+              return subprocess.run(["git", *a], capture_output=True, text=True)
+
+          files = sorted(glob.glob(os.path.join(SNAP, "*.jsonl")))
+          if not files:
+              print("No files to push."); sys.exit(0)
+
+          def attempt():
+              tip = api("GET", "/git/ref/heads/bus-data")["object"]["sha"]
+              base_tree = api("GET", f"/git/commits/{tip}")["tree"]["sha"]
+              entries = []
+              for f in files:
+                  local_oid = git("hash-object", f).stdout.strip()
+                  r = git("rev-parse", f"origin/bus-data:{f}")
+                  remote_oid = r.stdout.strip() if r.returncode == 0 else None
+                  if local_oid == remote_oid:
+                      continue  # unchanged hour file — skip
+                  with open(f, "rb") as fh:
+                      content = base64.b64encode(fh.read()).decode()
+                  sha = api("POST", "/git/blobs", {"content": content, "encoding": "base64"})["sha"]
+                  entries.append({"path": f, "mode": "100644", "type": "blob", "sha": sha})
+                  print(f"  uploaded {f} ({local_oid[:10]})")
+              if not entries:
+                  print("No changed files vs bus-data."); return True
+              new_tree = api("POST", "/git/trees", {"base_tree": base_tree, "tree": entries})["sha"]
+              commit = api("POST", "/git/commits",
+                           {"message": f"Bus data: {STAMP}", "tree": new_tree, "parents": [tip]})["sha"]
+              try:
+                  api("PATCH", "/git/refs/heads/bus-data", {"sha": commit, "force": False})
+              except urllib.error.HTTPError as e:
+                  if e.code in (422, 409):  # tip moved (overlapping run) — retry
+                      print("  ref moved; retrying"); return False
+                  raise
+              print(f"bus-data -> {commit} ({len(entries)} file(s))")
+              return True
+
+          for i in range(4):
+              # Refresh our view of the remote tip so unchanged-file detection and
+              # the parent pointer are current if an overlapping run just pushed.
+              git("fetch", "--filter=blob:none", "--no-tags", "origin", "bus-data", "--depth=1")
+              if attempt():
+                  break
+              time.sleep(2)
+          else:
+              print("Failed to update bus-data after retries", file=sys.stderr); sys.exit(1)
+          PY
