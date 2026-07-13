@@ -61,7 +61,7 @@ function cacheDomElements() {
     'borough-filter', 'route-list-header',
     'tray', 'tray-handle', 'tray-body', 'tray-summary', 'tray-hint',
     'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
-    'tray-coverage-stats',
+    'tray-coverage-stats', 'tray-boro-trends', 'tray-boro-empty',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -1346,17 +1346,134 @@ function hideLoading() {
 async function loadTrends() {
   // Fetch both the rolled-up summary (latest.json) and the full weekly series
   // (weekly.json). We show whatever is available; missing files are tolerated.
-  const [latestRes, weeklyRes] = await Promise.all([
+  const [latestRes, weeklyRes, routesRes] = await Promise.all([
     fetch('data/summary/latest.json').catch(() => null),
     fetch('data/summary/weekly.json').catch(() => null),
+    fetch('data/summary/weekly-routes.json').catch(() => null),
   ]);
 
   let latest = null;
   let weekly = [];
+  let weeklyRoutes = {};
   if (latestRes?.ok) { try { latest = await latestRes.json(); } catch {} }
   if (weeklyRes?.ok) { try { weekly = await weeklyRes.json(); } catch {} }
+  if (routesRes?.ok) { try { weeklyRoutes = await routesRes.json(); } catch {} }
 
   renderTrends(latest, weekly);
+  renderBoroughTrends(latest, weeklyRoutes);
+}
+
+// Curated watch list: the two busiest routes in each borough (by average buses
+// on the road), used as a stable baseline for tracking speed over time. Keys
+// are the borough codes used in the daily/weekly roll-ups; route strings match
+// the shortnames in weekly-routes.json ("+" marks a Select Bus Service route).
+// Kept fixed (not recomputed each week) so the time series stays comparable.
+const WATCH_ROUTES = {
+  M:  { name: 'Manhattan',     routes: ['M15+', 'M4'] },
+  Bx: { name: 'The Bronx',     routes: ['BX12+', 'BX36'] },
+  B:  { name: 'Brooklyn',      routes: ['B6', 'B41'] },
+  Q:  { name: 'Queens',        routes: ['Q44+', 'Q58'] },
+  S:  { name: 'Staten Island', routes: ['S79+', 'S53'] },
+};
+
+/** Build the "Speed over time, by borough" section: for each borough, its
+ *  aggregate weekly speed plus its two busiest routes, each as a mini trend
+ *  (latest full-week value, change vs. prior full week, and a sparkline).
+ *  Reads only full weeks so partial weeks don't distort the series. */
+function renderBoroughTrends(latest, weeklyRoutes) {
+  const host = dom['tray-boro-trends'];
+  if (!host) return;
+
+  // Full weekly system history (each row carries a per-borough slice).
+  const fullWeeks = (latest?.weeklyHistory || []).filter(w => w.days >= 7);
+  const emptyEl = dom['tray-boro-empty'];
+
+  // Need at least two full weeks to show a change; otherwise keep the note.
+  if (fullWeeks.length < 1) {
+    if (emptyEl) emptyEl.style.display = '';
+    host.querySelectorAll('.boro-trend').forEach(n => n.remove());
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  // Speed series (aligned to fullWeeks order) for a borough code.
+  const boroSpeedSeries = code =>
+    fullWeeks.map(w => w.byBorough?.[code]?.avgSpeed ?? null);
+
+  // Speed series for one route, aligned to the same weeks as fullWeeks so the
+  // sparkline lines up. weeklyRoutes[route] is a chronological array of periods.
+  const routePeriods = new Set(fullWeeks.map(w => w.period));
+  const routeSpeedSeries = route => {
+    const hist = weeklyRoutes?.[route] || [];
+    const byPeriod = {};
+    for (const row of hist) {
+      if (row.daysSeen >= 7 && routePeriods.has(row.period)) {
+        byPeriod[row.period] = row.avgSpeed ?? null;
+      }
+    }
+    return fullWeeks.map(w => byPeriod[w.period] ?? null);
+  };
+
+  const blocks = [];
+  for (const [code, meta] of Object.entries(WATCH_ROUTES)) {
+    const tiles = [];
+    tiles.push(miniTrend(meta.name, 'borough avg', boroSpeedSeries(code)));
+    for (const route of meta.routes) {
+      tiles.push(miniTrend(route, 'route', routeSpeedSeries(route)));
+    }
+    blocks.push(`<div class="boro-trend">${tiles.join('')}</div>`);
+  }
+
+  // Remove any prior render, then insert fresh blocks (keep empty note in DOM).
+  host.querySelectorAll('.boro-trend').forEach(n => n.remove());
+  host.insertAdjacentHTML('beforeend', blocks.join(''));
+}
+
+/** One compact speed tile: label, latest full-week mph, change vs. prior week,
+ *  and a sparkline. `series` is an array of speeds (mph) or nulls, oldest first,
+ *  aligned across a borough's tiles so the weeks match up. */
+function miniTrend(label, kind, series) {
+  const valid = series.filter(v => v != null);
+  const latestVal = valid.length ? valid[valid.length - 1] : null;
+  const priorVal = valid.length > 1 ? valid[valid.length - 2] : null;
+  const change = (latestVal != null && priorVal != null)
+    ? round1(latestVal - priorVal) : null;
+
+  // Higher speed is better.
+  let changeHtml = '';
+  if (change != null && change !== 0) {
+    const arrow = change > 0 ? '▲' : '▼';
+    const cls = change > 0 ? 'up' : 'down';
+    changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(change).toFixed(1)}</div>`;
+  } else if (change === 0) {
+    changeHtml = `<div class="trend-change flat">—</div>`;
+  }
+
+  let sparkHtml = '';
+  if (valid.length > 1) {
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    const range = max - min || 1;
+    sparkHtml = `<div class="trend-sparkline">${
+      series.map(v => {
+        if (v == null) return '<div class="bar" style="height:2px;background:var(--border)"></div>';
+        const pct = ((v - min) / range) * 100;
+        const h = Math.max(2, Math.round(pct * 16 / 100) + 2);
+        return `<div class="bar" style="height:${h}px;background:var(--vc-chartreuse)"></div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  const valueHtml = latestVal != null
+    ? `${latestVal}<span class="mini-unit">mph</span>`
+    : '<span class="mini-nodata">no full week</span>';
+
+  return `<div class="mini-trend mini-${kind === 'borough avg' ? 'boro' : 'route'}">
+    <div class="mini-label">${label}</div>
+    <div class="mini-value">${valueHtml}</div>
+    ${changeHtml}
+    ${sparkHtml}
+  </div>`;
 }
 
 /** Render the bottom tray: collapsed headline + expanded cards + weekly table. */
