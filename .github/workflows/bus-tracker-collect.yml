@@ -177,15 +177,29 @@ jobs:
             fi
           }
 
+          # Push ONLY the new objects (today's changed blob + new trees + commit).
+          # Two guards keep git from dragging the whole archive back down:
+          #   - GIT_NO_LAZY_FETCH=1: never lazily re-fetch the missing (blobless)
+          #     history — without it, pack-objects refetched ~5.8 GB to hunt for
+          #     delta bases (a 9-min push before this fix).
+          #   - pack.window/depth=0: skip delta compression entirely, so git
+          #     never wants those old blobs as delta bases in the first place.
+          # The remote already has every unchanged object (reachable from the
+          # parent commit), so only today's delta is uploaded.
+          push_bus_data () {
+            GIT_NO_LAZY_FETCH=1 git -c pack.window=0 -c pack.depth=0 \
+              push origin "${1}:refs/heads/bus-data"
+          }
+
           NEW=$(commit_today)
           if [ -z "$NEW" ]; then echo "No snapshot changes vs bus-data."; exit 0; fi
 
-          if git push origin "${NEW}:refs/heads/bus-data"; then
+          if push_bus_data "$NEW"; then
             echo "Pushed ${NEW} to bus-data."
           else
             echo "Push rejected (overlapping run) — refetching tip and retrying once."
             git fetch --filter=blob:none --no-tags origin bus-data --depth=1
             NEW=$(commit_today)
             if [ -z "$NEW" ]; then echo "Nothing to push after refetch."; exit 0; fi
-            git push origin "${NEW}:refs/heads/bus-data"
+            push_bus_data "$NEW"
           fi
