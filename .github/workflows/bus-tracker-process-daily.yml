@@ -42,7 +42,12 @@ jobs:
           echo "PROCESS_DATE=$DATE" >> "$GITHUB_ENV"
           echo "Processing date: $DATE"
 
-          git fetch --no-tags origin bus-data --depth=1
+          # BLOBLESS fetch — download only commit + trees, not the ~5.8 GB of
+          # historical blobs. The one day we process is lazily fetched by the
+          # checkout below. Keeps this job fast as the archive grows.
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git fetch --filter=blob:none --no-tags origin bus-data --depth=1
           rm -rf nyc-bus-tracker/data/snapshots
           mkdir -p nyc-bus-tracker/data/snapshots
           # Current format: one folder of per-hour files for the date.

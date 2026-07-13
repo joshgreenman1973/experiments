@@ -71,9 +71,16 @@ jobs:
           # `git checkout origin/bus-data -- data/snapshots/` materialized the
           # entire multi-GB snapshot tree (~16 min, 649 files) and was blowing
           # the 25-min timeout on ~60% of runs (the data was then never pushed).
-          # Fetch the branch (objects are needed to build the commit below), but
-          # only write today's folder to disk.
-          git fetch --no-tags origin bus-data --depth=1
+          # BLOBLESS fetch: download only the commit + directory trees, NOT the
+          # ~5.8 GB of historical snapshot blobs. That download — not the
+          # working-tree write — is what took ~16 min. With blob:none we only pay
+          # for the tree objects (tiny); today's blobs are lazily fetched on
+          # demand by the checkout below, and the commit we build references old
+          # blobs by OID without needing their content. Configure origin as a
+          # promisor so the lazy fetch works.
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git fetch --filter=blob:none --no-tags origin bus-data --depth=1
           DATE_ET=$(TZ='America/New_York' date '+%Y-%m-%d')
           rm -rf nyc-bus-tracker/data/snapshots
           mkdir -p "nyc-bus-tracker/data/snapshots/${DATE_ET}"
@@ -177,7 +184,7 @@ jobs:
             echo "Pushed ${NEW} to bus-data."
           else
             echo "Push rejected (overlapping run) — refetching tip and retrying once."
-            git fetch --no-tags origin bus-data --depth=1
+            git fetch --filter=blob:none --no-tags origin bus-data --depth=1
             NEW=$(commit_today)
             if [ -z "$NEW" ]; then echo "Nothing to push after refetch."; exit 0; fi
             git push origin "${NEW}:refs/heads/bus-data"
