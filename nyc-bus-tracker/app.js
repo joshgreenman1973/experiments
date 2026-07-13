@@ -1376,16 +1376,23 @@ const WATCH_ROUTES = {
   S:  { name: 'Staten Island', routes: ['S79+', 'S53'] },
 };
 
+// A week only enters the trends if it has a full 7 days AND at least this share
+// of operating hours sampled. Thin, sparsely-collected weeks (some June weeks
+// dipped to ~9% coverage) would otherwise drag the line around on very little
+// data. This is the same "comparable" bar the week-by-week table uses.
+const TREND_COVERAGE_MIN = 50;
+
 /** Build the "Speed over time, by borough" section: for each borough, its
  *  aggregate weekly speed plus its two busiest routes, each as a mini trend
- *  (latest full-week value, change vs. prior full week, and a sparkline).
- *  Reads only full weeks so partial weeks don't distort the series. */
+ *  (latest value, net trend over the window, and a line + trend-line chart).
+ *  Uses only full, adequately-covered weeks so thin weeks don't distort it. */
 function renderBoroughTrends(latest, weeklyRoutes) {
   const host = dom['tray-boro-trends'];
   if (!host) return;
 
-  // Full weekly system history (each row carries a per-borough slice).
-  const fullWeeks = (latest?.weeklyHistory || []).filter(w => w.days >= 7);
+  // Full weekly history, gated on coverage (each row carries a per-borough slice).
+  const fullWeeks = (latest?.weeklyHistory || [])
+    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
   const emptyEl = dom['tray-boro-empty'];
 
   // Need at least two full weeks to show a change; otherwise keep the note.
