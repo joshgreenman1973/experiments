@@ -29,17 +29,33 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Pull snapshot files from bus-data branch
+      - name: Pull the processed day's snapshots from bus-data
         run: |
-          git fetch origin bus-data --depth=1
-          # Materialize bus-data's snapshots into the working tree so process.js
-          # can read them. NOTE: `git checkout <ref> -- <path>` ALSO stages the
-          # files, so we immediately unstage them — snapshots must never be
-          # committed to main (they live on bus-data; main stays lean for Pages).
-          git checkout origin/bus-data -- nyc-bus-tracker/data/snapshots/
-          git reset -q -- nyc-bus-tracker/data/snapshots/
+          # Figure out which date we're processing (yesterday ET, or a manual
+          # override), then pull ONLY that day's folder — not the whole multi-GB
+          # archive. Checking out the entire snapshot tree grows monotonically
+          # slower as the archive grows; we only ever read one day here.
+          DATE="${{ github.event.inputs.date }}"
+          if [ -z "$DATE" ]; then
+            DATE=$(TZ='America/New_York' date -d 'yesterday' '+%Y-%m-%d' 2>/dev/null || TZ='America/New_York' date -v-1d '+%Y-%m-%d')
+          fi
+          echo "PROCESS_DATE=$DATE" >> "$GITHUB_ENV"
+          echo "Processing date: $DATE"
+
+          git fetch --no-tags origin bus-data --depth=1
+          rm -rf nyc-bus-tracker/data/snapshots
+          mkdir -p nyc-bus-tracker/data/snapshots
+          # Current format: one folder of per-hour files for the date.
+          git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${DATE}/" 2>/dev/null \
+            && echo "Pulled ${DATE}/ folder." || echo "No ${DATE}/ folder on bus-data."
+          # Legacy fallback: a single flat file, for dates before hourly chunking.
+          git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${DATE}.jsonl" 2>/dev/null \
+            && echo "Pulled legacy ${DATE}.jsonl." || true
+          # `git checkout <ref> -- <path>` stages what it pulls; unstage so
+          # snapshots are never committed to main (they live on bus-data).
+          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
           echo "Snapshot files now in working tree:"
-          ls nyc-bus-tracker/data/snapshots/ | tail -10
+          ls -R nyc-bus-tracker/data/snapshots/ | head -20
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -49,14 +65,10 @@ jobs:
       - name: Install dependencies
         run: cd nyc-bus-tracker/collector && npm ci
 
-      - name: Process yesterday's snapshots
+      - name: Process the day's snapshots
         run: |
-          DATE="${{ github.event.inputs.date }}"
-          if [ -z "$DATE" ]; then
-            DATE=$(TZ='America/New_York' date -d 'yesterday' '+%Y-%m-%d' 2>/dev/null || TZ='America/New_York' date -v-1d '+%Y-%m-%d')
-          fi
-          echo "Processing date: $DATE"
-          node nyc-bus-tracker/collector/process.js "$DATE"
+          echo "Processing $PROCESS_DATE"
+          node nyc-bus-tracker/collector/process.js "$PROCESS_DATE"
 
       - name: Generate weekly/monthly rollups
         run: node nyc-bus-tracker/collector/rollup.js
