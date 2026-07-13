@@ -104,6 +104,18 @@
   <h2>Trailing 30-day baseline</h2>
   <p>The stat strip on each day's digest compares the day's counts to the trailing 30-day median of available data (excluding the current day). Days with no published data are skipped. If fewer than 30 days exist in the archive, the median is computed over whatever days are available.</p>
 
+  <h2>Trends dashboard</h2>
+  <p>The Trends tab reads a single precomputed aggregate, <code>data/trends.json</code>, rebuilt by <code>build-trends.mjs</code> after every daily fetch. It rolls the full archive up into monthly, daily, agency and vendor time series. Definitions:</p>
+  <ul>
+    <li><strong>Award value / count.</strong> An "award" is a Procurement-section notice whose type is <em>Award</em> (this excludes Solicitations and Intents-to-Award, which are pipeline, not committed spend). The value is the <code>contract_amount</code> field exactly as published in the City Record — it may represent a multi-year contract total or a renewal, and can differ from the cash actually paid in that month. Awards are dated by their publication day.</li>
+    <li><strong>Non-competitive share.</strong> The portion of awarded dollars whose selection method matches: sole source, negotiated, non-competitive, single source, emergency, required/authorized or preferred source, discretionary, intergovernmental, or government-to-government. This is a broad reading meant to show how much spending bypassed open bidding; a single large award can swing a light month's share sharply.</li>
+    <li><strong>Consulting &amp; communications.</strong> Awards whose title, category or description mention consulting, lobbying, communications, public relations or advertising, at or above $100K — the same rule the daily digest uses for its consulting flag.</li>
+    <li><strong>Agency and vendor leaderboards.</strong> Cumulative awarded value across the whole window, with a monthly sparkline. Vendor totals are keyed on the exact <code>vendor_name</code> string; spelling variants of the same company are not merged.</li>
+    <li><strong>First-time winners.</strong> Vendors whose earliest award anywhere in the archive falls in the two most recent months. Because the archive starts in January 2026, a vendor flagged as "first-time" may have held city contracts before the archive began.</li>
+    <li><strong>Month-over-month deltas</strong> compare a month to the immediately preceding one. The most recent month is usually partial — it is labeled as such, and its change should be read against days elapsed, not the full month.</li>
+  </ul>
+  <p>Because the same <code>contract_amount</code> figure can appear on more than one notice over a contract's life (for example a Notice of Intent, an Award, and a related hearing), monthly totals track published award notices, not deduplicated contract obligations. Treat the trend lines as a read on what the City Record is publishing, not an audited accounting of city spending.</p>
+
   <h2>Filters and URL state</h2>
   <p>Filter chips reflect in the URL as query parameters: <code>?agency=…&amp;reason=…&amp;type=…&amp;min=…&amp;deadline=…&amp;date=…</code>. Any filtered view is shareable as a direct link.</p>
 
@@ -116,7 +128,7 @@
   </ul>
 
   <h2>Reproducing the digest</h2>
-  <p>The pipeline is two Node scripts in the repository: <code>fetch-daily.mjs</code> (pulls the day's notices, applies the flagging rules, writes <code>data/YYYY-MM-DD.json</code>) and <code>generate-feeds.mjs</code> (rebuilds RSS feeds). Both run on a daily schedule via GitHub Actions.</p>
+  <p>The pipeline is three Node scripts in the repository: <code>fetch-daily.mjs</code> (pulls the day's notices, applies the flagging rules, writes <code>data/YYYY-MM-DD.json</code>), <code>build-trends.mjs</code> (rebuilds the <code>data/trends.json</code> aggregate behind the Trends tab) and <code>generate-feeds.mjs</code> (rebuilds RSS feeds). All run on a daily schedule via GitHub Actions.</p>
 
   <footer>
     <a href="index.html">← Back to City Record Digest</a>
