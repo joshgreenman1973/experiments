@@ -95,6 +95,10 @@ function applyOverrides(record) {
     if (!o.previewUrl) record.previewUrl = o.liveUrl;
   }
   if (o.previewUrl) record.previewUrl = o.previewUrl;
+  // Explicitly suppress the live iframe preview for projects with no framable
+  // web page (backend tools/scrapers, undeployed local-only folders). The card
+  // then renders the "no preview" placeholder instead of a broken/404 iframe.
+  if (o.noPreview) record.previewUrl = null;
   if (o.title) record.title = o.title;
   if (o.description) record.description = o.description;
   if (o.status) record.status = o.status;
