@@ -1429,40 +1429,85 @@ function renderBoroughTrends(latest, weeklyRoutes) {
   host.insertAdjacentHTML('beforeend', blocks.join(''));
 }
 
-/** One compact speed tile: label, latest full-week mph, change vs. prior week,
- *  and a sparkline. `series` is an array of speeds (mph) or nulls, oldest first,
- *  aligned across a borough's tiles so the weeks match up. */
+/** Least-squares linear fit over a series (oldest→newest, nulls skipped).
+ *  x is the position in the series so gaps count as elapsed time. Returns the
+ *  slope/intercept plus the net change the trend line implies across the span
+ *  (fitted last minus fitted first) — a stable "faster or slower over time"
+ *  figure that doesn't swing with a single noisy week. Null if <2 points. */
+function linTrend(series) {
+  const pts = series.map((v, i) => ({ i, v })).filter(p => p.v != null);
+  if (pts.length < 2) return null;
+  const m = pts.length;
+  const sx = pts.reduce((s, p) => s + p.i, 0);
+  const sy = pts.reduce((s, p) => s + p.v, 0);
+  const sxx = pts.reduce((s, p) => s + p.i * p.i, 0);
+  const sxy = pts.reduce((s, p) => s + p.i * p.v, 0);
+  const denom = m * sxx - sx * sx;
+  const slope = denom !== 0 ? (m * sxy - sx * sy) / denom : 0;
+  const intercept = (sy - slope * sx) / m;
+  const firstI = pts[0].i;
+  const lastI = pts[pts.length - 1].i;
+  return {
+    pts, slope, intercept, firstI, lastI,
+    weeks: pts.length,
+    netOverWindow: slope * (lastI - firstI),
+    fit: i => intercept + slope * i,
+  };
+}
+
+/** A calm alternative to jumpy bars: the weekly values as a faint line, with a
+ *  bold straight trend line (the least-squares fit) laid over them and the
+ *  latest point marked. The trend line is what carries the "up or down over
+ *  time" read; the faint line keeps the real data visible. `higherIsBetter`
+ *  colors the trend green/red by whether the slope is good news. */
+function sparkTrend(series, higherIsBetter = true) {
+  const t = linTrend(series);
+  if (!t) return '';
+  const W = 100, H = 26, pad = 3, n = series.length;
+  const xOf = i => n > 1 ? (i / (n - 1)) * (W - 2 * pad) + pad : W / 2;
+  const ys = [...t.pts.map(p => p.v), t.fit(t.firstI), t.fit(t.lastI)];
+  const min = Math.min(...ys), max = Math.max(...ys), range = max - min || 1;
+  const yOf = v => (H - pad) - ((v - min) / range) * (H - 2 * pad);
+
+  const actual = t.pts
+    .map((p, k) => `${k ? 'L' : 'M'}${xOf(p.i).toFixed(1)} ${yOf(p.v).toFixed(1)}`)
+    .join(' ');
+  const good = t.slope === 0 ? null : (t.slope > 0) === higherIsBetter;
+  const trendColor = good === null ? 'var(--text-tertiary)'
+    : good ? 'var(--vc-goodest-green)' : 'var(--vc-baddest-red)';
+  const last = t.pts[t.pts.length - 1];
+
+  return `<svg class="spark-trend" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${actual}" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <line x1="${xOf(t.firstI).toFixed(1)}" y1="${yOf(t.fit(t.firstI)).toFixed(1)}" x2="${xOf(t.lastI).toFixed(1)}" y2="${yOf(t.fit(t.lastI)).toFixed(1)}" stroke="${trendColor}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+    <circle cx="${xOf(last.i).toFixed(1)}" cy="${yOf(last.v).toFixed(1)}" r="1.9" fill="rgba(255,255,255,0.6)"/>
+  </svg>`;
+}
+
+/** One compact speed tile: label, latest full-week mph, the net trend across
+ *  every full week tracked (not the noisy week-over-week delta), and a line +
+ *  trend-line chart. `series` is speeds (mph) or nulls, oldest first, aligned
+ *  across a borough's tiles so the weeks match up. */
 function miniTrend(label, kind, series) {
   const valid = series.filter(v => v != null);
   const latestVal = valid.length ? valid[valid.length - 1] : null;
-  const priorVal = valid.length > 1 ? valid[valid.length - 2] : null;
-  const change = (latestVal != null && priorVal != null)
-    ? round1(latestVal - priorVal) : null;
 
-  // Higher speed is better.
+  // Headline figure = the trend across the whole tracked window (higher speed
+  // is better), so it reflects direction over time rather than last week's wobble.
+  const t = linTrend(series);
   let changeHtml = '';
-  if (change != null && change !== 0) {
-    const arrow = change > 0 ? '▲' : '▼';
-    const cls = change > 0 ? 'up' : 'down';
-    changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(change).toFixed(1)}</div>`;
-  } else if (change === 0) {
-    changeHtml = `<div class="trend-change flat">—</div>`;
+  if (t) {
+    const net = round1(t.netOverWindow);
+    if (net !== 0) {
+      const arrow = net > 0 ? '▲' : '▼';
+      const cls = net > 0 ? 'up' : 'down';
+      changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(net).toFixed(1)} over ${t.weeks} wks</div>`;
+    } else {
+      changeHtml = `<div class="trend-change flat">— flat over ${t.weeks} wks</div>`;
+    }
   }
 
-  let sparkHtml = '';
-  if (valid.length > 1) {
-    const min = Math.min(...valid);
-    const max = Math.max(...valid);
-    const range = max - min || 1;
-    sparkHtml = `<div class="trend-sparkline">${
-      series.map(v => {
-        if (v == null) return '<div class="bar" style="height:2px;background:var(--border)"></div>';
-        const pct = ((v - min) / range) * 100;
-        const h = Math.max(2, Math.round(pct * 16 / 100) + 2);
-        return `<div class="bar" style="height:${h}px;background:var(--vc-chartreuse)"></div>`;
-      }).join('')
-    }</div>`;
-  }
+  const sparkHtml = sparkTrend(series, true);
 
   const valueHtml = latestVal != null
     ? `${latestVal}<span class="mini-unit">mph</span>`
@@ -1658,22 +1703,9 @@ function trendCard(label, value, unit, change, direction, period, sparkData) {
     changeHtml = `<div class="trend-change flat">\u2014 no change</div>`;
   }
 
-  // Sparkline bars
-  let sparkHtml = '';
-  if (sparkData && sparkData.filter(v => v != null).length > 1) {
-    const valid = sparkData.filter(v => v != null);
-    const min = Math.min(...valid);
-    const max = Math.max(...valid);
-    const range = max - min || 1;
-    sparkHtml = `<div class="trend-sparkline">${
-      sparkData.map(v => {
-        if (v == null) return '<div class="bar" style="height:2px;background:var(--border)"></div>';
-        const pct = ((v - min) / range) * 100;
-        const h = Math.max(2, Math.round(pct * 22 / 100) + 2);
-        return `<div class="bar" style="height:${h}px;background:var(--vc-chartreuse)"></div>`;
-      }).join('')
-    }</div>`;
-  }
+  // Line + fitted trend line (calmer than week-to-week bars). Color the trend
+  // by whether its slope is good news for this metric.
+  const sparkHtml = sparkTrend(sparkData, direction === 'higher is better');
 
   return `<div class="trend-card">
     <div class="trend-label">${label}</div>
