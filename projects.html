@@ -334,6 +334,63 @@
   .index-list .index-section.active { border-bottom-color: var(--section); }
   .index-list .index-section.active > * { color: var(--section); }
 
+  /* ---- Cards / Buttons view toggle ---- */
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .view-toggle button {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 12px;
+    background: none; border: 0; cursor: pointer;
+    color: var(--ink-3);
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .view-toggle button.active { background: var(--ink); color: var(--paper); }
+  .view-toggle button:not(.active):hover { color: var(--ink); }
+
+  /* ---- Compact "Buttons" view: color-coded pills, one per experiment ---- */
+  .grid.compact { display: block; padding: 0 40px 80px; }
+  .compact-view .index-rail,
+  .compact-view .index-show { display: none !important; }
+  .pill-row {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 16px 22px 10px;
+  }
+  .pill {
+    display: inline-flex; align-items: center;
+    max-width: 100%;
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 12.5px; line-height: 1.2;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--section, var(--accent));
+    color: var(--section, var(--accent));
+    background: color-mix(in srgb, var(--section, var(--accent)) 8%, transparent);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  }
+  .pill:hover {
+    background: var(--section, var(--accent));
+    color: var(--paper);
+    transform: translateY(-1px);
+  }
+  [data-theme="ink"] .pill:hover { color: var(--paper); }
+  .pill.dropped { opacity: 0.5; text-decoration: line-through; }
+  .pill.no-link { cursor: default; opacity: 0.6; }
+  .pill.no-link:hover { transform: none; background: color-mix(in srgb, var(--section, var(--accent)) 8%, transparent); color: var(--section, var(--accent)); }
+  .compact-heading { padding-top: 32px; }
+  @media (max-width: 700px) {
+    .grid.compact { padding: 0 14px 56px; }
+    .pill-row { padding: 12px 14px 8px; gap: 6px; }
+  }
+
   /* ---- Body layout: grid + side index rail ---- */
   .body-layout {
     display: flex;
@@ -975,6 +1032,13 @@
         <option value="name">A–Z</option>
       </select>
     </div>
+    <div class="filter-group">
+      <label>View</label>
+      <div class="view-toggle" id="viewToggle" role="group" aria-label="View mode">
+        <button type="button" data-view="cards" class="active">Cards</button>
+        <button type="button" data-view="compact">Buttons</button>
+      </div>
+    </div>
   </div>
   <div class="count" id="count"></div>
 </section>
@@ -1006,6 +1070,9 @@ let DATA = null;
 // successfully unlocks each tab. Session-scoped only — cleared on tab close.
 const UNLOCKED = { general: null, professional: null, personal: null };
 let ACTIVE_TAB = 'general';
+// View mode: 'cards' (full contact-sheet grid) or 'compact' (small color-coded
+// pill buttons, one per experiment, grouped by section — see them all at once).
+let VIEW = 'cards';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1111,6 +1178,22 @@ async function load() {
   $('indexRailToggle').addEventListener('click', () => setRail(true));
   $('indexShow').addEventListener('click', () => setRail(false));
   setRail(localStorage.getItem(RAIL_KEY) === '1');
+
+  // Cards / Buttons view toggle (preference remembered per device).
+  const VIEW_KEY = 'experiments-view';
+  function setView(mode) {
+    VIEW = (mode === 'compact') ? 'compact' : 'cards';
+    for (const b of $('viewToggle').querySelectorAll('button')) {
+      b.classList.toggle('active', b.dataset.view === VIEW);
+    }
+    document.body.classList.toggle('compact-view', VIEW === 'compact');
+    try { localStorage.setItem(VIEW_KEY, VIEW); } catch {}
+    if (DATA) render();
+  }
+  for (const b of $('viewToggle').querySelectorAll('button')) {
+    b.addEventListener('click', () => setView(b.dataset.view));
+  }
+  setView(localStorage.getItem(VIEW_KEY) || 'cards');
 
   // Auto-unlock private tab if the user previously chose to stay unlocked.
   await tryRememberedUnlock();
@@ -1286,12 +1369,23 @@ function render() {
 
   const grid = $('grid');
   grid.innerHTML = '';
+  grid.classList.toggle('compact', VIEW === 'compact');
   if (!list.length) {
     renderSectionBar([]);
     grid.innerHTML = '<div class="empty">No matches.<small>try clearing a filter</small></div>';
     if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
       renderPersonalAppendix(grid, term, cat, owner, show, sort);
       observeThumbnails();
+    }
+    return;
+  }
+
+  // Compact "Buttons" view: skip the featured hero and render every project as
+  // a small color-coded pill, grouped by section, so they're all visible at once.
+  if (VIEW === 'compact') {
+    renderCompact(grid, list);
+    if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
+      renderPersonalAppendix(grid, term, cat, owner, show, sort);
     }
     return;
   }
@@ -1437,6 +1531,48 @@ function renderSectionBar(sections) {
   }
 }
 
+// Compact "Buttons" view — every experiment as a small color-coded pill,
+// grouped by section, so the whole catalogue is visible at a glance. Each pill
+// links straight to the live page; the color is the project's section.
+function pill(p) {
+  const url = p.livePagesUrl || p.indexUrl;
+  const el = document.createElement(url ? 'a' : 'span');
+  el.className = 'pill' + (p.status === 'dropped' ? ' dropped' : '') + (url ? '' : ' no-link');
+  el.style.setProperty('--section', sectionVar(p.subcategory));
+  if (url) { el.href = encodeURI(url); el.target = '_blank'; el.rel = 'noopener'; }
+  el.textContent = p.title || p.name;
+  el.title = p.description || p.title || p.name;
+  return el;
+}
+
+function renderCompact(grid, list) {
+  const groups = {};
+  for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
+  const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()]
+    .filter(k => groups[k]);
+  const renderedSections = [];
+  for (const key of ordered) {
+    renderedSections.push({ key, slug: slugify(key), n: groups[key].length });
+    const heading = document.createElement('div');
+    heading.className = 'group-heading compact-heading';
+    heading.id = 'sec-' + slugify(key);
+    heading.style.setProperty('--section', sectionVar(key));
+    const meta = SECTION_META[key] || { kicker: 'section' };
+    heading.innerHTML =
+      `<span class="kicker">${escapeHtml(meta.kicker)}</span>` +
+      `<div class="head-text"><h3>${escapeHtml(key)}</h3></div>` +
+      `<span class="count">${groups[key].length}</span>`;
+    grid.appendChild(heading);
+    const row = document.createElement('div');
+    row.className = 'pill-row';
+    const items = groups[key].slice().sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name));
+    for (const p of items) row.appendChild(pill(p));
+    grid.appendChild(row);
+  }
+  renderSectionBar(renderedSections);
+  setupScrollSpy(renderedSections);
+}
+
 // Mark one section active across both the sticky bar and the rail.
 function setActiveSection(slug) {
   for (const el of document.querySelectorAll('[data-jump]')) {
@@ -1525,7 +1661,15 @@ function renderPersonalAppendix(grid, term, cat, owner, show, sort) {
       `<p class="blurb">Family, kids and things made for the joy of it.</p></div>` +
       `<span class="count">${pers.length} ${pers.length === 1 ? 'project' : 'projects'}</span>`;
     grid.appendChild(heading);
-    pers.forEach((p, i) => grid.appendChild(card(p, i)));
+    if (VIEW === 'compact') {
+      const row = document.createElement('div');
+      row.className = 'pill-row';
+      pers.slice().sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name))
+        .forEach(p => row.appendChild(pill(p)));
+      grid.appendChild(row);
+    } else {
+      pers.forEach((p, i) => grid.appendChild(card(p, i)));
+    }
   } else {
     // Locked — show a single "Personal" call-to-action that opens the gate.
     const n = DATA.locked.personal.count || 0;
