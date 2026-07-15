@@ -41,7 +41,13 @@ jobs:
             echo "No new data -- skipping commit"
           else
             git commit -m "FOIL Tracker update: $(date -u +%Y-%m-%d)"
-            git push
+            pushed=false
+            for attempt in 1 2 3 4 5; do
+              if git push origin main; then pushed=true; break; fi
+              echo "Push rejected (attempt $attempt) — rebasing on latest main…"
+              git pull --rebase --autostash origin main
+            done
+            $pushed || { echo "Push failed after retries"; exit 1; }
           fi
 
       - name: Open GitHub Issue on failure
