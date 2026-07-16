@@ -127,18 +127,37 @@ each trip's pickup zone centroid to its dropoff zone centroid on the car graph.
 Roughly 64,000 to 77,000 usable trips per band after filters (3 min–2 h duration,
 0.8–35 mi, 1–65 mph implied, pickup and dropoff in different zones).
 
-| Band | alpha (median) | IQR | Traffic runs at |
-|---|---|---|---|
-| Weekday AM peak | 2.47 | 1.95–3.10 | 40% of posted |
-| Weekday midday | 2.75 | 2.20–3.43 | 36% of posted |
-| Weekday PM peak | 2.62 | 2.10–3.27 | 38% of posted |
-| Weekday evening | 2.12 | 1.70–2.58 | 47% of posted |
-| Weekday late night | 1.82 | 1.47–2.23 | 55% of posted |
-| Saturday midday | 2.35 | 1.91–2.90 | 43% of posted |
-| Sunday midday | 2.15 | 1.75–2.65 | 46% of posted |
+The factor is measured PER BOROUGH, because a single citywide number
+flattered Manhattan (where most of the trips are) and slandered the edges of
+the city. Each borough's factor comes from intra-borough, non-shared Uber/Lyft
+trips in the TLC high-volume FHV file — 11.9 million usable trips in March
+2026 — and is applied to each street segment by its borough. Cross-borough
+segments of a trip simply pick up each borough's factor as the route passes
+through.
 
-A 25 mph street at weekday midday is effectively a 9.1 mph street, which is
-the crosstown Manhattan speed every New Yorker knows.
+| Band | Citywide | Manhattan | Brooklyn | Queens | Bronx | Staten Island |
+|---|---|---|---|---|---|---|
+| Weekday AM peak | 2.32 | 2.53 | 2.34 | 2.12 | 2.29 | 1.46 |
+| Weekday midday | 2.39 | 2.85 | 2.42 | 2.11 | 2.23 | 1.48 |
+| Weekday PM peak | 2.51 | 2.80 | 2.49 | 2.23 | 2.33 | 1.55 |
+| Weekday evening | 2.04 | 2.30 | 2.09 | 1.83 | 1.90 | 1.34 |
+| Weekday late night | 1.71 | 1.91 | 1.82 | 1.59 | 1.71 | 1.29 |
+| Saturday midday | 2.56 | 2.84 | 2.54 | 2.28 | 2.45 | 1.55 |
+| Sunday midday | 2.34 | 2.63 | 2.39 | 2.12 | 2.14 | 1.47 |
+
+A 25 mph Manhattan street at weekday midday is effectively an 8.8 mph street —
+the crosstown speed every New Yorker knows — while the same street in Queens
+moves at 11.8 and Staten Island at 16.9. An earlier build applied one citywide
+factor from yellow-cab trips (midday 2.75); the two sources agree closely
+where they overlap, which is a good sign since they are different vehicle
+fleets measured different ways.
+
+### The pickup wait
+
+The taxi clock starts at the REQUEST, matching transit, which pays its
+platform wait. The median request-to-pickup gap over every non-shared FHV trip
+in the month is about 4 minutes (3.8 to 4.6 by band) — measured, not assumed.
+Without this, the taxi map was structurally flattered against the train.
 
 ### Validation
 
@@ -147,21 +166,33 @@ real cab ranges for weekday midday.
 
 ### Known biases, and their direction
 
-- **Manhattan skew.** Yellow cabs concentrate in Manhattan, so alpha mostly
-  describes Manhattan streets. Outer-borough surface driving is somewhat faster
-  than this map shows.
-- **Highway compression.** One factor per band slows a flowing expressway as
-  much as a jammed crosstown street, so highway-heavy trips — the airports
-  especially — read slower than reality.
+- **Highway compression.** One factor per borough still slows a flowing
+  expressway as much as a jammed local street, so highway-heavy trips — the
+  airports especially — read somewhat slower than reality.
 - **Zone centroids.** Trips are routed centroid to centroid rather than
   door to door; the median over tens of thousands of trips absorbs this noise.
 
-The first two biases run the same way: the taxi isochrone is conservative,
-especially toward the edges of the city. Any single ride also varies
-enormously — the IQR above is the honest spread, and `weekday_midday` spans
-2.20 to 3.43.
+Any single ride also varies enormously — intra-Manhattan midday spans roughly
+2.2 to 3.6 between the 25th and 75th percentile trip.
 
-Not modeled: pickup/hail time, tolls, turn penalties.
+Not modeled: tolls and turn penalties. (The pickup wait now is.)
+
+## Train vs cab
+
+Total reach is the wrong lens for "which is faster" — a car sweeps every
+street while the subway wins point-to-point along its corridors, and both
+facts are true at once. The "Train vs cab" view answers the real question:
+from your origin, every street is colored by which door-to-door trip arrives
+first, waits included on both sides. Blue where the train is faster, orange
+where the cab is, faded orange where the train cannot arrive within the budget
+at all, gray where they land within two minutes of each other.
+
+From Washington Square at the morning rush, the train's wins trace the express
+spines — the West Side and Lexington lines into upper Manhattan and the Bronx —
+while the cab takes the near field and the space between lines. At 3am the
+train's winning territory nearly vanishes. Technically: taxi times live on the
+drivable graph and transit times on the walk graph, so each car node is linked
+to its nearest walk node at build time (`pipeline/build_carlink.py`).
 
 ## Walking and cycling
 
@@ -278,7 +309,9 @@ python3 pipeline/build_transit.py   # MTA GTFS -> ride times + headways per band
 python3 pipeline/build_streets.py   # CSCL -> routable walk/bike graph
 python3 pipeline/build_link.py      # snap stops to streets; measure detour factor
 python3 pipeline/build_car.py       # CSCL -> directed drivable graph with posted speeds
-python3 pipeline/calibrate_taxi.py  # TLC trips -> per-band traffic factors (needs pyarrow)
+python3 pipeline/calibrate_taxi.py  # yellow-cab citywide factors (cross-check)
+python3 pipeline/calibrate_boroughs.py # FHV -> per-borough factors + car_zones.bin
+python3 pipeline/build_carlink.py   # car node -> nearest walk node (race view)
 python3 pipeline/pack.py            # pack to binary for the browser
 cp pipeline/out/{core.json,bands.bin,bands.json,street_nodes.bin,street_edges.bin,car_nodes.bin,car_edges.bin,car_calibration.json} data/
 python3 pipeline/validate.py        # speed + headway checks quoted above

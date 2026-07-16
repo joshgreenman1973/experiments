@@ -175,18 +175,20 @@ function buildBand(bandId) {
 function routeTaxi(opts) {
   const t0 = performance.now();
   const { originCarNode, budget, bandId, accessible } = opts;
-  const alpha = CAR.alpha[bandId] || 2.5;
+  const fallbackAlpha = CAR.alpha[bandId] || 2.5;
+  const alphaCls = CAR.alphaByClass[bandId];
+  const zc = CAR.zoneClass;
   const nC = CAR.n;
   const dist = new Float64Array(nC).fill(Infinity);
   const heap = new Heap(1 << 16);
-  // Accessible mode requests a wheelchair-accessible vehicle, and the clock
-  // starts at the request: the measured median request-to-pickup wait for the
-  // band comes off the budget before the wheels move.
-  let start = 0;
-  if (accessible) {
-    const w = (C.access.wav[bandId] || {}).wav_wait_secs;
-    start = w === undefined ? 480 : w;
-  }
+  // The clock starts at the REQUEST, not when the wheels move — same rule as
+  // transit, which pays its platform wait. Median request-to-pickup gap from
+  // the month's Uber/Lyft records: ~4 min standard, ~7-8 min for a
+  // wheelchair-accessible vehicle.
+  const bandWaits = C.access.wav[bandId] || {};
+  let start = accessible
+    ? (bandWaits.wav_wait_secs !== undefined ? bandWaits.wav_wait_secs : 480)
+    : (bandWaits.standard_wait_secs !== undefined ? bandWaits.standard_wait_secs : 260);
   if (start > budget) {
     return { streetDist: new Float32Array(nC).fill(-1), reachedStops: [],
              stats: { settled: 0, ms: Math.round(performance.now() - t0) } };
@@ -199,8 +201,10 @@ function routeTaxi(opts) {
     const [d, u] = heap.pop();
     if (d > dist[u] || d > budget) continue;
     settled++;
+    // Congestion by borough of the street being driven.
+    const a = alphaCls ? alphaCls[zc[u]] : fallbackAlpha;
     for (let e = off[u]; e < off[u + 1]; e++) {
-      const nd = d + base[e] * alpha;
+      const nd = d + base[e] * a;
       const v = tgt[e];
       if (nd < dist[v] && nd <= budget) { dist[v] = nd; heap.push(nd, v); }
     }
@@ -324,7 +328,7 @@ self.onmessage = async (e) => {
   if (msg.type === "init") {
     const base = msg.base || "";
     const q = "?v=" + (msg.v || "dev");
-    const [core, bandIndex, nodesBuf, edgesBuf, bandsBuf, carNodesBuf, carEdgesBuf, carCal, access] = await Promise.all([
+    const [core, bandIndex, nodesBuf, edgesBuf, bandsBuf, carNodesBuf, carEdgesBuf, carCal, access, carCal2, carZonesBuf, carLinkBuf] = await Promise.all([
       fetch(base + "data/core.json" + q).then((r) => r.json()),
       fetch(base + "data/bands.json" + q).then((r) => r.json()),
       fetch(base + "data/street_nodes.bin" + q).then((r) => r.arrayBuffer()),
@@ -334,6 +338,9 @@ self.onmessage = async (e) => {
       fetch(base + "data/car_edges.bin" + q).then((r) => r.arrayBuffer()),
       fetch(base + "data/car_calibration.json" + q).then((r) => r.json()),
       fetch(base + "data/access.json" + q).then((r) => r.json()),
+      fetch(base + "data/car_calibration2.json" + q).then((r) => r.json()),
+      fetch(base + "data/car_zones.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_link.bin" + q).then((r) => r.arrayBuffer()),
     ]);
 
     // streets
@@ -432,10 +439,25 @@ self.onmessage = async (e) => {
     }
     const alpha = {};
     for (const [b, v] of Object.entries(carCal.bands || {})) alpha[b] = v.alpha;
+    // Per-borough traffic factors: intra-borough Uber/Lyft trips give each
+    // borough its own alpha (Manhattan midday 2.85 vs Queens 2.11), applied by
+    // the edge's from-node borough class. Citywide is the fallback.
+    const zoneClass = new Uint8Array(carZonesBuf);
+    const BOROUGHS = carCal2.boroughs || [];
+    const alphaByClass = {};
+    for (const [band, entry] of Object.entries(carCal2.bands || {})) {
+      const arr = new Float32Array(Math.max(1, BOROUGHS.length));
+      for (let i = 0; i < BOROUGHS.length; i++) {
+        const bb = (entry.by_borough || {})[BOROUGHS[i]];
+        arr[i] = bb ? bb.alpha : entry.citywide.alpha;
+      }
+      alphaByClass[band] = arr;
+    }
     CAR = {
       n: nC, lat: cLat, lon: cLon, grid: cGrid,
       csr: { off: cOff, tgt: cTgt, base: cSecs },
       alpha, calibration: carCal,
+      zoneClass, alphaByClass, calibration2: carCal2,
     };
 
     const cLatCopy = cLat.slice(), cLonCopy = cLon.slice();
@@ -453,9 +475,10 @@ self.onmessage = async (e) => {
       ea: ea.buffer, eb: eb.buffer, ef: ef.buffer,
       carLat: cLatCopy.buffer, carLon: cLonCopy.buffer,
       cea: cea.buffer, ceb: ceb.buffer,
+      carLink: carLinkBuf,
       stops: core.stops,
     }, [lat.buffer, lon.buffer, ea.buffer, eb.buffer, ef.buffer,
-        cLatCopy.buffer, cLonCopy.buffer, cea.buffer, ceb.buffer]);
+        cLatCopy.buffer, cLonCopy.buffer, cea.buffer, ceb.buffer, carLinkBuf]);
     // rebuild worker-side views (buffers were transferred away)
     const nb = new Int32Array(nodesBuf);
     const la = new Float64Array(nNodes), lo = new Float64Array(nNodes);

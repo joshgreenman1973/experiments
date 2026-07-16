@@ -165,6 +165,14 @@ input[type=range]::-webkit-slider-thumb{
 
 /* ---- stats ---- */
 #stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#race-stats{display:none;grid-template-columns:1fr 1fr;gap:8px}
+body[data-mode="race"] #race-stats{display:grid}
+body[data-mode="race"] #stats{display:none}
+body[data-mode="race"] #legend{display:none}
+#race-note{display:none;font-size:.68rem;line-height:1.45;color:var(--dim);padding-top:2px}
+body[data-mode="race"] #race-note{display:block}
+.rn-train{color:#4c9aff}.rn-cab{color:#ff9d2e}
+.modes button[data-mode="race"]{grid-column:1/-1}
 .stat{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:9px 10px}
 .stat .n{font-family:'IBM Plex Mono',monospace;font-size:1.15rem;font-weight:600;color:var(--hot)}
 .stat .k{font-size:9.5px;color:var(--dim);letter-spacing:.06em;margin-top:2px}
@@ -273,8 +281,10 @@ input[type=range]::-webkit-slider-thumb{
       <button data-mode="subway">Subway</button>
       <button data-mode="bus">Bus</button>
       <button data-mode="transit" class="on">Subway + bus</button>
+      <button data-mode="race" id="race-btn">Train vs cab: who wins?</button>
     </div>
-    <div id="taxi-note">Taxi/Uber times are slowed to match real cab trips for the chosen hour — at midday, traffic moves at a third of the posted limits. Any one ride varies a lot.</div>
+    <div id="taxi-note">Taxi/Uber pays a measured pickup wait (about 4 minutes) and drives at each borough's real measured speed — Manhattan at midday moves at about a third of its posted limits. Any one ride varies a lot.</div>
+    <div id="race-note">Every street, colored by which door-to-door trip wins from your starting point — <b class="rn-train">train first</b>, <b class="rn-cab">cab first</b> or a tie within two minutes; faded orange means the train cannot get there at all in the time budget. Both sides pay their real waits.</div>
     <button id="access-toggle" aria-pressed="false">
       <span class="at-box" aria-hidden="true"></span>
       I require accessible transit
@@ -300,6 +310,13 @@ input[type=range]::-webkit-slider-thumb{
       <div id="ramp"></div>
       <div class="legend-ends"><span>0 min</span><span id="legend-max">45 min</span></div>
     </div>
+  </div>
+
+  <div id="race-stats">
+    <div class="stat"><div class="n" style="color:#4c9aff" id="race-train">—</div><div class="k">km: train is faster</div></div>
+    <div class="stat"><div class="n" style="color:#ff9d2e" id="race-cab">—</div><div class="k">km: cab is faster</div></div>
+    <div class="stat"><div class="n" style="color:#b06a1e" id="race-cabonly">—</div><div class="k">km only a cab reaches</div></div>
+    <div class="stat"><div class="n" style="color:#9aa3b5" id="race-tie">—</div><div class="k">km within 2 min — a tie</div></div>
   </div>
 
   <div id="stats">
@@ -363,7 +380,8 @@ input[type=range]::-webkit-slider-thumb{
 
     <h3>Taxi</h3>
     <p>Cars are routed on a directed version of the same street network — one-way streets are honored, and highways, bridges, tunnels and ramps are included — at each segment's posted speed limit. Posted limits are a ceiling, not a description of traffic, so we slow them by a factor measured from real trips: a month of Taxi and Limousine Commission yellow-cab records (roughly 64,000 to 77,000 usable trips per time band, March 2026), each compared against the same zone-to-zone journey routed at posted speeds.</p>
-    <p>The measured factors: at weekday midday the city moves at <strong>36% of posted limits</strong>; in the morning rush 40%; late at night 55%. A 25 mph street at noon is really a 9.1 mph street.</p>
+    <p>The factor is measured per borough from 11.9 million non-shared Uber and Lyft trips, because one citywide number flattered Manhattan and slandered the edges: at weekday midday Manhattan moves at <strong>35% of posted limits</strong> (a 25 mph street is really an 8.8 mph street) while Queens moves at 47% and Staten Island at 68%. The cab also pays a measured pickup wait — about 4 minutes, the median request-to-pickup gap across every trip — because the train pays its platform wait and a fair race starts both clocks at the same moment.</p>
+    <p>The "Train vs cab" view then answers the natural question directly: every street is colored by which door-to-door trip wins from your origin. The train's territory is the express spines; the cab's is the near field, the space between lines and everywhere the train cannot go in time. At 3am the train's territory nearly vanishes.</p>
     <p>Two honest caveats. Yellow-cab trips skew heavily toward Manhattan, so the factor mostly describes Manhattan streets; outer-borough driving is somewhat faster than this map shows. And one factor per time band compresses the difference between a jammed crosstown street and a flowing expressway, so highway-heavy trips — to the airports especially — read slower than reality. Both errors run the same way: the taxi map is conservative. And any single ride varies enormously; the interquartile range of the calibration is reported in the data files.</p>
 
     <h3>Accessibility</h3>
@@ -404,7 +422,7 @@ input[type=range]::-webkit-slider-thumb{
   <p>Loading the city</p>
 </div>
 
-<script>window.ASSET_V="45mc-2";</script>
-<script src="app.js?v=45mc-2"></script>
+<script>window.ASSET_V="45mc-3";</script>
+<script src="app.js?v=45mc-3"></script>
 </body>
 </html>

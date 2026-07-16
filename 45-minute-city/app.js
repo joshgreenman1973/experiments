@@ -15,6 +15,7 @@ const state = {
   maxWait: 20 * 60,
   accessible: false,
   streetDist: null,
+  race: null,
   reachedStops: [],
   meta: null,
   stops: [],
@@ -113,6 +114,7 @@ const CanvasLayer = L.Layer.extend({
     const north = nw.lat, west = nw.lng, south = se.lat, east = se.lng;
     const zoom = map.getZoom();
 
+    if (state.mode === "race") { this.drawRace(ctx, map, north, south, east, west, zoom); return; }
     // Taxi routes on its own directed graph with its own node space; every
     // other mode draws the walk/bike network filtered by flag.
     const isCar = state.mode === "taxi";
@@ -190,6 +192,82 @@ const CanvasLayer = L.Layer.extend({
     }
     ctx.globalAlpha = 1;
   },
+
+  // Head-to-head: color every street by which mode gets there first from the
+  // same origin, waits included on both sides.
+  drawRace(ctx, map, north, south, east, west, zoom) {
+    const A = CG;
+    const px = A.px, py = A.py, seen = A.seen;
+    A.stamp++;
+    const stamp = A.stamp;
+    const proj = (i) => {
+      if (seen[i] !== stamp) {
+        const p = map.latLngToContainerPoint([A.lat[i], A.lon[i]]);
+        px[i] = p.x; py[i] = p.y; seen[i] = stamp;
+      }
+    };
+    const m = A.ea.length;
+
+    // dim base network
+    ctx.lineWidth = zoom >= 15 ? 0.6 : 0.4;
+    ctx.strokeStyle = "rgba(120,140,170,0.16)";
+    ctx.beginPath();
+    for (let i = 0; i < m; i++) {
+      const a = A.ea[i], b = A.eb[i];
+      const la = A.lat[a], lo = A.lon[a];
+      if (la > north || la < south || lo < west || lo > east) {
+        const lb = A.lat[b], ob = A.lon[b];
+        if (lb > north || lb < south || ob < west || ob > east) continue;
+      }
+      proj(a); proj(b);
+      ctx.moveTo(px[a], py[a]); ctx.lineTo(px[b], py[b]);
+    }
+    ctx.stroke();
+
+    if (!state.race) return;
+    const { transit, taxi } = state.race;
+    const link = state.carLink;
+    const groups = { train: [], cab: [], cabonly: [], tie: [] };
+    for (let i = 0; i < m; i++) {
+      const a = A.ea[i], b = A.eb[i];
+      const la = A.lat[a], lo = A.lon[a];
+      if (la > north || la < south || lo < west || lo > east) {
+        const lb = A.lat[b], ob = A.lon[b];
+        if (lb > north || lb < south || ob < west || ob > east) continue;
+      }
+      const tx = taxi[a];
+      const w = link[a];
+      const tr = w === 4294967295 ? -1 : transit[w];
+      if (tx < 0 && tr < 0) continue;
+      if (tr < 0) groups.cabonly.push(i);      // transit can't get here at all
+      else if (tx < 0) groups.train.push(i);
+      else if (Math.abs(tx - tr) <= 120) groups.tie.push(i);
+      else if (tr < tx) groups.train.push(i);
+      else groups.cab.push(i);                  // both reach; cab is faster
+    }
+    const COLORS = {
+      tie: "rgba(154,163,181,0.55)",
+      cabonly: "rgba(255,157,46,0.34)",
+      cab: "#ff9d2e",
+      train: "#4c9aff",
+    };
+    ctx.lineCap = "round";
+    for (const key of ["cabonly", "tie", "cab", "train"]) {
+      const list = groups[key];
+      if (!list.length) continue;
+      ctx.strokeStyle = COLORS[key];
+      ctx.lineWidth = zoom >= 15 ? 1.9 : zoom >= 13 ? 1.3 : 0.9;
+      ctx.globalAlpha = key === "tie" ? 0.7 : 0.92;
+      ctx.beginPath();
+      for (const i of list) {
+        const a = A.ea[i], b = A.eb[i];
+        proj(a); proj(b);
+        ctx.moveTo(px[a], py[a]); ctx.lineTo(px[b], py[b]);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  },
 });
 
 let reachLayer = null;
@@ -249,6 +327,7 @@ function initWorker() {
       CG.seen = new Int32Array(CG.lat.length);
       state.carCalibration = m.carCalibration;
       state.access = m.access;
+      state.carLink = new Uint32Array(m.carLink);
       state.ready = true;
       state.meta = m.meta;
       state.stops = m.stops;
@@ -275,6 +354,19 @@ function initWorker() {
       if (job.purpose === "compare") {
         compare[job.mode] = computeKm(dist, job.mode);
         renderCompare();
+        return;
+      }
+      if (job.purpose === "race-transit" || job.purpose === "race-taxi") {
+        if (!raceBuf || (m.id !== raceBuf.idTr && m.id !== raceBuf.idTx)) return;
+        if (job.purpose === "race-transit") raceBuf.transit = dist;
+        else raceBuf.taxi = dist;
+        if (raceBuf.transit && raceBuf.taxi) {
+          state.race = { transit: raceBuf.transit, taxi: raceBuf.taxi };
+          reachLayer.draw();
+          updateRaceStats();
+          $("#panel").classList.remove("busy");
+          runCompare();
+        }
         return;
       }
       if (m.id !== lastRenderId) return;
@@ -321,11 +413,25 @@ function opts(mode) {
   };
 }
 
+let raceBuf = null;
+
 function runRoute() {
   if (!state.ready || state.originNode < 0) return;
   $("#panel").classList.add("busy");
   compare = {};
   renderCompare();
+  state.race = null;
+  if (state.mode === "race") {
+    // Two full routes from the same origin, same clock; the map shows who wins.
+    const idTr = ++reqId, idTx = ++reqId;
+    lastRenderId = idTx;
+    raceBuf = { idTr, idTx, transit: null, taxi: null };
+    pending.set(idTr, { purpose: "race-transit" });
+    pending.set(idTx, { purpose: "race-taxi" });
+    worker.postMessage({ type: "route", id: idTr, opts: { ...opts("transit") } });
+    worker.postMessage({ type: "route", id: idTx, opts: { ...opts("taxi") } });
+    return;
+  }
   lastRenderId = ++reqId;
   pending.set(lastRenderId, { purpose: "render", mode: state.mode });
   worker.postMessage({ type: "route", id: lastRenderId, opts: opts(state.mode) });
@@ -391,6 +497,35 @@ function updateStats(stats) {
   $("#stat-subway").textContent = subway.toLocaleString();
   $("#stat-bus").textContent = bus.toLocaleString();
   $("#stat-time").textContent = stats.ms + " ms";
+}
+
+function updateRaceStats() {
+  const { transit, taxi } = state.race;
+  const link = state.carLink;
+  let trainKm = 0, cabKm = 0, cabOnlyKm = 0, tieKm = 0;
+  const m = CG.ea.length;
+  const seen = new Set();
+  for (let i = 0; i < m; i++) {
+    const a = CG.ea[i], b = CG.eb[i];
+    const k = a < b ? a * 4294967296 + b : b * 4294967296 + a;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const tx = taxi[a], w = link[a];
+    const tr = w === 4294967295 ? -1 : transit[w];
+    if (tx < 0 && tr < 0) continue;
+    const dx = (CG.lat[a] - CG.lat[b]) * 111320;
+    const dy = (CG.lon[a] - CG.lon[b]) * 84500;
+    const len = Math.sqrt(dx * dx + dy * dy) / 1000;
+    if (tr < 0) cabOnlyKm += len;
+    else if (tx < 0) trainKm += len;
+    else if (Math.abs(tx - tr) <= 120) tieKm += len;
+    else if (tr < tx) trainKm += len;
+    else cabKm += len;
+  }
+  $("#race-train").textContent = Math.round(trainKm).toLocaleString();
+  $("#race-cab").textContent = Math.round(cabKm).toLocaleString();
+  $("#race-cabonly").textContent = Math.round(cabOnlyKm).toLocaleString();
+  $("#race-tie").textContent = Math.round(tieKm).toLocaleString();
 }
 
 /* ---------- controls ---------- */
