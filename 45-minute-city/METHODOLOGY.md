@@ -15,13 +15,13 @@ three are fixed here, and the fixes are the reason for the rebuild.
 | Old | New |
 |---|---|
 | Bus times were wrong, then multiplied by a hardcoded `2.5` to "reflect real-world speeds". Implied speeds reached 64 mph. | Bus times come from the MTA bus GTFS feeds. Median implied speed is 7.4 mph. No correction applied, and none needed. |
-| Walking assumed a flat `GRID_FACTOR = 1.4` detour over straight-line distance. | Walking and cycling are routed on the city's real street network (198,792 nodes, 266,213 segments). |
+| Walking assumed a flat `GRID_FACTOR = 1.4` detour over straight-line distance. | Walking and cycling are routed on the city's real street network (199,859 nodes, 267,515 segments). |
 | No wait times at all. | Waits are computed per stop, route, direction and time of day from scheduled departures. |
 | `transitScore()` produced an invented 0–100 index from arbitrary weights. | Removed. The map reports measured quantities only: kilometres of street, stations and stops reached. |
 
-The old 1.4 detour constant was itself testable, so we tested it. Routing 2,392
+The old 1.4 detour constant was itself testable, so we tested it. Routing 2,395
 random origin and destination pairs on the real network gives a median ratio of
-**1.30**, spread from 1.10 at the tenth percentile to 1.78 at the ninetieth. A
+**1.31**, spread from 1.13 at the tenth percentile to 1.73 at the ninetieth. A
 single constant was never adequate. The current build routes the network and
 applies no factor; the measurement is kept only as a reference in
 `pipeline/out/detour.json`.
@@ -32,7 +32,9 @@ applies no factor; the measurement is kept only as a reference in
 |---|---|
 | Subway schedules | MTA GTFS static, `gtfs_subway.zip` |
 | Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
-| Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z` |
+| Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
+| Taxi calibration | TLC yellow-cab trip records, March 2026 (`yellow_tripdata_2026-03.parquet`) |
+| Taxi zones | NYC Open Data dataset `8meu-9t5y` (263 zones) |
 | Geocoding | Nominatim (OpenStreetMap), at query time |
 
 All feed URLs are probed before use by `pipeline/probe_feeds.py`. None are guessed.
@@ -54,7 +56,7 @@ speed, since track and street distance always exceed straight-line distance.
 | Mode | p10 | Median | p90 | Max |
 |---|---|---|---|---|
 | Bus (weekday AM peak) | 5.0 | **7.4** | 12.7 | 44.5 mph |
-| Subway (weekday AM peak) | 11.4 | **15.3** | 21.0 | 32.7 mph |
+| Subway (weekday AM peak) | 10.8 | **15.1** | 20.8 | 32.7 mph |
 
 New York City buses average roughly 7 to 8 mph citywide, so the bus figure lands
 where it should. No segment implies a bus faster than 45 mph.
@@ -106,7 +108,60 @@ express, which runs peak-direction only. Together they are a train every 3.4
 minutes. The map counts them separately, so it is conservative here. See
 "common lines" below.
 
-The same 6 train goes from 6.9 minutes at peak to 28.9 minutes late at night.
+The same 6 train goes from 6.9 minutes at peak to 14.7 minutes late at night.
+
+## Taxi
+
+Cars route on a DIRECTED graph built from the same centerline file: one-way
+streets are honored via `trafdir` (166,919 nodes, 312,188 directed edges), and
+highways, bridges, tunnels and ramps are included. Each segment costs its length
+at the posted speed limit (missing or zero limits default to the city's 25 mph).
+
+Posted limits are a ceiling, not a description of traffic. To measure how far
+below them the city actually moves, every band's factor comes from real trips:
+
+    alpha = observed trip duration / posted-speed routed duration
+
+computed per trip over a month of TLC yellow-cab records (March 2026), routing
+each trip's pickup zone centroid to its dropoff zone centroid on the car graph.
+Roughly 64,000 to 77,000 usable trips per band after filters (3 min–2 h duration,
+0.8–35 mi, 1–65 mph implied, pickup and dropoff in different zones).
+
+| Band | alpha (median) | IQR | Traffic runs at |
+|---|---|---|---|
+| Weekday AM peak | 2.47 | 1.95–3.10 | 40% of posted |
+| Weekday midday | 2.75 | 2.20–3.43 | 36% of posted |
+| Weekday PM peak | 2.62 | 2.10–3.27 | 38% of posted |
+| Weekday evening | 2.12 | 1.70–2.58 | 47% of posted |
+| Weekday late night | 1.82 | 1.47–2.23 | 55% of posted |
+| Saturday midday | 2.35 | 1.91–2.90 | 43% of posted |
+| Sunday midday | 2.15 | 1.75–2.65 | 46% of posted |
+
+A 25 mph street at weekday midday is effectively a 9.1 mph street, which is
+the crosstown Manhattan speed every New Yorker knows.
+
+### Validation
+
+Midday from Grand Central, against common experience: Columbus Circle, Wall Street, Barclays Center and LaGuardia all land inside
+real cab ranges for weekday midday.
+
+### Known biases, and their direction
+
+- **Manhattan skew.** Yellow cabs concentrate in Manhattan, so alpha mostly
+  describes Manhattan streets. Outer-borough surface driving is somewhat faster
+  than this map shows.
+- **Highway compression.** One factor per band slows a flowing expressway as
+  much as a jammed crosstown street, so highway-heavy trips — the airports
+  especially — read slower than reality.
+- **Zone centroids.** Trips are routed centroid to centroid rather than
+  door to door; the median over tens of thousands of trips absorbs this noise.
+
+The first two biases run the same way: the taxi isochrone is conservative,
+especially toward the edges of the city. Any single ride also varies
+enormously — the IQR above is the honest spread, and `weekday_midday` spans
+2.20 to 3.43.
+
+Not modeled: pickup/hail time, tolls, turn penalties.
 
 ## Walking and cycling
 
@@ -125,7 +180,51 @@ sliders, because a person's speed is not the map's assumption to make.
 
 Transit stops are snapped to the nearest street node: median distance 20.6 m, 45.2 m
 at the ninety-fifth percentile. Seventy-four stops of 14,833 sit more than 200 m
-from any street node.
+from any street node, and 18 — bus stops on routes that dip into Nassau County —
+have no city street within reach at all. Buses ride through those 18 normally;
+you just cannot board or alight there, which mirrors reality for a map that ends
+at the city line.
+
+## Bridges
+
+CSCL types car-only expressway decks (the Verrazzano, Throgs Neck, the elevated
+Brooklyn-Queens Expressway) as "bridge" alongside walkable crossings, and posted
+speed does not separate them — the Verrazzano deck is posted at 35. What does
+separate them, verified in the data: every major crossing with pedestrian access
+has dedicated path segments ("BROOKLYN BRIDGE PEDESTRIAN PATH", "GEORGE
+WASHINGTON BRDG PED PATH"), so same-named roadway decks are excluded from the
+walk and bike graphs, while small local drawbridges (Gowanus, Newtown Creek,
+City Island), whose sidewalks live on the roadway segment, stay.
+
+A consequence handled deliberately: severing the Verrazzano makes Staten
+Island's street network a separate component — which is true; the island has no
+pedestrian link — so the graph keeps every component of 500+ nodes rather than
+only the largest, which would have deleted the borough. (An earlier draft of
+this build allowed walking to Staten Island over the Verrazzano; an adversarial
+review caught it.)
+
+## Accessibility mode
+
+The "I require accessible transit" toggle answers the same question for a rider
+who cannot use stairs.
+
+- **Subway**: boarding and alighting are limited to the MTA's listed accessible
+  stations — 162 fully accessible and 9 accessible in one direction, of 496.
+  Trains still ride through everything else. The 9 partial stations are treated
+  as accessible in both directions, a small optimism noted here because GTFS
+  direction ids do not map cleanly onto the MTA's north/south flags.
+- **Bus**: unchanged. The entire fleet has ramps or lifts.
+- **Walking**: routed on the street network minus step streets — the
+  stairs-free network.
+- **Taxi/Uber**: becomes a wheelchair-accessible vehicle (WAV), and the clock
+  starts at the request. The wait is measured, not assumed: the TLC high-volume
+  FHV file records request and pickup timestamps and a WAV flag for every
+  Uber/Lyft trip in the city. Median request-to-pickup over March 2026, per
+  band, runs 7.1 to 7.9 minutes (1,072 to 21,538 WAV requests per band),
+  against 3.8 to 4.6 minutes for standard vehicles.
+- **Access-A-Ride** is absent, deliberately: it must be booked by 5pm the day
+  before, so it cannot appear in a map of where you can go from here, now. Its
+  absence from a turn-up-and-go picture is itself a finding.
 
 ## Station counts
 
@@ -145,6 +244,12 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 - **Crowding, fare gates, elevators, stairs and platform changes.** No penalty for
   entering a station or transferring between platforms, which makes complex
   transfers slightly optimistic.
+- **Route branches.** A rider who boards a trunk stop pays that stop's combined
+  wait and can then chain to either branch of the route (the A to Lefferts or
+  the Rockaways) without a further wait, though a specific branch runs less
+  often than the trunk. Branch termini therefore read somewhat closer than
+  reality — one of the few optimistic errors in this model, bounded by the
+  branch's own headway.
 - **Bike lanes, hills and bike parking.** Cycling uses street geometry at a flat
   speed. It does not know that a bridge approach is a climb.
 - **Planned service changes.** Weekend and overnight diversions are not in the
@@ -161,6 +266,7 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 | Ride times | High. Medians of published schedules. |
 | Headways and waits | High as scheduled. Standard practice, deliberately conservative. |
 | Street routing | High. The city's own centerline file. |
+| Taxi times | Moderate. Calibrated to real trips, but one factor per band; conservative on highways and in the outer boroughs. |
 | Walking and cycling speeds | Assumptions, exposed as sliders. |
 | Correspondence to a real trip | Moderate. Schedules are optimistic; delay is not modelled. |
 
@@ -171,12 +277,14 @@ python3 pipeline/probe_feeds.py     # verify every source URL resolves
 python3 pipeline/build_transit.py   # MTA GTFS -> ride times + headways per band
 python3 pipeline/build_streets.py   # CSCL -> routable walk/bike graph
 python3 pipeline/build_link.py      # snap stops to streets; measure detour factor
+python3 pipeline/build_car.py       # CSCL -> directed drivable graph with posted speeds
+python3 pipeline/calibrate_taxi.py  # TLC trips -> per-band traffic factors (needs pyarrow)
 python3 pipeline/pack.py            # pack to binary for the browser
-cp pipeline/out/{core.json,bands.bin,bands.json,street_nodes.bin,street_edges.bin} data/
+cp pipeline/out/{core.json,bands.bin,bands.json,street_nodes.bin,street_edges.bin,car_nodes.bin,car_edges.bin,car_calibration.json} data/
 python3 pipeline/validate.py        # speed + headway checks quoted above
 ```
 
-Total payload is 7.6 MB across five files, covering all seven time bands.
+Total payload is 12.4 MB across nine files, covering all seven time bands.
 
 ## Time bands
 

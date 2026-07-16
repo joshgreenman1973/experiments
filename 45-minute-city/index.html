@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The 45-minute city</title>
-<meta name="description" content="How far can you actually get in New York City in 45 minutes, on real subway and bus schedules, by bike or on foot?">
+<meta name="description" content="How far can you actually get in New York City in 45 minutes — subway, bus, taxi, bike or on foot — on real schedules, real streets and real traffic, with an accessible-transit view?">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -92,6 +92,49 @@ h1 em{font-style:normal;color:var(--hot)}
 }
 .modes button:hover{color:var(--ink);border-color:#39405a}
 .modes button.on{background:var(--hot);color:#111;border-color:var(--hot);font-weight:700}
+#taxi-note{display:none;font-size:.68rem;line-height:1.45;color:var(--dim);padding-top:2px}
+body[data-mode="taxi"] #taxi-note{display:block}
+
+/* ---- accessibility toggle ---- */
+#access-toggle{
+  display:flex;align-items:center;gap:9px;width:100%;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  padding:10px 11px;border-radius:6px;cursor:pointer;
+  font-family:inherit;font-size:.78rem;font-weight:500;text-align:left;
+  transition:.12s;
+}
+#access-toggle:hover{border-color:#39405a}
+#access-toggle .at-box{
+  width:15px;height:15px;flex:none;border-radius:4px;
+  border:1.5px solid var(--dim);position:relative;transition:.12s;
+}
+#access-toggle.on{border-color:var(--hot);color:var(--hot);font-weight:600}
+#access-toggle.on .at-box{background:var(--hot);border-color:var(--hot)}
+#access-toggle.on .at-box::after{
+  content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid #111;border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+#access-note{
+  display:none;font-size:.68rem;line-height:1.5;color:var(--dim);
+  border-left:2px solid var(--hot);padding-left:9px;margin-top:2px;
+}
+#access-note.open{display:block}
+
+/* ---- address autocomplete ---- */
+#search-wrap{position:relative;flex:1}
+#suggest{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:1500;
+  background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;display:none;box-shadow:0 8px 28px rgba(0,0,0,.55);
+}
+#suggest.open{display:block}
+.sg{
+  padding:8px 10px;font-size:.76rem;line-height:1.35;color:var(--ink);
+  cursor:pointer;border-bottom:1px solid rgba(48,54,72,.5);
+}
+.sg:last-child{border-bottom:0}
+.sg small{display:block;color:var(--dim);font-size:.66rem}
+.sg:hover,.sg.sel{background:#1d2432}
 
 select{
   background:var(--panel2);border:1px solid var(--line);color:var(--ink);
@@ -202,17 +245,30 @@ input[type=range]::-webkit-slider-thumb{
 <header id="masthead">
   <div id="kicker">Access · New York City</div>
   <h1>The <em>45-minute</em> city</h1>
-  <p id="dek">Click anywhere. This maps every street you can reach from that spot, using real Metropolitan Transportation Authority schedules — including how long you wait for the train or the bus.</p>
+  <p id="dek">Click anywhere. This maps every street you can reach from that spot — by subway, bus, taxi, bike or foot — on real schedules, real streets and real traffic, including the wait for the train, the bus or the car.</p>
 </header>
 
 <aside id="panel">
   <div class="block">
     <div class="label">Start from</div>
     <form id="search-form">
-      <input id="search" placeholder="Address, or click the map" autocomplete="off">
+      <div id="search-wrap">
+        <input id="search" placeholder="Address, or click the map" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggest">
+        <div id="suggest" role="listbox"></div>
+      </div>
       <button type="submit">Go</button>
     </form>
     <div id="search-status"></div>
+  </div>
+
+  <div class="block">
+    <button id="access-toggle" aria-pressed="false">
+      <span class="at-box" aria-hidden="true"></span>
+      I require accessible transit
+    </button>
+    <div id="access-note">
+      Only 171 of 496 subway stations have elevators or ramps — boarding and exiting are limited to those, though trains still ride through the rest. Every bus has a ramp. Taxi/Uber becomes a wheelchair-accessible vehicle, with the real median wait for one (about 7–8 minutes, measured from every WAV request in March 2026) taken off the clock. Access-A-Ride is absent because it must be booked by 5pm the day before.
+    </div>
   </div>
 
   <div class="block">
@@ -220,10 +276,12 @@ input[type=range]::-webkit-slider-thumb{
     <div class="modes">
       <button data-mode="walk">Walk</button>
       <button data-mode="bike">Bike</button>
+      <button data-mode="taxi">Taxi/Uber</button>
       <button data-mode="subway">Subway</button>
       <button data-mode="bus">Bus</button>
       <button data-mode="transit" class="on">Subway + bus</button>
     </div>
+    <div id="taxi-note">Taxi/Uber times are slowed to match real cab trips for the chosen hour — at midday, traffic moves at a third of the posted limits. Any one ride varies a lot.</div>
   </div>
 
   <div class="block">
@@ -289,12 +347,13 @@ input[type=range]::-webkit-slider-thumb{
       <tr><th>Input</th><th>Source</th></tr>
       <tr><td>Subway times</td><td>MTA GTFS static feed, <code>gtfs_subway.zip</code></td></tr>
       <tr><td>Bus times</td><td>MTA GTFS static feeds for all five boroughs plus MTA Bus Company</td></tr>
-      <tr><td>Streets</td><td>NYC Open Data <a href="https://data.cityofnewyork.us/resource/inkn-q76z" target="_blank" rel="noopener">Centerline (CSCL)</a></td></tr>
+      <tr><td>Streets</td><td>NYC Open Data <a href="https://data.cityofnewyork.us/resource/inkn-q76z" target="_blank" rel="noopener">Centerline (CSCL)</a>, including posted speeds and one-way directions</td></tr>
+      <tr><td>Taxi calibration</td><td>TLC yellow-cab trip records (March 2026) + NYC taxi zones</td></tr>
     </table>
 
     <h3>Ride times</h3>
     <p>For every pair of consecutive stops on every route, we take all scheduled trips in a time band and compute the median of departure-from-A to arrival-at-B. That is the ride time. It is a median of real timetable rows, not an estimate.</p>
-    <p>As a check, dividing straight-line distance by these times gives a median implied speed of <strong>7.4 mph for buses</strong> and <strong>15.3 mph for the subway</strong>. Those are lower bounds, since track and street distance always exceed straight-line distance. New York City buses average roughly 7 to 8 mph citywide, so the bus figure lands where it should. No segment implies a bus faster than 45 mph.</p>
+    <p>As a check, dividing straight-line distance by these times gives a median implied speed of <strong>7.4 mph for buses</strong> and <strong>15.1 mph for the subway</strong>. Those are lower bounds, since track and street distance always exceed straight-line distance. New York City buses average roughly 7 to 8 mph citywide, so the bus figure lands where it should. No segment implies a bus faster than 45 mph.</p>
 
     <h3>Waiting</h3>
     <p>This is the part most maps skip. For each stop, route and direction, we count scheduled departures in the time band and divide the band length by that count to get a headway. The wait is half the headway — the average for a rider who turns up without consulting a timetable.</p>
@@ -302,18 +361,32 @@ input[type=range]::-webkit-slider-thumb{
     <p>You pay a wait when you <em>board</em>, and riding onward is free. A model that charged a wait at every stop would bill you thirty waits down Lexington Avenue.</p>
     <p>The "longest wait you'd accept" slider caps this. At 20 minutes, an hourly bus contributes a 20-minute wait rather than 30, which is roughly how people behave with infrequent service: they consult the schedule instead of turning up blind.</p>
 
+    <h3>Taxi</h3>
+    <p>Cars are routed on a directed version of the same street network — one-way streets are honored, and highways, bridges, tunnels and ramps are included — at each segment's posted speed limit. Posted limits are a ceiling, not a description of traffic, so we slow them by a factor measured from real trips: a month of Taxi and Limousine Commission yellow-cab records (roughly 64,000 to 77,000 usable trips per time band, March 2026), each compared against the same zone-to-zone journey routed at posted speeds.</p>
+    <p>The measured factors: at weekday midday the city moves at <strong>36% of posted limits</strong>; in the morning rush 40%; late at night 55%. A 25 mph street at noon is really a 9.1 mph street.</p>
+    <p>Two honest caveats. Yellow-cab trips skew heavily toward Manhattan, so the factor mostly describes Manhattan streets; outer-borough driving is somewhat faster than this map shows. And one factor per time band compresses the difference between a jammed crosstown street and a flowing expressway, so highway-heavy trips — to the airports especially — read slower than reality. Both errors run the same way: the taxi map is conservative. And any single ride varies enormously; the interquartile range of the calibration is reported in the data files.</p>
+
+    <h3>Accessibility</h3>
+    <p>The "I require accessible transit" toggle limits subway boarding and exiting to the Metropolitan Transportation Authority's listed accessible stations — 171 of 496, per the MTA's own station file — while trains still ride through the rest. Every bus has a ramp. Walking routes on the street network minus step streets. Taxi/Uber becomes a wheelchair-accessible vehicle, with the wait measured rather than assumed: the Taxi and Limousine Commission logs a request and pickup timestamp for every Uber and Lyft trip, and the median request-to-pickup gap for accessible-vehicle requests in March 2026 runs 7 to 8 minutes by time of day, against about 4 for standard cars.</p>
+    <p>Access-A-Ride is deliberately absent: it books by 5pm the previous day, so it cannot appear in a map of where you can go from here, now.</p>
+
+    <h3>Bridges</h3>
+    <p>The city's centerline file types car-only expressway decks as bridges alongside walkable crossings. Every major crossing with real pedestrian access has dedicated path segments in the file (the Brooklyn Bridge promenade, the George Washington Bridge path), so same-named roadway decks are excluded from walking and biking; local drawbridges whose sidewalks live on the roadway stay. Staten Island, which genuinely has no pedestrian crossing, stands as its own walk network rather than being deleted for not touching the mainland's.</p>
+
     <h3>Walking and cycling</h3>
-    <p>Both are routed on the actual street network — 198,792 nodes and 266,213 segments from the city centerline file. Walking uses streets, bridges, boardwalks, paths, step streets and alleys. Cycling uses the same minus step streets, which are stairs. Both exclude highways, ramps, driveways and ferry routes.</p>
+    <p>Both are routed on the actual street network — 199,859 nodes and 267,515 segments from the city centerline file. Walking uses streets, bridges, boardwalks, paths, step streets and alleys. Cycling uses the same minus step streets, which are stairs. Both exclude highways, ramps, driveways and ferry routes.</p>
     <p>Default speeds are 3.1 mph walking and 8.9 mph cycling; both are sliders, because your speed is not our assumption to make.</p>
-    <p>An earlier version of this map assumed walking distance was always 1.4 times straight-line distance. We measured that: routing 2,392 random origin and destination pairs on the real network gives a median ratio of <strong>1.30</strong>, with a range from 1.10 to 1.78. A single constant was never adequate, which is why this version routes the network instead of applying a factor.</p>
+    <p>An earlier version of this map assumed walking distance was always 1.4 times straight-line distance. We measured that: routing 2,395 random origin and destination pairs on the real network gives a median ratio of <strong>1.31</strong>, with a range from 1.13 to 1.73. A single constant was never adequate, which is why this version routes the network instead of applying a factor.</p>
 
     <h3>What this does not model</h3>
     <ul>
       <li><strong>Delays.</strong> These are schedules, not what ran. Real trips are worse.</li>
       <li><strong>Common lines.</strong> Each route's wait is computed on its own. In reality you board whichever train comes first, so where several routes serve the same trip — the 6 and the 6X, the 4, 5 and 6 down Lexington — the true wait is shorter than shown. This map is conservative there.</li>
       <li><strong>Crowding, elevators, stairs and fare gates.</strong> No penalty for entering a station or changing platforms.</li>
+      <li><strong>Route branches.</strong> A rider who boards the A at a trunk stop can reach both Rockaway branches having paid only the trunk-level wait, so branch termini read slightly closer than reality — one of the few optimistic errors here.</li>
       <li><strong>Bike parking, bike lanes and hills.</strong> Cycling is routed on street geometry with a flat speed. It does not know that Broadway has a protected lane and that a bridge approach is a climb.</li>
       <li><strong>Weekend and overnight service changes.</strong> Planned diversions are not in the static feed.</li>
+      <li><strong>Taxi pickup time, tolls and turn delays.</strong> The clock starts when the wheels do, and left turns cost the same as right ones.</li>
       <li><strong>Bikes plus transit.</strong> Bike mode is bike only. Transit modes walk to the stop.</li>
       <li><strong>Ferries, PATH, Metro-North, Long Island Rail Road and New Jersey Transit.</strong> Not included.</li>
     </ul>
@@ -322,7 +395,7 @@ input[type=range]::-webkit-slider-thumb{
     <p>Ride times and headways: high confidence, straight from published schedules. Street routing: high confidence. Walking and cycling speeds: assumptions, exposed as sliders. Waiting model: standard practice, and deliberately conservative. The gap between this map and reality is mostly delay, and it runs in one direction — the real city is slower than this.</p>
 
     <h3>Rebuilding the data</h3>
-    <p>Run <code>pipeline/build_transit.py</code>, then <code>build_streets.py</code>, <code>build_link.py</code> and <code>pack.py</code>. Each downloads from source and writes to <code>data/</code>. <code>pipeline/validate.py</code> runs the speed and headway checks quoted above.</p>
+    <p>Run <code>pipeline/build_transit.py</code>, then <code>build_streets.py</code>, <code>build_link.py</code>, <code>build_car.py</code>, <code>calibrate_taxi.py</code> and <code>pack.py</code>. Each downloads from source and writes to <code>data/</code>. <code>pipeline/validate.py</code> runs the speed and headway checks quoted above.</p>
   </div>
 </div>
 

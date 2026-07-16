@@ -13,6 +13,7 @@ const state = {
   walkSpeed: 1.4,
   bikeSpeed: 4.0,
   maxWait: 20 * 60,
+  accessible: false,
   streetDist: null,
   reachedStops: [],
   meta: null,
@@ -20,10 +21,17 @@ const state = {
   bands: [],
 };
 
-let G = null; // street geometry on the main thread
+let G = null; // walk/bike street geometry on the main thread
+let CG = null; // drivable geometry (separate node space)
 let worker = null;
 let map = null;
 let reqId = 0;
+// The counter is shared by snap, render and compare requests, so "is this the
+// latest request overall" is the wrong staleness test — a compare batch landing
+// between a snap's post and its reply would discard a perfectly current origin.
+// Each kind remembers its own latest id instead.
+let lastSnapId = 0;
+let lastRenderId = 0;
 
 // Time ramp. Near is hot, far is cool; unreachable stays almost invisible.
 const RAMP = [
@@ -105,34 +113,38 @@ const CanvasLayer = L.Layer.extend({
     const north = nw.lat, west = nw.lng, south = se.lat, east = se.lng;
     const zoom = map.getZoom();
 
+    // Taxi routes on its own directed graph with its own node space; every
+    // other mode draws the walk/bike network filtered by flag.
+    const isCar = state.mode === "taxi";
+    const A = isCar ? CG : G;
+    const mask = state.mode === "bike" || state.accessible ? 2 : 1;
+
     // project once per node, lazily, into container space
-    const originPt = map.latLngToContainerPoint(map.getCenter());
-    const px = G.px, py = G.py, seen = G.seen;
-    G.stamp++;
-    const stamp = G.stamp;
+    const px = A.px, py = A.py, seen = A.seen;
+    A.stamp++;
+    const stamp = A.stamp;
 
     const proj = (i) => {
       if (seen[i] !== stamp) {
-        const p = map.latLngToContainerPoint([G.lat[i], G.lon[i]]);
+        const p = map.latLngToContainerPoint([A.lat[i], A.lon[i]]);
         px[i] = p.x; py[i] = p.y; seen[i] = stamp;
       }
     };
 
     const dist = state.streetDist;
     const budget = state.budget;
-    const m = G.ea.length;
-    const mask = state.mode === "bike" ? 2 : 1;
+    const m = A.ea.length;
 
     // Pass 1: the unreachable network, very dim, so the city stays legible.
     ctx.lineWidth = zoom >= 15 ? 0.6 : 0.4;
     ctx.strokeStyle = "rgba(120,140,170,0.16)";
     ctx.beginPath();
     for (let i = 0; i < m; i++) {
-      if (!(G.ef[i] & mask)) continue;
-      const a = G.ea[i], b = G.eb[i];
-      const la = G.lat[a], lo = G.lon[a];
+      if (!isCar && !(A.ef[i] & mask)) continue;
+      const a = A.ea[i], b = A.eb[i];
+      const la = A.lat[a], lo = A.lon[a];
       if (la > north || la < south || lo < west || lo > east) {
-        const lb = G.lat[b], ob = G.lon[b];
+        const lb = A.lat[b], ob = A.lon[b];
         if (lb > north || lb < south || ob < west || ob > east) continue;
       }
       if (dist && dist[a] >= 0 && dist[b] >= 0) continue;
@@ -148,13 +160,13 @@ const CanvasLayer = L.Layer.extend({
     const BUCKETS = 24;
     const buckets = Array.from({ length: BUCKETS }, () => []);
     for (let i = 0; i < m; i++) {
-      if (!(G.ef[i] & mask)) continue;
-      const a = G.ea[i], b = G.eb[i];
+      if (!isCar && !(A.ef[i] & mask)) continue;
+      const a = A.ea[i], b = A.eb[i];
       const da = dist[a], db = dist[b];
       if (da < 0 || db < 0) continue;
-      const la = G.lat[a], lo = G.lon[a];
+      const la = A.lat[a], lo = A.lon[a];
       if (la > north || la < south || lo < west || lo > east) {
-        const lb = G.lat[b], ob = G.lon[b];
+        const lb = A.lat[b], ob = A.lon[b];
         if (lb > north || lb < south || ob < west || ob > east) continue;
       }
       const t = Math.max(da, db) / budget;
@@ -170,7 +182,7 @@ const CanvasLayer = L.Layer.extend({
       ctx.globalAlpha = 0.92;
       ctx.beginPath();
       for (const i of list) {
-        const a = G.ea[i], b = G.eb[i];
+        const a = A.ea[i], b = A.eb[i];
         proj(a); proj(b);
         ctx.moveTo(px[a], py[a]); ctx.lineTo(px[b], py[b]);
       }
@@ -222,6 +234,19 @@ function initWorker() {
       G.px = new Float32Array(G.lat.length);
       G.py = new Float32Array(G.lat.length);
       G.seen = new Int32Array(G.lat.length);
+      CG = {
+        lat: new Float64Array(m.carLat),
+        lon: new Float64Array(m.carLon),
+        ea: new Uint32Array(m.cea),
+        eb: new Uint32Array(m.ceb),
+        ef: null,
+        px: null, py: null, seen: null, stamp: 0,
+      };
+      CG.px = new Float32Array(CG.lat.length);
+      CG.py = new Float32Array(CG.lat.length);
+      CG.seen = new Int32Array(CG.lat.length);
+      state.carCalibration = m.carCalibration;
+      state.access = m.access;
       state.ready = true;
       state.meta = m.meta;
       state.stops = m.stops;
@@ -235,7 +260,9 @@ function initWorker() {
       setOrigin(40.7295, -73.9965); // Washington Square-ish default
     }
     if (m.type === "snapped") {
+      if (m.id !== lastSnapId) return; // a newer origin has been chosen since
       state.originNode = m.node;
+      state.originCarNode = m.carNode;
       runRoute();
     }
     if (m.type === "routed") {
@@ -244,11 +271,11 @@ function initWorker() {
       if (!job) return;
       const dist = new Float32Array(m.streetDist);
       if (job.purpose === "compare") {
-        compare[job.mode] = computeKm(dist, job.mode === "bike" ? 2 : 1);
+        compare[job.mode] = computeKm(dist, job.mode);
         renderCompare();
         return;
       }
-      if (m.id !== reqId) return;
+      if (m.id !== lastRenderId) return;
       state.streetDist = dist;
       state.reachedStops = m.reachedStops;
       reachLayer.draw();
@@ -267,23 +294,26 @@ function setOrigin(lat, lng) {
     radius: 7, color: "#fff", weight: 2.5, fillColor: "#111", fillOpacity: 1,
   }).addTo(map);
   $("#panel").classList.add("busy");
-  worker.postMessage({ type: "snap", id: ++reqId, lat, lon: lng });
+  lastSnapId = ++reqId;
+  worker.postMessage({ type: "snap", id: lastSnapId, lat, lon: lng });
 }
 
 const pending = new Map();
-const MODES = ["walk", "bike", "subway", "bus", "transit"];
-const MODE_LABEL = { walk: "Walk", bike: "Bike", subway: "Subway", bus: "Bus", transit: "Subway + bus" };
+const MODES = ["walk", "bike", "taxi", "subway", "bus", "transit"];
+const MODE_LABEL = { walk: "Walk", bike: "Bike", taxi: "Taxi/Uber", subway: "Subway", bus: "Bus", transit: "Subway + bus" };
 let compare = {};
 
 function opts(mode) {
   return {
     originNode: state.originNode,
+    originCarNode: state.originCarNode,
     budget: state.budget,
     mode,
     walkSpeed: state.walkSpeed,
     bikeSpeed: state.bikeSpeed,
     bandId: state.band,
     maxWait: state.maxWait,
+    accessible: state.accessible,
   };
 }
 
@@ -292,9 +322,9 @@ function runRoute() {
   $("#panel").classList.add("busy");
   compare = {};
   renderCompare();
-  const id = ++reqId;
-  pending.set(id, { purpose: "render", mode: state.mode });
-  worker.postMessage({ type: "route", id, opts: opts(state.mode) });
+  lastRenderId = ++reqId;
+  pending.set(lastRenderId, { purpose: "render", mode: state.mode });
+  worker.postMessage({ type: "route", id: lastRenderId, opts: opts(state.mode) });
 }
 
 // Run every mode from the same origin so they can be compared on equal terms.
@@ -306,15 +336,24 @@ function runCompare() {
   }
 }
 
-function computeKm(dist, mask) {
+function computeKm(dist, mode) {
+  const isCar = mode === "taxi";
+  const A = isCar ? CG : G;
+  const mask = mode === "bike" || state.accessible ? 2 : 1;
+  const seenPair = isCar ? new Set() : null; // car edges are directed; count each street once
   let m2 = 0;
-  const m = G.ea.length;
+  const m = A.ea.length;
   for (let i = 0; i < m; i++) {
-    if (!(G.ef[i] & mask)) continue;
-    const a = G.ea[i], b = G.eb[i];
+    if (!isCar && !(A.ef[i] & mask)) continue;
+    const a = A.ea[i], b = A.eb[i];
     if (dist[a] < 0 || dist[b] < 0) continue;
-    const dx = (G.lat[a] - G.lat[b]) * 111320;
-    const dy = (G.lon[a] - G.lon[b]) * 84500;
+    if (isCar) {
+      const k = a < b ? a * 4294967296 + b : b * 4294967296 + a;
+      if (seenPair.has(k)) continue;
+      seenPair.add(k);
+    }
+    const dx = (A.lat[a] - A.lat[b]) * 111320;
+    const dy = (A.lon[a] - A.lon[b]) * 84500;
     m2 += Math.sqrt(dx * dx + dy * dy);
   }
   return m2 / 1000;
@@ -338,19 +377,7 @@ function renderCompare() {
 
 /* ---------- stats ---------- */
 function updateStats(stats) {
-  const dist = state.streetDist;
-  let reachableM = 0;
-  const m = G.ea.length;
-  const mask = state.mode === "bike" ? 2 : 1;
-  for (let i = 0; i < m; i++) {
-    if (!(G.ef[i] & mask)) continue;
-    const a = G.ea[i], b = G.eb[i];
-    if (dist[a] < 0 || dist[b] < 0) continue;
-    const dx = (G.lat[a] - G.lat[b]) * 111320;
-    const dy = (G.lon[a] - G.lon[b]) * 84500;
-    reachableM += Math.sqrt(dx * dx + dy * dy);
-  }
-  const km = reachableM / 1000;
+  const km = computeKm(state.streetDist, state.mode);
   $("#stat-km").textContent = km.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
   const subway = state.reachedStops.filter((s) => state.stops[s[0]][3] === 0).length;
@@ -383,14 +410,27 @@ function buildBandOptions() {
 }
 
 function wireControls() {
+  $("#access-toggle").addEventListener("click", () => {
+    state.accessible = !state.accessible;
+    $("#access-toggle").classList.toggle("on", state.accessible);
+    $("#access-toggle").setAttribute("aria-pressed", String(state.accessible));
+    $("#access-note").classList.toggle("open", state.accessible);
+    document.body.classList.toggle("accessible", state.accessible);
+    state.streetDist = null;
+    runRoute();
+  });
+
   document.querySelectorAll("[data-mode]").forEach((btn) => {
     btn.addEventListener("click", () => {
       document.querySelectorAll("[data-mode]").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       state.mode = btn.dataset.mode;
       document.body.dataset.mode = state.mode;
+      // The taxi graph uses its own node space, so a distance array computed
+      // for another mode must not be drawn against it (and vice versa).
+      state.streetDist = null;
       // Mode only changes which answer is drawn; the comparison already has all
-      // five, so redraw from cache rather than recomputing everything.
+      // six, so redraw from cache rather than recomputing everything.
       renderCompare();
       runRoute();
     });
@@ -427,29 +467,104 @@ function wireControls() {
   });
   mw.addEventListener("change", runRoute);
 
-  $("#search-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const q = $("#search").value.trim();
-    if (!q) return;
-    $("#search-status").textContent = "Looking up ...";
-    try {
-      const url =
-        "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=" +
-        encodeURIComponent(q + ", New York City");
-      const r = await fetch(url, { headers: { Accept: "application/json" } });
-      const j = await r.json();
-      if (!j.length) { $("#search-status").textContent = "No match found."; return; }
-      $("#search-status").textContent = j[0].display_name.split(",").slice(0, 3).join(",");
-      map.setView([+j[0].lat, +j[0].lon], 14);
-      setOrigin(+j[0].lat, +j[0].lon);
-    } catch (err) {
-      $("#search-status").textContent = "Lookup failed.";
-    }
-  });
+  wireSearch();
 
   $("#ai-btn").addEventListener("click", () => $("#ai-note").classList.toggle("open"));
   $("#method-btn").addEventListener("click", () => $("#method").classList.toggle("open"));
   $("#method-close").addEventListener("click", () => $("#method").classList.remove("open"));
+}
+
+/* ---------- address search with autocomplete ---------- */
+// Nominatim, debounced to one in-flight request and bounded to the city.
+const NYC_VIEWBOX = "-74.30,40.45,-73.65,40.95";
+
+function wireSearch() {
+  const input = $("#search");
+  const box = $("#suggest");
+  let items = [];
+  let sel = -1;
+  let timer = null;
+  let ctrl = null;
+
+  function close() {
+    box.classList.remove("open");
+    input.setAttribute("aria-expanded", "false");
+    items = []; sel = -1;
+  }
+
+  function pick(it) {
+    close();
+    input.value = it.display_name.split(",").slice(0, 2).join(",");
+    $("#search-status").textContent = it.display_name.split(",").slice(0, 3).join(",");
+    map.setView([+it.lat, +it.lon], 14);
+    setOrigin(+it.lat, +it.lon);
+  }
+
+  function render() {
+    if (!items.length) { close(); return; }
+    box.innerHTML = items.map((it, i) => {
+      const parts = it.display_name.split(",");
+      return `<div class="sg${i === sel ? " sel" : ""}" data-i="${i}" role="option">` +
+        `${parts[0].trim()}${parts[1] ? " " + parts[1].trim() : ""}` +
+        `<small>${parts.slice(2, 5).join(",").trim()}</small></div>`;
+    }).join("");
+    box.classList.add("open");
+    input.setAttribute("aria-expanded", "true");
+    box.querySelectorAll(".sg").forEach((el) => {
+      el.addEventListener("mousedown", (e) => { e.preventDefault(); pick(items[+el.dataset.i]); });
+    });
+  }
+
+  async function lookup(q) {
+    if (ctrl) ctrl.abort();
+    ctrl = new AbortController();
+    try {
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=5" +
+        `&viewbox=${NYC_VIEWBOX}&bounded=1&q=` + encodeURIComponent(q);
+      const r = await fetch(url, { headers: { Accept: "application/json" }, signal: ctrl.signal });
+      const j = await r.json();
+      items = j; sel = -1;
+      render();
+    } catch (err) {
+      if (err.name !== "AbortError") close();
+    }
+  }
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim();
+    clearTimeout(timer);
+    if (q.length < 3) { close(); return; }
+    timer = setTimeout(() => lookup(q), 350);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (!items.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); sel = (sel + 1) % items.length; render(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); sel = (sel - 1 + items.length) % items.length; render(); }
+    else if (e.key === "Escape") { close(); }
+    else if (e.key === "Enter" && sel >= 0) { e.preventDefault(); pick(items[sel]); }
+  });
+
+  input.addEventListener("blur", () => setTimeout(close, 150));
+
+  $("#search-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearTimeout(timer);
+    if (items.length) { pick(items[sel >= 0 ? sel : 0]); return; }
+    const q = input.value.trim();
+    if (!q) return;
+    $("#search-status").textContent = "Looking up ...";
+    try {
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1" +
+        `&viewbox=${NYC_VIEWBOX}&bounded=1&q=` + encodeURIComponent(q);
+      const r = await fetch(url, { headers: { Accept: "application/json" } });
+      const j = await r.json();
+      if (!j.length) { $("#search-status").textContent = "No match found."; return; }
+      pick(j[0]);
+    } catch (err) {
+      $("#search-status").textContent = "Lookup failed.";
+    }
+  });
 }
 
 window.addEventListener("DOMContentLoaded", () => {

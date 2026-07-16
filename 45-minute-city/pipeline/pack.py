@@ -52,9 +52,10 @@ def main():
             "detour_measured": detour,
         },
         "bands": T["bands"],
-        # [name, lat, lon, kind, street_node]
+        # [name, lat, lon, kind, street_node, gtfs_id-for-subway-else-0]
         "stops": [
-            [s[1], s[2], s[3], s[4], stop_nodes[i][0]]
+            [s[1], s[2], s[3], s[4], stop_nodes[i][0],
+             s[0].split(":", 1)[1] if s[4] == 0 else 0]
             for i, s in enumerate(stops)
         ],
         "routes": routes,
@@ -65,11 +66,13 @@ def main():
     }
     json.dump(core, open(os.path.join(OUT, "core.json"), "w"), separators=(",", ":"))
 
-    for f in ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin"]:
+    for f in ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin",
+              "car_nodes.bin", "car_edges.bin", "car_calibration.json"]:
         p = os.path.join(OUT, f)
         print(f"  {f:20s} {os.path.getsize(p)/1e6:6.2f} MB")
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in
-                ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin"])
+                ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin",
+                 "car_nodes.bin", "car_edges.bin", "car_calibration.json"])
     print(f"  {'TOTAL':20s} {total/1e6:6.2f} MB")
 
 

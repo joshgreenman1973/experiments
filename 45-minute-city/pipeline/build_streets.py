@@ -16,7 +16,32 @@ rw_type codes (DCP):
 Walk: streets, bridges, boardwalks, paths, step streets, alleys.
 Bike: same minus step streets (stairs) — bikes must be carried.
 Both exclude highways, ramps, ferry routes, non-physical segments and driveways.
+
+Bridge caveat: CSCL types car-only expressway decks (Verrazzano, Throgs Neck,
+elevated BQE) as rw_type 3 alongside walkable crossings, and posted speed does
+not separate them (the Verrazzano deck is posted 35). What does separate them,
+verified against the data: every major crossing with pedestrian access has
+DEDICATED path segments ("BROOKLYN BRIDGE PEDESTRIAN PATH", "GEORGE WASHINGTON
+BRDG PED PATH", ...), so the same-named roadway deck is cars only. Small local
+drawbridges (Gowanus, Newtown Creek, City Island, Broadway Bridge) carry their
+sidewalks on the roadway segment and have no separate path — those stay.
+Rule for rw_type 3: keep explicit ped/bike path segments; drop expressway and
+parkway decks and the named major crossings whose walkways are separate
+segments; keep the rest.
 """
+import re
+
+# Major crossings whose pedestrian/bike access is a separate CSCL segment
+# (or that have no pedestrian access at all: Verrazzano, Throgs Neck,
+# Whitestone, Alexander Hamilton, FDR/Harlem River drives).
+BRIDGE_ROADWAY_EXCLUDE = re.compile(
+    r"EXPY|PKWY|VERRAZ|THROGS NECK|WHITESTONE|ALEXANDER HAMILTON|HENRY HUDSON"
+    r"|GEORGE WASHINGTON|ROBERT F KENNEDY|RFK|QUEENSBORO|ED KOCH|MANHATTAN BRG"
+    r"|WILLIAMSBURG BRG|BROOKLYN BRG|KOSCIUSZKO|PULASKI|WASHINGTON BRG"
+    r"|MACOMBS DAM|MADISON AVE?\s+BR|WILLIS AV|3 AV BRIDGE|145 ST BRIDGE"
+    r"|FDR DR|HARLEM RIVER DR"
+)
+BRIDGE_PATH_KEEP = re.compile(r"PED|PATH|BIKE|WALK|OPAS")
 import json
 import math
 import os
@@ -43,15 +68,15 @@ def log(m):
 
 
 def fetch_all():
-    path = os.path.join(CACHE, "cscl.json")
+    path = os.path.join(CACHE, "cscl_v2.json")
     if os.path.exists(path) and os.path.getsize(path) > 10_000_000:
-        log(f"  cached cscl.json ({os.path.getsize(path)/1e6:.1f} MB)")
+        log(f"  cached cscl_v2.json ({os.path.getsize(path)/1e6:.1f} MB)")
         return json.load(open(path))
     os.makedirs(CACHE, exist_ok=True)
     rows, offset, limit = [], 0, 50000
     while True:
         q = {
-            "$select": "the_geom,rw_type,physicalid,segmentlength,full_street_name",
+            "$select": "the_geom,rw_type,posted_speed,physicalid,segmentlength,full_street_name",
             "$where": "rw_type in('" + "','".join(sorted(FETCH_TYPES)) + "') AND status='2'",
             "$limit": str(limit),
             "$offset": str(offset),
@@ -99,12 +124,25 @@ def main():
 
     edges = []  # (a, b, meters, walk, bike)
     skipped = 0
+    fast_bridges = 0
     for r in rows:
         g = r.get("the_geom")
         rw = r.get("rw_type")
         if not g or rw not in FETCH_TYPES:
             skipped += 1
             continue
+        if rw == "3":
+            # See module docstring: keep explicit ped/bike paths, drop car-only
+            # decks and roadways whose walkway is a separate segment.
+            name = (r.get("full_street_name") or "").upper()
+            if not BRIDGE_PATH_KEEP.search(name):
+                try:
+                    mph = int(float(r.get("posted_speed") or 0))
+                except ValueError:
+                    mph = 0
+                if mph > 35 or BRIDGE_ROADWAY_EXCLUDE.search(name):
+                    fast_bridges += 1
+                    continue
         walk = 1 if rw in WALK_TYPES else 0
         bike = 1 if rw in BIKE_TYPES else 0
         if not (walk or bike):
@@ -122,16 +160,21 @@ def main():
                     continue
                 edges.append((a, b, d, walk, bike))
 
-    log(f"  nodes: {len(nodes):,}  edges: {len(edges):,}  (skipped {skipped})")
+    log(f"  nodes: {len(nodes):,}  edges: {len(edges):,}  (skipped {skipped}, "
+        f"car-only bridge decks dropped: {fast_bridges})")
 
-    # Drop everything not connected to the largest component: islands of stray
-    # geometry would otherwise make some origins unroutable.
+    # Drop stray-geometry islands, but KEEP every real landmass. Staten Island
+    # is genuinely walk-disconnected from the rest of the city (the Verrazzano
+    # has no pedestrian access), so "largest component only" would delete the
+    # borough. Any component with at least 500 nodes is a place, not noise.
+    MIN_COMPONENT = 500
     adj = defaultdict(list)
     for i, (a, b, d, w, bk) in enumerate(edges):
         adj[a].append(b)
         adj[b].append(a)
     seen = set()
-    best = []
+    keep = set()
+    comps = []
     for start in range(len(nodes)):
         if start in seen:
             continue
@@ -144,10 +187,13 @@ def main():
                 if m not in seen:
                     seen.add(m)
                     stack.append(m)
-        if len(comp) > len(best):
-            best = comp
-    keep = set(best)
-    log(f"  largest connected component: {len(keep):,} nodes ({len(keep)/len(nodes)*100:.1f}%)")
+        comps.append(len(comp))
+        if len(comp) >= MIN_COMPONENT:
+            keep.update(comp)
+    comps.sort(reverse=True)
+    log(f"  components kept (>= {MIN_COMPONENT} nodes): "
+        f"{[c for c in comps if c >= MIN_COMPONENT]}")
+    log(f"  kept {len(keep):,} of {len(nodes):,} nodes ({len(keep)/len(nodes)*100:.1f}%)")
 
     remap = {}
     out_nodes = []

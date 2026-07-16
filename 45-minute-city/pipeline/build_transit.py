@@ -96,7 +96,10 @@ def gtfs_secs(t):
 
 def pick_service_dates(zf):
     """Choose a representative weekday / saturday / sunday inside the feed's
-    validity window, preferring dates with no calendar_dates exceptions."""
+    validity window. Dates carrying calendar_dates exceptions are holiday or
+    diversion schedules — a rebuild the week before Christmas must not bake
+    holiday headways into every weekday band — so exception dates are skipped
+    unless nothing else is available."""
     cal = read_csv(zf, "calendar.txt")
     if not cal:
         return {}
@@ -104,6 +107,8 @@ def pick_service_dates(zf):
     ends = [c["end_date"] for c in cal if c.get("end_date")]
     lo = max(min(starts), date.today().strftime("%Y%m%d"))
     hi = max(ends)
+
+    exception_dates = {e["date"] for e in read_csv(zf, "calendar_dates.txt") if e.get("date")}
 
     def d(s):
         return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
@@ -114,12 +119,19 @@ def pick_service_dates(zf):
     want = {"weekday": 2, "saturday": 5, "sunday": 6}  # Wed, Sat, Sun
     out = {}
     for kind, wd in want.items():
+        fallback = None
         cur = lo_d
-        while cur <= hi_d and cur <= lo_d + timedelta(days=30):
+        while cur <= hi_d and cur <= lo_d + timedelta(days=60):
             if cur.weekday() == wd:
-                out[kind] = cur.strftime("%Y%m%d")
-                break
+                s = cur.strftime("%Y%m%d")
+                if s not in exception_dates:
+                    out[kind] = s
+                    break
+                if fallback is None:
+                    fallback = s
             cur += timedelta(days=1)
+        if kind not in out and fallback:
+            out[kind] = fallback
     return out
 
 
@@ -239,6 +251,14 @@ def process_feed(name, path, kind, acc):
             continue
         rides = acc["ride"][band_name]
         deps = acc["dep"][band_name]
+        # A band past 24h (late night) must also catch trips encoded with
+        # small after-midnight times: the MTA writes a 1:30am weekday trip as
+        # 01:30:00 on the same service day, not 25:30:00. Without the +24h
+        # alias, roughly half of overnight service is invisible and late-night
+        # headways double.
+        def in_band(t):
+            return lo <= t < hi or lo <= t + 86400 < hi
+
         for tid, seq in by_trip.items():
             if trip_service.get(tid) not in svc:
                 continue
@@ -247,12 +267,17 @@ def process_feed(name, path, kind, acc):
             seq.sort()
             for i in range(len(seq) - 1):
                 _, a_sid, _, a_dep = seq[i]
-                _, b_sid, b_arr, _ = seq[i + 1]
+                _, b_sid, b_arr, b_dep = seq[i + 1]
                 if a_sid == b_sid:
                     continue
-                if not (lo <= a_dep < hi):
+                if not in_band(a_dep):
                     continue
-                dt = b_arr - a_dep
+                # Cost to the NEXT departure, not the next arrival: using
+                # arrival drops the dwell at every intermediate stop, which
+                # compounds to minutes on long rides with scheduled holds.
+                # The final stop of a trip has dep == arr, so nothing is
+                # overcounted at the end of a journey.
+                dt = b_dep - a_dep
                 if dt <= 0 or dt > 3600:
                     continue  # drop nonsense / layovers
                 rides[(a_sid, b_sid, route, direction)].append(dt)
@@ -260,7 +285,7 @@ def process_feed(name, path, kind, acc):
             # only benefits from trips heading that way, so merging directions
             # would halve every headway at a two-directional stop.
             for _, sid, _, dep in seq[:-1]:  # last stop is arrival-only
-                if lo <= dep < hi:
+                if in_band(dep):
                     deps[(sid, route, direction)] += 1
     zf.close()
 

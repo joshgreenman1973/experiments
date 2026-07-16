@@ -14,8 +14,9 @@
 // Transfers fall out of the model: you alight to the street, walk, and board
 // again, paying that route's wait.
 
-let S = null; // streets
+let S = null; // streets (walk/bike)
 let C = null; // core
+let CAR = null; // directed drivable graph + per-band traffic calibration
 let bandCache = new Map();
 
 const WALK_BIT = 1;
@@ -168,12 +169,56 @@ function buildBand(bandId) {
   return band;
 }
 
-function route(opts) {
+// Taxi: Dijkstra over the directed car graph. Edge cost is length at the
+// posted speed limit, slowed by the band's measured traffic factor (median of
+// real TLC yellow-cab trips vs the same journey routed at posted speeds).
+function routeTaxi(opts) {
   const t0 = performance.now();
-  const { originNode, budget, mode, walkSpeed, bikeSpeed, bandId, maxWait } = opts;
+  const { originCarNode, budget, bandId, accessible } = opts;
+  const alpha = CAR.alpha[bandId] || 2.5;
+  const nC = CAR.n;
+  const dist = new Float64Array(nC).fill(Infinity);
+  const heap = new Heap(1 << 16);
+  // Accessible mode requests a wheelchair-accessible vehicle, and the clock
+  // starts at the request: the measured median request-to-pickup wait for the
+  // band comes off the budget before the wheels move.
+  let start = 0;
+  if (accessible) {
+    const w = (C.access.wav[bandId] || {}).wav_wait_secs;
+    start = w === undefined ? 480 : w;
+  }
+  if (start > budget) {
+    return { streetDist: new Float32Array(nC).fill(-1), reachedStops: [],
+             stats: { settled: 0, ms: Math.round(performance.now() - t0) } };
+  }
+  dist[originCarNode] = start;
+  heap.push(start, originCarNode);
+  const { off, tgt, base } = CAR.csr;
+  let settled = 0;
+  while (heap.size > 0) {
+    const [d, u] = heap.pop();
+    if (d > dist[u] || d > budget) continue;
+    settled++;
+    for (let e = off[u]; e < off[u + 1]; e++) {
+      const nd = d + base[e] * alpha;
+      const v = tgt[e];
+      if (nd < dist[v] && nd <= budget) { dist[v] = nd; heap.push(nd, v); }
+    }
+  }
+  const out = new Float32Array(nC);
+  for (let i = 0; i < nC; i++) out[i] = dist[i] > budget ? -1 : dist[i];
+  return { streetDist: out, reachedStops: [], stats: { settled, ms: Math.round(performance.now() - t0) } };
+}
+
+function route(opts) {
+  if (opts.mode === "taxi") return routeTaxi(opts);
+  const t0 = performance.now();
+  const { originNode, budget, mode, walkSpeed, bikeSpeed, bandId, maxWait, accessible } = opts;
   const nS = C.nStreetNodes;
   const useBike = mode === "bike";
-  const mask = useBike ? BIKE_BIT : WALK_BIT;
+  // Accessible mode rolls, not walks: the bike flag is the street network
+  // minus step streets (stairs), which is the wheelchair-usable network.
+  const mask = useBike || accessible ? BIKE_BIT : WALK_BIT;
   const speed = useBike ? bikeSpeed : walkSpeed; // m/s
   const useTransit = mode === "subway" || mode === "bus" || mode === "transit";
 
@@ -211,6 +256,7 @@ function route(opts) {
         const stops = stopsAtNode.get(u);
         if (stops) {
           for (const s of stops) {
+            if (accessible && !C.stopAda[s]) continue; // no elevator, no boarding
             const states = band.byStop.get(s);
             if (!states) continue;
             for (const st of states) {
@@ -235,8 +281,16 @@ function route(opts) {
         const v = nS + band.tgt[e];
         if (nd < dist[v] && nd <= budget) { dist[v] = nd; heap.push(nd, v); }
       }
-      const sn = stopStreetNode[band.stateStop[st]];
-      if (sn !== undefined && d < dist[sn]) { dist[sn] = d; heap.push(d, sn); }
+      // A handful of stops sit outside city limits (bus routes that dip into
+      // Nassau County) and have no street node; their snap is stored as -1,
+      // which reads back from the Uint32Array as 0xFFFFFFFF. Riding THROUGH
+      // them still works; you just can't get on or off there. In accessible
+      // mode the same applies to subway stations without elevators.
+      const alightStop = band.stateStop[st];
+      const sn = stopStreetNode[alightStop];
+      if (sn !== 4294967295 && (!accessible || C.stopAda[alightStop]) && d < dist[sn]) {
+        dist[sn] = d; heap.push(d, sn);
+      }
     }
   }
 
@@ -251,6 +305,9 @@ function route(opts) {
       const dd = dist[nS + st];
       if (dd > budget) continue;
       const s = band.stateStop[st];
+      // In accessible mode a station you can only ride THROUGH is not a
+      // station you reached — count egress-usable stops only.
+      if (accessible && !C.stopAda[s]) continue;
       if (!best.has(s) || dd < best.get(s)) best.set(s, dd);
     }
     for (const [s, dd] of best) reachedStops.push([s, Math.round(dd)]);
@@ -266,12 +323,16 @@ self.onmessage = async (e) => {
   const msg = e.data;
   if (msg.type === "init") {
     const base = msg.base || "";
-    const [core, bandIndex, nodesBuf, edgesBuf, bandsBuf] = await Promise.all([
+    const [core, bandIndex, nodesBuf, edgesBuf, bandsBuf, carNodesBuf, carEdgesBuf, carCal, access] = await Promise.all([
       fetch(base + "data/core.json").then((r) => r.json()),
       fetch(base + "data/bands.json").then((r) => r.json()),
       fetch(base + "data/street_nodes.bin").then((r) => r.arrayBuffer()),
       fetch(base + "data/street_edges.bin").then((r) => r.arrayBuffer()),
       fetch(base + "data/bands.bin").then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_nodes.bin").then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_edges.bin").then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_calibration.json").then((r) => r.json()),
+      fetch(base + "data/access.json").then((r) => r.json()),
     ]);
 
     // streets
@@ -303,11 +364,21 @@ self.onmessage = async (e) => {
       if (!arr) { arr = []; stopsAtNode.set(n, arr); }
       arr.push(i);
     }
+    // ADA flags per stop. Buses are 100% ramp-equipped, so every bus stop is
+    // accessible; subway stops are accessible only if the MTA lists their
+    // station (1 = fully, 2 = one direction — treated as accessible, caveat
+    // documented in the methodology).
+    const stopAda = new Uint8Array(core.stops.length);
+    for (let i = 0; i < core.stops.length; i++) {
+      const s = core.stops[i];
+      stopAda[i] = s[3] === 1 ? 1 : (access.stations[s[5]] ? 1 : 0);
+    }
     C = {
       core, bandIndex, bandsBuf,
       nStreetNodes: nNodes,
-      stopStreetNode, stopsAtNode,
+      stopStreetNode, stopsAtNode, stopAda,
       routeKind: Uint8Array.from(core.routes.map((r) => r[1])),
+      access,
     };
 
     // spatial hash for snapping a clicked point to the network
@@ -321,17 +392,69 @@ self.onmessage = async (e) => {
     }
     S.grid = grid; S.CELL = CELL;
 
+    // ---- directed car graph
+    const nC = carNodesBuf.byteLength / 8;
+    const cni = new Int32Array(carNodesBuf);
+    const cLat = new Float64Array(nC), cLon = new Float64Array(nC);
+    for (let i = 0; i < nC; i++) { cLat[i] = cni[i * 2] / 1e6; cLon[i] = cni[i * 2 + 1] / 1e6; }
+    const mC = carEdgesBuf.byteLength / 11;
+    const cdv = new DataView(carEdgesBuf);
+    const cea = new Uint32Array(mC), ceb = new Uint32Array(mC);
+    const cBase = new Float32Array(mC); // seconds at posted speed
+    for (let i = 0; i < mC; i++) {
+      const o = i * 11;
+      cea[i] = cdv.getUint32(o, true);
+      ceb[i] = cdv.getUint32(o + 4, true);
+      const meters = cdv.getUint16(o + 8, true) / 10;
+      const mph = cdv.getUint8(o + 10);
+      cBase[i] = meters / (mph * 0.44704);
+    }
+    // directed CSR
+    const cDeg = new Uint32Array(nC + 1);
+    for (let i = 0; i < mC; i++) cDeg[cea[i]]++;
+    const cOff = new Uint32Array(nC + 1);
+    let cAcc = 0;
+    for (let i = 0; i < nC; i++) { cOff[i] = cAcc; cAcc += cDeg[i]; }
+    cOff[nC] = cAcc;
+    const cCur = cOff.slice();
+    const cTgt = new Uint32Array(cAcc);
+    const cSecs = new Float32Array(cAcc);
+    for (let i = 0; i < mC; i++) {
+      cTgt[cCur[cea[i]]] = ceb[i]; cSecs[cCur[cea[i]]] = cBase[i]; cCur[cea[i]]++;
+    }
+    const cGrid = new Map();
+    for (let i = 0; i < nC; i++) {
+      const k = Math.floor(cLat[i] / CELL) + ":" + Math.floor(cLon[i] / CELL);
+      let a = cGrid.get(k);
+      if (!a) { a = []; cGrid.set(k, a); }
+      a.push(i);
+    }
+    const alpha = {};
+    for (const [b, v] of Object.entries(carCal.bands || {})) alpha[b] = v.alpha;
+    CAR = {
+      n: nC, lat: cLat, lon: cLon, grid: cGrid,
+      csr: { off: cOff, tgt: cTgt, base: cSecs },
+      alpha, calibration: carCal,
+    };
+
+    const cLatCopy = cLat.slice(), cLonCopy = cLon.slice();
     self.postMessage({
       type: "ready",
       nNodes, nEdges: m,
       nStops: core.stops.length,
       nRoutes: core.routes.length,
+      nCarNodes: nC, nCarEdges: mC,
       meta: core.meta,
       bands: core.bands,
+      carCalibration: carCal,
+      access,
       lat: lat.buffer, lon: lon.buffer,
       ea: ea.buffer, eb: eb.buffer, ef: ef.buffer,
+      carLat: cLatCopy.buffer, carLon: cLonCopy.buffer,
+      cea: cea.buffer, ceb: ceb.buffer,
       stops: core.stops,
-    }, [lat.buffer, lon.buffer, ea.buffer, eb.buffer, ef.buffer]);
+    }, [lat.buffer, lon.buffer, ea.buffer, eb.buffer, ef.buffer,
+        cLatCopy.buffer, cLonCopy.buffer, cea.buffer, ceb.buffer]);
     // rebuild worker-side views (buffers were transferred away)
     const nb = new Int32Array(nodesBuf);
     const la = new Float64Array(nNodes), lo = new Float64Array(nNodes);
@@ -341,7 +464,11 @@ self.onmessage = async (e) => {
   }
 
   if (msg.type === "snap") {
-    self.postMessage({ type: "snapped", id: msg.id, node: snap(msg.lat, msg.lon) });
+    self.postMessage({
+      type: "snapped", id: msg.id,
+      node: snap(msg.lat, msg.lon, S.grid, S.lat, S.lon),
+      carNode: snap(msg.lat, msg.lon, CAR.grid, CAR.lat, CAR.lon),
+    });
     return;
   }
 
@@ -354,7 +481,7 @@ self.onmessage = async (e) => {
   }
 };
 
-function snap(la, lo) {
+function snap(la, lo, grid, lats, lons) {
   const CELL = S.CELL;
   const ci = Math.floor(la / CELL), cj = Math.floor(lo / CELL);
   let best = -1, bd = Infinity;
@@ -362,11 +489,11 @@ function snap(la, lo) {
     for (let i = ci - r; i <= ci + r; i++) {
       for (let j = cj - r; j <= cj + r; j++) {
         if (r > 0 && Math.abs(i - ci) !== r && Math.abs(j - cj) !== r) continue;
-        const arr = S.grid.get(i + ":" + j);
+        const arr = grid.get(i + ":" + j);
         if (!arr) continue;
         for (const n of arr) {
-          const dx = (S.lat[n] - la) * 111320;
-          const dy = (S.lon[n] - lo) * 84000;
+          const dx = (lats[n] - la) * 111320;
+          const dy = (lons[n] - lo) * 84000;
           const d = dx * dx + dy * dy;
           if (d < bd) { bd = d; best = n; }
         }
