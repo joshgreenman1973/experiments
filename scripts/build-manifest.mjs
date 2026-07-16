@@ -213,6 +213,9 @@ function getGitInfo(dir) {
       lastCommitMsg: sh('git log -1 --format=%s', dir),
       // First commit (creation) — `--reverse | head -1` returns the oldest.
       created: sh("git log --reverse --format=%cI 2>/dev/null | head -1", dir),
+      // How many times this project has been committed to — powers the
+      // "Most frequently updated" sort.
+      commitCount: parseInt(sh('git rev-list --count HEAD', dir), 10) || 0,
     };
   }
   // Fall back to parent repo history for this path
@@ -223,6 +226,7 @@ function getGitInfo(dir) {
     lastCommit: sh(`git log -1 --format=%cI -- "${rel}"`, ROOT),
     lastCommitMsg: sh(`git log -1 --format=%s -- "${rel}"`, ROOT),
     created: sh(`git log --reverse --format=%cI -- "${rel}" 2>/dev/null | head -1`, ROOT),
+    commitCount: parseInt(sh(`git rev-list --count HEAD -- "${rel}"`, ROOT), 10) || 0,
   };
 }
 
@@ -307,6 +311,7 @@ function projectRecord(fullPath, category) {
     lastCommitMsg: git.lastCommitMsg || null,
     lastModified: git.lastCommit || null,
     created: git.created || null,
+    commitCount: git.commitCount || 0,
   });
 }
 
@@ -343,6 +348,7 @@ function scan() {
       const lastCommit = sh(`git log -1 --format=%cI -- "${rel}"`, ROOT);
       const lastCommitMsg = sh(`git log -1 --format=%s -- "${rel}"`, ROOT);
       const created = sh(`git log --reverse --format=%cI -- "${rel}" 2>/dev/null | head -1`, ROOT);
+      const commitCount = parseInt(sh(`git rev-list --count HEAD -- "${rel}"`, ROOT), 10) || 0;
       const looseRec = applyOverrides({
         name: e.name.replace(/\.html$/, ''),
         title,
@@ -363,6 +369,7 @@ function scan() {
         lastCommitMsg: lastCommitMsg || null,
         lastModified: lastCommit || null,
         created: created || null,
+        commitCount,
         isLooseFile: true,
       });
       if (looseRec) out.push(looseRec);
@@ -410,8 +417,39 @@ async function listOwnerRepos(owner) {
   return all;
 }
 
-async function discoverViaGitHub() {
+// Total commits on a repo's default branch, without cloning: ask for a single
+// commit per page and read the last page number out of the Link header.
+// Returns null when it can't be determined (so we never report a fake 0).
+async function ghCommitCount(owner, repo) {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`, { headers: GH_HEADERS });
+    if (!res.ok) return null;
+    const link = res.headers.get('link');
+    const m = link && link.match(/[?&]page=(\d+)>;\s*rel="last"/);
+    if (m) return parseInt(m[1], 10) || null;
+    // No Link header means a single page — count what came back (0 or 1).
+    const arr = await res.json();
+    return Array.isArray(arr) ? arr.length : null;
+  } catch { return null; }
+}
+
+// Run async jobs with a small concurrency cap so ~70 commit-count lookups
+// don't take a minute of serial round-trips.
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }
+  }));
+  return out;
+}
+
+async function discoverViaGitHub(localNames = new Set()) {
   const out = [];
+  const needCount = [];
   for (const owner of GH_OWNERS) {
     let repos;
     try { repos = await listOwnerRepos(owner); }
@@ -442,10 +480,22 @@ async function discoverViaGitHub() {
         lastCommitMsg: null,
         lastModified: r.pushed_at,
         created: r.created_at,
+        commitCount: null, // filled in below for repos with no local clone
         _source: 'github-api',
       });
-      if (rec) out.push(rec);
+      if (rec) {
+        out.push(rec);
+        // Local clones already counted commits via git; only ask the API for
+        // the ones that exist nowhere on disk.
+        if (!localNames.has(rec.name)) needCount.push(rec);
+      }
     }
+  }
+  if (needCount.length) {
+    await mapLimit(needCount, 8, async (rec) => {
+      rec.commitCount = await ghCommitCount(rec.githubOwner, rec.name);
+    });
+    console.log(`  commit counts: fetched for ${needCount.length} remote-only repos`);
   }
   return out;
 }
@@ -455,7 +505,7 @@ async function buildProjectList() {
   console.log(`  local scan: ${local.length} projects`);
   let remote = [];
   try {
-    remote = await discoverViaGitHub();
+    remote = await discoverViaGitHub(new Set(local.map(p => p.name)));
     console.log(`  github api: ${remote.length} pages-enabled repos`);
   } catch (e) {
     console.warn('  github api discovery skipped:', e.message);

@@ -1027,7 +1027,8 @@
       <label>Sort</label>
       <select id="sort">
         <option value="category">By category</option>
-        <option value="modified">Recently updated</option>
+        <option value="modified">Most recently updated</option>
+        <option value="frequency">Most frequently updated</option>
         <option value="created">Newest first</option>
         <option value="name">A–Z</option>
       </select>
@@ -1383,17 +1384,19 @@ function render() {
   // Compact "Buttons" view: skip the featured hero and render every project as
   // a small color-coded pill, grouped by section, so they're all visible at once.
   if (VIEW === 'compact') {
-    renderCompact(grid, list);
+    renderCompact(grid, list, sort);
     if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
       renderPersonalAppendix(grid, term, cat, owner, show, sort);
     }
     return;
   }
 
-  // "Start here" featured row — only on the default Gallery landing view
-  // (general tab, no active search or filters). Curated via the admin.
+  // "Start here" featured row — only on the default Gallery landing view:
+  // general tab, no search/filters, and only while grouped "By category".
+  // Once you sort (by recency, frequency, etc.) you want the real ranking,
+  // so the hero gets out of the way.
   let featIdx = 0;
-  const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner;
+  const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner && sort === 'category';
   const featuredShown = new Set();
   if (isDefaultView) {
     const featured = source.filter(p => p.featured && p.status !== 'dropped');
@@ -1545,7 +1548,19 @@ function pill(p) {
   return el;
 }
 
-function renderCompact(grid, list) {
+function renderCompact(grid, list, sort) {
+  // When the user has picked a real ranking (recency, frequency, A–Z), show a
+  // single flat run of pills in that order — grouping would fight the sort.
+  // Pills stay section-colored either way.
+  if (sort !== 'category') {
+    const row = document.createElement('div');
+    row.className = 'pill-row';
+    for (const p of list) row.appendChild(pill(p));
+    grid.appendChild(row);
+    renderSectionBar([]);
+    setupScrollSpy([]);
+    return;
+  }
   const groups = {};
   for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
   const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()]
@@ -1630,6 +1645,15 @@ function matchesFilters(p, term, cat, owner, show) {
 function sortList(list, sort) {
   if (sort === 'name' || sort === 'category') {
     list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
+  } else if (sort === 'frequency') {
+    // Most frequently updated = most commits. Projects with no countable
+    // history (manual/local-only entries) sort last rather than as zero-ties.
+    list.sort((a,b) => {
+      const aN = Number.isFinite(a.commitCount) ? a.commitCount : -1;
+      const bN = Number.isFinite(b.commitCount) ? b.commitCount : -1;
+      if (bN !== aN) return bN - aN;
+      return (a.title || a.name).localeCompare(b.title || b.name);
+    });
   } else if (sort === 'modified') {
     list.sort((a,b) => {
       const aT = a.lastCommit || a.lastModified || '';
@@ -1713,6 +1737,11 @@ function card(p, i, isFeatured) {
   const ownerRow = p.githubOwner
     ? `<dt>gh</dt><dd>${escapeHtml(p.githubOwner)}${p.isNestedRepo ? ' <span class="soft">· own repo</span>' : ''}</dd>`
     : '';
+  // Shown so the "Most frequently updated" ranking is inspectable, not a
+  // black box: this is the number the sort actually uses.
+  const commitsRow = Number.isFinite(p.commitCount)
+    ? `<dt>commits</dt><dd>${p.commitCount.toLocaleString()}</dd>`
+    : '';
 
   const links = [];
   // Single "Open" link, pointing to the canonical live page. Prefers the
@@ -1743,6 +1772,7 @@ function card(p, i, isFeatured) {
       <dt>id</dt><dd>${escapeHtml(p.relPath)}</dd>
       ${ownerRow}
       ${updated}
+      ${commitsRow}
       ${commitMsg}
     </dl>
     <div class="links">
