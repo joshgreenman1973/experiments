@@ -323,16 +323,17 @@ self.onmessage = async (e) => {
   const msg = e.data;
   if (msg.type === "init") {
     const base = msg.base || "";
+    const q = "?v=" + (msg.v || "dev");
     const [core, bandIndex, nodesBuf, edgesBuf, bandsBuf, carNodesBuf, carEdgesBuf, carCal, access] = await Promise.all([
-      fetch(base + "data/core.json").then((r) => r.json()),
-      fetch(base + "data/bands.json").then((r) => r.json()),
-      fetch(base + "data/street_nodes.bin").then((r) => r.arrayBuffer()),
-      fetch(base + "data/street_edges.bin").then((r) => r.arrayBuffer()),
-      fetch(base + "data/bands.bin").then((r) => r.arrayBuffer()),
-      fetch(base + "data/car_nodes.bin").then((r) => r.arrayBuffer()),
-      fetch(base + "data/car_edges.bin").then((r) => r.arrayBuffer()),
-      fetch(base + "data/car_calibration.json").then((r) => r.json()),
-      fetch(base + "data/access.json").then((r) => r.json()),
+      fetch(base + "data/core.json" + q).then((r) => r.json()),
+      fetch(base + "data/bands.json" + q).then((r) => r.json()),
+      fetch(base + "data/street_nodes.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/street_edges.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/bands.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_nodes.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_edges.bin" + q).then((r) => r.arrayBuffer()),
+      fetch(base + "data/car_calibration.json" + q).then((r) => r.json()),
+      fetch(base + "data/access.json" + q).then((r) => r.json()),
     ]);
 
     // streets

@@ -219,7 +219,9 @@ function initMap() {
 }
 
 function initWorker() {
-  worker = new Worker("worker.js");
+  // Version-locked: HTML, app, worker and data always load as one set, so a
+  // deploy can never mix a cached old worker with new code or new data.
+  worker = new Worker("worker.js?v=" + (window.ASSET_V || "dev"));
   worker.onmessage = (e) => {
     const m = e.data;
     if (m.type === "ready") {
@@ -276,6 +278,8 @@ function initWorker() {
         return;
       }
       if (m.id !== lastRenderId) return;
+      const expected = job.mode === "taxi" ? CG.lat.length : G.lat.length;
+      if (dist.length !== expected) return; // wrong node space; never draw it
       state.streetDist = dist;
       state.reachedStops = m.reachedStops;
       reachLayer.draw();
@@ -284,7 +288,7 @@ function initWorker() {
       runCompare();
     }
   };
-  worker.postMessage({ type: "init", base: "" });
+  worker.postMessage({ type: "init", base: "", v: window.ASSET_V || "dev" });
 }
 
 function setOrigin(lat, lng) {
