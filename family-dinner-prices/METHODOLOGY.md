@@ -22,7 +22,12 @@ re-priced monthly by deterministic string match. Deterministic guards reject
 desserts/drinks as an entree, require the kid item to be cheaper than the adult,
 and enforce sane price ranges (adult $6–$32; a $25+ signature entree is flagged).
 
-## The panel (76 restaurants, all five boroughs)
+## The panel (84 restaurants, all five boroughs)
+
+84 restaurants are active in the panel. A restaurant only counts in a given month
+if all of its pinned dishes re-price cleanly, so the number actually priced is
+usually a bit lower — **76 of 84 in the July 2026 check** (the other 8 missed and
+were excluded from that month's number, not carried forward).
 
 Restaurants whose menus are reliably readable online, balanced across boroughs.
 Built in three passes:
@@ -91,6 +96,20 @@ Fixed monthly cadence, run automatically on the 1st of each month by the
 are not silently revised.** Month-to-month moves are noisy at this panel size;
 year-over-year will be the meaningful comparison once 12 months exist.
 
+**Gap in the series.** The baseline is 2026-05-01. No check ran in June 2026, and
+the second reading is dated **2026-07-15** — so the first interval spans two and a
+half months, not one. The gap is real and is left visible rather than
+back-filled: menu prices at a past date can't be recovered after the fact, and
+inventing one would be exactly the carried-forward fiction this panel exists to
+avoid. Monthly points resume 2026-08-01.
+
+**Retired pipeline.** An earlier tracker (`check-prices.js` → `build-history.js` →
+`price-history.js`, with snapshots in `data/snapshots/`) carried prices forward
+when a re-check failed — 1,418 carried values against 26 real re-scrapes across
+four months, which contradicts the same-item rule above. It was removed in July
+2026 and is not part of this series; it remains in git history (through commit
+`546cfd85`) for the record. The panel pipeline below is the only tracker.
+
 ## Files
 
 | File | What it is |
@@ -111,5 +130,5 @@ year-over-year will be the meaningful comparison once 12 months exist.
 ```sh
 node scripts/check-panel.js          # re-price pinned dishes -> new snapshot
 node scripts/build-panel-history.js  # rebuild the dollar-bill series
-# review the diff (carry-forward / mis-read / freshness flags), then commit + push
+# review the diff (missed / mis-read / freshness flags), then commit + push
 ```
