@@ -85,7 +85,9 @@ monthly — treat its prices as "around spring 2026."
 
 ## Cadence and revisions
 
-Fixed monthly cadence, run manually (no always-on automation). **Published months
+Fixed monthly cadence, run automatically on the 1st of each month by the
+`monthly-price-check` GitHub Action (which runs `check-panel.js` +
+`build-panel-history.js` and commits the new snapshot). **Published months
 are not silently revised.** Month-to-month moves are noisy at this panel size;
 year-over-year will be the meaningful comparison once 12 months exist.
 
