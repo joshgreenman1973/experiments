@@ -330,6 +330,7 @@ function runRoute() {
 // Run every mode from the same origin so they can be compared on equal terms.
 function runCompare() {
   for (const mode of MODES) {
+    if (mode === "bike" && state.accessible) continue;
     const id = ++reqId;
     pending.set(id, { purpose: "compare", mode });
     worker.postMessage({ type: "route", id, opts: opts(mode) });
@@ -367,10 +368,11 @@ function renderCompare() {
   el.innerHTML = MODES.map((m) => {
     const v = compare[m];
     const w = v === undefined ? 0 : (v / max) * 100;
-    return `<div class="cmp-row${m === state.mode ? " on" : ""}">
+    const dim = m === "bike" && state.accessible;
+    return `<div class="cmp-row${m === state.mode ? " on" : ""}${dim ? " off" : ""}">
       <div class="cmp-k">${MODE_LABEL[m]}</div>
-      <div class="cmp-bar"><i style="width:${w}%"></i></div>
-      <div class="cmp-v">${v === undefined ? "—" : Math.round(v).toLocaleString()}</div>
+      <div class="cmp-bar"><i style="width:${dim ? 0 : w}%"></i></div>
+      <div class="cmp-v">${dim ? "n/a" : v === undefined ? "—" : Math.round(v).toLocaleString()}</div>
     </div>`;
   }).join("");
 }
@@ -416,13 +418,22 @@ function wireControls() {
     $("#access-toggle").setAttribute("aria-pressed", String(state.accessible));
     $("#access-note").classList.toggle("open", state.accessible);
     document.body.classList.toggle("accessible", state.accessible);
+    // A standard bicycle is not an accessible mode; gray it out, and if the
+    // rider was in bike mode, fall back to transit.
+    document.querySelector('.modes [data-mode="bike"]').disabled = state.accessible;
+    if (state.accessible && state.mode === "bike") {
+      state.mode = "transit";
+      document.querySelectorAll(".modes [data-mode]").forEach((b) => b.classList.remove("on"));
+      document.querySelector('.modes [data-mode="transit"]').classList.add("on");
+      document.body.dataset.mode = "transit";
+    }
     state.streetDist = null;
     runRoute();
   });
 
-  document.querySelectorAll("[data-mode]").forEach((btn) => {
+  document.querySelectorAll(".modes [data-mode]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-mode]").forEach((b) => b.classList.remove("on"));
+      document.querySelectorAll(".modes [data-mode]").forEach((b) => b.classList.remove("on"));
       btn.classList.add("on");
       state.mode = btn.dataset.mode;
       document.body.dataset.mode = state.mode;
