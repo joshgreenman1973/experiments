@@ -47,13 +47,16 @@ FEEDS = {
     # Governors Island, St. George). A different operator again, published
     # through its own vendor feed.
     "nycferry": "https://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx",
+    # PATH -- Port Authority Trans-Hudson. Included where the commuter
+    # railroads are not, because it behaves like a subway: see METHODOLOGY.md.
+    "path": "https://data.trilliumtransit.com/gtfs/path-nj-us/path-nj-us.zip",
 }
 
 # stop/route kind: 0 rail (subway + Staten Island Railway), 1 bus, 2 ferry.
 # Derived from GTFS route_type, not from the feed: NYC Ferry's own feed carries
 # two route_type=3 shuttle BUS routes (the free Rockaway shuttles) alongside
 # its boats, so a per-feed label would call those buses ferries.
-FEED_KIND = {"subway": 0, "siferry": 2, "nycferry": 2}
+FEED_KIND = {"subway": 0, "siferry": 2, "nycferry": 2, "path": 0}
 ROUTE_TYPE_KIND = {
     "0": 1,   # tram/streetcar -> treat as surface
     "1": 0,   # subway

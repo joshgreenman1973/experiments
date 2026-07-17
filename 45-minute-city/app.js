@@ -651,6 +651,13 @@ function wireControls() {
 
   wireSearch();
 
+  $("#why-no-rail").addEventListener("click", (e) => {
+    e.preventDefault();
+    $("#method").classList.add("open");
+    const h = [...document.querySelectorAll("#method h3")]
+      .find((x) => x.textContent.startsWith("PATH"));
+    if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   $("#ai-btn").addEventListener("click", () => $("#ai-note").classList.toggle("open"));
   $("#method-btn").addEventListener("click", () => $("#method").classList.toggle("open"));
   $("#method-close").addEventListener("click", () => $("#method").classList.remove("open"));

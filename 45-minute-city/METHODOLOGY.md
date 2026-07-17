@@ -34,6 +34,8 @@ applies no factor; the measurement is kept only as a reference in
 | Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
 | Staten Island Ferry | NYC DOT GTFS, NYC Open Data `b57i-ri22` (feed version 18, valid 2026-01-01 to 2028-01-17) |
 | NYC Ferry | Operator GTFS via Connexionz (feed version 20260707, valid to 2027-12-31) |
+| PATH | Port Authority Trans-Hudson GTFS via Trillium (see the staleness note below) |
+| New Jersey streets | OpenStreetMap via Overpass, PATH corridor only (Newark, Harrison, Jersey City, Hoboken) |
 | Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
 | Taxi calibration | TLC yellow-cab trip records, March 2026 (`yellow_tripdata_2026-03.parquet`) |
 | Taxi zones | NYC Open Data dataset `8meu-9t5y` (263 zones) |
@@ -333,6 +335,89 @@ Note that the walk graph still treats Staten Island as a separate component —
 correctly, since you cannot walk the Verrazzano. The ferry connects the
 boroughs in the transit graph, not the pedestrian one.
 
+## PATH, and why not the commuter railroads
+
+PATH is included. The Long Island Rail Road, Metro-North and New Jersey Transit
+are not. The line between them is not arbitrary, and it is not about which side
+of a state border a train runs on — it is about whether this map's wait model
+tells the truth about the service.
+
+### The reason, measured
+
+This map assumes you turn up without consulting a timetable and wait, on
+average, half the headway. That is a fair description of how people use
+frequent service and a false one for infrequent service: nobody strolls to a
+station hoping to catch a train that comes once an hour. They read the
+schedule and arrive three minutes before.
+
+So the question for any railroad is simply: is it frequent enough that
+turn-up-and-go is what actually happens?
+
+| | Median headway, weekday AM peak | Where the 20-minute wait cap binds |
+|---|---|---|
+| **PATH** | **3.0 min** (combined across its routes) | **0 of 11 stations** |
+| LIRR | 60 min | 60% of stops |
+
+PATH is a subway that happens to cross a river. Trains every three minutes at
+Grove Street, every three at 33rd Street; the frequency model describes it
+exactly as well as it describes the L. The LIRR is a different kind of thing:
+the median stop gets three trains in a three-hour peak. Modelling it with
+half-headway waits would produce a 20-minute wait (the cap) where the real
+answer is close to zero for anyone who owns a watch — and no cap value fixes
+it, because the honest number depends on a departure time that a frequency
+model has already thrown away.
+
+Adding the commuter railroads properly means moving the router from
+frequency-based to schedule-based search over real timetables. That is
+worth doing — it would also repair the common-lines conservatism and the
+branch-chaining optimism documented above — but it is a rewrite of the core,
+not a feed.
+
+Three smaller reasons point the same way:
+
+- **Streets.** PATH's seven New Jersey stations needed a walkable network, or
+  you could ride the train but not leave the platform. The PATH corridor is
+  small enough to take from OpenStreetMap (38,216 ways across Newark,
+  Harrison, Jersey City and Hoboken). The LIRR and Metro-North catchments are
+  the whole metropolitan area, which is a different data source, roughly five
+  times the graph, and an architecture that no longer fits in a browser.
+- **Fares.** Inside the city almost everything is a flat $2.90, so ignoring
+  fares is defensible. PATH is $3.00 — near enough that the map is not lying
+  by omission. A commuter rail isochrone that says "Ronkonkoma in 45 minutes"
+  is true and misleading at $18.
+- **Park and ride.** The real suburban trip is drive, park, then train. This
+  router does not chain a car to a train, and the commuter railroads are
+  mostly used that way.
+
+### What PATH adds
+
+Seven routes, 13 stations, and the west bank of the Hudson: Newark, Harrison,
+Journal Square, Grove Street, Exchange Place, Newport and Hoboken join the map.
+From Hoboken at the morning rush, the World Trade Center is 21 minutes away,
+Times Square 26, Newark 35.
+
+Walking still cannot cross the Hudson — from Hoboken the walk network reaches
+about 16,000 nodes in New Jersey and exactly zero in Manhattan, which is
+correct. PATH connects the two banks in the transit graph, not the pedestrian
+one, exactly as the Staten Island Ferry connects St George to Whitehall.
+
+**The taxi mode deliberately stays inside New York City.** Its credibility
+rests on 11.9 million measured TLC trips, and the TLC regulates New York City
+vehicles only. There is no equivalent free record of what traffic actually does
+on the New Jersey Turnpike. Rather than route cars over New Jersey at posted
+speeds — which would imply free-flowing highways precisely on the inbound
+commute, the one trip where congestion decides everything — the car graph ends
+at the city line. The New Jersey streets here are for walking to a PATH station.
+
+### Staleness — a real caveat
+
+The only published PATH static feed comes through Trillium, was last modified
+in June 2025, and carries a validity window ending 2026-06-01 — which has
+passed. We use it because it is the only GTFS PATH publishes and its schedule
+is stable, but its service dates are 2025 ones, and it is the single least
+current input in this map. Everything else here is inside its validity window.
+If PATH changes its timetable, this map will not know.
+
 ## Accessibility mode
 
 The "I require accessible transit" toggle answers the same question for a rider
@@ -385,10 +470,12 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 - **Planned service changes.** Weekend and overnight diversions are not in the
   static feed.
 - **Bikes plus transit.** Bike mode is bike only; transit modes walk to the stop.
-- **PATH, Metro-North, Long Island Rail Road, New Jersey Transit.** Not
-  included. (Both ferry systems and the Staten Island Railway are — see above.)
-  New Jersey has no street data here either, which is why the map stops at the
-  Hudson.
+- **Metro-North, Long Island Rail Road, New Jersey Transit.** Not included —
+  see "PATH, and why not the commuter railroads" above for the reason, which is
+  that this map's wait model would misdescribe them. PATH, both ferry systems
+  and the Staten Island Railway are included.
+- **Driving outside New York City.** The car graph ends at the city line
+  because the traffic calibration does.
 
 ## Confidence
 

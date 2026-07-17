@@ -163,6 +163,27 @@ def main():
     log(f"  nodes: {len(nodes):,}  edges: {len(edges):,}  (skipped {skipped}, "
         f"car-only bridge decks dropped: {fast_bridges})")
 
+    # Merge the PATH corridor in New Jersey (OpenStreetMap), if built. Those
+    # streets share this node space and weld at identical coordinates -- which
+    # never happens across the Hudson, correctly: you cannot walk from Hoboken
+    # to Manhattan. PATH links them in the transit graph instead.
+    nj_path = os.path.join(CACHE, "nj_edges.json")
+    if os.path.exists(nj_path):
+        nj = json.load(open(nj_path))
+        before = len(edges)
+        for la1, lo1, la2, lo2, w, bk in nj:
+            d = hav(la1, lo1, la2, lo2)
+            if d < 0.5:
+                continue
+            a, b = nid(lo1, la1), nid(lo2, la2)
+            if a == b:
+                continue
+            edges.append((a, b, d, w, bk))
+        log(f"  + New Jersey (PATH corridor, OSM): {len(edges)-before:,} segments, "
+            f"nodes now {len(nodes):,}")
+    else:
+        log("  (no nj_edges.json; run build_nj_streets.py for the PATH corridor)")
+
     # Drop stray-geometry islands, but KEEP every real landmass. Staten Island
     # is genuinely walk-disconnected from the rest of the city (the Verrazzano
     # has no pedestrian access), so "largest component only" would delete the

@@ -95,6 +95,11 @@ h1 em{font-style:normal;color:var(--hot)}
 .modes button:disabled{opacity:.32;cursor:not-allowed;text-decoration:line-through}
 .modes button:disabled:hover{color:var(--dim);border-color:var(--line)}
 .cmp-row.off{opacity:.35}
+#transit-note{display:none;font-size:.66rem;line-height:1.45;color:#5d667c;padding-top:2px}
+body[data-mode="transit"] #transit-note,
+body[data-mode="subway"] #transit-note{display:block}
+#transit-note a{color:var(--dim);text-decoration:underline}
+#transit-note a:hover{color:var(--hot)}
 #taxi-note{display:none;font-size:.68rem;line-height:1.45;color:var(--dim);padding-top:2px}
 body[data-mode="taxi"] #taxi-note{display:block}
 
@@ -298,6 +303,7 @@ body[data-mode="race"] #race-note{display:block}
       <button data-mode="transit" class="on">Subway + bus</button>
       <button data-mode="race" id="race-btn">Train vs cab: who wins?</button>
     </div>
+    <div id="transit-note">Includes the subway, buses, the Staten Island Railway, both ferry systems and PATH — so Hoboken, Jersey City and Newark are on the map. The commuter railroads are not: <a href="#" id="why-no-rail">why</a>.</div>
     <div id="taxi-note">Taxi/Uber pays a measured pickup wait (about 4 minutes) and drives at each borough's real measured speed — Manhattan at midday moves at about a third of its posted limits. Any one ride varies a lot.</div>
     <div id="traffic-block">
       <div class="label">Traffic</div>
@@ -390,6 +396,8 @@ body[data-mode="race"] #race-note{display:block}
       <tr><td>Bus times</td><td>MTA GTFS static feeds for all five boroughs plus MTA Bus Company</td></tr>
       <tr><td>Staten Island Ferry</td><td>NYC Department of Transportation GTFS, via NYC Open Data</td></tr>
       <tr><td>NYC Ferry</td><td>Operator GTFS (Astoria, East River, South Brooklyn, Rockaway, Soundview, Governors Island, St. George)</td></tr>
+      <tr><td>PATH</td><td>Port Authority Trans-Hudson GTFS</td></tr>
+      <tr><td>New Jersey streets</td><td>OpenStreetMap, PATH corridor only</td></tr>
       <tr><td>Streets</td><td>NYC Open Data <a href="https://data.cityofnewyork.us/resource/inkn-q76z" target="_blank" rel="noopener">Centerline (CSCL)</a>, including posted speeds and one-way directions</td></tr>
       <tr><td>Taxi calibration</td><td>TLC yellow-cab trip records (March 2026) + NYC taxi zones</td></tr>
     </table>
@@ -410,6 +418,15 @@ body[data-mode="race"] #race-note{display:block}
     <p>Traffic is a control, not a constant: Light, Typical and Heavy are the 25th-percentile, median and 75th-percentile real trip for that borough and hour. From Washington Square at the morning rush a cab reaches 7,207 km of street in light traffic and 2,105 in heavy — a 3.4-fold swing — while the train's reach does not move at all, because a schedule does not care about traffic.</p>
     <p>The "Train vs cab" view then answers the natural question directly: every street is colored by which door-to-door trip wins from your origin. The train's territory is the express spines; the cab's is the near field, the space between lines and everywhere the train cannot go in time. At 3am the train's territory nearly vanishes. In heavy morning traffic it inverts: the train wins 1,371 km against the cab's 626.</p>
     <p>Two honest caveats. Yellow-cab trips skew heavily toward Manhattan, so the factor mostly describes Manhattan streets; outer-borough driving is somewhat faster than this map shows. And one factor per time band compresses the difference between a jammed crosstown street and a flowing expressway, so highway-heavy trips — to the airports especially — read slower than reality. Both errors run the same way: the taxi map is conservative. And any single ride varies enormously; the interquartile range of the calibration is reported in the data files.</p>
+
+    <h3>PATH, and why not the commuter railroads</h3>
+    <p>PATH is here. The Long Island Rail Road, Metro-North and New Jersey Transit are not, and the line between them is not about state borders — it is about whether this map's wait model tells the truth about the service.</p>
+    <p>The map assumes you turn up without checking a timetable and wait, on average, half the gap between trains. That describes how people use frequent service and misdescribes how they use infrequent service: nobody strolls to a station hoping to catch a train that comes once an hour. So the test for any railroad is whether turn-up-and-go is what actually happens.</p>
+    <p>At the morning rush, <b>PATH's combined headway is 3.0 minutes</b> and the map's 20-minute wait cap binds at none of its stations. <b>The Long Island Rail Road's median is 60 minutes</b>, and the cap binds at 60% of its stops. PATH is a subway that happens to cross a river; the map describes it as accurately as it describes the L. The railroads are a different kind of thing, and modelling them this way would invent a 20-minute wait where a commuter with a watch waits three. Including them honestly means rebuilding the router to search real timetables rather than frequencies — worth doing, but a rewrite rather than a feed.</p>
+    <p>Fares point the same way. Inside the city nearly everything costs a flat $2.90 and PATH is $3.00, so ignoring fares is defensible. "Ronkonkoma in 45 minutes" is true and misleading at $18.</p>
+    <p>PATH adds seven routes and 13 stations, and with them the west bank of the Hudson: Newark, Harrison, Journal Square, Grove Street, Exchange Place, Newport and Hoboken. From Hoboken at the morning rush the World Trade Center is 21 minutes away, Times Square 26. Those stations needed streets to arrive on, so the walkable network for the PATH corridor comes from OpenStreetMap. Walking still cannot cross the Hudson — from Hoboken the walk network reaches zero nodes in Manhattan, which is correct — and PATH links the banks in the transit graph, exactly as the ferry links St George to Whitehall.</p>
+    <p><b>Taxi/Uber deliberately stops at the city line.</b> Its speeds come from 11.9 million measured taxi trips, and the Taxi and Limousine Commission regulates New York City vehicles only. There is no equivalent free record of what traffic does on the New Jersey Turnpike, and routing cars over New Jersey at posted speed limits would imply free-flowing highways on exactly the trip where congestion decides everything. The New Jersey streets here are for walking to a PATH station.</p>
+    <p><b>One caveat worth stating plainly:</b> the only PATH feed published is from June 2025 and its validity window has expired. Its schedule is stable and it is the only GTFS PATH offers, but it is the least current input in this map. Everything else is inside its validity window.</p>
 
     <h3>Ferries</h3>
     <p>Both systems are in, from three separate feeds, none of them the Metropolitan Transportation Authority's — which is why an earlier version of this map had no boats at all. NYC Ferry adds seven routes and 25 landings: Astoria, East River, South Brooklyn, Rockaway, Rockaway-Soundview, Governors Island and St. George. Its feed also contains the free Rockaway shuttle buses, so each route's type is read from the feed rather than assumed, and those 17 stops are counted as bus stops, not ferry landings.</p>
@@ -441,7 +458,8 @@ body[data-mode="race"] #race-note{display:block}
       <li><strong>Weekend and overnight service changes.</strong> Planned diversions are not in the static feed.</li>
       <li><strong>Taxi pickup time, tolls and turn delays.</strong> The clock starts when the wheels do, and left turns cost the same as right ones.</li>
       <li><strong>Bikes plus transit.</strong> Bike mode is bike only. Transit modes walk to the stop.</li>
-      <li><strong>PATH, Metro-North, Long Island Rail Road and New Jersey Transit.</strong> Not included. Both ferry systems and the Staten Island Railway are.</li>
+      <li><strong>Metro-North, the Long Island Rail Road and New Jersey Transit.</strong> Not included — see above for why. PATH, both ferry systems and the Staten Island Railway are.</li>
+      <li><strong>Driving outside New York City.</strong> The car graph ends at the city line, because the traffic measurements do.</li>
     </ul>
 
     <h3>Confidence</h3>
@@ -457,7 +475,7 @@ body[data-mode="race"] #race-note{display:block}
   <p>Loading the city</p>
 </div>
 
-<script>window.ASSET_V="45mc-6";</script>
-<script src="app.js?v=45mc-6"></script>
+<script>window.ASSET_V="45mc-8";</script>
+<script src="app.js?v=45mc-8"></script>
 </body>
 </html>
