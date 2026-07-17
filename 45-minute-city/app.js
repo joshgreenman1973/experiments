@@ -496,11 +496,10 @@ function updateStats(stats) {
   const km = computeKm(state.streetDist, state.mode);
   $("#stat-km").textContent = km.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-  const subway = state.reachedStops.filter((s) => state.stops[s[0]][3] === 0).length;
-  const bus = state.reachedStops.filter((s) => state.stops[s[0]][3] === 1).length;
-  $("#stat-subway").textContent = subway.toLocaleString();
-  $("#stat-bus").textContent = bus.toLocaleString();
-  $("#stat-time").textContent = stats.ms + " ms";
+  const kindCount = (k) => state.reachedStops.filter((s) => state.stops[s[0]][3] === k).length;
+  $("#stat-subway").textContent = kindCount(0).toLocaleString();
+  $("#stat-bus").textContent = kindCount(1).toLocaleString();
+  $("#stat-ferry").textContent = kindCount(2).toLocaleString();
 }
 
 function updateRaceStats() {

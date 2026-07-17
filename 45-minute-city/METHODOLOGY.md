@@ -33,6 +33,7 @@ applies no factor; the measurement is kept only as a reference in
 | Subway schedules | MTA GTFS static, `gtfs_subway.zip` |
 | Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
 | Staten Island Ferry | NYC DOT GTFS, NYC Open Data `b57i-ri22` (feed version 18, valid 2026-01-01 to 2028-01-17) |
+| NYC Ferry | Operator GTFS via Connexionz (feed version 20260707, valid to 2027-12-31) |
 | Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
 | Taxi calibration | TLC yellow-cab trip records, March 2026 (`yellow_tripdata_2026-03.parquet`) |
 | Taxi zones | NYC Open Data dataset `8meu-9t5y` (263 zones) |
@@ -272,6 +273,28 @@ only the largest, which would have deleted the borough. (An earlier draft of
 this build allowed walking to Staten Island over the Verrazzano; an adversarial
 review caught it.)
 
+## Ferries
+
+Three operators, three feeds, and none of them is the MTA — which is why an
+earlier build of this map had no boats at all.
+
+**NYC Ferry** contributes seven boat routes (Astoria, East River, South
+Brooklyn, Rockaway, Rockaway Rocket, Rockaway-Soundview, Governors Island and
+St. George) across 25 landings. Its feed also carries two `route_type=3`
+routes — the free Rockaway shuttle *buses* — so route kind is read from each
+route's GTFS `route_type` rather than assumed from the feed. Labelling by feed
+would have called 17 bus stops on Rockaway Beach Boulevard "ferry landings".
+
+Validation against real service: the East River route runs Wall St to Dumbo in
+8 minutes and Dumbo to South Williamsburg in 10, on 12-to-26-minute headways at
+the morning peak; Astoria runs every 36 to 45. Those are the real timetables.
+The outer routes' long headways matter: from Red Hook, the ferry reaches Wall
+Street in 41 minutes, most of which is the wait for a boat every 45.
+
+**The Staten Island Railway** was already present — it arrives inside the MTA
+subway feed as route `SIR`, all 21 stations from Tottenville to St George, and
+is counted as rail alongside the subway.
+
 ## The Staten Island Ferry
 
 The ferry is included, and it matters more than any other single line in the
@@ -362,9 +385,10 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 - **Planned service changes.** Weekend and overnight diversions are not in the
   static feed.
 - **Bikes plus transit.** Bike mode is bike only; transit modes walk to the stop.
-- **NYC Ferry, PATH, Metro-North, Long Island Rail Road, New Jersey Transit.**
-  Not included. (The Staten Island Ferry IS included — see below.) New Jersey
-  has no street data here either, which is why the map stops at the Hudson.
+- **PATH, Metro-North, Long Island Rail Road, New Jersey Transit.** Not
+  included. (Both ferry systems and the Staten Island Railway are — see above.)
+  New Jersey has no street data here either, which is why the map stops at the
+  Hudson.
 
 ## Confidence
 

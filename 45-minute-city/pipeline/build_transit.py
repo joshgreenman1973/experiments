@@ -43,10 +43,25 @@ FEEDS = {
     # the only transit link between Staten Island and Manhattan, so leaving it
     # out silently strands the borough.
     "siferry": "https://data.cityofnewyork.us/download/b57i-ri22/application%2Fzip",
+    # NYC Ferry (Astoria, East River, South Brooklyn, Rockaway, Soundview,
+    # Governors Island, St. George). A different operator again, published
+    # through its own vendor feed.
+    "nycferry": "https://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx",
 }
 
-# stop/route kind: 0 subway, 1 bus, 2 ferry
-FEED_KIND = {"subway": 0, "siferry": 2}
+# stop/route kind: 0 rail (subway + Staten Island Railway), 1 bus, 2 ferry.
+# Derived from GTFS route_type, not from the feed: NYC Ferry's own feed carries
+# two route_type=3 shuttle BUS routes (the free Rockaway shuttles) alongside
+# its boats, so a per-feed label would call those buses ferries.
+FEED_KIND = {"subway": 0, "siferry": 2, "nycferry": 2}
+ROUTE_TYPE_KIND = {
+    "0": 1,   # tram/streetcar -> treat as surface
+    "1": 0,   # subway
+    "2": 0,   # rail (Staten Island Railway)
+    "3": 1,   # bus
+    "4": 2,   # ferry
+    "5": 1, "6": 1, "7": 1,
+}
 
 # (name, start_sec, end_sec, day_kind). Times are GTFS seconds since noon-12h.
 BANDS = [
@@ -209,12 +224,15 @@ def process_feed(name, path, kind, acc):
         target = (s.get("parent_station") or sid) if is_subway else sid
         canon[sid] = f"{name}:{target}"
 
-    # routes
+    # routes — kind from route_type where the feed declares one
     routes = {}
+    route_kind = {}
     for r in read_csv(zf, "routes.txt"):
         key = f"{name}:{r['route_id']}"
         short = (r.get("route_short_name") or r.get("route_long_name") or r["route_id"]).strip()
-        routes[key] = (short, kind, (r.get("route_color") or "").strip())
+        rk = ROUTE_TYPE_KIND.get((r.get("route_type") or "").strip(), kind)
+        route_kind[key] = rk
+        routes[key] = (short, rk, (r.get("route_color") or "").strip())
     acc["routes"].update(routes)
 
     # trips
@@ -226,6 +244,12 @@ def process_feed(name, path, kind, acc):
         trip_service[t["trip_id"]] = t["service_id"]
         d = (t.get("direction_id") or "0").strip()
         trip_dir[t["trip_id"]] = 1 if d == "1" else 0
+
+    # A stop's kind follows the routes serving it, so a Rockaway shuttle-bus
+    # stop in the ferry feed is labelled a bus stop. Rail wins over bus wins
+    # over ferry when a stop serves several.
+    for tid, rkey in trip_route.items():
+        pass  # stop kinds are filled in while reading stop_times below
 
     # stop_times, grouped by trip
     log("   reading stop_times ...")
@@ -248,6 +272,9 @@ def process_feed(name, path, kind, acc):
         sid = canon.get(st["stop_id"])
         if not sid:
             continue
+        rk = route_kind.get(trip_route[tid], kind)
+        prev = acc["stop_kind"].get(sid)
+        acc["stop_kind"][sid] = rk if prev is None else min(prev, rk)
         by_trip[tid].append((seq, sid, arr, dep))
         n += 1
     log(f"   stop_times rows: {n:,} across {len(by_trip):,} trips")
@@ -302,6 +329,7 @@ def main():
     acc = {
         "stops": {},
         "routes": {},
+        "stop_kind": {},
         "ride": {b[0]: defaultdict(list) for b in BANDS},
         "dep": {b[0]: defaultdict(int) for b in BANDS},
     }
@@ -328,7 +356,8 @@ def main():
         "stops": [
             [stop_keys[i], acc["stops"][stop_keys[i]][0],
              round(acc["stops"][stop_keys[i]][1], 6), round(acc["stops"][stop_keys[i]][2], 6),
-             FEED_KIND.get(stop_keys[i].split(":", 1)[0], 1)]
+             acc["stop_kind"].get(stop_keys[i],
+                                  FEED_KIND.get(stop_keys[i].split(":", 1)[0], 1))]
             for i in range(len(stop_keys))
         ],
         "routes": [[acc["routes"][k][0], acc["routes"][k][1], acc["routes"][k][2]] for k in route_keys],
