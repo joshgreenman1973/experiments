@@ -224,7 +224,7 @@ function route(opts) {
   // minus step streets (stairs), which is the wheelchair-usable network.
   const mask = useBike || accessible ? BIKE_BIT : WALK_BIT;
   const speed = useBike ? bikeSpeed : walkSpeed; // m/s
-  const useTransit = mode === "subway" || mode === "bus" || mode === "transit";
+  const useTransit = mode === "subway" || mode === "bus" || mode === "ferry" || mode === "transit";
 
   let band = null, nStates = 0;
   if (useTransit) { band = buildBand(bandId); nStates = band.nStates; }
@@ -267,6 +267,7 @@ function route(opts) {
               const kind = routeKind[band.stateRoute[st]];
               if (mode === "subway" && kind !== 0) continue;
               if (mode === "bus" && kind !== 1) continue;
+              if (mode === "ferry" && kind !== 2) continue;
               const h = band.hw.get(s * 200000 + band.stateRoute[st] * 2 + band.stateDir[st]);
               if (h === undefined) continue;
               const wait = Math.min(h / 2, maxWait);

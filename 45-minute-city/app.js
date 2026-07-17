@@ -398,8 +398,8 @@ function setOrigin(lat, lng) {
 }
 
 const pending = new Map();
-const MODES = ["walk", "bike", "taxi", "subway", "bus", "transit"];
-const MODE_LABEL = { walk: "Walk", bike: "Bike", taxi: "Taxi/Uber", subway: "Subway", bus: "Bus", transit: "Subway + bus" };
+const MODES = ["walk", "bike", "taxi", "subway", "bus", "ferry", "transit"];
+const MODE_LABEL = { walk: "Walk", bike: "Bike", taxi: "Taxi/Uber", subway: "Subway", bus: "Bus", ferry: "Ferry", transit: "All transit" };
 let compare = {};
 
 function opts(mode) {
