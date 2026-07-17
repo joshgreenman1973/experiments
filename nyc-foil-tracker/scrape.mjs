@@ -13,6 +13,13 @@ const BATCH_SIZE = 50;
 const LIST_PAGES = (BACKFILL || BACKFILL_FULL) ? 999 : 4;
 const DETAIL_CONCURRENCY = 5; // parallel detail page fetches
 const DETAIL_LIMIT = (BACKFILL || BACKFILL_FULL) ? 500 : 30;
+// Wall-clock ceiling for the (slow, sequential) detail-page scrape. When NYC
+// OpenRecords' Akamai edge is slow in CI, each detail page can take ~30s, so an
+// unbounded 500-page pass ran for 4.5h and the job never committed. Stop cleanly
+// after this many ms and write whatever progress we have. Override via env.
+const DETAIL_TIME_BUDGET_MS =
+  parseInt(process.env.DETAIL_TIME_BUDGET_MS || "0", 10) ||
+  ((BACKFILL || BACKFILL_FULL) ? 25 * 60 * 1000 : 8 * 60 * 1000);
 const DATE_FROM = (BACKFILL || BACKFILL_FULL) ? "01/01/2026" : "";
 
 // NYC Open Data / Socrata: "OpenRecords FOIL Requests" dataset.
@@ -634,7 +641,14 @@ async function main() {
 
     // Process sequentially to avoid overwhelming the server
     let detailFailures = 0;
+    const detailStart = Date.now();
     for (let i = 0; i < needsDetail.length; i++) {
+      if (Date.now() - detailStart > DETAIL_TIME_BUDGET_MS) {
+        console.log(
+          `\n  Detail time budget (${Math.round(DETAIL_TIME_BUDGET_MS / 60000)}m) reached at ${i}/${needsDetail.length}; stopping and saving progress.`
+        );
+        break;
+      }
       const req = needsDetail[i];
       const detail = await scrapeDetail(detailPage, req.foilId);
 
