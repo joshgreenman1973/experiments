@@ -71,6 +71,28 @@ deliberately.
 
 Run `pipeline/validate.py` to reproduce this table.
 
+## Express buses
+
+New York's 223 express routes (the SIM, BM, BxM, QM and X families) are
+included, and they matter: they are the fast, one-seat, limited-stop rides that
+carry Staten Island and the deep outer boroughs to Manhattan over the highways.
+They are treated as buses, which is what they are, and their times and waits
+come from the schedule like any other route.
+
+Two honest points about them:
+
+- **They run mostly at the peak.** The schedule bears this out — about 2,500
+  express ride segments in the weekday morning band against 1,180 overnight — so
+  a midday or late-night isochrone correctly includes far less express service
+  than a rush-hour one. A route that does not run in a band contributes nothing
+  to it.
+- **They cost more than double.** The express-bus fare is $7.25, against $3.00
+  for a local bus or the subway. This map does not model fares, so express and
+  local reach look identical on the map even though one costs the price of a
+  sandwich more. The gap is worth knowing: a Staten Island rush-hour "bus"
+  isochrone leans heavily on $7.25 express service. It is real service that real
+  commuters use daily — but it is not the $3.00 trip the color implies.
+
 ## Waiting
 
 For each stop, route and direction, we count scheduled departures inside a band
@@ -381,10 +403,11 @@ Three smaller reasons point the same way:
   Harrison, Jersey City and Hoboken). The LIRR and Metro-North catchments are
   the whole metropolitan area, which is a different data source, roughly five
   times the graph, and an architecture that no longer fits in a browser.
-- **Fares.** Inside the city almost everything is a flat $2.90, so ignoring
-  fares is defensible. PATH is $3.00 — near enough that the map is not lying
-  by omission. A commuter rail isochrone that says "Ronkonkoma in 45 minutes"
-  is true and misleading at $18.
+- **Fares.** Inside the city the local subway and bus fare is a flat $3.00, so
+  ignoring fares is mostly defensible. PATH is close to it. A commuter rail
+  isochrone that says "Ronkonkoma in 45 minutes" is true and misleading at $18.
+  (Express buses, included here, are the one in-network exception at $7.25 —
+  see below.)
 - **Park and ride.** The real suburban trip is drive, park, then train. This
   router does not chain a car to a train, and the commuter railroads are
   mostly used that way.
@@ -400,6 +423,15 @@ Walking still cannot cross the Hudson — from Hoboken the walk network reaches
 about 16,000 nodes in New Jersey and exactly zero in Manhattan, which is
 correct. PATH connects the two banks in the transit graph, not the pedestrian
 one, exactly as the Staten Island Ferry connects St George to Whitehall.
+
+PATH does not run the same service at all hours, and the map reflects it, because
+headways are computed per line, per station, per time band from actual
+departures. A line with no departures in a band is not boardable in that band.
+The combined PATH headway at 33rd Street runs 3 minutes at the weekday peak, 6
+midday, and 30 overnight; the set of lines that run changes too — four at the
+weekday peak, a different four overnight (a peak line all but vanishes and an
+overnight-only combined route appears), three on Sundays. None of that is hand-
+entered; it falls out of counting the schedule band by band.
 
 **The taxi mode deliberately stays inside New York City.** Its credibility
 rests on 11.9 million measured TLC trips, and the TLC regulates New York City
