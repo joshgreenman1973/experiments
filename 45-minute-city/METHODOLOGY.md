@@ -152,6 +152,42 @@ factor from yellow-cab trips (midday 2.75); the two sources agree closely
 where they overlap, which is a good sign since they are different vehicle
 fleets measured different ways.
 
+### Light, typical and heavy traffic
+
+The map exposes three traffic levels, and all three are measured rather than
+invented. For each borough and time band, the calibration keeps the 25th
+percentile trip, the median and the 75th:
+
+- **Light** — the 25th-percentile trip. A quarter of real trips run at least
+  this well.
+- **Typical** — the median trip.
+- **Heavy** — the 75th-percentile trip. A quarter run at least this badly.
+
+At weekday midday in Manhattan those are alphas of 2.25, 2.85 and 3.58: a
+25 mph street running at 11.1, 8.8 or 7.0 mph. The spread is not noise; it is
+what a New Yorker means by "depends on traffic."
+
+Its effect on the map is large. From Washington Square at the morning rush,
+a cab's 45-minute reach runs 7,207 km in light traffic, 3,702 typical and
+2,105 heavy — a 3.4x swing. The train's reach does not move at all, because a
+train's schedule does not care about traffic. That asymmetry is the point:
+
+| Traffic | Train wins | Cab is faster | Only a cab reaches | Tie |
+|---|---|---|---|---|
+| Light | 56 km | 2,376 | 4,692 | 191 |
+| Typical | 506 km | 1,604 | 1,325 | 512 |
+| Heavy | **1,371 km** | 626 | 312 | 625 |
+
+In heavy traffic the train wins more than twice the territory the cab does.
+In light traffic it wins almost nothing. The honest answer to "which is
+faster" is that it depends on a variable the rider cannot see when they decide
+— which is the case for taking the train.
+
+The traffic level scales driving speed only. The pickup wait stays at its
+measured median, because the data does not establish how strongly wait and
+congestion move together, and inventing that correlation would undo the point
+of measuring.
+
 ### The pickup wait
 
 The taxi clock starts at the REQUEST, matching transit, which pays its
@@ -172,8 +208,9 @@ real cab ranges for weekday midday.
 - **Zone centroids.** Trips are routed centroid to centroid rather than
   door to door; the median over tens of thousands of trips absorbs this noise.
 
-Any single ride also varies enormously — intra-Manhattan midday spans roughly
-2.2 to 3.6 between the 25th and 75th percentile trip.
+Any single ride varies enormously — intra-Manhattan midday spans 2.25 to 3.58
+between the 25th and 75th percentile trip. That spread is exposed as the
+Light/Typical/Heavy control rather than hidden inside a median.
 
 Not modeled: tolls and turn penalties. (The pickup wait now is.)
 

@@ -14,6 +14,7 @@ const state = {
   bikeSpeed: 4.0,
   maxWait: 20 * 60,
   accessible: false,
+  traffic: "typical",
   streetDist: null,
   race: null,
   reachedStops: [],
@@ -326,6 +327,7 @@ function initWorker() {
       CG.py = new Float32Array(CG.lat.length);
       CG.seen = new Int32Array(CG.lat.length);
       state.carCalibration = m.carCalibration;
+      state.carCalibration2 = m.carCalibration2;
       state.access = m.access;
       state.carLink = new Uint32Array(m.carLink);
       state.ready = true;
@@ -337,6 +339,7 @@ function initWorker() {
         `${m.nNodes.toLocaleString()} street nodes · ${m.nEdges.toLocaleString()} segments · ` +
         `${m.nStops.toLocaleString()} stops · ${m.nRoutes.toLocaleString()} routes`;
       buildBandOptions();
+      updateTrafficNote();
       reachLayer.draw();
       setOrigin(40.7295, -73.9965); // Washington Square-ish default
     }
@@ -410,6 +413,7 @@ function opts(mode) {
     bandId: state.band,
     maxWait: state.maxWait,
     accessible: state.accessible,
+    traffic: state.traffic,
   };
 }
 
@@ -528,6 +532,24 @@ function updateRaceStats() {
   $("#race-tie").textContent = Math.round(tieKm).toLocaleString();
 }
 
+// Say plainly what the chosen traffic level means on the ground right now.
+function updateTrafficNote() {
+  const el = $("#traffic-note");
+  if (!el || !state.carCalibration2) return;
+  const entry = (state.carCalibration2.bands || {})[state.band];
+  if (!entry) { el.textContent = ""; return; }
+  const key = state.traffic === "light" ? "p25" : state.traffic === "heavy" ? "p75" : "alpha";
+  const mn = (entry.by_borough || {}).Manhattan;
+  const qn = (entry.by_borough || {}).Queens;
+  if (!mn || !qn) { el.textContent = ""; return; }
+  const mph = (a) => (25 / a).toFixed(1);
+  const label = state.traffic === "light" ? "A quarter of trips run at least this well"
+    : state.traffic === "heavy" ? "A quarter of trips run at least this badly"
+    : "The median trip";
+  el.innerHTML = `${label}: a 25 mph street runs at <b>${mph(mn[key])} mph in Manhattan</b>, ` +
+    `${mph(qn[key])} in Queens.`;
+}
+
 /* ---------- controls ---------- */
 function buildBandOptions() {
   const sel = $("#band");
@@ -551,6 +573,17 @@ function buildBandOptions() {
 }
 
 function wireControls() {
+  document.querySelectorAll("[data-traffic]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-traffic]").forEach((b) => b.classList.remove("on"));
+      btn.classList.add("on");
+      state.traffic = btn.dataset.traffic;
+      updateTrafficNote();
+      state.streetDist = null;
+      runRoute();
+    });
+  });
+
   $("#access-toggle").addEventListener("click", () => {
     state.accessible = !state.accessible;
     $("#access-toggle").classList.toggle("on", state.accessible);
@@ -594,7 +627,7 @@ function wireControls() {
   });
   budget.addEventListener("change", runRoute);
 
-  $("#band").addEventListener("change", (e) => { state.band = e.target.value; runRoute(); });
+  $("#band").addEventListener("change", (e) => { state.band = e.target.value; updateTrafficNote(); runRoute(); });
 
   const ws = $("#walk-speed");
   ws.addEventListener("input", () => {

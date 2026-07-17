@@ -174,9 +174,9 @@ function buildBand(bandId) {
 // real TLC yellow-cab trips vs the same journey routed at posted speeds).
 function routeTaxi(opts) {
   const t0 = performance.now();
-  const { originCarNode, budget, bandId, accessible } = opts;
+  const { originCarNode, budget, bandId, accessible, traffic } = opts;
   const fallbackAlpha = CAR.alpha[bandId] || 2.5;
-  const alphaCls = CAR.alphaByClass[bandId];
+  const alphaCls = (CAR.alphaByClass[bandId] || {})[traffic || "typical"];
   const zc = CAR.zoneClass;
   const nC = CAR.n;
   const dist = new Float64Array(nC).fill(Infinity);
@@ -444,14 +444,20 @@ self.onmessage = async (e) => {
     // the edge's from-node borough class. Citywide is the fallback.
     const zoneClass = new Uint8Array(carZonesBuf);
     const BOROUGHS = carCal2.boroughs || [];
+    // Three traffic levels, all measured: light is the 25th-percentile trip for
+    // that borough and hour, typical the median, heavy the 75th. Nothing here
+    // is a guess about "bad traffic" — each is a real quartile of real trips.
     const alphaByClass = {};
     for (const [band, entry] of Object.entries(carCal2.bands || {})) {
-      const arr = new Float32Array(Math.max(1, BOROUGHS.length));
-      for (let i = 0; i < BOROUGHS.length; i++) {
-        const bb = (entry.by_borough || {})[BOROUGHS[i]];
-        arr[i] = bb ? bb.alpha : entry.citywide.alpha;
-      }
-      alphaByClass[band] = arr;
+      const mk = (key) => {
+        const arr = new Float32Array(Math.max(1, BOROUGHS.length));
+        for (let i = 0; i < BOROUGHS.length; i++) {
+          const bb = (entry.by_borough || {})[BOROUGHS[i]];
+          arr[i] = bb ? bb[key] : entry.citywide.alpha;
+        }
+        return arr;
+      };
+      alphaByClass[band] = { light: mk("p25"), typical: mk("alpha"), heavy: mk("p75") };
     }
     CAR = {
       n: nC, lat: cLat, lon: cLon, grid: cGrid,
@@ -470,6 +476,7 @@ self.onmessage = async (e) => {
       meta: core.meta,
       bands: core.bands,
       carCalibration: carCal,
+      carCalibration2: carCal2,
       access,
       lat: lat.buffer, lon: lon.buffer,
       ea: ea.buffer, eb: eb.buffer, ef: ef.buffer,
