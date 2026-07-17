@@ -423,11 +423,21 @@ If PATH changes its timetable, this map will not know.
 The "I require accessible transit" toggle answers the same question for a rider
 who cannot use stairs.
 
-- **Subway**: boarding and alighting are limited to the MTA's listed accessible
-  stations — 162 fully accessible and 9 accessible in one direction, of 496.
-  Trains still ride through everything else. The 9 partial stations are treated
-  as accessible in both directions, a small optimism noted here because GTFS
-  direction ids do not map cleanly onto the MTA's north/south flags.
+- **Subway and rail**: boarding and alighting are limited to listed accessible
+  stations — 162 fully accessible MTA stations and 9 accessible in one
+  direction, of 496. Trains still ride through everything else. The 9 partial
+  stations are treated as accessible in both directions, a small optimism noted
+  here because GTFS direction ids do not map cleanly onto the MTA's north/south
+  flags.
+- **PATH**: nine of its thirteen stations are elevator-accessible — Newark,
+  Harrison, Journal Square, Grove Street, Exchange Place, Newport, Hoboken, 33rd
+  Street and World Trade Center, taken verbatim from
+  [PANYNJ](https://www.panynj.gov/path/en/accessibility.html). The four Sixth
+  Avenue stations in Manhattan (Christopher, 9th, 14th, 23rd) are not. PATH is a
+  Port Authority system, absent from the MTA station file, so an earlier build
+  silently marked every PATH station inaccessible and cut New Jersey off for
+  accessible-transit riders. Jersey City, Newark and Hoboken are now reachable
+  in accessibility mode.
 - **Bus**: unchanged. The entire fleet has ramps or lifts.
 - **Walking**: routed on the street network minus step streets — the
   stairs-free network.

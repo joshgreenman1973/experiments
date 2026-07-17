@@ -60,6 +60,27 @@ def fetch(url, name):
     return path
 
 
+# PATH is a Port Authority system, so its stations are absent from the MTA's
+# station file — which silently made every PATH station "not accessible" and
+# stranded New Jersey for accessible-transit riders. These nine are PATH's
+# elevator-accessible stations, verbatim from
+# https://www.panynj.gov/path/en/accessibility.html ("Newark, Harrison, Journal
+# Square, Grove Street, Exchange Place, Newport, Hoboken, 33 Street, and World
+# Trade Center"). The four Sixth Avenue stations in Manhattan (Christopher, 9th,
+# 14th, 23rd) have no elevator. Keyed by the PATH GTFS stop_id used in the graph.
+PATH_ACCESSIBLE = {
+    "26733": "Newark",
+    "26729": "Harrison",
+    "26731": "Journal Square",
+    "26728": "Grove Street",
+    "26727": "Exchange Place",
+    "26732": "Newport",
+    "26730": "Hoboken",
+    "26724": "33rd Street",
+    "26734": "World Trade Center",
+}
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
 
@@ -127,9 +148,13 @@ def main():
         }
         log(f"  {name:20s} {np.median(w)/60:7.1f} {len(w):9,} {np.median(s)/60:8.1f} {len(s):11,}")
 
+    stations = {gid: flag for gid, flag in ada.items() if flag > 0}
+    for gid in PATH_ACCESSIBLE:
+        stations[gid] = 1  # PATH elevator-accessible, per PANYNJ
     result = {
         "month": MONTH,
-        "stations": {gid: flag for gid, flag in ada.items() if flag > 0},
+        "stations": stations,
+        "path_accessible": PATH_ACCESSIBLE,
         "counts": {"fully_accessible": n_full, "partially_accessible": n_part, "total": len(ada)},
         "wav": out_bands,
         "note": (
