@@ -39,7 +39,14 @@ FEEDS = {
     "bus_q": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_q.zip",
     "bus_si": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_si.zip",
     "bus_co": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_busco.zip",
+    # Staten Island Ferry, published by NYC DOT (not the MTA). Free, 24/7, and
+    # the only transit link between Staten Island and Manhattan, so leaving it
+    # out silently strands the borough.
+    "siferry": "https://data.cityofnewyork.us/download/b57i-ri22/application%2Fzip",
 }
+
+# stop/route kind: 0 subway, 1 bus, 2 ferry
+FEED_KIND = {"subway": 0, "siferry": 2}
 
 # (name, start_sec, end_sec, day_kind). Times are GTFS seconds since noon-12h.
 BANDS = [
@@ -303,8 +310,7 @@ def main():
     paths = {n: fetch(n, u) for n, u in FEEDS.items()}
 
     for name, path in paths.items():
-        kind = 0 if name == "subway" else 1
-        process_feed(name, path, kind, acc)
+        process_feed(name, path, FEED_KIND.get(name, 1), acc)
 
     # ---- index and emit
     stop_keys = sorted(acc["stops"])
@@ -322,7 +328,7 @@ def main():
         "stops": [
             [stop_keys[i], acc["stops"][stop_keys[i]][0],
              round(acc["stops"][stop_keys[i]][1], 6), round(acc["stops"][stop_keys[i]][2], 6),
-             0 if stop_keys[i].startswith("subway:") else 1]
+             FEED_KIND.get(stop_keys[i].split(":", 1)[0], 1)]
             for i in range(len(stop_keys))
         ],
         "routes": [[acc["routes"][k][0], acc["routes"][k][1], acc["routes"][k][2]] for k in route_keys],
@@ -351,6 +357,7 @@ def main():
         "routes": len(out["routes"]),
         "subway_stops": sum(1 for s in out["stops"] if s[4] == 0),
         "bus_stops": sum(1 for s in out["stops"] if s[4] == 1),
+        "ferry_stops": sum(1 for s in out["stops"] if s[4] == 2),
     }
 
     path = os.path.join(OUT, "transit.json")

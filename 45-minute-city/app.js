@@ -497,7 +497,7 @@ function updateStats(stats) {
   $("#stat-km").textContent = km.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
   const subway = state.reachedStops.filter((s) => state.stops[s[0]][3] === 0).length;
-  const bus = state.reachedStops.length - subway;
+  const bus = state.reachedStops.filter((s) => state.stops[s[0]][3] === 1).length;
   $("#stat-subway").textContent = subway.toLocaleString();
   $("#stat-bus").textContent = bus.toLocaleString();
   $("#stat-time").textContent = stats.ms + " ms";

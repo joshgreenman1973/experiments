@@ -32,6 +32,7 @@ applies no factor; the measurement is kept only as a reference in
 |---|---|
 | Subway schedules | MTA GTFS static, `gtfs_subway.zip` |
 | Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
+| Staten Island Ferry | NYC DOT GTFS, NYC Open Data `b57i-ri22` (feed version 18, valid 2026-01-01 to 2028-01-17) |
 | Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
 | Taxi calibration | TLC yellow-cab trip records, March 2026 (`yellow_tripdata_2026-03.parquet`) |
 | Taxi zones | NYC Open Data dataset `8meu-9t5y` (263 zones) |
@@ -271,6 +272,44 @@ only the largest, which would have deleted the borough. (An earlier draft of
 this build allowed walking to Staten Island over the Verrazzano; an adversarial
 review caught it.)
 
+## The Staten Island Ferry
+
+The ferry is included, and it matters more than any other single line in the
+system. It is published by NYC DOT rather than the MTA, which is why it lives
+in a separate feed and why it is easy to miss: an earlier build of this map
+excluded it, and the consequence was severe.
+
+From the St George terminal on a weekday morning with a 60-minute budget:
+
+| | Manhattan street reached | Manhattan subway stations reached |
+|---|---|---|
+| Without the ferry | ~0 | **none** |
+| With the ferry | substantial | South Ferry, Bowling Green, Wall St, Chambers St, 14 St-Union Sq, Times Sq |
+
+Staten Island has 29 SIM express bus routes to Manhattan over the Verrazzano,
+so the borough was not literally unconnected — but on the schedules, none of
+them delivers a rider from St George to a Manhattan subway station inside an
+hour. Without the ferry the map effectively cut a borough of half a million
+people off from the rest of the city. That is the kind of error that looks
+like a modelling detail and reads as an editorial claim.
+
+### Validation
+
+The feed gives a 25-minute crossing, which is the real crossing. Headways per
+direction come out at 18 minutes in both rush bands, 27 to 30 minutes midday
+and evening, and 30 minutes overnight and at weekends — matching the published
+timetable. A trip from St George works out as: walk to the terminal, wait 9
+minutes (half of the 18-minute headway), cross for 25, reach Whitehall at 34
+minutes, South Ferry station at 39, Times Square at 60. That is a real trip.
+
+Both terminals are fully accessible, so the ferry stays available in
+accessibility mode. The ferry is also free, which this map does not model
+because it does not model fares at all.
+
+Note that the walk graph still treats Staten Island as a separate component —
+correctly, since you cannot walk the Verrazzano. The ferry connects the
+boroughs in the transit graph, not the pedestrian one.
+
 ## Accessibility mode
 
 The "I require accessible transit" toggle answers the same question for a rider
@@ -323,9 +362,9 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 - **Planned service changes.** Weekend and overnight diversions are not in the
   static feed.
 - **Bikes plus transit.** Bike mode is bike only; transit modes walk to the stop.
-- **Ferries, PATH, Metro-North, Long Island Rail Road, New Jersey Transit.** Not
-  included. New Jersey has no street data here either, which is why the map stops
-  at the Hudson.
+- **NYC Ferry, PATH, Metro-North, Long Island Rail Road, New Jersey Transit.**
+  Not included. (The Staten Island Ferry IS included — see below.) New Jersey
+  has no street data here either, which is why the map stops at the Hudson.
 
 ## Confidence
 

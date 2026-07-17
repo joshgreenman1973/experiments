@@ -376,10 +376,13 @@ self.onmessage = async (e) => {
     // accessible; subway stops are accessible only if the MTA lists their
     // station (1 = fully, 2 = one direction — treated as accessible, caveat
     // documented in the methodology).
+    // Buses are 100% ramp-equipped and both Staten Island Ferry terminals are
+    // fully accessible, so kinds 1 and 2 are accessible outright; subway stops
+    // need the MTA's station flag.
     const stopAda = new Uint8Array(core.stops.length);
     for (let i = 0; i < core.stops.length; i++) {
       const s = core.stops[i];
-      stopAda[i] = s[3] === 1 ? 1 : (access.stations[s[5]] ? 1 : 0);
+      stopAda[i] = s[3] !== 0 ? 1 : (access.stations[s[5]] ? 1 : 0);
     }
     C = {
       core, bandIndex, bandsBuf,
