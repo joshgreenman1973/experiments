@@ -441,6 +441,20 @@ who cannot use stairs.
   before, so it cannot appear in a map of where you can go from here, now. Its
   absence from a turn-up-and-go picture is itself a finding.
 
+### Elevators that work only on paper
+
+The accessible-station list is which stations *have* an elevator or ramp, not
+which are working right now. A station whose single elevator is out of service
+is, that day, not accessible — you can reach the mezzanine and no further. This
+map cannot see that: it treats every listed station as accessible all the time,
+so the accessible reach it shows is a best case, every elevator working at once.
+
+The MTA publishes real-time [elevator and escalator
+status](https://www.mta.info/elevator-escalator-status), and outages are common
+enough that the gap is not academic. A live version of this map would subtract
+out-of-service stations from the accessible set on each visit; this one does
+not, and a rider planning a real trip should check that page.
+
 ## Station counts
 
 The map counts 496 subway stations where the commonly cited figure is 472. Both
