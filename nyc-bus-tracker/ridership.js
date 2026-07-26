@@ -8,8 +8,8 @@
 const TILE_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const DATA_URL = 'data/ridership/stops.json';
 
-// ember ramp (sequential, one hue) — matches ridership.css
-const RAMP = ['#2b0f06', '#6b2409', '#b34a14', '#f07a2e', '#ffab5e', '#ffd9ae'];
+// rose ramp (sequential, one hue) — matches ridership.css
+const RAMP = ['#2c0715', '#661132', '#a91d55', '#e7466d', '#ff7fa0', '#ffc9d8'];
 
 let map;
 let raw = null;              // parsed stops.json
@@ -223,8 +223,8 @@ function drawCurve() {
   svg.innerHTML = `
     <defs>
       <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="rgba(240,122,46,0.55)"/>
-        <stop offset="1" stop-color="rgba(240,122,46,0.03)"/>
+        <stop offset="0" stop-color="rgba(231,70,109,0.55)"/>
+        <stop offset="1" stop-color="rgba(231,70,109,0.03)"/>
       </linearGradient>
     </defs>
     <path class="area" d="${area}"/>
@@ -286,7 +286,7 @@ function stopChartSvg(s) {
     const cur = h === hour;
     bars += `<rect x="${(h * bw + 0.75).toFixed(1)}" y="${(H - bh).toFixed(1)}"
       width="${(bw - 1.5).toFixed(1)}" height="${bh.toFixed(1)}" rx="1.2"
-      fill="${cur ? '#ffab5e' : 'rgba(255,255,255,0.16)'}">
+      fill="${cur ? '#ff7fa0' : 'rgba(255,255,255,0.16)'}">
       <title>${hourLabel(h).text} ${hourLabel(h).ap}: ${fmt(arr[h])} board</title></rect>`;
   }
   const lab = (h, t) => `<text class="axis" x="${(h + 0.5) * bw}" y="${H + 9}" text-anchor="middle">${t}</text>`;
