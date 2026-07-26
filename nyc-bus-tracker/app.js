@@ -62,6 +62,7 @@ function cacheDomElements() {
     'tray', 'tray-handle', 'tray-body', 'tray-summary', 'tray-hint',
     'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
     'tray-coverage-stats', 'tray-boro-trends', 'tray-boro-empty',
+    'tray-ridership', 'tray-ridership-empty',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -1346,21 +1347,25 @@ function hideLoading() {
 async function loadTrends() {
   // Fetch both the rolled-up summary (latest.json) and the full weekly series
   // (weekly.json). We show whatever is available; missing files are tolerated.
-  const [latestRes, weeklyRes, routesRes] = await Promise.all([
+  const [latestRes, weeklyRes, routesRes, ridershipRes] = await Promise.all([
     fetch('data/summary/latest.json').catch(() => null),
     fetch('data/summary/weekly.json').catch(() => null),
     fetch('data/summary/weekly-routes.json').catch(() => null),
+    fetch('data/ridership/routes-monthly.json').catch(() => null),
   ]);
 
   let latest = null;
   let weekly = [];
   let weeklyRoutes = {};
+  let ridership = null;
   if (latestRes?.ok) { try { latest = await latestRes.json(); } catch {} }
   if (weeklyRes?.ok) { try { weekly = await weeklyRes.json(); } catch {} }
   if (routesRes?.ok) { try { weeklyRoutes = await routesRes.json(); } catch {} }
+  if (ridershipRes?.ok) { try { ridership = await ridershipRes.json(); } catch {} }
 
   renderTrends(latest, weekly);
   renderBoroughTrends(latest, weeklyRoutes);
+  renderRidershipTrends(ridership);
 }
 
 // Curated watch list: the two busiest routes in each borough (by average buses
@@ -1434,6 +1439,93 @@ function renderBoroughTrends(latest, weeklyRoutes) {
   // Remove any prior render, then insert fresh blocks (keep empty note in DOM).
   host.querySelectorAll('.boro-trend').forEach(n => n.remove());
   host.insertAdjacentHTML('beforeend', blocks.join(''));
+}
+
+/** "27,848" under 100k, "114k" under 1M, "1.38M" above. Riders, not mph. */
+function fmtRiders(n) {
+  if (n == null) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 100000) return Math.round(n / 1000) + 'k';
+  return Math.round(n).toLocaleString('en-US');
+}
+
+/** "People carried, by route" tray section: systemwide + watch-route tiles on
+ *  the monthly APC ridership series, plus a leaderboard of the top routes in
+ *  the latest month with month-over-month change. Data arrives monthly (with a
+ *  ~1 month publication lag), unlike the weekly speed metrics above it. */
+function renderRidershipTrends(data) {
+  const host = dom['tray-ridership'];
+  if (!host) return;
+  const emptyEl = dom['tray-ridership-empty'];
+  if (!data?.months?.length || !data.routes) {
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const months = data.months;
+  const li = months.length - 1;
+  const monthName = (ym) => {
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const tile = (label, kind, series) => {
+    const latestVal = series[li];
+    const t = linTrend(series);
+    let changeHtml = '';
+    if (t && series[li - 1] > 0 && latestVal != null) {
+      const momPct = 100 * (latestVal - series[li - 1]) / series[li - 1];
+      const arrow = momPct > 0.05 ? '▲' : momPct < -0.05 ? '▼' : '—';
+      const cls = momPct > 0.05 ? 'up' : momPct < -0.05 ? 'down' : 'flat';
+      changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(momPct).toFixed(1)}% vs prior month</div>`;
+    }
+    return `<div class="mini-trend mini-${kind}">
+      <div class="mini-label">${label}</div>
+      <div class="mini-value">${fmtRiders(latestVal)}<span class="mini-unit">riders/wkday</span></div>
+      ${changeHtml}
+      ${sparkTrend(series, true)}
+    </div>`;
+  };
+
+  // Row 1: the system, then the same watch routes as the speed section.
+  const tiles = [tile('All NYC buses', 'boro', data.system.wdAvg)];
+  for (const meta of Object.values(WATCH_ROUTES)) {
+    for (const route of meta.routes) {
+      const rec = data.routes[route];
+      if (rec) tiles.push(tile(route, 'route', rec.wdAvg));
+    }
+  }
+
+  // Leaderboard: top 12 routes by latest-month average weekday riders.
+  const ranked = Object.entries(data.routes)
+    .map(([route, rec]) => ({ route, now: rec.wdAvg[li], prev: rec.wdAvg[li - 1] }))
+    .filter((r) => r.now > 0)
+    .sort((a, b) => b.now - a.now)
+    .slice(0, 12);
+  const rows = ranked.map((r, i) => {
+    const mom = r.prev > 0 ? 100 * (r.now - r.prev) / r.prev : null;
+    const momHtml = mom == null ? '—'
+      : `<span class="${mom > 0.05 ? 'rid-up' : mom < -0.05 ? 'rid-down' : ''}">${mom > 0 ? '+' : ''}${mom.toFixed(1)}%</span>`;
+    return `<tr>
+      <td class="num">${i + 1}</td>
+      <td class="rid-route">${r.route}</td>
+      <td class="num">${fmtRiders(r.now)}</td>
+      <td class="num">${momHtml}</td>
+    </tr>`;
+  }).join('');
+
+  host.innerHTML = `
+    <div class="boro-trend rid-tiles">${tiles.join('')}</div>
+    <div class="rid-board">
+      <div class="rid-board-title">Busiest routes, ${monthName(months[li])} — avg weekday riders</div>
+      <table class="tray-table rid-table">
+        <thead><tr><th class="num">#</th><th>Route</th><th class="num">Riders/wkday</th><th class="num">vs prior mo.</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  host.appendChild(emptyEl); // keep the empty-note node in the DOM for reuse
+  if (emptyEl) emptyEl.style.display = 'none';
 }
 
 /** Least-squares linear fit over a series (oldest→newest, nulls skipped).

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The People on the Bus &mdash; who boards where, hour by hour</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="The People on the Bus: every one of New York City's 13,000+ bus stops, sized by how many riders board at each hour of the day. Companion to All Through the Town." />
+
+  <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="ridership.css" />
+</head>
+<body>
+
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Loading 13,351 bus stops&hellip;</div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- hover tooltip -->
+  <div id="tip" class="tip" hidden></div>
+
+  <!-- ═══ Left panel ═══ -->
+  <aside class="panel">
+    <header class="panel-head">
+      <a class="backlink" href="index.html">&larr; All Through the Town <span>live tracker</span></a>
+      <h1 class="ppl-title">The People<br /><span>on the Bus</span></h1>
+      <p class="dek">Every one of New York City's bus stops, sized by how many
+        riders board there at each hour of the day. June 2026, measured by the
+        passenger counters on the buses themselves.</p>
+    </header>
+
+    <section class="clock-card">
+      <div class="clock-hour" id="clock-hour">7&ndash;8 <em>AM</em></div>
+      <div class="clock-sub"><strong id="clock-riders">&mdash;</strong> <span id="clock-riders-label">riders board citywide in this hour on an average weekday</span></div>
+      <div class="clock-note" id="clock-note"></div>
+    </section>
+
+    <section class="leader-card">
+      <div class="leader-head">
+        <span class="leader-title">Busiest stops this hour</span>
+        <span class="leader-daytype" id="leader-daytype">weekday avg</span>
+      </div>
+      <ol class="leaders" id="leaders"></ol>
+    </section>
+
+    <footer class="panel-foot">
+      <details class="methodology">
+        <summary>Methodology</summary>
+        <div class="method-body">
+          <p><strong>Source:</strong> <a href="https://data.ny.gov/Transportation/MTA-Bus-Stop-Level-Ridership-Beginning-2024/fvdm-uavx" target="_blank" rel="noopener">MTA Bus Stop Level Ridership</a> (data.ny.gov, dataset <code>fvdm-uavx</code>, published June 2026), hourly boardings per stop, route and direction, derived from Automatic Passenger Counters on board MTA buses. Stop locations and names from MTA bus GTFS feeds (all five boroughs plus MTA Bus Company).</p>
+          <p><strong>What the numbers are:</strong> all of June 2026, summed per stop and hour across every route and direction, then divided by the number of days of that type &mdash; 22 weekdays or 8 weekend days &mdash; to give an average day. Juneteenth (Friday, June 19) ran holiday service but is counted as a weekday. Hours follow the MTA service day, so boardings between midnight and about 3 a.m. belong to the previous service date.</p>
+          <p><strong>Limits:</strong> passenger counters miss some riders and some buses lack them; the MTA treats these figures as estimates, and so should you. 298 stop IDs (0.63% of June boardings) could not be matched to a GTFS location and are excluded. Circle area is proportional to boardings in the selected hour.</p>
+          <p>Aggregation code and this page's data file live in the <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-tracker" target="_blank" rel="noopener">project repo</a>.</p>
+        </div>
+      </details>
+      <button class="ai-caution-btn" id="ai-caution-btn" type="button">AI caution</button>
+      <div class="ai-caution-pop" id="ai-caution-pop" hidden>
+        <p>This page was built with AI assistance (Claude). The underlying counts
+        come directly from the MTA dataset cited in the methodology, but automated
+        pipelines can contain errors &mdash; check the source before republishing
+        any number.</p>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ═══ Bottom dock: the day as a scrubber ═══ -->
+  <section class="dock">
+    <div class="dock-left">
+      <button class="play-btn" id="play-btn" type="button" aria-label="Play through the day">
+        <svg viewBox="0 0 24 24" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
+        <svg viewBox="0 0 24 24" class="icon-pause" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <div class="daytype-toggle" role="tablist" aria-label="Day type">
+        <button class="dt-btn active" data-dt="wd" role="tab" aria-selected="true">Weekday</button>
+        <button class="dt-btn" data-dt="we" role="tab" aria-selected="false">Weekend</button>
+      </div>
+    </div>
+    <div class="scrub-wrap" id="scrub-wrap">
+      <svg id="curve" class="curve" preserveAspectRatio="none" aria-label="Citywide boardings by hour of day; drag to change the hour shown on the map"></svg>
+      <div class="playhead" id="playhead"><div class="playhead-knob"></div></div>
+      <div class="hour-ticks" id="hour-ticks"></div>
+    </div>
+  </section>
+
+  <script src="ridership.js"></script>
+</body>
+</html>
