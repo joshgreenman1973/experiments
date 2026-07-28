@@ -100,9 +100,11 @@ Computed from NYSED BEDS Day school-level enrollment files, summing PreK-12 enro
 
 (The chart plots all fourteen years; the table above is a sample.)
 
-Over the full span the district lost 174,735 students and charters gained 91,386 - about 52% of the district decline. Combined district-plus-charter enrollment fell 8.0%, against 17.7% for the district alone.
+Over the full span the district lost 174,735 students and charters gained 91,386. Counting both sectors, total NYC public enrollment fell 8.0%, against 17.7% for the district alone.
 
-**Caveats.** BEDS Day is a fall snapshot collected by NYSED; Census F-33 enrollment comes from the NCES Common Core of Data. The two differ by roughly 10,000-30,000 students for the same nominal year and are not interchangeable. This section covers enrollment only; charter per-pupil spending comes from a separate funding stream and is not in the Census district series or the IBO breakdowns.
+**This is not a transfer statistic.** An earlier version of this section said charter growth "accounts for roughly half of the district's enrollment loss." That was a causal claim the data does not support, and it has been removed. The two series are independent headcounts. A child entering a charter kindergarten was never enrolled in a district school, so charter gains cannot be read as district departures. District enrollment also fell for reasons not measured here at all - declining births in the city, out-migration, and shifts to private schooling or homeschooling. No source used on this page apportions the district decline among these causes, and the page does not attempt to.
+
+**Comparability caveats.** BEDS Day is a fall snapshot collected by NYSED; Census F-33 enrollment comes from the NCES Common Core of Data. The two differ by roughly 10,000-30,000 students for the same nominal year and are not interchangeable. This section covers enrollment only; charter per-pupil spending comes from a separate funding stream and is not in the Census district series or the IBO breakdowns.
 
 ### Section 4: FY2024 $40B breakdown
 
@@ -237,6 +239,7 @@ To update: pull the IBO annual DOE Spending release each June, the Census F-33 t
 | CBC $42,168 FY2026 projection | Plotted on the trend chart | Removed (not a government source) |
 | $448M FY2025 central admin | Stated in a callout | Removed (untraced attribution) |
 | Charter enrollment | "~140,000 students, ~275 schools" in passing | Full NYSED series, 2012-13 to 2025-26 |
+| Charter section framing | Headed "Where the students went"; claimed charter growth "accounts for roughly half of the district's enrollment loss" | Reframed as a counting point, not a transfer or causal claim |
 
 The per-pupil series error was systematic: values for FY2017-FY2020 had each been assigned to the following year, understating every year in that range.
 
