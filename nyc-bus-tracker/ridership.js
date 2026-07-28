@@ -11,6 +11,10 @@ const DATA_URL = 'data/ridership/stops.json';
 // rose ramp (sequential, one hue) — matches ridership.css
 const RAMP = ['#2c0715', '#661132', '#a91d55', '#e7466d', '#ff7fa0', '#ffc9d8'];
 
+// "Beyond the subway" cutoff, in metres — straight-line, not walking distance.
+// Must match SUBWAY_FAR_M in scripts/build_geo_layers.py.
+const SUBWAY_FAR_M = 800;
+
 let map;
 let raw = null;              // parsed stops.json
 let fc = { wd: null, we: null }; // FeatureCollections keyed by day type
@@ -69,7 +73,9 @@ async function loadData() {
     for (const s of raw.stops) {
       const [id, name, lon, lat, routes, wdArr, weArr, mb, ma, dSub, inCrz] = s;
       const arr = dt === 'wd' ? wdArr : weArr;
-      const p = { id, name, ds: dSub ?? 99999, cz: inCrz ?? 0 };
+      // ds = straight-line metres to the nearest subway station (exact, uncapped);
+      // cz = 1 when the stop is inside the congestion relief zone.
+      const p = { id, name, ds: dSub ?? -1, cz: inCrz ?? 0 };
       let stopMax = 0, stopSum = 0;
       for (let h = 0; h < 24; h++) {
         const v = arr[h] / d; // avg per day of this type
@@ -80,7 +86,7 @@ async function loadData() {
         if (v > stopMax) stopMax = v;
       }
       allSum += stopSum;
-      if ((dSub ?? 99999) > 800) farSum += stopSum;
+      if ((dSub ?? -1) > SUBWAY_FAR_M) farSum += stopSum;
       if (stopMax > vmax) vmax = stopMax;
       feats.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: p });
     }
@@ -267,7 +273,7 @@ function updateLayerStat() {
   const bits = [];
   const dLabel = daytype === 'wd' ? 'weekday' : 'weekend';
   if (layers.desert) {
-    bits.push(`<strong>${Math.round(desertShare[daytype] * 100)}%</strong> of ${dLabel} boardings happen at the highlighted stops — more than half a mile from any subway station`);
+    bits.push(`<strong>${Math.round(desertShare[daytype] * 100)}%</strong> of ${dLabel} boardings happen at the highlighted stops — over half a mile from a subway or Staten Island Railway station, straight-line`);
   }
   if (layers.crz) {
     const pct = Math.round((crzShare[daytype][hour] || 0) * 100);

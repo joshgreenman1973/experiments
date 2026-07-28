@@ -36,22 +36,45 @@ def fetch(params):
         sys.exit(f'FATAL: empty response from Socrata for {params}')
     return rows
 
+# Which months are actually COMPLETE? The series opens on 2024-09-30, so
+# September 2024 holds a single day. Dividing one day's boardings by a full
+# month's weekdays produces a near-zero point that drags every trend line
+# upward, so partial months are dropped rather than shown.
+print('checking month coverage…', flush=True)
+cov = fetch({'$select': 'date_trunc_ym(date) as m,count(distinct date) as days',
+             '$group': 'm', '$limit': '500'})
+complete = set()
+partial = []
+for r in cov:
+    ym = r['m'][:7]
+    y, mo = map(int, ym.split('-'))
+    have, need = int(r['days']), calendar.monthrange(y, mo)[1]
+    (complete.add(ym) if have >= need else partial.append(f'{ym} ({have}/{need} days)'))
+if partial:
+    print(f'  dropping partial months: {", ".join(partial)}', flush=True)
+if len(complete) < 12:
+    sys.exit(f'FATAL: only {len(complete)} complete months — expected 12+')
+
 print('fetching per-route monthly totals…', flush=True)
 all_rows = fetch({
     '$select': 'route_id,date_trunc_ym(date) as m,sum(boardings) as b',
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(all_rows)} route-months', flush=True)
+all_rows = [r for r in all_rows if r['m'][:7] in complete]
 
 print('fetching weekday-only totals…', flush=True)
 wd_rows = fetch({
     '$select': 'route_id,date_trunc_ym(date) as m,sum(boardings) as b',
+    # Socrata date_extract_dow: 0 = Sunday … 6 = Saturday (verified against
+    # 2026-06-07, a Sunday, which returns 0). So 1-5 is Monday-Friday.
     '$where': 'date_extract_dow(date) between 1 and 5',
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(wd_rows)} route-months', flush=True)
+wd_rows = [r for r in wd_rows if r['m'][:7] in complete]
 
 months = sorted({r['m'][:7] for r in all_rows})
-if len(months) < 20:
-    sys.exit(f'FATAL: only {len(months)} months returned ({months[:3]}…) — expected 20+')
+if len(months) < 12:
+    sys.exit(f'FATAL: only {len(months)} complete months ({months[:3]}…) — expected 12+')
 
 def wd_count(ym):
     y, m = map(int, ym.split('-'))
@@ -87,8 +110,18 @@ if os.path.exists(OUT):
 
 out = {
     'updated': date.today().isoformat(),
-    'source': 'MTA Bus Stop Level Ridership (data.ny.gov fvdm-uavx), APC-derived boardings; '
-              'wdAvg = month weekday boardings / calendar weekdays (holidays counted as weekdays)',
+    'source': 'MTA Bus Stop Level Ridership (data.ny.gov fvdm-uavx), boardings recorded by '
+              'Automatic Passenger Counters on board MTA buses.',
+    'definitions': {
+        'total': 'All boardings recorded on the route that month, every day of the week.',
+        'wdAvg': 'Monday-Friday boardings that month divided by the number of calendar '
+                 'weekdays in the month. Public holidays are counted as weekdays, so months '
+                 'containing them read slightly low.',
+        'months': 'Only calendar months with data for every day are included; partial months '
+                  'at either end of the series are dropped.',
+        'caveat': 'Counters miss some riders and not every bus carries one. The MTA publishes '
+                  'these as estimates.',
+    },
     'months': months,
     'wdDays': wd_days,
     'system': system,
