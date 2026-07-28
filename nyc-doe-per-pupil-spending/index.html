@@ -283,7 +283,7 @@ table.data th.num { text-align: right; }
     <div class="chart-caption"><strong>Source:</strong> NYC Council Finance Division, <em>Report on the Fiscal 2019 Preliminary Budget for the Department of Education</em> (March 2018), Financial Plan Summary table. FY2019 Preliminary operating budget = $25.6B. <strong>Schools ($14.7B)</strong> = GE instruction + SE instruction at district schools + charter payments + UPK + early childhood + school support orgs + categorical programs. <strong>Staff health &amp; welfare benefits ($3.5B)</strong> = centrally-budgeted fringe, mostly covering school-based staff. <strong>Central SPED + non-public payments ($3.4B)</strong> = District 75 and citywide special ed instructional support + SE Pre-K contracts + contract schools / Carter cases + non-public / FIT. <strong>Operations ($3.7B)</strong> = school facilities + pupil transportation + food + safety + energy &amp; leases. <strong>Central administration ($345M)</strong> = U/A 453 + 454 (admin offices: operations, finance, school budget planning, enrollment, safety oversight, legal, labor, IT, portfolio planning), supporting 2,055 FTE.</div>
   </div>
   <div class="callout">
-    <strong>If you're looking for a big central-bureaucracy story, the operating budget isn't it.</strong> Central administration is roughly 1.35% of the DOE operating budget. The much bigger cost categories are schools and their staff benefits (~71% combined), district-wide special education and non-public placements (13%), and operations like transportation, food, and facilities (14%). Pensions and debt service - a further ~$7B - sit outside the operating budget entirely.
+    <strong>If you're looking for a big central-bureaucracy story, the operating budget isn't it.</strong> Central administration is roughly 1.35% of the DOE operating budget. The much bigger cost categories are schools and their staff benefits (~71% combined), district-wide special education and non-public placements (13%), and operations like transportation, food, and facilities (14%). Pensions and debt service - a further ~$7B - sit outside the operating budget entirely. <strong>Updated figure:</strong> the FY2025 central-admin line has grown to approximately <strong>$448M</strong> (per Citizens Budget Commission tracking), up from the $345M in the FY2019 chart above - but the operating budget also grew, so the <em>share</em> is still roughly 1.4-1.5%.
   </div>
 </section>
 
@@ -510,6 +510,101 @@ document.getElementById('trendBtnTot').addEventListener('click', () => {
   renderTrend('total');
 });
 
+// 2. Enrollment vs spending — dual-axis, smoothly animated on scroll into view
+// Enrollment: NYC DOE Demographic Snapshot for FY2016-FY2022; Census F-33 Table 18 for FY2023-FY2024.
+// Spending: Census F-33 total district current spending ($B).
+const enrYears  = ['FY16','FY17','FY18','FY19','FY20','FY21','FY22','FY23','FY24'];
+const enrollAbs = [983000, 978000, 975000, 970000, 961000, 900000, 870000, 847030, 845509];
+const totSpend  = [22.4, 23.6, 24.7, 26.1, 27.4, 29.3, 35.2, 28.3, 30.3]; // $B
+
+const enrollChart = new Chart(document.getElementById('enrollChart'), {
+  type: 'line',
+  data: {
+    labels: enrYears,
+    datasets: [
+      {
+        label: 'Total district current spending ($B, left axis)',
+        data: totSpend,
+        borderColor: VC.orange,
+        backgroundColor: (ctx) => {
+          const {ctx: c, chartArea} = ctx.chart;
+          if (!chartArea) return VC.orange + '33';
+          const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          g.addColorStop(0, VC.orange + '55');
+          g.addColorStop(1, VC.orange + '05');
+          return g;
+        },
+        borderWidth: 3.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: VC.orange,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        fill: true,
+        tension: 0.35,
+        yAxisID: 'ySpend'
+      },
+      {
+        label: 'District enrollment (students, right axis)',
+        data: enrollAbs,
+        borderColor: VC.indigo,
+        backgroundColor: 'transparent',
+        borderWidth: 3.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: VC.indigo,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        borderDash: [8,5],
+        tension: 0.35,
+        yAxisID: 'yEnr'
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    animation: {
+      duration: 2200,
+      easing: 'easeInOutCubic',
+      delay: (ctx) => ctx.type === 'data' && ctx.mode === 'default' ? ctx.dataIndex * 120 : 0
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 14, padding: 12, font: { size: 12 } } },
+      tooltip: {
+        callbacks: {
+          label: c => c.datasetIndex === 0
+            ? '  Spending: $' + c.parsed.y.toFixed(1) + 'B'
+            : '  Enrollment: ' + c.parsed.y.toLocaleString() + ' students'
+        }
+      }
+    },
+    scales: {
+      ySpend: {
+        type: 'linear', position: 'left',
+        min: 15, max: 40,
+        ticks: { callback: v => '$' + v + 'B', color: VC.orange, font: { weight: '600' } },
+        grid: { color: '#eee' },
+        title: { display: true, text: 'Total district spending ($B)', color: VC.orange, font: { size: 12, weight: '600' } }
+      },
+      yEnr: {
+        type: 'linear', position: 'right',
+        min: 800000, max: 1000000,
+        ticks: { callback: v => (v/1000).toFixed(0) + 'K', color: VC.indigo, font: { weight: '600' } },
+        grid: { display: false },
+        title: { display: true, text: 'K-12 students enrolled', color: VC.indigo, font: { size: 12, weight: '600' } }
+      },
+      x: { grid: { display: false }, ticks: { font: { weight: '600' } } }
+    }
+  }
+});
+
+// Replay animation when scrolled into view
+const enrObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { enrollChart.update(); } });
+}, { threshold: 0.35 });
+enrObserver.observe(document.getElementById('enrollChart'));
+
 // 3. Central admin vs schools vs other (FY2019 Council)
 new Chart(document.getElementById('buckets19Chart'), {
   type: 'bar',
@@ -647,10 +742,17 @@ new Chart(document.getElementById('iepChart'), {
 new Chart(document.getElementById('decompChart'), {
   type: 'bar',
   data: {
-    labels: ['U.S. national average','+ Extra SPED mix (5pp at 0.9x premium)','+ Everything else (salaries, pensions, P:T ratio, facilities)','= NYC FY2022 per-pupil'],
+    labels: [
+      'U.S. national average (FY2022)',
+      '+ Extra SPED mix (5pp x 0.9x premium)',
+      '+ More teachers per pupil (9.4 vs 15.5 P:T ratio)',
+      '+ Higher NYC teacher compensation',
+      '+ All other NYC cost factors (non-teacher staff, facilities, transport, COL)',
+      '= NYC FY2022 per-pupil'
+    ],
     datasets: [{
-      data: [15633, 704, 19577, 35914],
-      backgroundColor: [VC.charcoal, VC.magenta, VC.orange, VC.black],
+      data: [15633, 704, 3770, 3720, 12087, 35914],
+      backgroundColor: [VC.charcoal, VC.magenta, VC.cerulean, VC.indigo, VC.orange, VC.black],
       borderRadius: 4
     }]
   },
@@ -658,7 +760,7 @@ new Chart(document.getElementById('decompChart'), {
     responsive: true, maintainAspectRatio: false, indexAxis: 'y',
     plugins: {
       legend: { display: false },
-      tooltip: { callbacks: { label: c => '$' + c.parsed.x.toLocaleString() } }
+      tooltip: { callbacks: { label: c => '$' + c.parsed.x.toLocaleString() + ' per pupil' } }
     },
     scales: {
       x: { ticks: { callback: v => '$' + (v/1000) + 'K' }, grid: { color: '#eee' } },
