@@ -64,15 +64,34 @@ function cacheDomElements() {
     'tray-coverage-stats', 'tray-boro-trends', 'tray-boro-empty',
     'tray-ridership', 'tray-ridership-empty',
     'tray-boro-card', 'tray-boro-card-empty', 'tray-geo-cuts', 'tray-geo-empty',
+    'ai-caution-btn', 'ai-caution-pop',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
   }
 }
 
+/** Small "AI caution" chip in the sidebar: toggles a navy popover, closes on
+ *  any outside click. */
+function bindCautionPopover() {
+  const btn = dom['ai-caution-btn'];
+  const pop = dom['ai-caution-pop'];
+  if (!btn || !pop) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.hidden = !pop.hidden;
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#ai-caution-btn') && !e.target.closest('#ai-caution-pop')) {
+      pop.hidden = true;
+    }
+  });
+}
+
 // ═══ INIT ═══
 async function init() {
   cacheDomElements();
+  bindCautionPopover();
 
   // Prompt for API key if not provided
   if (!CONFIG.apiKey) {
