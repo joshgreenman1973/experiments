@@ -509,6 +509,11 @@
   // Series whose window can straddle a tariff season, so a raw start-to-end
   // change is partly seasonal rather than a price move.
   const SEASONAL = new Set(["coned", "coned_gas"]);
+  // Con Edison's summer supply season runs June 1 - September 30. A change
+  // measured across that boundary is mostly the season, not a price move, so
+  // for these series the figure is withheld until both ends sit in the same
+  // season. Year-over-year is unaffected: it is same-month by construction.
+  function rateSeason(i) { const m = (4 + i) % 12; return (m >= 5 && m <= 8) ? "summer" : "winter"; }
   const CLUSTER_INCOME = new Set(["wage_qcew", "wage_eci"]); // the income side — shown distinct from the cost cards
 
   const ITEMS = [
@@ -1045,11 +1050,12 @@
   // Change since 1/1/2026: first reading at or after Jan '26 vs. the latest.
   // For %-based series (CPI, Case-Shiller, ECI) the move is in percentage
   // points, not a percent change — labeled "pp" so the two never blur.
-  function ytdChange(data, isPct) {
+  function ytdChange(data, isPct, id) {
     let a = -1, b = -1;
     for (let i = YTD0; i < NM; i++) { if (data[i] != null) { a = i; break; } }
     for (let i = NM-1; i >= YTD0; i--) { if (data[i] != null) { b = i; break; } }
     if (a < 0 || b < 0 || a === b) return null;
+    if (id && SEASONAL.has(id) && rateSeason(a) !== rateSeason(b)) return { blocked: "season", a, b };
     const from = data[a], to = data[b];
     if (isPct) return { val: to - from, unit: "pp", from, to, a, b };
     if (!from) return null;
@@ -1071,9 +1077,10 @@
     return t;
   }
 
-  function ytdBadge(data, isPct, est) {
-    const c = ytdChange(data, isPct);
+  function ytdBadge(data, isPct, est, id) {
+    const c = ytdChange(data, isPct, id);
     if (!c) return "";
+    if (c.blocked) return `<span class="delta flat">— awaiting a same-season comparison</span>`;
     const cls = c.val > 0.05 ? "up" : c.val < -0.05 ? "down" : "flat";
     const arrow = c.val > 0.05 ? "▲" : c.val < -0.05 ? "▼" : "—";
     // Name the month the comparison actually starts from — several series
@@ -1239,9 +1246,11 @@
         const it = byId[id]; if (!it) return;
         const tbd = false;
         const isPct = PCT_SERIES.has(it.id);
-        const c = tbd ? null : ytdChange(it.data, isPct);
+        const c = tbd ? null : ytdChange(it.data, isPct, it.id);
         let chg = `<span class="none">—</span>`;
-        if (c) {
+        if (c && c.blocked) {
+          chg = `<span class="none" title="Summer supply rates run June through September, so a reading either side of that boundary is not comparable.">— seasonal</span>`;
+        } else if (c) {
           const cls = c.val > 0.05 ? "up" : c.val < -0.05 ? "down" : "flat";
           const arrow = c.val > 0.05 ? "▲" : c.val < -0.05 ? "▼" : "—";
           chg = `<span class="${cls}">${arrow} ${it.est ? "~" : ""}${c.val >= 0 ? "+" : ""}${c.val.toFixed(1)}${c.unit}</span>` +
@@ -1291,16 +1300,16 @@
   function changeFor(it, ytdMode) {
     if (it.status === "tbd") return null;
     const isPct = PCT_SERIES.has(it.id);
-    if (ytdMode) return ytdChange(it.data, isPct);
+    if (ytdMode) return ytdChange(it.data, isPct, it.id);
     if (!NOBADGE.has(it.id)) {
       let li = -1; for (let i = NM - 1; i >= 0; i--) { if (it.data[i] != null) { li = i; break; } }
       if (li >= 12 && it.data[li - 12] != null && it.data[li - 12]) {
         return { val: ((it.data[li] - it.data[li - 12]) / it.data[li - 12]) * 100, unit: "%" };
       }
     }
-    return ytdChange(it.data, isPct);
+    return ytdChange(it.data, isPct, it.id);
   }
-  function dirOf(c) { return c == null ? null : (c.val > 0.05 ? 1 : c.val < -0.05 ? -1 : 0); }
+  function dirOf(c) { return (c == null || c.blocked) ? null : (c.val > 0.05 ? 1 : c.val < -0.05 ? -1 : 0); }
 
   // Order for the current sort. Unknown always sinks to the bottom except
   // in the "not yet known" view, which surfaces it.
@@ -1346,17 +1355,20 @@
         : it.source;
       const isPctS = PCT_SERIES.has(it.id);
       const yoyFull = (!tbd && !NOBADGE.has(it.id)) ? yoyBadge(it.data) : "";
-      const ytdFull = !tbd ? ytdBadge(it.data, isPctS, it.est) : "";
+      const ytdFull = !tbd ? ytdBadge(it.data, isPctS, it.est, it.id) : "";
       // In the 2026 view the big number becomes the change since Jan 1 --
       // or TBD where the series has no 2026 movement to report.
-      const c26 = tbd ? null : ytdChange(it.data, isPctS);
+      const c26 = tbd ? null : ytdChange(it.data, isPctS, it.id);
+      const blocked26 = !!(c26 && c26.blocked);
       const headline = ytdMode
-        ? (c26 ? `${c26.val >= 0 ? "+" : ""}${c26.val.toFixed(1)}${c26.unit}` : "TBD")
+        ? (blocked26 ? "n/a" : c26 ? `${c26.val >= 0 ? "+" : ""}${c26.val.toFixed(1)}${c26.unit}` : "TBD")
         : it.current;
       const headCls = ytdMode
-        ? (c26 ? (c26.val > 0.05 ? "up26" : c26.val < -0.05 ? "down26" : "") : "tbd")
+        ? (blocked26 ? "tbd" : c26 ? (c26.val > 0.05 ? "up26" : c26.val < -0.05 ? "down26" : "") : "tbd")
         : (tbd ? "tbd" : "");
-      const sub26 = (ytdMode && c26)
+      const sub26 = (ytdMode && blocked26)
+        ? `<span class="lvl">now ${it.current} · ${mLabel(c26.a)} is a winter rate and ${mLabel(c26.b)} a summer one, so the gap is mostly seasonal — withheld until two readings share a season</span>`
+        : (ytdMode && c26)
         ? `<span class="lvl">${mLabel(c26.a)}&nbsp;→&nbsp;${mLabel(c26.b)} 2026 · now ${it.current}` +
           `${it.est ? " · est. baseline" : ""}` +
           `${SEASONAL.has(it.id) ? " · spans the summer rate change" : ""}</span>`

@@ -1,6 +1,6 @@
 # NYC Price Watch — Methodology
 
-**Version 1.1 · July 27, 2026**
+**Version 1.2 · July 27, 2026**
 
 This document specifies what the NYC Price Watch measures, how each
 series is constructed, and — as precisely as possible — what it cannot
@@ -404,9 +404,16 @@ misread:
    survey items, both wage series, and Broadway (whose 2025-26 season
    has not closed).
 
-Series whose window can straddle a tariff season are additionally
-flagged on the card, since a raw start-to-end change is then partly
-seasonal — see §7.5.
+**Seasonal series are withheld rather than flagged.** Con Edison's
+summer supply season runs June 1 to September 30, so a change measured
+from a spring reading to a summer one is mostly the season, not a price
+move. For the two ConEd series the year-to-date figure is therefore not
+computed at all until both endpoints fall in the same season; the card
+reads `n/a` and says why, and the series sorts as unknown rather than
+as flat. Year-over-year is unaffected, being same-month by
+construction. Disclosure was judged insufficient here: a reader who
+takes only the headline should not be able to read a seasonal switch as
+a price increase.
 
 ## 7. Known biases and interpretive hazards, by series
 
@@ -565,6 +572,7 @@ Stated explicitly, because the failure modes are predictable:
 
 | Version | Date | Change |
 |---|---|---|
+| 1.2 | 2026-07-27 | Withheld the year-to-date change for both ConEd series until two readings share a rate season, rather than publishing a seasonal artifact with a caveat attached. |
 | 1.1 | 2026-07-27 | Skeptical audit. Corrected the modeled taxi fare, which omitted the $2.50 state congestion surcharge while including the $0.75 central-business-district charge — a combination no real trip incurs; the trip is now specified by zone. Disclosed that the June ConEd figure is an announced-increase escalation, not a rate-sheet reconstruction. Added the two displayed series (Case-Shiller, ConEd gas) that had no entry in the log, which had contradicted the reproducibility claim in section 8. Split Broadway weekly reads out of the season log. Documented the circularity of back-derived baselines. Refreshed counts that drifted after the no-splice cleanup. |
 | 1.0 | 2026-07-27 | First formal specification. Documents the 27-month frame, the January 2026 isolation window, the five estimator types, geographic concordance, revision and interpolation policy, the three-observation minimum for trend lines, year-to-date baseline labeling, and per-series biases including the ConEd seasonal break and the composition of the energy index. |
 
