@@ -93,6 +93,9 @@
     padding-bottom: 0.4rem; border-bottom: 1px solid var(--black); margin-bottom: 0.5rem;
   }
 
+  .ctrl-note { font-size: 0.82rem; color: var(--charcoal); max-width: 78ch; margin: -0.9rem 0 1.6rem; }
+  .ctrl-note b { color: var(--black); font-weight: 700; }
+
   /* ---- View toggle ---- */
   .viewtoggle { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
   .vt-label { font-weight: 700; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--charcoal); margin-right: 0.15rem; }
@@ -104,6 +107,14 @@
   }
   .vt-btn:hover { background: var(--chartreuse-20); }
   .vt-btn.is-on { background: var(--black); color: var(--white); }
+  .st-btn {
+    font-family: var(--sans); font-weight: 700; font-size: 0.68rem;
+    letter-spacing: 0.04em; padding: 0.4rem 0.8rem; cursor: pointer;
+    background: var(--white); color: var(--black);
+    border: 1px solid var(--cloud); border-radius: 0;
+  }
+  .st-btn:hover { border-color: var(--black); }
+  .st-btn.is-on { background: var(--chartreuse); border-color: var(--black); }
 
   /* ---- At-a-glance board ---- */
   .board { margin-bottom: 3rem; }
@@ -256,18 +267,20 @@
   </header>
 
   <p class="dek">
-    Every card plots the same 27-month frame — May 2024 through July 2026, with the stretch since January 1, 2026 shaded and drawn in orange so this year's trend reads on its own.
-    Step-function rates (fares, tolls, water, taxi) fill every month; the
-    public series plot the real readings we have and connect them into a
-    trend that densifies as new months land. Dashed placeholders mark
-    series still being assembled.
-  </p>
+    Everyday New York prices, each pulled from a named public source and
+    refreshed monthly. Read the full run from May 2024, or switch to 2026
+    alone; sort by what is rising, falling or still unknown. Nothing here
+    is modeled or filled in — where a number cannot yet be established
+    honestly, the card says so.
+  </p</p>
 
   <div class="principles">
     <b>Four rules, applied to every item:</b>
     <ul>
       <li><b>Real or nothing.</b> Every printed level ties to a named public source with a retrieval date. Points labeled "est." are back-filled from published archives — flagged so you can tell real observations from the back-fill.</li>
-      <li><b>Same monthly frame.</b> May 2024 → July 2026, 27 months, on every card. Gaps stay as gaps.</li>
+      <li><b>Same monthly frame.</b> One shared monthly timeline on every card, so any two series can be read against each other. Gaps stay as gaps.</li>
+      <li><b>One estimator per line.</b> A series carries one source, one method and one geography throughout. We do not join a season average to a single week, or one agency's back-history to another's current readings — that manufactures moves that never happened.</li>
+      <li><b>Three readings before a line.</b> Two points are not a trend, so sparse series are drawn as separate observations with the count shown.</li>
       <li><b>Same spec each month.</b> Same tariff, same panel, same collection rule. No silent sample changes.</li>
       <li><b>Work shown.</b> Each month's values and their source notes live in <code>readings.json</code> in the repo.</li>
     </ul>
@@ -293,12 +306,19 @@
     <span class="vt-label">View</span>
     <button type="button" class="vt-btn is-on" data-view="full">Full history</button>
     <button type="button" class="vt-btn" data-view="ytd">2026 so far</button>
+    <span class="vt-label" style="margin-left:1rem;">Sort</span>
+    <button type="button" class="st-btn is-on" data-sort="default">By category</button>
+    <button type="button" class="st-btn" data-sort="up">Going up</button>
+    <button type="button" class="st-btn" data-sort="down">Going down</button>
+    <button type="button" class="st-btn" data-sort="tbd">Not yet known</button>
   </div>
+
+  <p class="ctrl-note">The <b>2026 so far</b> view replaces each headline with that series' change this year and clips the chart to January onward. Because several series have no January reading, every card states the span it actually covers — and reads <b>TBD</b> where this year's move cannot yet be established. Sorting regroups both the table and the cards.</p>
 
   <div class="board" id="board"></div>
 
   <h2 class="sec">The series in detail</h2>
-  <p class="bsub" style="font-size:0.84rem;color:var(--charcoal);margin:0.6rem 0 1rem;max-width:78ch;">Each card carries its own estimator, geographic scope, trackability grade and source. In the full view the shaded stretch is 2026.</p>
+  <p class="bsub" style="font-size:0.84rem;color:var(--charcoal);margin:0.6rem 0 1rem;max-width:78ch;">Each card carries its own estimator, geographic scope, trackability grade and source. In the full view the shaded stretch is 2026. Cards reorder with the sort control above; anything whose change cannot yet be established sinks to the end.</p>
 
   <div class="grid" id="grid"></div>
 
@@ -1124,8 +1144,26 @@
   function renderBoard() {
     const byId = Object.fromEntries(ITEMS.map(i => [i.id, i]));
     let rows = "";
+    const ytdMode = VIEW === "ytd";
     const pending = [];
-    GROUPS.forEach(([label, ids]) => {
+    const GROUPS_ACTIVE = SORT === "default" ? GROUPS : (() => {
+      const liveItems = applySort(ITEMS.filter(i => i.status !== "tbd"), ytdMode);
+      const bucket = { 1: [], 0: [], "-1": [], null: [] };
+      liveItems.forEach(it => { const d = dirOf(changeFor(it, ytdMode)); bucket[d === null ? "null" : d].push(it.id); });
+      const named = [
+        ["Going up", bucket[1]],
+        ["Holding flat", bucket[0]],
+        ["Going down", bucket["-1"]],
+        ["Change not yet knowable", bucket["null"]]
+      ].filter(([, ids]) => ids.length);
+      if (SORT === "down") { const i = named.findIndex(g => g[0] === "Going down"); if (i > 0) named.unshift(named.splice(i, 1)[0]); }
+      if (SORT === "tbd") { const i = named.findIndex(g => g[0] === "Change not yet knowable"); if (i > 0) named.unshift(named.splice(i, 1)[0]); }
+      return named;
+    })();
+    // Sorted views build their groups from live items only, so the
+    // never-collected list has to be carried over explicitly.
+    if (SORT !== "default") ITEMS.filter(i => i.status === "tbd").forEach(i => pending.push(i.id));
+    GROUPS_ACTIVE.forEach(([label, ids]) => {
       const liveIds = ids.filter(id => byId[id] && byId[id].status !== "tbd");
       ids.filter(id => byId[id] && byId[id].status === "tbd").forEach(id => pending.push(id));
       if (!liveIds.length) return;
@@ -1165,7 +1203,7 @@
     const nLive = ITEMS.filter(i => i.status !== "tbd").length;
     document.getElementById("board").innerHTML = `
       <h2>Every price at a glance</h2>
-      <div class="bsub">The ${nLive} live series, with the move since January 1, 2026. Where a series has no January reading the badge names the month it actually starts from; <b>~</b> marks a baseline drawn from an estimated back-fill. Percentage-point moves (<b>pp</b>) are for series already reported as a rate. The ${pending.length} uncollected items are listed at the bottom and shown in their own section below the cards.</div>
+      <div class="bsub">The ${nLive} live series. The <b>Since Jan 1</b> column names the month a series actually starts from when it has no January reading, and <b>~</b> marks a baseline drawn from an estimated back-fill. Percentage-point moves (<b>pp</b>) are for series already reported as a rate. The ${pending.length} uncollected items are listed at the bottom and shown in their own section below the cards.</div>
       <table>
         <tr><th>Item</th><th class="num">Latest</th><th class="num">Since Jan 1</th><th class="num hide-sm">Year over year</th><th class="hide-sm">Scope</th></tr>
         ${rows}
@@ -1177,6 +1215,47 @@
     return `<div class="maxis">` + yearTicks(off, n).map((i, j) =>
       `<span class="${j === 0 ? "edge0" : ""}" style="left:${(i / (n - 1) * 100).toFixed(1)}%">${mFull(off + i)}</span>`
     ).join("") + `</div>`;
+  }
+
+  let SORT = "default";  // "default" | "up" | "down" | "tbd"
+
+  // The change a card is judged on, matching what that view displays:
+  // year over year in the full frame, 2026-to-date in the 2026 view.
+  function changeFor(it, ytdMode) {
+    if (it.status === "tbd") return null;
+    const isPct = PCT_SERIES.has(it.id);
+    if (ytdMode) return ytdChange(it.data, isPct);
+    if (!NOBADGE.has(it.id)) {
+      let li = -1; for (let i = NM - 1; i >= 0; i--) { if (it.data[i] != null) { li = i; break; } }
+      if (li >= 12 && it.data[li - 12] != null && it.data[li - 12]) {
+        return { val: ((it.data[li] - it.data[li - 12]) / it.data[li - 12]) * 100, unit: "%" };
+      }
+    }
+    return ytdChange(it.data, isPct);
+  }
+  function dirOf(c) { return c == null ? null : (c.val > 0.05 ? 1 : c.val < -0.05 ? -1 : 0); }
+
+  // Order for the current sort. Unknown always sinks to the bottom except
+  // in the "not yet known" view, which surfaces it.
+  function applySort(list, ytdMode) {
+    if (SORT === "default") return list;
+    const meta = list.map(it => ({ it, c: changeFor(it, ytdMode) }));
+    const rank = m => {
+      const d = dirOf(m.c);
+      if (SORT === "tbd") return d == null ? 0 : 1;
+      if (d == null) return 3;
+      if (SORT === "up") return d === 1 ? 0 : d === 0 ? 1 : 2;
+      return d === -1 ? 0 : d === 0 ? 1 : 2;
+    };
+    return meta.map((m, i) => ({ ...m, i })).sort((a, b) => {
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      if (a.c && b.c) {
+        const d = SORT === "up" ? b.c.val - a.c.val : a.c.val - b.c.val;
+        if (Math.abs(d) > 1e-9) return d;
+      }
+      return a.i - b.i;
+    }).map(m => m.it);
   }
 
   let VIEW = "full";   // "full" = May 2024 -> now; "ytd" = Jan 2026 -> now
@@ -1252,7 +1331,7 @@
         </div>
       `;
     };
-    const live = ITEMS.filter(i => i.status !== "tbd");
+    const live = applySort(ITEMS.filter(i => i.status !== "tbd"), ytdMode);
     const pend = ITEMS.filter(i => i.status === "tbd");
     document.getElementById("grid").innerHTML = live.map(cardHtml).join("");
     document.getElementById("grid-tbd").innerHTML = pend.map(cardHtml).join("");
@@ -1269,11 +1348,19 @@
     ].map(([l, v, c]) => `<div class="cell"><div class="lbl">${l}</div><div class="val ${c}">${v}</div></div>`).join("");
   }
 
+  document.querySelectorAll(".st-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      SORT = btn.dataset.sort;
+      document.querySelectorAll(".st-btn").forEach(b => b.classList.toggle("is-on", b === btn));
+      renderBoard(); render();
+    });
+  });
+
   document.querySelectorAll(".vt-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       VIEW = btn.dataset.view;
       document.querySelectorAll(".vt-btn").forEach(b => b.classList.toggle("is-on", b === btn));
-      render();
+      renderBoard(); render();
     });
   });
 
