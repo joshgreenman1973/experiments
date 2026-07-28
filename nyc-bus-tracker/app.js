@@ -63,6 +63,7 @@ function cacheDomElements() {
     'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
     'tray-coverage-stats', 'tray-boro-trends', 'tray-boro-empty',
     'tray-ridership', 'tray-ridership-empty',
+    'tray-boro-card', 'tray-boro-card-empty', 'tray-geo-cuts', 'tray-geo-empty',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -1347,25 +1348,30 @@ function hideLoading() {
 async function loadTrends() {
   // Fetch both the rolled-up summary (latest.json) and the full weekly series
   // (weekly.json). We show whatever is available; missing files are tolerated.
-  const [latestRes, weeklyRes, routesRes, ridershipRes] = await Promise.all([
+  const [latestRes, weeklyRes, routesRes, ridershipRes, classesRes] = await Promise.all([
     fetch('data/summary/latest.json').catch(() => null),
     fetch('data/summary/weekly.json').catch(() => null),
     fetch('data/summary/weekly-routes.json').catch(() => null),
     fetch('data/ridership/routes-monthly.json').catch(() => null),
+    fetch('data/summary/route-classes.json').catch(() => null),
   ]);
 
   let latest = null;
   let weekly = [];
   let weeklyRoutes = {};
   let ridership = null;
+  let routeClasses = null;
   if (latestRes?.ok) { try { latest = await latestRes.json(); } catch {} }
   if (weeklyRes?.ok) { try { weekly = await weeklyRes.json(); } catch {} }
   if (routesRes?.ok) { try { weeklyRoutes = await routesRes.json(); } catch {} }
   if (ridershipRes?.ok) { try { ridership = await ridershipRes.json(); } catch {} }
+  if (classesRes?.ok) { try { routeClasses = await classesRes.json(); } catch {} }
 
   renderTrends(latest, weekly);
   renderBoroughTrends(latest, weeklyRoutes);
+  renderBoroughCard(latest);
   renderRidershipTrends(ridership);
+  renderGeoCuts(latest, weeklyRoutes, routeClasses);
 }
 
 // Curated watch list: the two busiest routes in each borough (by average buses
@@ -1439,6 +1445,106 @@ function renderBoroughTrends(latest, weeklyRoutes) {
   // Remove any prior render, then insert fresh blocks (keep empty note in DOM).
   host.querySelectorAll('.boro-trend').forEach(n => n.remove());
   host.insertAdjacentHTML('beforeend', blocks.join(''));
+}
+
+/** Borough report card: speed, wait, bunching per 100 buses — latest full week
+ *  + a trend spark for each, per borough. Same coverage gate as the speed
+ *  section. Data: latest.json weeklyHistory[].byBorough. */
+function renderBoroughCard(latest) {
+  const host = dom['tray-boro-card'];
+  if (!host) return;
+  const emptyEl = dom['tray-boro-card-empty'];
+  const fullWeeks = (latest?.weeklyHistory || [])
+    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
+  if (!fullWeeks.length) { if (emptyEl) emptyEl.style.display = ''; return; }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const series = (code, fn) => fullWeeks.map(w => {
+    const b = w.byBorough?.[code];
+    return b ? fn(b) : null;
+  });
+  const bunch100 = b => (b.avgBuses > 0 && b.bunchPairsPerSnap != null)
+    ? Math.round(100 * b.bunchPairsPerSnap / b.avgBuses * 10) / 10 : null;
+
+  const metricCell = (s, unit, higherIsBetter) => {
+    const valid = s.filter(v => v != null);
+    const latestVal = valid.length ? valid[valid.length - 1] : null;
+    return `<td class="num boro-card-cell">
+      <span class="bc-val">${latestVal != null ? latestVal.toFixed(1) : '—'}<i>${unit}</i></span>
+      ${sparkTrend(s, higherIsBetter)}
+    </td>`;
+  };
+
+  const rows = Object.entries(WATCH_ROUTES).map(([code, meta]) => `
+    <tr>
+      <td class="bc-boro">${meta.name}</td>
+      ${metricCell(series(code, b => b.avgSpeed), 'mph', true)}
+      ${metricCell(series(code, b => b.avgWait), 'min', false)}
+      ${metricCell(series(code, bunch100), '/100', false)}
+    </tr>`).join('');
+
+  host.innerHTML = `
+    <table class="tray-table boro-card">
+      <thead><tr><th>Borough</th><th class="num">Speed</th><th class="num">Rider wait</th><th class="num">Bunched pairs per 100 buses</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  host.appendChild(emptyEl);
+  if (emptyEl) emptyEl.style.display = 'none';
+}
+
+/** Geography cuts: mean weekly speed for route groups — bus-priority corridors
+ *  vs routes with little/no bus lane, and CBD-touching vs not. Groups come from
+ *  data/summary/route-classes.json; speeds from weekly-routes.json. */
+function renderGeoCuts(latest, weeklyRoutes, routeClasses) {
+  const host = dom['tray-geo-cuts'];
+  if (!host) return;
+  const emptyEl = dom['tray-geo-empty'];
+  const classes = routeClasses?.routes;
+  const fullWeeks = (latest?.weeklyHistory || [])
+    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
+  if (!classes || !fullWeeks.length || !weeklyRoutes) {
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const periods = fullWeeks.map(w => w.period);
+  // mean of member routes' weekly avgSpeed for each period
+  const groupSeries = (memberFn) => {
+    const members = Object.keys(classes).filter(r => memberFn(classes[r]));
+    return periods.map(p => {
+      let sum = 0, n = 0;
+      for (const r of members) {
+        const row = (weeklyRoutes[r] || []).find(x => x.period === p && x.daysSeen >= 7);
+        if (row?.avgSpeed != null) { sum += row.avgSpeed; n++; }
+      }
+      return n >= 10 ? Math.round(sum / n * 10) / 10 : null; // need a real sample
+    });
+  };
+
+  const nOf = (memberFn) => Object.keys(classes).filter(r => memberFn(classes[r])).length;
+  const groups = [
+    { label: 'Priority corridors', sub: `≥30% on bus lanes · ${nOf(c => c.busLaneShare >= 0.3)} routes`,
+      s: groupSeries(c => c.busLaneShare >= 0.3) },
+    { label: 'Little or no bus lane', sub: `≤10% on bus lanes · ${nOf(c => c.busLaneShare <= 0.1)} routes`,
+      s: groupSeries(c => c.busLaneShare <= 0.1) },
+    { label: 'Congestion zone routes', sub: `in or crossing the CBD · ${nOf(c => c.cbd !== 'Outside CBD')} routes`,
+      s: groupSeries(c => c.cbd !== 'Outside CBD') },
+    { label: 'Rest of the city', sub: `never enter the CBD · ${nOf(c => c.cbd === 'Outside CBD')} routes`,
+      s: groupSeries(c => c.cbd === 'Outside CBD') },
+  ];
+
+  host.querySelectorAll('.mini-trend').forEach(n => n.remove());
+  host.insertAdjacentHTML('beforeend', groups.map(g => {
+    const valid = g.s.filter(v => v != null);
+    const latestVal = valid.length ? valid[valid.length - 1] : null;
+    return `<div class="mini-trend mini-boro">
+      <div class="mini-label">${g.label}</div>
+      <div class="mini-value">${latestVal != null ? latestVal.toFixed(1) : '—'}<span class="mini-unit">mph</span></div>
+      <div class="trend-change flat">${g.sub}</div>
+      ${sparkTrend(g.s, true)}
+    </div>`;
+  }).join(''));
 }
 
 /** "27,848" under 100k, "114k" under 1M, "1.38M" above. Riders, not mph. */

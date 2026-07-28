@@ -24,6 +24,10 @@ let tweenFrame = null;
 let leaderCache = {};        // `${dt}${h}` → sorted top rows
 let popup = null;
 let popupStop = null;        // {id, lngLat} of the open popup, for live refresh
+let layers = { subway: false, desert: false, crz: false };
+let geoLoaded = { subway: false, crz: false }; // lazy-fetched layer data
+let crzShare = { wd: [], we: [] };   // share of boardings inside the CRZ, per hour
+let desertShare = { wd: 0, we: 0 };  // share of boardings >800m from the subway
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => n >= 10000 ? Math.round(n).toLocaleString('en-US')
@@ -60,21 +64,29 @@ async function loadData() {
     const d = days[dt];
     const feats = [];
     const cw = new Array(24).fill(0);
+    const crzByHour = new Array(24).fill(0);
+    let farSum = 0, allSum = 0;
     for (const s of raw.stops) {
-      const [id, name, lon, lat, routes, wdArr, weArr] = s;
+      const [id, name, lon, lat, routes, wdArr, weArr, mb, ma, dSub, inCrz] = s;
       const arr = dt === 'wd' ? wdArr : weArr;
-      const p = { id, name };
-      let stopMax = 0;
+      const p = { id, name, ds: dSub ?? 99999, cz: inCrz ?? 0 };
+      let stopMax = 0, stopSum = 0;
       for (let h = 0; h < 24; h++) {
         const v = arr[h] / d; // avg per day of this type
         p['h' + h] = Math.round(v * 10) / 10;
         cw[h] += v;
+        stopSum += v;
+        if (inCrz) crzByHour[h] += v;
         if (v > stopMax) stopMax = v;
       }
+      allSum += stopSum;
+      if ((dSub ?? 99999) > 800) farSum += stopSum;
       if (stopMax > vmax) vmax = stopMax;
       feats.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: p });
     }
     citywide[dt] = cw;
+    crzShare[dt] = crzByHour.map((v, h) => cw[h] > 0 ? v / cw[h] : 0);
+    desertShare[dt] = allSum > 0 ? farSum / allSum : 0;
     fc[dt] = { type: 'FeatureCollection', features: feats };
   }
   // index for popups/leaderboard
@@ -113,7 +125,7 @@ function applyHour(hA, hB, t) {
 function setHour(h, opts = {}) {
   const prev = hour;
   hour = ((h % 24) + 24) % 24;
-  updateClock(); updateLeaders(); updatePlayhead(); refreshPopup();
+  updateClock(); updateLeaders(); updatePlayhead(); refreshPopup(); updateLayerStat();
   writeUrl();
   if (!map || !map.getLayer('boardings')) return;
   if (opts.instant || prev === hour) { applyHour(hour, hour, 0); return; }
@@ -139,12 +151,131 @@ function setDaytype(dt) {
   });
   if (map && map.getSource('stops')) map.getSource('stops').setData(fc[dt]);
   $('leader-daytype').textContent = dt === 'wd' ? 'weekday avg' : 'weekend avg';
-  drawCurve(); updateClock(); updateLeaders(); refreshPopup();
+  drawCurve(); updateClock(); updateLeaders(); refreshPopup(); updateLayerStat();
   writeUrl();
 }
 
 function refreshPopup() {
   if (popup && popup.isOpen() && popupStop) openPopup(popupStop.id, popupStop.lngLat);
+}
+
+// ═══ map layers: subway, transit deserts, congestion zone ═══
+async function ensureSubwayLayers() {
+  if (geoLoaded.subway) return;
+  const res = await fetch('data/ridership/subway.json');
+  const sub = await res.json();
+  geoLoaded.subway = true;
+  map.addSource('subway-lines', { type: 'geojson', data: sub.lines });
+  map.addSource('subway-stations', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: sub.stations.map((s) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [s[1], s[2]] },
+      properties: { name: s[0], routes: s[3] },
+    })) },
+  });
+  // lines sit under the boarding dots so demand stays the foreground
+  map.addLayer({
+    id: 'subway-lines', type: 'line', source: 'subway-lines',
+    layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': ['get', 'color'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1, 12, 2, 15, 3.5],
+      'line-opacity': 0.65,
+    },
+  }, 'stops-ghost');
+  map.addLayer({
+    id: 'subway-stations', type: 'circle', source: 'subway-stations',
+    layout: { visibility: 'none' },
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 1.4, 12, 3, 15, 5],
+      'circle-color': '#ffffff',
+      'circle-opacity': 0.9,
+      'circle-stroke-color': '#07070a',
+      'circle-stroke-width': 1,
+    },
+  }, 'stops-ghost');
+  map.on('click', 'subway-stations', (e) => {
+    const f = e.features[0];
+    if (!f) return;
+    if (popup) popup.remove();
+    popupStop = null;
+    popup = new maplibregl.Popup({ offset: 8, maxWidth: '240px' })
+      .setLngLat(f.geometry.coordinates)
+      .setHTML(`<div class="pop-name">${f.properties.name}</div>
+        <div class="pop-routes">${String(f.properties.routes).split(' ').filter(Boolean)
+          .map((r) => `<span class="pop-route">${r}</span>`).join('')}</div>
+        <div class="pop-cap">Subway station</div>`)
+      .addTo(map);
+  });
+  map.on('mouseenter', 'subway-stations', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'subway-stations', () => { map.getCanvas().style.cursor = ''; });
+}
+
+async function ensureCrzLayer() {
+  if (geoLoaded.crz) return;
+  const res = await fetch('data/ridership/crz.json');
+  const crz = await res.json();
+  geoLoaded.crz = true;
+  map.addSource('crz', { type: 'geojson', data: crz });
+  map.addLayer({
+    id: 'crz-fill', type: 'fill', source: 'crz',
+    layout: { visibility: 'none' },
+    paint: { 'fill-color': '#dde44c', 'fill-opacity': 0.05 },
+  }, 'stops-ghost');
+  map.addLayer({
+    id: 'crz-line', type: 'line', source: 'crz',
+    layout: { visibility: 'none' },
+    paint: { 'line-color': '#dde44c', 'line-width': 1.6, 'line-dasharray': [2, 2], 'line-opacity': 0.8 },
+  }, 'stops-ghost');
+}
+
+function applyDesertDimming() {
+  if (!map.getLayer('boardings')) return;
+  // In desert mode, stops within 800m of a subway station fade way back; the
+  // glow that remains is bus ridership where the subway doesn't reach.
+  map.setPaintProperty('boardings', 'circle-opacity',
+    layers.desert ? ['case', ['<=', ['get', 'ds'], 800], 0.08, 0.92] : 0.85);
+  map.setPaintProperty('stops-ghost', 'circle-opacity',
+    layers.desert ? ['case', ['<=', ['get', 'ds'], 800], 0.3, 1] : 1);
+}
+
+async function toggleLayer(name) {
+  layers[name] = !layers[name];
+  if (name === 'desert' && layers.desert && !layers.subway) {
+    // deserts only make sense against the subway map — bring it with us
+    layers.subway = true;
+  }
+  if (layers.subway) await ensureSubwayLayers();
+  if (layers.crz) await ensureCrzLayer();
+  const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+  vis('subway-lines', layers.subway);
+  vis('subway-stations', layers.subway);
+  vis('crz-fill', layers.crz);
+  vis('crz-line', layers.crz);
+  applyDesertDimming();
+  for (const [n, on] of Object.entries(layers)) {
+    const btn = $('layer-' + n);
+    if (btn) btn.classList.toggle('active', on);
+  }
+  updateLayerStat();
+}
+
+function updateLayerStat() {
+  const el = $('layer-stat');
+  if (!el || !raw) return;
+  const bits = [];
+  const dLabel = daytype === 'wd' ? 'weekday' : 'weekend';
+  if (layers.desert) {
+    bits.push(`<strong>${Math.round(desertShare[daytype] * 100)}%</strong> of ${dLabel} boardings happen at the highlighted stops — more than half a mile from any subway station`);
+  }
+  if (layers.crz) {
+    const pct = Math.round((crzShare[daytype][hour] || 0) * 100);
+    const lab = hourLabel(hour);
+    bits.push(`<strong>${pct}%</strong> of ${lab.text} ${lab.ap} ${dLabel} boardings are inside the congestion relief zone`);
+  }
+  el.innerHTML = bits.join('<span class="stat-sep">·</span>');
+  el.hidden = bits.length === 0;
 }
 
 function writeUrl() {
@@ -410,6 +541,9 @@ async function boot() {
   $('play-btn').addEventListener('click', () => (playing ? stopPlay() : startPlay()));
   document.querySelectorAll('.dt-btn').forEach((b) =>
     b.addEventListener('click', () => setDaytype(b.dataset.dt)));
+  for (const n of ['subway', 'desert', 'crz']) {
+    $('layer-' + n).addEventListener('click', () => toggleLayer(n));
+  }
   $('ai-caution-btn').addEventListener('click', () => {
     $('ai-caution-pop').hidden = !$('ai-caution-pop').hidden;
   });

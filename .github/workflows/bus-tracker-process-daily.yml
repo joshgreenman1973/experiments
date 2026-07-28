@@ -78,13 +78,16 @@ jobs:
       - name: Generate weekly/monthly rollups
         run: node nyc-bus-tracker/collector/rollup.js
 
+      - name: Regenerate download CSVs
+        run: node nyc-bus-tracker/scripts/export_csv.js
+
       - name: Commit summaries to main
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
           # Only stage the rollup outputs. Snapshots stay on bus-data — defensively
           # unstage them in case anything above re-staged the path.
-          git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/
+          git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/ nyc-bus-tracker/data/downloads/
           git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
 
           if git diff --staged --quiet; then
@@ -100,6 +103,6 @@ jobs:
           if ! git push origin main; then
             echo "Push rejected, rebasing and retrying..."
             git pull --rebase --autostash origin main
-            git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/
+            git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/ nyc-bus-tracker/data/downloads/
             git push origin main
           fi
