@@ -93,6 +93,18 @@
     padding-bottom: 0.4rem; border-bottom: 1px solid var(--black); margin-bottom: 0.5rem;
   }
 
+  /* ---- View toggle ---- */
+  .viewtoggle { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+  .vt-label { font-weight: 700; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--charcoal); margin-right: 0.15rem; }
+  .vt-btn {
+    font-family: var(--sans); font-weight: 700; font-size: 0.68rem;
+    letter-spacing: 0.04em; padding: 0.4rem 0.85rem; cursor: pointer;
+    background: var(--white); color: var(--black);
+    border: 1px solid var(--black); border-radius: 0;
+  }
+  .vt-btn:hover { background: var(--chartreuse-20); }
+  .vt-btn.is-on { background: var(--black); color: var(--white); }
+
   /* ---- At-a-glance board ---- */
   .board { margin-bottom: 3rem; }
   .board h2 { font-weight: 900; font-size: 1.5rem; letter-spacing: -0.01em; padding-bottom: 0.4rem; border-bottom: 1px solid var(--black); }
@@ -146,6 +158,10 @@
   .delta.up { color: var(--red); }
   .delta.down { color: var(--green); }
   .delta.flat { color: var(--charcoal); }
+
+  .price.up26 { color: var(--red); }
+  .price.down26 { color: var(--green); }
+  .lvl { font-weight: 400; font-size: 0.68rem; color: var(--charcoal); }
 
   /* ---- Chart ---- */
   .sparkbox { margin-bottom: 0.85rem; }
@@ -273,10 +289,16 @@
 
   <div class="summary" id="summary"></div>
 
+  <div class="viewtoggle">
+    <span class="vt-label">View</span>
+    <button type="button" class="vt-btn is-on" data-view="full">Full history</button>
+    <button type="button" class="vt-btn" data-view="ytd">2026 so far</button>
+  </div>
+
   <div class="board" id="board"></div>
 
   <h2 class="sec">The series in detail</h2>
-  <p class="bsub" style="font-size:0.84rem;color:var(--charcoal);margin:0.6rem 0 1rem;max-width:78ch;">Each card carries its own estimator, geographic scope, trackability grade and source. The shaded stretch is 2026.</p>
+  <p class="bsub" style="font-size:0.84rem;color:var(--charcoal);margin:0.6rem 0 1rem;max-width:78ch;">Each card carries its own estimator, geographic scope, trackability grade and source. In the full view the shaded stretch is 2026.</p>
 
   <div class="grid" id="grid"></div>
 
@@ -426,13 +448,24 @@
   }
   function pts(pairs) { const a = nulls(); pairs.forEach(([i, v]) => a[i] = v); return a; }
   // Broadway: 2024-25 season average held Jun '24-May '25, latest weekly read at May '26
-  const BROADWAY = (() => { const a = pts([[24, 120.43], [25, 125.79]]); for (let i = 1; i <= 12; i++) a[i] = 129.12; return a; })();
+  // Season averages ONLY. A weekly read is a different object and is not
+  // spliced in (METHODOLOGY 7.3) -- mixing them produced a false spike.
+  // idx 0 = May 2024 (tail of 2023-24 season); idx 1-12 = 2024-25 season;
+  // 2025-26 stays blank until the League publishes the closed season.
+  const BROADWAY = (() => {
+    const a = nulls(); a[0] = 125.27;
+    for (let i = 1; i <= 12; i++) a[i] = 129.12;
+    return a;
+  })();
   const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "wage_eci", "cpi_allitems", "cpi_energy", "cpi_shelter"]); // % or season series: YoY badge would mislead
   // Series whose VALUES are already percentages — their moves are in
   // percentage points. Broadway is in NOBADGE but is dollars, so it is
   // deliberately not here.
   const PCT_SERIES = new Set(["case_shiller", "cpi", "restaurant_cpi", "wage_eci", "cpi_allitems", "cpi_energy", "cpi_shelter"]);
   const CLUSTER_RENT = new Set(["rent", "manhattan_rent", "brooklyn_rent", "queens_rent", "bronx_rent"]);
+  // Series whose window can straddle a tariff season, so a raw start-to-end
+  // change is partly seasonal rather than a price move.
+  const SEASONAL = new Set(["coned", "coned_gas"]);
   const CLUSTER_INCOME = new Set(["wage_qcew", "wage_eci"]); // the income side — shown distinct from the cost cards
 
   const ITEMS = [
@@ -455,9 +488,9 @@
       id: "gas", num: "02 · TRANSIT", icon: "⛽",
       name: "Regular gas, NYC metro", unit: "AAA NYC metro · per gallon",
       current: "$4.23", format: v => "$" + v.toFixed(2),
-      status: "verified", est: true,
-      data: pts([[0,3.85],[3,3.65],[6,3.45],[9,3.40],[12,3.55],[15,3.40],[18,3.40],[21,3.80],[23,4.13],[24,4.63],[25,4.24],[26,4.232]]),
-      source: "AAA / FRED APUS12A7471A", sourceUrl: "https://gasprices.aaa.com/?state=NY",
+      status: "verified", est: false,
+      data: pts([[23,4.13],[24,4.63],[25,4.24],[26,4.232]]),
+      source: "AAA", sourceUrl: "https://gasprices.aaa.com/?state=NY",
       asof: "Retrieved Jul 27, 2026",
       work: [
         ["NYC metro (now)","$4.232"],
@@ -515,8 +548,8 @@
       id: "coned", num: "06 · UTILITIES", icon: "💡",
       name: "ConEd residential bill", unit: "Typical 300 kWh · monthly",
       current: "~$127", format: v => "$" + Math.round(v),
-      status: "verified", est: true,
-      data: pts([[0,112],[3,115],[6,114],[9,115],[12,116],[15,118],[18,119],[21,120],[23,119.70],[25,127]]),
+      status: "verified", est: false,
+      data: pts([[23,119.70],[25,127]]),
       source: "Con Edison rate schedule", sourceUrl: "https://www.coned.com/en/accounts-billing/your-bill/about-your-bill/rates",
       asof: "Summer 2026 rate · rebuilt from tariff",
       work: [
@@ -529,18 +562,18 @@
     },
     {
       id: "broadway", num: "07 · CULTURE", icon: "🎭",
-      name: "Broadway paid admission", unit: "Season average · per ticket",
+      name: "Broadway paid admission", unit: "Closed season average · per ticket",
       current: "$129.12", format: v => v == null ? "—" : "$" + v.toFixed(0),
       status: "verified", est: false,
       data: BROADWAY,
       source: "The Broadway League", sourceUrl: "https://www.broadwayleague.com/research/grosses-broadway-nyc/",
-      asof: "Last full season; wk of June 28 2026 checked",
+      asof: "2024-25 season, the last closed season",
       work: [
         ["2024-25 season","$129.12"],
-        ["2023-24","$125.27"],
-        ["2022-23","$128.43"],
-        ["Wk of June 28 '26","$125.79 (35 shows)"],
-        ["2025-26 season","in progress"]
+        ["2023-24 season","$125.27"],
+        ["2022-23 season","$128.43"],
+        ["2025-26 season","in progress"],
+        ["Latest week (not plotted)","$125.79"]
       ]
     },
     {
@@ -641,8 +674,8 @@
       id: "case_shiller", num: "09f · HOUSING", icon: "📈",
       name: "Case-Shiller NY home prices", unit: "S&P / Cotality · YoY % change",
       current: "+4.0%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
-      status: "verified", est: true,
-      data: pts([[0,9.0],[3,7.5],[6,6.5],[9,5.5],[12,4.5],[15,4.5],[18,4.5],[20,4.9],[21,4.7],[22,4.0]]),
+      status: "verified", est: false,
+      data: pts([[20,4.9],[21,4.7],[22,4.0]]),
       source: "S&P Cotality Case-Shiller (FRED NYXRSA)", sourceUrl: "https://fred.stlouisfed.org/series/NYXRSA",
       asof: "Through Mar 2026 (released late June)",
       work: [
@@ -657,8 +690,8 @@
       id: "coned_gas", num: "06b · UTILITIES", icon: "🔥",
       name: "ConEd residential gas bill", unit: "Typical 100 therms · monthly",
       current: "~$253", format: v => v == null ? "—" : "$" + Math.round(v),
-      status: "verified", est: true,
-      data: pts([[0,230],[3,235],[6,238],[9,240],[12,242],[15,245],[18,248],[21,253],[25,253]]),
+      status: "verified", est: false,
+      data: pts([[25,253]]),
       source: "Con Edison gas tariff", sourceUrl: "https://www.coned.com/en/rates-tariffs/rates/natural-gas",
       asof: "2026 rate filing · Retrieved Apr 22 2026",
       work: [
@@ -673,7 +706,7 @@
       id: "cpi", num: "10 · FOOD", icon: "🛒",
       name: "Groceries (CPI, YoY)", unit: "BLS food at home · NY-Newark-JC · YoY %",
       current: "+4.0%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
-      status: "verified", est: true,
+      status: "verified", est: false,
       data: pts([[23,5.9],[24,4.0]]),
       source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
       asof: "May 2026 release · Retrieved Jun 30 2026",
@@ -689,7 +722,7 @@
       id: "restaurant_cpi", num: "10b · FOOD", icon: "🍴",
       name: "Restaurants (CPI, YoY)", unit: "BLS food away from home · NY-Newark-JC · YoY %",
       current: "+3.2%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
-      status: "verified", est: true,
+      status: "verified", est: false,
       data: pts([[23,3.4],[24,3.2]]),
       source: "BLS NY-Newark-JC CPI", sourceUrl: "https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm",
       asof: "May 2026 release · Retrieved Jun 30 2026",
@@ -866,7 +899,9 @@
   ];
 
   // ---------- sparkline renderer ----------
-  function sparkline(data, est) {
+  function sparkline(data, est, off) {
+    off = off || 0;
+    const N = data.length;
     const W = 290, H = 52, PAD = 4;
     const real = data.filter(v => v != null);
     if (real.length === 0) {
@@ -884,7 +919,7 @@
     if (real.length < 3) {
       let lo = Math.min(...real), hi = Math.max(...real);
       if (lo === hi) { lo -= 1; hi += 1; }
-      const stepS = (W - 2*PAD) / (NM - 1);
+      const stepS = (W - 2*PAD) / (N - 1);
       const xs = i => PAD + i*stepS;
       const ys = v => PAD + (1 - (v - lo) / (hi - lo)) * (H - 2*PAD - 8) + 8;
       const bY = H - PAD;
@@ -895,8 +930,8 @@
         return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${isLast?3.2:2.4}" fill="${isLast?"#ff7c53":"#707175"}"/>`
              + `<line x1="${cx.toFixed(1)}" y1="${(cy+3).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${bY}" stroke="#dddddd" stroke-width="1" stroke-dasharray="2 2"/>`;
       }).join("");
-      const bandS = `<rect x="${xs(YTD0).toFixed(1)}" y="${PAD}" width="${(W-PAD-xs(YTD0)).toFixed(1)}" height="${(H-2*PAD).toFixed(1)}" fill="#f7f8dd"/>`;
-      const mtS = Array.from({length: NM}, (_, i) =>
+      const bandS = off > 0 ? "" : `<rect x="${xs(YTD0).toFixed(1)}" y="${PAD}" width="${(W-PAD-xs(YTD0)).toFixed(1)}" height="${(H-2*PAD).toFixed(1)}" fill="#f7f8dd"/>`;
+      const mtS = Array.from({length: N}, (_, i) =>
         `<line x1="${xs(i).toFixed(1)}" y1="${bY}" x2="${xs(i).toFixed(1)}" y2="${(bY-2).toFixed(1)}" stroke="#dddddd" stroke-width="1"/>`).join("");
       return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
         ${bandS}
@@ -910,7 +945,7 @@
     let min = Math.min(...real), max = Math.max(...real);
     if (min === max) { min -= 1; max += 1; }
     const range = max - min;
-    const step = (W - 2*PAD) / (NM - 1);
+    const step = (W - 2*PAD) / (N - 1);
     const x = i => PAD + i*step;
     const y = v => PAD + (1 - (v - min) / range) * (H - 2*PAD);
 
@@ -928,9 +963,9 @@
 
     // monthly x-axis: a faint tick every month, darker/taller at year boundaries
     const baseY = H - PAD;
-    const mticks = Array.from({length: NM}, (_, i) =>
+    const mticks = Array.from({length: N}, (_, i) =>
       `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-2).toFixed(1)}" stroke="#dddddd" stroke-width="1"/>`).join("");
-    const yticks = yearTicks().map(i =>
+    const yticks = yearTicks(off, N).map(i =>
       `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-5).toFixed(1)}" stroke="#707175" stroke-width="1"/>`).join("");
     const baseline = `<line x1="${PAD}" y1="${baseY}" x2="${(W-PAD).toFixed(1)}" y2="${baseY}" stroke="#dddddd" stroke-width="1"/>`;
     // a dot at every actual observation; the latest one emphasized
@@ -940,10 +975,10 @@
 
     // 2026 window: shade it, rule the Jan '26 boundary, and redraw that
     // stretch heavier so the year-to-date trend reads on its own.
-    const x0 = x(YTD0);
-    const band = `<rect x="${x0.toFixed(1)}" y="${PAD}" width="${(W-PAD-x0).toFixed(1)}" height="${(H-2*PAD).toFixed(1)}" fill="#f7f8dd"/>`;
-    const divider = `<line x1="${x0.toFixed(1)}" y1="${PAD}" x2="${x0.toFixed(1)}" y2="${baseY}" stroke="#dde44c" stroke-width="1.5"/>`;
-    const P26 = P.filter(p => p[0] >= x0 - 0.01);
+    const x0 = x(YTD0 - off);
+    const band = off > 0 ? "" : `<rect x="${x0.toFixed(1)}" y="${PAD}" width="${(W-PAD-x0).toFixed(1)}" height="${(H-2*PAD).toFixed(1)}" fill="#f7f8dd"/>`;
+    const divider = off > 0 ? "" : `<line x1="${x0.toFixed(1)}" y1="${PAD}" x2="${x0.toFixed(1)}" y2="${baseY}" stroke="#dde44c" stroke-width="1.5"/>`;
+    const P26 = off > 0 ? [] : P.filter(p => p[0] >= x0 - 0.01);
     const path26 = P26.length > 1
       ? `<path d="${P26.map((p,j) => (j?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="#ff7c53" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`
       : "";
@@ -983,9 +1018,10 @@
   function mFull(i) { return `${mLabel(i)} '${String(mYear(i)).slice(2)}`; }
   const FRAME0 = mFull(0), FRAME1 = () => mFull(NM - 1);
   // January ticks: every index where the month is January, plus the origin.
-  function yearTicks() {
+  function yearTicks(off, n) {
+    off = off || 0; n = n || NM;
     const t = [0];
-    for (let i = 1; i < NM; i++) if ((4 + i) % 12 === 0) t.push(i);
+    for (let i = 1; i < n; i++) if ((4 + off + i) % 12 === 0) t.push(i);
     return t;
   }
 
@@ -1028,7 +1064,7 @@
     taxi: { level: "clean", text: "A modeled fixed trip (3 miles, no traffic, no tip) built from the published meter tariff. Comparable as long as the trip spec never changes — and it doesn't." },
     coned: { level: "caveat", text: "Comparable only with usage held fixed. We freeze it at 300 kWh and rebuild from the posted tariff, so moves reflect rates, not weather. If ConEd restructures the tariff we re-state the series and flag it." },
     coned_gas: { level: "caveat", text: "Same discipline as the electric bill: fixed at 100 therms so the number tracks the rate, not winter demand." },
-    broadway: { level: "caveat", text: "Two comparability traps. (1) 'Average paid admission' is gross ÷ attendance — not the list price you see. (2) The season figure is annual; the weekly figure swings with which shows are running. We trend the season average and note the live weekly read separately. Don't mix them." },
+    broadway: { level: "caveat", text: "Two traps. (1) Average paid admission is gross divided by paid attendance -- not the list price, and it moves with WHICH SHOWS are running, not only with pricing. (2) A season average and a single week are different objects, so the line plots CLOSED SEASON AVERAGES only; the latest weekly read sits in the detail above and is deliberately left off the chart, because splicing the two produced a false spike. The 2025-26 season stays blank until the League publishes it." },
     rent: { level: "caveat", text: "This is the median ASKING rent on currently-listed units — what landlords advertise on (mostly vacant) apartments coming to market. It is NOT what signed leases cost: it excludes rent-stabilized renewals AND the market-rate leases people signed earlier and are still paying. So it's a leading edge of the market — comparable month to month because the method is fixed, but it runs ahead of what the typical New Yorker actually pays." },
     manhattan_rent: { level: "caveat", text: "Median ASKING rent on currently-listed units — not signed leases (excludes both rent-stabilized renewals and the market-rate leases tenants signed earlier). All five borough cards use StreetEasy on purpose, so they compare cleanly to each other; Douglas Elliman, an alternative source, only covers Manhattan/Brooklyn/Queens and lands on different levels." },
     brooklyn_rent: { level: "caveat", text: "Median ASKING rent on currently-listed units, not signed leases — runs ahead of what sitting tenants pay. Same StreetEasy method as the other boroughs, so cross-borough comparisons are clean." },
@@ -1136,13 +1172,17 @@
       </table>`;
   }
 
-  function maxisRow() {
-    return `<div class="maxis">` + yearTicks().map((i, j) =>
-      `<span class="${j === 0 ? "edge0" : ""}" style="left:${(i / (NM - 1) * 100).toFixed(1)}%">${mFull(i)}</span>`
+  function maxisRow(off, n) {
+    off = off || 0; n = n || NM;
+    return `<div class="maxis">` + yearTicks(off, n).map((i, j) =>
+      `<span class="${j === 0 ? "edge0" : ""}" style="left:${(i / (n - 1) * 100).toFixed(1)}%">${mFull(off + i)}</span>`
     ).join("") + `</div>`;
   }
 
+  let VIEW = "full";   // "full" = May 2024 -> now; "ytd" = Jan 2026 -> now
+
   function render() {
+    const ytdMode = VIEW === "ytd";
     const cardHtml = it => {
       const tbd = it.status === "tbd";
       const workHtml = it.work ? `
@@ -1158,11 +1198,29 @@
       const srcHtml = it.sourceUrl
         ? `<a href="${it.sourceUrl}" target="_blank" rel="noopener">${it.source}</a>`
         : it.source;
-      const yoy = (!tbd && !NOBADGE.has(it.id)) ? yoyBadge(it.data) : "";
-      const ytd = !tbd ? ytdBadge(it.data, PCT_SERIES.has(it.id), it.est) : "";
-      const axisMin = Math.min(...it.data.filter(v => v != null));
-      const axisMax = Math.max(...it.data.filter(v => v != null));
-      const hasData = it.data.some(v => v != null);
+      const isPctS = PCT_SERIES.has(it.id);
+      const yoyFull = (!tbd && !NOBADGE.has(it.id)) ? yoyBadge(it.data) : "";
+      const ytdFull = !tbd ? ytdBadge(it.data, isPctS, it.est) : "";
+      // In the 2026 view the big number becomes the change since Jan 1 --
+      // or TBD where the series has no 2026 movement to report.
+      const c26 = tbd ? null : ytdChange(it.data, isPctS);
+      const headline = ytdMode
+        ? (c26 ? `${c26.val >= 0 ? "+" : ""}${c26.val.toFixed(1)}${c26.unit}` : "TBD")
+        : it.current;
+      const headCls = ytdMode
+        ? (c26 ? (c26.val > 0.05 ? "up26" : c26.val < -0.05 ? "down26" : "") : "tbd")
+        : (tbd ? "tbd" : "");
+      const sub26 = (ytdMode && c26)
+        ? `<span class="lvl">${mLabel(c26.a)}&nbsp;→&nbsp;${mLabel(c26.b)} 2026 · now ${it.current}` +
+          `${it.est ? " · est. baseline" : ""}` +
+          `${SEASONAL.has(it.id) ? " · spans the summer rate change" : ""}</span>`
+        : (ytdMode && !tbd ? `<span class="lvl">only one 2026 reading so far · now ${it.current}</span>` : "");
+      const yoy = ytdMode ? "" : yoyFull;
+      const ytd = ytdMode ? sub26 : ytdFull;
+      const shown = ytdMode ? it.data.slice(YTD0) : it.data;
+      const axisMin = Math.min(...shown.filter(v => v != null));
+      const axisMax = Math.max(...shown.filter(v => v != null));
+      const hasData = shown.some(v => v != null);
       const axisRow = hasData
         ? `<div class="axis"><span>${it.format(axisMin)}</span><span>${it.format(axisMax)}</span></div>`
         : `<div class="axis"><span>${FRAME0}</span><span>${FRAME1()}</span></div>`;
@@ -1175,14 +1233,14 @@
           <div class="unit">${it.unit}</div>
           ${geoHtml}
           <div class="price-row">
-            <div class="price ${tbd ? "tbd" : ""}">${it.current}</div>
+            <div class="price ${headCls}">${headline}</div>
             ${yoy}${ytd}
           </div>
           <div class="sparkbox">
-            <div class="spark-title"><span>Monthly · ${FRAME0} → ${FRAME1()}</span>${it.est ? "<span>est.</span>" : ""}</div>
-            ${sparkline(it.data, it.est)}
+            <div class="spark-title"><span>Monthly · ${ytdMode ? mFull(YTD0) : FRAME0} → ${FRAME1()}</span>${it.est ? "<span>est.</span>" : ""}</div>
+            ${sparkline(ytdMode ? it.data.slice(YTD0) : it.data, it.est, ytdMode ? YTD0 : 0)}
             ${axisRow}
-            ${maxisRow()}
+            ${maxisRow(ytdMode ? YTD0 : 0, ytdMode ? NM - YTD0 : NM)}
           </div>
           ${tbdHtml}
           ${workHtml}
@@ -1210,6 +1268,14 @@
       ["Awaiting field survey", pend, "tbd"]
     ].map(([l, v, c]) => `<div class="cell"><div class="lbl">${l}</div><div class="val ${c}">${v}</div></div>`).join("");
   }
+
+  document.querySelectorAll(".vt-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      VIEW = btn.dataset.view;
+      document.querySelectorAll(".vt-btn").forEach(b => b.classList.toggle("is-on", b === btn));
+      render();
+    });
+  });
 
   renderSummary();
   renderBoard();

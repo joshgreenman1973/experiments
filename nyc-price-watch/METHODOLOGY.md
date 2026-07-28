@@ -309,6 +309,32 @@ Interpolated months are not stored as observations in `readings.json`
 and are not used in any computed statistic. Series containing any
 interpolated display segment are flagged `est.` on the chart.
 
+### 6.5.0 One estimator per line (no splicing)
+
+A single plotted series must come from **one estimator, one source and
+one geography throughout**. Two statistics that describe roughly the
+same subject are not interchangeable, and joining them produces a
+visual move that is an artifact of the join rather than a change in
+price.
+
+This rule was added after an audit found three violations:
+
+- **Broadway** plotted a 12-month *season average* adjacent to two
+  *single-week* averages. The apparent late spike was entirely the
+  splice. The line now carries closed-season averages only; the latest
+  weekly figure is reported in the card detail and deliberately not
+  plotted.
+- **Gasoline** plotted a FRED/BLS metro average for the back-history
+  against AAA readings for the current period — different panels,
+  different geography definitions. The line now carries AAA only.
+- **ConEd** and **Case-Shiller** carried shape-approximated back-history
+  beneath month-specific readings. Both now carry only real observations.
+
+The cost of the rule is shorter series; the benefit is that every
+plotted move is a real move. Where removing a splice leaves fewer than
+three points, the series falls under §6.5.1 and is drawn as discrete
+points rather than a line.
+
 ### 6.5.1 Minimum observations for a trend line
 
 A series with **fewer than three observations is not drawn as a line.**
@@ -345,6 +371,30 @@ underlying prices. This biases *coverage*, not *level*. Held-forward
 values are visible as flat segments and are documented per run.
 
 ---
+
+## 6.7 The 2026 view
+
+A toggle switches every card from the full frame to 2026 alone. In that
+view the headline number is replaced by the change across the series'
+2026 observations, and the chart is clipped to January 2026 onward.
+
+Two safeguards apply, because a naive year-to-date figure is easy to
+misread:
+
+1. **The window is stated, not assumed.** Several series have no
+   January reading — gasoline begins in April, the CPI lines in April,
+   ConEd in April. Each card prints its actual span ("Apr → Jul 2026")
+   rather than implying a January baseline. The control is labeled
+   "2026 so far" for the same reason.
+2. **Unknowable means TBD.** Where a series has no 2026 observation, or
+   only one, no change is computed and the card reads `TBD`. As of v1.0
+   that applies to 16 of 30 cards, including all seven uncollected
+   survey items, both wage series, and Broadway (whose 2025-26 season
+   has not closed).
+
+Series whose window can straddle a tariff season are additionally
+flagged on the card, since a raw start-to-end change is then partly
+seasonal — see §7.5.
 
 ## 7. Known biases and interpretive hazards, by series
 
