@@ -286,24 +286,7 @@
       = a national figure, not New York-specific. Four lines (gas, both CPI series, Case-Shiller) are metro, not city; one (the BEC ingredient index) is national.</p>
   </div>
 
-  <div class="summary">
-    <div class="cell">
-      <div class="lbl">Items tracked</div>
-      <div class="val">30</div>
-    </div>
-    <div class="cell">
-      <div class="lbl">Verified this period</div>
-      <div class="val up">23</div>
-    </div>
-    <div class="cell">
-      <div class="lbl">Months in frame</div>
-      <div class="val">27</div>
-    </div>
-    <div class="cell">
-      <div class="lbl">Panel surveys pending</div>
-      <div class="val tbd">7</div>
-    </div>
-  </div>
+  <div class="summary" id="summary"></div>
 
   <div class="board" id="board"></div>
 
@@ -441,7 +424,6 @@
   // est=true = pre-current points are archive-approximate, not exact.
   // =======================================================================
   const NM = 27;                  // months in frame: May 2024 (idx 0) -> Jul 2026 (idx 26)
-  const YEAR_TICKS = [0, 8, 20];  // May '24, Jan '25, Jan '26
   const YTD0 = 20;                // Jan 2026 — the "since 1/1/2026" anchor
   function nulls() { return Array(NM).fill(null); }
   function step(changes) {        // [[startIdx,value],...] held forward
@@ -955,7 +937,7 @@
     const baseY = H - PAD;
     const mticks = Array.from({length: NM}, (_, i) =>
       `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-2).toFixed(1)}" stroke="#cdc2ac" stroke-width="0.5"/>`).join("");
-    const yticks = YEAR_TICKS.map(i =>
+    const yticks = yearTicks().map(i =>
       `<line x1="${x(i).toFixed(1)}" y1="${baseY}" x2="${x(i).toFixed(1)}" y2="${(baseY-5).toFixed(1)}" stroke="#8a7f73" stroke-width="1"/>`).join("");
     const baseline = `<line x1="${PAD}" y1="${baseY}" x2="${(W-PAD).toFixed(1)}" y2="${baseY}" stroke="#ddd2bc" stroke-width="0.5"/>`;
     // a dot at every actual observation; the latest one emphasized
@@ -1002,6 +984,17 @@
   // Month label for a frame index (index 0 = May 2024).
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function mLabel(i) { return MONTHS[(4 + i) % 12]; }
+  // Full "Mon 'YY" label for a frame index (index 0 = May 2024). Every frame
+  // caption derives from NM, so extending the frame relabels the page.
+  function mYear(i) { return 2024 + Math.floor((4 + i) / 12); }
+  function mFull(i) { return `${mLabel(i)} '${String(mYear(i)).slice(2)}`; }
+  const FRAME0 = mFull(0), FRAME1 = () => mFull(NM - 1);
+  // January ticks: every index where the month is January, plus the origin.
+  function yearTicks() {
+    const t = [0];
+    for (let i = 1; i < NM; i++) if ((4 + i) % 12 === 0) t.push(i);
+    return t;
+  }
 
   function ytdBadge(data, isPct, est) {
     const c = ytdChange(data, isPct);
@@ -1150,6 +1143,12 @@
       </table>`;
   }
 
+  function maxisRow() {
+    return `<div class="maxis">` + yearTicks().map((i, j) =>
+      `<span class="${j === 0 ? "edge0" : ""}" style="left:${(i / (NM - 1) * 100).toFixed(1)}%">${mFull(i)}</span>`
+    ).join("") + `</div>`;
+  }
+
   function render() {
     const cardHtml = it => {
       const tbd = it.status === "tbd";
@@ -1173,7 +1172,7 @@
       const hasData = it.data.some(v => v != null);
       const axisRow = hasData
         ? `<div class="axis"><span>${it.format(axisMin)}</span><span>${it.format(axisMax)}</span></div>`
-        : `<div class="axis"><span>May '24</span><span>Jul '26</span></div>`;
+        : `<div class="axis"><span>${FRAME0}</span><span>${FRAME1()}</span></div>`;
       const clusterCls = CLUSTER_RENT.has(it.id) ? " cluster-rent" : CLUSTER_INCOME.has(it.id) ? " cluster-income" : "";
 
       return `
@@ -1189,10 +1188,10 @@
             ${yoy}${ytd}
           </div>
           <div class="sparkbox">
-            <div class="spark-title"><span>Monthly · May '24 → Jul '26</span>${it.est ? "<span>est.</span>" : ""}</div>
+            <div class="spark-title"><span>Monthly · ${FRAME0} → ${FRAME1()}</span>${it.est ? "<span>est.</span>" : ""}</div>
             ${sparkline(it.data, it.est)}
             ${axisRow}
-            <div class="maxis"><span class="edge0" style="left:0%">May '24</span><span style="left:30.8%">Jan '25</span><span style="left:76.9%">Jan '26</span></div>
+            ${maxisRow()}
           </div>
           ${tbdHtml}
           ${workHtml}
@@ -1210,6 +1209,18 @@
     document.getElementById("grid-tbd").innerHTML = pend.map(cardHtml).join("");
   }
 
+  function renderSummary() {
+    const live = ITEMS.filter(i => i.status !== "tbd").length;
+    const pend = ITEMS.length - live;
+    document.getElementById("summary").innerHTML = [
+      ["Items tracked", ITEMS.length, ""],
+      ["Live series", live, "up"],
+      ["Months in frame", NM, ""],
+      ["Awaiting field survey", pend, "tbd"]
+    ].map(([l, v, c]) => `<div class="cell"><div class="lbl">${l}</div><div class="val ${c}">${v}</div></div>`).join("");
+  }
+
+  renderSummary();
   renderBoard();
   render();
 </script>
