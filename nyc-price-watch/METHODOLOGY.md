@@ -1,6 +1,6 @@
 # NYC Price Watch — Methodology
 
-**Version 1.2 · July 27, 2026**
+**Version 2.0 · July 28, 2026**
 
 This document specifies what the NYC Price Watch measures, how each
 series is constructed, and — as precisely as possible — what it cannot
@@ -12,9 +12,13 @@ they trust a number.
 
 ## 1. Object of measurement
 
-The Price Watch is a **dashboard of individually-specified price series
-for the New York City area**. It is not an index, not a cost-of-living
-measure, and not a substitute for the Consumer Price Index.
+The Price Watch measures **New York City affordability in two parts**:
+an **earnings-and-inflation panel** carrying official BLS statistics on
+what people earn and how prices are moving, and an **item-by-item price
+tracker** of individually-specified series for specific fares, tolls,
+rents and bills. It is not a cost-of-living index and not a substitute
+for the Consumer Price Index — the CPI is itself one of the statistics
+carried.
 
 The distinction is load-bearing, so state it plainly:
 
@@ -25,6 +29,14 @@ The distinction is load-bearing, so state it plainly:
 - This dashboard tracks **the posted or published price of ~30 specific
   things**, each on its own terms. It answers: *what does this
   particular thing cost now, versus what it cost before?*
+
+**Pay and prices are shown side by side, never subtracted.** The page
+computes no real-wage figure: the earnings series cover private payroll
+jobs in the New York-Newark-Jersey City, NY-NJ metro, while the CPI
+covers the broader NY-NJ-PA consumer market area, and the two
+populations differ enough that a subtraction would carry false
+precision. Readers can hold the two rates next to each other; the page
+does not do the arithmetic for them.
 
 **There is no aggregate.** The page deliberately publishes no
 composite "NYC affordability number," because the series carry no
@@ -58,8 +70,10 @@ BLS or S&P products reproduced without transformation:
 | Home prices | S&P Cotality Case-Shiller, NY metro | Repeat-sales estimator |
 | Pay growth | BLS Employment Cost Index, NY metro | Fixed-weight compensation measure |
 | Average pay | BLS QCEW, New York County | Near-census of covered employment |
+| Earnings growth | BLS CES, avg hourly and weekly earnings, NY-NJ metro | Establishment survey; monthly |
+| Category inflation | BLS CPI-U, all Table 1 expenditure categories, same CBSA | Same as headline CPI |
 
-The value added by this project is in the **other 22 series**: posted
+The value added by this project is in the **22 tracker series** beyond these: posted
 tariffs, rate-schedule reconstructions, and market prices that are real,
 locally salient, and not otherwise assembled in one place.
 
@@ -172,6 +186,46 @@ bacon-egg-and-cheese; Uber benchmark trip; family-of-four dinner.*
   price tier is chosen for the next month, and both the exit and entry
   are logged. Because the panel mean is unweighted, composition changes
   shift the level; splices are therefore documented rather than hidden.
+
+### 3.6 Official earnings and inflation panel (BLS API)
+
+*Average hourly earnings; average weekly earnings; headline CPI-U; all
+Table 1 expenditure categories.*
+
+The spotlight at the top of the page and the category table beneath it
+are retrieved directly from the BLS public API (v2) and reproduced
+without transformation. Construction rules:
+
+- **Earnings** are CES series `SMU36356200500000003` (average hourly
+  earnings) and `SMU36356200500000011` (average weekly earnings), all
+  employees on total-private payrolls, New York-Newark-Jersey City,
+  NY-NJ metropolitan area, not seasonally adjusted. These are **growth
+  rates of averages** — an average is lifted by high earners and is not
+  a median and not the typical worker's experience, which the page
+  states wherever the figures appear. BLS marks recent CES observations
+  **preliminary**; the page carries that flag and the values are
+  subject to revision.
+- **Inflation** is CPI-U for area `S12A` (New York-Newark-Jersey City,
+  NY-NJ-PA), not seasonally adjusted: the headline all-items index and
+  every expenditure category in Table 1 of the New York-area release.
+  **Alcoholic beverages is not published for this area** and is shown
+  as an explicit gap rather than dropped. Energy is a Table 2 special
+  aggregate, fetched for the tracker's energy card but excluded from
+  the Table 1 list and labeled as such.
+- **Year-over-year change matches calendar month to calendar month**,
+  never a twelve-row lag, so a missing month cannot shift later
+  comparisons. Annual-average (M13) observations are excluded.
+- **The headline month is the latest month common to hourly earnings,
+  weekly earnings and headline CPI**, so the three big figures always
+  describe the same period even when one series runs ahead.
+- **Seasonal adjustment:** none of these series is seasonally adjusted,
+  which is why the panel reports year-over-year rather than
+  month-to-month change.
+- **Provenance note:** earlier versions of the tracker cited CPI series
+  under area code `A101`, a retired area definition that the BLS API
+  reports as nonexistent (FRED still carries it, which is how it crept
+  in). The live area code is `S12A`; the correction is logged in
+  `readings.json`.
 
 ---
 
@@ -526,6 +580,13 @@ timing, and is the standard reference.
   definitions and the BEC coefficient vector are stored there.
 - **`index.html`** contains the display layer only; every displayed
   value traces to a `readings.json` entry.
+- **`fetch-bls.py` → `bls-data.json`**, **`compute-bls.py` →
+  `bls-derived.json`**, and **`build-bls-section.py`** are the BLS
+  pipeline: fetch raw observations from the API, derive month-matched
+  year-over-year changes, and render the spotlight and category table
+  into `index.html` between generated-section markers. The section is
+  never hand-edited; re-running the three scripts refreshes it in
+  place.
 - **`STATUS.md`** records each automated run: what moved, what was held,
   and every source that failed.
 - **`SCHEDULE.md`** documents the release calendar and the refresh
@@ -572,6 +633,7 @@ Stated explicitly, because the failure modes are predictable:
 
 | Version | Date | Change |
 |---|---|---|
+| 2.0 | 2026-07-28 | The dashboard's object of measurement widened from prices alone to pay and prices, retitled "New York City affordability, up close." Documents the BLS earnings-and-inflation panel: CES hourly and weekly earnings for the NY-NJ metro (averages, preliminary-flagged), all Table 1 CPI categories for S12A, month-matched year-over-year, M13 exclusions, the latest-common-month rule, the alcoholic-beverages gap, and the A101-to-S12A area-code correction. States the no-subtraction rule: pay and prices sit side by side and no real-wage figure is computed. Adds the three-script BLS pipeline to the reproducibility section. |
 | 1.2 | 2026-07-27 | Withheld the year-to-date change for both ConEd series until two readings share a rate season, rather than publishing a seasonal artifact with a caveat attached. |
 | 1.1 | 2026-07-27 | Skeptical audit. Corrected the modeled taxi fare, which omitted the $2.50 state congestion surcharge while including the $0.75 central-business-district charge — a combination no real trip incurs; the trip is now specified by zone. Disclosed that the June ConEd figure is an announced-increase escalation, not a rate-sheet reconstruction. Added the two displayed series (Case-Shiller, ConEd gas) that had no entry in the log, which had contradicted the reproducibility claim in section 8. Split Broadway weekly reads out of the season log. Documented the circularity of back-derived baselines. Refreshed counts that drifted after the no-splice cleanup. |
 | 1.0 | 2026-07-27 | First formal specification. Documents the 27-month frame, the January 2026 isolation window, the five estimator types, geographic concordance, revision and interpolation policy, the three-observation minimum for trend lines, year-to-date baseline labeling, and per-series biases including the ConEd seasonal break and the composition of the energy index. |

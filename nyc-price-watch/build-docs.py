@@ -8,9 +8,9 @@ import markdown, re, pathlib
 DOCS = [
     # source,            output,             nav title,    lede
     ("METHODOLOGY.md", "methodology.html", "Methodology",
-     "What every series on the tracker actually measures, how it is estimated, "
-     "where it comes from and what it cannot be used to claim. Written for readers "
-     "who will interrogate the estimator and the sampling frame before trusting a number."),
+     "How every pay and price figure on the page is measured, where it comes from "
+     "and what it cannot be used to claim. Written for readers who will interrogate "
+     "the estimator and the sampling frame before trusting a number."),
     ("TRACKING.md", "tracking.html", "How tracking works",
      "A candid account of what it takes to keep each price current with no field staff "
      "and no paid data feeds, and which items are realistically sustainable."),
