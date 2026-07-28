@@ -73,7 +73,7 @@ Run `pipeline/validate.py` to reproduce this table.
 
 ## Express buses
 
-New York's 223 express routes (the SIM, BM, BxM, QM and X families) are
+New York's 79 express routes (the SIM, BM, BxM, QM and X families) are
 included, and they matter: they are the fast, one-seat, limited-stop rides that
 carry Staten Island and the deep outer boroughs to Manhattan over the highways.
 They are treated as buses, which is what they are, and their times and waits

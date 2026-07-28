@@ -474,7 +474,7 @@ async function loadShelter() {
 async function loadCrime() {
   try {
     // Latest data date
-    const [latest] = await q('5uac-w243', '$select=max(cmplnt_fr_dt) as latest&$limit=1');
+    const [latest] = await q('5uac-w243', '$select=max(rpt_dt) as latest&$limit=1');
     const latestDate = latest?.latest;
 
     // Use last 3 complete months of data
@@ -489,23 +489,23 @@ async function loadCrime() {
 
     // Current period felonies by type
     const felonies = await q('5uac-w243',
-      `$select=ofns_desc,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${periodStart}' AND cmplnt_fr_dt<='${periodEnd}'&$group=ofns_desc&$order=cnt DESC&$limit=10`);
+      `$select=ofns_desc,count(*) as cnt&$where=law_cat_cd='FELONY' AND rpt_dt>='${periodStart}' AND rpt_dt<='${periodEnd}'&$group=ofns_desc&$order=cnt DESC&$limit=10`);
 
     // Prior period total felonies (same length)
     const [priorFel] = await q('5uac-w243',
-      `$select=count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${priorStart}' AND cmplnt_fr_dt<'${periodStart}'`);
+      `$select=count(*) as cnt&$where=law_cat_cd='FELONY' AND rpt_dt>='${priorStart}' AND rpt_dt<'${periodStart}'`);
 
     const totalFelonies = felonies.reduce((s,r) => s + Number(r.cnt), 0);
     const priorTotal = priorFel ? Number(priorFel.cnt) : null;
 
     // By borough
     const byBoro = await q('5uac-w243',
-      `$select=boro_nm as boro,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${periodStart}' AND cmplnt_fr_dt<='${periodEnd}' AND boro_nm IS NOT NULL AND boro_nm != '(null)'&$group=boro_nm&$order=cnt DESC`);
+      `$select=boro_nm as boro,count(*) as cnt&$where=law_cat_cd='FELONY' AND rpt_dt>='${periodStart}' AND rpt_dt<='${periodEnd}' AND boro_nm IS NOT NULL AND boro_nm != '(null)'&$group=boro_nm&$order=cnt DESC`);
 
     // Monthly trend (last 12 months of data available)
     const yearAgo = new Date(end); yearAgo.setFullYear(end.getFullYear()-1);
     const monthlyTrend = await q('5uac-w243',
-      `$select=date_trunc_ym(cmplnt_fr_dt) as month,count(*) as cnt&$where=law_cat_cd='FELONY' AND cmplnt_fr_dt>='${yearAgo.toISOString().slice(0,10)}'&$group=month&$order=month`);
+      `$select=date_trunc_ym(rpt_dt) as month,count(*) as cnt&$where=law_cat_cd='FELONY' AND rpt_dt>='${yearAgo.toISOString().slice(0,10)}'&$group=month&$order=month`);
 
     const periodLabel = `${fmtShort(periodStart)}\u2013${fmtShort(periodEnd)}`;
     setBadge('crime-date', `through ${fmtShort(endDate)}`);
