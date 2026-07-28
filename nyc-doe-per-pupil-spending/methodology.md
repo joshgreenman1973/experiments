@@ -1,6 +1,6 @@
 # Methodology: NYC per-pupil K-12 spending infographic
 
-**Last updated:** July 27, 2026
+**Last updated:** July 28, 2026
 **Author:** Built with Claude Code, from public government sources only.
 
 ## Purpose
@@ -39,6 +39,8 @@ Think-tank and advocacy figures were encountered during research and are **not**
 - A $448M FY2025 central-administration figure that could not be traced to a primary document.
 
 Both may well be accurate. They are excluded because this page's stated rule is government sources only, and applying that rule selectively would make the rule meaningless.
+
+**One deliberate, labeled exception (July 28, 2026).** Sections 4 and 5 carry figures from two Chalkbeat New York articles: hold harmless totals and school-level examples, and class-size budget-negotiation figures. These are not government documents. They are included because the school-level and budget-negotiation detail is not published in any form this page could verify from source files, and omitting it would leave the two policies described but unquantified. Every such figure is inside a boxed, orange-labeled block marked "Reported figures, not primary-verified," is separated in the source list under its own heading, and is never mixed into a chart alongside government data. The distinction is visible to the reader rather than resolved silently.
 
 ## Key figures and how each was derived
 
@@ -106,7 +108,31 @@ Over the full span the district lost 174,735 students and charters gained 91,386
 
 **Comparability caveats.** BEDS Day is a fall snapshot collected by NYSED; Census F-33 enrollment comes from the NCES Common Core of Data. The two differ by roughly 10,000-30,000 students for the same nominal year and are not interchangeable. This section covers enrollment only; charter per-pupil spending comes from a separate funding stream and is not in the Census district series or the IBO breakdowns.
 
-### Section 4: FY2024 $40B breakdown
+### Section 4: hold harmless
+
+**Mechanism** (from DOE Fair Student Funding documentation): schools are budgeted in spring on projected enrollment; actual enrollment is counted in fall; mid-year the budget is normally trued up in both directions. Hold harmless switches off the downward adjustment only. Schools that gain students still receive increases. The cost is the difference between the formula-generated allocation and the protected allocation, paid centrally.
+
+**Government figure:** NYC Public Schools, *SY2025-2026 Class Size Reduction Plan*, states verbatim that "New York City has invested a total of $1.2 billion since FY 2021 in 'hold harmless' funding for schools losing enrollment to ensure they can maintain services." DOE also announced a mid-year hold harmless in November 2024 (Chancellor Aviles-Ramos) and has extended the policy since.
+
+**Non-government figures, boxed and labeled on the page.** The annual and cumulative totals, the school counts, and both school-level examples come from Chalkbeat's June 22, 2026 analysis of DOE data: about $290 million in 2025-26; 723 schools receiving funds with 55 above $1 million each; nearly $1.9 billion cumulatively since 2020; I.S. 339 in the Bronx at roughly $2.5 million of a $7.8 million budget with enrollment down from 315 to about 150; Urban Assembly Institute of Math and Science for Young Women at roughly $374,000 with enrollment down from nearly 500 to about 350.
+
+**Unresolved discrepancy, stated on the page.** DOE says $1.2 billion since FY2021. Chalkbeat says nearly $1.9 billion since 2020. Citizens Budget Commission testimony put 2025-26 near $400 million against Chalkbeat's $290 million. Start dates and definitions differ and no published document reconciles them. This page reports the spread rather than choosing.
+
+### Section 5: class size mandate
+
+All statutory and compliance detail from NYC Public Schools, *SY2025-2026 (FY2026) Class Size Reduction Plan*, and Chapter 556 of the Laws of 2022:
+
+- Caps under Chapter 556: K-3 = 20, grades 4-5 = 23, grades 6-8 = 23, grades 9-12 = 25, PE and performing groups = 40. Prior UFT contract caps were 25/32/32/30-33/34/50.
+- Phase-in by share of classes: 20% SY2023-24, 40% SY2024-25, 60% SY2025-26, 80% SY2026-27, 100% SY2027-28.
+- SY2024-25 result: 46% of classes at or below caps, exceeding the 40% requirement.
+- SY2025-26: over 800 school applications; funding notified in April for 3,700 teachers and more than 100 assistant principals; DOE expected to spend over $400 million.
+- Exemptions require the circumstances to fit a statutory category and agreement of the Chancellor, the UFT president, and the CSA president.
+
+**IBO estimate:** up to 17,700 additional teachers at roughly $1.6-$1.9 billion annually at full compliance. Capital cost estimates vary widely across published sources and the page does not select among them.
+
+**Non-government figures, boxed and labeled on the page.** From Chalkbeat, April 2, 2026: $543 million in the Mamdani preliminary budget for the coming fiscal year, $943 million annually for the three years after, a projection of roughly $1.7 billion annually at full implementation, a proposed extension to four years (about 70% by September plus 10 points a year), State Senator Liu's position that timeline changes are not fiscal relief, and a $600 million Assembly proposal. These are budget-negotiation figures as reported; the enacted outcome is not reflected.
+
+### Section 6: FY2024 $40B breakdown
 
 All figures from the IBO June 17, 2025 release:
 - Operating budget: $33B
@@ -119,7 +145,7 @@ Slice labels on the chart are plain-English descriptions written for this page, 
 
 **No general-education per-pupil figure is published here.** Dividing the $8.4B general education schools line by any published enrollment count would mix a spending line and a student population that do not correspond. An earlier version of this page did exactly that, producing a "~$10,300 per pupil" figure on an invented 813,000 denominator. It has been removed.
 
-### Section 5: schools vs. central administration vs. everything else
+### Section 7: schools vs. central administration vs. everything else
 
 From the NYC Council Finance Division's Fiscal 2019 Preliminary Budget report on the DOE, aggregating U/A-level lines into five buckets:
 
@@ -137,7 +163,7 @@ Total: $25.6B FY2019 Preliminary operating budget. Central administration is abo
 
 Fringe is shown as a separate bar because that is how it appears in the budget document, but economically most of it is compensation for school-based staff. Schools plus fringe is about 71% of the operating budget.
 
-### Section 6: FY2018 functional breakdown
+### Section 8: FY2018 functional breakdown
 
 Directly from NYC DOE School Based Expenditure Report FY2018 citywide summary:
 
@@ -157,7 +183,7 @@ Grand total $31.6B over 1,021,229 enrollment. Pass-throughs (~$4.8B, mostly char
 
 **This is the last year DOE published SBER.** No post-2018 equivalent exists, so there is no current official functional split of classroom vs. administration vs. overhead.
 
-### Section 7: special education
+### Section 9: special education
 
 **Published:**
 - $2.4B "special education" within school-related programs (IBO June 2025). This is a narrow line: it excludes District 75, most classroom-level special ed embedded in general ed schools, and Carter/Connors tuition.
@@ -170,7 +196,7 @@ Grand total $31.6B over 1,021,229 enrollment. Pass-throughs (~$4.8B, mostly char
 - Recipient-school list for Carter/Connors payments.
 - Any all-in special education total combining embedded general-ed SPED, District 75, and Carter/Connors.
 
-### Section 8: why NYC is higher
+### Section 10: why NYC is higher
 
 FY2024 gap: NYC $35,796 vs. U.S. average $17,619 = **$18,177**.
 
@@ -189,7 +215,7 @@ The national figure uses a different collection, year, and age range, and is fla
 
 **Documented cost factors**, listed without apportioning the gap: pupil-teacher ratio 9.4 vs. 12.1 in 1990 (IBO); students with disabilities 24.4% (NYSED); average school building age 75 years (IBO); funding mix 52% City / 35% State / 12% Federal (IBO).
 
-### Section 9: cross-district comparison
+### Section 11: cross-district comparison
 
 Census F-33 FY2024 Table 18, every district read from the same table so all bars share a year and definition: NYC $35,796; District of Columbia $31,529; Atlanta $26,117; Los Angeles Unified $25,631; San Francisco Unified $25,173; Chicago $24,330; Detroit $21,406; Philadelphia $19,525; U.S. average $17,619; Clark County $14,774; Houston $13,950; Miami-Dade $13,931; Broward $13,412.
 
@@ -239,6 +265,7 @@ To update: pull the IBO annual DOE Spending release each June, the Census F-33 t
 | CBC $42,168 FY2026 projection | Plotted on the trend chart | Removed (not a government source) |
 | $448M FY2025 central admin | Stated in a callout | Removed (untraced attribution) |
 | Charter enrollment | "~140,000 students, ~275 schools" in passing | Full NYSED series, 2012-13 to 2025-26 |
+| Sections 4-5 added (hold harmless, class size mandate) | Not covered | Added July 28, 2026 |
 | Charter section framing | Headed "Where the students went"; claimed charter growth "accounts for roughly half of the district's enrollment loss" | Reframed as a counting point, not a transfer or causal claim |
 
 The per-pupil series error was systematic: values for FY2017-FY2020 had each been assigned to the following year, understating every year in that range.
