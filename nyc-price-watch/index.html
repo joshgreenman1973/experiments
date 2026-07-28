@@ -141,6 +141,29 @@
   .board .sc { font-weight: 700; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--charcoal); white-space: nowrap; }
   .board tr.is-tbd td { color: var(--periwinkle); }
 
+  /* ---- Hover definitions ---- */
+  .def { position: relative; cursor: help; border-bottom: 1px dotted var(--charcoal); outline: none; }
+  .def:hover, .def:focus { border-bottom-color: var(--orange); }
+  .tip {
+    position: absolute; left: 0; top: calc(100% + 7px); z-index: 60;
+    width: 310px; max-width: 74vw;
+    background: var(--black); color: var(--white);
+    font-weight: 300; font-size: 0.74rem; line-height: 1.45; letter-spacing: 0;
+    text-transform: none; text-align: left;
+    padding: 0.6rem 0.7rem;
+    opacity: 0; visibility: hidden; transition: opacity 0.12s ease;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(5,5,7,0.18);
+  }
+  .tip::before {
+    content: ""; position: absolute; bottom: 100%; left: 12px;
+    border: 6px solid transparent; border-bottom-color: var(--black);
+  }
+  .tip-r { left: auto; right: 0; }
+  .tip-r::before { left: auto; right: 12px; }
+  .def:hover .tip, .def:focus .tip { opacity: 1; visibility: visible; }
+  @media (max-width: 700px) { .tip { width: 240px; } }
+
   /* ---- Cards ---- */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1px; background: var(--cloud); border: 1px solid var(--cloud); }
   .card { background: var(--white); padding: 1.4rem 1.3rem 1.1rem; display: flex; flex-direction: column; position: relative; }
@@ -1141,6 +1164,47 @@
   ];
   const GEO_SHORT = { city: "NYC", metro: "Metro", us: "U.S." };
 
+  // Plain-language definitions for anything a reader cannot infer from the
+  // row label alone. Shown on hover and on keyboard focus in the table.
+  const DEFS = {
+    rent: "StreetEasy's median ASKING rent on listed apartments citywide. It is what landlords advertise on mostly vacant units, not what sitting tenants pay.",
+    manhattan_rent: "Median asking rent on listed Manhattan apartments (StreetEasy). Asking, not signed; excludes rent-stabilized renewals.",
+    brooklyn_rent: "Median asking rent on listed Brooklyn apartments (StreetEasy). Same method as the other boroughs, so they compare cleanly.",
+    queens_rent: "Median asking rent on listed Queens apartments (StreetEasy).",
+    bronx_rent: "Median asking rent on listed Bronx apartments (StreetEasy). Thinner listing sample, so read the trend rather than one month.",
+    case_shiller: "S&P Cotality Case-Shiller index for the New York metro, shown as the year-over-year percent change. It tracks repeat sales of the same homes, and always runs about two months behind.",
+    cpi_shelter: "The official cost of shelter from the federal price index: rent actually being paid across all leases, plus an imputed rental value for owner-occupied homes. Rises more slowly than asking rents.",
+    subway: "The base fare for one subway or local bus ride.",
+    gas: "The average price of a gallon of regular gasoline across New York City metro stations, as measured daily by AAA.",
+    toll: "The toll for a passenger car crossing the Verrazzano-Narrows Bridge with a New York E-ZPass.",
+    citibike: "The list price of a standard annual Citi Bike membership.",
+    taxi: "A modeled three-mile Manhattan taxi trip built from the posted meter tariff: the drop, the per-mile rate and the fixed surcharges. No tip, no traffic time.",
+    uber: "A fixed benchmark trip quoted at the same pickup, dropoff, day and hour each month, so the price moves rather than the route.",
+    water: "The city's combined water and sewer charge per 100 cubic feet, set once a year by the Water Board.",
+    coned: "A reconstructed monthly electricity bill for a household using 300 kWh, built from Con Edison's posted rates. Usage is held fixed so the number tracks rates, not weather. Summer rates run June through September.",
+    coned_gas: "A reconstructed monthly gas bill for 100 therms, built from Con Edison's posted rates, with usage held fixed.",
+    cpi_energy: "The energy component of the federal price index for the New York metro, year over year. It combines gasoline, electricity and utility gas, and is currently driven overwhelmingly by gasoline rather than by utility bills.",
+    cpi: "The grocery basket from the federal price index for the New York metro ('food at home'), year over year.",
+    restaurant_cpi: "Meals bought out, from the federal price index for the New York metro ('food away from home'), year over year.",
+    cpi_allitems: "Headline inflation for the New York metro: the year-over-year change across everything households buy.",
+    bec_ingredient: "What the raw ingredients of a bacon, egg and cheese plus a coffee cost, priced from federal average-price data using a fixed recipe. It is a free reconstruction of the idea behind Bloomberg's Terminal index, and it tracks ingredient cost of roughly two dollars, not the roughly eight dollars charged at a deli counter. The gap between the two is labor, rent and markup. National average prices, not New York ones.",
+    bec: "The counter price of a bacon, egg and cheese on a roll at a fixed panel of delis, one per borough. Not published anywhere, so it requires an in-person survey.",
+    broadway: "Average paid admission, meaning a show's gross divided by the tickets actually sold. It nets out discounts, so it is not the list price, and it moves with which shows are running. Only closed seasons are plotted.",
+    pizza: "The cash price of a plain slice across a fixed ten-shop panel, surveyed in person.",
+    bagel: "A plain bagel with plain cream cheese across a fixed ten-shop panel, surveyed in person.",
+    coffee: "A 12 oz drip coffee at a fixed ten-shop panel of chains and independents.",
+    halal: "Chicken over rice from a fixed panel of named, fixed-location carts, surveyed in person.",
+    dinner: "A standard dinner for four, pre-tip, averaged across a 500-restaurant panel maintained by a companion project.",
+    wage_qcew: "Average weekly pay in Manhattan, from the unemployment-insurance records that cover about 95 percent of jobs. It is an average, so high earners and finance bonuses lift it well above what a typical worker earns, and it arrives about two quarters late.",
+    wage_eci: "The Employment Cost Index for the New York metro: how much total compensation, wages plus benefits, rose over the year. It holds the mix of jobs constant, so it isolates actual pay growth rather than changes in which jobs exist."
+  };
+  const HEAD_DEFS = {
+    latest: "The most recent reading for this series. Series publish on different schedules, so these are not all from the same month.",
+    since: "The change from this series' first available 2026 reading to its latest. Where a series has no January reading, the month it actually starts from is named. A tilde marks a baseline drawn from an estimated back-fill. 'pp' means percentage points, used for series already reported as a rate.",
+    yoy: "The change from twelve months earlier. Shown only where a straight comparison is meaningful; series reported as rates are left blank here.",
+    scope: "The area the number actually covers. NYC is the five boroughs or a city agency, Metro is the wider New York region including parts of New Jersey, and U.S. is a national figure."
+  };
+
   function renderBoard() {
     const byId = Object.fromEntries(ITEMS.map(i => [i.id, i]));
     let rows = "";
@@ -1188,7 +1252,7 @@
           return `<span class="${cls}">${p>=0?"+":""}${p.toFixed(1)}%</span>`;
         })() : `<span class="none">—</span>`;
         rows += `<tr class="${tbd ? "is-tbd" : ""}">
-          <td class="item">${it.name}</td>
+          <td class="item">${DEFS[it.id] ? `<span class="def" tabindex="0">${it.name}<span class="tip">${DEFS[it.id]}</span></span>` : it.name}</td>
           <td class="val num">${it.current}</td>
           <td class="chg num">${chg}</td>
           <td class="chg num hide-sm">${yo}</td>
@@ -1198,14 +1262,14 @@
     });
     if (pending.length) {
       rows += `<tr class="grp"><td colspan="5">Not yet collected — needs field survey</td></tr>`;
-      rows += `<tr class="is-tbd"><td class="item" colspan="2">${pending.map(id => byId[id].name).join(" · ")}</td><td class="chg num"><span class="none">—</span></td><td class="chg num hide-sm"><span class="none">—</span></td><td class="sc hide-sm">NYC</td></tr>`;
+      rows += `<tr class="is-tbd"><td class="item" colspan="2">${pending.map(id => DEFS[id] ? `<span class="def" tabindex="0">${byId[id].name}<span class="tip">${DEFS[id]}</span></span>` : byId[id].name).join(" · ")}</td><td class="chg num"><span class="none">—</span></td><td class="chg num hide-sm"><span class="none">—</span></td><td class="sc hide-sm">NYC</td></tr>`;
     }
     const nLive = ITEMS.filter(i => i.status !== "tbd").length;
     document.getElementById("board").innerHTML = `
       <h2>Every price at a glance</h2>
       <div class="bsub">The ${nLive} live series. The <b>Since Jan 1</b> column names the month a series actually starts from when it has no January reading, and <b>~</b> marks a baseline drawn from an estimated back-fill. Percentage-point moves (<b>pp</b>) are for series already reported as a rate. The ${pending.length} uncollected items are listed at the bottom and shown in their own section below the cards.</div>
       <table>
-        <tr><th>Item</th><th class="num">Latest</th><th class="num">Since Jan 1</th><th class="num hide-sm">Year over year</th><th class="hide-sm">Scope</th></tr>
+        <tr><th>Item</th><th class="num"><span class="def" tabindex="0">Latest<span class="tip tip-r">${HEAD_DEFS.latest}</span></span></th><th class="num"><span class="def" tabindex="0">Since Jan 1<span class="tip tip-r">${HEAD_DEFS.since}</span></span></th><th class="num hide-sm"><span class="def" tabindex="0">Year over year<span class="tip tip-r">${HEAD_DEFS.yoy}</span></span></th><th class="hide-sm"><span class="def" tabindex="0">Scope<span class="tip tip-r">${HEAD_DEFS.scope}</span></span></th></tr>
         ${rows}
       </table>`;
   }
