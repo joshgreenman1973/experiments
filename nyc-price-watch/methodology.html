@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — The NYC Price Watch</title>
+<meta name="description" content="What every series on the tracker actually measures, how it is estimated, where it comes from and what it cannot be used to claim. Written for readers ">
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<style>
+  @font-face {
+    font-family: 'GascogneTS';
+    src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+    font-weight: 300; font-style: normal; font-display: swap;
+  }
+  :root {
+    --black:#050507; --white:#fff; --cloud:#dddddd; --chartreuse:#dde44c;
+    --chartreuse-20:#f7f8dd; --orange:#ff7c53; --periwinkle:#9b9fbc;
+    --charcoal:#707175; --cerulean:#217ebe; --green:#57aa4a; --red:#d2232a;
+    --sans:'halyard-text','Inter','Helvetica Neue',Arial,sans-serif;
+    --serif:'GascogneTS','Source Serif 4',Georgia,serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--sans); font-weight:300; background:var(--white); color:var(--black); line-height:1.5; padding:0 0 4rem; }
+  .wrap { max-width:1180px; margin:0 auto; padding:3rem 2rem 0; }
+
+  .mast { display:flex; justify-content:space-between; align-items:flex-end; gap:2rem; flex-wrap:wrap;
+    border-bottom:2px solid var(--black); padding-bottom:1.1rem; margin-bottom:1.5rem; }
+  .mast .kicker { font-weight:700; font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--orange); margin-bottom:0.5rem; }
+  .mast h1 { font-weight:900; font-size:clamp(2.1rem,5vw,3.2rem); line-height:1.02; letter-spacing:-0.02em; }
+  .mast .issue { font-size:0.78rem; color:var(--charcoal); text-align:right; line-height:1.75; }
+  .mast .issue b { display:block; color:var(--black); font-weight:700; }
+  .mast .issue a { color:var(--black); text-decoration:none; border-bottom:1px solid var(--orange); }
+  .mast .issue a:hover { color:var(--orange); }
+
+  .lede { font-family:var(--serif); font-size:1.18rem; line-height:1.5; color:var(--charcoal); max-width:64ch; margin-bottom:2.25rem; }
+
+  .layout { display:grid; grid-template-columns:230px 1fr; gap:3rem; align-items:start; }
+  nav.toc { position:sticky; top:2rem; border-top:1px solid var(--black); padding-top:0.7rem; }
+  nav.toc .t { font-weight:700; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--charcoal); margin-bottom:0.5rem; }
+  nav.toc ol { list-style:none; counter-reset:s; }
+  nav.toc li { margin-bottom:0.3rem; }
+  nav.toc a { color:var(--black); text-decoration:none; font-size:0.78rem; line-height:1.35; display:block; border-left:2px solid transparent; padding-left:0.55rem; }
+  nav.toc a:hover { border-left-color:var(--orange); color:var(--orange); }
+
+  article { max-width:74ch; }
+  article h2 { font-weight:900; font-size:1.55rem; letter-spacing:-0.01em; margin:2.6rem 0 0.7rem; padding-bottom:0.35rem; border-bottom:1px solid var(--black); scroll-margin-top:1.5rem; }
+  article h2:first-of-type { margin-top:0; }
+  article h3 { font-weight:700; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; margin:1.8rem 0 0.5rem; }
+  article p { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.85rem; }
+  article li { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.4rem; }
+  article ul, article ol { padding-left:1.2rem; margin-bottom:1rem; }
+  article b, article strong { color:var(--black); font-weight:700; }
+  article em { font-style:italic; }
+  article a { color:var(--black); text-decoration:underline; text-decoration-color:var(--orange); text-underline-offset:2px; }
+  article a:hover { color:var(--orange); }
+  article code { font-family:var(--sans); font-weight:700; font-size:0.9em; color:var(--black); background:var(--chartreuse-20); padding:1px 4px; }
+  article pre { background:var(--black); color:var(--white); padding:1rem 1.1rem; overflow-x:auto; margin-bottom:1rem; }
+  article pre code { background:none; color:var(--white); font-weight:300; font-size:0.82rem; line-height:1.6; }
+  article hr { border:0; border-top:1px solid var(--cloud); margin:2.4rem 0; }
+  article table { width:100%; border-collapse:collapse; font-size:0.85rem; margin:0.6rem 0 1.2rem; display:block; overflow-x:auto; }
+  article th { font-weight:700; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--charcoal);
+    text-align:left; padding:6px 10px; border-bottom:1px solid var(--black); white-space:nowrap; }
+  article td { padding:7px 10px; border-bottom:1px solid var(--cloud); color:var(--charcoal); vertical-align:top; }
+  article td strong { color:var(--black); }
+  article blockquote { border-left:3px solid var(--chartreuse); padding-left:1rem; margin-bottom:1rem; }
+  article > p > em:only-child { display:block; color:var(--charcoal); font-size:0.88rem; }
+
+  footer { margin-top:4rem; background:var(--orange); color:var(--white); padding:2.5rem 2rem; font-size:0.8rem; }
+  footer .fin { max-width:1180px; margin:0 auto; }
+  footer .fname { font-weight:900; font-size:1.1rem; letter-spacing:-0.01em; margin-bottom:0.3rem; }
+  footer a { color:var(--white); text-decoration:underline; text-underline-offset:2px; }
+
+  @media (max-width:860px) {
+    .layout { grid-template-columns:1fr; gap:1.5rem; }
+    nav.toc { position:static; }
+    .wrap { padding:2rem 1.1rem 0; }
+    .mast .issue { text-align:left; }
+  }
+  nav.toc ol.sibs { margin-bottom:0.2rem; }
+  nav.toc ol.sibs a { font-weight:700; font-size:0.8rem; }
+  nav.toc ol.sibs a.here { border-left-color:var(--orange); color:var(--orange); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div>
+      <div class="kicker">The NYC Price Watch · Technical specification</div>
+      <h1>Methodology</h1>
+    </div>
+    <div class="issue">
+      <b>Version 1.2 · July 27, 2026</b>
+      <a href="./">&larr; Back to the tracker</a><br>
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a>
+    </div>
+  </header>
+
+  <p class="lede">What every series on the tracker actually measures, how it is estimated, where it comes from and what it cannot be used to claim. Written for readers who will interrogate the estimator and the sampling frame before trusting a number.</p>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="t">Specifications</div>
+      <ol class="sibs">
+        <li><a href="methodology.html" class="here">Methodology</a></li>
+        <li><a href="tracking.html">How tracking works</a></li>
+        <li><a href="schedule.html">Refresh schedule</a></li>
+        <li><a href="candidates.html">Candidate prices</a></li>
+      </ol>
+      <div class="t" style="margin-top:1.4rem;">On this page</div>
+      <ol>
+        <li><a href="#1-object-of-measurement">1. Object of measurement</a></li>
+        <li><a href="#2-relationship-to-official-price-statistics">2. Relationship to official price statistics</a></li>
+        <li><a href="#3-series-taxonomy-and-estimators">3. Series taxonomy and estimators</a></li>
+        <li><a href="#4-geographic-concordance">4. Geographic concordance</a></li>
+        <li><a href="#5-temporal-alignment">5. Temporal alignment</a></li>
+        <li><a href="#6-data-handling-conventions">6. Data handling conventions</a></li>
+        <li><a href="#7-known-biases-and-interpretive-hazards-by-series">7. Known biases and interpretive hazards, by series</a></li>
+        <li><a href="#8-reproducibility">8. Reproducibility</a></li>
+        <li><a href="#9-statements-this-dashboard-does-not-support">9. Statements this dashboard does not support</a></li>
+        <li><a href="#10-change-log">10. Change log</a></li>
+      </ol>
+    </nav>
+    <article>
+<p>This document specifies what the NYC Price Watch measures, how each
+series is constructed, and — as precisely as possible — what it cannot
+support. It is written for readers who will interrogate the estimator,
+the sampling frame, and the geographic and temporal concordance before
+they trust a number.</p>
+<hr />
+<h2 id="1-object-of-measurement">1. Object of measurement</h2>
+<p>The Price Watch is a <strong>dashboard of individually-specified price series
+for the New York City area</strong>. It is not an index, not a cost-of-living
+measure, and not a substitute for the Consumer Price Index.</p>
+<p>The distinction is load-bearing, so state it plainly:</p>
+<ul>
+<li>A <strong>price index</strong> (CPI, PCE) tracks the cost of a fixed or
+  chained basket of goods weighted by expenditure shares, with quality
+  adjustment and substitution logic. It answers: <em>how much more does it
+  cost to attain a comparable standard of living?</em></li>
+<li>This dashboard tracks <strong>the posted or published price of ~30 specific
+  things</strong>, each on its own terms. It answers: <em>what does this
+  particular thing cost now, versus what it cost before?</em></li>
+</ul>
+<p><strong>There is no aggregate.</strong> The page deliberately publishes no
+composite "NYC affordability number," because the series carry no
+expenditure weights and mix units (dollars, dollar-per-unit, index
+levels, and year-over-year rates). Averaging them would be
+meaningless. Any reader who wants an aggregate should use the CPI
+series that are already on the page (<code>cpi_allitems</code>).</p>
+<h3>What the dashboard is good for</h3>
+<p>Direction, magnitude, and composition of price change in named,
+recognizable items — including several that no official index isolates
+(a specific bridge toll, a specific transit fare, a benchmark taxi
+trip). It is a reporting instrument, not an econometric one.</p>
+<hr />
+<h2 id="2-relationship-to-official-price-statistics">2. Relationship to official price statistics</h2>
+<p>Where an official statistic exists for a concept, we carry the official
+statistic rather than construct our own. Eight series on the page are
+BLS or S&amp;P products reproduced without transformation:</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Series carried</th>
+<th>Why not build our own</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overall inflation</td>
+<td>BLS CPI-U, all items, NY-Newark-Jersey City</td>
+<td>Expenditure-weighted, quality-adjusted; we cannot replicate</td>
+</tr>
+<tr>
+<td>Groceries</td>
+<td>BLS CPI, food at home, same CBSA</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Restaurants</td>
+<td>BLS CPI, food away from home, same CBSA</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Energy</td>
+<td>BLS CPI, energy, same CBSA</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Shelter</td>
+<td>BLS CPI, shelter, same CBSA</td>
+<td>Rental-equivalence framework; see §7.2</td>
+</tr>
+<tr>
+<td>Home prices</td>
+<td>S&amp;P Cotality Case-Shiller, NY metro</td>
+<td>Repeat-sales estimator</td>
+</tr>
+<tr>
+<td>Pay growth</td>
+<td>BLS Employment Cost Index, NY metro</td>
+<td>Fixed-weight compensation measure</td>
+</tr>
+<tr>
+<td>Average pay</td>
+<td>BLS QCEW, New York County</td>
+<td>Near-census of covered employment</td>
+</tr>
+</tbody>
+</table>
+<p>The value added by this project is in the <strong>other 22 series</strong>: posted
+tariffs, rate-schedule reconstructions, and market prices that are real,
+locally salient, and not otherwise assembled in one place.</p>
+<hr />
+<h2 id="3-series-taxonomy-and-estimators">3. Series taxonomy and estimators</h2>
+<p>Every series falls into one of five construction types. The estimator
+differs by type, and the type governs how the series may be read.</p>
+<h3>3.1 Administered prices (posted tariffs)</h3>
+<p><em>Subway and bus base fare; Verrazzano-Narrows toll; Citi Bike annual
+membership; NYC combined water and sewer rate.</em></p>
+<ul>
+<li><strong>Estimator:</strong> none. The published rate in effect at month <em>t</em> is
+  recorded directly.</li>
+<li><strong>Sampling error:</strong> zero. These are administered prices, not
+  estimates from a sample.</li>
+<li><strong>Time-series behavior:</strong> step functions. They are constant between
+  regulatory actions and jump discretely. Month-over-month change is
+  zero in almost every month by construction; the informative statistic
+  is the date and size of each step.</li>
+<li><strong>Caution:</strong> a mean of a step function over a window is not a
+  meaningful "average price" — it is an artifact of where the step
+  falls in the window. Read the level and the step, not the average.</li>
+</ul>
+<h3>3.2 Tariff reconstructions (synthetic bills)</h3>
+<p><em>ConEd residential electricity (300 kWh); ConEd residential gas (100
+therms); yellow taxi 3-mile Manhattan trip.</em></p>
+<ul>
+<li><strong>Estimator:</strong> a deterministic function of the published tariff and a
+  <strong>fixed, stipulated quantity vector</strong>. For electricity:
+  <code>bill(t) = 300 kWh × bundled_rate(t) + fixed_charges(t)</code>.
+  For the taxi: <code>fare = drop + (3 mi × per-mile) + surcharges</code>, with
+  no traffic time, no tip, no peak surcharge.</li>
+<li><strong>Interpretation:</strong> these isolate the <strong>price</strong> effect by holding
+  quantity constant. They are explicitly <em>not</em> estimates of what a
+  household actually pays, which varies with consumption, weather,
+  dwelling size, rate class, and (for taxis) traffic.</li>
+<li><strong>Known limitation:</strong> the stipulated quantities (300 kWh, 100 therms,
+  3 miles) are conventional round numbers, not the NYC modal or median
+  consumption. Levels are therefore illustrative; <strong>changes</strong> are the
+  meaningful signal, since the quantity vector is frozen.</li>
+<li><strong>Structural-break risk:</strong> if a utility restructures its rate design
+  (e.g., shifts cost recovery between fixed and volumetric charges),
+  the reconstructed bill can move without any change in what a given
+  household pays. Such breaks are flagged in <code>readings.json</code> and the
+  series is re-stated rather than spliced silently.</li>
+</ul>
+<h3>3.3 Published market statistics (carried as-is)</h3>
+<p><em>AAA gasoline average; StreetEasy median asking rent (citywide and four
+boroughs); Case-Shiller; all BLS CPI series; Employment Cost Index;
+QCEW average weekly wage.</em></p>
+<ul>
+<li><strong>Estimator:</strong> the publisher's. We record the published value on a
+  fixed schedule and do not re-estimate, smooth, or re-base.</li>
+<li><strong>Each publisher's estimator differs</strong> and is documented in §7.</li>
+<li><strong>Revisions:</strong> several of these are revised (see §6.4).</li>
+</ul>
+<h3>3.4 Recipe indices (deterministic composites of published inputs)</h3>
+<p><em>BEC ingredient index.</em></p>
+<ul>
+<li><strong>Estimator:</strong> a fixed-coefficient linear combination of five BLS
+  average-price series:</li>
+</ul>
+<p><code>I(t) = 0.125·bacon(t) + 0.0833·eggs(t) + 0.046875·cheddar(t)
+       + 0.15625·bread(t) + 0.0463·coffee(t)</code></p>
+<p>where coefficients are quantities (lb, dozen, lb, lb, lb) for one
+  sandwich plus a 12 oz coffee, and each input is a BLS APU series.
+- <strong>This is a Laspeyres-type fixed-quantity aggregate</strong> with quantity
+  weights held permanently constant. It admits no substitution and no
+  quality adjustment, by design.
+- <strong>Geographic caveat (important):</strong> the BLS APU inputs are <strong>U.S. city
+  averages</strong>, not New York prices. The index is therefore a <em>national
+  ingredient-cost proxy</em> carried on a New York page, and is labeled as
+  such on the card. It should not be read as the cost of ingredients in
+  New York.
+- <strong>Provenance:</strong> this reconstructs, from free public inputs, the
+  concept behind Bloomberg's proprietary Terminal index
+  <code>{ECAN US BEC}</code>. It is an independent construction, not that index,
+  and the coefficient vector is ours.</p>
+<h3>3.5 Purposive panel surveys (not yet collected)</h3>
+<p><em>Pizza slice; bagel with cream cheese; drip coffee; halal cart platter;
+bacon-egg-and-cheese; Uber benchmark trip; family-of-four dinner.</em></p>
+<ul>
+<li><strong>Estimator:</strong> unweighted arithmetic mean of a fixed panel of named
+  establishments:  <code>x̄(t) = (1/n) Σ pᵢ(t)</code>, n ≈ 5–10.</li>
+<li><strong>Sampling frame:</strong> <strong>purposive, not probabilistic.</strong> The panels are
+  hand-chosen for recognizability and geographic spread. They support
+  <strong>no inference to a population</strong> of NYC pizzerias, delis, or carts.
+  There is no sampling-error estimate because there is no probability
+  design; a standard error computed from these panels would be
+  meaningless as a population statement.</li>
+<li><strong>What they can support:</strong> a same-store price change over time — the
+  panel functions as a matched-sample tracker, which is legitimate for
+  measuring <em>change</em> even though the level is not representative.</li>
+<li><strong>Status:</strong> all seven are currently unpopulated (<code>TBD</code>) and are
+  displayed as dashed placeholders. <strong>No values are imputed.</strong></li>
+<li><strong>Panel maintenance:</strong> on closure, the slot is frozen at last
+  observation for that month, a replacement of similar neighborhood and
+  price tier is chosen for the next month, and both the exit and entry
+  are logged. Because the panel mean is unweighted, composition changes
+  shift the level; splices are therefore documented rather than hidden.</li>
+</ul>
+<hr />
+<h2 id="4-geographic-concordance">4. Geographic concordance</h2>
+<p>Three distinct geographies appear on the page, and they are <strong>not
+interchangeable</strong>. Every card carries a scope chip.</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Definition</th>
+<th>Series</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New York City</strong></td>
+<td>Five boroughs, or a city/state agency's jurisdiction</td>
+<td>Subway, toll, Citi Bike, water/sewer, taxi, both ConEd bills, Broadway, all rent series, QCEW wage, all survey panels</td>
+</tr>
+<tr>
+<td><strong>NYC metro area</strong></td>
+<td>New York-Newark-Jersey City CBSA (or the Case-Shiller NY metro definition), <strong>including parts of New Jersey and the lower Hudson Valley</strong></td>
+<td>AAA gasoline, all five CPI series, Case-Shiller, Employment Cost Index</td>
+</tr>
+<tr>
+<td><strong>U.S. city average</strong></td>
+<td>National, not New York</td>
+<td>BEC ingredient index</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Consequences a careful reader should hold onto:</strong></p>
+<ol>
+<li><strong>The dashboard is not a pure five-borough instrument.</strong> Six of the
+   most-cited series (gasoline, four CPI lines, Case-Shiller) are
+   metro-area figures whose geography extends well beyond the city and
+   includes lower-cost and higher-cost areas outside it.</li>
+<li><strong>Cross-scope comparisons are hazardous.</strong> Comparing city shelter
+   costs to metro shelter CPI, for example, compares different
+   populations.</li>
+<li><strong>The QCEW wage series is New York County (Manhattan) only</strong> — the
+   city's dominant employment center, but not the city. A five-county
+   aggregate would be materially lower. This is stated on the card.</li>
+</ol>
+<hr />
+<h2 id="5-temporal-alignment">5. Temporal alignment</h2>
+<h3>5.1 Three distinct dates</h3>
+<p>Each observation carries up to three dates, which the project keeps
+separate:</p>
+<ul>
+<li><strong>Reference period</strong> — the period the value describes (e.g., "April
+  2026" for a CPI print).</li>
+<li><strong>Release date</strong> — when the publisher issued it.</li>
+<li><strong>Retrieval date</strong> — when we recorded it.</li>
+</ul>
+<p>The chart plots values at their <strong>reference period</strong>, not their release
+or retrieval date. The card's "as of" line shows retrieval. Confusing
+these is the most common way a dashboard like this goes wrong, and
+<code>readings.json</code> stores the reference period explicitly.</p>
+<h3>5.2 Publication lag</h3>
+<p>Lags are constant per series, which preserves comparability across time
+even though the panel is unbalanced in real time:</p>
+<table>
+<thead>
+<tr>
+<th>Series</th>
+<th>Typical lag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AAA gasoline</td>
+<td>none (daily)</td>
+</tr>
+<tr>
+<td>Administered tariffs</td>
+<td>none (effective date known in advance)</td>
+</tr>
+<tr>
+<td>BLS CPI (metro)</td>
+<td>~2 weeks after month end</td>
+</tr>
+<tr>
+<td>StreetEasy rents</td>
+<td>~1–2 weeks</td>
+</tr>
+<tr>
+<td>Case-Shiller</td>
+<td><strong>~2 months</strong></td>
+</tr>
+<tr>
+<td>Employment Cost Index</td>
+<td>~1 month after quarter end</td>
+</tr>
+<tr>
+<td>QCEW</td>
+<td><strong>~5–7 months</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The panel is therefore <strong>ragged</strong>: the newest column is not equally
+fresh across series. Cross-series comparisons at "the latest reading"
+implicitly compare different reference periods. This is disclosed and
+unavoidable without discarding information.</p>
+<h3>5.3 Frame</h3>
+<p>All charts share a 27-month frame, May 2024 – July 2026, indexed 0–26.
+The window since January 1, 2026 (index 20 onward) is shaded and drawn
+in a heavier stroke to isolate the current year, and each card carries a
+change-since-January figure computed as first-available 2026
+observation versus latest 2026 observation.</p>
+<hr />
+<h2 id="6-data-handling-conventions">6. Data handling conventions</h2>
+<h3>6.1 Seasonal adjustment</h3>
+<p><strong>Series are carried as published; most are not seasonally adjusted.</strong>
+The CPI metro series used here are NSA; Case-Shiller is available in
+both forms and the YoY rate we carry is not sensitive to the choice at
+the level of precision displayed.</p>
+<p>Because most series are NSA, <strong>year-over-year change is the preferred
+statistic</strong> and is what the page emphasizes. Month-over-month changes on
+NSA series confound seasonal and trend components and should not be
+annualized.</p>
+<p>Gasoline and utility bills have pronounced seasonality (driving season;
+summer cooling and winter heating). A summer gasoline increase is not
+evidence of a trend break.</p>
+<h3>6.2 Nominal, not real</h3>
+<p><strong>Every dollar figure is nominal.</strong> Nothing is deflated. A reader
+wanting real terms should deflate by the all-items CPI series carried
+on the page (<code>cpi_allitems</code>), noting that doing so for a metro-scope
+deflator against a city-scope price is itself an approximation.</p>
+<p>Similarly, the income-side series are nominal. The comparison a reader
+usually wants — real wage change — is approximately nominal wage growth
+minus all-items inflation, and the page provides both inputs rather than
+computing the difference, because the two have different geographies and
+reference periods.</p>
+<h3>6.3 Percent change versus percentage points</h3>
+<p>Series whose <em>values are already rates</em> (the five CPI lines,
+Case-Shiller YoY, ECI) move in <strong>percentage points</strong>, and their change
+figures are labeled <code>pp</code>. Series whose values are levels (dollars) move
+in <strong>percent</strong>. The page does not mix these. Broadway paid admission is
+a dollar level and is treated as such despite being suppressed from the
+year-over-year badge for a separate reason (§7.4).</p>
+<h3>6.4 Revisions</h3>
+<p>BLS CPI (NSA series are not routinely revised, but seasonal factors and
+some inputs are), Case-Shiller (routinely revised for several months),
+and QCEW (revised at each subsequent release) all change after first
+publication. <strong>We record the value as first observed and do not
+retroactively revise history</strong>, because the log is intended as a record
+of what was knowable at each date. Where a revision is material, it is
+appended as a new note rather than silently overwriting. This means the
+displayed history can differ slightly from a fresh pull of the
+publisher's current vintage — a deliberate, documented trade-off in
+favor of an audit trail. Readers needing the current vintage should go
+to the source, which every card links.</p>
+<h3>6.5 Interpolation and the <code>est.</code> flag</h3>
+<p>Where a series has real observations at non-adjacent months, the
+connecting line segment is <strong>linear interpolation for display only</strong>.
+Interpolated months are not stored as observations in <code>readings.json</code>
+and are not used in any computed statistic. Series containing any
+interpolated display segment are flagged <code>est.</code> on the chart.</p>
+<p>The same flag marks a series whose baseline is <strong>back-derived</strong> rather
+than observed. Four borough rent series and the QCEW wage series carry
+a year-ago point reconstructed from the publisher's own reported
+year-over-year change. Such a point is arithmetically sound and
+reproduces the published rate exactly — but it is not an independent
+observation, so a year-over-year figure computed across it is circular
+by construction: it restates the publisher's number rather than
+corroborating it. It is marked <code>~</code> wherever it drives a displayed
+change.</p>
+<h3>6.5.0 One estimator per line (no splicing)</h3>
+<p>A single plotted series must come from <strong>one estimator, one source and
+one geography throughout</strong>. Two statistics that describe roughly the
+same subject are not interchangeable, and joining them produces a
+visual move that is an artifact of the join rather than a change in
+price.</p>
+<p>This rule was added after an audit found three violations:</p>
+<ul>
+<li><strong>Broadway</strong> plotted a 12-month <em>season average</em> adjacent to two
+  <em>single-week</em> averages. The apparent late spike was entirely the
+  splice. The line now carries closed-season averages only; the latest
+  weekly figure is reported in the card detail and deliberately not
+  plotted.</li>
+<li><strong>Gasoline</strong> plotted a FRED/BLS metro average for the back-history
+  against AAA readings for the current period — different panels,
+  different geography definitions. The line now carries AAA only.</li>
+<li><strong>ConEd</strong> and <strong>Case-Shiller</strong> carried shape-approximated back-history
+  beneath month-specific readings. Both now carry only real observations.</li>
+</ul>
+<p>The cost of the rule is shorter series; the benefit is that every
+plotted move is a real move. Where removing a splice leaves fewer than
+three points, the series falls under §6.5.1 and is drawn as discrete
+points rather than a line.</p>
+<h3>6.5.1 Minimum observations for a trend line</h3>
+<p>A series with <strong>fewer than three observations is not drawn as a line.</strong>
+Connecting two points across a 27-month frame asserts a continuity the
+data does not contain, and because the vertical axis is scaled to the
+observed range, a small move between two points renders as a visually
+dramatic cliff. Such series are instead plotted as <strong>discrete points
+with the observation count stated on the chart</strong>. As of v1.1 this
+affects 15 of 30 series. The count rose when the no-splice rule in
+6.5.0 removed approximated back-history.</p>
+<p>This is a display rule only; it does not alter stored values.</p>
+<h3>6.5.2 Baseline labeling for year-to-date change</h3>
+<p>The change-since-2026 figure compares the <strong>first available observation
+at or after January 2026</strong> with the latest. For several series the first
+2026 observation is not January — the badge therefore names the month it
+actually starts from (for example "since Apr") rather than asserting a
+January baseline it does not have. Where that baseline falls inside an
+interpolated <code>est.</code> stretch, the figure is prefixed <code>~</code> to mark it as
+approximate.</p>
+<p><strong>No value is ever imputed, extrapolated, or nowcast.</strong> A series with no
+observation is blank; a series with no observations at all is a dashed
+placeholder reading "awaiting data." If a scheduled fetch fails, the
+prior value is held and the failure is logged in <code>STATUS.md</code> — the
+series is never advanced with a modeled number.</p>
+<h3>6.6 Missingness</h3>
+<p>Missingness is <strong>not at random</strong> in one important respect: fetch
+failures correlate with publisher anti-scraping behavior, not with the
+underlying prices. This biases <em>coverage</em>, not <em>level</em>. Held-forward
+values are visible as flat segments and are documented per run.</p>
+<hr />
+<h3>6.7 The 2026 view</h3>
+<p>A toggle switches every card from the full frame to 2026 alone. In that
+view the headline number is replaced by the change across the series'
+2026 observations, and the chart is clipped to January 2026 onward.</p>
+<p>Two safeguards apply, because a naive year-to-date figure is easy to
+misread:</p>
+<ol>
+<li><strong>The window is stated, not assumed.</strong> Several series have no
+   January reading — gasoline begins in April, the CPI lines in April,
+   ConEd in April. Each card prints its actual span ("Apr → Jul 2026")
+   rather than implying a January baseline. The control is labeled
+   "2026 so far" for the same reason.</li>
+<li><strong>Unknowable means TBD.</strong> Where a series has no 2026 observation, or
+   only one, no change is computed and the card reads <code>TBD</code>. As of v1.0
+   that applies to 16 of 30 cards, including all seven uncollected
+   survey items, both wage series, and Broadway (whose 2025-26 season
+   has not closed).</li>
+</ol>
+<p><strong>Seasonal series are withheld rather than flagged.</strong> Con Edison's
+summer supply season runs June 1 to September 30, so a change measured
+from a spring reading to a summer one is mostly the season, not a price
+move. For the two ConEd series the year-to-date figure is therefore not
+computed at all until both endpoints fall in the same season; the card
+reads <code>n/a</code> and says why, and the series sorts as unknown rather than
+as flat. Year-over-year is unaffected, being same-month by
+construction. Disclosure was judged insufficient here: a reader who
+takes only the headline should not be able to read a seasonal switch as
+a price increase.</p>
+<h2 id="7-known-biases-and-interpretive-hazards-by-series">7. Known biases and interpretive hazards, by series</h2>
+<h3>7.1 Asking rent is not contract rent</h3>
+<p>The StreetEasy series are <strong>median asking rents on active listings</strong>.
+They are subject to:</p>
+<ul>
+<li><strong>Selection on vacancy.</strong> Only units turning over appear. Units with
+  sitting tenants — the large majority of the stock — never enter.</li>
+<li><strong>Exclusion of the regulated stock.</strong> Roughly half of NYC rental
+  units are rent-stabilized; their renewal increases are set annually by
+  the Rent Guidelines Board and are largely invisible to a listings
+  median.</li>
+<li><strong>Composition drift.</strong> The mix of listed units changes with the
+  market; a shift toward larger or newer units raises the median with no
+  price change for any unit.</li>
+<li><strong>Asking, not transacted.</strong> Concessions and negotiated rents are not
+  captured.</li>
+</ul>
+<p>Consequently the asking-rent series <strong>lead and overstate</strong> what the
+typical tenant experiences. The page carries <strong>shelter CPI</strong> alongside
+precisely as the counterweight: shelter CPI is estimated from a
+probability sample of <em>all</em> renters, including sitting and regulated
+tenants, and rises more slowly. Where the two diverge, shelter CPI is
+the better estimate of tenant experience and asking rent is the better
+leading indicator of the marginal mover's cost.</p>
+<p>Shelter CPI has its own well-known properties: it uses <strong>owners'
+equivalent rent</strong> for owner-occupied housing (an imputed rental value,
+not a cash outlay), and it lags market rents by roughly a year because
+of lease-renewal cycles and the six-month sample rotation.</p>
+<h3>7.2 Averages are not medians</h3>
+<p>The QCEW wage series is an <strong>average weekly wage</strong> = total quarterly
+wages ÷ average monthly employment. In a jurisdiction with New York
+County's income distribution, this is far above the median and is
+<strong>highly sensitive to the upper tail</strong>. It also includes bonuses on a
+cash basis, which makes Q1 spike in finance-heavy geographies. Growth in
+this series may reflect bonus timing or compositional change (which
+jobs exist) rather than any worker's raise.</p>
+<p>The <strong>Employment Cost Index</strong> is carried specifically because it fixes
+occupational and industry weights, isolating pay growth from
+composition. Where the two disagree, ECI is the better measure of "are
+wages rising"; QCEW is the better measure of "what is total pay."</p>
+<p>No published monthly or quarterly <strong>median</strong> wage exists for this
+geography. The page therefore cannot answer "what happened to the
+typical worker's pay," and says so.</p>
+<h3>7.3 Average paid admission is not ticket price</h3>
+<p>Broadway "average paid admission" is weekly gross ÷ paid attendance. It
+nets out discounts and excludes comps, so it is not a list price and not
+a price index: it moves with <strong>which shows are running</strong> and with the
+premium/discount mix, not only with pricing. A season average and a
+single week's figure are different objects and are not spliced into one
+series; the season value is held across its months and the latest weekly
+read is reported separately.</p>
+<h3>7.4 Repeat-sales properties</h3>
+<p>Case-Shiller is a repeat-sales index: it controls for quality by
+comparing the same properties across sales, but it therefore covers only
+properties that transact at least twice, excludes new construction until
+a second sale, is weighted toward the single-family market, and is
+smoothed by a three-month moving average. Its NY metro definition is
+much larger than the city, and co-op transactions — a large share of
+Manhattan housing — are handled differently from detached housing
+markets. It is a sound index of its own concept; that concept is not
+"the price of a New York apartment."</p>
+<h3>7.5 Seasonal rate structures (ConEd electricity)</h3>
+<p>Con Edison charges higher supply rates from <strong>June 1 through September
+30</strong>. The reconstructed 300 kWh bill therefore contains a <strong>deterministic
+seasonal break</strong>: a June figure is not comparable to a May figure, and
+the recent move from roughly $120 to roughly $127 is substantially the
+seasonal switch rather than a rate case. Compare summer to summer, or
+use the year-over-year change. The same caution applies in reverse to
+the gas bill, which is winter-weighted in consumption though we hold
+quantity fixed.</p>
+<h3>7.6 Composition of the energy index</h3>
+<p>The metro energy CPI rose roughly 27% over the year to May 2026, a
+figure corroborated by the Northeast regional release. That move is
+driven <strong>overwhelmingly by gasoline</strong>, not by household utility bills;
+electricity was approximately flat in the same release. A reader who
+takes "energy +27%" to mean utility bills rose 27% will be badly wrong.
+Component detail matters more than the aggregate for this line.</p>
+<h3>7.7 Retail gasoline averages</h3>
+<p>AAA's average is a volume-unweighted average of station-level prices
+from a credit-card-transaction panel (OPIS). It is not an
+expenditure-weighted price. It is highly reliable for direction and
+timing, and is the standard reference.</p>
+<hr />
+<h2 id="8-reproducibility">8. Reproducibility</h2>
+<ul>
+<li><strong><code>readings.json</code></strong> is the authoritative log. One entry per series per
+  observation, each carrying <code>date</code> (reference period), <code>value</code>,
+  <code>source</code>, <code>source_url</code>, <code>cadence</code>, and a free-text <code>note</code> recording
+  provenance and any caveat specific to that observation. Panel
+  definitions and the BEC coefficient vector are stored there.</li>
+<li><strong><code>index.html</code></strong> contains the display layer only; every displayed
+  value traces to a <code>readings.json</code> entry.</li>
+<li><strong><code>STATUS.md</code></strong> records each automated run: what moved, what was held,
+  and every source that failed.</li>
+<li><strong><code>SCHEDULE.md</code></strong> documents the release calendar and the refresh
+  cadence.</li>
+<li><strong><code>TRACKING.md</code></strong> documents per-item collection difficulty and
+  sustainability.</li>
+<li>Version control: every change to a displayed number is a git commit
+  with the source and date in the message.</li>
+</ul>
+<p><strong>Refresh:</strong> an automated job runs on the last Tuesday of each month —
+the first date on which all prior-month sources have published — pulls
+the machine-retrievable series, appends to <code>readings.json</code>, and writes
+<code>STATUS.md</code>. Quarterly series (wages, family dinner) refresh in March,
+June, September and December. The job is instructed never to invent a
+value; on fetch failure it holds the prior reading and logs the failure.</p>
+<hr />
+<h2 id="9-statements-this-dashboard-does-not-support">9. Statements this dashboard does not support</h2>
+<p>Stated explicitly, because the failure modes are predictable:</p>
+<ol>
+<li><strong>"New York got X% more expensive."</strong> No composite exists here. Use
+   <code>cpi_allitems</code> for that claim, with its metro caveat.</li>
+<li><strong>"The typical New Yorker pays $X."</strong> Nothing on this page is a
+   median household outlay. The tariff reconstructions use stipulated
+   quantities; the rent series are asking rents; the wage series are
+   averages.</li>
+<li><strong>"Wages are/aren't keeping up."</strong> The page provides nominal wage and
+   price series with different geographies and reference periods.
+   Constructing a real-wage claim from them requires assumptions the
+   page does not make on the reader's behalf.</li>
+<li><strong>Inference from the survey panels to any population.</strong> They are
+   purposive samples usable for same-store change only, and are
+   currently unpopulated in any case.</li>
+<li><strong>Causal claims.</strong> Nothing here identifies a causal effect of any
+   policy, including congestion pricing, rate cases, or fare changes.</li>
+<li><strong>Sub-monthly or turning-point precision.</strong> Ragged publication lags
+   and NSA data make short-window inference unreliable.</li>
+</ol>
+<hr />
+<h2 id="10-change-log">10. Change log</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Date</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.2</td>
+<td>2026-07-27</td>
+<td>Withheld the year-to-date change for both ConEd series until two readings share a rate season, rather than publishing a seasonal artifact with a caveat attached.</td>
+</tr>
+<tr>
+<td>1.1</td>
+<td>2026-07-27</td>
+<td>Skeptical audit. Corrected the modeled taxi fare, which omitted the $2.50 state congestion surcharge while including the $0.75 central-business-district charge — a combination no real trip incurs; the trip is now specified by zone. Disclosed that the June ConEd figure is an announced-increase escalation, not a rate-sheet reconstruction. Added the two displayed series (Case-Shiller, ConEd gas) that had no entry in the log, which had contradicted the reproducibility claim in section 8. Split Broadway weekly reads out of the season log. Documented the circularity of back-derived baselines. Refreshed counts that drifted after the no-splice cleanup.</td>
+</tr>
+<tr>
+<td>1.0</td>
+<td>2026-07-27</td>
+<td>First formal specification. Documents the 27-month frame, the January 2026 isolation window, the five estimator types, geographic concordance, revision and interpolation policy, the three-observation minimum for trend lines, year-to-date baseline labeling, and per-series biases including the ConEd seasonal break and the composition of the energy index.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Questions, corrections, and methodological objections are welcome as
+issues on the repository. Where this document and the display disagree,
+this document is the specification and the display is the bug.</em></p>
+    </article>
+  </div>
+
+</div>
+
+<footer>
+  <div class="fin">
+    <div class="fname">The NYC Price Watch</div>
+    <div>Everyday New York prices, tracked monthly from public sources.
+      <a href="./">Back to the tracker</a> ·
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

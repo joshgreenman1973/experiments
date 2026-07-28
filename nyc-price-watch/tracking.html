@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How tracking works — The NYC Price Watch</title>
+<meta name="description" content="A candid account of what it takes to keep each price current with no field staff and no paid data feeds, and which items are realistically sustainable">
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<style>
+  @font-face {
+    font-family: 'GascogneTS';
+    src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+    font-weight: 300; font-style: normal; font-display: swap;
+  }
+  :root {
+    --black:#050507; --white:#fff; --cloud:#dddddd; --chartreuse:#dde44c;
+    --chartreuse-20:#f7f8dd; --orange:#ff7c53; --periwinkle:#9b9fbc;
+    --charcoal:#707175; --cerulean:#217ebe; --green:#57aa4a; --red:#d2232a;
+    --sans:'halyard-text','Inter','Helvetica Neue',Arial,sans-serif;
+    --serif:'GascogneTS','Source Serif 4',Georgia,serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--sans); font-weight:300; background:var(--white); color:var(--black); line-height:1.5; padding:0 0 4rem; }
+  .wrap { max-width:1180px; margin:0 auto; padding:3rem 2rem 0; }
+
+  .mast { display:flex; justify-content:space-between; align-items:flex-end; gap:2rem; flex-wrap:wrap;
+    border-bottom:2px solid var(--black); padding-bottom:1.1rem; margin-bottom:1.5rem; }
+  .mast .kicker { font-weight:700; font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--orange); margin-bottom:0.5rem; }
+  .mast h1 { font-weight:900; font-size:clamp(2.1rem,5vw,3.2rem); line-height:1.02; letter-spacing:-0.02em; }
+  .mast .issue { font-size:0.78rem; color:var(--charcoal); text-align:right; line-height:1.75; }
+  .mast .issue b { display:block; color:var(--black); font-weight:700; }
+  .mast .issue a { color:var(--black); text-decoration:none; border-bottom:1px solid var(--orange); }
+  .mast .issue a:hover { color:var(--orange); }
+
+  .lede { font-family:var(--serif); font-size:1.18rem; line-height:1.5; color:var(--charcoal); max-width:64ch; margin-bottom:2.25rem; }
+
+  .layout { display:grid; grid-template-columns:230px 1fr; gap:3rem; align-items:start; }
+  nav.toc { position:sticky; top:2rem; border-top:1px solid var(--black); padding-top:0.7rem; }
+  nav.toc .t { font-weight:700; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--charcoal); margin-bottom:0.5rem; }
+  nav.toc ol { list-style:none; counter-reset:s; }
+  nav.toc li { margin-bottom:0.3rem; }
+  nav.toc a { color:var(--black); text-decoration:none; font-size:0.78rem; line-height:1.35; display:block; border-left:2px solid transparent; padding-left:0.55rem; }
+  nav.toc a:hover { border-left-color:var(--orange); color:var(--orange); }
+
+  article { max-width:74ch; }
+  article h2 { font-weight:900; font-size:1.55rem; letter-spacing:-0.01em; margin:2.6rem 0 0.7rem; padding-bottom:0.35rem; border-bottom:1px solid var(--black); scroll-margin-top:1.5rem; }
+  article h2:first-of-type { margin-top:0; }
+  article h3 { font-weight:700; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; margin:1.8rem 0 0.5rem; }
+  article p { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.85rem; }
+  article li { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.4rem; }
+  article ul, article ol { padding-left:1.2rem; margin-bottom:1rem; }
+  article b, article strong { color:var(--black); font-weight:700; }
+  article em { font-style:italic; }
+  article a { color:var(--black); text-decoration:underline; text-decoration-color:var(--orange); text-underline-offset:2px; }
+  article a:hover { color:var(--orange); }
+  article code { font-family:var(--sans); font-weight:700; font-size:0.9em; color:var(--black); background:var(--chartreuse-20); padding:1px 4px; }
+  article pre { background:var(--black); color:var(--white); padding:1rem 1.1rem; overflow-x:auto; margin-bottom:1rem; }
+  article pre code { background:none; color:var(--white); font-weight:300; font-size:0.82rem; line-height:1.6; }
+  article hr { border:0; border-top:1px solid var(--cloud); margin:2.4rem 0; }
+  article table { width:100%; border-collapse:collapse; font-size:0.85rem; margin:0.6rem 0 1.2rem; display:block; overflow-x:auto; }
+  article th { font-weight:700; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--charcoal);
+    text-align:left; padding:6px 10px; border-bottom:1px solid var(--black); white-space:nowrap; }
+  article td { padding:7px 10px; border-bottom:1px solid var(--cloud); color:var(--charcoal); vertical-align:top; }
+  article td strong { color:var(--black); }
+  article blockquote { border-left:3px solid var(--chartreuse); padding-left:1rem; margin-bottom:1rem; }
+  article > p > em:only-child { display:block; color:var(--charcoal); font-size:0.88rem; }
+
+  footer { margin-top:4rem; background:var(--orange); color:var(--white); padding:2.5rem 2rem; font-size:0.8rem; }
+  footer .fin { max-width:1180px; margin:0 auto; }
+  footer .fname { font-weight:900; font-size:1.1rem; letter-spacing:-0.01em; margin-bottom:0.3rem; }
+  footer a { color:var(--white); text-decoration:underline; text-underline-offset:2px; }
+
+  @media (max-width:860px) {
+    .layout { grid-template-columns:1fr; gap:1.5rem; }
+    nav.toc { position:static; }
+    .wrap { padding:2rem 1.1rem 0; }
+    .mast .issue { text-align:left; }
+  }
+  nav.toc ol.sibs { margin-bottom:0.2rem; }
+  nav.toc ol.sibs a { font-weight:700; font-size:0.8rem; }
+  nav.toc ol.sibs a.here { border-left-color:var(--orange); color:var(--orange); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div>
+      <div class="kicker">The NYC Price Watch · Technical specification</div>
+      <h1>How tracking works</h1>
+    </div>
+    <div class="issue">
+      
+      <a href="./">&larr; Back to the tracker</a><br>
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a>
+    </div>
+  </header>
+
+  <p class="lede">A candid account of what it takes to keep each price current with no field staff and no paid data feeds, and which items are realistically sustainable.</p>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="t">Specifications</div>
+      <ol class="sibs">
+        <li><a href="methodology.html">Methodology</a></li>
+        <li><a href="tracking.html" class="here">How tracking works</a></li>
+        <li><a href="schedule.html">Refresh schedule</a></li>
+        <li><a href="candidates.html">Candidate prices</a></li>
+      </ol>
+      <div class="t" style="margin-top:1.4rem;">On this page</div>
+      <ol>
+        <li><a href="#the-constraint">The constraint</a></li>
+        <li><a href="#difficulty-tiers">Difficulty tiers</a></li>
+        <li><a href="#per-item-assessment">Per-item assessment</a></li>
+        <li><a href="#what-this-means-for-the-published-page">What this means for the published page</a></li>
+        <li><a href="#the-monthly-quarterly-workflow">The monthly / quarterly workflow</a></li>
+        <li><a href="#honesty-notes">Honesty notes</a></li>
+        <li><a href="#recommended-final-shape">Recommended final shape</a></li>
+      </ol>
+    </nav>
+    <article>
+<p>A candid look at what each of the 15 prices takes to maintain, given the
+operating reality: one person (Josh), working through Claude, no field
+team, no paid data feeds.</p>
+<hr />
+<h2 id="the-constraint">The constraint</h2>
+<p>Every line on this page has to be sustainable for a single person who
+isn't going to walk to ten pizzerias on the first Monday of every month,
+and who doesn't have a paid data subscription. That rules out a lot of
+elegant ideas. It also means we have to be honest about which series
+will get refreshed and which will quietly stop after two months.</p>
+<p>The right move is to be explicit about difficulty up front, and lean
+hardest on the items that are easy enough to actually keep going.</p>
+<hr />
+<h2 id="difficulty-tiers">Difficulty tiers</h2>
+<p><strong>Tier 1 — Trivial.</strong> A single published number on a public webpage that
+changes maybe once a year. Claude can verify it in 30 seconds; you can
+verify it in a minute. Refresh effort: near zero.</p>
+<p><strong>Tier 2 — Easy automated.</strong> A public series that updates monthly or
+faster, retrievable from a stable URL or API (AAA, FRED, BLS). Claude
+can fetch it most months; the few months a fetch fails, a manual check
+is a one-minute job.</p>
+<p><strong>Tier 3 — Easy but fragile.</strong> Public data that exists, but the
+publisher actively blocks scraping (StreetEasy, sometimes FRED HTML).
+Requires a copy/paste from the published page each month. Five-minute
+job for a human, untenable to fully automate without a paid feed.</p>
+<p><strong>Tier 4 — Construction.</strong> No single number; you have to assemble it
+from a published rate schedule (ConEd, taxi). The inputs are public,
+the math is simple, but it takes 10–15 minutes to rebuild and verify.</p>
+<p><strong>Tier 5 — Hand survey.</strong> Requires physically observing prices that
+aren't published online (pizza slice, bagel, coffee). No way around the
+legwork. Realistically does not happen monthly without a deliberate
+walking route or a friend network.</p>
+<p><strong>Tier 6 — Generated quote.</strong> Requires running an app at a specific
+time (Uber benchmark). Hard to automate without a phone in hand;
+realistic only if it's bolted onto an existing routine.</p>
+<hr />
+<h2 id="per-item-assessment">Per-item assessment</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Tier</th>
+<th>Update freq</th>
+<th>Who does it</th>
+<th>Realistic?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Subway / bus fare</td>
+<td>1</td>
+<td>Annual or rarer</td>
+<td>Claude verifies</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Verrazzano toll</td>
+<td>1</td>
+<td>Annual</td>
+<td>Claude verifies</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Citi Bike annual</td>
+<td>1</td>
+<td>1–2× per year</td>
+<td>Claude verifies</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Water &amp; sewer</td>
+<td>1</td>
+<td>Annual (July)</td>
+<td>Claude verifies</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Yellow taxi</td>
+<td>1</td>
+<td>Multi-year</td>
+<td>Claude verifies</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Gas (NYC metro)</td>
+<td>2</td>
+<td>Daily</td>
+<td>Claude pulls AAA</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Grocery CPI (NY)</td>
+<td>2</td>
+<td>Monthly</td>
+<td>Claude pulls FRED</td>
+<td>✅ Yes (with retries)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>ConEd typical bill</td>
+<td>4</td>
+<td>Monthly</td>
+<td>Claude rebuilds</td>
+<td>✅ Yes (15 min/mo)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Broadway avg</td>
+<td>2</td>
+<td>Weekly / season</td>
+<td>Claude pulls League</td>
+<td>⚠️ Mostly — season number is best</td>
+</tr>
+<tr>
+<td>10</td>
+<td>StreetEasy rent</td>
+<td>3</td>
+<td>Monthly</td>
+<td>Manual copy/paste</td>
+<td>⚠️ Yes if disciplined</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Family dinner</td>
+<td>4*</td>
+<td>Quarterly</td>
+<td>Pull from sister project</td>
+<td>✅ Yes (quarterly)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Pizza slice (10-shop)</td>
+<td>5</td>
+<td>Monthly</td>
+<td>Walking survey</td>
+<td>❌ Not without a route</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Bagel + cream cheese</td>
+<td>5</td>
+<td>Monthly</td>
+<td>Walking survey</td>
+<td>❌ Not without a route</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Coffee, 12 oz</td>
+<td>5</td>
+<td>Monthly</td>
+<td>Walking survey</td>
+<td>❌ Not without a route</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Uber benchmark trip</td>
+<td>6</td>
+<td>Weekly</td>
+<td>App quote</td>
+<td>❌ Not at scale</td>
+</tr>
+</tbody>
+</table>
+<p>* Already systematized in the family-dinner-prices project.</p>
+<hr />
+<h2 id="what-this-means-for-the-published-page">What this means for the published page</h2>
+<h3>Keep (10 items, all sustainable)</h3>
+<p>These are the ones where the monthly or quarterly refresh is genuinely
+easy enough that the page won't go stale.</p>
+<ul>
+<li><strong>Tier 1 tariffs</strong> (subway, toll, Citi Bike, water, taxi). Most months
+  there's nothing to do. When something changes, a one-time verify
+  updates the card and adds a step in the trendline.</li>
+<li><strong>Tier 2 published series</strong> (gas, BLS food CPI, Broadway). Claude
+  refreshes from the public source on the 15th of each month. Fallback
+  to manual on the rare fetch failure.</li>
+<li><strong>Tier 4 ConEd reconstruction.</strong> Claude rebuilds the typical 300 kWh
+  bill from the posted rate schedule. Once you've done it once, it's a
+  10-minute job.</li>
+<li><strong>Tier 3 StreetEasy rent.</strong> Painful but doable: copy the citywide
+  median number from the dashboard once a month. Five minutes.</li>
+<li><strong>Family dinner.</strong> Already a working project; pull the headline
+  number quarterly.</li>
+</ul>
+<h3>Drop or rethink (5 items)</h3>
+<p>The hand-survey panels (pizza, bagel, coffee) and the Uber benchmark
+were the right shape conceptually but won't hold up in practice without
+field labor. Three options:</p>
+<ol>
+<li><strong>Drop them outright.</strong> Goes from 15 items to 11. Honest, simple,
+   keeps the page from quietly degrading.</li>
+<li><strong>Replace with proxies that auto-refresh.</strong> Some candidates:
+   - <strong>Pizza slice</strong> → Domino's or Papa John's NYC delivery price for
+     a fixed plain pizza. Posted, scrapeable, less cool but real.
+   - <strong>Coffee</strong> → Starbucks app price for a tall coffee at a fixed NYC
+     store. Posted, fetchable, less cool but real.
+   - <strong>Bagel</strong> → no good proxy.
+   - <strong>Uber</strong> → drop entirely; the benchmark idea doesn't work without
+     a person holding a phone.</li>
+<li><strong>Keep as opt-in panels.</strong> Mark them clearly as "when surveyed" —
+   collect on a known walk every quarter or two, accept that gaps will
+   be honest gaps in the trendline. Don't pretend they're monthly.</li>
+</ol>
+<p>My recommendation: <strong>drop Uber, drop the bagel and coffee panels, keep
+pizza but make it quarterly and replace the panel with chain-delivery
+prices that are scrapeable. Add one or two replacements</strong> that are
+easy and meaningful (see below).</p>
+<h3>Easy adds worth considering</h3>
+<p>These are items I missed in the first pass that fit Tier 1 or Tier 2:</p>
+<ul>
+<li><strong>NY Times newsstand price</strong> — published, changes rarely. Trivial.</li>
+<li><strong>Average cooling bill, summer months</strong> — ConEd publishes this each
+  summer for typical apartment. Trivial.</li>
+<li><strong>Property tax average bill, Class 1 (1–3 family homes)</strong> — NYC DOF
+  publishes annually. Trivial.</li>
+<li><strong>Express bus fare or LIRR peak</strong> — published, MTA. Trivial.</li>
+<li><strong>Manhattan parking meter rate</strong> — DOT publishes; changes once every
+  few years. Trivial.</li>
+<li><strong>NYC Health + Hospitals visit copay</strong> — published, low frequency.
+  Trivial.</li>
+<li><strong>Citi Bike day pass</strong> — published. Already on the pricing page.
+  Trivial.</li>
+</ul>
+<p>The pattern: <strong>the easiest series to track are also the most boring.</strong>
+That's a feature, not a bug — boring-and-real beats interesting-and-fake.</p>
+<hr />
+<h2 id="the-monthly-quarterly-workflow">The monthly / quarterly workflow</h2>
+<p>Here's what a refresh actually looks like:</p>
+<h3>Monthly refresh — 15 minutes total</h3>
+<ol>
+<li>
+<p><strong>Claude does in one pass:</strong>
+   - Pulls AAA NYC metro gas price (15th of the month).
+   - Pulls BLS food-at-home CPI from FRED (mid-month release).
+   - Verifies subway fare, toll, Citi Bike, water, taxi haven't changed.
+   - Rebuilds ConEd typical bill from posted rate.
+   - Appends each result to <code>readings.json</code> with date, value, source note.
+   - Re-renders the page so sparklines extend by one quarter (when a
+     quarter just closed).</p>
+</li>
+<li>
+<p><strong>Josh does manually (5 minutes):</strong>
+   - Opens StreetEasy data dashboard, copies the citywide median rent
+     for the latest month, pastes the value into the prompt.
+   - That's it.</p>
+</li>
+</ol>
+<h3>Quarterly refresh — extra 10 minutes</h3>
+<ul>
+<li>Pull family-dinner-prices project, append the latest quarterly mean.</li>
+<li>Pull Broadway League season-to-date if a new season has closed.</li>
+<li>Roll up the three monthly observations to one quarterly value per
+  series, recompute YoY badges.</li>
+</ul>
+<h3>When something genuinely breaks</h3>
+<ul>
+<li><strong>Source moves or 403s.</strong> Note it in <code>readings.json</code> (<code>source_status:
+  "blocked YYYY-MM-DD"</code>) and try the alternate source in the methodology
+  table. Don't invent a number.</li>
+<li><strong>Panel business closes.</strong> Freeze its slot at last observed value for
+  that month, pick a successor of similar tier and neighborhood, log
+  the swap in a <code>CHANGELOG.md</code>. Both prices appear so the trend isn't
+  silently distorted.</li>
+<li><strong>Two months in a row of TBD on a series.</strong> Either fix the pull or
+  drop the series. Don't let TBD stretch to three.</li>
+</ul>
+<hr />
+<h2 id="honesty-notes">Honesty notes</h2>
+<ul>
+<li><strong>Backfilled history is not the same as live observation.</strong> Pre-Q2
+  2026 quarters on the gas and ConEd cards are flagged <code>est.</code> because
+  they're approximations of the published archive, not precise monthly
+  pulls. The shape is right. The exact level on any given quarter is
+  approximate. Real monthly observations going forward will be precise.</li>
+<li><strong>No black boxes.</strong> Every reading lives in <code>readings.json</code> with a
+  source URL and a retrieval date. If a number on the page looks
+  wrong, the raw entry is one click away.</li>
+<li><strong>No team, no field staff.</strong> This document exists because the
+  honest answer to "can you also track X" is sometimes "no, not
+  sustainably" — and saying so up front is better than building
+  something that quietly stops updating in month three.</li>
+</ul>
+<hr />
+<h2 id="recommended-final-shape">Recommended final shape</h2>
+<p>Eleven items, all sustainable, all real:</p>
+<p><strong>Tier 1 (verify only when changes):</strong> subway fare, Verrazzano toll,
+Citi Bike annual, water &amp; sewer rate, yellow taxi, NYT newsstand price,
+parking meter rate.</p>
+<p><strong>Tier 2 (Claude pulls each month):</strong> gas (AAA), BLS food-at-home CPI
+(FRED).</p>
+<p><strong>Tier 3 (Josh copy/pastes each month):</strong> StreetEasy citywide rent.</p>
+<p><strong>Tier 4 (Claude rebuilds each month):</strong> ConEd typical 300 kWh bill.</p>
+<p><strong>Quarterly:</strong> Broadway League season average, family-of-four dinner,
+chain-delivery pizza price (proxy for the slice panel).</p>
+<p>That's a page that can survive a year. Anything more aspirational is
+decoration.</p>
+    </article>
+  </div>
+
+</div>
+
+<footer>
+  <div class="fin">
+    <div class="fname">The NYC Price Watch</div>
+    <div>Everyday New York prices, tracked monthly from public sources.
+      <a href="./">Back to the tracker</a> ·
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

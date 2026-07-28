@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Refresh schedule — The NYC Price Watch</title>
+<meta name="description" content="When every source publishes, and the calendar the monthly refresh runs on so that each pull lands on fresh data rather than an arbitrary date.">
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<style>
+  @font-face {
+    font-family: 'GascogneTS';
+    src: url('fonts/GascogneTS-Light.ttf') format('truetype');
+    font-weight: 300; font-style: normal; font-display: swap;
+  }
+  :root {
+    --black:#050507; --white:#fff; --cloud:#dddddd; --chartreuse:#dde44c;
+    --chartreuse-20:#f7f8dd; --orange:#ff7c53; --periwinkle:#9b9fbc;
+    --charcoal:#707175; --cerulean:#217ebe; --green:#57aa4a; --red:#d2232a;
+    --sans:'halyard-text','Inter','Helvetica Neue',Arial,sans-serif;
+    --serif:'GascogneTS','Source Serif 4',Georgia,serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--sans); font-weight:300; background:var(--white); color:var(--black); line-height:1.5; padding:0 0 4rem; }
+  .wrap { max-width:1180px; margin:0 auto; padding:3rem 2rem 0; }
+
+  .mast { display:flex; justify-content:space-between; align-items:flex-end; gap:2rem; flex-wrap:wrap;
+    border-bottom:2px solid var(--black); padding-bottom:1.1rem; margin-bottom:1.5rem; }
+  .mast .kicker { font-weight:700; font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--orange); margin-bottom:0.5rem; }
+  .mast h1 { font-weight:900; font-size:clamp(2.1rem,5vw,3.2rem); line-height:1.02; letter-spacing:-0.02em; }
+  .mast .issue { font-size:0.78rem; color:var(--charcoal); text-align:right; line-height:1.75; }
+  .mast .issue b { display:block; color:var(--black); font-weight:700; }
+  .mast .issue a { color:var(--black); text-decoration:none; border-bottom:1px solid var(--orange); }
+  .mast .issue a:hover { color:var(--orange); }
+
+  .lede { font-family:var(--serif); font-size:1.18rem; line-height:1.5; color:var(--charcoal); max-width:64ch; margin-bottom:2.25rem; }
+
+  .layout { display:grid; grid-template-columns:230px 1fr; gap:3rem; align-items:start; }
+  nav.toc { position:sticky; top:2rem; border-top:1px solid var(--black); padding-top:0.7rem; }
+  nav.toc .t { font-weight:700; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--charcoal); margin-bottom:0.5rem; }
+  nav.toc ol { list-style:none; counter-reset:s; }
+  nav.toc li { margin-bottom:0.3rem; }
+  nav.toc a { color:var(--black); text-decoration:none; font-size:0.78rem; line-height:1.35; display:block; border-left:2px solid transparent; padding-left:0.55rem; }
+  nav.toc a:hover { border-left-color:var(--orange); color:var(--orange); }
+
+  article { max-width:74ch; }
+  article h2 { font-weight:900; font-size:1.55rem; letter-spacing:-0.01em; margin:2.6rem 0 0.7rem; padding-bottom:0.35rem; border-bottom:1px solid var(--black); scroll-margin-top:1.5rem; }
+  article h2:first-of-type { margin-top:0; }
+  article h3 { font-weight:700; font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase; margin:1.8rem 0 0.5rem; }
+  article p { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.85rem; }
+  article li { font-size:0.95rem; color:var(--charcoal); margin-bottom:0.4rem; }
+  article ul, article ol { padding-left:1.2rem; margin-bottom:1rem; }
+  article b, article strong { color:var(--black); font-weight:700; }
+  article em { font-style:italic; }
+  article a { color:var(--black); text-decoration:underline; text-decoration-color:var(--orange); text-underline-offset:2px; }
+  article a:hover { color:var(--orange); }
+  article code { font-family:var(--sans); font-weight:700; font-size:0.9em; color:var(--black); background:var(--chartreuse-20); padding:1px 4px; }
+  article pre { background:var(--black); color:var(--white); padding:1rem 1.1rem; overflow-x:auto; margin-bottom:1rem; }
+  article pre code { background:none; color:var(--white); font-weight:300; font-size:0.82rem; line-height:1.6; }
+  article hr { border:0; border-top:1px solid var(--cloud); margin:2.4rem 0; }
+  article table { width:100%; border-collapse:collapse; font-size:0.85rem; margin:0.6rem 0 1.2rem; display:block; overflow-x:auto; }
+  article th { font-weight:700; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--charcoal);
+    text-align:left; padding:6px 10px; border-bottom:1px solid var(--black); white-space:nowrap; }
+  article td { padding:7px 10px; border-bottom:1px solid var(--cloud); color:var(--charcoal); vertical-align:top; }
+  article td strong { color:var(--black); }
+  article blockquote { border-left:3px solid var(--chartreuse); padding-left:1rem; margin-bottom:1rem; }
+  article > p > em:only-child { display:block; color:var(--charcoal); font-size:0.88rem; }
+
+  footer { margin-top:4rem; background:var(--orange); color:var(--white); padding:2.5rem 2rem; font-size:0.8rem; }
+  footer .fin { max-width:1180px; margin:0 auto; }
+  footer .fname { font-weight:900; font-size:1.1rem; letter-spacing:-0.01em; margin-bottom:0.3rem; }
+  footer a { color:var(--white); text-decoration:underline; text-underline-offset:2px; }
+
+  @media (max-width:860px) {
+    .layout { grid-template-columns:1fr; gap:1.5rem; }
+    nav.toc { position:static; }
+    .wrap { padding:2rem 1.1rem 0; }
+    .mast .issue { text-align:left; }
+  }
+  nav.toc ol.sibs { margin-bottom:0.2rem; }
+  nav.toc ol.sibs a { font-weight:700; font-size:0.8rem; }
+  nav.toc ol.sibs a.here { border-left-color:var(--orange); color:var(--orange); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <div>
+      <div class="kicker">The NYC Price Watch · Technical specification</div>
+      <h1>Refresh schedule</h1>
+    </div>
+    <div class="issue">
+      
+      <a href="./">&larr; Back to the tracker</a><br>
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a>
+    </div>
+  </header>
+
+  <p class="lede">When every source publishes, and the calendar the monthly refresh runs on so that each pull lands on fresh data rather than an arbitrary date.</p>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="t">Specifications</div>
+      <ol class="sibs">
+        <li><a href="methodology.html">Methodology</a></li>
+        <li><a href="tracking.html">How tracking works</a></li>
+        <li><a href="schedule.html" class="here">Refresh schedule</a></li>
+        <li><a href="candidates.html">Candidate prices</a></li>
+      </ol>
+      <div class="t" style="margin-top:1.4rem;">On this page</div>
+      <ol>
+        <li><a href="#the-release-calendar-when-sources-publish">The release calendar (when sources publish)</a></li>
+        <li><a href="#the-monthly-run-last-tuesday-of-every-month">The monthly run — last Tuesday of every month</a></li>
+        <li><a href="#the-quarterly-add-on-jan-apr-jul-oct-run">The quarterly add-on — Jan / Apr / Jul / Oct run</a></li>
+        <li><a href="#the-annual-watch-once-a-year-no-fixed-date">The annual watch — once a year, no fixed date</a></li>
+        <li><a href="#at-a-glance-what-happens-when">At-a-glance: what happens when</a></li>
+        <li><a href="#automating-the-reminder">Automating the reminder</a></li>
+        <li><a href="#why-last-tuesday-not-the-1st-or-15th">Why last Tuesday, not the 1st or 15th</a></li>
+      </ol>
+    </nav>
+    <article>
+<p>A schedule built around when each source actually publishes, so a
+refresh lands on fresh data instead of an arbitrary calendar date.</p>
+<p>The design goal: <strong>one monthly run, one quarterly add-on, one annual
+watch</strong> — few enough touchpoints that it actually happens.</p>
+<hr />
+<h2 id="the-release-calendar-when-sources-publish">The release calendar (when sources publish)</h2>
+<p>Knowing this is the whole game. Each row is when new data becomes
+available for the prior period.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Publishes</th>
+<th>Covers</th>
+<th>Lag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AAA gas (NYC metro)</td>
+<td>Daily</td>
+<td>Same day</td>
+<td>None</td>
+</tr>
+<tr>
+<td>ConEd electric &amp; gas tariff</td>
+<td>~1st of month</td>
+<td>Current month</td>
+<td>None</td>
+</tr>
+<tr>
+<td>BLS CPI, NY-Newark-JC</td>
+<td>~10th–15th</td>
+<td>Prior month</td>
+<td>~2 weeks</td>
+</tr>
+<tr>
+<td>StreetEasy monthly rent</td>
+<td>~8th–12th</td>
+<td>Prior month</td>
+<td>~1–2 weeks</td>
+</tr>
+<tr>
+<td>Case-Shiller NY (FRED NYXRSA)</td>
+<td>Last Tuesday</td>
+<td>2 months prior</td>
+<td>~2 months</td>
+</tr>
+<tr>
+<td>Douglas Elliman Manhattan/Brooklyn</td>
+<td>~10th–14th of Jan/Apr/Jul/Oct</td>
+<td>Prior quarter</td>
+<td>~2 weeks</td>
+</tr>
+<tr>
+<td>Broadway grosses (weekly)</td>
+<td>Each Mon/Tue</td>
+<td>Prior week</td>
+<td>Days</td>
+</tr>
+<tr>
+<td>Broadway League season stats</td>
+<td>~late spring</td>
+<td>Full season</td>
+<td>Annual</td>
+</tr>
+<tr>
+<td>MTA fares &amp; tolls</td>
+<td>On change (rare)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Citi Bike pricing</td>
+<td>On change (rare)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>NYC Water Board rate</td>
+<td>Annual, July 1</td>
+<td>Fiscal year</td>
+<td>—</td>
+</tr>
+<tr>
+<td>NYC TLC taxi tariff</td>
+<td>On change (rare)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The key insight: by <strong>the last Tuesday of the month</strong>, every monthly
+source for the prior month is already out, and the fresh Case-Shiller
+release just dropped. That's the natural anchor date.</p>
+<hr />
+<h2 id="the-monthly-run-last-tuesday-of-every-month">The monthly run — last Tuesday of every month</h2>
+<p>One sitting, ~15 minutes. Anchor it to Case-Shiller's release day so
+everything is fresh.</p>
+<p><strong>Claude does, in one pass (~10 min):</strong>
+1. Pull AAA NYC metro gas price → append to <code>readings.json</code>.
+2. Pull BLS NY-Newark-JC food-at-home YoY (prior month) → append.
+3. Pull StreetEasy citywide median (prior month) → append.
+4. Pull Case-Shiller NY YoY (just released) → append.
+5. Rebuild ConEd electric + gas typical bills from current tariff → append.
+6. Verify the five rare-change tariffs (subway, toll, Citi Bike, water,
+   taxi) are unchanged; only touch them if a hike was announced.
+7. Re-render <code>index.html</code> so the current-quarter values update and, if
+   a quarter just closed, the sparkline frame advances one quarter.
+8. Update the masthead "rev." date and the verified/pending counts.</p>
+<p><strong>Josh does (~5 min):</strong>
+- Nothing required if Claude's StreetEasy pull succeeds. If StreetEasy
+  blocks the fetch (it sometimes does), open the
+  <a href="https://streeteasy.com/blog/nyc-housing-market-data/rentals/">data dashboard</a>,
+  copy the citywide median, paste it into the prompt.</p>
+<hr />
+<h2 id="the-quarterly-add-on-jan-apr-jul-oct-run">The quarterly add-on — Jan / Apr / Jul / Oct run</h2>
+<p>In those four months, the last-Tuesday run also picks up:</p>
+<ol>
+<li><strong>Douglas Elliman Manhattan &amp; Brooklyn</strong> quarterly reports (out by
+   mid-month) → append the new quarter's median rent for each.</li>
+<li><strong>Family-of-four dinner</strong> → pull the latest figure from the
+   family-dinner-prices project → append.</li>
+<li><strong>Quarter roll-up</strong> → for the monthly series (gas, CPI, rent,
+   Case-Shiller, ConEd), compute the quarter's average and lock the
+   closed quarter's value into the trendline.</li>
+<li><strong>Panel surveys</strong> (pizza, bagel, coffee, Uber) → if collected this
+   quarter, append; if not, leave the quarter as an honest gap.</li>
+</ol>
+<hr />
+<h2 id="the-annual-watch-once-a-year-no-fixed-date">The annual watch — once a year, no fixed date</h2>
+<p>These move rarely; watch for the announcement rather than checking on
+a schedule.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Watch for</th>
+<th>Typical timing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NYC Water Board rate</td>
+<td>New FY rate vote</td>
+<td>May, effective July 1</td>
+</tr>
+<tr>
+<td>Rent Guidelines Board cap</td>
+<td>Annual vote (if added)</td>
+<td>June</td>
+</tr>
+<tr>
+<td>MTA fares &amp; tolls</td>
+<td>Board-adopted hikes</td>
+<td>Announced ~Dec, effect Jan</td>
+</tr>
+<tr>
+<td>Citi Bike pricing</td>
+<td>Lyft price change</td>
+<td>Usually January</td>
+</tr>
+<tr>
+<td>Broadway League</td>
+<td>Season-end stats</td>
+<td>Late spring</td>
+</tr>
+<tr>
+<td>CUNY tuition (if added)</td>
+<td>Board vote</td>
+<td>Summer</td>
+</tr>
+</tbody>
+</table>
+<p>When any of these is announced, do a one-off update that day and add
+the step to the trendline — don't wait for the monthly run.</p>
+<hr />
+<h2 id="at-a-glance-what-happens-when">At-a-glance: what happens when</h2>
+<p>```
+EVERY MONTH (last Tuesday)
+  ├─ gas .................. AAA, auto
+  ├─ food CPI ............ BLS, auto
+  ├─ citywide rent ....... StreetEasy, auto (manual fallback)
+  ├─ Case-Shiller ........ FRED, auto
+  ├─ ConEd elec + gas .... rate rebuild, auto
+  └─ tariff check ........ verify 5 rare-change items, auto</p>
+<p>ALSO IN JAN / APR / JUL / OCT
+  ├─ Manhattan rent ...... Douglas Elliman, auto
+  ├─ Brooklyn rent ....... Douglas Elliman, auto
+  ├─ family dinner ....... sister project, auto
+  ├─ quarter roll-up ..... lock closed quarter, auto
+  └─ panel surveys ....... pizza/bagel/coffee/Uber, if collected</p>
+<p>WHEN ANNOUNCED (annual watch)
+  └─ water · RGB cap · MTA · Citi Bike · Broadway season · CUNY
+```</p>
+<hr />
+<h2 id="automating-the-reminder">Automating the reminder</h2>
+<p>The monthly run only works if something nudges it. Options, easiest
+first:</p>
+<ol>
+<li><strong>Recurring reminder → iMessage.</strong> A <code>launchd</code> job fires on the last
+   Tuesday of each month and texts a reminder to start the run. Lowest
+   tech, most reliable. (Matches the existing weekly-catalogue setup.)</li>
+<li><strong>Scheduled agent.</strong> A scheduled task runs the Claude pull
+   automatically on the last Tuesday, appends to <code>readings.json</code>,
+   re-renders, commits, and texts a summary of what moved. Hands-off
+   except for the StreetEasy fallback.</li>
+<li><strong>Manual.</strong> Just run it yourself when you remember. Works, but the
+   last-Tuesday anchor exists precisely so it doesn't drift.</li>
+</ol>
+<p>Recommended: <strong>option 2</strong>, with the iMessage summary so you see what
+changed without opening anything — and a manual confirmation step only
+if StreetEasy blocks the fetch.</p>
+<hr />
+<h2 id="why-last-tuesday-not-the-1st-or-15th">Why last Tuesday, not the 1st or 15th</h2>
+<ul>
+<li>The <strong>1st</strong> is too early — none of the prior month's CPI, rent, or
+  home-price data is out yet.</li>
+<li>The <strong>15th</strong> catches CPI and StreetEasy but misses Case-Shiller,
+  which releases the last Tuesday.</li>
+<li>The <strong>last Tuesday</strong> is the first date when <em>everything</em> for the
+  prior period is available simultaneously. One trip, all fresh.</li>
+</ul>
+<p>The only thing that's "stale" on the last Tuesday is Case-Shiller
+itself, which is inherently two months lagged — but that lag is the
+same every month, so the series stays apples-to-apples.</p>
+    </article>
+  </div>
+
+</div>
+
+<footer>
+  <div class="fin">
+    <div class="fname">The NYC Price Watch</div>
+    <div>Everyday New York prices, tracked monthly from public sources.
+      <a href="./">Back to the tracker</a> ·
+      <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-price-watch">Source and data</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

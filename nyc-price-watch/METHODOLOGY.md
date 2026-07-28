@@ -384,7 +384,7 @@ values are visible as flat segments and are documented per run.
 
 ---
 
-## 6.7 The 2026 view
+### 6.7 The 2026 view
 
 A toggle switches every card from the full frame to 2026 alone. In that
 view the headline number is replaced by the change across the series'
