@@ -1,6 +1,6 @@
 # NYC Price Watch — Methodology
 
-**Version 1.0 · July 27, 2026**
+**Version 1.1 · July 27, 2026**
 
 This document specifies what the NYC Price Watch measures, how each
 series is constructed, and — as precisely as possible — what it cannot
@@ -45,7 +45,7 @@ trip). It is a reporting instrument, not an econometric one.
 ## 2. Relationship to official price statistics
 
 Where an official statistic exists for a concept, we carry the official
-statistic rather than construct our own. Seven series on the page are
+statistic rather than construct our own. Eight series on the page are
 BLS or S&P products reproduced without transformation:
 
 | Concept | Series carried | Why not build our own |
@@ -57,8 +57,9 @@ BLS or S&P products reproduced without transformation:
 | Shelter | BLS CPI, shelter, same CBSA | Rental-equivalence framework; see §7.2 |
 | Home prices | S&P Cotality Case-Shiller, NY metro | Repeat-sales estimator |
 | Pay growth | BLS Employment Cost Index, NY metro | Fixed-weight compensation measure |
+| Average pay | BLS QCEW, New York County | Near-census of covered employment |
 
-The value added by this project is in the **other ~23 series**: posted
+The value added by this project is in the **other 22 series**: posted
 tariffs, rate-schedule reconstructions, and market prices that are real,
 locally salient, and not otherwise assembled in one place.
 
@@ -309,6 +310,16 @@ Interpolated months are not stored as observations in `readings.json`
 and are not used in any computed statistic. Series containing any
 interpolated display segment are flagged `est.` on the chart.
 
+The same flag marks a series whose baseline is **back-derived** rather
+than observed. Four borough rent series and the QCEW wage series carry
+a year-ago point reconstructed from the publisher's own reported
+year-over-year change. Such a point is arithmetically sound and
+reproduces the published rate exactly — but it is not an independent
+observation, so a year-over-year figure computed across it is circular
+by construction: it restates the publisher's number rather than
+corroborating it. It is marked `~` wherever it drives a displayed
+change.
+
 ### 6.5.0 One estimator per line (no splicing)
 
 A single plotted series must come from **one estimator, one source and
@@ -342,8 +353,9 @@ Connecting two points across a 27-month frame asserts a continuity the
 data does not contain, and because the vertical axis is scaled to the
 observed range, a small move between two points renders as a visually
 dramatic cliff. Such series are instead plotted as **discrete points
-with the observation count stated on the chart**. As of v1.0 this
-affects 13 of 30 series, most of them recently added.
+with the observation count stated on the chart**. As of v1.1 this
+affects 15 of 30 series. The count rose when the no-splice rule in
+6.5.0 removed approximated back-history.
 
 This is a display rule only; it does not alter stored values.
 
@@ -553,6 +565,7 @@ Stated explicitly, because the failure modes are predictable:
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1 | 2026-07-27 | Skeptical audit. Corrected the modeled taxi fare, which omitted the $2.50 state congestion surcharge while including the $0.75 central-business-district charge — a combination no real trip incurs; the trip is now specified by zone. Disclosed that the June ConEd figure is an announced-increase escalation, not a rate-sheet reconstruction. Added the two displayed series (Case-Shiller, ConEd gas) that had no entry in the log, which had contradicted the reproducibility claim in section 8. Split Broadway weekly reads out of the season log. Documented the circularity of back-derived baselines. Refreshed counts that drifted after the no-splice cleanup. |
 | 1.0 | 2026-07-27 | First formal specification. Documents the 27-month frame, the January 2026 isolation window, the five estimator types, geographic concordance, revision and interpolation policy, the three-observation minimum for trend lines, year-to-date baseline labeling, and per-series biases including the ConEd seasonal break and the composition of the energy index. |
 
 ---
