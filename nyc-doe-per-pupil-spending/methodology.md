@@ -30,6 +30,7 @@ A fact check on this date found that several figures in earlier versions of this
 | NYC DOE, *School Based Expenditure Report*, FY2018 | Functional per-pupil breakdown (classroom instruction, admin, etc.) |
 | NYC Comptroller, *Course Correction* (due-process special ed report) | Due-process settlement totals, Carter/Connors aggregate |
 | NCES, *Condition of Education* | National IDEA participation rate, used only as a flagged, non-comparable reference |
+| U.S. Bureau of Labor Statistics, CPI-U, U.S. city average, all items, series CUUR0000SA0 | Deflator for all constant-dollar figures |
 
 ### Deliberately not used
 
@@ -73,15 +74,33 @@ The FY2022 peak reflects federal pandemic relief (ESSER). The FY2023 decline to 
 
 **Important:** the total is *not* the per-pupil figure multiplied by the enrollment column. Census computes per-pupil amounts on a pupil base that differs from the fall-membership count it prints in the same table; for FY2024 the implied per-pupil base is roughly 977,000 against a printed enrollment of 845,509. Census does not publish the per-pupil base directly. Both series are reproduced as published and are **not** reconciled here. An earlier version of this page derived totals by multiplication, which produced figures $2B-$4B off from the published totals.
 
-**Nominal dollars.** No figure on the page is inflation-adjusted. Consumer prices rose substantially over FY2016-FY2024, so real growth is materially smaller than the nominal growth shown. A real-dollar version would be preferable and is not currently included.
+**Inflation adjustment (added July 28, 2026).** Both the per-pupil and total views toggle between nominal dollars and constant FY2024 dollars. The deflator is the BLS Consumer Price Index for All Urban Consumers, U.S. city average, all items, not seasonally adjusted (series CUUR0000SA0), taken from the BLS `cu.data.0.Current` flat file and averaged over the twelve months July through June so each figure matches NYC's fiscal year. Each year is then multiplied by the ratio of the FY2024 index to that year's index.
+
+| FY | CPI-U (Jul-Jun avg) | Factor to FY2024 $ | Nominal per pupil | Real per pupil | Nominal total | Real total |
+|---|---|---|---|---|---|---|
+| 2016 | 238.273 | 1.2992 | $24,109 | $31,323 | $26.26B | $34.12B |
+| 2017 | 242.656 | 1.2758 | $25,199 | $32,148 | $27.48B | $35.06B |
+| 2018 | 248.126 | 1.2476 | $26,588 | $33,172 | $29.05B | $36.24B |
+| 2019 | 253.268 | 1.2223 | $28,004 | $34,229 | $30.37B | $37.12B |
+| 2020 | 257.230 | 1.2035 | $28,828 | $34,694 | $31.27B | $37.63B |
+| 2021 | 263.151 | 1.1764 | $29,931 | $35,211 | $31.13B | $36.62B |
+| 2022 | 282.025 | 1.0977 | $35,914 | $39,422 | $34.76B | $38.15B |
+| 2023 | 299.685 | 1.0330 | $33,387 | $34,488 | $32.67B | $33.75B |
+| 2024 | 309.570 | 1.0000 | $35,796 | $35,796 | $34.97B | $34.97B |
+
+**What the adjustment shows.** FY2016 to FY2024 growth is +48.5% nominal and **+14.3% real** for per-pupil; +33.2% nominal and **+2.5% real** for total spending. Real total spending peaked at $38.15B in FY2022 and is below that level in FY2024. Real per-pupil peaked at $39,422 in FY2022 and has not returned to it.
+
+**Choice of index, and its limits.** National CPI-U is the conventional deflator in education finance and keeps NYC and the national average on the same basis. It is not the only defensible choice. School budgets are dominated by labor costs, so a wage or employment-cost index would likely show a smaller real increase; a New York-area CPI would differ modestly from the national series. The page states this rather than presenting the CPI result as the single correct answer.
 
 **Y-axis.** The default view does not start at zero, which amplifies year-to-year movement. A zero-baseline toggle is provided.
 
 ### Section 2: spending vs. enrollment
 
 - Enrollment from Census F-33 Table 18 enrollment column: 981,667 (FY2016) falling to 845,509 (FY2024), **-13.9%**.
-- Total current spending from Table 16: $26.26B to $34.97B, **+33.2%**.
-- Published per-pupil: $24,109 to $35,796, **+48.5%**.
+- Total current spending from Table 16: $26.26B to $34.97B nominal, **+33.2%**; $34.12B to $34.97B in constant FY2024 dollars, **+2.5%**.
+- Published per-pupil: $24,109 to $35,796 nominal, **+48.5%**; $31,323 to $35,796 real, **+14.3%**.
+
+The Section 2 chart defaults to constant dollars, because setting nominal spending growth against a real enrollment decline overstates the numerator. A toggle switches it to nominal.
 
 Because per-pupil grew faster than spending, the pupil base Census used for the per-pupil calculation must have fallen roughly 10% over the period. That is stated as an arithmetic consequence of two published series, not as an independent measurement.
 
@@ -225,7 +244,7 @@ Boston appeared in earlier versions and has been removed: it is not among the 10
 
 ## Assumptions and limitations
 
-1. **Nominal dollars throughout.** No inflation adjustment. Real growth is materially smaller than shown.
+1. **Both nominal and real are available; neither is hidden.** Section 1 defaults to nominal with an inflation toggle; Section 2 defaults to constant dollars with a nominal toggle. Sections 4 through 11 are nominal only and are not inflation-adjusted, because they are mostly single-year snapshots where the adjustment would not change the reading. The deflator choice is CPI-U, with the caveats noted in Section 1.
 2. **Enrollment denominators are not interchangeable.** Census F-33 (NCES CCD fall membership), NYSED BEDS Day, and IBO's "total enrollment" (which includes charter, contract, and Pre-K students) all differ. Figures are never divided across sources.
 3. **Census per-pupil is not total divided by printed enrollment.** See Section 1. The page does not reconcile the two.
 4. **SBER freeze at FY2018.** No current official functional breakdown exists.
@@ -266,6 +285,7 @@ To update: pull the IBO annual DOE Spending release each June, the Census F-33 t
 | $448M FY2025 central admin | Stated in a callout | Removed (untraced attribution) |
 | Charter enrollment | "~140,000 students, ~275 schools" in passing | Full NYSED series, 2012-13 to 2025-26 |
 | Sections 4-5 added (hold harmless, class size mandate) | Not covered | Added July 28, 2026 |
+| Inflation adjustment | Nominal only, with a caveat | Constant-dollar toggle added July 28, 2026 using BLS CPI-U |
 | Charter section framing | Headed "Where the students went"; claimed charter growth "accounts for roughly half of the district's enrollment loss" | Reframed as a counting point, not a transfer or causal claim |
 
 The per-pupil series error was systematic: values for FY2017-FY2020 had each been assigned to the following year, understating every year in that range.
