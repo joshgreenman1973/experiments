@@ -1,17 +1,21 @@
 # Methodology: NYC per-pupil K-12 spending infographic
 
-**Last updated:** April 19, 2026
+**Last updated:** July 27, 2026
 **Author:** Built with Claude Code, from public government sources only.
 
 ## Purpose
 
 To present NYC Department of Education (DOE) per-pupil spending with full transparency about where each number comes from, what each number does and does not include, and which questions public data cannot answer.
 
+## Correction notice (July 27, 2026)
+
+A fact check on this date found that several figures in earlier versions of this page were estimates rather than sourced data, and were presented without saying so. They have been replaced with values read directly from source files, or removed. The specific corrections are listed in the "Corrections log" section at the end of this document. Anyone who used an earlier version of this page should re-check any figure taken from it.
+
 ## Scope
 
-- **Geography:** NYC DOE traditional public schools, charter schools (as pass-through), and special education programs. Excludes SUNY/CUNY, private schools not receiving DOE funds, and non-DOE City agencies.
-- **Grade levels:** K-12 primarily; 3-K and Pre-K are included where IBO reports them.
-- **Fiscal years:** NYC fiscal years run July 1 - June 30. FY2024 = July 2023 - June 2024.
+- **Geography:** NYC DOE district schools. Charter schools are shown separately (Section 3) and are excluded from the Census spending series, because New York law treats them as separate local education agencies.
+- **Grade levels:** PreK-12 as each source defines it. Grade coverage differs between sources and is noted per figure.
+- **Fiscal years:** NYC fiscal years run July 1 to June 30. FY2024 = July 2023 to June 2024. NYSED school years are labeled by span (2025-26). These two conventions are not interchangeable and are kept distinct throughout.
 
 ## Data sources
 
@@ -19,83 +23,119 @@ To present NYC Department of Education (DOE) per-pupil spending with full transp
 
 | Source | Use |
 |---|---|
-| NYC Independent Budget Office (IBO), *Annual DOE Spending: 2024 Shifts*, June 17, 2025 | FY2024 total ($40B), operating ($33B), school-related programs breakout, fringe benefits ($4.5B), pensions narrative |
-| IBO, *Education Spending Tables*, June 2023 | Long-run DOE spending context, 1990-2022 |
-| IBO, *Analysis of Board of Education Funding Trends* (1996) | FY1988-FY1997 per-pupil anchor points |
-| IBO Education Indicators portal (ibo.nyc.ny.us/publicschool.html) | Enrollment, pupil-teacher ratio |
+| U.S. Census Bureau, *Annual Survey of School System Finances* (F-33), summary tables FY2016-FY2024 | All per-pupil, total district spending, enrollment, and cross-district figures |
+| NYSED, BEDS Day public school enrollment files (all students; students with disabilities), 2012-13 to 2025-26 | Charter vs. district enrollment; students-with-disabilities shares |
+| NYC Independent Budget Office, *Annual DOE Spending: 2024 Shifts*, June 17, 2025 | FY2024 total ($40B), operating ($33B), school-related programs breakout, fringe benefits ($4.5B), pupil-teacher ratio, funding source mix, building age |
+| NYC Council Finance Division, *Report on the Fiscal 2019 Preliminary Budget for the DOE* (March 2018) | U/A-level operating-budget breakdown (schools vs. central administration vs. other) |
 | NYC DOE, *School Based Expenditure Report*, FY2018 | Functional per-pupil breakdown (classroom instruction, admin, etc.) |
-| NYC Comptroller, *Spotlight: School Budget Allocations* | FSF formula, total schools allocation FY2023 |
-| NYC Council Finance Division, *Fiscal 2019 Preliminary Budget: DOE* | U/A-level operating-budget breakdown (schools vs. central administration vs. other) |
 | NYC Comptroller, *Course Correction* (due-process special ed report) | Due-process settlement totals, Carter/Connors aggregate |
-| U.S. Census Bureau, *2022 Annual Survey of School System Finances* (F-33), Table 20 | Cross-district "current spending per pupil" comparison |
+| NCES, *Condition of Education* | National IDEA participation rate, used only as a flagged, non-comparable reference |
 
-### Not used
+### Deliberately not used
 
-- Think-tank reports, advocacy group summaries, news articles, and state-level aggregates were consulted for orientation but are **not cited** on the page. Every number on the infographic traces to one of the sources above.
+Think-tank and advocacy figures were encountered during research and are **not** on the page. Two were removed during the July 2026 fact check specifically because they are not government sources:
+
+- The Citizens Budget Commission's $42,168 FY2026 fully-loaded per-pupil projection.
+- A $448M FY2025 central-administration figure that could not be traced to a primary document.
+
+Both may well be accurate. They are excluded because this page's stated rule is government sources only, and applying that rule selectively would make the rule meaningless.
 
 ## Key figures and how each was derived
 
-### Headline: $40B total, $36,000 per pupil (FY2024)
+### Headline metrics
 
-- **$40B total:** IBO June 2025 press release, verbatim ("actual spending totaled $40 billion").
-- **Per-pupil denominator:** IBO reports ~1.1M total enrollment for recent years, including all general and special education students in DOE facilities, special education pre-K and school-age students in contract schools, 3K and Pre-K students in DOE sites and Early Education Centers, and charter school students. $40B / 1.1M ≈ $36,364, rounded to $36,000 to match IBO's own rounding in the release.
-- **Caveat:** This is a "fully loaded" per-pupil figure (includes pensions and debt service outside the operating budget). It is not directly comparable to the Census Bureau's narrower "current spending per pupil" measure.
+- **$40B total DOE spending, FY2024** - IBO June 2025 press release, verbatim: actual spending totaled $40 billion.
+- **$35,796 per pupil, FY2024** - Census F-33 Table 18, NYC row, "Current spending / Total" column, from the release published May 2026. District only; excludes charters, capital outlay, and debt service.
+- **Rank 1 of the 100 largest districts** - Census F-33 Table 18 rank column. Verified as rank 1 in each of FY2016 through FY2024 by reading each year's table.
+- **Pupil-to-teacher ratio 9.4, down from 12.1 in 1990** - IBO June 2025 release.
 
-### Historical trend line (toggles between per-pupil and total DOE spending)
+### Section 1: the per-pupil trend (FY2016-FY2024)
 
-Anchor points for the per-pupil view:
+Every point read directly from Census F-33 Table 18, NYC row, in that fiscal year's own summary-tables workbook:
 
-| Year | Value | Source |
-|---|---|---|
-| FY2000 | ~$11,200 | IBO June 2023 Education Spending Tables (approximate read from published chart image) |
-| FY2010 | ~$20,100 | IBO June 2023 Education Spending Tables (approximate read from published chart image) |
-| FY2016 | $19,650 | Council Finance Division FY19 briefing total / IBO enrollment ~1.14M |
-| FY2017 | $20,600 | Council Finance Division FY19 briefing total / IBO enrollment ~1.14M |
-| FY2018 | $21,800 | Council Finance Division FY19 briefing total / IBO enrollment ~1.12M |
-| FY2019 | $23,300 | Council Finance Division FY19 briefing total / IBO enrollment ~1.10M |
-| FY2021 | $29,931 | Census F-33 "current spending per pupil" |
-| FY2022 | $35,914 | Census F-33 "current spending per pupil" |
-| FY2024 | $36,364 | IBO June 2025 release, $40B / ~1.1M enrollment |
+| FY | Per pupil |
+|---|---|
+| 2016 | $24,109 |
+| 2017 | $25,199 |
+| 2018 | $26,588 |
+| 2019 | $28,004 |
+| 2020 | $28,828 |
+| 2021 | $29,931 |
+| 2022 | $35,914 |
+| 2023 | $33,387 |
+| 2024 | $35,796 |
 
-**FY1988/FY1997 dropped:** earlier versions showed FY1988 $7,232 and FY1997 $6,952 from IBO's 1996 Funding Trends report. Those values are in constant 1996 dollars and are not comparable to the nominal values in later years — leaving them in made the chart misleading, so they were removed. (For reference, FY1988 spending would be ~$19,000 per pupil in 2024 dollars.)
+The FY2022 peak reflects federal pandemic relief (ESSER). The FY2023 decline to $33,387 is in the published series and is the first year-over-year fall in this series.
 
-**Toggle methodology:** the "total DOE spending" view multiplies each per-pupil point by the enrollment denominator used to derive it, yielding the citywide total; the underlying source is the same. The chart uses a time-scaled linear x-axis so year gaps are drawn to scale.
+**Total spending toggle.** The total-dollar view is read from Census F-33 **Table 16**, NYC row, "Current spending" column (thousands, converted to billions): $26.26B, $27.48B, $29.05B, $30.37B, $31.27B, $31.13B, $34.76B, $32.67B, $34.97B for FY2016-FY2024 respectively.
 
-**Limitation:** anchor points still mix three methodologies (Council operating-budget totals, Census current spending, IBO fully-loaded). The FY2021/FY2022 jump reflects both real COVID-era federal relief inflows and Census vs. Council/IBO methodology differences. A clean consistent long-run series exists only as a chart image in IBO's June 2023 Education Spending Tables — that is why the pre-2016 points are labeled approximate.
+**Important:** the total is *not* the per-pupil figure multiplied by the enrollment column. Census computes per-pupil amounts on a pupil base that differs from the fall-membership count it prints in the same table; for FY2024 the implied per-pupil base is roughly 977,000 against a printed enrollment of 845,509. Census does not publish the per-pupil base directly. Both series are reproduced as published and are **not** reconciled here. An earlier version of this page derived totals by multiplication, which produced figures $2B-$4B off from the published totals.
 
-### FY2024 $40B breakdown (Section 2)
+**Nominal dollars.** No figure on the page is inflation-adjusted. Consumer prices rose substantially over FY2016-FY2024, so real growth is materially smaller than the nominal growth shown. A real-dollar version would be preferable and is not currently included.
 
-All figures directly from IBO June 17, 2025 release:
+**Y-axis.** The default view does not start at zero, which amplifies year-to-year movement. A zero-baseline toggle is provided.
+
+### Section 2: spending vs. enrollment
+
+- Enrollment from Census F-33 Table 18 enrollment column: 981,667 (FY2016) falling to 845,509 (FY2024), **-13.9%**.
+- Total current spending from Table 16: $26.26B to $34.97B, **+33.2%**.
+- Published per-pupil: $24,109 to $35,796, **+48.5%**.
+
+Because per-pupil grew faster than spending, the pupil base Census used for the per-pupil calculation must have fallen roughly 10% over the period. That is stated as an arithmetic consequence of two published series, not as an independent measurement.
+
+The page does **not** publish a "what per-pupil would be at flat enrollment" counterfactual. An earlier version did; it relied on treating the printed enrollment column as the per-pupil denominator, which the paragraph above shows is incorrect.
+
+### Section 3: charter enrollment
+
+Computed from NYSED BEDS Day school-level enrollment files, summing PreK-12 enrollment for all schools in the five NYC counties (Bronx, Kings, New York, Queens, Richmond) and splitting on NYSED's own "School Type" field (values: Public, Charter).
+
+| School year | Charter | District | Charter schools | Charter share |
+|---|---|---|---|---|
+| 2012-13 | 58,493 | 985,388 | 159 | 5.6% |
+| 2015-16 | 94,334 | 980,197 | 205 | 8.8% |
+| 2019-20 | 128,951 | 934,109 | 260 | 12.1% |
+| 2021-22 | 139,315 | 846,833 | 271 | 14.1% |
+| 2023-24 | 143,575 | 832,218 | 274 | 14.7% |
+| 2025-26 | 149,879 | 810,653 | 285 | 15.6% |
+
+(The chart plots all fourteen years; the table above is a sample.)
+
+Over the full span the district lost 174,735 students and charters gained 91,386 - about 52% of the district decline. Combined district-plus-charter enrollment fell 8.0%, against 17.7% for the district alone.
+
+**Caveats.** BEDS Day is a fall snapshot collected by NYSED; Census F-33 enrollment comes from the NCES Common Core of Data. The two differ by roughly 10,000-30,000 students for the same nominal year and are not interchangeable. This section covers enrollment only; charter per-pupil spending comes from a separate funding stream and is not in the Census district series or the IBO breakdowns.
+
+### Section 4: FY2024 $40B breakdown
+
+All figures from the IBO June 17, 2025 release:
 - Operating budget: $33B
-- Pensions + debt service outside operating: $40B - $33B = ~$7B (derived)
-- Within operating, "school-related programs": $19B
-  - General ed schools: $8.4B
-  - Charter schools: $3.1B
-  - Categorical funding: $2.7B
-  - Special education: $2.4B
-  - Pre-K: $1.8B
+- Pensions + debt service outside operating: $40B - $33B = ~$7B (arithmetic residual, labeled as such)
+- School-related programs: $19B, comprising general ed schools $8.4B, charter schools $3.1B, categorical funding $2.7B, special education $2.4B, Pre-K $1.8B
 - Fringe benefits: $4.5B
-- "Other operating": $33B - $19B - $4.5B = ~$9.5B (derived as residual; includes central admin, support functions, and any items IBO did not separately enumerate)
+- Central services and overhead: $33B - $19B - $4.5B = ~$9.5B (arithmetic residual, labeled as such)
 
-The two derived figures ($7B pensions+debt, $9.5B other operating) are labeled as such on the chart and are arithmetic residuals from the IBO-stated components.
+Slice labels on the chart are plain-English descriptions written for this page, not IBO's own category names. The caption states what each contains.
 
-### Schools vs. central administration vs. everything else (Section 3)
+**No general-education per-pupil figure is published here.** Dividing the $8.4B general education schools line by any published enrollment count would mix a spending line and a student population that do not correspond. An earlier version of this page did exactly that, producing a "~$10,300 per pupil" figure on an invented 813,000 denominator. It has been removed.
 
-Derived from the NYC Council Finance Division's Fiscal 2019 Preliminary Budget report on the Department of Education, aggregating U/A-level operating-budget lines into five buckets:
+### Section 5: schools vs. central administration vs. everything else
 
-| Bucket | FY2019 $ | Notes |
+From the NYC Council Finance Division's Fiscal 2019 Preliminary Budget report on the DOE, aggregating U/A-level lines into five buckets:
+
+| Bucket | FY2019 | Notes |
 |---|---|---|
-| Schools (direct classroom + school operations) | $14.7B | Sum of U/A lines that flow to schools |
-| Central special education + non-public/contract schools | $3.4B | Centrally-budgeted SPED and mandated private/contract placements |
-| Operations (transportation, food, facilities, safety) | $3.7B | Pupil transport, school food, custodial, safety |
-| Fringe benefits | $3.5B | Employer share of health + welfare for DOE staff |
-| Central administration | ~$0.345B | Central executive, finance, HR, IT — all non-school headquarters functions |
+| Schools | $14.7B | GE instruction, SE instruction at district schools, charter payments, UPK, early childhood, school support orgs, categorical |
+| Staff health and welfare benefits | $3.5B | Centrally budgeted fringe, mostly covering school-based staff |
+| Operations | $3.7B | Facilities, pupil transportation, food, safety, energy and leases |
+| Central SPED + non-public payments | $3.4B | District 75 and citywide SPED support, SE Pre-K contracts, contract schools / Carter cases, non-public / FIT |
+| Central administration | $0.345B | U/A 453 + 454, supporting 2,055 FTE |
 
-**Central administration is roughly 1.35% of the DOE operating budget.** This is the finding that the public conversation most consistently gets wrong: the "bureaucracy" line is a single-digit share of operating spending. The vast majority of dollars flow to schools, to services schools consume (transportation, food, fringe), or to centrally-administered but school-serving obligations (SPED placements, non-public schools).
+Total: $25.6B FY2019 Preliminary operating budget. Central administration is about **1.35%**.
 
-**Limitation:** FY2019 is the most recent year for which a U/A-level aggregation like this has been publicly compiled in one document. The Council Finance Division publishes an updated DOE report each year; the proportions do not change materially year over year, but the absolute dollar figures would.
+**Two significant caveats, both stated on the page.** First, these are Fiscal 2019 *Preliminary Budget* figures - a plan, not actuals - and are now seven years old; the operating budget has grown substantially since. Second, the five buckets are groupings made by this page, not categories the Council publishes; a different reasonable grouping would shift dollars between bars. The chart caption lists which lines went into each bucket so the grouping can be audited.
 
-### FY2018 functional breakdown (Section 4)
+Fringe is shown as a separate bar because that is how it appears in the budget document, but economically most of it is compensation for school-based staff. Schools plus fringe is about 71% of the operating budget.
+
+### Section 6: FY2018 functional breakdown
 
 Directly from NYC DOE School Based Expenditure Report FY2018 citywide summary:
 
@@ -106,66 +146,99 @@ Directly from NYC DOE School Based Expenditure Report FY2018 citywide summary:
 | Leadership / supervision | $2,087 |
 | Ancillary support services | $1,970 |
 | Building services | $1,650 |
-| Direct services to schools subtotal | $22,170 |
+| *Direct services to schools subtotal* | *$22,170* |
 | Field support costs | $506 |
 | System-wide costs | $738 |
 | System-wide obligations (pensions etc.) | $2,853 |
-| Pass-throughs | Not per-pupil ($4.8B total, mostly charter) |
-| Grand total | $31.6B / 1,021,229 enrollment |
 
-**This is the last year DOE published SBER.** A follow-on post-2018 equivalent does not exist.
+Grand total $31.6B over 1,021,229 enrollment. Pass-throughs (~$4.8B, mostly charter and contract schools) are excluded from the per-pupil calculation.
 
-### Special education (Section 5)
+**This is the last year DOE published SBER.** No post-2018 equivalent exists, so there is no current official functional split of classroom vs. administration vs. overhead.
 
-- **$2.4B "special education"** - IBO June 2025 release, the narrowly-defined school-related-programs line. Excludes embedded special ed in general-ed schools, District 75, and Carter/Connors tuition.
-- **$1.3B FY2025 due-process** and **$101,757 average settlement** - NYC Comptroller sources, reproduced in companion infographic [NYC special education due process spending tracker](https://joshgreenman1973.github.io/experiments/nyc-special-ed-spending/).
-- **$47M FY2005 due-process baseline** - Comptroller's *Course Correction* report.
+### Section 7: special education
+
+**Published:**
+- $2.4B "special education" within school-related programs (IBO June 2025). This is a narrow line: it excludes District 75, most classroom-level special ed embedded in general ed schools, and Carter/Connors tuition.
+- $1.3B FY2025 due-process and $101,757 average settlement (NYC Comptroller, reproduced in the [companion tracker](https://joshgreenman1973.github.io/experiments/nyc-special-ed-spending/)).
+- $47M FY2005 due-process baseline (Comptroller, *Course Correction*).
 
 **Not in the public record:**
-- District 75 per-pupil spending - DOE does not publish an annual D75-specific per-pupil figure.
-- Carter vs. Connors disaggregation - DOE has stated on the record it cannot separate these.
+- District 75 per-pupil spending.
+- Carter vs. Connors disaggregation - DOE has stated it cannot separate these.
 - Recipient-school list for Carter/Connors payments.
-- A total "all-in" special education spending figure that aggregates embedded general-ed special ed + District 75 + Carter/Connors.
+- Any all-in special education total combining embedded general-ed SPED, District 75, and Carter/Connors.
 
-### NYC premium decomposition — does higher SPED share explain it? (Section 6)
+### Section 8: why NYC is higher
 
-NYC's "current spending per pupil" (Census F-33 FY2022) is $35,914 vs. a U.S. average of $15,633 — a $20,281 gap. One common hypothesis: NYC's gap is driven by a higher share of students with Individualized Education Programs (IEPs), who cost roughly 1.9× a general-ed student to serve.
+FY2024 gap: NYC $35,796 vs. U.S. average $17,619 = **$18,177**.
 
-Decomposition math:
-- NYC IEP rate: ~20% (NYC DOE, *Demographic Snapshot*; NCES *Condition of Education* for comparable U.S. figure)
-- U.S. IEP rate: ~15% (NCES *Condition of Education*, 2022)
-- Excess IEP share in NYC: ~5 percentage points
-- Average SPED cost premium over general-ed: ~0.9× (nationally-published estimate)
-- Expected per-pupil gap attributable to IEP mix: 0.05 × 0.9 × $15,633 ≈ **$704**
+**No dollar decomposition is published.** An earlier version of this page carried a bar chart splitting the gap into amounts for special education mix, staffing levels, and teacher pay. Producing those bars required assuming a fully-loaded cost per teacher and an excess cost per special education student. No official source publishes either for New York City, so the splits were assumptions presented as findings. The chart has been removed and is not replaced with a corrected version, because no government source decomposes the gap.
 
-**Conclusion:** higher SPED enrollment share explains only ~$704 of the $20,281 gap, or about 3.5%. The other ~96% reflects NYC's higher wage base, smaller class sizes, richer benefit packages, older infrastructure costs, and a broader array of school-based services — not a disproportionately disabled student population.
+**Students with disabilities**, computed from a single NYSED BEDS Day 2024-25 file so the first three are directly comparable:
 
-### Cross-district comparison (Section 7)
+| Group | Share |
+|---|---|
+| NYC district schools | 24.4% |
+| NYC charter schools | 20.8% |
+| New York State, all public | 19.8% |
+| U.S. reference (NCES, IDEA ages 3-21, SY2022-23) | 15.0% |
 
-U.S. Census Bureau, 2022 Annual Survey of School System Finances, Table 20 "current spending per pupil" for 100 largest school systems. Comparison values:
-- NYC: $35,914 (FY2022)
-- Boston: $31,397 (Census published Boston's most recent in FY2021 press release; noted on chart)
-- Washington, D.C.: $27,425 (FY2022)
-- San Francisco Unified: $23,654 (FY2022)
-- Atlanta: $22,882 (FY2022)
-- Los Angeles Unified: $21,940 (FY2022)
-- Detroit: $21,771 (FY2022)
-- Chicago: $18,216 (FY2021)
-- U.S. national average: $15,633 (FY2022)
+The national figure uses a different collection, year, and age range, and is flagged on the chart as not directly comparable. An earlier version showed NYC at 20% alongside unsourced peer-city bars (including an implausible 7% for Houston); those have been removed.
 
-**Note on comparability:** Census "current spending per pupil" excludes capital outlay and debt service. That is why Census's NYC figure ($35,914) is lower than IBO's fully loaded $36,000 - though the two happen to land within rounding distance for FY2022/FY2024.
+**Documented cost factors**, listed without apportioning the gap: pupil-teacher ratio 9.4 vs. 12.1 in 1990 (IBO); students with disabilities 24.4% (NYSED); average school building age 75 years (IBO); funding mix 52% City / 35% State / 12% Federal (IBO).
+
+### Section 9: cross-district comparison
+
+Census F-33 FY2024 Table 18, every district read from the same table so all bars share a year and definition: NYC $35,796; District of Columbia $31,529; Atlanta $26,117; Los Angeles Unified $25,631; San Francisco Unified $25,173; Chicago $24,330; Detroit $21,406; Philadelphia $19,525; U.S. average $17,619; Clark County $14,774; Houston $13,950; Miami-Dade $13,931; Broward $13,412.
+
+Boston appeared in earlier versions and has been removed: it is not among the 100 largest systems, so it is not in this table, and the figure previously shown was from a different year.
+
+**Comparability caveat.** Per-pupil spending is heavily shaped by state funding systems, regional labor costs, and cost of living. These bars are not a measure of efficiency or of how much money reaches classrooms.
 
 ## Assumptions and limitations
 
-1. **Nominal dollars, not inflation-adjusted.** The historical line is in then-current dollars. A real-dollar adjustment would compress the apparent growth substantially.
-2. **"Total enrollment" denominator varies by source.** IBO includes pre-K, 3K, charter students, and contract-school special ed students. Census F-33 uses a narrower ADA-style count. This is one reason Census and IBO per-pupil figures diverge.
-3. **SBER freeze (FY2018).** Without a post-2018 SBER, no current granular "classroom vs. admin" functional breakdown exists in official data.
-4. **Special ed is systematically under-reported in simple breakouts.** The $2.4B IBO line is not a total-special-ed figure. A true total would sum embedded general-ed special ed + District 75 + Carter/Connors + related services + transportation carve-outs - and no single public document does that.
-5. **All figures are as published.** No attempt was made to reconcile differences between IBO, DOE, Comptroller, and Census where they report the same concept with different numbers. Each chart cites exactly one source.
+1. **Nominal dollars throughout.** No inflation adjustment. Real growth is materially smaller than shown.
+2. **Enrollment denominators are not interchangeable.** Census F-33 (NCES CCD fall membership), NYSED BEDS Day, and IBO's "total enrollment" (which includes charter, contract, and Pre-K students) all differ. Figures are never divided across sources.
+3. **Census per-pupil is not total divided by printed enrollment.** See Section 1. The page does not reconcile the two.
+4. **SBER freeze at FY2018.** No current official functional breakdown exists.
+5. **The Council FY19 chart is old and its bucketing is editorial.** See Section 5.
+6. **Special education is under-represented in every simple breakout.** The $2.4B IBO line is not a total.
+7. **No outcomes data.** The page reports spending only. It makes no claim about results, efficiency, or value.
+8. **Visual verification was limited.** Chart data was verified programmatically against the source files. Full visual rendering could not be confirmed in the available preview environment.
 
 ## Reproducibility
 
-All sources are hyperlinked in the infographic's "Sources and methodology" section. All charts are static encodings of the numbers in this document; no live API calls. To update: pull the most recent IBO annual DOE Spending release each June and the Census F-33 district-level tables each spring.
+Census F-33 summary tables: `https://www2.census.gov/programs-surveys/school-finances/tables/<YEAR>/secondary-education-finance/elsec<YY>_sumtables.xlsx` (older years use `.xls`). NYC is the rank-1 row of Tables 16 and 18.
+
+NYSED BEDS Day files: archive at `https://www.p12.nysed.gov/irs/statistics/enroll-n-staff/ArchiveEnrollmentData.html` (files named `PublicSchool<YYYY>AllStudents.xlsx`, where the year is the spring of the school year); recent years at `enrollment-public-school-<SPAN>-all-students.xlsx`.
+
+To update: pull the IBO annual DOE Spending release each June, the Census F-33 tables each May, and the NYSED BEDS Day files each fall.
+
+## Corrections log
+
+**July 27, 2026 fact check.** The following were wrong or unsupported in earlier versions:
+
+| Item | Was | Now |
+|---|---|---|
+| Per-pupil FY2016 | $22,850 | $24,109 |
+| Per-pupil FY2017 | $24,147 | $25,199 |
+| Per-pupil FY2018 | $25,199 | $26,588 |
+| Per-pupil FY2019 | $26,588 | $28,004 |
+| Per-pupil FY2020 | $28,004 | $28,828 |
+| Total spending, all years | Derived by multiplication, $2B-$4B off | Census Table 16 as published |
+| Enrollment, FY2016-FY2022 | Rounded guesses; FY2017 shown falling when it rose | Census Table 18 as published |
+| Per-pupil growth FY16-FY24 | +57% | +48.5% |
+| Spending growth FY16-FY24 | +35% | +33.2% |
+| NYC students with disabilities | 20% | 24.4% (NYSED 2024-25) |
+| Peer-city IEP bars | Unsourced, incl. Houston 7% | Removed |
+| Cross-district comparison | Mixed FY2021/FY2022, incl. Boston | All FY2024, Boston removed |
+| Gen-ed per-pupil | "~$10,300" on invented 813,000 denominator | Removed, with explanation |
+| NYC-vs-US dollar decomposition | Bars built on assumed teacher and SPED costs | Removed, replaced with documented-factors table |
+| CBC $42,168 FY2026 projection | Plotted on the trend chart | Removed (not a government source) |
+| $448M FY2025 central admin | Stated in a callout | Removed (untraced attribution) |
+| Charter enrollment | "~140,000 students, ~275 schools" in passing | Full NYSED series, 2012-13 to 2025-26 |
+
+The per-pupil series error was systematic: values for FY2017-FY2020 had each been assigned to the following year, understating every year in that range.
 
 ## Contact
 
