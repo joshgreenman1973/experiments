@@ -590,13 +590,6 @@ def build():
         boards.append(f'<div class="panel"><h4>{esc(heading)}<span class="count">{len(names)}</span></h4>'
                       f'<div class="chips">{items}</div>{more}</div>')
 
-    gone = "\n".join(
-        f'<a class="gone" href="{esc(d["source"])}" target="_blank" rel="noopener">'
-        f'<span class="who">{esc(d["name"])}</span>'
-        f'<span class="unit">{esc(d["title"])}</span>'
-        f'<span class="meta">{esc(d["reason"])} &#183; {esc(fmt_date(d["departDate"]))}</span></a>'
-        for d in ROSTER["departed"])
-
     mapped = len(DEPTS) + len(COLUMN_DEPTS) + len(BOARD_DEPTS)
     extras = sum(len(v) for v in CITY_EXTRAS.values())
     citylines = sum(1 for r in GOV if r.get("reports_to"))
@@ -614,15 +607,13 @@ def build():
            .replace("{{COLUMNS}}", "\n".join(cols))
            .replace("{{PANELS}}", "\n".join(panels))
            .replace("{{BOARDS}}", "\n".join(boards))
-           .replace("{{DEPARTED}}", gone)
            .replace("{{TOTAL}}", str(total))
-           .replace("{{DEPARTED_N}}", str(len(ROSTER["departed"])))
            .replace("{{MAPPED}}", str(mapped))
            .replace("{{EXTRAS}}", str(extras))
            .replace("{{CITYLINES}}", str(citylines))
            .replace("{{UPDATED}}", fmt_date(ROSTER["meta"]["lastUpdated"])))
     (HERE / "index.html").write_text(out)
-    print(f"wrote index.html - {total} appointees, {len(ROSTER['departed'])} departures, "
+    print(f"wrote index.html - {total} appointees, "
           f"{n[0]} numbered boxes, {mapped} department charts wired, "
           f"{extras} offices added from the city's file, {citylines} published reporting lines")
 
