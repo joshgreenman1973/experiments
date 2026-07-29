@@ -176,6 +176,18 @@ header.mast{border-bottom:2px solid var(--rule-hard);padding:20px 0 16px}
 .pend .tag{color:var(--navy)}
 .ent.ret{background:repeating-linear-gradient(90deg,rgba(138,109,31,.055) 0 3px,transparent 3px 6px)}
 .ent.pend .who::after{content:" \25B3";font-size:11px;color:var(--navy);vertical-align:2px}
+.extra{border-top:1px solid var(--rule-hard);margin-top:2px}
+.extra summary{
+  font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;
+  font-size:10.5px;font-weight:600;color:var(--soft);padding:8px 12px;cursor:pointer;list-style:none;
+}
+.extra summary::-webkit-details-marker{display:none}
+.extra summary::before{content:"+ ";color:var(--red)}
+.extra[open] summary::before{content:"\2212 "}
+.extra summary:hover{background:var(--card);color:var(--ink)}
+.ent.listed{grid-template-columns:1fr;padding:7px 12px 7px 12px;background:repeating-linear-gradient(90deg,rgba(31,58,86,.045) 0 2px,transparent 2px 5px)}
+.ent.listed .who{font-size:15px;font-weight:400}
+.ent.listed .who i{font-style:normal;color:var(--soft)}
 .none{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.12em;font-size:11px;color:var(--soft);padding:12px}
 
 /* ---------- the department drawer, opened in place ---------- */
@@ -203,6 +215,20 @@ header.mast{border-bottom:2px solid var(--rule-hard);padding:20px 0 16px}
 }
 .links a:hover{background:var(--ink);color:var(--card)}
 .links a::after{content:" \2197";font-size:10px}
+.cityline{
+  font-size:14px;color:#3a342b;margin:10px 0 0;padding:8px 12px;background:var(--paper);
+  border-left:3px solid var(--navy);max-width:90ch;
+}
+.cityline b{font-weight:600}
+.cityline.differs{border-left-color:var(--red)}
+.kids{margin-top:12px}
+.kids h5{
+  font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.16em;
+  font-size:11px;font-weight:700;margin:0 0 6px;color:var(--soft);
+}
+.prow .cr{
+  display:block;font-family:"Courier Prime",monospace;font-size:11px;color:var(--gold);letter-spacing:-.01em;
+}
 .dept{margin-top:6px}
 .dept h4{
   font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.2em;
@@ -314,7 +340,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
   <div class="deck">
     <div>
       <p>Every senior appointee in the Mamdani administration, arranged by who reports to whom. Each of the {{TOTAL}} boxes links to the announcement or news report that named that person.</p>
-      <p>Click a department and its own organizational chart opens in place, down to the division level, drawn from the city's Green Book and refreshed on its own every few hours.</p>
+      <p>Click a department and its own organizational chart opens in place, down to the division level, drawn from the city's Green Book and refreshed on its own every few hours. Each column also carries the offices the city's agency file assigns to that portfolio but no announcement covered, listed separately.</p>
     </div>
     <div class="tally">
       <div><b>{{TOTAL}}</b><span>Appointees</span></div>
@@ -376,12 +402,14 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
         <span><i>No mark</i> named by this mayor</span>
         <span><i>Retained</i> kept on from the previous administration</span>
         <span><i>&#9651;</i> nominee awaiting confirmation</span>
+        <span><i>Hatched</i> listed in the city's agency file, no announcement tracked</span>
       </div>
     </div>
     <div>
       <h3>What is not here</h3>
       <ul>
         <li>Deputy and assistant commissioners, except where the Green Book publishes them. {{MAPPED}} of the boxes open into a department chart; the rest have none published.</li>
+        <li>Offices the city's agency file records with no reporting line, and organizations it lists that are not part of city government.</li>
         <li>Rank-and-file civil servants, who are not political appointees.</li>
         <li>Officials the mayor does not appoint, such as the chancellor of the City University of New York.</li>
       </ul>
@@ -389,12 +417,14 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
     <div>
       <h3>Where the data comes from</h3>
       <p>The top layer, the {{TOTAL}} appointees, comes from a running tracker of every appointment and departure since Jan. 1, 2026, sourced to mayor's office press releases, agency leadership pages, City &amp; State New York, The City, Gothamist, Crain's New York Business, Streetsblog and amNewYork.</p>
+      <p>Reporting lines and the officers of offices with no announcement come from the city's agency file, snapshotted into this repo so a change in it shows up as a reviewable diff. Salaries and the last personnel action shown against a name come from the City Record, by way of the same directory feed.</p>
       <p>The department layer is fetched at page load from <a href="https://joshgreenman1973.github.io/nyc-green-book/" target="_blank" rel="noopener">the Greener Book</a>, which rebuilds from the city's own Green Book, the agency governance file and the City Record every four hours. That layer therefore updates without anyone rebuilding this page.</p>
     </div>
     <div>
       <h3>Reporting lines</h3>
-      <p>The city publishes very few of them. Each office is grouped under the principal named in official releases, and the offices whose line the city has not published sit in their own column rather than being assigned to a guess.</p>
-      <p>Where the Green Book and the city's governance file name different people as an agency head, both are shown with the reason one is preferred.</p>
+      <p>The city publishes {{CITYLINES}} of them, in the Office of Technology and Innovation's <a href="https://data.cityofnewyork.us/d/t3jq-9nkf" target="_blank" rel="noopener">agency and governance file</a>. Open any box and it shows where that file puts the office, and says so plainly when this chart groups it somewhere else on the strength of an announcement. Offices with no published line sit in their own column rather than being assigned to a guess.</p>
+      <p>That file is updated annually, so a few of its lines still name posts from the last administration. Those are mapped to the post that absorbed the work, and the ones with no successor are left out rather than guessed at. {{EXTRAS}} offices it lists, which no announcement covered, are carried at the foot of the column the file assigns them to.</p>
+      <p>Where the Green Book and the governance file name different people as an agency head, both are shown with the reason one is preferred.</p>
     </div>
   </div>
 
@@ -496,8 +526,16 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
     var vac=p.v?" vac":"";
     var sub=(p.d&&p.d.length>1)?'<span class="t">'+p.d.slice(1).map(esc).join(" &#183; ")+'</span>':"";
     var phone=p.p?' <span class="ph">'+esc(p.p)+'</span>':"";
+    var cr="";
+    if(p.cr){
+      var bits=[];
+      if(p.cr.reason) bits.push(String(p.cr.reason).toLowerCase());
+      if(p.cr.effective) bits.push(p.cr.effective);
+      if(p.cr.salary) bits.push("$"+Number(p.cr.salary).toLocaleString("en-US",{maximumFractionDigits:0}));
+      cr='<span class="cr">'+esc(bits.join(" \u00b7 "))+"</span>";
+    }
     return '<span class="prow'+vac+'"><span class="nm">'+esc(p.v?"Vacant":p.n)+'</span>'+phone+
-           '<span class="t">'+esc(p.t)+'</span>'+sub+'</span>';
+           '<span class="t">'+esc(p.t)+'</span>'+sub+cr+'</span>';
   }
   function deptHtml(names){
     var out="";
@@ -523,6 +561,26 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
     return out;
   }
 
+  function cityLineHtml(d){
+    if(!d.cityline) return "";
+    var line=d.cityline.split(";")[0];
+    var mine=(d.mine||"").toLowerCase();
+    var same=!mine || line.toLowerCase().replace(/^deputy mayor for /,"")===mine.replace(/^deputy mayor for /,"");
+    if(d.flag==="listed"){
+      return '<p class="cityline">The city\'s agency file lists this office under the <b>'+
+             esc(line)+'</b>. No appointment announcement is tracked for it here.</p>';
+    }
+    return '<p class="cityline'+(same?"":" differs")+'">The city\'s agency file places this office under the <b>'+
+           esc(line)+"</b>."+(same?"":" This chart shows it under the "+esc(mine)+".")+"</p>";
+  }
+  function kidsHtml(d){
+    if(!d.kids) return "";
+    var list=d.kids.split("|").filter(Boolean);
+    if(!list.length) return "";
+    return '<div class="kids"><h5>Reports into this office, per the city\'s file</h5><div class="chips">'+
+      list.map(function(k){ return '<span class="chip">'+esc(k)+"</span>"; }).join("")+"</div></div>";
+  }
+
   /* ---------- the dossier, opened in place ---------- */
   function close(){
     if(panel){ panel.remove(); panel=null; }
@@ -545,12 +603,16 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
         '<div class="role">'+esc(d.title)+(d.date?" &#183; "+esc(d.date):"")+
           (d.status && d.status!=="New"?" &#183; "+esc(d.status):"")+"</div>"+
         (d.notes?'<p class="bio">'+esc(d.notes)+"</p>":"")+
+        cityLineHtml(d)+
         '<div class="links" id="dlinks">'+
-          (d.source?'<a href="'+esc(d.source)+'" target="_blank" rel="noopener">The announcement</a>':"")+
+          (d.source?'<a href="'+esc(d.source)+'" target="_blank" rel="noopener">'+
+            (d.flag==="listed"?"The city\'s agency file":"The announcement")+"</a>":"")+
+          (d.site?'<a href="'+esc(d.site)+'" target="_blank" rel="noopener">The office site</a>':"")+
           '<a href="https://joshgreenman1973.github.io/nyc-green-book/#/'+encodeURIComponent(d.person)+
             '" target="_blank" rel="noopener">Look up in the directory</a>'+
         "</div>"+
       "</div>"+
+      kidsHtml(d)+
       (names.length?'<div class="dept" id="dept"><p class="loading">Opening the department chart</p></div>'
                    :'<p class="loading">The city publishes no separate chart for this office.</p>');
     // place it directly after the column the box sits in, spanning the full width

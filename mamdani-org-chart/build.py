@@ -42,10 +42,8 @@ COLUMNS = [
         ("Justine Olderman", "Criminal justice coordinator"),
         ("Deanna Logan", "Criminal Justice"),
         ("Dana Kaplan", "Close Rikers"),
-        ("Nadia Shihata", "Investigation"),
+        ("Bharti Sharma", "Innovation through Data Intelligence"),
         ("Asim Rehman", "Business Integrity Commission"),
-        ("Shawn(ta) Smith-Cruz", "Records and Information Services"),
-        ("Annie Elisa Minguez", "Nonprofit Services"),
         ("Elizabeth Adams", "Fast and free buses"),
         ("Bitta Mostofi", "Strategic coordination"),
     ]),
@@ -67,7 +65,6 @@ COLUMNS = [
         ("Gregory Anderson", "Sanitation"),
         ("Javier Lojan", "Sanitation"),
         ("Mike Flynn", "Transportation"),
-        ("Midori Valdivia", "Taxi and Limousine Commission"),
         ("Tricia Shimamura", "Parks and Recreation"),
         ("Paul Ochoa", "Design and Construction"),
         ("Yume Kitasei", "Citywide Administrative Services"),
@@ -76,6 +73,8 @@ COLUMNS = [
         ("Christina Farrell", "Emergency Management"),
         ("Lisa Gelobter", "Technology and Innovation"),
         ("Annie Levers", "Mayor's Office of Operations"),
+        ("Shawn(ta) Smith-Cruz", "Records and Information Services"),
+        ("Annie Elisa Minguez", "Nonprofit Services"),
         ("Louise Yeung", "Climate and Environmental Justice"),
         ("Annel Hernandez", "Public utility advocate"),
     ]),
@@ -92,7 +91,6 @@ COLUMNS = [
         ("Yesenia Mata", "Veterans' Services"),
         ("Nisha Agarwal", "People with Disabilities"),
         ("Siddhartha Sanchez", "Food Policy"),
-        ("Bharti Sharma", "Innovation through Data Intelligence"),
     ]),
     ("Elle Bisgaard-Church", "Chief of staff", [
         ("Jahmila Edwards", "Intergovernmental Affairs"),
@@ -109,6 +107,7 @@ COLUMNS = [
     ("Julie Su", "Deputy mayor for economic justice", [
         ("Anthony Shorris", "Economic Development Corporation"),
         ("Lina Khan", "Economic Development Corporation"),
+        ("Midori Valdivia", "Taxi and Limousine Commission"),
         ("Kenny Minaya", "Small Business Services"),
         ("Sam Levine", "Consumer and Worker Protection"),
         ("Michael Garner", "Minority and Women-Owned Business"),
@@ -135,6 +134,7 @@ COLUMNS = [
         ("Ayesha Delany-Brumsey", "Community Safety"),
     ]),
     ("__MAYOR__", "Reporting to the mayor", [
+        ("Nadia Shihata", "Investigation"),
         ("Taylor Brown", "LGBTQIA+ Affairs"),
         ("Phylisa Wisdom", "Combat Antisemitism"),
     ]),
@@ -231,6 +231,138 @@ BOARDS = [
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# The city's own agency file (t3jq-9nkf), snapshotted by refresh_governance.py.
+# It is the only published source for what an office reports to: 132 of its 306
+# organizations carry a reporting line. Used three ways - to source the columns
+# below, to add the offices the file lists that no announcement covered, and to
+# show what reports into an office.
+# ---------------------------------------------------------------------------
+GOV = json.loads((HERE / "data" / "governance.json").read_text())
+
+# How the file writes a principal, mapped to the column it belongs in. The file
+# is updated annually, so it still carries a few portfolio names from the last
+# administration; those are mapped to the post that absorbed the work, and the
+# ones with no successor are left out rather than guessed at.
+CITY_PORTFOLIO = {
+    "First Deputy Mayor": "Dean Fuleihan",
+    "Deputy Mayor for Operations": "Julia Kerson",
+    "Deputy Mayor for Economic Justice": "Julie Su",
+    "Deputy Mayor for Health and Human Services": "Helen Arteaga",
+    "Deputy Mayor for Housing and Planning": "Leila Bozorg",
+    "Chief of Staff": "Elle Bisgaard-Church",
+    "Chief of Staff to the Mayor": "Elle Bisgaard-Church",
+    "Deputy Mayor for Administration and Chief of Staff": "Elle Bisgaard-Church",
+    "Chief Counsel to the Mayor and City Hall": "Ramzi Kassem",
+    "Deputy Mayor for Communications": "Anna Bahr",
+    "Deputy Mayor for Community Safety": "Renita Francois",
+    "Mayor": "__MAYOR__",
+    "Office of the Mayor": "__MAYOR__",
+}
+
+# Offices the file lists but that this project does not carry as their own box,
+# because the announced appointee already covers them or they are not mayoral.
+CITY_SKIP = {
+    "new york city police department", "new york city public schools",
+    "city university of new york", "city university construction fund",
+    "new york city law department", "human resources administration",
+    "department of homeless services",
+    "mayor's office of citywide events coordination and management",
+}
+
+
+def _norm(s):
+    s = re.sub(r"[^a-z0-9 ]", " ", (s or "").lower())
+    for w in ("department of", "office of the", "mayor s office of the", "mayor s office of",
+              "office of", "new york city", "nyc", "the", "department", "city of new york"):
+        s = s.replace(w, " ")
+    return " ".join(s.split())
+
+
+GOV_BY_NAME = {}
+for _r in GOV:
+    GOV_BY_NAME.setdefault(_norm(_r["name"]), _r)
+    for _alt in (_r.get("alternate_or_former_names") or "").split(";"):
+        if _alt.strip():
+            GOV_BY_NAME.setdefault(_norm(_alt), _r)
+
+# What reports into each organization, by the file's own account.
+GOV_CHILDREN = {}
+for _r in GOV:
+    for _p in (_r.get("reports_to") or "").split(";"):
+        if _p.strip():
+            GOV_CHILDREN.setdefault(_norm(_p), []).append(_r)
+
+
+# Exact normalized matches only. A containment match looked tempting and was
+# wrong in practice: it tied Children's Services to an office under Mass
+# Engagement and the tenant protection office to a police-corruption commission.
+# Anything the normalizer cannot match exactly is listed here by hand or not at
+# all, and a box with no match simply shows no reporting line.
+GOV_ALIASES = {
+    "management and budget": "Office of Management and Budget",
+    "labor relations": "Office of Labor Relations",
+    "education": "New York City Public Schools",
+    "correction": "Department of Correction",
+    "fire department": "Fire Department of the City of New York",
+    "sanitation": "Department of Sanitation",
+    "transportation": "Department of Transportation",
+    "parks and recreation": "Department of Parks and Recreation",
+    "environmental protection": "Department of Environmental Protection",
+    "buildings": "Department of Buildings",
+    "probation": "Department of Probation",
+    "finance": "Department of Finance",
+    "investigation": "Department of Investigation",
+    "city planning": "Department of City Planning",
+    "housing preservation and development": "Department of Housing Preservation and Development",
+    "housing authority": "New York City Housing Authority",
+    "housing development corporation": "Housing Development Corporation",
+    "design and construction": "Department of Design and Construction",
+    "citywide administrative services": "Department of Citywide Administrative Services",
+    "records and information services": "Department of Records and Information Services",
+    "small business services": "Department of Small Business Services",
+    "consumer and worker protection": "Department of Consumer and Worker Protection",
+    "cultural affairs": "Department of Cultural Affairs",
+    "aging": "Department for the Aging",
+    "children's services": "Administration for Children's Services",
+    "youth and community development": "Department of Youth and Community Development",
+    "veterans' services": "Department of Veterans' Services",
+    "social services": "Department of Social Services",
+    "health and mental hygiene": "Department of Health and Mental Hygiene",
+    "health + hospitals": "NYC Health + Hospitals",
+    "chief medical examiner": "Office of Chief Medical Examiner",
+    "emergency management": "New York City Emergency Management",
+    "technology and innovation": "Office of Technology and Innovation",
+    "taxi and limousine commission": "New York City Taxi and Limousine Commission",
+    "economic development corporation": "Economic Development Corporation",
+    "landmarks preservation commission": "Landmarks Preservation Commission",
+    "standards and appeals": "Board of Standards and Appeals",
+    "business integrity commission": "Business Integrity Commission",
+    "school construction authority": "School Construction Authority",
+    "human rights": "Commission on Human Rights",
+    "administrative trials and hearings": "Office of Administrative Trials and Hearings",
+    "contract services": "Mayor's Office of Contract Services",
+    "intergovernmental affairs": "Office of Intergovernmental Affairs",
+    "sheriff": "Sheriff",
+    "public design commission": "Public Design Commission",
+}
+
+
+def gov_row(label, agency=""):
+    """The city's file row for a box. Exact normalized name, alias, or nothing."""
+    for cand in (label, agency):
+        k = _norm(cand)
+        if not k:
+            continue
+        if k in GOV_ALIASES:
+            hit = GOV_BY_NAME.get(_norm(GOV_ALIASES[k]))
+            if hit:
+                return hit
+        if k in GOV_BY_NAME:
+            return GOV_BY_NAME[k]
+    return None
+
+
 def esc(s):
     return html.escape(str(s), quote=True)
 
@@ -287,27 +419,93 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
-def entry(name, label, n):
+def entry(name, label, n, column_title=""):
     p = PEOPLE[name]
     cls, flabel = flag(p)
     date = "" if p.get("date") == "2026-01-01" and p["status"] == "retained" else fmt_date(p.get("date"))
     if not date:
         date = '<abbr title="announcement date not published">n.d.</abbr>'
     attrs, staff = dept_attrs(label)
+    g = gov_row(label, p.get("agency", ""))
+    gattrs = ""
+    if g:
+        kids = GOV_CHILDREN.get(_norm(g["name"]), [])
+        gattrs = (f' data-cityline="{esc(g.get("reports_to") or "")}"'
+                  f' data-govname="{esc(g["name"])}"'
+                  f' data-kids="{esc("|".join(k["name"] for k in kids))}"')
     open_hint = (f'<span class="open">{staff} in the department directory</span>' if staff
                  else '<span class="open none">No department chart published</span>')
     return f"""<button type="button" class="ent {cls}{' has-dept' if staff else ''}"
    id="{slug(name)}"
    data-name="{esc(name.lower())}" data-label="{esc(label.lower())}" data-flag="{cls}"
    data-person="{esc(name)}" data-title="{esc(p['title'])}" data-agency="{esc(p['agency'])}"
-   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}"
-   data-date="{esc(date if not date.startswith('<') else '')}" data-status="{esc(flabel)}"{attrs}>
+   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}" data-mine="{esc(column_title)}"
+   data-date="{esc(date if not date.startswith('<') else '')}" data-status="{esc(flabel)}"{attrs}{gattrs}>
   <span class="num">{n:03d}</span>
   <span class="unit">{esc(label)}</span>
   <span class="who">{esc(name)}</span>
   <span class="meta">{date if date.startswith("<") else esc(date)}{'<b class="tag">' + flabel + '</b>' if cls != 'new' else ''}</span>
   {open_hint}
 </button>"""
+
+
+
+def city_extras():
+    """Offices in the city's file that this chart has no announced appointee for,
+    grouped by the column the file itself puts them in."""
+    known = set()
+    for principal, _t, reports in COLUMNS:
+        known.add(_norm(principal))
+        for nm, lb in reports:
+            known.add(_norm(lb))
+            known.add(_norm(PEOPLE[nm].get("agency", "")))
+    out = {}
+    for r in GOV:
+        line = (r.get("reports_to") or "").split(";")[0].strip()
+        col = CITY_PORTFOLIO.get(line)
+        if not col:
+            continue
+        k = _norm(r["name"])
+        if k in known or r["name"].lower() in CITY_SKIP:
+            continue
+        if any(len(k) > 6 and (k in x or x in k) for x in known):
+            continue
+        out.setdefault(col, []).append(r)
+    for col in out:
+        out[col].sort(key=lambda r: r["name"])
+    return out
+
+
+CITY_EXTRAS = city_extras()
+
+
+def extra_html(col):
+    rows = CITY_EXTRAS.get(col, [])
+    if not rows:
+        return ""
+    items = []
+    for r in rows:
+        who = r.get("principal_officer_full_name") or ""
+        title = r.get("principal_officer_title") or ""
+        kids = GOV_CHILDREN.get(_norm(r["name"]), [])
+        url = (r.get("principal_officer_contact_url") or {}).get("url") if isinstance(
+            r.get("principal_officer_contact_url"), dict) else r.get("principal_officer_contact_url")
+        site = (r.get("url") or {}).get("url") if isinstance(r.get("url"), dict) else r.get("url")
+        items.append(
+            f'<button type="button" class="ent listed" id="{slug(r["name"])}" '
+            f'data-name="{esc((who or r["name"]).lower())}" data-label="{esc(r["name"].lower())}" '
+            f'data-flag="listed" data-person="{esc(who or r["name"])}" '
+            f'data-title="{esc(title + (", " if title and who else "") + r["name"] if who else r["name"])}" '
+            f'data-agency="{esc(r["name"])}" data-notes="" '
+            f'data-source="https://data.cityofnewyork.us/d/t3jq-9nkf" data-site="{esc(site or "")}" '
+            f'data-date="" data-status="Listed by the city" '
+            f'data-cityline="{esc(r.get("reports_to") or "")}" data-govname="{esc(r["name"])}" '
+            f'data-kids="{esc("|".join(k["name"] for k in kids))}">'
+            f'<span class="unit">{esc(r["name"])}</span>'
+            f'<span class="who">{esc(who) if who else "<i>No officer named</i>"}</span>'
+            f'</button>')
+    return (f'<details class="extra"><summary>{len(rows)} more offices the city lists '
+            f'in this portfolio</summary>{"".join(items)}</details>')
 
 
 def build():
@@ -325,6 +523,8 @@ def build():
         else:
             p = PEOPLE[principal]
             attrs, staff = dept_attrs(None, COLUMN_DEPTS.get(principal))
+            gkids = GOV_CHILDREN.get(_norm(title), [])
+            gattrs = f' data-kids="{esc("|".join(k["name"] for k in gkids))}"' if gkids else ""
             cls, flabel = flag(p)
             hint = f'<span class="open">{staff} in the department directory</span>' if staff else ""
             head = (f'<button type="button" class="col-head{" has-dept" if staff else ""}" '
@@ -333,13 +533,13 @@ def build():
                     f'data-person="{esc(principal)}" data-title="{esc(p["title"])}" '
                     f'data-agency="{esc(p["agency"])}" data-notes="{esc(p.get("notes") or "")}" '
                     f'data-source="{esc(p["source"])}" data-date="{esc(fmt_date(p.get("date")))}" '
-                    f'data-status="{esc(flabel)}"{attrs}>'
+                    f'data-status="{esc(flabel)}"{attrs}{gattrs}>'
                     f'<span class="rank">{esc(title)}</span><h3>{esc(principal)}</h3>'
                     f'<span class="since">{esc(fmt_date(p.get("date")))}</span>{hint}</button>')
-        body = "\n".join(entry(nm, lb, nxt()) for nm, lb in reports)
+        body = "\n".join(entry(nm, lb, nxt(), title) for nm, lb in reports)
         empty = '<p class="none">No agency reports listed.</p>' if not reports else ""
         cols.append(f'<section class="col" data-col="{esc(principal)}">{head}'
-                    f'<div class="stack">{body}{empty}</div></section>')
+                    f'<div class="stack">{body}{empty}{extra_html(principal)}</div></section>')
 
     panels = []
     for heading, note, cat in PANELS:
@@ -374,6 +574,8 @@ def build():
         for d in ROSTER["departed"])
 
     mapped = len(DEPTS) + len(COLUMN_DEPTS) + len(BOARD_DEPTS)
+    extras = sum(len(v) for v in CITY_EXTRAS.values())
+    citylines = sum(1 for r in GOV if r.get("reports_to"))
     total = len(ROSTER["appointees"])
 
     # Snapshot of exactly what went into the page, so the build is reproducible
@@ -392,10 +594,13 @@ def build():
            .replace("{{TOTAL}}", str(total))
            .replace("{{DEPARTED_N}}", str(len(ROSTER["departed"])))
            .replace("{{MAPPED}}", str(mapped))
+           .replace("{{EXTRAS}}", str(extras))
+           .replace("{{CITYLINES}}", str(citylines))
            .replace("{{UPDATED}}", fmt_date(ROSTER["meta"]["lastUpdated"])))
     (HERE / "index.html").write_text(out)
     print(f"wrote index.html - {total} appointees, {len(ROSTER['departed'])} departures, "
-          f"{n[0]} numbered boxes, {mapped} department charts wired")
+          f"{n[0]} numbered boxes, {mapped} department charts wired, "
+          f"{extras} offices added from the city's file, {citylines} published reporting lines")
 
 
 if __name__ == "__main__":
