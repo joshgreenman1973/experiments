@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the corrected Mamdani administration organizational chart.
+"""Build the Mamdani administration organizational chart.
 
 Reads the verified roster from ../mamdani-appointee-tracker/data.json and writes a
 single self-contained index.html. Nothing here retypes a name: every person, title,
@@ -227,24 +227,6 @@ BOARDS = [
     ("Quadrennial Advisory Commission", ["Carl Weisbrod", "Lilliam Barrios-Paoli", "Larian Angelo"]),
 ]
 
-ERRATA = [
-    ("Melanie Herzog", "Melanie Hartzog", "MTA board"),
-    ("Phylisa Wilson", "Phylisa Wisdom", "Office to Combat Antisemitism"),
-    ("Dr. Helen Artega", "Helen Arteaga", "deputy mayor for health and human services"),
-    ("Jason Graham, Chief Medical Officer", "Chief Medical Examiner", "a different job"),
-    ("Kristin Booth Glen", "Kristen Booth Glen", "judiciary committee"),
-    ("Jared M. Trujilio", "Jared M. Trujillo", "judiciary committee"),
-    ("Trisha Shimamura", "Tricia Shimamura", "Parks and Recreation"),
-    ("Christine Clark", "Christine Clarke", "Commission on Human Rights"),
-    ("Maya Hanada", "Maya Handa", "World Cup"),
-    ("Emily Liss", "Emmy Liss", "Child Care"),
-    ("17 committee members", "18 committee members", "judiciary committee, it omits Everett Hopkins"),
-    ("4 rent board members", "6 rent board members", "it omits Maksim Wynn and Adan Soltren"),
-    ("Office of MBWE", "Office of M/WBE", "minority and women-owned business"),
-    ("LGBTIA+ Affairs", "LGBTQIA+ Affairs", "mayor's office"),
-    ("Nonprofit Servies", "Nonprofit Services", "mayor's office"),
-    ("Close Riker's Czar", "Close Rikers czar", "no apostrophe"),
-]
 
 # ---------------------------------------------------------------------------
 
@@ -391,10 +373,6 @@ def build():
         f'<span class="meta">{esc(d["reason"])} &#183; {esc(fmt_date(d["departDate"]))}</span></a>'
         for d in ROSTER["departed"])
 
-    errata = "\n".join(
-        f'<li><s>{esc(a)}</s> <span class="arrow">&rarr;</span> <b>{esc(b)}</b>'
-        f'<span class="where">{esc(where)}</span></li>' for a, b, where in ERRATA)
-
     mapped = len(DEPTS) + len(COLUMN_DEPTS) + len(BOARD_DEPTS)
     total = len(ROSTER["appointees"])
 
@@ -411,7 +389,6 @@ def build():
            .replace("{{PANELS}}", "\n".join(panels))
            .replace("{{BOARDS}}", "\n".join(boards))
            .replace("{{DEPARTED}}", gone)
-           .replace("{{ERRATA}}", errata)
            .replace("{{TOTAL}}", str(total))
            .replace("{{DEPARTED_N}}", str(len(ROSTER["departed"])))
            .replace("{{MAPPED}}", str(mapped))

@@ -1,16 +1,14 @@
-# Who runs New York City, corrected
+# Who runs New York City
 
-A navigable organizational chart of the Mamdani administration. It exists because
-the chart everyone is passing around, circulated by the lobbying firm Immortal
-Strategies on July 27, 2026, has errors in it. Then it goes further than that chart
-does: click a department and its own org chart opens in place, down to the division
-level.
+An organizational chart of the Mamdani administration: every senior appointee
+arranged by who reports to whom, each linked to its source, with departments that
+open into their own charts.
 
 **Live: https://joshgreenman1973.github.io/experiments/mamdani-org-chart/**
 
 ## Two layers
 
-**The top layer** is 140 sourced appointees, built from `../mamdani-appointee-tracker/data.json`,
+**The top layer** is 140 appointees, built from `../mamdani-appointee-tracker/data.json`,
 where every person carries a link to the press release or news report that named
 them. A snapshot of exactly what went into the page is written to `data/roster.json`
 on every build, so this folder can rebuild itself even if the tracker is not checked
@@ -21,30 +19,7 @@ out beside it.
 from the city's Green Book, the agency governance file and the City Record every four
 hours. Both sites are on the same origin, so the chart reads its sibling's data file
 directly. That layer therefore stays current with no rebuild here. 48 boxes open into
-a published chart; the rest say so rather than inventing one.
-
-## What it fixes
-
-| The circulated chart says | It is actually | Where |
-|---|---|---|
-| Melanie Herzog | Melanie **Hartzog** | MTA board |
-| Phylisa Wilson | Phylisa **Wisdom** | Office to Combat Antisemitism |
-| Dr. Helen Artega | Helen **Arteaga** | deputy mayor for health and human services |
-| Jason Graham, Chief Medical Officer | Chief Medical **Examiner** | a different job |
-| Kristin Booth Glen | **Kristen** Booth Glen | judiciary committee |
-| Jared M. Trujilio | Jared M. **Trujillo** | judiciary committee |
-| Trisha Shimamura | **Tricia** Shimamura | Parks and Recreation |
-| Christine Clark | Christine **Clarke** | Commission on Human Rights |
-| Maya Hanada | Maya **Handa** | World Cup |
-| Emily Liss | **Emmy** Liss | Child Care |
-| 17 committee members | **18** | it omits Everett Hopkins |
-| 4 rent board members | **6** | it omits Maksim Wynn and Adan Soltren |
-| Office of MBWE, LGBTIA+, Nonprofit Servies, Close Riker's | M/WBE, LGBTQIA+, Services, Rikers | spelling |
-
-Every one was checked against the source PDF and against an official announcement.
-The chart also lists the chancellor of the City University of New York, who is chosen
-by the university's trustees rather than the mayor, so that entry is not reproduced.
-Roughly 50 missing appointees are restored.
+a published chart, down to the division level; the rest have none published and say so.
 
 ## Build
 
@@ -75,8 +50,8 @@ Rebuild after any change to the tracker.
 
 ## Reporting lines
 
-The city publishes very few of them. Where the circulated chart asserts a line that no
-official source states, this chart does not adopt it, and offices with no published
-line sit in their own column rather than being assigned to a guess. Where the Green
-Book and the governance file name different agency heads, both are shown with the
-reason one is preferred.
+The city publishes very few of them. Each office is grouped under the principal named
+in official releases, and the offices whose line the city has not published sit in
+their own column rather than being assigned to a guess. Where the Green Book and the
+governance file name different agency heads, both are shown with the reason one is
+preferred.
