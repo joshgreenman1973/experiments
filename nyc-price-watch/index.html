@@ -377,8 +377,8 @@
         <div class="spot-detail">
           <div class="row"><span class="k">Hourly level</span><span class="v">$40.52</span></div>
           <div class="row"><span class="k">Weekly level</span><span class="v">$1,329.06</span></div>
-          <div class="row"><span class="k">Average weekly wage (QCEW, Manhattan, Q3 2025)</span><span class="v">$2,837</span></div>
-          <div class="row"><span class="k">Total compensation growth (ECI, year ending Q1 2026)</span><span class="v">+3.4%</span></div>
+          <div class="row"><span class="k">Hourly, year ago</span><span class="v">$40.00</span></div>
+          <div class="row"><span class="k">Weekly, year ago</span><span class="v">$1,320.00</span></div>
         </div>
         <div class="spot-note">Private-sector payroll jobs, New York-Newark-Jersey City, NY-NJ metro (BLS CES).
           These are growth rates of <b>averages</b> — lifted by high earners, not the typical worker's raise, and not medians.</div>
@@ -610,18 +610,22 @@
       <tr><td>Halal cart platter</td><td>TBD (hard)</td><td>Fixed-cart survey, monthly</td><td>In-person panel</td></tr>
       <tr><td>Bacon, egg &amp; cheese</td><td>TBD (hard)</td><td>Fixed-deli survey, monthly</td><td>In-person panel</td></tr>
       <tr><td>BEC ingredient index</td><td>Verified ($2.01)</td><td>BLS prices, monthly</td><td>BLS APU series</td></tr>
-      <tr><td>Avg weekly wage (income)</td><td>Verified (Q3 '25)</td><td>Quarterly, ~2-qtr lag</td><td>BLS QCEW</td></tr>
-      <tr><td>Pay growth / ECI (income)</td><td>Verified (Q1 '26)</td><td>Quarterly</td><td>BLS ECI</td></tr>
+      <tr><td>Avg hourly earnings (income)</td><td>Verified (Jun '26)</td><td>Monthly, ~3-week lag</td><td>BLS CES</td></tr>
+      <tr><td>Avg weekly earnings (income)</td><td>Verified (Jun '26)</td><td>Monthly, ~3-week lag</td><td>BLS CES</td></tr>
     </table>
 
     <h3>The income side</h3>
     <p>
       Costs only tell half the affordability story, so two wage gauges sit
-      in a green <b>income</b> group: the <b>QCEW average weekly wage</b>
-      (the comprehensive UI-records figure, bonus-inclusive and lagged) and
-      the <b>Employment Cost Index</b> (the cleanest pay-growth signal, which
-      holds the job mix constant). Both are averages — useful for direction,
-      but they don't capture the typical worker as well as a median would.
+      in a green <b>income</b> group, both from the monthly BLS payroll
+      survey for the New York metro: <b>average hourly earnings</b> and
+      <b>average weekly earnings</b>. One earnings source is used on purpose.
+      Quarterly measures such as the Employment Cost Index and the Quarterly
+      Census of Employment and Wages run on different cadences and vintages,
+      and printing them beside a monthly figure invites comparisons between
+      numbers that describe different periods. Both gauges here are averages —
+      useful for direction, but they don't capture the typical worker as well
+      as a median would.
     </p>
 
     <h3>What this doesn't measure</h3>
@@ -672,11 +676,11 @@
     for (let i = 1; i <= 12; i++) a[i] = 129.12;
     return a;
   })();
-  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "wage_eci", "cpi_allitems", "cpi_energy", "cpi_shelter"]); // % or season series: YoY badge would mislead
+  const NOBADGE = new Set(["case_shiller", "cpi", "restaurant_cpi", "broadway", "cpi_allitems", "cpi_energy", "cpi_shelter"]); // % or season series: YoY badge would mislead
   // Series whose VALUES are already percentages — their moves are in
   // percentage points. Broadway is in NOBADGE but is dollars, so it is
   // deliberately not here.
-  const PCT_SERIES = new Set(["case_shiller", "cpi", "restaurant_cpi", "wage_eci", "cpi_allitems", "cpi_energy", "cpi_shelter"]);
+  const PCT_SERIES = new Set(["case_shiller", "cpi", "restaurant_cpi", "cpi_allitems", "cpi_energy", "cpi_shelter"]);
   const CLUSTER_RENT = new Set(["rent", "manhattan_rent", "brooklyn_rent", "queens_rent", "bronx_rent"]);
   // Series whose window can straddle a tariff season, so a raw start-to-end
   // change is partly seasonal rather than a price move.
@@ -686,7 +690,7 @@
   // for these series the figure is withheld until both ends sit in the same
   // season. Year-over-year is unaffected: it is same-month by construction.
   function rateSeason(i) { const m = (4 + i) % 12; return (m >= 5 && m <= 8) ? "summer" : "winter"; }
-  const CLUSTER_INCOME = new Set(["wage_qcew", "wage_eci"]); // the income side — shown distinct from the cost cards
+  const CLUSTER_INCOME = new Set(["wage_ahe", "wage_awe"]); // the income side — shown distinct from the cost cards
 
   const ITEMS = [
     {
@@ -817,7 +821,7 @@
     },
     {
       id: "rent", num: "09 · HOUSING", icon: "🏠",
-      name: "NYC median asking rent", unit: "StreetEasy citywide median",
+      name: "NYC rent · Asking Median", unit: "StreetEasy citywide asking median",
       current: "$3,700", format: v => v == null ? "—" : "$" + v.toLocaleString(),
       status: "verified", est: true,
       data: pts([[11,3638],[23,3700]]),
@@ -833,7 +837,7 @@
     },
     {
       id: "manhattan_rent", num: "09a · HOUSING", icon: "🗽",
-      name: "Manhattan median rent", unit: "StreetEasy borough median asking",
+      name: "Manhattan rent · Asking Median", unit: "StreetEasy borough asking median",
       current: "$4,400", format: v => v == null ? "—" : "$" + v.toLocaleString(),
       status: "verified", est: true,
       data: pts([[11,4374],[23,4400]]),
@@ -849,7 +853,7 @@
     },
     {
       id: "brooklyn_rent", num: "09b · HOUSING", icon: "🌉",
-      name: "Brooklyn median rent", unit: "StreetEasy borough median asking",
+      name: "Brooklyn rent · Asking Median", unit: "StreetEasy borough asking median",
       current: "$3,450", format: v => v == null ? "—" : "$" + v.toLocaleString(),
       status: "verified", est: true,
       data: pts([[11,3301],[23,3450]]),
@@ -864,7 +868,7 @@
     },
     {
       id: "queens_rent", num: "09c · HOUSING", icon: "🌆",
-      name: "Queens median rent", unit: "StreetEasy borough median asking",
+      name: "Queens rent · Asking Median", unit: "StreetEasy borough asking median",
       current: "$2,999", format: v => v == null ? "—" : "$" + v.toLocaleString(),
       status: "verified", est: true,
       data: pts([[11,2699],[23,2999]]),
@@ -880,7 +884,7 @@
     },
     {
       id: "bronx_rent", num: "09d · HOUSING", icon: "🏙️",
-      name: "Bronx median rent", unit: "StreetEasy borough median asking",
+      name: "Bronx rent · Asking Median", unit: "StreetEasy borough asking median",
       current: "$2,696", format: v => v == null ? "—" : "$" + v.toLocaleString(),
       status: "verified", est: false,
       data: pts([[23,2696]]),
@@ -1088,35 +1092,35 @@
       ]
     },
     {
-      id: "wage_qcew", num: "18 · INCOME", icon: "💼",
-      name: "Average weekly wage", unit: "QCEW · New York County (Manhattan) · per week",
-      current: "$2,837", format: v => v == null ? "—" : "$" + v.toLocaleString(),
-      status: "verified", est: true,
-      data: pts([[4,2679],[16,2837]]),
-      source: "BLS QCEW", sourceUrl: "https://www.bls.gov/cew/",
-      asof: "Q3 2025 · released Mar 2026",
+      id: "wage_ahe", num: "18 · INCOME", icon: "💼",
+      name: "Average hourly earnings", unit: "CES · NY-Newark-Jersey City metro · total private",
+      current: "$40.52", format: v => v == null ? "—" : "$" + v.toFixed(2),
+      status: "verified", est: false,
+      data: pts([[0,37.79],[1,38.37],[2,37.83],[3,37.81],[4,38.58],[5,38.48],[6,38.44],[7,39.02],[8,38.69],[9,39.34],[10,39.01],[11,39.36],[12,39.51],[13,40],[14,39.77],[15,39.82],[16,40.22],[17,40.23],[18,41.02],[19,40.72],[20,40.98],[21,41.77],[22,41.52],[23,40.98],[24,40.72],[25,40.52]]),
+      source: "BLS Current Employment Statistics", sourceUrl: "https://www.bls.gov/sae/",
+      asof: "Jun 2026 · preliminary",
       work: [
-        ["Q3 2025 avg weekly","$2,837"],
-        ["YoY change","+5.9%"],
-        ["Coverage","~95% of jobs (UI records)"],
-        ["Lag","~2 quarters"],
-        ["Year-ago (est.)","$2,679"]
+        ["Jun 2026 hourly","$40.52"],
+        ["YoY change","+1.3%"],
+        ["Year-ago (Jun 2025)","$40.00"],
+        ["Cadence","monthly, ~3-week lag"],
+        ["Basis","average, not median"]
       ]
     },
     {
-      id: "wage_eci", num: "19 · INCOME", icon: "📊",
-      name: "Pay growth (ECI, YoY)", unit: "Employment Cost Index · NY metro · total comp · YoY %",
-      current: "+3.4%", format: v => v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%",
+      id: "wage_awe", num: "19 · INCOME", icon: "📊",
+      name: "Average weekly earnings", unit: "CES · NY-Newark-Jersey City metro · total private",
+      current: "$1,329", format: v => v == null ? "—" : "$" + Math.round(v).toLocaleString(),
       status: "verified", est: false,
-      data: pts([[22,3.4]]),
-      source: "BLS Employment Cost Index", sourceUrl: "https://www.bls.gov/eci/",
-      asof: "Year ending Q1 2026",
+      data: pts([[0,1235.73],[1,1270.05],[2,1237.04],[3,1240.17],[4,1280.86],[5,1258.3],[6,1253.14],[7,1291.56],[8,1249.69],[9,1282.48],[10,1275.63],[11,1279.2],[12,1291.98],[13,1320],[14,1300.48],[15,1306.1],[16,1319.22],[17,1323.57],[18,1365.97],[19,1343.76],[20,1335.95],[21,1382.59],[22,1378.46],[23,1352.34],[24,1343.76],[25,1329.06]]),
+      source: "BLS Current Employment Statistics", sourceUrl: "https://www.bls.gov/sae/",
+      asof: "Jun 2026 · preliminary",
       work: [
-        ["Comp growth YoY","+3.4%"],
-        ["Holds constant","the job mix"],
-        ["Measure","wages + benefits"],
-        ["Cadence","quarterly"],
-        ["Geography","NY metro"]
+        ["Jun 2026 weekly","$1,329.06"],
+        ["YoY change","+0.7%"],
+        ["Year-ago (Jun 2025)","$1,320.00"],
+        ["Reflects","hours as well as pay"],
+        ["Basis","average, not median"]
       ]
     }
   ];
@@ -1220,7 +1224,7 @@
   }
 
   // Change since 1/1/2026: first reading at or after Jan '26 vs. the latest.
-  // For %-based series (CPI, Case-Shiller, ECI) the move is in percentage
+  // For %-based series (CPI, Case-Shiller) the move is in percentage
   // points, not a percent change — labeled "pp" so the two never blur.
   function ytdChange(data, isPct, id) {
     let a = -1, b = -1;
@@ -1307,8 +1311,8 @@
     coffee: { level: "hard", text: "No single feed. Method: fixed 10-shop panel, 12 oz drip, posted price. Partial proxy: a chain's app price (one fixed New York City store, tall brewed coffee) is scrapeable and could anchor the panel." },
     uber: { level: "hard", text: "A generated quote, not a published price. Method is fixed: identical pickup, dropoff, day and time, five quotes averaged. Surge makes any single quote noisy, which is why we fix the slot and average — but it needs a phone in hand and can't be automated remotely." },
     halal: { level: "hard", text: "The most New York and the hardest to track: carts don't publish prices and most are unnamed or rotating. Method: a fixed panel of named, fixed-location carts (The Halal Guys on 53rd & 6th, plus one vetted cart per borough), same chicken-over-rice platter, surveyed in person monthly. Apples-to-apples only if the same carts and the same platter are used every time." },
-    wage_qcew: { level: "caveat", text: "The gold-standard wage figure: average weekly wage from unemployment-insurance records (~95% of jobs), for New York County (Manhattan), the city's main jobs center. Comprehensive and comparable over time — but two catches: it's an AVERAGE lifted by high earners and includes bonuses (so finance bonus season spikes Q1), and it lags about two quarters. A five-county citywide figure runs somewhat lower." },
-    wage_eci: { level: "caveat", text: "The cleanest 'are wages actually rising' signal — the Employment Cost Index holds the job mix constant, so it isn't distorted by which jobs grew or shrank. Quarterly, for the NY metro (not city-only), and it measures total compensation (wages plus benefits). Reported as YoY %. The honest income-side counterweight to the cost cards above." },
+    wage_ahe: { level: "caveat", text: "Average hourly earnings for private-sector workers in the New York-Newark-Jersey City metro, from the monthly BLS payroll survey (CES). This is the timeliest pay measure available for the area, arriving about three weeks after the month it covers. Two catches: it is an AVERAGE, lifted by high earners rather than describing a typical worker's raise, and the geography is the metro, not the five boroughs alone." },
+    wage_awe: { level: "caveat", text: "Average weekly earnings for the same metro payroll survey. It moves with hours worked as well as hourly pay, so it can fall while hourly earnings rise if the average work week shortens. Like the hourly figure it is an average, not a median." },
     bec_ingredient: { level: "clean", text: "A free, public reconstruction of Bloomberg's Terminal BEC index. Five BLS average-price series (bacon, egg, cheese, bread, coffee) times a fixed recipe — one sandwich plus a 12 oz coffee. Fully comparable month to month as long as the recipe stays frozen. It tracks raw ingredient cost (~$2), NOT the ~$8 you pay at the counter; the gap between this card and the deli-survey card is the labor, rent and markup. One scope caveat: the BLS average prices are U.S. CITY AVERAGES, not New York-specific — so this is a national ingredient-cost proxy, not a NYC number." },
     bec: { level: "hard", text: "Two ways to measure this. (1) The DELI-COUNTER price of the finished sandwich — what you actually pay — isn't published anywhere: HARD, needs a fixed deli/bodega panel (one per borough), same sandwich, surveyed in person monthly. (2) The INGREDIENT cost (bacon, egg, cheese, bread, coffee) IS public via BLS average-price series, and is exactly what Bloomberg's proprietary Terminal index {ECAN US BEC} tracks — so a free monthly reconstruction is CLEAN and trackable. We track the deli price as the authentic read and can add the public ingredient index alongside it." }
   };
@@ -1328,8 +1332,8 @@
     uber: "city", dinner: "city",
     gas: "metro", case_shiller: "metro", cpi: "metro", restaurant_cpi: "metro",
     cpi_allitems: "metro", cpi_energy: "metro", cpi_shelter: "metro",
-    wage_eci: "metro",
-    wage_qcew: "city",
+    wage_ahe: "metro",
+    wage_awe: "metro",
     bec_ingredient: "us"
   };
   const GEO_LABEL = { city: "New York City", metro: "NYC metro area", us: "U.S. city average" };
@@ -1342,7 +1346,7 @@
     ["Food & drink", ["cpi","restaurant_cpi","bec_ingredient","pizza","bagel","coffee","halal","bec","dinner"]],
     ["Culture", ["broadway"]],
     ["Overall prices", ["cpi_allitems"]],
-    ["Income side", ["wage_qcew","wage_eci"]]
+    ["Income side", ["wage_ahe","wage_awe"]]
   ];
   const GEO_SHORT = { city: "NYC", metro: "Metro", us: "U.S." };
 
@@ -1377,8 +1381,8 @@
     coffee: "A 12 oz drip coffee at a fixed ten-shop panel of chains and independents.",
     halal: "Chicken over rice from a fixed panel of named, fixed-location carts, surveyed in person.",
     dinner: "A standard dinner for four, pre-tip, averaged across a 500-restaurant panel maintained by a companion project.",
-    wage_qcew: "Average weekly pay in Manhattan, from the unemployment-insurance records that cover about 95 percent of jobs. It is an average, so high earners and finance bonuses lift it well above what a typical worker earns, and it arrives about two quarters late.",
-    wage_eci: "The Employment Cost Index for the New York metro: how much total compensation, wages plus benefits, rose over the year. It holds the mix of jobs constant, so it isolates actual pay growth rather than changes in which jobs exist."
+    wage_ahe: "What an average private-sector hour of work paid in the New York metro area, from the monthly federal payroll survey. It is the fastest read on pay we have, but it is an average, so high earners pull it above what a typical worker takes home.",
+    wage_awe: "What an average private-sector week of work paid in the New York metro area. Because it counts hours as well as pay rates, it can drop even when hourly pay rises, if people are working shorter weeks.",
   };
   const HEAD_DEFS = {
     latest: "The most recent reading for this series. Series publish on different schedules, so these are not all from the same month.",
