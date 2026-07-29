@@ -53,8 +53,14 @@ fresh snapshot of the city's agency file; it refuses to write a short read.
 
 ## Using it
 
-- Click any box to open the person, their announcement, the agency page and the
-  department's own chart.
+- Click any box to open the person, their announcement, the agency page, the
+  department's own chart, and the published contacts: the officeholder's direct line
+  where the Green Book lists one, the agency main line, and the press office with its
+  email. Emails come only from the city's published press-contact page; none is
+  inferred from a name pattern.
+- Columns run deputy mayors first, then the other officials who report to the mayor.
+- Where a bare reporting line would misdescribe an office, the Charter provision that
+  governs it is quoted. The Department of Investigation is the case that prompted it.
 - Every open box is deep-linkable: `#gregory-anderson` opens Sanitation.
 - Search matches names and agencies. The status filter narrows to new, retained or
   pending appointees. Zoom fits more columns on screen. Escape closes.

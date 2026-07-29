@@ -47,7 +47,6 @@ COLUMNS = [
         ("Elizabeth Adams", "Fast and free buses"),
         ("Bitta Mostofi", "Strategic coordination"),
     ]),
-    ("Jessica Tisch", "Police commissioner", []),
     ("Leila Bozorg", "Deputy mayor for housing and planning", [
         ("Lisa Bova-Hiatt", "Housing Authority"),
         ("Dina Levy", "Housing Preservation and Development"),
@@ -92,18 +91,6 @@ COLUMNS = [
         ("Nisha Agarwal", "People with Disabilities"),
         ("Siddhartha Sanchez", "Food Policy"),
     ]),
-    ("Elle Bisgaard-Church", "Chief of staff", [
-        ("Jahmila Edwards", "Intergovernmental Affairs"),
-        ("Odetty Tineo", "City Legislative Affairs"),
-        ("Tascha Van Auken", "Mass Engagement"),
-        ("Stephanie Silkowski", "Appointments"),
-        ("Ana Maria Archila", "International Affairs"),
-        ("Kate Smith", "Mayor's Fund"),
-        ("Dawn Tolson", "Citywide Event Coordination"),
-        ("Maya Handa", "World Cup"),
-        ("Simonia Brown", "Policy and strategy"),
-        ("Mir Bashar", "Chief administrative officer"),
-    ]),
     ("Julie Su", "Deputy mayor for economic justice", [
         ("Anthony Shorris", "Economic Development Corporation"),
         ("Lina Khan", "Economic Development Corporation"),
@@ -117,6 +104,26 @@ COLUMNS = [
         ("Afua Atta-Mensah", "Equity and Racial Justice"),
         ("Faiza Ali", "Immigrant Affairs"),
     ]),
+    ("Renita Francois", "Deputy mayor for community safety", [
+        ("Ayesha Delany-Brumsey", "Community Safety"),
+    ]),
+    ("Elle Bisgaard-Church", "Chief of staff", [
+        ("Jahmila Edwards", "Intergovernmental Affairs"),
+        ("Odetty Tineo", "City Legislative Affairs"),
+        ("Tascha Van Auken", "Mass Engagement"),
+        ("Stephanie Silkowski", "Appointments"),
+        ("Ana Maria Archila", "International Affairs"),
+        ("Kate Smith", "Mayor's Fund"),
+        ("Dawn Tolson", "Citywide Event Coordination"),
+        ("Maya Handa", "World Cup"),
+        ("Simonia Brown", "Policy and strategy"),
+        ("Mir Bashar", "Chief administrative officer"),
+    ]),
+    ("Ramzi Kassem", "Chief counsel", [
+        ("Vilda Vera Mayuga", "Administrative Trials and Hearings"),
+        ("Ali Najmi", "Advisory Committee on the Judiciary"),
+    ]),
+    ("Steven Banks", "Corporation counsel", []),
     ("Anna Bahr", "Communications director", [
         ("Joe Calvello", "Press secretary"),
         ("Dora Pekec", "Senior spokesperson"),
@@ -125,20 +132,30 @@ COLUMNS = [
         ("Julian Gerson", "Speechwriting"),
         ("Cassio Mendoza", "Press office"),
     ]),
-    ("Ramzi Kassem", "Chief counsel", [
-        ("Vilda Vera Mayuga", "Administrative Trials and Hearings"),
-        ("Ali Najmi", "Advisory Committee on the Judiciary"),
-    ]),
-    ("Steven Banks", "Corporation counsel", []),
-    ("Renita Francois", "Deputy mayor for community safety", [
-        ("Ayesha Delany-Brumsey", "Community Safety"),
-    ]),
+    ("Jessica Tisch", "Police commissioner", []),
     ("__MAYOR__", "Reporting to the mayor", [
         ("Nadia Shihata", "Investigation"),
         ("Taylor Brown", "LGBTQIA+ Affairs"),
         ("Phylisa Wisdom", "Combat Antisemitism"),
     ]),
 ]
+
+# ---------------------------------------------------------------------------
+# Where a bare reporting line would misdescribe an office, the Charter provision
+# that governs it, quoted rather than paraphrased.
+# ---------------------------------------------------------------------------
+CHARTER_NOTES = {
+    "Investigation":
+        "The reporting line understates it. The Charter gives the department jurisdiction over "
+        "&#8220;any agency, officer, or employee of the city&#8221; (&#167;&#8239;803(f)), and either "
+        "the mayor or the Council may direct an investigation (&#167;&#8239;803(a)). The mayor may "
+        "remove the commissioner only after filing written reasons and allowing the commissioner "
+        "&#8220;an opportunity of making a public explanation&#8221; (&#167;&#8239;801).",
+    "Community Safety":
+        "Created by executive order in March 2026. It sets policy on violence prevention, survivor "
+        "services and community mental health; it does not run the police, fire or correction "
+        "departments.",
+}
 
 # ---------------------------------------------------------------------------
 # Department charts. Maps a box label in COLUMNS to the agency name(s) used by
@@ -225,6 +242,10 @@ BOARDS = [
     ("Metropolitan Transportation Authority board", ["Melanie Hartzog", "Janette Sadik-Khan",
                                                      "Dan Garodnick", "David Jones"]),
     ("Quadrennial Advisory Commission", ["Carl Weisbrod", "Lilliam Barrios-Paoli", "Larian Angelo"]),
+    ("Panel for Educational Policy", ["Karla Cordero", "Tariq Khan", "Mehrain Mahdi", "Alan Ong",
+                                     "Amy Fair", "Courtney Rajwani", "Crystal Vera-Montalvo",
+                                     "Marjorie Dienstag", "Lucas Koehler", "Primo Lasana",
+                                     "Kristin Jefferson", "Maddy Fox", "Raysa Rodriguez"]),
 ]
 
 
@@ -426,6 +447,7 @@ def entry(name, label, n, column_title=""):
     if not date:
         date = '<abbr title="announcement date not published">n.d.</abbr>'
     attrs, staff = dept_attrs(label)
+    charter = CHARTER_NOTES.get(label, "")
     g = gov_row(label, p.get("agency", ""))
     gattrs = ""
     if g:
@@ -439,7 +461,7 @@ def entry(name, label, n, column_title=""):
    id="{slug(name)}"
    data-name="{esc(name.lower())}" data-label="{esc(label.lower())}" data-flag="{cls}"
    data-person="{esc(name)}" data-title="{esc(p['title'])}" data-agency="{esc(p['agency'])}"
-   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}" data-mine="{esc(column_title)}"
+   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}" data-mine="{esc(column_title)}" data-charter="{charter}"
    data-date="{esc(date if not date.startswith('<') else '')}" data-status="{esc(flabel)}"{attrs}{gattrs}>
   <span class="num">{n:03d}</span>
   <span class="unit">{esc(label)}</span>
@@ -518,8 +540,8 @@ def build():
     cols = []
     for principal, title, reports in COLUMNS:
         if principal == "__MAYOR__":
-            head = ('<div class="col-head direct"><span class="rank">Offices without a published '
-                    f'reporting line</span><h3>{esc(title)}</h3></div>')
+            head = ('<div class="col-head direct"><span class="rank">Not in a deputy '
+                    f'mayor\'s portfolio</span><h3>{esc(title)}</h3></div>')
         else:
             p = PEOPLE[principal]
             attrs, staff = dept_attrs(None, COLUMN_DEPTS.get(principal))
@@ -527,7 +549,9 @@ def build():
             gattrs = f' data-kids="{esc("|".join(k["name"] for k in gkids))}"' if gkids else ""
             cls, flabel = flag(p)
             hint = f'<span class="open">{staff} in the department directory</span>' if staff else ""
-            head = (f'<button type="button" class="col-head{" has-dept" if staff else ""}" '
+            is_dm = title.lower().startswith(("first deputy mayor", "deputy mayor"))
+            head = (f'<button type="button" class="col-head{" dm" if is_dm else ""}'
+                    f'{" has-dept" if staff else ""}" '
                     f'id="{slug(principal)}" data-name="{esc(principal.lower())}" '
                     f'data-label="{esc(title.lower())}" data-flag="{cls}" '
                     f'data-person="{esc(principal)}" data-title="{esc(p["title"])}" '

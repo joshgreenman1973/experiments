@@ -123,6 +123,11 @@ header.mast{border-bottom:2px solid var(--rule-hard);padding:20px 0 16px}
   padding:12px 12px 11px; border:0; border-bottom:1px solid var(--rule-hard);
 }
 .col-head.has-dept{cursor:pointer}
+.col-head.dm{
+  background:linear-gradient(180deg,rgba(25,22,18,.13),rgba(25,22,18,.02));
+  box-shadow:inset 0 3px 0 var(--rule-hard);
+}
+.col-head.dm .rank{color:var(--red)}
 .col-head .rank{
   display:block;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
   letter-spacing:.13em;font-size:10.5px;font-weight:600;color:var(--soft);
@@ -221,6 +226,18 @@ header.mast{border-bottom:2px solid var(--rule-hard);padding:20px 0 16px}
 }
 .cityline b{font-weight:600}
 .cityline.differs{border-left-color:var(--red)}
+.charter{
+  font-size:14px;color:#3a342b;margin:10px 0 0;padding:8px 12px;background:#fbf7ec;
+  border-left:3px solid var(--gold);max-width:90ch;
+}
+.contacts{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 22px}
+.contacts div{font-size:14px}
+.contacts b{
+  display:block;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+  letter-spacing:.14em;font-size:10.5px;font-weight:700;color:var(--soft);
+}
+.contacts a{color:var(--navy);border-bottom:1px solid var(--rule)}
+.contacts .who{display:block;font-size:13px;color:var(--soft)}
 .kids{margin-top:12px}
 .kids h5{
   font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.16em;
@@ -508,6 +525,46 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
   function index(list,key){ var o={}; (list||[]).forEach(function(x){ o[x[key]]=x; }); return o; }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
+  /* ---------- matching a person into the directory, strictly ---------- */
+  function nameParts(n){
+    return String(n||"").toLowerCase()
+      .replace(/\b(dr|jr|sr|ii|iii|esq|phd|md|mph|mpp|dds|rn)\b\.?/g," ")
+      .replace(/[^a-z ]/g," ").split(/\s+/).filter(Boolean);
+  }
+  function findPerson(name, agencies){
+    var t=nameParts(name);
+    if(t.length<2) return null;
+    var first=t[0], last=t[t.length-1];
+    for(var i=0;i<GB.people.length;i++){
+      var p=GB.people[i];
+      if(agencies.indexOf(p.a)<0) continue;
+      var q=nameParts(p.n);
+      if(q.length>1 && q[0]===first && q[q.length-1]===last) return p;
+    }
+    return null;
+  }
+  function tel(n){ return String(n||"").replace(/[^0-9+]/g,""); }
+  function contactsHtml(d, names){
+    var bits=[], seen={};
+    var me = d.person ? findPerson(d.person, names) : null;
+    if(me && me.p) bits.push('<div><b>Direct line</b><a href="tel:'+esc(me.tel||tel(me.p))+'">'+esc(me.p)+"</a></div>");
+    names.forEach(function(n){
+      var a=GB.agencies[n];
+      if(!a) return;
+      if(a.phone && !seen[a.phone]){ seen[a.phone]=1;
+        bits.push('<div><b>'+esc(a.acronym||n)+' main line</b><a href="tel:'+esc(a.tel||tel(a.phone))+'">'+esc(a.phone)+"</a></div>"); }
+      (a.press||[]).forEach(function(pr){
+        if(!pr.e && !pr.p) return;
+        bits.push('<div><b>Press office</b>'+
+          (pr.e?'<a href="mailto:'+esc(pr.e)+'">'+esc(pr.e)+"</a>":"")+
+          (pr.p?(pr.e?" &#183; ":"")+'<a href="tel:'+esc(pr.tel||tel(pr.p))+'">'+esc(pr.p)+"</a>":"")+
+          (pr.n?'<span class="who">'+esc(pr.n)+(pr.t?", "+esc(pr.t):"")+"</span>":"")+"</div>");
+      });
+    });
+    if(!bits.length) return "";
+    return '<div class="contacts">'+bits.join("")+"</div>";
+  }
+
   /* ---------- render one department ---------- */
   function peopleOf(agency){
     return GB.people.filter(function(p){ return p.a===agency; });
@@ -565,7 +622,10 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
     if(!d.cityline) return "";
     var line=d.cityline.split(";")[0];
     var mine=(d.mine||"").toLowerCase();
-    var same=!mine || line.toLowerCase().replace(/^deputy mayor for /,"")===mine.replace(/^deputy mayor for /,"");
+    var flat=function(x){ return String(x||"").toLowerCase()
+      .replace(/^reporting to the /,"").replace(/^office of the /,"")
+      .replace(/^deputy mayor for /,"").replace(/^the /,"").trim(); };
+    var same=!mine || flat(line)===flat(mine);
     if(d.flag==="listed"){
       return '<p class="cityline">The city\'s agency file lists this office under the <b>'+
              esc(line)+'</b>. No appointment announcement is tracked for it here.</p>';
@@ -604,6 +664,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
           (d.status && d.status!=="New"?" &#183; "+esc(d.status):"")+"</div>"+
         (d.notes?'<p class="bio">'+esc(d.notes)+"</p>":"")+
         cityLineHtml(d)+
+        (d.charter?'<p class="charter">'+d.charter+"</p>":"")+
         '<div class="links" id="dlinks">'+
           (d.source?'<a href="'+esc(d.source)+'" target="_blank" rel="noopener">'+
             (d.flag==="listed"?"The city\'s agency file":"The announcement")+"</a>":"")+
@@ -612,6 +673,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
             '" target="_blank" rel="noopener">Look up in the directory</a>'+
         "</div>"+
       "</div>"+
+      '<div id="contacts"></div>'+
       kidsHtml(d)+
       (names.length?'<div class="dept" id="dept"><p class="loading">Opening the department chart</p></div>'
                    :'<p class="loading">The city publishes no separate chart for this office.</p>');
@@ -623,9 +685,17 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
     if(el.id) history.replaceState(null,"","#"+el.id);
     panel.scrollIntoView({behavior:"smooth", block:"nearest"});
 
-    if(!names.length) return;
+    if(!names.length){
+      loadGB().then(function(){
+        var cbox=document.getElementById("contacts");
+        if(cbox && panel) cbox.innerHTML=contactsHtml(el.dataset, []);
+      }).catch(function(){});
+      return;
+    }
     loadGB().then(function(){
       if(!panel) return;
+      var cbox=document.getElementById("contacts");
+      if(cbox) cbox.innerHTML=contactsHtml(el.dataset, names);
       document.getElementById("dept").innerHTML=deptHtml(names)+
         '<p class="sub" style="margin-top:14px">Directory data refreshed '+esc((GB.built||"").slice(0,10))+
         ', automatically, from the Greener Book.</p>';
