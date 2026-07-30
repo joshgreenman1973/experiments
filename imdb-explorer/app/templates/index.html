@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMDb Explorer</title>
+<style>
+  :root {
+    --bg: #0b0a09;
+    --panel: #141210;
+    --panel-2: #1c1917;
+    --rule: #2a2521;
+    --ink: #ece5d9;
+    --ink-dim: #9a8f83;
+    --ink-faint: #5f574f;
+    --amber: #e8a33d;
+    --amber-dim: #8a6224;
+    --red: #c8412f;
+    --green: #8ba05e;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+    --cond: "Avenir Next Condensed", "HelveticaNeue-CondensedBold", Impact, sans-serif;
+    --sans: "Avenir Next", ui-sans-serif, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 52px 1fr;
+    grid-template-areas: "brand top" "rail stage";
+  }
+
+  /* ---- masthead ---------------------------------------------------- */
+
+  .brand {
+    grid-area: brand;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 18px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .brand b {
+    font-family: var(--cond);
+    font-weight: 600; font-size: 19px;
+    letter-spacing: .14em; text-transform: uppercase;
+  }
+  .sprockets {
+    display: flex; gap: 3px; margin-left: auto;
+  }
+  .sprockets i {
+    width: 6px; height: 9px; border-radius: 1.5px;
+    background: var(--rule);
+  }
+
+  .top {
+    grid-area: top;
+    display: flex; align-items: center; gap: 2px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .tab {
+    font-family: var(--cond);
+    font-size: 13px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    background: none; border: 0; cursor: pointer;
+    padding: 16px 16px 14px;
+    border-bottom: 2px solid transparent;
+  }
+  .tab:hover { color: var(--ink-dim); }
+  .tab[aria-selected="true"] { color: var(--amber); border-bottom-color: var(--amber); }
+
+  .status {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
+  }
+
+  /* ---- left rail --------------------------------------------------- */
+
+  .rail {
+    grid-area: rail;
+    border-right: 1px solid var(--rule);
+    background: var(--panel);
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  .label {
+    font-family: var(--cond);
+    font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 8px;
+  }
+
+  input[type=search] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    font-family: var(--sans); font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+  }
+  input[type=search]:focus { border-color: var(--amber-dim); }
+
+  .results { margin: 8px 0 0; list-style: none; padding: 0; }
+  .results li { border-bottom: 1px solid var(--rule); }
+  .results button {
+    width: 100%; text-align: left; cursor: pointer;
+    background: none; border: 0; color: var(--ink);
+    padding: 9px 4px; font-family: var(--sans); font-size: 13px;
+    display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  }
+  .results button:hover { background: var(--panel-2); color: var(--amber); }
+  .results .meta { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); white-space: nowrap; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--panel-2); border: 1px solid var(--rule);
+    padding: 5px 8px; font-size: 12px;
+  }
+  .chip b { font-weight: 500; }
+  .chip button {
+    background: none; border: 0; color: var(--ink-faint);
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 0;
+  }
+  .chip button:hover { color: var(--red); }
+
+  .ctl { margin: 18px 0 0; }
+  .ctl label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .ctl input[type=range] { width: 100%; accent-color: var(--amber); }
+
+  .seg { display: flex; flex-wrap: wrap; border: 1px solid var(--rule); }
+  .seg button {
+    flex: 1 0 33.33%; cursor: pointer; background: none; border: 0;
+    color: var(--ink-faint); padding: 7px 0;
+    font-family: var(--cond); font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button:nth-child(4) { border-left: 0; }
+  .seg button:nth-child(n+4) { border-top: 1px solid var(--rule); }
+  .seg button:hover { color: var(--ink-dim); }
+  .seg button[aria-selected="true"] { background: var(--amber); color: var(--bg); }
+
+  .hint {
+    font-size: 12px; line-height: 1.55; color: var(--ink-faint);
+    border-left: 2px solid var(--rule); padding-left: 10px; margin-top: 22px;
+  }
+
+  /* ---- stage ------------------------------------------------------- */
+
+  .stage { grid-area: stage; position: relative; overflow: hidden; }
+  .view { position: absolute; inset: 0; display: none; }
+  .view[data-on] { display: block; }
+
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+
+  .inspector {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 340px;
+    background: var(--panel); border-left: 1px solid var(--rule);
+    padding: 20px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .18s ease;
+  }
+  .inspector[data-open] { transform: none; }
+  .inspector h2 {
+    font-family: var(--cond); font-size: 22px; font-weight: 600;
+    letter-spacing: .04em; margin: 0 0 2px;
+  }
+  .inspector .sub {
+    font-family: var(--mono); font-size: 11px; color: var(--amber);
+    margin-bottom: 16px;
+  }
+  .inspector .close {
+    position: absolute; top: 14px; right: 16px;
+    background: none; border: 0; color: var(--ink-faint);
+    font-size: 20px; cursor: pointer; line-height: 1;
+  }
+  .inspector .close:hover { color: var(--ink); }
+
+  .filmstrip { list-style: none; margin: 0; padding: 0; }
+  .filmstrip li {
+    display: grid; grid-template-columns: 42px 1fr auto;
+    gap: 10px; align-items: baseline;
+    padding: 9px 0; border-bottom: 1px solid var(--rule);
+  }
+  .filmstrip .yr { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .filmstrip .ti { font-size: 13px; line-height: 1.35; }
+  .filmstrip .ro {
+    display: block; font-family: var(--mono); font-size: 10px;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: .08em;
+    margin-top: 2px;
+  }
+  .filmstrip .rt { font-family: var(--mono); font-size: 11px; color: var(--green); }
+
+  /* list views (together / family) */
+  .scroller { position: absolute; inset: 0; overflow: auto; padding: 28px 34px 60px; }
+  .headline {
+    font-family: var(--cond); font-size: 30px; font-weight: 600;
+    letter-spacing: .03em; margin: 0 0 4px;
+  }
+  .deck { color: var(--ink-dim); font-size: 13px; margin: 0 0 26px; }
+
+  .card {
+    border: 1px solid var(--rule); background: var(--panel);
+    margin-bottom: 14px;
+  }
+  .card header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--rule);
+    background: var(--panel-2);
+  }
+  .card header h3 {
+    font-family: var(--cond); font-size: 17px; font-weight: 600;
+    letter-spacing: .05em; margin: 0;
+  }
+  .rel {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--bg); background: var(--amber);
+    padding: 2px 6px;
+  }
+  .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .card .filmstrip { padding: 4px 16px 8px; }
+
+  /* matrix view */
+  .mx { display: grid; gap: 1px; width: max-content; }
+  .mx-corner { grid-column: 1; }
+  .mx-head {
+    height: 116px; position: relative;
+    font-size: 10.5px; color: var(--ink-dim);
+  }
+  .mx-head span, .mx-head.mx-hub {
+    position: absolute; bottom: 4px; left: 50%;
+    transform-origin: left bottom; transform: rotate(-60deg);
+    white-space: nowrap;
+  }
+  .mx-head.mx-hub {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--amber); text-transform: uppercase; letter-spacing: .1em;
+  }
+  .mx-name {
+    font-size: 11.5px; color: var(--ink-dim); padding-right: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; justify-content: flex-end;
+  }
+  .mx-cell {
+    height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 9.5px;
+    color: rgba(236,229,217,.82);
+    background: rgba(139,160,94, calc(var(--a) * .85));
+    outline: 1px solid var(--rule); outline-offset: -1px;
+  }
+  .mx-cell:hover { outline-color: var(--amber); }
+  .mx-hubcell { background: rgba(232,163,61, calc(var(--a) * .9)); }
+  .mx-diag { background: var(--panel-2); }
+
+  /* years view */
+  .tl { margin-top: 6px; }
+  .tl-rule {
+    position: relative; height: 16px; margin-left: 214px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-faint);
+  }
+  .tl-rule span { position: absolute; transform: translateX(-50%); }
+  .tl-row {
+    display: grid; grid-template-columns: 176px 30px 1fr;
+    gap: 8px; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid var(--rule);
+  }
+  .tl-name {
+    font-size: 12.5px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .tl-n {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--amber); text-align: right;
+  }
+  .tl-track { position: relative; height: 16px; }
+  .tl-grid {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: var(--rule);
+  }
+  .tl-dot {
+    position: absolute; top: 50%; width: 7px; height: 7px;
+    margin: -3.5px 0 0 -3.5px; border-radius: 50%;
+    background: var(--amber); opacity: .82;
+  }
+  .tl-dot:hover { opacity: 1; box-shadow: 0 0 0 3px rgba(232,163,61,.25); }
+
+  .empty {
+    color: var(--ink-faint); font-size: 13px; line-height: 1.6;
+    border: 1px dashed var(--rule); padding: 22px; text-align: center;
+  }
+  .empty code { font-family: var(--mono); font-size: 12px; color: var(--amber); }
+
+  a { color: var(--amber); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <b>IMDb Explorer</b>
+  <span class="sprockets"><i></i><i></i><i></i></span>
+</div>
+
+<div class="top">
+  <button class="tab" data-view="graph" aria-selected="true">Collaborators</button>
+  <button class="tab" data-view="together" aria-selected="false">Worked together</button>
+  <button class="tab" data-view="family" aria-selected="false">Family</button>
+  <span class="status" id="status"></span>
+</div>
+
+<aside class="rail">
+  <p class="label">Selected</p>
+  <div class="chips" id="chips"></div>
+
+  <p class="label">Find a person</p>
+  <input type="search" id="q" placeholder="Coppola, Deakins, Bergman&hellip;" autocomplete="off">
+  <ul class="results" id="results"></ul>
+
+  <div class="ctl">
+    <label>Layout</label>
+    <div class="seg" id="layout">
+      <button data-layout="orbit" aria-selected="true">Orbit</button>
+      <button data-layout="spiral" aria-selected="false">Spiral</button>
+      <button data-layout="force" aria-selected="false">Force</button>
+      <button data-layout="chord" aria-selected="false">Chord</button>
+      <button data-layout="matrix" aria-selected="false">Matrix</button>
+      <button data-layout="timeline" aria-selected="false">Years</button>
+    </div>
+  </div>
+
+  <div class="ctl">
+    <label for="peers">
+      <span>Links between collaborators</span>
+      <input type="checkbox" id="peers" checked>
+    </label>
+  </div>
+
+  <div class="ctl">
+    <label>Minimum shared titles <span id="msv">2</span></label>
+    <input type="range" id="minShared" min="1" max="10" value="2">
+  </div>
+  <div class="ctl">
+    <label>Maximum collaborators <span id="mnv">50</span></label>
+    <input type="range" id="maxNodes" min="10" max="120" value="50" step="5">
+  </div>
+
+  <p class="hint">
+    In the ring layouts, <b>distance</b> and <b>size</b> both track how often
+    two people worked together — closest and largest is the most frequent
+    collaborator. The figure after each name is the number of joint titles.
+    Green lines join collaborators to <em>each other</em>; hover anyone to
+    isolate their web.
+  </p>
+  <p class="hint">
+    Click a node to see every title two people share. Double-click to re-center
+    the graph on them. Add a second person to cross-reference filmographies.
+  </p>
+</aside>
+
+<main class="stage">
+  <section class="view" data-view="graph" data-on>
+    <canvas id="cv"></canvas>
+    <div class="scroller" id="years" style="display:none"></div>
+    <div class="scroller" id="matrix" style="display:none"></div>
+    <div class="inspector" id="insp">
+      <button class="close" id="inspClose">&times;</button>
+      <div id="inspBody"></div>
+    </div>
+  </section>
+
+  <section class="view" data-view="together">
+    <div class="scroller" id="togetherOut"></div>
+  </section>
+
+  <section class="view" data-view="family">
+    <div class="scroller" id="familyOut"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const state = {
+  view: "graph",
+  people: [],          // [{nconst, name}]
+  minShared: 2,
+  maxNodes: 50,
+  layout: "orbit",
+  peers: true,
+  graph: null,
+};
+
+const status = (t) => { $("#status").textContent = t || ""; };
+const RING_LAYOUTS = ["orbit", "spiral", "chord"];
+const PANEL_LAYOUTS = { timeline: "#years", matrix: "#matrix" };
+const isRing = () => RING_LAYOUTS.includes(state.layout);
+
+/* ---------- search ------------------------------------------------- */
+
+let searchTimer = null;
+$("#q").addEventListener("input", (e) => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (!q) { $("#results").innerHTML = ""; return; }
+  searchTimer = setTimeout(() => runSearch(q), 180);
+});
+
+async function runSearch(q) {
+  const rows = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json());
+  $("#results").innerHTML = "";
+  for (const r of rows) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    const years = [r.birthYear, r.deathYear].some(Boolean)
+      ? `${r.birthYear || "?"}–${r.deathYear || ""}` : "";
+    b.innerHTML = `<span>${escapeHtml(r.name)}</span>
+                   <span class="meta">${years}</span>`;
+    b.onclick = () => addPerson({ nconst: r.nconst, name: r.name });
+    li.appendChild(b);
+    $("#results").appendChild(li);
+  }
+}
+
+function addPerson(p) {
+  if (!state.people.some(x => x.nconst === p.nconst)) state.people.push(p);
+  $("#q").value = ""; $("#results").innerHTML = "";
+  renderChips();
+  refresh();
+}
+
+function removePerson(nconst) {
+  state.people = state.people.filter(p => p.nconst !== nconst);
+  renderChips();
+  refresh();
+}
+
+function renderChips() {
+  $("#chips").innerHTML = "";
+  if (!state.people.length) {
+    $("#chips").innerHTML = `<span style="color:var(--ink-faint);font-size:12px">Nobody yet.</span>`;
+    return;
+  }
+  for (const p of state.people) {
+    const el = document.createElement("span");
+    el.className = "chip";
+    el.innerHTML = `<b>${escapeHtml(p.name)}</b>`;
+    const x = document.createElement("button");
+    x.textContent = "×";
+    x.onclick = () => removePerson(p.nconst);
+    el.appendChild(x);
+    $("#chips").appendChild(el);
+  }
+}
+
+/* ---------- tabs + controls ---------------------------------------- */
+
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(o => o.setAttribute("aria-selected", o === t));
+    document.querySelectorAll(".view").forEach(v =>
+      v.dataset.view === t.dataset.view ? v.setAttribute("data-on", "") : v.removeAttribute("data-on"));
+    state.view = t.dataset.view;
+    refresh();
+  };
+});
+
+$("#minShared").oninput = (e) => { state.minShared = +e.target.value; $("#msv").textContent = e.target.value; };
+$("#minShared").onchange = refresh;
+$("#maxNodes").oninput = (e) => { state.maxNodes = +e.target.value; $("#mnv").textContent = e.target.value; };
+$("#maxNodes").onchange = refresh;
+
+/* ---------- dispatch ------------------------------------------------ */
+
+function refresh() {
+  if (state.view === "graph") return loadGraph();
+  if (state.view === "together") return loadTogether();
+  if (state.view === "family") return loadFamily();
+}
+
+async function loadGraph() {
+  const p = state.people[0];
+  if (!p) { state.graph = null; status(""); draw(); return; }
+  status("querying…");
+  const d = await fetch(`/api/collaborators/${p.nconst}?min_shared=${state.minShared}&max_nodes=${state.maxNodes}`)
+    .then(r => r.json());
+  status(`${d.nodes.length - 1} collaborators across ${d.titles} titles`);
+  buildSim(d);
+}
+
+async function loadTogether() {
+  const out = $("#togetherOut");
+  if (state.people.length < 2) {
+    out.innerHTML = `<h1 class="headline">Worked together</h1>
+      <p class="deck">Pick two or more people to see every title they all appear in.</p>
+      <div class="empty">Add a second person from the rail.</div>`;
+    status("");
+    return;
+  }
+  status("intersecting filmographies…");
+  const qs = state.people.map(p => `n=${encodeURIComponent(p.nconst)}`).join("&");
+  const d = await fetch(`/api/coappearances?${qs}`).then(r => r.json());
+  status(`${d.titles.length} shared titles`);
+
+  const names = d.people.map(p => escapeHtml(p.name)).join(" &middot; ");
+  if (!d.titles.length) {
+    out.innerHTML = `<h1 class="headline">Worked together</h1>
+      <p class="deck">${names}</p>
+      <div class="empty">No title in the dataset lists all of them among its principals.</div>`;
+    return;
+  }
+  out.innerHTML = `<h1 class="headline">Worked together</h1>
+    <p class="deck">${names} &mdash; ${d.titles.length} title${d.titles.length === 1 ? "" : "s"}</p>
+    <ul class="filmstrip">${d.titles.map(t => `
+      <li>
+        <span class="yr">${t.year || "—"}</span>
+        <span class="ti">${escapeHtml(t.title)}
+          <span class="ro">${t.roles.map(r => escapeHtml(r.role || "—")).join(" / ")}${
+            t.genres.filter(Boolean).length ? " &middot; " + escapeHtml(t.genres.filter(Boolean).join(", ")) : ""}</span>
+        </span>
+        <span class="rt">${t.rating ? t.rating.toFixed(1) : ""}</span>
+      </li>`).join("")}</ul>`;
+}
+
+async function loadFamily() {
+  const out = $("#familyOut");
+  const p = state.people[0];
+  if (!p) {
+    out.innerHTML = `<h1 class="headline">Family</h1>
+      <p class="deck">Kinship comes from Wikidata, not IMDb.</p>
+      <div class="empty">Pick somebody from the rail.</div>`;
+    status("");
+    return;
+  }
+  status("reading kinship…");
+  const d = await fetch(`/api/family/${p.nconst}`).then(r => r.json());
+  status(d.members ? `${d.members.length} relatives` : "");
+
+  if (d.error) {
+    out.innerHTML = `<h1 class="headline">Family</h1>
+      <p class="deck">${escapeHtml(d.center_name)}</p>
+      <div class="empty">${escapeHtml(d.error).replace("scripts/fetch_wikidata_family.py",
+        "<code>scripts/fetch_wikidata_family.py</code>")}</div>`;
+    return;
+  }
+  if (!d.members.length) {
+    out.innerHTML = `<h1 class="headline">Family</h1>
+      <p class="deck">${escapeHtml(d.center_name)}</p>
+      <div class="empty">Wikidata records no film-industry relatives.</div>`;
+    return;
+  }
+  out.innerHTML = `<h1 class="headline">${escapeHtml(d.center_name)}</h1>
+    <p class="deck">${d.members.length} relative${d.members.length === 1 ? "" : "s"} with an IMDb credit</p>
+    ${d.members.map(m => `
+      <article class="card">
+        <header>
+          <h3>${escapeHtml(m.name)}</h3>
+          ${m.relations.map(r => `<span class="rel">${escapeHtml(r)}</span>`).join("")}
+          <span class="count">${m.coappearances.length} together</span>
+        </header>
+        ${m.coappearances.length ? `<ul class="filmstrip">${m.coappearances.map(t => `
+          <li><span class="yr">${t.year || "—"}</span>
+              <span class="ti">${escapeHtml(t.title)}</span>
+              <span class="rt">${t.rating ? t.rating.toFixed(1) : ""}</span></li>`).join("")}</ul>` : ""}
+      </article>`).join("")}`;
+}
+
+/* ---------- force-directed graph ------------------------------------ */
+
+const cv = $("#cv"), ctx = cv.getContext("2d");
+let sim = null, hover = null, dragging = null, pan = { x: 0, y: 0 };
+
+function buildSim(d) {
+  const spokes = d.nodes.filter(n => !n.center);
+  const maxShared = Math.max(1, ...spokes.map(n => n.shared || 0));
+  // Area is proportional to shared titles -- radius goes as the square root, so
+  // a collaborator on twice as many films draws twice the ink, not four times.
+  const R_MAX = 20;
+  const nodes = d.nodes.map((n) => ({
+    ...n,
+    x: 0, y: 0, vx: 0, vy: 0,
+    r: n.center ? 15 : Math.max(3.5, R_MAX * Math.sqrt((n.shared || 1) / maxShared)),
+  }));
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const edges = d.edges.map(e => ({ ...e, s: byId[e.source], t: byId[e.target] }));
+  const peers = (d.peers || [])
+    .map(p => ({ ...p, s: byId[p.source], t: byId[p.target] }))
+    .filter(p => p.s && p.t);
+  sim = { nodes, edges, peers, alpha: 1, center: byId[d.center] };
+  state.graph = d;
+  hover = null;
+  pan = { x: 0, y: 0 };
+  closeInspector();
+  seed();
+}
+
+/* Two ring layouts, both putting frequent collaborators nearer the hub.
+
+   Orbit  -- discrete bands, each one a "worked together N times" tier, with the
+             members of a band spread evenly all the way round. Reads like a
+             target: the inner ring is the inner circle.
+   Spiral -- continuous radius, ordered by count around the dial, so the whole
+             filmography unwinds from closest to most incidental.             */
+function radialTargets() {
+  const byCount = (a, b) => (b.shared - a.shared) || a.label.localeCompare(b.label);
+  const spokes = sim.nodes.filter(n => !n.center).sort(byCount);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  // Reserve room for the rim labels, proportionally -- a narrow pane shouldn't
+  // collapse the ring to nothing.
+  const pad = Math.max(70, Math.min(150, w * 0.17));
+  const rad = Math.max(90, Math.min(w / 2 - pad, h / 2 - 46));
+
+  const hi = Math.max(...spokes.map(n => n.shared), 1);
+  const lo = Math.min(...spokes.map(n => n.shared), hi);
+  const inner = rad * 0.42;   // keep the innermost labels clear of the hub
+  const span = Math.log(hi) - Math.log(lo);
+  const closeness = n => span > 0 ? (Math.log(n.shared) - Math.log(lo)) / span : 0;
+
+  sim.center.tx = 0; sim.center.ty = 0;
+  sim.bands = [];
+
+  if (state.layout === "chord") {
+    // Everybody on one rim, evenly spaced -- the arcs between them are the
+    // content here, not the distance from the hub.
+    const count = spokes.length || 1;
+    spokes.forEach((n, i) => {
+      n.orbit = rad;
+      const ang = -Math.PI / 2 + (i / count) * Math.PI * 2;
+      n.tx = Math.cos(ang) * rad;
+      n.ty = Math.sin(ang) * rad;
+    });
+  } else if (state.layout === "orbit") {
+    // Four tiers, log-spaced so a single prolific partner doesn't collapse them.
+    const TIERS = 4;
+    const tierOf = n => Math.min(TIERS - 1, Math.floor((1 - closeness(n)) * TIERS));
+    const groups = [];
+    for (const n of spokes) (groups[tierOf(n)] ||= []).push(n);
+
+    groups.forEach((g, tier) => {
+      if (!g) return;
+      const r = inner + (TIERS > 1 ? tier / (TIERS - 1) : 0) * (rad - inner);
+      sim.bands.push(r);
+      g.forEach((n, i) => {
+        n.orbit = r;
+        // Stagger each band's start so spokes don't line up into false rays.
+        const ang = -Math.PI / 2 + ((i + tier * 0.4) / g.length) * Math.PI * 2;
+        n.tx = Math.cos(ang) * r;
+        n.ty = Math.sin(ang) * r;
+      });
+    });
+  } else {
+    const count = spokes.length || 1;
+    spokes.forEach((n, i) => {
+      n.orbit = rad - closeness(n) * (rad - inner);
+      const ang = -Math.PI / 2 + (i / count) * Math.PI * 2;
+      n.tx = Math.cos(ang) * n.orbit;
+      n.ty = Math.sin(ang) * n.orbit;
+    });
+  }
+
+  // Equal-ranked neighbours land at the same radius a few degrees apart and
+  // overlap. Push overlapping discs apart, then snap each back onto its own
+  // orbit -- so the spreading is angular and the closeness encoding survives.
+  for (let pass = 0; pass < 60; pass++) {
+    for (let i = 0; i < spokes.length; i++) {
+      for (let j = i + 1; j < spokes.length; j++) {
+        const a = spokes[i], b = spokes[j];
+        const dx = b.tx - a.tx, dy = b.ty - a.ty;
+        const d = Math.hypot(dx, dy) || 0.001;
+        const min = a.r + b.r + 6;
+        if (d >= min) continue;
+        const push = (min - d) / 2;
+        a.tx -= (dx / d) * push; a.ty -= (dy / d) * push;
+        b.tx += (dx / d) * push; b.ty += (dy / d) * push;
+      }
+    }
+    for (const n of spokes) {
+      const d = Math.hypot(n.tx, n.ty) || 0.001;
+      n.tx = (n.tx / d) * n.orbit;
+      n.ty = (n.ty / d) * n.orbit;
+    }
+  }
+  spokes.forEach(n => { n.ang = Math.atan2(n.ty, n.tx); });
+
+  // A label needs roughly 13px of arc; thin the rest out and let hover reveal.
+  const budget = Math.max(8, Math.floor((2 * Math.PI * rad) / 13));
+  spokes.forEach((n, i) => { n.labelled = i < budget; });
+}
+
+function seed() {
+  if (isRing()) { radialTargets(); return; }
+  sim.nodes.forEach((n, i) => {
+    const ang = (i / Math.max(1, sim.nodes.length - 1)) * Math.PI * 2;
+    const rad = n.center ? 0 : 150 + Math.random() * 90;
+    n.x = Math.cos(ang) * rad; n.y = Math.sin(ang) * rad;
+    n.vx = n.vy = 0;
+  });
+  sim.alpha = 1;
+}
+
+document.querySelectorAll("#layout button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("#layout button")
+      .forEach(o => o.setAttribute("aria-selected", o === b));
+    state.layout = b.dataset.layout;
+    const panel = PANEL_LAYOUTS[state.layout];
+    $("#cv").style.display = panel ? "none" : "block";
+    Object.values(PANEL_LAYOUTS).forEach(sel => {
+      $(sel).style.display = sel === panel ? "block" : "none";
+    });
+    if (panel) {
+      closeInspector();
+      if (state.layout === "timeline") renderYears(); else renderMatrix();
+    } else if (sim) seed();
+  };
+});
+
+$("#peers").onchange = (e) => { state.peers = e.target.checked; };
+
+/* Matrix: the peer mesh as a grid. Every collaborator against every other, so
+   the links you can only guess at in a hairball become readable numbers. */
+function renderMatrix() {
+  const el = $("#matrix");
+  if (!state.graph || !state.graph.nodes.length) {
+    el.innerHTML = `<div class="empty">Pick somebody from the rail.</div>`;
+    return;
+  }
+  const N = 26;
+  const people = state.graph.nodes.filter(n => !n.center)
+    .slice().sort((a, b) => b.shared - a.shared).slice(0, N);
+  const idx = Object.fromEntries(people.map((p, i) => [p.id, i]));
+
+  const grid = people.map(() => people.map(() => 0));
+  for (const p of (state.graph.peers || [])) {
+    const i = idx[p.source], j = idx[p.target];
+    if (i === undefined || j === undefined) continue;
+    grid[i][j] = grid[j][i] = p.shared;
+  }
+  const hi = Math.max(1, ...grid.flat());
+
+  el.innerHTML = `
+    <h1 class="headline">${escapeHtml(state.graph.center_name)}</h1>
+    <p class="deck">Who among the top ${people.length} collaborators worked with each
+       other, counted across ${escapeHtml(state.graph.center_name)}'s own filmography.
+       The lit column on the left is their count with ${escapeHtml(state.graph.center_name)}.</p>
+    <div class="mx" style="grid-template-columns: 168px 34px repeat(${people.length}, 22px)">
+      <div class="mx-corner"></div>
+      <div class="mx-head mx-hub" title="titles with ${escapeHtml(state.graph.center_name)}">hub</div>
+      ${people.map(p => `<div class="mx-head"><span>${escapeHtml(p.label)}</span></div>`).join("")}
+      ${people.map((row, i) => `
+        <div class="mx-name" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</div>
+        <div class="mx-cell mx-hubcell" style="--a:${row.shared / Math.max(...people.map(p=>p.shared))}"
+             title="${escapeHtml(row.label)} × ${escapeHtml(state.graph.center_name)} — ${row.shared}">${row.shared}</div>
+        ${people.map((col, j) => {
+          const v = i === j ? null : grid[i][j];
+          return `<div class="mx-cell${i === j ? " mx-diag" : ""}" style="--a:${v ? v / hi : 0}"
+                    ${v ? `title="${escapeHtml(row.label)} × ${escapeHtml(col.label)} — ${v} titles"` : ""}
+                  >${v || ""}</div>`;
+        }).join("")}`).join("")}
+    </div>`;
+}
+
+/* Years: every collaboration plotted on a shared time axis, one lane per
+   person. Shows the shape of a working relationship -- a decade-long marriage
+   versus three films in one burst -- which no amount of node-and-edge does. */
+function renderYears() {
+  const el = $("#years");
+  if (!state.graph || !state.graph.edges.length) {
+    el.innerHTML = `<div class="empty">Pick somebody from the rail.</div>`;
+    return;
+  }
+  const rows = state.graph.edges.slice().sort((a, b) => b.shared - a.shared).slice(0, 40);
+  const years = rows.flatMap(r => r.titles.map(t => t.year)).filter(Boolean);
+  const lo = Math.min(...years), hi = Math.max(...years);
+  const span = Math.max(1, hi - lo);
+  const at = (y) => ((y - lo) / span) * 100;
+
+  const decades = [];
+  for (let y = Math.ceil(lo / 10) * 10; y <= hi; y += 10) decades.push(y);
+
+  const nameOf = id => (state.graph.nodes.find(n => n.id === id) || {}).label || id;
+
+  el.innerHTML = `
+    <h1 class="headline">${escapeHtml(state.graph.center_name)}</h1>
+    <p class="deck">Every collaboration on a common axis, ${lo}&ndash;${hi}.
+       One lane per person, one mark per title.</p>
+    <div class="tl">
+      <div class="tl-rule">
+        ${decades.map(y => `<span style="left:${at(y)}%">${y}</span>`).join("")}
+      </div>
+      ${rows.map(r => `
+        <div class="tl-row">
+          <span class="tl-name">${escapeHtml(nameOf(r.target))}</span>
+          <span class="tl-n">${r.shared}</span>
+          <span class="tl-track">
+            ${decades.map(y => `<i class="tl-grid" style="left:${at(y)}%"></i>`).join("")}
+            ${r.titles.filter(t => t.year).map(t => `
+              <i class="tl-dot" style="left:${at(t.year)}%"
+                 title="${escapeHtml(t.title)} (${t.year})${t.rating ? " · " + t.rating.toFixed(1) : ""}"></i>`).join("")}
+          </span>
+        </div>`).join("")}
+    </div>`;
+}
+
+function tick() {
+  if (sim && isRing()) {
+    for (const n of sim.nodes) {
+      if (n === dragging) continue;
+      n.x += (n.tx - n.x) * 0.14;      // ease onto the ring
+      n.y += (n.ty - n.y) * 0.14;
+    }
+  } else if (sim && sim.alpha > 0.005) {
+    const { nodes, edges } = sim;
+    // repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let d2 = dx * dx + dy * dy || 0.01;
+        const f = 9000 / d2;
+        const d = Math.sqrt(d2);
+        const fx = (dx / d) * f, fy = (dy / d) * f;
+        a.vx -= fx; a.vy -= fy; b.vx += fx; b.vy += fy;
+      }
+    }
+    // springs -- more shared titles pulls tighter
+    for (const e of edges) {
+      const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+      const d = Math.hypot(dx, dy) || 0.01;
+      const rest = 260 - Math.min(150, e.shared * 14);
+      const f = (d - rest) * 0.012;
+      const fx = (dx / d) * f, fy = (dy / d) * f;
+      e.s.vx += fx; e.s.vy += fy; e.t.vx -= fx; e.t.vy -= fy;
+    }
+    for (const n of nodes) {
+      if (n === dragging) { n.vx = n.vy = 0; continue; }
+      n.vx -= n.x * 0.004; n.vy -= n.y * 0.004;   // gentle gravity to origin
+      n.vx *= 0.86; n.vy *= 0.86;
+      n.x += n.vx * sim.alpha; n.y += n.vy * sim.alpha;
+    }
+    if (sim.center) { sim.center.x *= 0.7; sim.center.y *= 0.7; }
+    // Anneal, so the layout settles and stays clickable instead of drifting.
+    if (!dragging) sim.alpha *= 0.97;
+  }
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function fit() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", () => {
+  fit();
+  if (sim && isRing()) radialTargets();
+});
+
+function draw() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // contact-sheet grid
+  ctx.strokeStyle = "#171412"; ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 44) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 44) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke(); }
+
+  if (!sim) {
+    ctx.fillStyle = "#4a443d";
+    ctx.font = '13px "Avenir Next", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText("Search for a director, actor or cinematographer to begin.", w / 2, h / 2);
+    return;
+  }
+
+  const cx = w / 2 + pan.x, cy = h / 2 + pan.y;
+  const maxShared = Math.max(1, ...sim.edges.map(e => e.shared));
+
+  // Orbit bands, drawn first so everything else sits on top of them.
+  if (state.layout === "orbit" && sim.bands) {
+    ctx.strokeStyle = "#231e1a"; ctx.lineWidth = 1;
+    for (const r of sim.bands) {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // Collaborator-to-collaborator links: the mesh behind the spokes.
+  if (state.peers && sim.peers && sim.peers.length) {
+    const pMax = Math.max(1, ...sim.peers.map(p => p.shared));
+    for (const p of sim.peers) {
+      if (!p.s || !p.t) continue;
+      const on = hover && (hover === p.s || hover === p.t);
+      if (hover && !on) continue;            // hovering isolates one person's web
+      ctx.strokeStyle = on
+        ? `rgba(139,160,94,${0.25 + 0.55 * (p.shared / pMax)})`
+        : `rgba(139,160,94,${0.05 + 0.16 * (p.shared / pMax)})`;
+      ctx.lineWidth = on ? 1.4 : 0.35 + 1.1 * (p.shared / pMax);
+      ctx.beginPath();
+      ctx.moveTo(cx + p.s.x, cy + p.s.y);
+      if (state.layout === "chord") {
+        // Bow each arc toward the middle so parallel links stay separable.
+        ctx.quadraticCurveTo(cx + (p.s.x + p.t.x) * 0.18,
+                             cy + (p.s.y + p.t.y) * 0.18,
+                             cx + p.t.x, cy + p.t.y);
+      } else {
+        ctx.lineTo(cx + p.t.x, cy + p.t.y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  for (const e of sim.edges) {
+    const on = hover && (hover === e.s || hover === e.t);
+    ctx.strokeStyle = on ? "rgba(232,163,61,.75)" : `rgba(232,163,61,${0.06 + 0.3 * (e.shared / maxShared)})`;
+    ctx.lineWidth = on ? 1.8 : 0.4 + 2.2 * (e.shared / maxShared);
+    ctx.beginPath();
+    ctx.moveTo(cx + e.s.x, cy + e.s.y);
+    ctx.lineTo(cx + e.t.x, cy + e.t.y);
+    ctx.stroke();
+  }
+
+  for (const n of sim.nodes) {
+    const on = n === hover;
+    ctx.beginPath();
+    ctx.arc(cx + n.x, cy + n.y, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = n.center ? "#e8a33d" : (on ? "#ece5d9" : "#6d6157");
+    ctx.fill();
+    if (n.center || on) {
+      ctx.strokeStyle = "rgba(232,163,61,.5)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx + n.x, cy + n.y, n.r + 5, 0, Math.PI * 2); ctx.stroke();
+    }
+    const radial = isRing();
+    if (n.center || on || (radial ? n.labelled : n.r > 8)) {
+      ctx.fillStyle = n.center ? "#ece5d9" : (on ? "#e8a33d" : "#8a8078");
+      ctx.font = `${n.center ? 600 : 400} ${n.center ? 14 : 11.5}px "Avenir Next", sans-serif`;
+      if (radial && !n.center) {
+        // Each label runs along its own spoke, flipped on the left half so it
+        // still reads left-to-right. The joint-title count trails the name.
+        const flip = Math.cos(n.ang) < 0;
+        const gap = n.r + 7;
+        const wName = ctx.measureText(n.label).width;
+        ctx.save();
+        ctx.translate(cx + n.x, cy + n.y);
+        ctx.rotate(n.ang + (flip ? Math.PI : 0));
+        ctx.textAlign = flip ? "right" : "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(n.label, flip ? -gap : gap, 0);
+        ctx.fillStyle = on ? "#e8a33d" : "#7a6a4f";
+        ctx.font = '10px "SF Mono", ui-monospace, Menlo, monospace';
+        ctx.fillText(String(n.shared),
+          flip ? -(gap + wName + 5) : gap + wName + 5, 0);
+        ctx.restore();
+      } else {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(n.center ? n.label : `${n.label}  ${n.shared}`,
+          cx + n.x, cy + n.y - n.r - 8);
+      }
+    }
+  }
+}
+
+function nodeAt(mx, my) {
+  if (!sim) return null;
+  const cx = cv.clientWidth / 2 + pan.x, cy = cv.clientHeight / 2 + pan.y;
+  for (const n of sim.nodes) {
+    if (Math.hypot(cx + n.x - mx, cy + n.y - my) <= n.r + 6) return n;
+  }
+  return null;
+}
+
+cv.addEventListener("mousemove", (e) => {
+  const r = cv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  if (dragging) {
+    dragging.x = mx - cv.clientWidth / 2 - pan.x;
+    dragging.y = my - cv.clientHeight / 2 - pan.y;
+    return;
+  }
+  hover = nodeAt(mx, my);
+  cv.style.cursor = hover ? "pointer" : "grab";
+});
+cv.addEventListener("mousedown", (e) => {
+  const r = cv.getBoundingClientRect();
+  dragging = nodeAt(e.clientX - r.left, e.clientY - r.top);
+  if (dragging && sim) sim.alpha = Math.max(sim.alpha, 0.35);   // reheat on drag
+});
+window.addEventListener("mouseup", () => { dragging = null; });
+
+cv.addEventListener("click", (e) => {
+  const r = cv.getBoundingClientRect();
+  const n = nodeAt(e.clientX - r.left, e.clientY - r.top);
+  if (n && !n.center) openInspector(n);
+});
+cv.addEventListener("dblclick", (e) => {
+  const r = cv.getBoundingClientRect();
+  const n = nodeAt(e.clientX - r.left, e.clientY - r.top);
+  if (n && !n.center) { state.people = [{ nconst: n.id, name: n.label }]; renderChips(); refresh(); }
+});
+
+function openInspector(n) {
+  const e = sim.edges.find(x => x.target === n.id);
+  if (!e) return;
+  $("#inspBody").innerHTML = `
+    <h2>${escapeHtml(n.label)}</h2>
+    <p class="sub">${e.shared} title${e.shared === 1 ? "" : "s"} with ${escapeHtml(state.graph.center_name)}${
+      e.avg_rating ? ` &middot; avg ${e.avg_rating.toFixed(2)}` : ""}</p>
+    <ul class="filmstrip">${e.titles.map(t => `
+      <li><span class="yr">${t.year || "—"}</span>
+          <span class="ti">${escapeHtml(t.title)}<span class="ro">${escapeHtml(t.category || "")}</span></span>
+          <span class="rt">${t.rating ? t.rating.toFixed(1) : ""}</span></li>`).join("")}</ul>`;
+  $("#insp").setAttribute("data-open", "");
+}
+function closeInspector() { $("#insp").removeAttribute("data-open"); }
+$("#inspClose").onclick = closeInspector;
+
+/* ---------- util ---------------------------------------------------- */
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+renderChips();
+fit();
+tick();
+$("#q").focus();
+</script>
+</body>
+</html>
