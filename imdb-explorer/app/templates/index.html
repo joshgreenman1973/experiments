@@ -157,6 +157,12 @@
   .seg button:hover { color: var(--ink-dim); }
   .seg button[aria-selected="true"] { background: var(--amber); color: var(--bg); }
 
+  .mode-note {
+    font-size: 11.5px; line-height: 1.5; color: var(--ink-faint);
+    margin: 8px 0 0; min-height: 34px;
+  }
+  .mode-note b { color: var(--ink-dim); font-weight: 500; }
+
   .hint {
     font-size: 12px; line-height: 1.55; color: var(--ink-faint);
     border-left: 2px solid var(--rule); padding-left: 10px; margin-top: 22px;
@@ -320,9 +326,12 @@
 </div>
 
 <div class="top">
-  <button class="tab" data-view="graph" aria-selected="true">Collaborators</button>
-  <button class="tab" data-view="together" aria-selected="false">Worked together</button>
-  <button class="tab" data-view="family" aria-selected="false">Family</button>
+  <button class="tab" data-view="graph" aria-selected="true"
+    title="One person at the centre: everyone who recurs in their filmography, and how often. Uses the first name in the rail.">Collaborators</button>
+  <button class="tab" data-view="together" aria-selected="false"
+    title="Two or more people: every title in which all of them appear among the principals, with each one's role. Needs at least two names in the rail.">Worked together</button>
+  <button class="tab" data-view="family" aria-selected="false"
+    title="Kinship from Wikidata, which IMDb's bulk files do not carry at all — plus the films each pair actually appeared in together.">Family</button>
   <span class="status" id="status"></span>
 </div>
 
@@ -344,10 +353,11 @@
       <button data-layout="matrix" aria-selected="false">Matrix</button>
       <button data-layout="timeline" aria-selected="false">Years</button>
     </div>
+    <p class="mode-note" id="modeNote"></p>
   </div>
 
   <div class="ctl">
-    <label for="peers">
+    <label for="peers" title="Green lines joining the collaborators to each other, not to the centre. Counted within this person's own filmography: how many of these titles any two of them both worked on. Hover anyone to isolate their web.">
       <span>Links between collaborators</span>
       <input type="checkbox" id="peers" checked>
     </label>
@@ -714,7 +724,24 @@ function seed() {
   sim.alpha = 1;
 }
 
+/* What each view is actually doing differently, shown on hover and on select. */
+const MODE_NOTES = {
+  orbit: "<b>Four discrete tiers.</b> Everyone in a band worked together the same rough number of times; members spread evenly around it. Good for seeing who belongs to the inner circle.",
+  spiral: "<b>Radius shrinks continuously</b> with each shared title, and the order runs clockwise by count — one unbroken ranking from closest collaborator out to one-offs.",
+  force: "<b>No fixed geometry.</b> Springs pull frequent collaborators together and repulsion pushes the rest apart, so clusters emerge on their own rather than being imposed.",
+  chord: "<b>Everyone on one rim, distance discarded.</b> Only the arcs between people carry information — the clearest read on who works with whom, rather than with the hub.",
+  matrix: "<b>Numbers, not lines.</b> Every collaborator crossed against every other in a grid. Nothing overlaps, so pairs a tangled graph hides become legible.",
+  timeline: "<b>Time instead of space.</b> One lane per person across a shared axis, a mark per title — shows <em>when</em> a partnership ran and whether it lasted, which no node diagram can.",
+};
+
+const modeNote = (key) => { $("#modeNote").innerHTML = MODE_NOTES[key] || ""; };
+
 document.querySelectorAll("#layout button").forEach(b => {
+  const key = b.dataset.layout;
+  b.title = MODE_NOTES[key].replace(/<[^>]+>/g, "");
+  b.onmouseenter = () => modeNote(key);
+  b.onmouseleave = () => modeNote(state.layout);
+  b.onfocus = () => modeNote(key);
   b.onclick = () => {
     document.querySelectorAll("#layout button")
       .forEach(o => o.setAttribute("aria-selected", o === b));
@@ -724,6 +751,7 @@ document.querySelectorAll("#layout button").forEach(b => {
     Object.values(PANEL_LAYOUTS).forEach(sel => {
       $(sel).style.display = sel === panel ? "block" : "none";
     });
+    modeNote(state.layout);
     if (panel) {
       closeInspector();
       if (state.layout === "timeline") renderYears(); else renderMatrix();
@@ -1039,6 +1067,7 @@ function escapeHtml(s) {
 }
 
 renderChips();
+modeNote(state.layout);
 fit();
 tick();
 $("#q").focus();
