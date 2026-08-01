@@ -1,8 +1,10 @@
 # Sasha's Dollhouse
 
+**Live: https://joshgreenman1973.github.io/experiments/sasha-dollhouse/** — add it to the tablet home screen from the browser share menu and it opens full-screen with its own icon, and works offline after the first visit.
+
 A low-demand social-communication game for Sasha — 5, autistic, hyperlexic with excellent decoding, a gestalt language processor, probable perfect pitch, particular about music, strong at math and interested in Spanish.
 
-**One file: `index.html`.** No build step, no dependencies, no network calls except the Fredoka webfont. Open it in a browser and it runs. Nothing is uploaded anywhere; the only stored state is a count of which phrases she has picked, in `localStorage` under `th_said`.
+**Files:** `index.html` (the whole app), `sw.js` (offline cache), `manifest.webmanifest` + `icon.svg` (home-screen install). No build step. Nothing is uploaded anywhere; state lives in `localStorage` only: `th_said` (phrase counts), `th_visited` (rooms visited today), `th_voice` (chosen voice), `th_stage` (growth dial), `th_custom` (parent-added phrases).
 
 ---
 
@@ -44,7 +46,21 @@ The current hub is a menu of cards. The bigger version is an actual dollhouse:
 
 Item 1–2 are the design overhaul; 5 is cheap and high-value; 4 is an evening's work.
 
-**Not done — pick up here:**
+**Second session pass (same day), all verified in browser and deployed:**
+- **Front door screen**: house facade on a grass hill with flowers, characters peeking from windows, chimney smoke, day/night sky (stars + moon after 8pm), doorbell two-note chime on tap.
+- **Hub is now a house**: roof + attic sun/moon + chimney over an even 2×4 room grid; cards tilt alternately; portraits bob; visited rooms get a star (resets daily).
+- **Two new rooms**: **The game room** (Mo hosts; 3 scenes quietly about not getting what you want — someone else picks, the spinner decides, someone else goes first; the rule holds, the feeling is named and survivable, refusal acknowledged without changing the outcome) and **The ice cream porch** (Gertrude the duck, 7½, and Bartholomew the frog, 7 — Josh's own characters, best friends, second grade at the Benjamin Franklin school).
+- **Ages everywhere**: every character has an age, shown in scene pickers ("with Pim · age 5"); Uno has an ages scene (Mo 4, Pim 5, Poppy 6 consecutive; Coco 100).
+- **20 scenes total** (was 10), including a mishearing-repair scene and a Coco wrong-note scene for her ear.
+- **Grows-with-her stage dial** (grown-ups page): A whole phrases → B swappable chunk highlighted orange inside scene choices → C every choice adds "I have my own thing to say." Never switches itself; shows usage stats (distinct phrases, total picks) and suggests considering B after 15 distinct phrases.
+- **Parent-added phrases**: form on grown-ups page, brackets mark the swappable slot ("We can fix [the truck]"), becomes a card + builder under a "Sasha's own" filter.
+- **Print cards** button on My phrases (print stylesheet → fridge cards).
+- **Richer character art**: stripes, bell collar, bow, freckles, antennae, blush, band-aid, dice pips — verified cohesive on screen, not cluttered.
+- **PWA**: manifest, SVG icon, service worker (cache-first incl. fonts).
+- **Deployed** to joshgreenman1973/experiments on main (commit e7b69240). Manifest CI will pick it up.
+- **Nano banana art blocked**: Josh's Gemini key is free-tier (quota 0 for image models, $0 spent). If he enables billing, generate 8 consistent portraits (~$0.40 flash) and swap into the avatar slots, keeping SVGs as fallback.
+
+**Original session — not done, now superseded or still open:**
 
 1. **Never opened in a browser.** It was written but not run. First thing to do is load it and click through every room. Likely small bugs, not structural ones.
 2. **Known suspect spots** worth checking first:
