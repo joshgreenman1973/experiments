@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Sasha's Dollhouse</title>
+<meta name="description" content="A low-demand talking game for gestalt language processors who read early. Whole phrases, written big, in rooms full of friends.">
+<meta name="theme-color" content="#FBF3E4">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sasha's Dollhouse">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23FBF3E4'/%3E%3Cpath d='M50 16 L86 46 L82 46 L82 84 L18 84 L18 46 L14 46 Z' fill='%23E4739B'/%3E%3Crect x='42' y='58' width='16' height='26' rx='3' fill='%23FBF3E4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FBF3E4; --paper:#FFFDF7; --ink:#2E2A3B; --ink-soft:#6B6480;
+  --rose:#E4739B; --rose-pale:#FBDCE7;
+  --marigold:#F0A22E; --marigold-pale:#FDE9CB;
+  --teal:#2F9E97; --teal-pale:#CFEDEA;
+  --grape:#7C6BC4; --grape-pale:#E2DDF6;
+  --leaf:#69B25C; --leaf-pale:#DBEFD6;
+  --sky:#4E96D1; --sky-pale:#D6E8F7;
+  --shadow:rgba(46,42,59,.16);
+  --r:26px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Fredoka',ui-rounded,'SF Pro Rounded',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background-color:var(--cream); color:var(--ink);
+  background-image:radial-gradient(rgba(228,115,155,.09) 3px,transparent 3.5px);
+  background-size:38px 38px;
+  font-size:18px; line-height:1.35;
+  overscroll-behavior:none;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;touch-action:manipulation}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+
+/* ---------- top bar ---------- */
+.bar{
+  position:sticky;top:0;z-index:50;background:var(--cream);
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px 10px;max-width:1080px;margin:0 auto;
+  border-bottom:3px solid rgba(46,42,59,.08);
+}
+.home-btn{
+  display:flex;align-items:center;gap:8px;
+  background:var(--paper);border:3px solid var(--ink);border-radius:999px;
+  padding:8px 18px 8px 14px;font-weight:600;font-size:17px;
+  box-shadow:0 3px 0 var(--ink);
+}
+.home-btn:active{transform:translateY(3px);box-shadow:none}
+.bar .spacer{flex:1}
+.toggle{
+  background:var(--paper);border:3px solid var(--ink);border-radius:999px;
+  padding:8px 16px;font-weight:600;font-size:16px;box-shadow:0 3px 0 var(--ink);
+}
+.toggle:active{transform:translateY(3px);box-shadow:none}
+.toggle[aria-pressed="true"]{background:var(--marigold);}
+.wordmark{font-weight:700;font-size:22px;letter-spacing:-.01em}
+.wordmark span{color:var(--rose)}
+
+/* ---------- house ---------- */
+.hero{padding:22px 4px 8px}
+.hero h1{font-size:clamp(38px,9vw,60px);margin:0;line-height:.98;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;color:var(--rose)}
+.hero p{margin:10px 0 0;font-size:19px;color:var(--ink-soft);max-width:34ch}
+
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:22px}
+.room{
+  position:relative;text-align:left;border:4px solid var(--ink);border-radius:var(--r);
+  padding:18px 18px 16px;box-shadow:0 6px 0 var(--ink);
+  display:flex;flex-direction:column;gap:6px;min-height:168px;overflow:hidden;
+}
+.room:active{transform:translateY(6px);box-shadow:none}
+.room .rn{font-size:27px;font-weight:700;line-height:1.05}
+.room .rd{font-size:16px;color:rgba(46,42,59,.72);font-weight:500;max-width:20ch}
+.room .rc{position:absolute;right:-10px;bottom:-14px;width:104px;height:104px;opacity:.95}
+.room .cnt{
+  margin-top:auto;font-size:14px;font-weight:600;background:rgba(255,253,247,.85);
+  border-radius:999px;padding:3px 12px;align-self:flex-start;border:2px solid var(--ink);
+}
+
+/* ---------- scene ---------- */
+.scene-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:18px 4px 4px}
+.scene-head h2{font-size:clamp(28px,6.5vw,40px);margin:0;letter-spacing:-.02em}
+.scene-head .where{font-size:16px;font-weight:600;color:var(--ink-soft)}
+
+.strip{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.beat{display:flex;gap:12px;align-items:flex-end;animation:pop .28s ease-out}
+.beat.mine{flex-direction:row-reverse}
+@keyframes pop{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.av{width:74px;height:74px;flex:none;border-radius:50%;border:4px solid var(--ink);background:var(--paper);overflow:hidden}
+.av svg{display:block;width:100%;height:100%}
+.bub{
+  position:relative;background:var(--paper);border:4px solid var(--ink);border-radius:24px;
+  padding:14px 18px;max-width:min(640px,78%);box-shadow:0 4px 0 var(--ink);
+}
+.bub .name{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.55;margin-bottom:2px}
+.bub .line{font-size:clamp(23px,5.2vw,30px);font-weight:600;line-height:1.2;letter-spacing:-.01em}
+.bub .es{margin-top:6px;font-size:19px;font-weight:500;color:var(--teal)}
+.bub .say{
+  margin-top:10px;font-size:15px;font-weight:600;border:3px solid var(--ink);border-radius:999px;
+  padding:4px 14px;background:var(--cream);
+}
+.beat.mine .bub{background:var(--marigold-pale)}
+
+/* ---------- choices ---------- */
+.choices{margin-top:6px}
+.choices .prompt{
+  font-size:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);margin:18px 0 10px;text-align:right;padding-right:8px;
+}
+.opts{display:grid;gap:12px}
+.opt{
+  display:block;width:100%;text-align:left;border:4px solid var(--ink);border-radius:22px;
+  padding:16px 18px;box-shadow:0 5px 0 var(--ink);background:var(--paper);
+}
+.opt:active{transform:translateY(5px);box-shadow:none}
+.opt .fn{
+  display:inline-block;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  border:2px solid var(--ink);border-radius:999px;padding:1px 10px;margin-bottom:7px;background:var(--paper);
+}
+.opt .txt{font-size:clamp(22px,5vw,29px);font-weight:600;line-height:1.18;letter-spacing:-.01em}
+.opt .esx{margin-top:5px;font-size:18px;font-weight:500;color:var(--teal)}
+
+.fn-greet{background:var(--marigold-pale)} .opt.greet{background:var(--marigold-pale)}
+.fn-ask{background:var(--teal-pale)}      .opt.ask{background:var(--teal-pale)}
+.fn-no{background:var(--rose-pale)}       .opt.no{background:var(--rose-pale)}
+.fn-tell{background:var(--grape-pale)}    .opt.tell{background:var(--grape-pale)}
+.fn-fix{background:var(--sky-pale)}       .opt.fix{background:var(--sky-pale)}
+
+.done-card{
+  margin-top:26px;border:4px solid var(--ink);border-radius:var(--r);background:var(--leaf-pale);
+  padding:22px;box-shadow:0 6px 0 var(--ink);text-align:center;
+}
+.done-card .big{font-size:32px;font-weight:700}
+.done-card .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.pill{
+  border:4px solid var(--ink);border-radius:999px;padding:11px 22px;font-weight:600;font-size:18px;
+  background:var(--paper);box-shadow:0 4px 0 var(--ink);
+}
+.pill:active{transform:translateY(4px);box-shadow:none}
+.pill.go{background:var(--marigold)}
+
+/* ---------- scene picker ---------- */
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:18px}
+.sc{
+  text-align:left;border:4px solid var(--ink);border-radius:22px;background:var(--paper);
+  padding:16px;box-shadow:0 5px 0 var(--ink);display:flex;gap:12px;align-items:center;
+}
+.sc:active{transform:translateY(5px);box-shadow:none}
+.sc .mini{width:56px;height:56px;flex:none;border-radius:50%;border:3px solid var(--ink);overflow:hidden}
+.sc .mini svg{display:block;width:100%;height:100%}
+.sc .t{font-size:21px;font-weight:600;line-height:1.15}
+.sc .s{font-size:15px;color:var(--ink-soft);font-weight:500;margin-top:2px}
+
+/* ---------- phrase bank ---------- */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+.chip{
+  border:3px solid var(--ink);border-radius:999px;padding:7px 16px;font-weight:600;font-size:16px;
+  background:var(--paper);box-shadow:0 3px 0 var(--ink);
+}
+.chip:active{transform:translateY(3px);box-shadow:none}
+.chip[aria-pressed="true"]{box-shadow:none;transform:translateY(3px)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:14px}
+.card{
+  border:4px solid var(--ink);border-radius:22px;padding:16px;box-shadow:0 5px 0 var(--ink);
+  text-align:left;background:var(--paper);
+}
+.card:active{transform:translateY(5px);box-shadow:none}
+.card .p{font-size:clamp(21px,4.6vw,26px);font-weight:600;line-height:1.18}
+.card .pe{font-size:17px;font-weight:500;color:var(--teal);margin-top:4px}
+.card .hint{font-size:14px;font-weight:600;color:var(--ink-soft);margin-top:9px}
+
+/* ---------- builder (mitigation) ---------- */
+.builder{border:4px solid var(--ink);border-radius:var(--r);background:var(--paper);padding:20px;box-shadow:0 6px 0 var(--ink);margin-top:16px}
+.whole{font-size:clamp(28px,6.4vw,40px);font-weight:700;line-height:1.15;letter-spacing:-.02em}
+.split{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.part{border:4px solid var(--ink);border-radius:16px;padding:10px 16px;font-size:clamp(21px,4.6vw,28px);font-weight:600;background:var(--cream)}
+.part.slot{background:var(--marigold);border-style:dashed}
+.swaps{display:grid;gap:10px;margin-top:18px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.swap{border:4px solid var(--ink);border-radius:16px;padding:12px 14px;font-size:21px;font-weight:600;background:var(--teal-pale);box-shadow:0 4px 0 var(--ink);text-align:left}
+.swap:active{transform:translateY(4px);box-shadow:none}
+.swap[aria-pressed="true"]{background:var(--marigold)}
+
+/* ---------- music ---------- */
+.keys{display:flex;gap:6px;margin-top:18px;overflow-x:auto;padding-bottom:8px}
+.key{
+  flex:none;width:64px;height:170px;border:4px solid var(--ink);border-radius:0 0 16px 16px;
+  background:var(--paper);display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px;
+  font-weight:700;font-size:20px;box-shadow:0 5px 0 var(--ink);
+}
+.key.sharp{background:var(--ink);color:var(--cream);height:130px;width:52px}
+.key:active,.key.lit{transform:translateY(5px);box-shadow:none;background:var(--marigold);color:var(--ink)}
+.notebox{
+  margin-top:18px;border:4px solid var(--ink);border-radius:var(--r);background:var(--grape-pale);
+  padding:24px;text-align:center;box-shadow:0 6px 0 var(--ink);
+}
+.notebox .n{font-size:76px;font-weight:700;line-height:1}
+.notebox .hz{font-size:17px;font-weight:600;color:var(--ink-soft);margin-top:4px}
+.singrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:flex-end}
+.singnote{border:4px solid var(--ink);border-radius:16px;padding:10px 14px;background:var(--paper);text-align:center;box-shadow:0 4px 0 var(--ink)}
+.singnote .w{font-size:22px;font-weight:600}
+.singnote .nn{font-size:14px;font-weight:700;color:var(--rose);letter-spacing:.06em}
+.singnote.lit{background:var(--marigold);transform:translateY(4px);box-shadow:none}
+
+/* ---------- numbers ---------- */
+.numgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:10px;margin-top:16px}
+.num{border:4px solid var(--ink);border-radius:18px;padding:14px 0;font-size:30px;font-weight:700;background:var(--leaf-pale);box-shadow:0 5px 0 var(--ink)}
+.num:active,.num[aria-pressed="true"]{transform:translateY(5px);box-shadow:none;background:var(--marigold)}
+.sentbox{border:4px solid var(--ink);border-radius:var(--r);background:var(--paper);padding:22px;box-shadow:0 6px 0 var(--ink);margin-top:18px}
+.sentbox .s1{font-size:clamp(26px,5.8vw,36px);font-weight:600;line-height:1.2}
+.sentbox .s2{font-size:clamp(20px,4.4vw,26px);font-weight:500;color:var(--teal);margin-top:8px}
+.dots{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px;max-width:420px}
+.dots i{width:26px;height:26px;border-radius:50%;background:var(--rose);border:3px solid var(--ink);display:block}
+
+/* ---------- grown-ups ---------- */
+.gu{max-width:720px;font-size:17.5px;line-height:1.6}
+.gu h2{font-size:30px;margin:30px 0 8px;letter-spacing:-.02em}
+.gu h3{font-size:21px;margin:22px 0 4px}
+.gu p{margin:8px 0}
+.gu ul{margin:8px 0;padding-left:22px}
+.gu li{margin:6px 0}
+.gu a{color:var(--rose);font-weight:600}
+.gu .note{border-left:6px solid var(--marigold);padding:4px 0 4px 16px;background:rgba(240,162,46,.09);border-radius:0 12px 12px 0;margin:14px 0}
+.gu code{background:var(--grape-pale);padding:1px 6px;border-radius:6px;font-size:.92em}
+
+/* ---------- ai caution ---------- */
+.ai-caution-btn{
+  position:fixed;right:14px;bottom:14px;z-index:80;background:#7A1F2B;color:#fff;
+  border-radius:999px;padding:9px 16px;font-weight:600;font-size:14px;box-shadow:0 4px 12px var(--shadow);
+}
+.ai-caution-pop{
+  position:fixed;right:14px;bottom:60px;z-index:81;background:#1B2440;color:#E8ECF7;
+  border-radius:16px;padding:16px 18px;max-width:min(400px,calc(100vw - 28px));
+  font-size:14px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+.ai-caution-pop ul{margin:8px 0 0;padding-left:18px}
+.ai-caution-pop li{margin:6px 0}
+.ai-caution-pop a{color:#9FC4FF}
+
+/* ---------- front door ---------- */
+#door{position:fixed;inset:0;z-index:200;display:flex;align-items:flex-end;justify-content:center;background:linear-gradient(#BFE0F2,#FBF3E4 72%);transition:opacity .5s;cursor:pointer}
+body[data-daypart="evening"] #door{background:linear-gradient(#F6C48E,#FBF3E4 72%)}
+body[data-daypart="night"] #door{background:linear-gradient(#31356E,#8E86B8 78%)}
+#door.gone{opacity:0;pointer-events:none}
+.facade{width:min(400px,86vw);text-align:center}
+.f-roof{height:104px;background:var(--rose);clip-path:polygon(50% 0,100% 100%,0 100%);position:relative;margin:0 -12px}
+.f-attic{position:absolute;left:50%;top:42px;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:var(--paper);border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:21px}
+.f-body{background:var(--marigold-pale);border:5px solid var(--ink);border-radius:0 0 26px 26px;padding:20px 20px 0;box-shadow:0 8px 0 var(--ink)}
+.f-windows{display:flex;justify-content:space-between;gap:10px;margin-bottom:14px}
+.f-win{width:62px;height:62px;border-radius:14px;border:4px solid var(--ink);background:var(--sky-pale);overflow:hidden}
+.f-win svg{display:block;width:100%;height:100%}
+.f-plaque{background:var(--paper);border:3px solid var(--ink);border-radius:999px;font-weight:700;padding:4px 16px;margin:0 auto 10px;display:inline-block;font-size:18px}
+.f-doorway{width:148px;margin:0 auto;perspective:700px}
+.fdoor{height:185px;background:var(--rose);border:5px solid var(--ink);border-radius:14px 14px 0 0;transform-origin:left center;transition:transform .65s cubic-bezier(.5,0,.3,1);position:relative}
+.fdoor::after{content:'';position:absolute;right:13px;top:50%;width:12px;height:12px;border-radius:50%;background:var(--marigold);border:3px solid var(--ink)}
+#door.open .fdoor{transform:rotateY(-85deg)}
+.f-hint{margin-top:16px;font-weight:600;color:var(--ink-soft);font-size:17px}
+body[data-daypart="night"] .f-hint{color:#EDEAF8}
+
+/* ---------- house frame ---------- */
+.housef{margin-top:22px}
+.h-roof{height:80px;background:var(--rose);clip-path:polygon(50% 0,100% 100%,0 100%);position:relative;margin:0 10px -4px}
+.h-attic{position:absolute;left:50%;top:32px;transform:translateX(-50%);width:40px;height:40px;border-radius:50%;background:var(--paper);border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:19px}
+.housef .rooms{margin-top:0;border:5px solid var(--ink);border-radius:0 0 30px 30px;padding:14px;background:var(--paper);grid-template-columns:repeat(2,1fr)}
+@media (max-width:560px){.housef .rooms{gap:10px;padding:10px}.room{min-height:138px}.room .rn{font-size:20px}.room .rc{width:72px;height:72px}}
+.visited{position:absolute;top:10px;right:12px;font-size:20px}
+
+/* ---------- quirk pass: tilt, bob, smoke, tails ---------- */
+.hero h1 em{display:inline-block;transform:rotate(-2.5deg)}
+.rooms .room:nth-child(odd){transform:rotate(-1deg)}
+.rooms .room:nth-child(even){transform:rotate(1deg)}
+.rooms .room:active{transform:translateY(6px) rotate(0deg)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.room .rc{animation:bob 3.6s ease-in-out infinite}
+.rooms .room:nth-child(2) .rc{animation-delay:.5s}
+.rooms .room:nth-child(3) .rc{animation-delay:1.1s}
+.rooms .room:nth-child(4) .rc{animation-delay:1.6s}
+.rooms .room:nth-child(5) .rc{animation-delay:2.2s}
+.rooms .room:nth-child(6) .rc{animation-delay:2.7s}
+.rooms .room:nth-child(7) .rc{animation-delay:3.1s}
+/* ground under the front-door house so the sky doesn't just hang there */
+#door::after{content:'';position:absolute;left:0;right:0;bottom:0;height:16vh;
+  background:#69B25C;border-top:5px solid var(--ink);
+  border-radius:50% 50% 0 0 / 26px 26px 0 0}
+body[data-daypart="night"] #door::after{background:#3E7A35}
+.facade{z-index:1;margin-bottom:11vh}
+.f-flower{position:absolute;bottom:calc(16vh - 14px);font-size:30px;z-index:1}
+.f-flower.fl1{left:8%}.f-flower.fl2{left:20%;font-size:23px}.f-flower.fl3{right:9%}.f-flower.fl4{right:22%;font-size:23px}
+.f-star{position:absolute;color:#F5D547;font-size:20px;display:none}
+body[data-daypart="night"] .f-star{display:block}
+.f-star.s1{top:9%;left:12%}.f-star.s2{top:16%;right:14%;font-size:14px}.f-star.s3{top:6%;right:34%}.f-star.s4{top:24%;left:28%;font-size:13px}
+.housef{position:relative}
+.h-chim{position:absolute;top:-24px;left:21%;width:30px;height:54px;background:var(--sky);border:4px solid var(--ink);border-radius:6px 6px 0 0}
+.f-chim{position:absolute;top:8px;left:20%;width:28px;height:60px;background:var(--grape);border:4px solid var(--ink);border-radius:6px 6px 0 0}
+.facade{position:relative}
+@keyframes puff{0%{transform:translateY(0) scale(.6);opacity:0}30%{opacity:.9}100%{transform:translateY(-36px) scale(1.5);opacity:0}}
+.puff{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(46,42,59,.18);animation:puff 3.2s infinite}
+.h-puff1{top:-40px;left:calc(21% + 6px)} .h-puff2{top:-40px;left:calc(21% + 16px);animation-delay:1.4s}
+.f-puff1{top:-8px;left:calc(20% + 5px)} .f-puff2{top:-8px;left:calc(20% + 15px);animation-delay:1.4s}
+@keyframes hintbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.f-hint{animation:hintbob 1.8s ease-in-out infinite}
+.bub::before{content:'';position:absolute;left:-12px;bottom:22px;width:16px;height:16px;background:inherit;
+  border-left:4px solid var(--ink);border-bottom:4px solid var(--ink);border-bottom-left-radius:5px;transform:rotate(45deg)}
+.beat.mine .bub::before{left:auto;right:-12px;border-left:none;border-bottom:none;
+  border-right:4px solid var(--ink);border-top:4px solid var(--ink);border-top-right-radius:5px;transform:rotate(45deg)}
+.slotmark{background:var(--marigold);border-radius:6px;padding:0 5px}
+
+/* ---------- daypart tint ---------- */
+body[data-daypart="morning"]{--cream:#FDF4DB}
+body[data-daypart="evening"]{--cream:#FAE8D9}
+body[data-daypart="night"]{--cream:#E9E4F4}
+
+/* ---------- add-a-phrase form ---------- */
+.addform{border:4px solid var(--ink);border-radius:20px;background:var(--paper);padding:16px;margin:12px 0}
+.addform label{display:block;font-weight:600;font-size:15px;margin:10px 0 4px}
+.addform input,.addform select{width:100%;font-family:inherit;font-size:17px;padding:9px 12px;border:3px solid var(--ink);border-radius:12px;background:var(--cream)}
+.addform .mini-item{display:flex;align-items:center;gap:8px;border-top:2px dashed rgba(46,42,59,.2);padding:8px 0;font-size:16px;margin-top:8px}
+.addform .mini-item button{margin-left:auto;font-weight:700;border:2px solid var(--ink);border-radius:999px;padding:2px 10px;background:var(--rose-pale)}
+
+/* ---------- print (phrase cards for the fridge) ---------- */
+@media print{
+  .bar,.filters,.hint,.scene-head .where,.pill,.visited{display:none!important}
+  body{background:#fff}
+  .cards{grid-template-columns:repeat(3,1fr);gap:8px}
+  .card{box-shadow:none;break-inside:avoid}
+}
+
+.view{display:none}.view.on{display:block}
+@media (max-width:520px){
+  .av{width:58px;height:58px;border-width:3px}
+  .bub{max-width:82%}
+  .room{min-height:150px}
+}
+</style>
+</head>
+<body>
+
+<div id="door">
+  <span class="f-star s1">&#10022;</span><span class="f-star s2">&#10022;</span><span class="f-star s3">&#10022;</span><span class="f-star s4">&#10022;</span>
+  <span class="f-flower fl1">&#127799;</span><span class="f-flower fl2">&#127793;</span><span class="f-flower fl3">&#127803;</span><span class="f-flower fl4">&#127793;</span>
+  <div class="facade">
+    <div class="f-chim"></div><div class="puff f-puff1"></div><div class="puff f-puff2"></div>
+    <div class="f-roof"><div class="f-attic" id="doorAttic">&#9728;&#65039;</div></div>
+    <div class="f-body">
+      <div class="f-windows" id="doorWins"></div>
+      <div class="f-plaque">Sasha's Dollhouse</div>
+      <div class="f-doorway"><div class="fdoor"></div></div>
+    </div>
+    <div class="f-hint">Knock knock! Tap the door to come in.</div>
+  </div>
+</div>
+
+<div class="bar">
+  <button class="home-btn" id="homeBtn"><span aria-hidden="true">&#127968;</span> House</button>
+  <div class="spacer"></div>
+  <button class="toggle" id="esBtn" aria-pressed="false">Español</button>
+  <button class="toggle" id="voiceBtn" aria-pressed="true">Voice on</button>
+</div>
+
+<div class="wrap">
+
+<!-- ============ HOUSE ============ -->
+<section class="view on" id="v-house">
+  <div class="hero">
+    <h1>Sasha's <em>Dollhouse</em></h1>
+    <p>Seven rooms, one porch, eight friends. Every friend says something, and you get to pick what you say back.</p>
+  </div>
+  <div class="housef">
+    <div class="h-chim"></div><div class="puff h-puff1"></div><div class="puff h-puff2"></div>
+    <div class="h-roof"><div class="h-attic" id="atticSun">&#9728;&#65039;</div></div>
+    <div class="rooms" id="roomGrid"></div>
+  </div>
+  <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
+    <button class="pill" data-go="phrases">My phrases</button>
+    <button class="pill" data-go="grownups">For grown-ups</button>
+  </div>
+</section>
+
+<!-- ============ ROOM ============ -->
+<section class="view" id="v-room">
+  <div class="scene-head"><h2 id="roomTitle"></h2><span class="where" id="roomSub"></span></div>
+  <div class="picker" id="scenePicker"></div>
+</section>
+
+<!-- ============ SCENE ============ -->
+<section class="view" id="v-scene">
+  <div class="scene-head"><h2 id="sceneTitle"></h2><span class="where" id="sceneWhere"></span></div>
+  <div class="strip" id="strip"></div>
+  <div class="choices" id="choices"></div>
+</section>
+
+<!-- ============ PHRASES ============ -->
+<section class="view" id="v-phrases">
+  <div class="scene-head"><h2>My phrases</h2><span class="where">Tap a phrase to hear it. Tap again to take it apart.</span><button class="pill" id="printCards" style="margin-left:auto">Print cards</button></div>
+  <div class="filters" id="phraseFilters"></div>
+  <div class="cards" id="phraseCards"></div>
+</section>
+
+<!-- ============ BUILDER ============ -->
+<section class="view" id="v-build">
+  <div class="scene-head"><h2>Take it apart</h2><span class="where">Same beginning, different ending.</span></div>
+  <div class="builder" id="builder"></div>
+  <div style="margin-top:18px"><button class="pill" data-go="phrases">&#8592; All my phrases</button></div>
+</section>
+
+<!-- ============ MUSIC ============ -->
+<section class="view" id="v-music">
+  <div class="scene-head"><h2>The music room</h2><span class="where">Coco keeps the notes in here.</span></div>
+  <div class="notebox"><div class="n" id="noteName">&#9834;</div><div class="hz" id="noteHz">Play a key</div></div>
+  <div class="keys" id="keys"></div>
+  <h3 style="margin:26px 0 0;font-size:25px">Sing a phrase</h3>
+  <p style="margin:4px 0 0;color:var(--ink-soft);font-size:17px">Every word gets a note. The notes go up. You can sing it, or just listen, or skip it.</p>
+  <div id="singPick" class="filters"></div>
+  <div class="singrow" id="singRow"></div>
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="pill go" id="playMelody">Play the notes</button>
+    <button class="pill" id="saySpoken">Just say it</button>
+  </div>
+</section>
+
+<!-- ============ NUMBERS ============ -->
+<section class="view" id="v-numbers">
+  <div class="scene-head"><h2>The number room</h2><span class="where">Uno turns numbers into sentences.</span></div>
+  <div class="numgrid" id="numGrid"></div>
+  <div class="filters" id="thingPick" style="margin-top:18px"></div>
+  <div class="sentbox">
+    <div class="s1" id="numSent">Pick a number.</div>
+    <div class="s2" id="numSentEs"></div>
+    <div class="dots" id="numDots"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="pill go" id="numSay">Say it</button>
+      <button class="pill" id="numTimes">Times tables</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GROWN-UPS ============ -->
+<section class="view" id="v-grownups">
+  <div class="scene-head"><h2>For grown-ups</h2></div>
+  <div class="gu" id="guBody"></div>
+</section>
+
+</div>
+
+<script>
+/* ============================================================
+   TALK HOUSE
+   A low-demand talking game for an early-reading gestalt
+   language processor. Text is the primary channel; audio is
+   optional support. Nothing here is timed, scored or failable.
+   ============================================================ */
+
+/* ---------------- characters (all original) ---------------- */
+/* Ages matter in this house: Sasha likes to talk about how old people are.
+   Mo 4 (younger), Pim 5 (same as Sasha), Poppy 6 — consecutive on purpose.
+   Uno stopped at 12 because it is his favorite number. Dr. Bo is a grown-up.
+   Coco is 100; birds have a lot of birthdays. */
+const CHARS = {
+  poppy:{name:'Poppy', age:6,   kind:'a small orange cat', color:'#F0A22E'},
+  bo:   {name:'Dr. Bo', age:39, kind:'a rabbit who fixes toys', color:'#CFEDEA'},
+  pim:  {name:'Pim', age:5,     kind:'a pig with a big family', color:'#FBDCE7'},
+  mo:   {name:'Mo', age:4,      kind:'a big soft monster', color:'#4E96D1'},
+  uno:  {name:'Uno', age:12,    kind:'a stack of number cubes', color:'#69B25C'},
+  coco: {name:'Coco', age:100,  kind:'a bird full of songs', color:'#E4739B'},
+  gertrude:{name:'Gertrude', age:'7½', kind:'a duck in second grade', color:'#F5D547'},
+  bart: {name:'Bartholomew', age:7, kind:'a frog in second grade', color:'#69B25C'},
+  you:  {name:'You', age:5, kind:'you', color:'#F0A22E'}
+};
+
+function svgFor(id){
+  const E='<circle cx="34" cy="42" r="6" fill="#2E2A3B"/><circle cx="66" cy="42" r="6" fill="#2E2A3B"/>'+
+          '<circle cx="36" cy="40" r="2" fill="#fff"/><circle cx="68" cy="40" r="2" fill="#fff"/>';
+  const S='<path d="M40 60 q10 10 20 0" stroke="#2E2A3B" stroke-width="4" fill="none" stroke-linecap="round"/>';
+  const blush=(y=56)=>`<circle cx="25" cy="${y}" r="6" fill="#E4739B" opacity=".3"/><circle cx="75" cy="${y}" r="6" fill="#E4739B" opacity=".3"/>`;
+  const head=(c)=>`<circle cx="50" cy="50" r="34" fill="${c}"/>`;
+  // transparent background: .av supplies the paper circle, room cards let their own color show through
+  const B=(inner)=>`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+  switch(id){
+    case 'poppy': return B(
+      '<path d="M22 30 L26 8 L44 22 Z" fill="#F0A22E"/><path d="M78 30 L74 8 L56 22 Z" fill="#F0A22E"/>'+
+      '<path d="M27 12 L30 22 L38 18 Z" fill="#E4739B"/>'+
+      head('#F0A22E')+
+      '<path d="M38 20 q3 8 0 12 M50 17 q2 8 0 13 M62 20 q-3 8 0 12" stroke="#D68617" stroke-width="4" fill="none" stroke-linecap="round"/>'+
+      '<path d="M22 52 H6 M22 58 H8 M78 52 H94 M78 58 H92" stroke="#2E2A3B" stroke-width="3" stroke-linecap="round"/>'+
+      '<path d="M46 54 h8 l-4 5 z" fill="#E4739B"/>'+E+S+blush()+
+      '<path d="M26 77 q24 12 48 0 l0 7 q-24 10 -48 0 z" fill="#E4739B"/>'+
+      '<circle cx="50" cy="87" r="5.5" fill="#F5D547" stroke="#2E2A3B" stroke-width="2.5"/>');
+    case 'bo': return B(
+      '<rect x="28" y="0" width="13" height="36" rx="6.5" fill="#EFEAF6"/><ellipse cx="34.5" cy="18" rx="3.5" ry="12" fill="#F5B7CC"/>'+
+      '<g transform="rotate(14 64 18)"><rect x="58" y="0" width="13" height="36" rx="6.5" fill="#EFEAF6"/><ellipse cx="64.5" cy="18" rx="3.5" ry="12" fill="#F5B7CC"/></g>'+
+      head('#EFEAF6')+
+      '<rect x="62" y="50" width="17" height="8" rx="4" transform="rotate(-24 70 54)" fill="#F5D547" stroke="#2E2A3B" stroke-width="2"/>'+
+      '<path d="M46 54 h8 l-4 5 z" fill="#E4739B"/>'+E+S+blush()+
+      '<circle cx="50" cy="87" r="11" fill="#2F9E97"/><path d="M45 87 h10 M50 82 v10" stroke="#FFFDF7" stroke-width="3" stroke-linecap="round"/>');
+    case 'pim': return B(
+      '<path d="M38 15 q-13 -11 -19 1 q10 7 19 3 z" fill="#E4739B"/><path d="M62 15 q13 -11 19 1 q-10 7 -19 3 z" fill="#E4739B"/><circle cx="50" cy="14" r="5.5" fill="#E4739B" stroke="#2E2A3B" stroke-width="2.5"/>'+
+      head('#F5B7CC')+
+      '<ellipse cx="50" cy="56" rx="15" ry="11" fill="#E4739B"/><circle cx="45" cy="56" r="2.6" fill="#2E2A3B"/><circle cx="55" cy="56" r="2.6" fill="#2E2A3B"/>'+
+      '<path d="M28 26 l10 8 -12 4 z" fill="#E4739B"/><path d="M72 26 l-10 8 12 4 z" fill="#E4739B"/>'+
+      '<circle cx="29" cy="47" r="1.8" fill="#C9628B"/><circle cx="24" cy="52" r="1.8" fill="#C9628B"/><circle cx="71" cy="47" r="1.8" fill="#C9628B"/><circle cx="76" cy="52" r="1.8" fill="#C9628B"/>'+
+      '<circle cx="36" cy="38" r="5" fill="#2E2A3B"/><circle cx="64" cy="38" r="5" fill="#2E2A3B"/>'+
+      '<circle cx="38" cy="36" r="1.8" fill="#fff"/><circle cx="66" cy="36" r="1.8" fill="#fff"/>'+
+      '<path d="M40 69 q10 8 20 0" stroke="#2E2A3B" stroke-width="3.5" fill="none" stroke-linecap="round"/>');
+    case 'mo': return B(
+      '<path d="M24 22 l6 10 M50 12 l0 14 M76 22 l-6 10" stroke="#4E96D1" stroke-width="6" stroke-linecap="round"/>'+
+      '<circle cx="24" cy="20" r="6" fill="#F5D547" stroke="#2E2A3B" stroke-width="2.5"/><circle cx="50" cy="10" r="6" fill="#E4739B" stroke="#2E2A3B" stroke-width="2.5"/><circle cx="76" cy="20" r="6" fill="#69B25C" stroke="#2E2A3B" stroke-width="2.5"/>'+
+      '<circle cx="50" cy="52" r="36" fill="#4E96D1"/>'+
+      '<circle cx="28" cy="70" r="7" fill="#6FAEE3" opacity=".85"/><circle cx="70" cy="74" r="5" fill="#6FAEE3" opacity=".85"/><circle cx="61" cy="24" r="6" fill="#6FAEE3" opacity=".85"/>'+
+      '<circle cx="38" cy="42" r="11" fill="#FFFDF7"/><circle cx="64" cy="42" r="11" fill="#FFFDF7"/>'+
+      '<circle cx="39" cy="44" r="5" fill="#2E2A3B"/><circle cx="65" cy="44" r="5" fill="#2E2A3B"/>'+
+      '<path d="M38 64 q12 12 24 0" stroke="#2E2A3B" stroke-width="4" fill="none" stroke-linecap="round"/>'+
+      '<rect x="45" y="66" width="6" height="7" rx="1.5" fill="#FFFDF7"/>'+blush(60));
+    case 'uno': return B(
+      '<path d="M22 64 q-9 -2 -11 -11 M78 64 q9 -2 11 -11" stroke="#2E2A3B" stroke-width="4" fill="none" stroke-linecap="round"/>'+
+      '<rect x="26" y="52" width="48" height="34" rx="8" fill="#69B25C" stroke="#2E2A3B" stroke-width="4"/>'+
+      '<circle cx="38" cy="62" r="3.4" fill="#FFFDF7"/><circle cx="62" cy="62" r="3.4" fill="#FFFDF7"/><circle cx="50" cy="69" r="3.4" fill="#FFFDF7"/><circle cx="38" cy="76" r="3.4" fill="#FFFDF7"/><circle cx="62" cy="76" r="3.4" fill="#FFFDF7"/>'+
+      '<rect x="32" y="16" width="36" height="36" rx="8" fill="#8FD183" stroke="#2E2A3B" stroke-width="4"/>'+
+      '<circle cx="43" cy="30" r="5" fill="#2E2A3B"/><circle cx="57" cy="30" r="5" fill="#2E2A3B"/>'+
+      '<circle cx="45" cy="28" r="1.8" fill="#fff"/><circle cx="59" cy="28" r="1.8" fill="#fff"/>'+
+      '<path d="M42 40 q8 7 16 0" stroke="#2E2A3B" stroke-width="3.5" fill="none" stroke-linecap="round"/>'+
+      '<circle cx="37" cy="43" r="4" fill="#E4739B" opacity=".35"/><circle cx="63" cy="43" r="4" fill="#E4739B" opacity=".35"/>');
+    case 'coco': return B(
+      '<path d="M50 20 q6 -12 14 -8 q-2 8 -8 12 z" fill="#E4739B"/><path d="M58 14 q1 -10 9 -10 q1 7 -4 11 z" fill="#7C6BC4"/>'+
+      '<ellipse cx="50" cy="56" rx="30" ry="32" fill="#F0A22E"/>'+
+      '<ellipse cx="37" cy="65" rx="13" ry="17" fill="#D68617" transform="rotate(18 37 65)"/>'+
+      '<path d="M20 56 q-14 6 -2 16 q8 4 12 -6 z" fill="#E4739B"/>'+
+      '<path d="M62 50 l16 6 -16 6 z" fill="#F5D547"/>'+
+      '<circle cx="52" cy="46" r="6" fill="#2E2A3B"/><circle cx="54" cy="44" r="2.2" fill="#fff"/>'+
+      '<path d="M45 86 l0 7 m6 -7 l0 7" stroke="#D68617" stroke-width="3" stroke-linecap="round"/>'+
+      '<text x="74" y="28" font-family="Fredoka,sans-serif" font-size="17" font-weight="700" fill="#7C6BC4">&#9834;</text>');
+    case 'gertrude': return B(
+      '<path d="M50 12 q-2 -9 5 -11 q4 5 0 11 z" fill="#F0A22E"/>'+
+      head('#F5D547')+
+      '<path d="M31 21 q-9 -8 -17 -1 q5 8 14 7 z" fill="#4E96D1"/><path d="M31 21 q-3 -11 -13 -10 q0 9 7 12 z" fill="#4E96D1"/><circle cx="30" cy="23" r="4.5" fill="#2F9E97" stroke="#2E2A3B" stroke-width="2"/>'+
+      '<ellipse cx="50" cy="58" rx="16" ry="9" fill="#F0A22E"/><ellipse cx="50" cy="62" rx="12" ry="5.5" fill="#D68617"/><circle cx="44" cy="55" r="1.7" fill="#2E2A3B"/><circle cx="56" cy="55" r="1.7" fill="#2E2A3B"/>'+
+      E+
+      '<path d="M26 36 l-6 -3 M28 33 l-5 -5 M74 36 l6 -3 M72 33 l5 -5" stroke="#2E2A3B" stroke-width="2.5" stroke-linecap="round"/>'+blush(50));
+    case 'bart': return B(
+      '<circle cx="32" cy="22" r="13" fill="#69B25C"/><circle cx="68" cy="22" r="13" fill="#69B25C"/>'+
+      '<circle cx="32" cy="20" r="8" fill="#FFFDF7"/><circle cx="68" cy="20" r="8" fill="#FFFDF7"/>'+
+      '<circle cx="33" cy="22" r="4" fill="#2E2A3B"/><circle cx="69" cy="22" r="4" fill="#2E2A3B"/>'+
+      '<circle cx="34.5" cy="20.5" r="1.5" fill="#fff"/><circle cx="70.5" cy="20.5" r="1.5" fill="#fff"/>'+
+      '<circle cx="50" cy="54" r="32" fill="#69B25C"/>'+
+      '<circle cx="34" cy="46" r="2" fill="#4E8F42"/><circle cx="62" cy="40" r="2.4" fill="#4E8F42"/><circle cx="44" cy="38" r="1.7" fill="#4E8F42"/>'+
+      '<path d="M32 58 q18 16 36 0" stroke="#2E2A3B" stroke-width="4" fill="none" stroke-linecap="round"/>'+
+      '<path d="M40 64 q2 4 6 4" stroke="#2E2A3B" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+blush(64)+
+      '<circle cx="50" cy="87" r="6.5" fill="#F5B7CC" stroke="#2E2A3B" stroke-width="2.5"/><path d="M47 84 l6 6 M53 84 l-6 6" stroke="#FFFDF7" stroke-width="1.6"/>');
+    default: return B(
+      head('#F5D547')+E+S+blush()+'<path d="M50 12 v6 M32 18 l4 5 M68 18 l-4 5" stroke="#F0A22E" stroke-width="4" stroke-linecap="round"/>');
+  }
+}
+
+/* ---------------- the five moves ---------------- */
+const FN = {
+  greet:{label:'Hello',      cls:'greet'},
+  ask:  {label:'Asking',     cls:'ask'},
+  no:   {label:'Saying no',  cls:'no'},
+  tell: {label:'Telling',    cls:'tell'},
+  fix:  {label:'Fixing it',  cls:'fix'}
+};
+
+/* ---------------- rooms ---------------- */
+const ROOMS = [
+  {id:'kitchen', name:'The kitchen',      sub:'Poppy is making a snack',        char:'poppy', bg:'var(--marigold-pale)'},
+  {id:'play',    name:'The play room',    sub:'Mo brought the good blocks',     char:'mo',    bg:'var(--sky-pale)'},
+  {id:'doctor',  name:"The toy hospital", sub:'Dr. Bo fixes the broken ones',   char:'bo',    bg:'var(--teal-pale)'},
+  {id:'garden',  name:'The garden',       sub:'Pim found something small',      char:'pim',   bg:'var(--leaf-pale)'},
+  {id:'music',   name:'The music room',   sub:'Coco knows every note',          char:'coco',  bg:'var(--rose-pale)'},
+  {id:'numbers', name:'The number room',  sub:'Uno counts everything',          char:'uno',   bg:'var(--grape-pale)'},
+  {id:'games',   name:'The game room',    sub:'The games have rules',           char:'mo',    bg:'#FFE4D6'},
+  {id:'icecream',name:'The ice cream porch', sub:'Gertrude and Bartholomew, best friends', char:'gertrude', bg:'#FFF3C9'}
+];
+
+/* ---------------- scenes ----------------
+   Every option is a whole, sayable, mitigable gestalt.
+   No option is wrong. Every option gets a warm, specific reply.
+   ---------------------------------------- */
+const SCENES = [
+{ room:'kitchen', id:'k1', title:'Poppy opens the door', who:'poppy', beats:[
+  {say:{who:'poppy', t:"Oh! Somebody is knocking on my door.", es:"¡Ay! Alguien está tocando mi puerta."}},
+  {pick:[
+    {fn:'greet', t:"Hi, Poppy! It's me.",         es:"¡Hola, Poppy! Soy yo.",           reply:{who:'poppy', t:"Sasha! Come in, come in.", es:"¡Sasha! Pasa, pasa."}},
+    {fn:'ask',   t:"Can I come in?",              es:"¿Puedo entrar?",                  reply:{who:'poppy', t:"Yes you can. The door is open for you.", es:"Sí puedes. La puerta está abierta para ti."}},
+    {fn:'tell',  t:"I came to see you.",          es:"Vine a verte.",                   reply:{who:'poppy', t:"You came to see me! That is my favorite thing.", es:"¡Viniste a verme! Eso es lo que más me gusta."}}
+  ]},
+  {say:{who:'poppy', t:"I am making a snack. Do you want to help me?", es:"Estoy haciendo una merienda. ¿Quieres ayudarme?"}},
+  {pick:[
+    {fn:'ask',  t:"Yes, I want to help.",          es:"Sí, quiero ayudar.",             reply:{who:'poppy', t:"Great. You stir and I will pour.", es:"Genial. Tú revuelves y yo sirvo."}},
+    {fn:'no',   t:"No, thank you. Not right now.", es:"No, gracias. Ahora no.",         reply:{who:'poppy', t:"Okay. Not right now is okay. I will make it and you can watch.", es:"Está bien. Ahora no está bien. Yo la hago y tú miras."}},
+    {fn:'ask',  t:"What are we making?",           es:"¿Qué estamos haciendo?",         reply:{who:'poppy', t:"We are making toast with jam. The red jam.", es:"Estamos haciendo pan tostado con mermelada. La roja."}}
+  ]},
+  {say:{who:'poppy', t:"There. All done. That was fun with you here.", es:"Listo. Terminado. Fue divertido contigo aquí."}}
+]},
+
+{ room:'kitchen', id:'k2', title:'There is one cookie left', who:'poppy', beats:[
+  {say:{who:'poppy', t:"Uh oh. There is one cookie left, and there are two of us.", es:"Ay no. Queda una galleta, y somos dos."}},
+  {pick:[
+    {fn:'ask',  t:"Can we share it?",             es:"¿Podemos compartirla?",           reply:{who:'poppy', t:"We can share it. I will break it right down the middle.", es:"Podemos compartirla. La parto justo por la mitad."}},
+    {fn:'ask',  t:"Can I have a turn first?",     es:"¿Puedo tener el primer turno?",    reply:{who:'poppy', t:"You can go first. I will go second.", es:"Tú puedes ir primero. Yo voy segunda."}},
+    {fn:'tell', t:"You can have it. I am not hungry.", es:"Puedes tenerla. No tengo hambre.", reply:{who:'poppy', t:"That was kind. I will save you half anyway.", es:"Qué amable. Te guardo la mitad de todos modos."}}
+  ]},
+  {say:{who:'poppy', t:"Half for you. Half for me. Now we both have some.", es:"La mitad para ti. La mitad para mí. Ahora las dos tenemos."}},
+  {pick:[
+    {fn:'tell', t:"This is my favorite one.",     es:"Esta es mi favorita.",             reply:{who:'poppy', t:"It is my favorite too! We like the same cookie.", es:"¡También es mi favorita! Nos gusta la misma galleta."}},
+    {fn:'greet',t:"Thank you, Poppy.",           es:"Gracias, Poppy.",                  reply:{who:'poppy', t:"You are welcome. Come back tomorrow.", es:"De nada. Vuelve mañana."}}
+  ]}
+]},
+
+{ room:'play', id:'p1', title:'Mo built a tower', who:'mo', beats:[
+  {say:{who:'mo', t:"Look what I built. It is taller than me.", es:"Mira lo que construí. Es más alta que yo."}},
+  {pick:[
+    {fn:'tell', t:"Wow, that is really tall.",    es:"Guau, es muy alta.",               reply:{who:'mo', t:"It IS really tall. I used every single block.", es:"¡SÍ es muy alta! Usé todos los bloques."}},
+    {fn:'ask',  t:"Can I play too?",              es:"¿Puedo jugar también?",            reply:{who:'mo', t:"Yes! Here, you take the blue ones.", es:"¡Sí! Toma, tú llevas los azules."}},
+    {fn:'ask',  t:"How did you do that?",         es:"¿Cómo lo hiciste?",                reply:{who:'mo', t:"Big blocks on the bottom. Little blocks on top. That is the trick.", es:"Bloques grandes abajo. Bloques pequeños arriba. Ese es el truco."}}
+  ]},
+  {say:{who:'mo', t:"Oh no. It fell down. All of it.", es:"Ay no. Se cayó. Toda."}},
+  {pick:[
+    {fn:'fix',  t:"That's okay. We can build it again.", es:"No pasa nada. Podemos construirla otra vez.", reply:{who:'mo', t:"We can build it again. Thank you for saying that.", es:"Podemos construirla otra vez. Gracias por decir eso."}},
+    {fn:'tell', t:"That was loud! It surprised me.", es:"¡Qué ruidoso! Me sorprendió.",   reply:{who:'mo', t:"It surprised me too. My heart went fast.", es:"A mí también me sorprendió. Mi corazón fue rápido."}},
+    {fn:'no',   t:"I need a break now.",           es:"Necesito un descanso ahora.",      reply:{who:'mo', t:"Okay. I will sit here quietly. Come back when you want.", es:"Está bien. Me siento aquí en silencio. Vuelve cuando quieras."}}
+  ]}
+]},
+
+{ room:'play', id:'p2', title:'Mo wants the same toy', who:'mo', beats:[
+  {say:{who:'mo', t:"Hey, I was going to use that one.", es:"Oye, yo iba a usar ese."}},
+  {pick:[
+    {fn:'fix',  t:"I didn't know. You can have it.",  es:"No lo sabía. Puedes tenerlo.",   reply:{who:'mo', t:"Thank you. You can have it after me. I will say when.", es:"Gracias. Puedes tenerlo después de mí. Yo te aviso."}},
+    {fn:'no',   t:"I'm still using it.",              es:"Todavía lo estoy usando.",       reply:{who:'mo', t:"Okay, you are still using it. I will find another one.", es:"Bien, todavía lo estás usando. Buscaré otro."}},
+    {fn:'ask',  t:"Can we both use it?",              es:"¿Podemos usarlo los dos?",       reply:{who:'mo', t:"We can both use it! You hold this end.", es:"¡Podemos usarlo los dos! Tú agarras este lado."}}
+  ]},
+  {say:{who:'mo', t:"That worked out. I thought I was going to be mad.", es:"Eso salió bien. Pensé que me iba a enojar."}},
+  {pick:[
+    {fn:'tell', t:"I felt worried too.",              es:"Yo también me sentí preocupada.", reply:{who:'mo', t:"We were both worried, and then it was fine. That happens a lot.", es:"Los dos estábamos preocupados, y luego estuvo bien. Eso pasa mucho."}},
+    {fn:'greet',t:"You're a good friend.",            es:"Eres un buen amigo.",             reply:{who:'mo', t:"So are you. Same time tomorrow?", es:"Tú también. ¿Mañana a la misma hora?"}}
+  ]}
+]},
+
+{ room:'doctor', id:'d1', title:'The bear has a hurt arm', who:'bo', beats:[
+  {say:{who:'bo', t:"Good morning. This bear came in with a hurt arm.", es:"Buenos días. Este oso vino con un brazo lastimado."}},
+  {pick:[
+    {fn:'ask',  t:"What happened to him?",         es:"¿Qué le pasó?",                    reply:{who:'bo', t:"He fell off the shelf. His arm came loose at the seam.", es:"Se cayó del estante. Su brazo se soltó en la costura."}},
+    {fn:'tell', t:"He looks sad.",                 es:"Se ve triste.",                    reply:{who:'bo', t:"He does look sad. I think he is worried it will hurt.", es:"Sí se ve triste. Creo que le preocupa que le duela."}},
+    {fn:'ask',  t:"Can I help you fix him?",       es:"¿Puedo ayudarte a arreglarlo?",    reply:{who:'bo', t:"Yes please. You hold his paw so he feels safe.", es:"Sí, por favor. Tú agarras su pata para que se sienta seguro."}}
+  ]},
+  {say:{who:'bo', t:"All better. Now, what should we tell him?", es:"Ya está mejor. Ahora, ¿qué le decimos?"}},
+  {pick:[
+    {fn:'tell', t:"You are all fixed now.",        es:"Ya estás arreglado.",              reply:{who:'bo', t:"Look at his face. He believes you.", es:"Mira su cara. Te cree."}},
+    {fn:'fix',  t:"You were very brave.",          es:"Fuiste muy valiente.",             reply:{who:'bo', t:"He was brave. And so were you, holding his paw.", es:"Fue valiente. Y tú también, agarrando su pata."}},
+    {fn:'greet',t:"Feel better, bear.",            es:"Que te mejores, oso.",             reply:{who:'bo', t:"He waved at you. That means thank you.", es:"Te saludó. Eso significa gracias."}}
+  ]}
+]},
+
+{ room:'doctor', id:'d2', title:'Something hurts and you cannot say where', who:'bo', beats:[
+  {say:{who:'bo', t:"You look like something is not right. Can I guess?", es:"Parece que algo no está bien. ¿Puedo adivinar?"}},
+  {pick:[
+    {fn:'tell', t:"My tummy feels funny.",         es:"Me siento raro en la panza.",       reply:{who:'bo', t:"Your tummy feels funny. Thank you for telling me. Let's sit down.", es:"Tu panza se siente rara. Gracias por decírmelo. Sentémonos."}},
+    {fn:'tell', t:"It is too loud in here.",       es:"Aquí hay demasiado ruido.",         reply:{who:'bo', t:"Too loud. I can fix that. I am turning the music off now.", es:"Demasiado ruido. Puedo arreglarlo. Apago la música ahora."}},
+    {fn:'no',   t:"I don't want to talk about it.", es:"No quiero hablar de eso.",         reply:{who:'bo', t:"Okay. You do not have to. I will just sit here with you.", es:"Está bien. No tienes que hacerlo. Me quedo aquí contigo."}}
+  ]},
+  {say:{who:'bo', t:"Better? You can always tell me. Even a little bit helps me help you.", es:"¿Mejor? Siempre me puedes decir. Aunque sea un poquito me ayuda a ayudarte."}},
+  {pick:[
+    {fn:'tell', t:"I feel better now.",            es:"Ahora me siento mejor.",            reply:{who:'bo', t:"I am glad. Come find me any time.", es:"Me alegro. Ven a buscarme cuando quieras."}},
+    {fn:'ask',  t:"Can I stay a little longer?",   es:"¿Puedo quedarme un ratito más?",    reply:{who:'bo', t:"Stay as long as you want. It is quiet in here.", es:"Quédate todo lo que quieras. Aquí está tranquilo."}}
+  ]}
+]},
+
+{ room:'garden', id:'g1', title:'Pim found a snail', who:'pim', beats:[
+  {say:{who:'pim', t:"Come quick! I found something on the leaf.", es:"¡Ven rápido! Encontré algo en la hoja."}},
+  {pick:[
+    {fn:'ask',  t:"What is it?",                   es:"¿Qué es?",                          reply:{who:'pim', t:"It is a snail. He is carrying his whole house on his back.", es:"Es un caracol. Lleva toda su casa en la espalda."}},
+    {fn:'tell', t:"I see it! It is moving.",       es:"¡Lo veo! Se está moviendo.",        reply:{who:'pim', t:"It is moving so slowly. Watch how careful he is.", es:"Se mueve muy despacio. Mira qué cuidadoso es."}},
+    {fn:'ask',  t:"Can I look too?",               es:"¿Puedo mirar también?",             reply:{who:'pim', t:"Come stand next to me. You get the best view here.", es:"Ven, párate junto a mí. Aquí se ve mejor."}}
+  ]},
+  {say:{who:'pim', t:"I want to keep him. But he probably wants to go home.", es:"Quiero quedármelo. Pero él seguramente quiere ir a casa."}},
+  {pick:[
+    {fn:'tell', t:"He should go home to his family.", es:"Debería ir a casa con su familia.", reply:{who:'pim', t:"You are right. I will put him back on the leaf. Bye, snail.", es:"Tienes razón. Lo pongo de vuelta en la hoja. Adiós, caracol."}},
+    {fn:'ask',  t:"Can we come see him tomorrow?",   es:"¿Podemos venir a verlo mañana?",    reply:{who:'pim', t:"Yes! We can visit him. That is better than keeping him.", es:"¡Sí! Podemos visitarlo. Eso es mejor que quedárnoslo."}},
+    {fn:'tell', t:"That was a good find.",           es:"Fue un buen hallazgo.",             reply:{who:'pim', t:"It was a good find. I am glad you were here to see it.", es:"Fue un buen hallazgo. Me alegra que estuvieras aquí para verlo."}}
+  ]}
+]},
+
+{ room:'garden', id:'g2', title:'It started to rain', who:'pim', beats:[
+  {say:{who:'pim', t:"Oh! Rain. It came out of nowhere.", es:"¡Ay! Lluvia. Vino de la nada."}},
+  {pick:[
+    {fn:'tell', t:"I don't like getting wet.",     es:"No me gusta mojarme.",              reply:{who:'pim', t:"Then let's go under the big tree. It stays dry under there.", es:"Entonces vamos bajo el árbol grande. Ahí abajo no se moja."}},
+    {fn:'tell', t:"I like the rain.",              es:"Me gusta la lluvia.",               reply:{who:'pim', t:"You like it! Then let's jump in that puddle together.", es:"¡Te gusta! Entonces saltemos en ese charco juntos."}},
+    {fn:'ask',  t:"Can we go inside?",             es:"¿Podemos entrar?",                  reply:{who:'pim', t:"Yes. Inside is warm. Let's go.", es:"Sí. Adentro está calientito. Vamos."}}
+  ]},
+  {say:{who:'pim', t:"That was a surprise. I did not plan for rain today.", es:"Fue una sorpresa. No planeé lluvia para hoy."}},
+  {pick:[
+    {fn:'tell', t:"Surprises are hard for me.",    es:"Las sorpresas son difíciles para mí.", reply:{who:'pim', t:"They are hard for me too. It helps when somebody says what is happening.", es:"También son difíciles para mí. Ayuda cuando alguien dice qué está pasando."}},
+    {fn:'fix',  t:"Next time we can bring an umbrella.", es:"La próxima vez podemos traer un paraguas.", reply:{who:'pim', t:"Good plan. I will remember that.", es:"Buen plan. Lo recordaré."}}
+  ]}
+]},
+
+{ room:'music', id:'m1', title:'Coco wants to sing and you might not', who:'coco', beats:[
+  {say:{who:'coco', t:"I have a song in my head. Do you want to hear it?", es:"Tengo una canción en la cabeza. ¿Quieres escucharla?"}},
+  {pick:[
+    {fn:'ask',  t:"Yes. Which song is it?",        es:"Sí. ¿Cuál canción es?",              reply:{who:'coco', t:"It is the one that goes up and up and up. I will start it.", es:"Es la que sube y sube y sube. La empiezo."}},
+    {fn:'no',   t:"Not right now, please.",        es:"Ahora no, por favor.",                reply:{who:'coco', t:"Not right now. Got it. I will keep it in my head instead.", es:"Ahora no. Entendido. La guardo en mi cabeza."}},
+    {fn:'ask',  t:"Can you sing a different one?", es:"¿Puedes cantar una diferente?",       reply:{who:'coco', t:"I can. Tell me which one and I will sing that one.", es:"Puedo. Dime cuál y canto esa."}}
+  ]},
+  {say:{who:'coco', t:"You get to pick. That is the rule in this room.", es:"Tú eliges. Esa es la regla en este cuarto."}},
+  {pick:[
+    {fn:'tell', t:"I like picking the songs.",     es:"Me gusta elegir las canciones.",      reply:{who:'coco', t:"Then you are the boss of the music. Always.", es:"Entonces tú mandas en la música. Siempre."}},
+    {fn:'ask',  t:"Can I press the notes instead?", es:"¿Puedo tocar las notas en vez?",     reply:{who:'coco', t:"Yes. The keys are right over there. Every one has a name.", es:"Sí. Las teclas están ahí. Cada una tiene un nombre."}}
+  ]}
+]},
+
+{ room:'numbers', id:'n1', title:'Uno counts the chairs', who:'uno', beats:[
+  {say:{who:'uno', t:"I counted the chairs. There are four chairs and five of us.", es:"Conté las sillas. Hay cuatro sillas y somos cinco."}},
+  {pick:[
+    {fn:'tell', t:"That means one person has no chair.", es:"Eso significa que una persona no tiene silla.", reply:{who:'uno', t:"Exactly. Five take away four is one. You got it fast.", es:"Exacto. Cinco menos cuatro es uno. Lo entendiste rápido."}},
+    {fn:'fix',  t:"We can get one more chair.",     es:"Podemos traer una silla más.",        reply:{who:'uno', t:"Then we would have five and five. That is a match.", es:"Entonces tendríamos cinco y cinco. Eso es igual."}},
+    {fn:'ask',  t:"Can I sit on the floor?",        es:"¿Puedo sentarme en el piso?",         reply:{who:'uno', t:"You can. But I would rather find you a chair.", es:"Puedes. Pero prefiero encontrarte una silla."}}
+  ]},
+  {say:{who:'uno', t:"There. Five chairs, five friends. Everybody has a spot.", es:"Listo. Cinco sillas, cinco amigos. Todos tienen un lugar."}},
+  {pick:[
+    {fn:'tell', t:"I like it when it comes out even.", es:"Me gusta cuando sale parejo.",     reply:{who:'uno', t:"Me too. Even numbers feel good in my blocks.", es:"A mí también. Los números pares se sienten bien en mis bloques."}},
+    {fn:'greet',t:"Thanks for counting, Uno.",        es:"Gracias por contar, Uno.",          reply:{who:'uno', t:"Counting is my whole job, Sasha. Come back and I will count anything you want.", es:"Contar es todo mi trabajo, Sasha. Vuelve y cuento lo que quieras."}}
+  ]}
+]},
+
+{ room:'play', id:'p3', title:'Mo heard it wrong', who:'mo', beats:[
+  {say:{who:'mo', t:"You said my tower was small? That hurt my feelings.", es:"¿Dijiste que mi torre era pequeña? Eso me dolió."}},
+  {pick:[
+    {fn:'fix',  t:"No, I said it was TALL.",        es:"No, dije que era ALTA.",           reply:{who:'mo', t:"Oh! TALL. I heard it wrong. I feel better now.", es:"¡Ah! ALTA. Lo escuché mal. Ya me siento mejor."}},
+    {fn:'fix',  t:"I think you heard it wrong.",    es:"Creo que lo escuchaste mal.",      reply:{who:'mo', t:"Maybe I did. Say it one more time and I will listen with my big ears.", es:"Puede ser. Dilo una vez más y escucho con mis orejas grandes."}},
+    {fn:'tell', t:"I would never say that.",        es:"Yo nunca diría eso.",              reply:{who:'mo', t:"You are right. You are kind to me. I mixed it up.", es:"Tienes razón. Eres amable conmigo. Me confundí."}}
+  ]},
+  {say:{who:'mo', t:"Sometimes my ears get it wrong. Checking helped.", es:"A veces mis orejas se equivocan. Preguntar ayudó."}},
+  {pick:[
+    {fn:'tell', t:"Checking is a good idea.",       es:"Preguntar es una buena idea.",     reply:{who:'mo', t:"When something sounds wrong, we can always ask again.", es:"Cuando algo suena mal, siempre podemos preguntar otra vez."}},
+    {fn:'greet',t:"I like your tower, Mo.",         es:"Me gusta tu torre, Mo.",           reply:{who:'mo', t:"And I like you. That is the whole truth.", es:"Y tú me gustas a mí. Esa es toda la verdad."}}
+  ]}
+]},
+
+{ room:'play', id:'p4', title:'Pim never played blocks', who:'pim', beats:[
+  {say:{who:'pim', t:"I have never played blocks before. I don't know how.", es:"Nunca he jugado con bloques. No sé cómo."}},
+  {pick:[
+    {fn:'tell', t:"I can show you. Watch me first.", es:"Te puedo enseñar. Mírame primero.", reply:{who:'pim', t:"I am watching. You are good at showing.", es:"Estoy mirando. Eres buena enseñando."}},
+    {fn:'ask',  t:"Do you want to build with me?",   es:"¿Quieres construir conmigo?",       reply:{who:'pim', t:"Yes please. I was scared to ask.", es:"Sí, por favor. Me daba miedo preguntar."}},
+    {fn:'tell', t:"It's okay to be new.",            es:"Está bien ser nuevo.",              reply:{who:'pim', t:"That helps. Everybody is new at first.", es:"Eso ayuda. Todos somos nuevos al principio."}}
+  ]},
+  {say:{who:'pim', t:"Look! I did it. My first tower.", es:"¡Mira! Lo logré. Mi primera torre."}},
+  {pick:[
+    {fn:'tell', t:"You did it, Pim!",                es:"¡Lo lograste, Pim!",               reply:{who:'pim', t:"I did it because you helped. We are both five, and we both build now.", es:"Lo logré porque me ayudaste. Los dos tenemos cinco años, y ahora los dos construimos."}},
+    {fn:'ask',  t:"Can we make it even taller?",     es:"¿Podemos hacerla más alta?",       reply:{who:'pim', t:"Yes! Pass me the big one.", es:"¡Sí! Pásame el grande."}}
+  ]}
+]},
+
+{ room:'kitchen', id:'k3', title:'Pancake math', who:'poppy', beats:[
+  {say:{who:'poppy', t:"I am making pancakes. We need six, and I made four.", es:"Estoy haciendo panqueques. Necesitamos seis, y ya hice cuatro."}},
+  {pick:[
+    {fn:'tell', t:"We need two more.",              es:"Necesitamos dos más.",             reply:{who:'poppy', t:"Four plus two is six. You counted in your head!", es:"Cuatro más dos son seis. ¡Contaste en tu cabeza!"}},
+    {fn:'ask',  t:"Can I flip the next one?",       es:"¿Puedo voltear el próximo?",       reply:{who:'poppy', t:"Yes. Hold the pan with me. Ready... flip!", es:"Sí. Agarra la sartén conmigo. Lista... ¡voltea!"}},
+    {fn:'tell', t:"I like mine with syrup.",        es:"Me gustan con miel.",              reply:{who:'poppy', t:"Syrup for you. Butter for me. Everybody picks their own.", es:"Miel para ti. Mantequilla para mí. Cada quien elige."}}
+  ]},
+  {say:{who:'poppy', t:"Six pancakes. Breakfast is ready.", es:"Seis panqueques. El desayuno está listo."}},
+  {pick:[
+    {fn:'greet',t:"Thank you for cooking.",         es:"Gracias por cocinar.",             reply:{who:'poppy', t:"Thank you for helping. Cooks say that to helpers.", es:"Gracias por ayudar. Los cocineros les dicen eso a sus ayudantes."}},
+    {fn:'tell', t:"This is the best breakfast.",    es:"Este es el mejor desayuno.",       reply:{who:'poppy', t:"You saying that made my whiskers happy.", es:"Que digas eso puso felices mis bigotes."}}
+  ]}
+]},
+
+{ room:'doctor', id:'d3', title:'Waiting is hard', who:'bo', beats:[
+  {say:{who:'bo', t:"The doll needs glue, and glue needs time to dry. We have to wait.", es:"La muñeca necesita pegamento, y el pegamento necesita tiempo para secar. Hay que esperar."}},
+  {pick:[
+    {fn:'tell', t:"Waiting is hard for me.",        es:"Esperar es difícil para mí.",      reply:{who:'bo', t:"It is hard for lots of people. Let's find something to do while we wait.", es:"Es difícil para mucha gente. Busquemos algo que hacer mientras esperamos."}},
+    {fn:'ask',  t:"How long will it take?",         es:"¿Cuánto va a tardar?",             reply:{who:'bo', t:"Ten minutes. When the big hand reaches the two, it is done.", es:"Diez minutos. Cuando la manecilla grande llegue al dos, está listo."}},
+    {fn:'ask',  t:"Can we play a game while we wait?", es:"¿Podemos jugar mientras esperamos?", reply:{who:'bo', t:"We can play I spy. Waiting goes faster with a game.", es:"Podemos jugar veo veo. Esperar pasa más rápido con un juego."}}
+  ]},
+  {say:{who:'bo', t:"Ding! Time is up. The doll is dry.", es:"¡Din! Se acabó el tiempo. La muñeca está seca."}},
+  {pick:[
+    {fn:'tell', t:"We did it. We waited.",          es:"Lo logramos. Esperamos.",          reply:{who:'bo', t:"We waited together. That made it easier.", es:"Esperamos juntos. Eso lo hizo más fácil."}},
+    {fn:'greet',t:"Wake up, doll!",                 es:"¡Despierta, muñeca!",              reply:{who:'bo', t:"She heard you. Look, she is smiling.", es:"Te escuchó. Mira, está sonriendo."}}
+  ]}
+]},
+
+{ room:'garden', id:'g3', title:'The seed is taking forever', who:'pim', beats:[
+  {say:{who:'pim', t:"I planted a seed yesterday. It still looks like dirt.", es:"Planté una semilla ayer. Todavía parece tierra."}},
+  {pick:[
+    {fn:'tell', t:"Seeds take a long time.",        es:"Las semillas tardan mucho.",       reply:{who:'pim', t:"You are right. Slow is how seeds go.", es:"Tienes razón. Despacio es como van las semillas."}},
+    {fn:'ask',  t:"Can we water it?",               es:"¿Podemos regarla?",                reply:{who:'pim', t:"Yes. A little water every day. You pour.", es:"Sí. Un poquito de agua cada día. Tú viertes."}},
+    {fn:'tell', t:"I want it to grow NOW.",         es:"Quiero que crezca YA.",            reply:{who:'pim', t:"Me too! Wanting now is okay. The seed just can't hear us.", es:"¡Yo también! Querer ya está bien. La semilla no nos puede oír."}}
+  ]},
+  {say:{who:'pim', t:"One day it will be a sunflower. Taller than Mo, even.", es:"Un día será un girasol. Más alto que Mo, incluso."}},
+  {pick:[
+    {fn:'tell', t:"I want to see that.",            es:"Quiero ver eso.",                  reply:{who:'pim', t:"Then come back every day. We will watch it together.", es:"Entonces vuelve cada día. Lo veremos juntos."}},
+    {fn:'ask',  t:"Can it really get that tall?",   es:"¿De verdad puede crecer tanto?",   reply:{who:'pim', t:"Really really. Sunflowers do not know when to stop.", es:"De verdad de verdad. Los girasoles no saben cuándo parar."}}
+  ]}
+]},
+
+{ room:'music', id:'m2', title:'Coco sang a wrong note', who:'coco', beats:[
+  {say:{who:'coco', t:"Listen: do, re, mi, fa... hmm. Something sounded wrong.", es:"Escucha: do, re, mi, fa... mmm. Algo sonó mal."}},
+  {pick:[
+    {fn:'tell', t:"That note was too low.",         es:"Esa nota fue muy baja.",           reply:{who:'coco', t:"You heard it! Your ears are amazing. Let me try again... sol! Better.", es:"¡Lo escuchaste! Tus oídos son increíbles. Lo intento otra vez... ¡sol! Mejor."}},
+    {fn:'fix',  t:"Try it one more time.",          es:"Inténtalo una vez más.",           reply:{who:'coco', t:"Trying again. Do, re, mi, fa, SOL. There it is.", es:"Otra vez. Do, re, mi, fa, SOL. Ahí está."}},
+    {fn:'no',   t:"My ears need a rest.",           es:"Mis oídos necesitan descansar.",   reply:{who:'coco', t:"Rest your ears. The song will wait for you.", es:"Descansa tus oídos. La canción te espera."}}
+  ]},
+  {say:{who:'coco', t:"You have very good ears. Not everybody hears what you hear.", es:"Tienes muy buenos oídos. No todos escuchan lo que tú escuchas."}},
+  {pick:[
+    {fn:'tell', t:"I always hear the notes.",       es:"Siempre escucho las notas.",       reply:{who:'coco', t:"That is your special thing. I am 100 years old and I have never met ears like yours.", es:"Eso es lo tuyo. Tengo 100 años y nunca conocí oídos como los tuyos."}},
+    {fn:'ask',  t:"Can I pick the next song?",      es:"¿Puedo elegir la próxima canción?", reply:{who:'coco', t:"You always can. You are the boss of the music.", es:"Siempre puedes. Tú mandas en la música."}}
+  ]}
+]},
+
+{ room:'numbers', id:'n2', title:'Twelve cookies, four friends', who:'uno', beats:[
+  {say:{who:'uno', t:"Twelve cookies, four friends. I want it to be fair.", es:"Doce galletas, cuatro amigos. Quiero que sea justo."}},
+  {pick:[
+    {fn:'tell', t:"Everybody gets three.",          es:"A cada uno le tocan tres.",        reply:{who:'uno', t:"Twelve split four ways is three. You did that fast!", es:"Doce entre cuatro son tres. ¡Lo hiciste rápido!"}},
+    {fn:'ask',  t:"Can I pass them out?",           es:"¿Puedo repartirlas?",              reply:{who:'uno', t:"Yes. One for you, one for Poppy... you do the rest.", es:"Sí. Una para ti, una para Poppy... tú sigues."}},
+    {fn:'tell', t:"Fair means the same for everybody.", es:"Justo significa lo mismo para todos.", reply:{who:'uno', t:"That is exactly what fair means. Same, same, same, same.", es:"Eso es exactamente lo que significa justo. Igual, igual, igual, igual."}}
+  ]},
+  {say:{who:'uno', t:"Three each. Nobody is sad. Math did that.", es:"Tres para cada uno. Nadie está triste. Las matemáticas hicieron eso."}},
+  {pick:[
+    {fn:'tell', t:"Math makes things fair.",        es:"Las matemáticas hacen las cosas justas.", reply:{who:'uno', t:"Math is my favorite fairness machine.", es:"Las matemáticas son mi máquina de justicia favorita."}},
+    {fn:'greet',t:"Cookie time!",                   es:"¡Hora de galletas!",               reply:{who:'uno', t:"Cookie time! You say when.", es:"¡Hora de galletas! Tú dices cuándo."}}
+  ]}
+]},
+
+{ room:'numbers', id:'n3', title:'How old is everybody?', who:'uno', beats:[
+  {say:{who:'uno', t:"I counted everybody's ages. Mo is 4, Pim is 5, Poppy is 6.", es:"Conté las edades de todos. Mo tiene 4, Pim tiene 5, Poppy tiene 6."}},
+  {pick:[
+    {fn:'tell', t:"Pim is 5, like me.",             es:"Pim tiene 5, como yo.",            reply:{who:'uno', t:"Five and five. You two match.", es:"Cinco y cinco. Ustedes dos son iguales."}},
+    {fn:'tell', t:"4, 5, 6 — the ages go in order!", es:"4, 5, 6 — ¡las edades van en orden!", reply:{who:'uno', t:"You saw the pattern! Next year it will be 5, 6, 7.", es:"¡Viste el patrón! El año que viene será 5, 6, 7."}},
+    {fn:'ask',  t:"How old are you, Uno?",          es:"¿Cuántos años tienes, Uno?",       reply:{who:'uno', t:"I am 12. It is my favorite number, so I stopped there.", es:"Tengo 12. Es mi número favorito, así que ahí me quedé."}}
+  ]},
+  {say:{who:'uno', t:"Dr. Bo is 39. And Coco is 100. Birds have a lot of birthdays.", es:"El Dr. Bo tiene 39. Y Coco tiene 100. Los pájaros tienen muchos cumpleaños."}},
+  {pick:[
+    {fn:'ask',  t:"Who is the oldest?",             es:"¿Quién es el mayor?",              reply:{who:'uno', t:"Coco. 100 beats everybody. Even Dr. Bo.", es:"Coco. 100 le gana a todos. Hasta al Dr. Bo."}},
+    {fn:'tell', t:"I will be 6 on my birthday.",    es:"Voy a cumplir 6 en mi cumpleaños.", reply:{who:'uno', t:"Five plus one is six. Birthdays are just adding.", es:"Cinco más uno son seis. Los cumpleaños son pura suma."}}
+  ]}
+]},
+
+{ room:'games', id:'gm1', title:'Poppy picked the game', who:'mo', beats:[
+  {say:{who:'mo', t:"Today Poppy picks the game. She picked hide and seek. I wanted blocks.", es:"Hoy Poppy elige el juego. Eligió a las escondidas. Yo quería bloques."}},
+  {pick:[
+    {fn:'tell', t:"You wanted blocks. That's sad.",   es:"Querías bloques. Qué triste.",      reply:{who:'mo', t:"It is a little sad. I put blocks in my pocket-brain for tomorrow.", es:"Es un poquito triste. Guardé los bloques en mi bolsillo-cerebro para mañana."}},
+    {fn:'ask',  t:"Can we play blocks after?",        es:"¿Podemos jugar bloques después?",    reply:{who:'mo', t:"That is a good plan. Hide and seek now, blocks after. Both things happen.", es:"Ese es un buen plan. Escondidas ahora, bloques después. Las dos cosas pasan."}},
+    {fn:'tell', t:"Maybe hide and seek is fun too.",  es:"Quizás las escondidas también son divertidas.", reply:{who:'mo', t:"Maybe. I will try it and find out. Trying is how I check.", es:"Quizás. Lo voy a intentar y ver. Intentar es como lo compruebo."}}
+  ]},
+  {say:{who:'poppy', t:"Found you, Mo! Now it's your turn to count.", es:"¡Te encontré, Mo! Ahora te toca contar a ti."}},
+  {pick:[
+    {fn:'tell', t:"Waiting for my turn is hard.",     es:"Esperar mi turno es difícil.",       reply:{who:'mo', t:"It is hard. It is hard for me every time. And the turn always comes.", es:"Es difícil. A mí me cuesta cada vez. Y el turno siempre llega."}},
+    {fn:'greet',t:"Good game, Poppy.",                es:"Buen juego, Poppy.",                 reply:{who:'poppy', t:"Good game to you too. Tomorrow somebody else picks.", es:"Buen juego para ti también. Mañana elige otra persona."}}
+  ]}
+]},
+
+{ room:'games', id:'gm2', title:'The spinner says orange', who:'mo', beats:[
+  {say:{who:'uno', t:"Spin the spinner. Whatever color it lands on, that is the one you get.", es:"Gira la ruleta. El color que salga, ese es el que te toca."}},
+  {say:{who:'mo', t:"I wanted green. It landed on orange. Orange. Hmm.", es:"Yo quería verde. Cayó en naranja. Naranja. Mmm."}},
+  {pick:[
+    {fn:'tell', t:"The spinner picked orange.",       es:"La ruleta eligió naranja.",          reply:{who:'uno', t:"The spinner is the boss of this game. Not me, not you, not Mo. That is what makes it a game.", es:"La ruleta manda en este juego. Ni yo, ni tú, ni Mo. Eso es lo que lo hace un juego."}},
+    {fn:'no',   t:"I don't want orange.",             es:"No quiero naranja.",                 reply:{who:'uno', t:"You can say that. The spinner stays the same. Your next spin is coming.", es:"Puedes decirlo. La ruleta se queda igual. Tu próximo giro ya viene."}},
+    {fn:'fix',  t:"Maybe orange is okay this time.",  es:"Quizás naranja está bien esta vez.", reply:{who:'mo', t:"That is what I said in my head. This time, orange. Green is still in there for next time.", es:"Eso me dije en mi cabeza. Esta vez, naranja. El verde sigue ahí para la próxima."}}
+  ]},
+  {say:{who:'mo', t:"Orange turned out fine. My insides made a big feeling, and then the feeling got smaller.", es:"El naranja resultó bien. Mis adentros hicieron un sentimiento grande, y luego el sentimiento se hizo pequeño."}},
+  {pick:[
+    {fn:'tell', t:"Feelings get smaller.",            es:"Los sentimientos se hacen pequeños.", reply:{who:'mo', t:"They do. They feel giant, and then they shrink, and I am still me the whole time.", es:"Sí. Se sienten gigantes, y luego se encogen, y yo sigo siendo yo todo el tiempo."}},
+    {fn:'ask',  t:"Can I have green next time?",      es:"¿Puedo tener verde la próxima vez?",  reply:{who:'uno', t:"If the spinner says so. Green is still in there.", es:"Si la ruleta lo dice. El verde sigue ahí."}}
+  ]}
+]},
+
+{ room:'games', id:'gm3', title:'We both want to go first', who:'pim', beats:[
+  {say:{who:'pim', t:"We both want to go first. We can't both go first.", es:"Los dos queremos ir primero. No podemos ir primero los dos."}},
+  {pick:[
+    {fn:'fix',  t:"You go first this time. I go first next time.", es:"Tú vas primero esta vez. Yo voy primero la próxima.", reply:{who:'pim', t:"Deal. This time and next time. That is the fairest trade I know.", es:"Trato hecho. Esta vez y la próxima. Es el trato más justo que conozco."}},
+    {fn:'ask',  t:"Can we flip a coin?",              es:"¿Podemos lanzar una moneda?",        reply:{who:'pim', t:"Yes. The coin decides, so nobody has to be mad at anybody.", es:"Sí. La moneda decide, así nadie tiene que enojarse con nadie."}},
+    {fn:'tell', t:"I really want to be first.",       es:"De verdad quiero ser primera.",      reply:{who:'pim', t:"I know. Me too. Wanting it is okay. Only one of us gets it, and the other one gets next.", es:"Lo sé. Yo también. Quererlo está bien. Solo a uno le toca, y al otro le toca la próxima."}}
+  ]},
+  {say:{who:'pim', t:"That worked. And look — second turn is still a turn.", es:"Funcionó. Y mira — el segundo turno también es un turno."}},
+  {pick:[
+    {fn:'tell', t:"Next time is real.",               es:"La próxima vez es de verdad.",       reply:{who:'pim', t:"Next time is real. I will remember, and you can remind me.", es:"La próxima vez es de verdad. Lo recordaré, y tú me lo puedes recordar."}},
+    {fn:'greet',t:"Your turn, Pim!",                  es:"¡Tu turno, Pim!",                    reply:{who:'pim', t:"My turn! And then yours. That is the whole dance.", es:"¡Mi turno! Y luego el tuyo. Ese es todo el baile."}}
+  ]}
+]},
+
+{ room:'icecream', id:'i1', title:'Meet the best friends', who:'gertrude', beats:[
+  {say:{who:'gertrude', t:"Hi! I am Gertrude and this is Bartholomew. We always get ice cream together.", es:"¡Hola! Soy Gertrude y este es Bartholomew. Siempre tomamos helado juntos."}},
+  {say:{who:'bart', t:"We are in second grade at the Benjamin Franklin school. Today is ice cream day.", es:"Estamos en segundo grado en la escuela Benjamin Franklin. Hoy es día de helado."}},
+  {pick:[
+    {fn:'greet', t:"Hi, Gertrude! Hi, Bartholomew!",  es:"¡Hola, Gertrude! ¡Hola, Bartholomew!", reply:{who:'gertrude', t:"You said both our names! Even Bartholomew, which is a very long one.", es:"¡Dijiste nuestros dos nombres! Hasta Bartholomew, que es larguísimo."}},
+    {fn:'ask',   t:"Can I get ice cream with you?",   es:"¿Puedo tomar helado con ustedes?",     reply:{who:'bart', t:"Yes! Best friends always have room for one more.", es:"¡Sí! Los mejores amigos siempre tienen lugar para uno más."}},
+    {fn:'tell',  t:"I like ice cream too.",           es:"A mí también me gusta el helado.",     reply:{who:'gertrude', t:"Then you are in the right place. This porch is for ice cream people.", es:"Entonces estás en el lugar correcto. Este porche es para gente de helado."}}
+  ]},
+  {say:{who:'bart', t:"I always get chocolate. Gertrude always gets strawberry. Always always.", es:"Yo siempre pido chocolate. Gertrude siempre pide fresa. Siempre siempre."}},
+  {pick:[
+    {fn:'tell', t:"I know my favorite flavor already.", es:"Yo ya sé mi sabor favorito.",         reply:{who:'gertrude', t:"Knowing your order is very second grade of you. Tell us when the window opens.", es:"Saber tu pedido es muy de segundo grado. Dinos cuando abra la ventana."}},
+    {fn:'ask',  t:"What if I want two flavors?",       es:"¿Y si quiero dos sabores?",            reply:{who:'bart', t:"Then you get a double scoop. That is allowed on this porch.", es:"Entonces pides dos bolas. Eso está permitido en este porche."}},
+    {fn:'ask',  t:"Is strawberry good?",               es:"¿La fresa es rica?",                   reply:{who:'gertrude', t:"It is pink and it is perfect. You can taste mine.", es:"Es rosada y es perfecta. Puedes probar el mío."}}
+  ]},
+  {say:{who:'gertrude', t:"The window is open! Everybody think about their order.", es:"¡Abrió la ventana! Todos piensen su pedido."}}
+]},
+
+{ room:'icecream', id:'i2', title:'The scoop that fell', who:'bart', beats:[
+  {say:{who:'bart', t:"Oh no. My chocolate scoop fell on the ground. This is the worst day of second grade.", es:"Ay no. Mi bola de chocolate se cayó al suelo. Este es el peor día de segundo grado."}},
+  {pick:[
+    {fn:'fix',  t:"That's okay. We can get another one.", es:"No pasa nada. Podemos pedir otra.",  reply:{who:'bart', t:"We can? Okay. My heart is un-breaking a little.", es:"¿Podemos? Bueno. Mi corazón se está des-rompiendo un poquito."}},
+    {fn:'tell', t:"I get sad when that happens too.",     es:"Yo también me pongo triste cuando pasa eso.", reply:{who:'gertrude', t:"See, Bartholomew? Everybody drops a scoop sometimes.", es:"¿Ves, Bartholomew? A todos se les cae una bola a veces."}},
+    {fn:'fix',  t:"You can have some of mine.",           es:"Puedes comer del mío.",              reply:{who:'bart', t:"You would share yours? You are a best-friend kind of person.", es:"¿Compartirías el tuyo? Eres de esas personas que son mejores amigos."}}
+  ]},
+  {say:{who:'gertrude', t:"Here, Bartholomew. Half of my strawberry. Best friends split things.", es:"Toma, Bartholomew. La mitad de mi fresa. Los mejores amigos comparten."}},
+  {pick:[
+    {fn:'tell', t:"Half and half. That's fair.",          es:"Mitad y mitad. Eso es justo.",       reply:{who:'gertrude', t:"Half for him and half for me. Fair fixed it.", es:"La mitad para él y la mitad para mí. Lo justo lo arregló."}},
+    {fn:'tell', t:"Now it's a happy day again.",          es:"Ahora es un día feliz otra vez.",    reply:{who:'bart', t:"It is! It flipped from worst to best. Days can do that.", es:"¡Sí! Pasó de peor a mejor. Los días pueden hacer eso."}}
+  ]}
+]}
+];
+
+/* ---------------- mitigation: whole phrase -> parts ---------------- */
+const BUILDS = [
+  {whole:"Can I have a turn?", pre:"Can I have", slot:"a turn", post:"?", es:"¿Puedo tener un turno?",
+   swaps:[{t:"a turn",es:"un turno"},{t:"the blue one",es:"el azul"},{t:"some help",es:"ayuda"},{t:"a snack",es:"una merienda"},{t:"one more",es:"uno más"}]},
+  {whole:"I want to go outside.", pre:"I want to", slot:"go outside", post:".", es:"Quiero salir afuera.",
+   swaps:[{t:"go outside",es:"salir afuera"},{t:"play with you",es:"jugar contigo"},{t:"be by myself",es:"estar sola"},{t:"listen to music",es:"escuchar música"},{t:"try it again",es:"intentarlo otra vez"}]},
+  {whole:"I don't like that.", pre:"I don't like", slot:"that", post:".", es:"No me gusta eso.",
+   swaps:[{t:"that",es:"eso"},{t:"the loud part",es:"la parte fuerte"},{t:"being surprised",es:"que me sorprendan"},{t:"this song",es:"esta canción"}]},
+  {whole:"Look at the snail!", pre:"Look at", slot:"the snail", post:"!", es:"¡Mira el caracol!",
+   swaps:[{t:"the snail",es:"el caracol"},{t:"my tower",es:"mi torre"},{t:"the rain",es:"la lluvia"},{t:"this one",es:"este"}]},
+  {whole:"That's okay. We can build it again.", pre:"That's okay. We can", slot:"build it again", post:".", es:"No pasa nada. Podemos construirla otra vez.",
+   swaps:[{t:"build it again",es:"construirla otra vez"},{t:"try tomorrow",es:"intentar mañana"},{t:"fix it together",es:"arreglarlo juntos"},{t:"do something else",es:"hacer otra cosa"}]},
+  {whole:"My tummy feels funny.", pre:"My", slot:"tummy", post:" feels funny.", es:"Me siento raro en la panza.",
+   swaps:[{t:"tummy",es:"la panza"},{t:"head",es:"la cabeza"},{t:"ear",es:"el oído"},{t:"foot",es:"el pie"}]},
+  {whole:"I need a break now.", pre:"I need", slot:"a break", post:" now.", es:"Necesito un descanso ahora.",
+   swaps:[{t:"a break",es:"un descanso"},{t:"a hug",es:"un abrazo"},{t:"some quiet",es:"silencio"},{t:"more time",es:"más tiempo"}]},
+  {whole:"Can we go inside?", pre:"Can we", slot:"go inside", post:"?", es:"¿Podemos entrar?",
+   swaps:[{t:"go inside",es:"entrar"},{t:"share it",es:"compartirlo"},{t:"both use it",es:"usarlo los dos"},{t:"come back tomorrow",es:"volver mañana"}]},
+  {whole:"I feel better now.", pre:"I feel", slot:"better", post:" now.", es:"Ahora me siento mejor.",
+   swaps:[{t:"better",es:"mejor"},{t:"happy",es:"feliz"},{t:"worried",es:"preocupada"},{t:"tired",es:"cansada"},{t:"excited",es:"emocionada"}]},
+  {whole:"Not right now, please.", pre:"Not", slot:"right now", post:", please.", es:"Ahora no, por favor.",
+   swaps:[{t:"right now",es:"ahora"},{t:"that one",es:"ese"},{t:"today",es:"hoy"},{t:"so loud",es:"tan fuerte"}]},
+  {whole:"Can we play blocks after?", pre:"Can we play", slot:"blocks", post:" after?", es:"¿Podemos jugar bloques después?",
+   swaps:[{t:"blocks",es:"bloques"},{t:"my game",es:"mi juego"},{t:"outside",es:"afuera"},{t:"it again",es:"otra vez"}]},
+  {whole:"I really want to be first.", pre:"I really want", slot:"to be first", post:".", es:"De verdad quiero ser primera.",
+   swaps:[{t:"to be first",es:"ser primera"},{t:"the green one",es:"el verde"},{t:"one more turn",es:"un turno más"},{t:"to stay longer",es:"quedarme más"}]}
+];
+
+/* ---------------- speech ---------------- */
+let voiceOn = true;
+let enVoice = null, esVoice = null, enVoices = [];
+
+/* Browser default voices are the robotic ones. Rank toward the natural
+   neural voices that actually ship on these platforms, in order.
+   On macOS the good ones must be downloaded first:
+   System Settings > Accessibility > Spoken Content > System Voice > Manage Voices
+   Download any "Premium" or "Enhanced" English voice (Ava, Zoe, Allison, Evan). */
+const VOICE_RANK = [
+  /Ava.*(Premium|Enhanced)/i, /Zoe.*(Premium|Enhanced)/i, /Allison.*(Premium|Enhanced)/i,
+  /Evan.*(Premium|Enhanced)/i, /Nicky/i, /Samantha.*(Premium|Enhanced)/i,
+  /Google US English/i, /Microsoft (Aria|Jenny|Ana|Michelle)/i,
+  /Siri/i, /Samantha/i, /Karen|Moira|Tessa/i
+];
+/* macOS ships a set of joke voices that must never be offered to a child
+   who is using this to learn how words sound. */
+const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Deranged|Good News|Jester|Organ|Pipe Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Hysterical|Princess|Bruce|Fred|Junior|Ralph|Kathy|Agnes|Victoria)\b/i;
+function scoreVoice(v){
+  for(let i=0;i<VOICE_RANK.length;i++) if(VOICE_RANK[i].test(v.name)) return i;
+  return VOICE_RANK.length + (v.localService ? 1 : 0);
+}
+function loadVoices(){
+  const vs = speechSynthesis.getVoices();
+  if(!vs.length) return;
+  enVoices = vs.filter(v=>/^en/i.test(v.lang) && !NOVELTY.test(v.name)).sort((a,b)=>scoreVoice(a)-scoreVoice(b));
+  const saved = localStorage.getItem('th_voice');
+  enVoice = (saved && enVoices.find(v=>v.name===saved)) || enVoices[0] || null;
+  esVoice = vs.filter(v=>/^es/i.test(v.lang))
+              .sort((a,b)=>(/Premium|Enhanced|Google|Paulina|Mónica/i.test(b.name)?1:0)-(/Premium|Enhanced|Google|Paulina|Mónica/i.test(a.name)?1:0))[0] || null;
+  renderVoicePicker();
+}
+if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+function speak(text, lang){
+  if(!voiceOn || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  if(lang==='es'){ u.lang='es-MX'; if(esVoice) u.voice=esVoice; }
+  else { u.lang='en-US'; if(enVoice) u.voice=enVoice; }
+  // Near-natural pace. Too slow reads as robotic, not as clear.
+  u.rate = 0.96; u.pitch = 1.0;
+  speechSynthesis.speak(u);
+}
+
+function renderVoicePicker(){
+  const box = document.getElementById('voicePick');
+  if(!box) return;
+  if(!enVoices.length){ box.innerHTML = '<p>No speech voices found in this browser.</p>'; return; }
+  box.innerHTML = `<p>This browser has ${enVoices.length} English voices, best first. Tap one to hear it and make it Sasha's.</p>
+    <div class="filters">${enVoices.slice(0,14).map((v,i)=>
+      `<button class="chip" data-v="${encodeURIComponent(v.name)}" aria-pressed="${enVoice&&enVoice.name===v.name}">${v.name}</button>`).join('')}</div>`;
+  box.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
+    const n = decodeURIComponent(b.dataset.v);
+    enVoice = enVoices.find(v=>v.name===n);
+    localStorage.setItem('th_voice', n);
+    renderVoicePicker();
+    const wasOn = voiceOn; voiceOn = true;
+    speak("Hi Sasha! Come in, come in.", 'en');
+    voiceOn = wasOn;
+  });
+}
+
+/* ---------------- tones (Web Audio) ---------------- */
+let AC = null;
+function ac(){ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC; }
+function tone(freq, dur=0.5, when=0){
+  const c = ac(), t0 = c.currentTime + when;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type='sine'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(0.28,t0+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0+dur+0.05);
+}
+const NOTES = [
+  {n:'C',f:261.63,s:false},{n:'C#',f:277.18,s:true},{n:'D',f:293.66,s:false},{n:'D#',f:311.13,s:true},
+  {n:'E',f:329.63,s:false},{n:'F',f:349.23,s:false},{n:'F#',f:369.99,s:true},{n:'G',f:392.00,s:false},
+  {n:'G#',f:415.30,s:true},{n:'A',f:440.00,s:false},{n:'A#',f:466.16,s:true},{n:'B',f:493.88,s:false},
+  {n:'C',f:523.25,s:false}
+];
+
+/* ---------------- state ---------------- */
+let showEs = false;
+const store = {
+  get said(){ try{ return JSON.parse(localStorage.getItem('th_said')||'{}'); }catch(e){ return {}; } },
+  mark(t){ const s=this.said; s[t]=(s[t]||0)+1; localStorage.setItem('th_said',JSON.stringify(s)); }
+};
+
+/* ---------------- routing ---------------- */
+const views = ['house','room','scene','phrases','build','music','numbers','grownups'];
+function show(v){
+  views.forEach(x=>document.getElementById('v-'+x).classList.toggle('on', x===v));
+  window.scrollTo({top:0,behavior:'instant'});
+}
+document.getElementById('homeBtn').onclick = ()=>{ speechSynthesis && speechSynthesis.cancel(); show('house'); };
+document.addEventListener('click', e=>{
+  const g = e.target.closest('[data-go]');
+  if(g){ const v=g.dataset.go; if(v==='phrases') renderPhrases(); if(v==='grownups'){ renderGrownups(); renderVoicePicker(); renderCustomForm(); renderStagePicker(); } show(v); }
+});
+
+document.getElementById('esBtn').onclick = function(){
+  showEs = !showEs; this.setAttribute('aria-pressed', String(showEs));
+  this.textContent = showEs ? 'Español ✓' : 'Español';
+  if(document.getElementById('v-scene').classList.contains('on')) redrawScene();
+  if(document.getElementById('v-phrases').classList.contains('on')) renderPhrases();
+};
+document.getElementById('voiceBtn').onclick = function(){
+  voiceOn = !voiceOn; this.setAttribute('aria-pressed', String(voiceOn));
+  this.textContent = voiceOn ? 'Voice on' : 'Voice off';
+  if(!voiceOn && window.speechSynthesis) speechSynthesis.cancel();
+};
+
+/* ---------------- house ---------------- */
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function visitedToday(){
+  try{ const v=JSON.parse(localStorage.getItem('th_visited')||'{}'); return v.d===todayKey()? (v.r||{}) : {}; }catch(e){ return {}; }
+}
+function markVisited(room){
+  const r = visitedToday(); r[room]=1;
+  localStorage.setItem('th_visited', JSON.stringify({d:todayKey(), r}));
+}
+
+function renderHouse(){
+  const grid = document.getElementById('roomGrid');
+  const v = visitedToday();
+  grid.innerHTML = ROOMS.map(r=>{
+    const n = SCENES.filter(s=>s.room===r.id).length;
+    const cnt = r.id==='music' ? (n+' stories &middot; keys') : r.id==='numbers' ? (n+' stories &middot; numbers') : (n+' '+(n===1?'story':'stories'));
+    return `<button class="room" data-room="${r.id}" style="background:${r.bg}">
+      ${v[r.id]?'<div class="visited" title="visited today">&#11088;</div>':''}
+      <div class="rn">${r.name}</div>
+      <div class="rd">${r.sub}</div>
+      <div class="cnt">${cnt}</div>
+      <div class="rc">${svgFor(r.char)}</div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>openRoom(b.dataset.room));
+}
+
+function openRoom(id){
+  const r = ROOMS.find(x=>x.id===id);
+  document.getElementById('roomTitle').textContent = r.name;
+  document.getElementById('roomSub').textContent = r.sub;
+  const list = SCENES.filter(s=>s.room===id);
+  let extra = '';
+  if(id==='numbers') extra += `<button class="sc" data-special="numbers"><div class="mini">${svgFor('uno')}</div><div><div class="t">Numbers into sentences</div><div class="s">Pick a number, get a sentence</div></div></button>`;
+  if(id==='music')   extra += `<button class="sc" data-special="music"><div class="mini">${svgFor('coco')}</div><div><div class="t">The keys and songs</div><div class="s">Play notes, sing phrases</div></div></button>`;
+  document.getElementById('scenePicker').innerHTML = list.map(s=>
+    `<button class="sc" data-scene="${s.id}"><div class="mini">${svgFor(s.who)}</div>
+      <div><div class="t">${s.title}</div><div class="s">with ${CHARS[s.who].name} &middot; age ${CHARS[s.who].age}</div></div></button>`
+  ).join('') + extra;
+  document.getElementById('scenePicker').querySelectorAll('[data-scene]').forEach(b=>b.onclick=()=>startScene(b.dataset.scene));
+  document.getElementById('scenePicker').querySelectorAll('[data-special]').forEach(sp=>{
+    sp.onclick = ()=>{ if(sp.dataset.special==='music'){ renderMusic(); show('music'); } else { renderNumbers(); show('numbers'); } };
+  });
+  show('room');
+}
+
+/* ---------------- scene engine ---------------- */
+let cur = null, played = [], beatIdx = 0;
+
+function startScene(id){
+  cur = SCENES.find(s=>s.id===id);
+  played = []; beatIdx = 0;
+  document.getElementById('sceneTitle').textContent = cur.title;
+  document.getElementById('sceneWhere').textContent = ROOMS.find(r=>r.id===cur.room).name;
+  document.getElementById('strip').innerHTML = '';
+  document.getElementById('choices').innerHTML = '';
+  show('scene');
+  advance();
+}
+
+function bubbleHTML(who, t, es, mine){
+  const c = CHARS[who] || CHARS.you;
+  return `<div class="beat ${mine?'mine':''}">
+    <div class="av">${svgFor(mine?'you':who)}</div>
+    <div class="bub">
+      <div class="name">${mine?'You said':c.name}</div>
+      <div class="line">${t}</div>
+      ${showEs&&es?`<div class="es">${es}</div>`:''}
+      <button class="say" data-speak="${encodeURIComponent(t)}" data-speakes="${encodeURIComponent(es||'')}">&#9654; hear it</button>
+    </div>
+  </div>`;
+}
+
+function pushBeat(who,t,es,mine){
+  played.push({who,t,es,mine});
+  const strip = document.getElementById('strip');
+  strip.insertAdjacentHTML('beforeend', bubbleHTML(who,t,es,mine));
+  wireSay(strip.lastElementChild);
+  strip.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(!mine) speak(t,'en');
+}
+
+function wireSay(scope){
+  scope.querySelectorAll('[data-speak]').forEach(b=>{
+    b.onclick = ()=>{
+      const en = decodeURIComponent(b.dataset.speak);
+      const es = decodeURIComponent(b.dataset.speakes||'');
+      if(showEs && es) { speak(en,'en'); setTimeout(()=>speak(es,'es'), Math.max(1200, en.length*70)); }
+      else speak(en,'en');
+    };
+  });
+}
+
+function redrawScene(){
+  const strip = document.getElementById('strip');
+  strip.innerHTML = played.map(b=>bubbleHTML(b.who,b.t,b.es,b.mine)).join('');
+  wireSay(strip);
+  const ch = document.getElementById('choices');
+  if(ch.dataset.opts) renderChoices(JSON.parse(decodeURIComponent(ch.dataset.opts)));
+}
+
+function advance(){
+  document.getElementById('choices').innerHTML = '';
+  document.getElementById('choices').dataset.opts = '';
+  if(beatIdx >= cur.beats.length){ finish(); return; }
+  const b = cur.beats[beatIdx++];
+  if(b.say){ pushBeat(b.say.who, b.say.t, b.say.es, false); setTimeout(advance, 900); return; }
+  if(b.pick){ renderChoices(b.pick); document.getElementById('choices').dataset.opts = encodeURIComponent(JSON.stringify(b.pick)); }
+}
+
+function stage(){ return localStorage.getItem('th_stage')||'a'; }
+function renderChoices(opts){
+  const ch = document.getElementById('choices');
+  /* Stage C: honor self-generated language with an always-available own-words option */
+  if(stage()==='c' && !opts.some(o=>o.own)){
+    opts = opts.concat([{fn:'tell', own:true, t:"I have my own thing to say.", es:"Tengo algo mío que decir.",
+      reply:{who:cur.who, t:"Say it out loud! Your own words are my favorite words.", es:"¡Dilo en voz alta! Tus propias palabras son mis favoritas."}}]);
+  }
+  const optText = (o)=>{
+    if(stage()==='a' || o.own) return o.t;
+    const b = findBuild(o.t);
+    return (b && b.slot) ? o.t.replace(b.slot, `<span class="slotmark">${b.slot}</span>`) : o.t;
+  };
+  ch.innerHTML = `<div class="prompt">Your turn &mdash; pick any one</div><div class="opts">` +
+    opts.map((o,i)=>`<button class="opt ${FN[o.fn].cls}" data-i="${i}">
+      <span class="fn fn-${o.fn}">${FN[o.fn].label}</span>
+      <div class="txt">${optText(o)}</div>
+      ${showEs&&o.es?`<div class="esx">${o.es}</div>`:''}
+    </button>`).join('') + `</div>`;
+  ch.querySelectorAll('.opt').forEach(btn=>{
+    btn.onclick = ()=>{
+      const o = opts[+btn.dataset.i];
+      ch.innerHTML = ''; ch.dataset.opts = '';
+      store.mark(o.t);
+      pushBeat('you', o.t, o.es, true);
+      speak(o.t,'en');
+      setTimeout(()=>{
+        pushBeat(o.reply.who, o.reply.t, o.reply.es, false);
+        setTimeout(advance, 1100);
+      }, Math.max(1100, o.t.length*65));
+    };
+  });
+}
+
+function finish(){
+  markVisited(cur.room); renderHouse();
+  const said = played.filter(b=>b.mine).map(b=>b.t);
+  document.getElementById('choices').innerHTML =
+    `<div class="done-card">
+      <div class="big">You said ${said.length} things.</div>
+      <div style="margin-top:12px;font-size:20px;line-height:1.4">${said.map(s=>`&ldquo;${s}&rdquo;`).join('<br>')}</div>
+      <div class="row">
+        <button class="pill go" id="againBtn">Do it again</button>
+        <button class="pill" data-go="phrases">Keep these phrases</button>
+        <button class="pill" id="backRoom">Back to the room</button>
+      </div>
+    </div>`;
+  document.getElementById('againBtn').onclick = ()=>startScene(cur.id);
+  document.getElementById('backRoom').onclick = ()=>openRoom(cur.room);
+}
+
+/* ---------------- phrase bank ---------------- */
+let phraseFilter = 'all';
+function customs(){ try{ return JSON.parse(localStorage.getItem('th_custom')||'[]'); }catch(e){ return []; } }
+function saveCustoms(a){ localStorage.setItem('th_custom', JSON.stringify(a)); }
+function findBuild(t){
+  return BUILDS.find(b=>b.whole===t) || customs().find(c=>c.whole===t && c.swaps && c.swaps.length>1);
+}
+function allPhrases(){
+  const out = [], seen = new Set();
+  customs().forEach(c=>{ if(seen.has(c.whole)) return; seen.add(c.whole); out.push({t:c.whole, es:c.es||'', fn:c.fn||'tell', custom:true}); });
+  SCENES.forEach(s=>s.beats.forEach(b=>{
+    if(!b.pick) return;
+    b.pick.forEach(o=>{ if(seen.has(o.t)) return; seen.add(o.t); out.push({t:o.t, es:o.es, fn:o.fn}); });
+  }));
+  return out;
+}
+function renderPhrases(){
+  const f = document.getElementById('phraseFilters');
+  const keys = ['all'].concat(customs().length?['mine']:[]).concat(Object.keys(FN));
+  f.innerHTML = keys.map(k=>{
+    const on = phraseFilter===k;
+    const bg = k==='all' ? 'var(--paper)' : k==='mine' ? 'var(--leaf-pale)' : `var(--${({greet:'marigold',ask:'teal',no:'rose',tell:'grape',fix:'sky'})[k]}-pale)`;
+    return `<button class="chip" data-f="${k}" aria-pressed="${on}" style="background:${bg}">${k==='all'?'Everything':k==='mine'?"Sasha's own":FN[k].label}</button>`;
+  }).join('');
+  f.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ phraseFilter=b.dataset.f; renderPhrases(); });
+
+  const said = store.said;
+  const list = allPhrases().filter(p=>phraseFilter==='all'||(phraseFilter==='mine'?p.custom:p.fn===phraseFilter));
+  document.getElementById('phraseCards').innerHTML = list.map(p=>{
+    const build = findBuild(p.t);
+    const n = said[p.t]||0;
+    return `<button class="card ${FN[p.fn].cls}" data-p="${encodeURIComponent(p.t)}">
+      <span class="fn fn-${p.fn}">${p.custom?"Sasha's own":FN[p.fn].label}</span>
+      <div class="p">${p.t}</div>
+      ${showEs&&p.es?`<div class="pe">${p.es}</div>`:''}
+      <div class="hint">${build?'Tap to take it apart &rarr;':'Tap to hear it'}${n?` &middot; you said this ${n===1?'once':n+' times'}`:''}</div>
+    </button>`;
+  }).join('');
+  document.getElementById('phraseCards').querySelectorAll('[data-p]').forEach(b=>{
+    b.onclick = ()=>{
+      const t = decodeURIComponent(b.dataset.p);
+      const build = findBuild(t);
+      speak(t,'en');
+      if(build) setTimeout(()=>{ renderBuilder(build); show('build'); }, 600);
+    };
+  });
+}
+
+/* ---------------- builder ---------------- */
+function renderBuilder(b){
+  let pick = 0;
+  const el = document.getElementById('builder');
+  function draw(){
+    const s = b.swaps[pick];
+    const full = `${b.pre} ${s.t}${b.post}`;
+    el.innerHTML = `
+      <div style="font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)">The whole thing</div>
+      <div class="whole">${b.whole}</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:22px">The parts</div>
+      <div class="split">
+        <span class="part">${b.pre}</span>
+        <span class="part slot">${s.t}</span>
+        ${b.post.trim()&&b.post.trim()!=='.'&&b.post.trim()!=='?'&&b.post.trim()!=='!'?`<span class="part">${b.post}</span>`:''}
+      </div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:22px">Swap the orange part</div>
+      <div class="swaps">${b.swaps.map((x,i)=>`<button class="swap" data-i="${i}" aria-pressed="${i===pick}">${x.t}</button>`).join('')}</div>
+      <div style="margin-top:24px;border-top:4px dashed rgba(46,42,59,.2);padding-top:18px">
+        <div class="whole" style="color:var(--rose)">${full}</div>
+        ${showEs?`<div style="font-size:22px;color:var(--teal);font-weight:500;margin-top:6px">${b.pre===b.whole.slice(0,b.pre.length)&&pick===0?b.es:''}</div>`:''}
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="pill go" id="bSay">Say the new one</button>
+          <button class="pill" id="bSayWhole">Say the whole thing</button>
+        </div>
+      </div>`;
+    el.querySelectorAll('.swap').forEach(btn=>btn.onclick=()=>{ pick=+btn.dataset.i; draw(); speak(`${b.pre} ${b.swaps[pick].t}${b.post}`,'en'); });
+    el.querySelector('#bSay').onclick = ()=>speak(full,'en');
+    el.querySelector('#bSayWhole').onclick = ()=>speak(b.whole,'en');
+  }
+  draw();
+}
+
+/* ---------------- music room ---------------- */
+let singPhrase = null;
+const SING_CHOICES = ["Hi, Poppy! It's me.","Can I have a turn?","I need a break now.","Look at the snail!","I feel better now.","That's okay. We can build it again."];
+function renderMusic(){
+  document.getElementById('keys').innerHTML = NOTES.map((n,i)=>
+    `<button class="key ${n.s?'sharp':''}" data-i="${i}">${n.n}</button>`).join('');
+  document.getElementById('keys').querySelectorAll('.key').forEach(k=>{
+    k.onclick = ()=>{
+      const n = NOTES[+k.dataset.i];
+      tone(n.f, 0.8);
+      document.getElementById('noteName').textContent = n.n;
+      document.getElementById('noteHz').textContent = n.f.toFixed(2) + ' hertz';
+      k.classList.add('lit'); setTimeout(()=>k.classList.remove('lit'), 320);
+    };
+  });
+  const sp = document.getElementById('singPick');
+  sp.innerHTML = SING_CHOICES.map((p,i)=>`<button class="chip" data-s="${i}" aria-pressed="${singPhrase===i}">${p}</button>`).join('');
+  sp.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ singPhrase=+b.dataset.s; renderMusic(); });
+  drawSing();
+}
+function melodyFor(words){
+  // Rising, singable line: scale degrees over a C major pentatonic, gently up then resolving.
+  const scale = [261.63,293.66,329.63,392.00,440.00,523.25];
+  const names = ['C','D','E','G','A','C'];
+  return words.map((w,i)=>{
+    const k = Math.min(scale.length-1, Math.round(i * (scale.length-1) / Math.max(1,words.length-1)));
+    return {w, f:scale[k], n:names[k]};
+  });
+}
+function drawSing(){
+  const row = document.getElementById('singRow');
+  if(singPhrase===null){ row.innerHTML = '<div style="color:var(--ink-soft);font-size:17px">Pick a phrase above.</div>'; return; }
+  const words = SING_CHOICES[singPhrase].split(/\s+/);
+  const mel = melodyFor(words);
+  row.innerHTML = mel.map((m,i)=>`<div class="singnote" data-i="${i}"><div class="nn">${m.n}</div><div class="w">${m.w}</div></div>`).join('');
+  row.querySelectorAll('.singnote').forEach(el=>el.onclick=()=>{ tone(mel[+el.dataset.i].f,0.7); el.classList.add('lit'); setTimeout(()=>el.classList.remove('lit'),320); });
+  document.getElementById('playMelody').onclick = ()=>{
+    mel.forEach((m,i)=>{
+      tone(m.f, 0.42, i*0.46);
+      setTimeout(()=>{ const el=row.querySelector(`[data-i="${i}"]`); if(el){el.classList.add('lit'); setTimeout(()=>el.classList.remove('lit'),380);} }, i*460);
+    });
+  };
+  document.getElementById('saySpoken').onclick = ()=>speak(SING_CHOICES[singPhrase],'en');
+}
+document.getElementById('playMelody').onclick = ()=>{};
+document.getElementById('saySpoken').onclick = ()=>{};
+
+/* ---------------- number room ---------------- */
+const THINGS = [
+  {en:'cat', enp:'cats', es:'gato', esp:'gatos', art:'gatos'},
+  {en:'block', enp:'blocks', es:'bloque', esp:'bloques'},
+  {en:'cookie', enp:'cookies', es:'galleta', esp:'galletas'},
+  {en:'friend', enp:'friends', es:'amigo', esp:'amigos'},
+  {en:'bird', enp:'birds', es:'pájaro', esp:'pájaros'}
+];
+const ES_NUM = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce'];
+const EN_NUM = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+let numPick = null, thingPick = 0, timesMode = false;
+
+function renderNumbers(){
+  document.getElementById('numGrid').innerHTML = Array.from({length:12},(_,i)=>i+1)
+    .map(n=>`<button class="num" data-n="${n}" aria-pressed="${numPick===n}">${n}</button>`).join('');
+  document.getElementById('numGrid').querySelectorAll('.num').forEach(b=>b.onclick=()=>{ numPick=+b.dataset.n; renderNumbers(); });
+  document.getElementById('thingPick').innerHTML = THINGS.map((t,i)=>
+    `<button class="chip" data-t="${i}" aria-pressed="${thingPick===i}">${t.enp}</button>`).join('');
+  document.getElementById('thingPick').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{ thingPick=+b.dataset.t; renderNumbers(); });
+
+  const s1 = document.getElementById('numSent'), s2 = document.getElementById('numSentEs'), dots = document.getElementById('numDots');
+  if(numPick===null){ s1.textContent='Pick a number.'; s2.textContent=''; dots.innerHTML=''; }
+  else if(timesMode){
+    const a = numPick, b = 12;
+    s1.innerHTML = Array.from({length:12},(_,i)=>i+1).map(k=>`${a} &times; ${k} = <b>${a*k}</b>`).join(' &nbsp;&middot;&nbsp; ');
+    s1.style.fontSize='22px';
+    s2.textContent = showEs ? `La tabla del ${ES_NUM[a]}.` : '';
+    dots.innerHTML='';
+  } else {
+    s1.style.fontSize='';
+    const t = THINGS[thingPick];
+    const word = numPick===1 ? t.en : t.enp;
+    const eword = numPick===1 ? t.es : t.esp;
+    s1.textContent = `There ${numPick===1?'is':'are'} ${numPick} ${word}.`;
+    s2.textContent = `Hay ${ES_NUM[numPick]} ${eword}.`;
+    dots.innerHTML = Array.from({length:numPick},()=>'<i></i>').join('');
+  }
+  document.getElementById('numSay').onclick = ()=>{
+    if(numPick===null) return;
+    if(timesMode){ speak(`The ${EN_NUM[numPick]} times table.`,'en'); return; }
+    speak(s1.textContent,'en');
+    if(showEs) setTimeout(()=>speak(s2.textContent,'es'), 2000);
+  };
+  document.getElementById('numTimes').onclick = ()=>{ timesMode=!timesMode; document.getElementById('numTimes').textContent = timesMode?'Back to sentences':'Times tables'; renderNumbers(); };
+}
+
+/* ---------------- grown-ups ---------------- */
+function renderGrownups(){
+  document.getElementById('guBody').innerHTML = `
+<p style="font-size:20px"><b>Sasha's Dollhouse is a low-demand talking game for a child who reads early and learns language in whole chunks.</b> It is a toy, not a therapy. It is built to sit next to a speech-language pathologist, not replace one.</p>
+
+<h2>Pick the voice first</h2>
+<p>Browsers ship with a robotic default voice. The good ones are usually there but have to be chosen, and on a Mac they have to be downloaded first: <b>System Settings &rarr; Accessibility &rarr; Spoken Content &rarr; System Voice &rarr; Manage Voices</b>, then download any English voice marked <b>Premium</b> or <b>Enhanced</b> &mdash; Ava, Zoe, Allison and Evan are the natural-sounding ones. Reload this page afterward and they will appear below. In Chrome, <b>Google US English</b> is already good.</p>
+<div id="voicePick"></div>
+<p>Or turn <b>Voice off</b> at the top and read the lines to her yourself. For a lot of children that is better than any synthetic voice, and it is the only option here that has a real person's prosody in it.</p>
+
+<h2>What it assumes about this child</h2>
+<ul>
+  <li><b>She is a gestalt language processor.</b> Language arrives as whole units &mdash; scripts, song lines, remembered phrases &mdash; and gets broken down later. The unit of instruction here is the whole phrase, never the isolated word.</li>
+  <li><b>She has hyperlexia with strong decoding.</b> So text is the primary channel, not the support. Every line is written large before it is ever spoken. Audio is optional and can be turned off at the top of the screen.</li>
+  <li><b>She has a particular relationship to music.</b> Nothing sings unless she presses a button that says so. The music room is opt-in twice over.</li>
+</ul>
+
+<h2>The rules this thing follows</h2>
+<h3>1. No quizzing</h3>
+<p>There are no wh-questions asked of her anywhere in the scenes. Early gestalt processors have to disassemble a question into parts before they can answer it, which is the exact skill still under construction. Questions like &ldquo;what color is the apple?&rdquo; belong at stages four through six. Here, characters <em>comment</em>, and she picks a reply.</p>
+
+<h3>2. Every phrase is mitigable</h3>
+<p>A mitigable gestalt is one that can be pulled apart and recombined later. &ldquo;Can I have a turn?&rdquo; splits into <code>Can I have ___</code> plus a swappable ending. &ldquo;Boy oh boy, here we go!&rdquo; does not split into anything. Every option in this game was written to split. The <b>My phrases</b> screen shows the split explicitly, with the swappable part in orange &mdash; that is the stage two to stage three bridge, rendered in her strongest modality.</p>
+
+<h3>3. No wrong answers, no score, no timer</h3>
+<p>Every option advances the story and gets a warm, specific reply. There is no fail state to detect and no clock to feel. The end card just reads back what she said.</p>
+
+<h3>4. Saying no is a first-class move</h3>
+<p>One of the five moves &mdash; the pink one &mdash; is refusal. Protest and declining are communication, and a game that only teaches compliance teaches the wrong thing. In every scene where refusal appears, the character accepts it immediately and without cost.</p>
+
+<h3>5. The game room is not compliance training</h3>
+<p>One room is quietly about not getting what you want &mdash; someone else picks the game, the spinner lands on the wrong color, somebody else goes first. The design line it walks: the rule holds, but the feeling is never wrong. Characters model wanting something, not getting it, naming the feeling and surviving it (&ldquo;my insides made a big feeling, and then the feeling got smaller&rdquo;). When she picks &ldquo;I don't want orange,&rdquo; the character accepts the protest without changing the rule &mdash; both things are allowed to be true. Deciders that aren't people (spinners, coins) carry the authority, so nobody is the boss and no one's preference is wrong. The strategies modeled are the real ones: ask for the thing <em>after</em>, trade this-time for next-time, let the coin decide.</p>
+
+<h3>6. Declarative modeling</h3>
+<p>Characters narrate what they notice, think and feel rather than issuing directives. This lowers the pressure to respond and models the inner-state vocabulary that comment-type talk is made of.</p>
+
+<h2>The five moves</h2>
+<ul>
+  <li><b style="background:var(--marigold-pale);padding:1px 8px;border-radius:8px">Hello</b> &mdash; opening and closing an interaction</li>
+  <li><b style="background:var(--teal-pale);padding:1px 8px;border-radius:8px">Asking</b> &mdash; requesting an object, an action, a turn, or information</li>
+  <li><b style="background:var(--rose-pale);padding:1px 8px;border-radius:8px">Saying no</b> &mdash; declining, protesting, setting a limit</li>
+  <li><b style="background:var(--grape-pale);padding:1px 8px;border-radius:8px">Telling</b> &mdash; commenting, sharing an observation or an inner state</li>
+  <li><b style="background:var(--sky-pale);padding:1px 8px;border-radius:8px">Fixing it</b> &mdash; repairing after a rupture, offering a plan</li>
+</ul>
+<p>These are functions, not manners. The color is consistent everywhere so the category becomes visible before it becomes nameable.</p>
+
+<h2>How to use it with her</h2>
+<ul>
+  <li><b>Sit next to her, not across from her.</b> Read the character lines out loud yourself if she prefers your voice to the synthetic one &mdash; turn Voice off and do it live.</li>
+  <li><b>Let silence sit.</b> After a character line, wait. Over-modeling crowds out her production. The app deliberately pauses before showing choices.</li>
+  <li><b>Take her choices into the room.</b> If she picks &ldquo;I need a break now&rdquo; in the game, use that exact string later that day when she needs one. Portability is the whole point.</li>
+  <li><b>Do not correct her wording.</b> If she says a phrase her own way, that is mitigation happening. Repeat it back the way she said it.</li>
+  <li><b>Follow the scripts she already has.</b> This game cannot know her real scripts. If she has a phrase from a show that already carries a meaning, it beats anything here.</li>
+</ul>
+
+<h2>Grow it as she grows</h2>
+<p>The game keeps a private count of what she says, and this dial changes how the game talks as she moves through the stages of gestalt language development. It never switches by itself &mdash; you flip it, ideally with her speech-language pathologist's read on where she is.</p>
+<div id="stagePick"></div>
+
+<h2>Add her real phrases</h2>
+<p>This game cannot know the scripts she already carries. If she has a phrase she uses &mdash; from a show, a song, from you &mdash; add it here and it becomes a card in <b>My phrases</b>, with its own take-it-apart builder. Put brackets around the part that can swap: <code>We can fix [the truck]</code>. Stored only in this browser.</p>
+<div id="customForm"></div>
+
+<div class="note"><b>What this game does not do.</b> It does not assess her, stage her, track skills or produce data for anyone. It stores one thing in this browser: a count of which phrases she has picked, so the phrase cards can say &ldquo;you said this three times.&rdquo; Nothing leaves the device.</div>
+
+<h2>Honest note on the evidence</h2>
+<p>The pieces here are not equally well supported, and it would be dishonest to present them as one settled body of practice.</p>
+<ul>
+  <li><b>Natural Language Acquisition</b> (Blanc's staged model of gestalt language development) is widely used clinically and is the organizing idea of this app. Its peer-reviewed evidence base is thin. A 2024 critical analysis in <i>Autism &amp; Developmental Language Impairments</i> argues the framework has outrun its evidence. That critique is linked below and is worth reading before leaning on any of this too hard.</li>
+  <li><b>Social narratives</b> (Social Stories, Comic Strip Conversations) have a genuine evidence base for teaching social skills, with effect sizes that vary a lot by child and by how consistently they are delivered.</li>
+  <li><b>Music-assisted language intervention</b> has promising small trials, including a randomized feasibility trial published in 2024, but the effects are modest and the samples are small.</li>
+  <li><b>Declarative language</b> is a clinical style rather than a tested protocol. It is used here because it lowers demand, which is defensible on its own terms.</li>
+</ul>
+<p>None of this was reviewed by a speech-language pathologist. Show it to hers.</p>
+
+<h2>Sources</h2>
+<ul>
+  <li><a href="https://pubs.asha.org/doi/10.1044/2023_PERSP-23-00098" target="_blank" rel="noopener">Using the Natural Language Acquisition Protocol to Support Gestalt Language Development</a> &mdash; <i>Perspectives of the ASHA Special Interest Groups</i></li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/38784430/" target="_blank" rel="noopener">Natural language acquisition and gestalt language processing: a critical analysis</a> (2024) &mdash; the skeptical read</li>
+  <li><a href="https://journals.sagepub.com/doi/10.1177/13623613241234598" target="_blank" rel="noopener">Embracing gestalt language development as a fundamental neurodiversity-affirmative practice</a> &mdash; <i>Autism</i> (2024)</li>
+  <li><a href="https://www.meaningfulspeech.com/blog/iep-considerations" target="_blank" rel="noopener">IEP and treatment plan considerations for gestalt language processors</a> &mdash; on why wh-questions belong at stages 4&ndash;6</li>
+  <li><a href="https://iidc.indiana.edu/irca/articles/writing-and-using-social-narratives.html" target="_blank" rel="noopener">Writing and using social narratives</a> &mdash; Indiana Resource Center for Autism</li>
+  <li><a href="https://www.tonyattwood.com.au/books-by-tony-m/archived-papers/78-the-links-between-social-stories-comic-strip-conversations-a-cognitive-models" target="_blank" rel="noopener">The links between Social Stories, Comic Strip Conversations and cognitive models</a> &mdash; Attwood on Gray's methods</li>
+  <li><a href="https://journals.sagepub.com/doi/10.1177/13623613241233804" target="_blank" rel="noopener">Using music to assist language learning in autistic children with minimal verbal language: the MAP feasibility RCT</a> (2024)</li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6127010/" target="_blank" rel="noopener">From intuition to intervention: developing an intonation-based treatment for autism</a></li>
+  <li><a href="https://www.kennedykrieger.org/stories/interactive-autism-network-ian/perfect-pitch-autism-rare-gift" target="_blank" rel="noopener">Perfect pitch: autism's rare gift</a> &mdash; Kennedy Krieger Institute</li>
+  <li><a href="https://uniquelyhuman.com/2024/08/16/communication-regulation-declarative-language-linda-murphy/" target="_blank" rel="noopener">Supporting communication and regulation with declarative language</a> &mdash; Linda Murphy on Uniquely Human</li>
+</ul>
+
+<h2>Characters</h2>
+<p>Poppy (a cat, 6), Dr. Bo (a rabbit, 39), Pim (a pig, 5 &mdash; same as Sasha), Mo (a monster, 4), Uno (number cubes, 12, his favorite number) and Coco (a bird, 100) are original. Ages are woven in because she likes talking about how old everyone is; Mo, Pim and Poppy are 4, 5 and 6 on purpose. The art, the writing and the melodies are original. No characters, names, art or music from any television program are used here, and none should be added &mdash; a child's affection for a show is not a license to use it.</p>
+`;
+}
+
+/* ---------------- stage dial + usage stats (grown-ups) ---------------- */
+const STAGES = {
+  a:{name:'Whole phrases', desc:'Every option is a complete script she can lift and carry. The starting point.'},
+  b:{name:'Show the parts', desc:'The swappable chunk inside each option is highlighted in orange, in the scenes themselves. The stage 2→3 bridge, made visible.'},
+  c:{name:'Her own words', desc:'Every choice also offers "I have my own thing to say" — the game steps back and honors self-generated language.'}
+};
+function renderStagePicker(){
+  const box = document.getElementById('stagePick');
+  if(!box) return;
+  const said = store.said, distinct = Object.keys(said).length, total = Object.values(said).reduce((a,b)=>a+b,0);
+  const cur = stage();
+  const suggest = (cur==='a' && distinct>=15)
+    ? `<p style="border-left:6px solid var(--teal);padding:4px 0 4px 14px;background:rgba(47,158,151,.08);border-radius:0 10px 10px 0"><b>Worth considering:</b> she has used ${distinct} different phrases. If some are turning up in her own speech, "Show the parts" may be the right next dial.</p>` : '';
+  box.innerHTML = `
+    <div class="filters">${Object.keys(STAGES).map(k=>
+      `<button class="chip" data-st="${k}" aria-pressed="${cur===k}" style="background:${cur===k?'var(--marigold)':'var(--paper)'}">${STAGES[k].name}</button>`).join('')}</div>
+    <p><b>${STAGES[cur].name}.</b> ${STAGES[cur].desc}</p>
+    ${suggest}
+    <p style="font-size:15.5px;color:var(--ink-soft)">So far, in this browser: <b>${distinct}</b> different phrases said, <b>${total}</b> picks in all. Stored only on this device.</p>`;
+  box.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ localStorage.setItem('th_stage', b.dataset.st); renderStagePicker(); });
+}
+
+/* ---------------- add her real phrases (grown-ups) ---------------- */
+function renderCustomForm(){
+  const box = document.getElementById('customForm');
+  if(!box) return;
+  const list = customs();
+  box.innerHTML = `<div class="addform">
+    <label>Her phrase &mdash; put [brackets] around the part that can swap</label>
+    <input id="cfPhrase" placeholder="We can fix [the truck]">
+    <label>Other things that could go in the brackets, separated by commas</label>
+    <input id="cfSwaps" placeholder="the tower, my braid, it">
+    <label>Which move is it?</label>
+    <select id="cfFn">${Object.keys(FN).map(k=>`<option value="${k}" ${k==='tell'?'selected':''}>${FN[k].label}</option>`).join('')}</select>
+    <div style="margin-top:12px"><button class="pill go" id="cfAdd">Add it</button></div>
+    ${list.map((c,i)=>`<div class="mini-item"><span>${c.whole}</span><button data-del="${i}">remove</button></div>`).join('')}
+  </div>`;
+  box.querySelector('#cfAdd').onclick = ()=>{
+    const raw = box.querySelector('#cfPhrase').value.trim();
+    if(!raw) return;
+    const fn = box.querySelector('#cfFn').value;
+    const m = raw.match(/^(.*?)\[(.+?)\](.*)$/);
+    const item = m
+      ? { whole: (m[1]+m[2]+m[3]).replace(/\s+/g,' ').trim(), pre:m[1].trim(), slot:m[2].trim(), post:m[3], es:'', fn,
+          swaps: [m[2].trim()].concat(box.querySelector('#cfSwaps').value.split(',').map(s=>s.trim()).filter(Boolean)).map(t=>({t,es:''})) }
+      : { whole: raw, es:'', fn, swaps: [] };
+    const a = customs(); a.push(item); saveCustoms(a);
+    renderCustomForm();
+  };
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    const a = customs(); a.splice(+b.dataset.del,1); saveCustoms(a); renderCustomForm();
+  });
+}
+
+/* ---------------- door, daypart, offline ---------------- */
+(function(){
+  const h = new Date().getHours();
+  const part = h<6?'night':h<11?'morning':h<17?'day':h<20?'evening':'night';
+  document.body.dataset.daypart = part;
+  const sun = {morning:'\u{1F324}️', day:'☀️', evening:'\u{1F307}', night:'\u{1F319}'}[part];
+  document.getElementById('atticSun').textContent = sun;
+  document.getElementById('doorAttic').textContent = sun;
+
+  document.getElementById('doorWins').innerHTML =
+    ['poppy','mo','coco','pim'].map(c=>`<div class="f-win">${svgFor(c)}</div>`).join('');
+  const doorEl = document.getElementById('door');
+  doorEl.addEventListener('click', ()=>{
+    if(doorEl.classList.contains('open')) return;
+    doorEl.classList.add('open');
+    try{ tone(392,.3); tone(329.63,.5,.26); }catch(e){}
+    setTimeout(()=>{ doorEl.classList.add('gone'); setTimeout(()=>doorEl.remove(), 600); }, 680);
+  });
+
+  document.getElementById('printCards').onclick = ()=>window.print();
+
+  if('serviceWorker' in navigator && location.protocol==='https:')
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+
+/* ---------------- go ---------------- */
+renderHouse();
+</script>
+</body>
+</html>
