@@ -329,6 +329,8 @@ body[data-daypart="night"] .f-star{display:block}
 .beat.mine .bub::before{left:auto;right:-12px;border-left:none;border-bottom:none;
   border-right:4px solid var(--ink);border-top:4px solid var(--ink);border-top-right-radius:5px;transform:rotate(45deg)}
 .slotmark{background:var(--marigold);border-radius:6px;padding:0 5px}
+.cdot{width:15px;height:15px;border-radius:50%;border:3px solid var(--ink);display:inline-block;margin-right:7px;background:var(--paper);vertical-align:middle}
+.cdot.on{background:var(--marigold)}
 
 /* ---------- attic, snail, sparkles, hero line ---------- */
 .hero-line{margin:6px 0 0;font-size:17px;font-weight:600;color:var(--ink-soft)}
@@ -460,6 +462,7 @@ body[data-daypart="night"]{--cream:#E9E4F4}
     <button class="chip" data-mm="tuner">What am I singing?</button>
   </div>
   <div id="gameMsg" style="min-height:34px;font-size:21px;font-weight:600;color:var(--ink);margin:10px 0 2px"></div>
+  <div id="copyDots" style="display:none;margin:2px 0 8px"></div>
   <button class="pill" id="hearAgain" style="display:none;margin-bottom:10px">&#9654; Hear it again</button>
   <div class="keys" id="keys"></div>
 </section>
@@ -1135,6 +1138,10 @@ function renderVoicePicker(){
 /* ---------------- tones (Web Audio) ---------------- */
 let AC = null;
 function ac(){ if(!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC; }
+/* iOS only lets the audio engine start inside a tap. Game tones fire on
+   timers after recorded speech — outside any tap — so wake the engine on
+   every touch, or "Copy me" plays silence on the tablet. */
+document.addEventListener('pointerdown', ()=>{ try{ ac(); }catch(e){} }, {passive:true});
 function tone(freq, dur=0.5, when=0){
   /* Fundamental plus a quiet octave partial: louder, warmer, more piano-like
      than a bare sine. Sine at low gain was much too soft next to the voices. */
@@ -1454,24 +1461,52 @@ function lightKey(i, dur=380){
   const el = document.querySelector(`#keys .key[data-i="${i}"]`);
   if(el){ el.classList.add('lit'); setTimeout(()=>el.classList.remove('lit'), dur); }
 }
+/* Coco's demo is ears-only: no key lights, or the answer is given away.
+   Her own taps still light — that is feedback, not a hint. */
 function playSeq(seq, gap, then){
   seq.forEach((ix,k)=>{
-    setTimeout(()=>{ tone(NOTES[ix].f, 0.45); lightKey(ix); }, k*gap);
+    setTimeout(()=>tone(NOTES[ix].f, 0.55), k*gap);
   });
-  if(then) setTimeout(then, seq.length*gap + 250);
+  if(then) setTimeout(then, seq.length*gap + 300);
+}
+/* Session shape: every game opens on middle C — a predictable, grounding
+   start — then draws randomly with no immediate repeats. Copy-me melodies
+   move stepwise like real tunes instead of leaping at random. */
+let firstGuess = true, firstSing = true, firstCopy = true;
+function pickDifferent(pool, avoid){
+  if(pool.length < 2) return pool[0];
+  let v; do{ v = pool[Math.floor(Math.random()*pool.length)]; }while(v===avoid);
+  return v;
+}
+function melodicSeq(len, startIdx){
+  const seq = [startIdx];
+  while(seq.length < len){
+    const pos = NATURALS.indexOf(seq[seq.length-1]);
+    const step = [-2,-1,-1,1,1,2][Math.floor(Math.random()*6)];
+    seq.push(NATURALS[Math.min(NATURALS.length-1, Math.max(0, pos+step))]);
+  }
+  return seq;
+}
+function drawCopyDots(){
+  const el = document.getElementById('copyDots');
+  el.style.display = musicMode==='copy' ? '' : 'none';
+  el.innerHTML = copySeq.map((_,i)=>`<span class="cdot ${i<copyPos?'on':''}"></span>`).join('');
 }
 function newGuess(){
-  guessIdx = Math.floor(Math.random()*NOTES.length);
+  guessIdx = firstGuess ? 0 : pickDifferent([...Array(NOTES.length).keys()], guessIdx);
+  firstGuess = false;
   musicBusy = true;
   gameSay("Listen. Which note is this?", ()=>{
     setTimeout(()=>{ tone(NOTES[guessIdx].f, 0.9); musicBusy=false; }, 300);
   });
 }
 function startCopy(){
-  copySeq = Array.from({length:copyLen}, ()=>NATURALS[Math.floor(Math.random()*NATURALS.length)]);
+  copySeq = melodicSeq(copyLen, firstCopy ? 0 : NATURALS[Math.floor(Math.random()*NATURALS.length)]);
+  firstCopy = false;
   copyPos = 0; musicBusy = true;
+  drawCopyDots();
   gameSay("My turn. Listen carefully.", ()=>{
-    playSeq(copySeq, 560, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
+    playSeq(copySeq, 700, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
   });
 }
 function onKey(i){
@@ -1492,6 +1527,7 @@ function onKey(i){
   } else if(musicMode==='copy' && copySeq.length){
     if(i===copySeq[copyPos]){
       copyPos++;
+      drawCopyDots();
       if(copyPos===copySeq.length){
         musicBusy = true;
         if(copyLen>=6){
@@ -1504,7 +1540,8 @@ function onKey(i){
       musicBusy = true;
       gameSay("Almost! Here it is again.", ()=>{
         copyPos = 0;
-        playSeq(copySeq, 560, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
+        drawCopyDots();
+        playSeq(copySeq, 700, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
       });
     }
   }
@@ -1570,7 +1607,8 @@ function micLoop(){
   micRAF = requestAnimationFrame(micLoop);
 }
 function newSingTarget(){
-  singTarget = NATURALS[Math.floor(Math.random()*NATURALS.length)];
+  singTarget = firstSing ? 0 : pickDifferent(NATURALS, singTarget);
+  firstSing = false;
   singHold = 0; musicBusy = true;
   /* Order matters: the instruction, THEN the note, THEN the go-ahead —
      "sing this note" before any note exists pointed at nothing. Busy stays
@@ -1599,6 +1637,7 @@ function setMusicMode(m){
     b.style.background = b.dataset.mm===m ? 'var(--marigold)' : 'var(--paper)';
   });
   document.getElementById('gameMsg').textContent = '';
+  document.getElementById('copyDots').style.display = 'none';
   document.getElementById('hearAgain').style.display = m==='singback' ? '' : 'none';
   document.getElementById('noteName').textContent = '♪';
   document.getElementById('noteHz').textContent = 'Play a key';
