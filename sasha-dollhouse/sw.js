@@ -1,11 +1,22 @@
 /* Sasha's Dollhouse — offline cache.
-   Cache-first for the app shell and fonts so it works on a plane,
-   in a waiting room, or anywhere the tablet has no signal. */
-const CACHE = 'sasha-dollhouse-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
+   Cache-first for the app shell, fonts and all recorded voice lines,
+   so it works on a plane, in a waiting room, anywhere without signal. */
+importScripts('audio-map.js');
+
+const CACHE = 'sasha-dollhouse-v2';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg',
+               './icon-180.png', './icon-512.png', './audio-map.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
+  e.waitUntil(
+    caches.open(CACHE).then(c =>
+      c.addAll(SHELL).then(() => {
+        // Voice lines: best-effort, one failure must not sink the install
+        const clips = [...Object.values(AUDIO_MAP.en), ...Object.values(AUDIO_MAP.es)];
+        return Promise.allSettled(clips.map(u => c.add(u)));
+      })
+    )
+  );
   self.skipWaiting();
 });
 

@@ -60,6 +60,15 @@ Item 1–2 are the design overhaul; 5 is cheap and high-value; 4 is an evening's
 - **Deployed** to joshgreenman1973/experiments on main (commit e7b69240). Manifest CI will pick it up.
 - **Nano banana art blocked**: Josh's Gemini key is free-tier (quota 0 for image models, $0 spent). If he enables billing, generate 8 consistent portraits (~$0.40 flash) and swap into the avatar slots, keeping SVGs as fallback.
 
+**Third session pass — real voices and a real music room:**
+- **Every scripted line is now pre-recorded neural audio** — 811 mp3 clips (19MB) in `audio/`, generated free with `edge-tts` (Microsoft neural voices, no API key). Each character has a distinct voice: Ana (an actual child voice) for Sasha's lines, Jenny/Poppy, Christopher slowed for Dr. Bo, Guy pitched down for Mo, Eric/Uno, Aria brightened for Coco, Emma/Pim, Michelle/Gertrude, Brian/Bartholomew, Dalia + Jorge for Spanish. The Web Speech robot voice is now only a fallback for parent-added custom phrases.
+- **Regeneration workflow**: edit dialogue in `index.html`, then `node tools/extract-lines.mjs && python3 tools/generate-audio.py` (idempotent — only new lines are generated), commit `audio/` + `audio-map.js`.
+- **Scene pacing fixed**: the engine now advances on speech-end (with safety timers), so lines are never cut off mid-sentence. macOS novelty voices (Bells, Boing...) filtered from the voice picker.
+- **Music room is now an ear game**: three modes — Free play, **Guess the note** (Coco plays one, she finds it on the keys; a miss gets "It was E. Listen again!" and a replay, no fail state), **Copy me** (Coco plays a growing sequence of naturals, 2→6 notes, she plays it back). All Coco game lines recorded; all feedback also shown as large text.
+- **The attic**: tap the sun/moon in the roof — a secret little room where her most-said phrases hang in frames, with a daypart line from the house itself.
+- **Smaller delights**: a snail crossing the house very slowly (tap it, it wiggles), sparkles on the scene end-card, a daypart greeting under the title, real iPad home-screen icons (180/192/512 PNG), iOS audio unlock on the door tap, service worker v2 pre-caches all voice clips for full offline.
+- **Audio architecture**: one reusable `Audio` element (`AUD`) — setting `.src` stops the previous clip, so lines never overlap; `speak()` looks up `AUDIO_MAP[lang]["who|text"]` and falls back to speech synthesis for unknown text.
+
 **Original session — not done, now superseded or still open:**
 
 1. **Never opened in a browser.** It was written but not run. First thing to do is load it and click through every room. Likely small bugs, not structural ones.

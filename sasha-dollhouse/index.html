@@ -7,6 +7,8 @@
 <meta name="description" content="A low-demand talking game for gestalt language processors who read early. Whole phrases, written big, in rooms full of friends.">
 <meta name="theme-color" content="#FBF3E4">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sasha's Dollhouse">
@@ -312,6 +314,24 @@ body[data-daypart="night"] .f-star{display:block}
   border-right:4px solid var(--ink);border-top:4px solid var(--ink);border-top-right-radius:5px;transform:rotate(45deg)}
 .slotmark{background:var(--marigold);border-radius:6px;padding:0 5px}
 
+/* ---------- attic, snail, sparkles, hero line ---------- */
+.hero-line{margin:6px 0 0;font-size:17px;font-weight:600;color:var(--ink-soft)}
+.h-attic{cursor:pointer}
+.attic-pop{position:fixed;inset:0;z-index:150;background:rgba(46,42,59,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+.attic-card{background:var(--paper);border:4px solid var(--ink);border-radius:26px;box-shadow:0 8px 0 var(--ink);max-width:440px;width:100%;padding:22px;text-align:center}
+.attic-card h3{margin:0;font-size:26px}
+.attic-card .al{font-size:17px;color:var(--ink-soft);font-weight:600;margin-top:4px}
+.attic-frame{border:4px solid var(--marigold);outline:3px solid var(--ink);border-radius:10px;padding:10px 14px;font-weight:600;font-size:19px;background:var(--cream);margin-top:12px}
+.attic-frame small{display:block;font-size:13px;color:var(--ink-soft);font-weight:600}
+.snail{position:absolute;bottom:-34px;left:0;width:46px;cursor:pointer;animation:snailwalk 160s linear infinite}
+@keyframes snailwalk{from{transform:translateX(-70px)}to{transform:translateX(min(96vw,1040px))}}
+.snail.wiggle{animation-play-state:paused}
+.snail.wiggle svg{animation:wig .5s ease-in-out 2}
+@keyframes wig{0%,100%{transform:rotate(0)}50%{transform:rotate(-12deg)}}
+.done-card{position:relative;overflow:visible}
+.spark{position:absolute;font-size:22px;animation:floatup 2.1s ease-out forwards;pointer-events:none}
+@keyframes floatup{from{transform:translateY(0);opacity:1}to{transform:translateY(-80px);opacity:0}}
+
 /* ---------- daypart tint ---------- */
 body[data-daypart="morning"]{--cream:#FDF4DB}
 body[data-daypart="evening"]{--cream:#FAE8D9}
@@ -371,11 +391,13 @@ body[data-daypart="night"]{--cream:#E9E4F4}
   <div class="hero">
     <h1>Sasha's <em>Dollhouse</em></h1>
     <p>Seven rooms, one porch, eight friends. Every friend says something, and you get to pick what you say back.</p>
+    <p class="hero-line" id="heroLine"></p>
   </div>
   <div class="housef">
     <div class="h-chim"></div><div class="puff h-puff1"></div><div class="puff h-puff2"></div>
     <div class="h-roof"><div class="h-attic" id="atticSun">&#9728;&#65039;</div></div>
     <div class="rooms" id="roomGrid"></div>
+    <div class="snail" id="snail" title="the snail"><svg viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg"><ellipse cx="30" cy="34" rx="26" ry="5" fill="rgba(46,42,59,.12)"/><path d="M8 32 q0 -8 10 -8 l26 0 q8 0 8 8 z" fill="#8FD183" stroke="#2E2A3B" stroke-width="2.5"/><circle cx="34" cy="18" r="13" fill="#E4739B" stroke="#2E2A3B" stroke-width="2.5"/><circle cx="34" cy="18" r="7" fill="#F5B7CC" stroke="#2E2A3B" stroke-width="2"/><path d="M12 26 q-2 -10 -1 -14 M16 26 q0 -8 2 -12" stroke="#2E2A3B" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="11" cy="10" r="2.2" fill="#2E2A3B"/><circle cx="18" cy="12" r="2.2" fill="#2E2A3B"/></svg></div>
   </div>
   <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
     <button class="pill" data-go="phrases">My phrases</button>
@@ -414,6 +436,12 @@ body[data-daypart="night"]{--cream:#E9E4F4}
 <section class="view" id="v-music">
   <div class="scene-head"><h2>The music room</h2><span class="where">Coco keeps the notes in here.</span></div>
   <div class="notebox"><div class="n" id="noteName">&#9834;</div><div class="hz" id="noteHz">Play a key</div></div>
+  <div class="filters" style="margin-top:16px">
+    <button class="chip" data-mm="free">Free play</button>
+    <button class="chip" data-mm="guess">Guess the note</button>
+    <button class="chip" data-mm="copy">Copy me</button>
+  </div>
+  <div id="gameMsg" style="min-height:34px;font-size:21px;font-weight:600;color:var(--ink);margin:10px 0 2px"></div>
   <div class="keys" id="keys"></div>
   <h3 style="margin:26px 0 0;font-size:25px">Sing a phrase</h3>
   <p style="margin:4px 0 0;color:var(--ink-soft);font-size:17px">Every word gets a note. The notes go up. You can sing it, or just listen, or skip it.</p>
@@ -449,6 +477,7 @@ body[data-daypart="night"]{--cream:#E9E4F4}
 
 </div>
 
+<script src="audio-map.js"></script>
 <script>
 /* ============================================================
    TALK HOUSE
@@ -977,15 +1006,69 @@ function loadVoices(){
 }
 if ('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function speak(text, lang){
-  if(!voiceOn || !('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
+/* Each friend talks in their own color: Mo is big and slow, Coco is bright
+   and quick, Dr. Bo is calm. Same voice, different pitch and pace. */
+const VOICE_COLOR = {
+  poppy:{p:1.1,r:0.98}, bo:{p:0.95,r:0.92}, pim:{p:1.12,r:1.0}, mo:{p:0.85,r:0.9},
+  uno:{p:1.0,r:0.94}, coco:{p:1.2,r:1.02}, gertrude:{p:1.1,r:1.0}, bart:{p:0.92,r:0.98},
+  you:{p:1.04,r:0.96}
+};
+/* opts.queue: don't cancel what's already being said (scene lines queue naturally).
+   opts.onDone: called once when the line finishes — speech end if voice is on,
+   a reading-time estimate if it's off. The scene engine paces itself with this,
+   so lines are never cut off mid-sentence. */
+/* One reusable element: setting .src stops the previous clip (no overlap),
+   and playing it once on the door tap unlocks audio for the whole session on iOS. */
+const AUD = new Audio();
+let audioUnlocked = false;
+function unlockAudio(){
+  if(audioUnlocked || typeof AUDIO_MAP==='undefined') return;
+  const first = Object.values(AUDIO_MAP.en)[0];
+  if(!first) return;
+  AUD.muted = true; AUD.src = first;
+  AUD.play().then(()=>{ AUD.pause(); AUD.muted=false; audioUnlocked=true; }).catch(()=>{ AUD.muted=false; });
+}
+
+function speak(text, lang, who, opts){
+  opts = opts || {}; who = who || 'you';
+  const readingTime = 700 + text.length*55;
+  if(!voiceOn){
+    if(opts.onDone) setTimeout(opts.onDone, readingTime);
+    return null;
+  }
+  /* Recorded neural audio first — every scripted line ships pre-recorded,
+     one distinct voice per character. */
+  const map = (typeof AUDIO_MAP!=='undefined') ? AUDIO_MAP[lang==='es'?'es':'en'] : null;
+  const src = map ? (map[who+'|'+text] || map['you|'+text]) : null;
+  if(src){
+    AUD.onended = null; AUD.onerror = null; AUD.pause();
+    AUD.src = src; AUD.muted = false;
+    let done = false;
+    const go = ()=>{ if(done) return; done = true; if(opts.onDone) opts.onDone(); };
+    AUD.onended = go; AUD.onerror = go;
+    if(opts.onDone) setTimeout(go, 3500 + text.length*120);
+    AUD.play().catch(go);
+    return null;
+  }
+  /* Fallback synthesis — only custom parent-added phrases land here */
+  if(!('speechSynthesis' in window)){
+    if(opts.onDone) setTimeout(opts.onDone, readingTime);
+    return null;
+  }
+  if(!opts.queue) speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   if(lang==='es'){ u.lang='es-MX'; if(esVoice) u.voice=esVoice; }
   else { u.lang='en-US'; if(enVoice) u.voice=enVoice; }
-  // Near-natural pace. Too slow reads as robotic, not as clear.
-  u.rate = 0.96; u.pitch = 1.0;
+  const c = VOICE_COLOR[who] || VOICE_COLOR.you;
+  u.rate = c.r; u.pitch = c.p;
+  if(opts.onDone){
+    let done = false;
+    const go = ()=>{ if(done) return; done = true; opts.onDone(); };
+    u.onend = go; u.onerror = go;
+    setTimeout(go, 2000 + text.length*110);
+  }
   speechSynthesis.speak(u);
+  return u;
 }
 
 function renderVoicePicker(){
@@ -1124,18 +1207,18 @@ function bubbleHTML(who, t, es, mine){
       <div class="name">${mine?'You said':c.name}</div>
       <div class="line">${t}</div>
       ${showEs&&es?`<div class="es">${es}</div>`:''}
-      <button class="say" data-speak="${encodeURIComponent(t)}" data-speakes="${encodeURIComponent(es||'')}">&#9654; hear it</button>
+      <button class="say" data-speak="${encodeURIComponent(t)}" data-speakes="${encodeURIComponent(es||'')}" data-who="${mine?'you':who}">&#9654; hear it</button>
     </div>
   </div>`;
 }
 
-function pushBeat(who,t,es,mine){
+function pushBeat(who,t,es,mine,onDone){
   played.push({who,t,es,mine});
   const strip = document.getElementById('strip');
   strip.insertAdjacentHTML('beforeend', bubbleHTML(who,t,es,mine));
   wireSay(strip.lastElementChild);
   strip.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
-  if(!mine) speak(t,'en');
+  speak(t, 'en', mine?'you':who, {queue:true, onDone});
 }
 
 function wireSay(scope){
@@ -1143,8 +1226,9 @@ function wireSay(scope){
     b.onclick = ()=>{
       const en = decodeURIComponent(b.dataset.speak);
       const es = decodeURIComponent(b.dataset.speakes||'');
-      if(showEs && es) { speak(en,'en'); setTimeout(()=>speak(es,'es'), Math.max(1200, en.length*70)); }
-      else speak(en,'en');
+      const who = b.dataset.who||'you';
+      if(showEs && es) speak(en,'en',who,{onDone:()=>setTimeout(()=>speak(es,'es',who),250)});
+      else speak(en,'en',who);
     };
   });
 }
@@ -1162,7 +1246,7 @@ function advance(){
   document.getElementById('choices').dataset.opts = '';
   if(beatIdx >= cur.beats.length){ finish(); return; }
   const b = cur.beats[beatIdx++];
-  if(b.say){ pushBeat(b.say.who, b.say.t, b.say.es, false); setTimeout(advance, 900); return; }
+  if(b.say){ pushBeat(b.say.who, b.say.t, b.say.es, false, ()=>setTimeout(advance, 450)); return; }
   if(b.pick){ renderChoices(b.pick); document.getElementById('choices').dataset.opts = encodeURIComponent(JSON.stringify(b.pick)); }
 }
 
@@ -1190,12 +1274,9 @@ function renderChoices(opts){
       const o = opts[+btn.dataset.i];
       ch.innerHTML = ''; ch.dataset.opts = '';
       store.mark(o.t);
-      pushBeat('you', o.t, o.es, true);
-      speak(o.t,'en');
-      setTimeout(()=>{
-        pushBeat(o.reply.who, o.reply.t, o.reply.es, false);
-        setTimeout(advance, 1100);
-      }, Math.max(1100, o.t.length*65));
+      pushBeat('you', o.t, o.es, true, ()=>{
+        pushBeat(o.reply.who, o.reply.t, o.reply.es, false, ()=>setTimeout(advance, 550));
+      });
     };
   });
 }
@@ -1203,8 +1284,10 @@ function renderChoices(opts){
 function finish(){
   markVisited(cur.room); renderHouse();
   const said = played.filter(b=>b.mine).map(b=>b.t);
+  const sparks = ['&#11088;','&#10024;','&#127800;','&#10024;','&#11088;','&#127775;']
+    .map((s,i)=>`<span class="spark" style="left:${8+i*16}%;top:-10px;animation-delay:${i*0.18}s">${s}</span>`).join('');
   document.getElementById('choices').innerHTML =
-    `<div class="done-card">
+    `<div class="done-card">${sparks}
       <div class="big">You said ${said.length} things.</div>
       <div style="margin-top:12px;font-size:20px;line-height:1.4">${said.map(s=>`&ldquo;${s}&rdquo;`).join('<br>')}</div>
       <div class="row">
@@ -1301,18 +1384,92 @@ function renderBuilder(b){
 /* ---------------- music room ---------------- */
 let singPhrase = null;
 const SING_CHOICES = ["Hi, Poppy! It's me.","Can I have a turn?","I need a break now.","Look at the snail!","I feel better now.","That's okay. We can build it again."];
+
+/* ---- ear games: Coco plays, Sasha listens and answers on the keys ---- */
+const NOTE_SAY = ['C','C sharp','D','D sharp','E','F','F sharp','G','G sharp','A','A sharp','B','high C'];
+const NATURALS = [0,2,4,5,7,9,11,12];
+let musicMode='free', guessIdx=null, copySeq=[], copyPos=0, copyLen=2, musicBusy=false;
+
+function gameSay(line, onDone){
+  document.getElementById('gameMsg').textContent = line;
+  speak(line, 'en', 'coco', {onDone});
+}
+function lightKey(i, dur=380){
+  const el = document.querySelector(`#keys .key[data-i="${i}"]`);
+  if(el){ el.classList.add('lit'); setTimeout(()=>el.classList.remove('lit'), dur); }
+}
+function playSeq(seq, gap, then){
+  seq.forEach((ix,k)=>{
+    setTimeout(()=>{ tone(NOTES[ix].f, 0.45); lightKey(ix); }, k*gap);
+  });
+  if(then) setTimeout(then, seq.length*gap + 250);
+}
+function newGuess(){
+  guessIdx = Math.floor(Math.random()*NOTES.length);
+  musicBusy = true;
+  gameSay("Listen. Which note is this?", ()=>{
+    setTimeout(()=>{ tone(NOTES[guessIdx].f, 0.9); musicBusy=false; }, 300);
+  });
+}
+function startCopy(){
+  copySeq = Array.from({length:copyLen}, ()=>NATURALS[Math.floor(Math.random()*NATURALS.length)]);
+  copyPos = 0; musicBusy = true;
+  gameSay("My turn. Listen carefully.", ()=>{
+    playSeq(copySeq, 560, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
+  });
+}
+function onKey(i){
+  const n = NOTES[i];
+  if(musicBusy) return;
+  tone(n.f, 0.8); lightKey(i);
+  document.getElementById('noteName').textContent = n.n;
+  document.getElementById('noteHz').textContent = n.f.toFixed(2) + ' hertz';
+  if(musicMode==='guess' && guessIdx!==null){
+    musicBusy = true;
+    if(i===guessIdx){
+      gameSay(`That's it! ${NOTE_SAY[i]}!`, ()=>setTimeout(newGuess, 700));
+    } else {
+      gameSay(`It was ${NOTE_SAY[guessIdx]}. Listen again!`, ()=>{
+        setTimeout(()=>{ tone(NOTES[guessIdx].f, 0.9); musicBusy=false; }, 300);
+      });
+    }
+  } else if(musicMode==='copy' && copySeq.length){
+    if(i===copySeq[copyPos]){
+      copyPos++;
+      if(copyPos===copySeq.length){
+        musicBusy = true;
+        if(copyLen>=6){
+          gameSay("You have very good ears.", ()=>{ copyLen=2; setTimeout(startCopy, 800); });
+        } else {
+          gameSay("You copied it! Let's add one more note.", ()=>{ copyLen++; setTimeout(startCopy, 800); });
+        }
+      }
+    } else {
+      musicBusy = true;
+      gameSay("Almost! Here it is again.", ()=>{
+        copyPos = 0;
+        playSeq(copySeq, 560, ()=>gameSay("Your turn. Play it back!", ()=>{ musicBusy=false; }));
+      });
+    }
+  }
+}
+function setMusicMode(m){
+  musicMode = m; guessIdx = null; copySeq = []; musicBusy = false; copyLen = 2;
+  document.querySelectorAll('[data-mm]').forEach(b=>{
+    b.setAttribute('aria-pressed', String(b.dataset.mm===m));
+    b.style.background = b.dataset.mm===m ? 'var(--marigold)' : 'var(--paper)';
+  });
+  document.getElementById('gameMsg').textContent = '';
+  if(m==='guess') newGuess();
+  if(m==='copy') startCopy();
+}
+
 function renderMusic(){
   document.getElementById('keys').innerHTML = NOTES.map((n,i)=>
     `<button class="key ${n.s?'sharp':''}" data-i="${i}">${n.n}</button>`).join('');
-  document.getElementById('keys').querySelectorAll('.key').forEach(k=>{
-    k.onclick = ()=>{
-      const n = NOTES[+k.dataset.i];
-      tone(n.f, 0.8);
-      document.getElementById('noteName').textContent = n.n;
-      document.getElementById('noteHz').textContent = n.f.toFixed(2) + ' hertz';
-      k.classList.add('lit'); setTimeout(()=>k.classList.remove('lit'), 320);
-    };
-  });
+  document.getElementById('keys').querySelectorAll('.key').forEach(k=>{ k.onclick = ()=>onKey(+k.dataset.i); });
+  document.querySelectorAll('[data-mm]').forEach(b=>{ b.onclick = ()=>setMusicMode(b.dataset.mm); });
+  setMusicMode('free');
   const sp = document.getElementById('singPick');
   sp.innerHTML = SING_CHOICES.map((p,i)=>`<button class="chip" data-s="${i}" aria-pressed="${singPhrase===i}">${p}</button>`).join('');
   sp.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ singPhrase=+b.dataset.s; renderMusic(); });
@@ -1547,12 +1704,50 @@ function renderCustomForm(){
   const sun = {morning:'\u{1F324}️', day:'☀️', evening:'\u{1F307}', night:'\u{1F319}'}[part];
   document.getElementById('atticSun').textContent = sun;
   document.getElementById('doorAttic').textContent = sun;
+  document.getElementById('heroLine').textContent = {
+    morning:"Good morning. The house just woke up.",
+    day:"The house is wide awake.",
+    evening:"The house is getting cozy.",
+    night:"Shh. The house is in its pajamas."
+  }[part];
+
+  /* the attic: a tiny secret room where phrases she says a lot live */
+  const ATTIC_LINE = {
+    morning:"Good morning. The attic is stretching and yawning.",
+    day:"The attic is warm and dusty and happy.",
+    evening:"The attic is getting sleepy.",
+    night:"Shh. The attic is where the house dreams."
+  };
+  document.getElementById('atticSun').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const top = Object.entries(store.said).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const line = ATTIC_LINE[document.body.dataset.daypart];
+    const pop = document.createElement('div');
+    pop.className = 'attic-pop';
+    pop.innerHTML = `<div class="attic-card">
+      <h3>The attic</h3>
+      <div class="al">${line}</div>
+      <div class="al" style="margin-top:10px">${top.length?'Things you say a lot float up here.':'Nothing lives up here yet. Say things downstairs and they float up.'}</div>
+      ${top.map(([t,n])=>`<div class="attic-frame">&ldquo;${t}&rdquo;<small>said ${n===1?'once':n+' times'}</small></div>`).join('')}
+    </div>`;
+    pop.addEventListener('click', ()=>pop.remove());
+    document.body.appendChild(pop);
+    speak(line, 'en', 'house');
+  });
+
+  /* the snail crosses the bottom of the house, very slowly, always */
+  const snail = document.getElementById('snail');
+  snail.addEventListener('click', ()=>{
+    snail.classList.add('wiggle');
+    setTimeout(()=>snail.classList.remove('wiggle'), 1100);
+  });
 
   document.getElementById('doorWins').innerHTML =
     ['poppy','mo','coco','pim'].map(c=>`<div class="f-win">${svgFor(c)}</div>`).join('');
   const doorEl = document.getElementById('door');
   doorEl.addEventListener('click', ()=>{
     if(doorEl.classList.contains('open')) return;
+    unlockAudio();
     doorEl.classList.add('open');
     try{ tone(392,.3); tone(329.63,.5,.26); }catch(e){}
     setTimeout(()=>{ doorEl.classList.add('gone'); setTimeout(()=>doorEl.remove(), 600); }, 680);
