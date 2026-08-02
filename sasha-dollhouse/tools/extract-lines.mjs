@@ -74,7 +74,8 @@ add('coco','en',"Your turn. Play it back!");
 add('coco','en',"You copied it! Let's add one more note.");
 add('coco','en',"Almost! Here it is again.");
 add('coco','en',"You have very good ears.");
-add('coco','en',"Sing this note. I am listening.");
+add('coco','en',"Listen. Then sing it back!");
+add('coco','en',"Your turn. Sing it!");
 add('coco','en',"Sing anything. I will tell you the note.");
 add('coco','en',"The microphone is shy today. Ask a grown-up to help.");
 // Voice test + attic (the house speaks)
