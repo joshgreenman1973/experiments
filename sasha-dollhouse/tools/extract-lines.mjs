@@ -2,6 +2,7 @@
 // and writes audio-map.js mapping "who|text" -> audio file per language.
 // Run: node tools/extract-lines.mjs
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { createHash } from 'crypto';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -73,6 +74,9 @@ add('coco','en',"Your turn. Play it back!");
 add('coco','en',"You copied it! Let's add one more note.");
 add('coco','en',"Almost! Here it is again.");
 add('coco','en',"You have very good ears.");
+add('coco','en',"Sing this note. I am listening.");
+add('coco','en',"Sing anything. I will tell you the note.");
+add('coco','en',"The microphone is shy today. Ask a grown-up to help.");
 // Voice test + attic (the house speaks)
 add('you','en',"Hi Sasha! Come in, come in.");
 add('house','en',"Good morning. The attic is stretching and yawning.");
@@ -81,7 +85,12 @@ add('house','en',"The attic is getting sleepy.");
 add('house','en',"Shh. The attic is where the house dreams.");
 add('house','en',"Things you say a lot float up here.");
 
-entries.forEach((e,i)=>{ e.f = `audio/${String(i).padStart(4,'0')}.mp3`; });
+/* Content-hash filenames: a line keeps its file forever, an edited line gets
+   a new one. Index-based names would silently re-pair texts with the wrong
+   recordings whenever a line is added or changed. */
+entries.forEach(e=>{
+  e.f = 'audio/' + createHash('sha1').update(e.w+'|'+e.l+'|'+e.t).digest('hex').slice(0,12) + '.mp3';
+});
 mkdirSync(join(root,'audio'), {recursive:true});
 writeFileSync(join(root,'tools/lines.json'), JSON.stringify(entries));
 

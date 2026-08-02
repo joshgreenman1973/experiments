@@ -3,7 +3,7 @@
    so it works on a plane, in a waiting room, anywhere without signal. */
 importScripts('audio-map.js');
 
-const CACHE = 'sasha-dollhouse-v3';
+const CACHE = 'sasha-dollhouse-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg',
                './icon-180.png', './icon-512.png', './audio-map.js'];
 

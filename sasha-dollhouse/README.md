@@ -69,6 +69,15 @@ Item 1–2 are the design overhaul; 5 is cheap and high-value; 4 is an evening's
 - **Smaller delights**: a snail crossing the house very slowly (tap it, it wiggles), sparkles on the scene end-card, a daypart greeting under the title, real iPad home-screen icons (180/192/512 PNG), iOS audio unlock on the door tap, service worker v2 pre-caches all voice clips for full offline.
 - **Audio architecture**: one reusable `Audio` element (`AUD`) — setting `.src` stops the previous clip, so lines never overlap; `speak()` looks up `AUDIO_MAP[lang]["who|text"]` and falls back to speech synthesis for unknown text.
 
+**Fourth session pass — the music room becomes Pitch Pals-grade:**
+- **Sing it back**: Coco plays a note, Sasha sings it, the app hears her through the microphone (autocorrelation pitch detection, no libraries) and celebrates when she holds the note for ~half a second. Octave-agnostic pitch-class matching with ±45 cent tolerance. Mic denied → "The microphone is shy today. Ask a grown-up to help."
+- **What am I singing?**: free tuner mode — a live display of whatever note she sings. For a kid with perfect pitch this is a toy in itself.
+- **"Sing a phrase" removed** — it mapped words to arbitrary notes and was neither music nor language; confusing.
+- **Notes now actually play in the note scenes**: scene beats support a `notes:[...]` field; Coco's climbing-stairs song and wrong-note scale really sound (the wrong note is F♯ where sol belongs).
+- **Tone volume fixed**: keyboard/game tones were far too quiet next to the neural voices — now a 3-partial additive tone at ~3× the gain, warmer and clearly audible.
+- **Dialogue naturalism pass**: removed adultisms and invented metaphor ("very second grade of you", "pocket-brain", "that is the whole dance", "fair fixed it", "cooks say that to helpers", "even numbers feel good in my blocks") in favor of plain child-speech, en + es both.
+- **Audio filenames are now content hashes** (sha1 of who|lang|text) — index-based names silently re-paired texts with wrong recordings when lines changed. Full set regenerated (814 clips). Service worker bumped to v4.
+
 **Original session — not done, now superseded or still open:**
 
 1. **Never opened in a browser.** It was written but not run. First thing to do is load it and click through every room. Likely small bugs, not structural ones.
