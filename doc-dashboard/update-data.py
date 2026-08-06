@@ -41,6 +41,12 @@ POPULATION_ID = "7479-ugqb"   # Daily Inmates In Custody (live snapshot)
 ASSAULTS_ID = "erra-pzy8"     # Inmate Assault on Staff
 FIGHTS_ID = "k548-32d3"       # Inmate Incidents - Inmate Fights
 STABBINGS_ID = "gakf-suji"    # Inmate Incidents - Slashing and Stabbing
+ADMISSIONS_ID = "6teu-xtgp"   # Inmate Admissions
+DISCHARGES_ID = "94ri-3ium"   # Inmate Discharges (also the length-of-stay source)
+MMR_ID = "rbed-zzin"          # Mayor's Management Report - Agency Performance Indicators
+
+# MMR indicator names (agency='DOC'), used for series with no incident-level feed
+MMR_MENTAL_HEALTH = "Individuals in custody with a serious mental health diagnosis (% ADP)"
 
 
 def socrata_get(dataset_id, query):
@@ -175,6 +181,121 @@ def fetch_incident_months(dataset_id, date_field, after_year, after_month):
             # Only include complete months (not the current partial month)
             if date(dt.year, dt.month, 1) < date(today.year, today.month, 1):
                 results.append((dt.year, dt.month, int(row["cnt"])))
+    return results
+
+
+# ── ADMISSIONS / DISCHARGES / LENGTH OF STAY ──
+#
+# These three used to be transcribed by hand from the NYC Comptroller DOC
+# Dashboard. They are in fact derivable from Open Data: monthly counts from
+# 6teu-xtgp / 94ri-3ium reproduce the Comptroller's admissions and discharges
+# figures exactly, and the mean of (discharged_dt - admitted_dt) over each
+# month's discharges reproduces its average length of stay to 0.1 days.
+# Verified against Sep 2025 - Jan 2026, the five months present in both.
+
+def fetch_flow_months(dataset_id, date_field, after_year, after_month):
+    """Monthly admission or discharge counts for complete months after the given one."""
+    next_yr, next_mo = (after_year + 1, 1) if after_month == 12 else (after_year, after_month + 1)
+    query = {
+        "$select": f"date_trunc_ym({date_field}) as month, count(*) as cnt",
+        "$where": f"{date_field} >= '{next_yr}-{next_mo:02d}-01'",
+        "$group": f"date_trunc_ym({date_field})",
+        "$order": f"date_trunc_ym({date_field})",
+        "$limit": 50,
+    }
+    try:
+        rows = socrata_get(dataset_id, query)
+    except Exception as e:
+        print(f"  Fetch failed for {dataset_id}: {e}")
+        return []
+
+    results = []
+    today = date.today()
+    for row in rows:
+        if "month" not in row or "cnt" not in row:
+            continue
+        dt = datetime.fromisoformat(row["month"].replace("T00:00:00.000", ""))
+        if date(dt.year, dt.month, 1) < date(today.year, today.month, 1):
+            results.append((dt.year, dt.month, int(row["cnt"])))
+    return results
+
+
+def fetch_length_of_stay(after_year, after_month):
+    """
+    Average length of stay, in days, for each month's discharges.
+
+    Computed from exact timestamps rather than Socrata's date_diff_d, which
+    truncates each stay to whole days and so understates the average by
+    roughly half a day.
+    """
+    next_yr, next_mo = (after_year + 1, 1) if after_month == 12 else (after_year, after_month + 1)
+    start = f"{next_yr}-{next_mo:02d}-01"
+
+    rows, offset = [], 0
+    while True:
+        query = {
+            "$select": "admitted_dt, discharged_dt",
+            "$where": f"discharged_dt >= '{start}' AND admitted_dt IS NOT NULL",
+            "$limit": 50000,
+            "$offset": offset,
+        }
+        try:
+            batch = socrata_get(DISCHARGES_ID, query)
+        except Exception as e:
+            print(f"  Length-of-stay fetch failed: {e}")
+            return []
+        if not batch:
+            break
+        rows += batch
+        offset += len(batch)
+        if len(batch) < 50000:
+            break
+
+    buckets = {}
+    for row in rows:
+        try:
+            admitted = datetime.fromisoformat(row["admitted_dt"])
+            discharged = datetime.fromisoformat(row["discharged_dt"])
+        except (KeyError, ValueError):
+            continue
+        buckets.setdefault((discharged.year, discharged.month), []).append(
+            (discharged - admitted).total_seconds() / 86400.0
+        )
+
+    results = []
+    today = date.today()
+    for (yr, mo), stays in sorted(buckets.items()):
+        if date(yr, mo, 1) < date(today.year, today.month, 1) and stays:
+            results.append((yr, mo, round(sum(stays) / len(stays), 1)))
+    return results
+
+
+def fetch_mmr_monthly(indicator):
+    """
+    Monthly values for a DOC indicator in the Mayor's Management Report.
+
+    The MMR lags further behind than the incident-level feeds, but it is the
+    only published monthly source for some series.
+    """
+    query = {
+        "$select": "valuedate, acceptedvalue",
+        "$where": f"agency='DOC' AND indicator='{indicator}' AND acceptedvalue IS NOT NULL",
+        "$order": "valuedate",
+        "$limit": 500,
+    }
+    try:
+        rows = socrata_get(MMR_ID, query)
+    except Exception as e:
+        print(f"  MMR fetch failed for '{indicator}': {e}")
+        return []
+
+    results = []
+    for row in rows:
+        try:
+            dt = datetime.fromisoformat(row["valuedate"].replace("T00:00:00.000", ""))
+            results.append((dt.year, dt.month, float(row["acceptedvalue"])))
+        except (KeyError, ValueError):
+            continue
     return results
 
 
@@ -328,6 +449,50 @@ def main():
             stab_series.append(entry)
             changed = True
             print(f"  Stabbings {label}: {count}")
+
+    # ── Fetch admissions and discharges ──
+    print("\nFetching admissions and discharges...")
+    flow_series = data["admissionDischarge"]
+    flow_last = get_last_month(flow_series)
+    flow_have = existing_months(flow_series)
+    admissions = dict(((yr, mo), n) for yr, mo, n in
+                      fetch_flow_months(ADMISSIONS_ID, "admitted_dt", *flow_last))
+    discharges = dict(((yr, mo), n) for yr, mo, n in
+                      fetch_flow_months(DISCHARGES_ID, "discharged_dt", *flow_last))
+    for key in sorted(set(admissions) & set(discharges)):
+        if key in flow_have:
+            continue
+        entry = {"month": month_label(*key),
+                 "admissions": admissions[key],
+                 "discharges": discharges[key]}
+        flow_series.append(entry)
+        changed = True
+        print(f"  {entry['month']}: {entry['admissions']} in, {entry['discharges']} out")
+
+    # ── Fetch length of stay ──
+    print("\nFetching average length of stay...")
+    los_series = data["lengthOfStay"]
+    los_last = get_last_month(los_series)
+    los_have = existing_months(los_series)
+    for yr, mo, avg_days in fetch_length_of_stay(*los_last):
+        if (yr, mo) in los_have:
+            continue
+        los_series.append({"month": month_label(yr, mo), "avgDays": avg_days})
+        changed = True
+        print(f"  {month_label(yr, mo)}: {avg_days} days")
+
+    # ── Fetch serious mental illness share (MMR) ──
+    print("\nFetching serious mental illness share...")
+    mi_series = data["mentalIllness"]
+    mi_last = get_last_month(mi_series)
+    mi_have = existing_months(mi_series)
+    for yr, mo, pct in fetch_mmr_monthly(MMR_MENTAL_HEALTH):
+        if (yr, mo) in mi_have or (yr, mo) <= mi_last:
+            continue
+        # MMR publishes the share only; there is no monthly count to pair with it.
+        mi_series.append({"month": month_label(yr, mo), "share": round(pct / 100, 4)})
+        changed = True
+        print(f"  {month_label(yr, mo)}: {pct}%")
 
     if not changed:
         print("\nNo new data available.")
