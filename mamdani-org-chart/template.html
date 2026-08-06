@@ -312,6 +312,26 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
 .caution.open .pop{display:block}
 .colophon{margin-top:26px;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:11.5px;color:var(--soft)}
 
+#deepresults{display:none;border-bottom:1px solid var(--rule-hard);padding:10px 0 12px}
+#deepresults.show{display:block}
+#deepresults h5{
+  font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.16em;
+  font-size:11px;font-weight:700;color:var(--red);margin:0 0 8px;
+}
+.dres{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:2px 18px}
+.dres button{
+  display:block;text-align:left;background:transparent;border:0;border-bottom:1px dotted var(--rule);
+  padding:6px 4px;cursor:pointer;width:100%;
+}
+.dres button:hover{background:var(--card)}
+.dres .nm{font-size:15.5px;font-weight:600}
+.dres .mt{
+  display:block;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+  letter-spacing:.08em;font-size:10.5px;color:var(--soft);
+}
+.dres .ag{color:var(--red)}
+.dnote{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--soft)}
+.prow.hit{background:#f7e9a8;box-shadow:inset 0 0 0 1px var(--gold)}
 .dim{opacity:.16;filter:grayscale(1)}
 .hit{background:#f7e9a8 !important;box-shadow:inset 0 0 0 1px var(--gold)}
 
@@ -360,7 +380,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
 </header>
 
 <div class="controls">
-  <input id="q" type="search" placeholder="Search a name or an agency" autocomplete="off" aria-label="Search a name or an agency">
+  <input id="q" type="search" placeholder="Search any name, agency or title" autocomplete="off" aria-label="Search any name, agency or title">
   <div class="seg" role="group" aria-label="Filter by status">
     <button data-f="all" aria-pressed="true">Everyone</button>
     <button data-f="new" aria-pressed="false">New</button>
@@ -374,6 +394,8 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
   </div>
   <span class="hits" id="hits"></span>
 </div>
+
+<div id="deepresults"></div>
 
 <div class="mayor">
   <span class="rank">Mayor of the City of New York</span>
@@ -450,7 +472,75 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
   var items=[].slice.call(document.querySelectorAll("[data-name]"));
   var filter="all", zoom=1, open=null, panel=null;
 
-  /* ---------- search and filter ---------- */
+  /* ---------- search and filter ----------
+     The chart's own boxes are searched from the markup. Everyone inside a
+     department chart lives in the directory feed, which is fetched lazily, so
+     the first search pulls it and then searches both. */
+  var deep=document.getElementById("deepresults"), peopleIdx=null, deepAsked=false;
+
+  function buildPeopleIndex(){
+    if(peopleIdx) return peopleIdx;
+    var byAgency={};
+    document.querySelectorAll("[data-dept]").forEach(function(el){
+      el.dataset.dept.split("|").forEach(function(a){
+        if(a && !byAgency[a]) byAgency[a]=el;
+      });
+    });
+    peopleIdx=[];
+    GB.people.forEach(function(p){
+      var box=byAgency[p.a];
+      if(!box || p.v) return;
+      peopleIdx.push({
+        n:p.n, t:p.t||"", a:p.a, i:p.i, box:box,
+        hay:((p.n||"")+" "+(p.t||"")+" "+((p.d||[]).join(" "))).toLowerCase()
+      });
+    });
+    return peopleIdx;
+  }
+
+  function renderDeep(term){
+    if(!term){ deep.className=""; deep.innerHTML=""; return 0; }
+    if(!GB){
+      deep.className="show";
+      deep.innerHTML='<p class="dnote">Loading the department directories</p>';
+      if(!deepAsked){
+        deepAsked=true;
+        loadGB().then(function(){ apply(); }).catch(function(){
+          deep.innerHTML='<p class="dnote">The department directories could not be loaded.</p>';
+        });
+      }
+      return 0;
+    }
+    var idx=buildPeopleIndex();
+    var found=idx.filter(function(x){ return x.hay.indexOf(term)>-1; });
+    if(!found.length){ deep.className=""; deep.innerHTML=""; return 0; }
+    var show=found.slice(0,60);
+    deep.className="show";
+    deep.innerHTML='<h5>'+found.length+" inside the department charts"+
+      (found.length>show.length?", first "+show.length+" shown":"")+"</h5>"+
+      '<div class="dres">'+show.map(function(x,k){
+        return '<button type="button" data-k="'+k+'"><span class="nm">'+esc(x.n)+"</span>"+
+               '<span class="mt">'+esc(x.t)+'</span>'+
+               '<span class="mt ag">'+esc(x.a)+"</span></button>";
+      }).join("")+"</div>";
+    deep.querySelectorAll("button[data-k]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var x=show[+b.dataset.k];
+        openBox(x.box, true, x.i);
+      });
+    });
+    // mark the boxes those people sit behind, so the chart shows where they are
+    var boxes={};
+    found.forEach(function(x){ boxes[x.box.id]=1; });
+    items.forEach(function(el){
+      if(boxes[el.id] && !el.classList.contains("hit")){
+        el.classList.remove("dim");
+        el.classList.add("hit");
+      }
+    });
+    return found.length;
+  }
+
   function apply(){
     var term=q.value.trim().toLowerCase(), shown=0;
     items.forEach(function(el){
@@ -460,7 +550,13 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
       el.classList.toggle("hit", !!term && okQ && okF);
       if(okF&&okQ) shown++;
     });
-    hits.textContent = (term||filter!=="all") ? shown+" of "+items.length+" shown" : items.length+" boxes";
+    var inside=renderDeep(term)||0;
+    if(!term && filter==="all"){
+      hits.textContent=items.length+" boxes";
+    } else {
+      hits.textContent=shown+" of "+items.length+" boxes"+
+        (inside?" \u00b7 "+inside+" inside departments":"");
+    }
   }
   q.addEventListener("input", apply);
   document.querySelectorAll(".seg[role='group']:not(.zoom) button").forEach(function(b){
@@ -579,7 +675,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
       if(p.cr.salary) bits.push("$"+Number(p.cr.salary).toLocaleString("en-US",{maximumFractionDigits:0}));
       cr='<span class="cr">'+esc(bits.join(" \u00b7 "))+"</span>";
     }
-    return '<span class="prow'+vac+'"><span class="nm">'+esc(p.v?"Vacant":p.n)+'</span>'+phone+
+    return '<span class="prow'+vac+'" data-p="'+p.i+'"><span class="nm">'+esc(p.v?"Vacant":p.n)+'</span>'+phone+
            '<span class="t">'+esc(p.t)+'</span>'+sub+cr+'</span>';
   }
   function deptHtml(names){
@@ -630,13 +726,22 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
   }
 
   /* ---------- the dossier, opened in place ---------- */
+  function highlightRow(i){
+    if(!panel) return;
+    var row=panel.querySelector('.prow[data-p="'+i+'"]');
+    if(!row) return;
+    panel.querySelectorAll(".prow.hit").forEach(function(x){ x.classList.remove("hit"); });
+    row.classList.add("hit");
+    row.scrollIntoView({behavior:"smooth", block:"center"});
+  }
   function close(){
     if(panel){ panel.remove(); panel=null; }
     if(open){ open.classList.remove("on"); open=null; }
     if(location.hash) history.replaceState(null,"",location.pathname+location.search);
   }
-  function openBox(el, push){
-    if(open===el){ close(); return; }
+  function openBox(el, push, focusPerson){
+    if(open===el && !focusPerson){ close(); return; }
+    if(open===el && focusPerson){ highlightRow(focusPerson); return; }
     close();
     open=el; el.classList.add("on");
     var d=el.dataset;
@@ -684,9 +789,11 @@ footer h3{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;let
       if(!panel) return;
       var cbox=document.getElementById("contacts");
       if(cbox) cbox.innerHTML=contactsHtml(el.dataset, names);
+      var wanted=focusPerson;
       document.getElementById("dept").innerHTML=deptHtml(names)+
         '<p class="sub" style="margin-top:14px">Directory data refreshed '+esc((GB.built||"").slice(0,10))+
         ', automatically, from the Greener Book.</p>';
+      if(wanted!=null) setTimeout(function(){ highlightRow(wanted); }, 30);
       var head=names.map(function(n){ return GB.heads[n]; }).filter(function(h){ return h && h.gov && h.gov.url; })[0];
       if(head){
         var l=document.getElementById("dlinks");

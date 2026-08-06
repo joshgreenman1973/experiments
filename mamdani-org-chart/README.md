@@ -62,8 +62,14 @@ fresh snapshot of the city's agency file; it refuses to write a short read.
 - Where a bare reporting line would misdescribe an office, the Charter provision that
   governs it is quoted. The Department of Investigation is the case that prompted it.
 - Every open box is deep-linkable: `#gregory-anderson` opens Sanitation.
-- Search matches names and agencies. The status filter narrows to new, retained or
-  pending appointees. Zoom fits more columns on screen. Escape closes.
+- Search covers both layers. It matches the chart's own boxes and every person
+  inside every department chart, by name, title or division, so searching a deputy
+  commissioner's surname finds them even though their name is three clicks deep. The
+  directory feed is fetched on the first search; matches appear above the chart, the
+  boxes their departments sit behind light up, and clicking a result opens that
+  department and scrolls to the person.
+- The status filter narrows to new, retained or pending appointees. Zoom fits more
+  columns on screen. Escape closes.
 - The page prints in landscape.
 
 ## Reporting lines
