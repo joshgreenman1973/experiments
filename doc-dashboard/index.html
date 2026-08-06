@@ -53,6 +53,15 @@
   .chart-box .cb-dek { font-size: 11px; color: var(--charcoal); margin-bottom: 8px; }
   .chart-box canvas { width: 100% !important; }
 
+  /* PER-CHART SOURCING — every chart states where its numbers come from
+     and anything a reader needs to know to read them correctly. */
+  .cb-src { font-size: 10px; line-height: 1.5; color: var(--charcoal); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--cloud); }
+  .cb-src .lbl { font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .cb-src code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; background: var(--cloud); padding: 0 3px; border-radius: 2px; white-space: nowrap; }
+  .cb-src .caveat { display: block; margin-top: 3px; }
+  .cb-src .caveat::before { content: "Caveat: "; font-weight: 700; }
+  .cb-src.is-stale .caveat::before { content: "Not updated automatically: "; }
+
   .source { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--cloud); font-size: 10px; color: var(--charcoal); gap: 12px; }
   .source img { height: 11px; opacity: 0.5; flex-shrink: 0; }
 
@@ -133,18 +142,32 @@
     <h2>Jail population is trending down from a mid-2025 peak</h2>
     <div class="dek">Monthly jail population with admissions and discharges. After plummeting during COVID-19 and rebounding above 7,000, the count peaked near 7,650 in June 2025 and has since fallen back below 6,700.</div>
     <div class="chart-row full">
-      <div class="chart-box"><div style="position:relative;height:260px"><canvas id="popChart"></canvas></div></div>
+      <div class="chart-box">
+        <div style="position:relative;height:260px"><canvas id="popChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; Monthly points through 2025 are 1st-of-month snapshots from the NYC Comptroller's DOC dashboard. The current month is a live count of everyone in custody from NYC Open Data, <code>7479-ugqb</code>, refreshed daily.
+          <span class="caveat">The most recent bar is a single-day headcount, not a monthly average, so it moves day to day and is not strictly comparable with the months before it.</span>
+        </div>
+      </div>
     </div>
     <div class="chart-row">
       <div class="chart-box">
         <h3>Average length of stay</h3>
         <div class="cb-dek">Days in custody, monthly average</div>
         <div style="position:relative;height:200px"><canvas id="stayChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Inmate Discharges <code>94ri-3ium</code>. Each month is the mean gap between admission and discharge timestamps for everyone released that month. Figures match the Comptroller's published series to 0.1 days across the five months both cover.
+          <span class="caveat">This measures completed stays only. People still in custody are not counted, so the figure understates how long the current population will ultimately be held.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3>Admissions vs. discharges</h3>
         <div class="cb-dek">Monthly flow in and out of custody</div>
         <div style="position:relative;height:200px"><canvas id="flowChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Inmate Admissions <code>6teu-xtgp</code> and Inmate Discharges <code>94ri-3ium</code>, counted by admission and discharge date. Monthly totals reproduce the Comptroller's published figures exactly across the five months both sources cover.
+          <span class="caveat">These count admission and discharge events, not distinct people. Someone booked twice in a month appears twice.</span>
+        </div>
       </div>
     </div>
     <div class="chart-row">
@@ -153,10 +176,14 @@
         <div class="cb-dek">Current population by legal status. Most people in NYC jails have not been convicted and are awaiting trial.</div>
         <div id="breakdownBars"></div>
         <div class="cb-dek" id="breakdownAsOf" style="margin-top:6px;font-style:italic"></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Daily Inmates In Custody <code>7479-ugqb</code>, grouped by <code>inmate_status_code</code> and refreshed daily.
+          <span class="caveat">A live snapshot of today only. The dataset holds no history for people already released, so these shares cannot be reconstructed for past months. "Pre-trial detainee" means legally unconvicted and awaiting trial, not that a case is close to resolution &mdash; the average stay is measured in months.</span>
+        </div>
       </div>
     </div>
     <div class="source">
-      <span>Source: NYC Comptroller DOC Dashboard</span>
+      <span>Sources are listed under each chart above. Full method: <a href="methodology.md">methodology</a>.</span>
 
     </div>
   </div>
@@ -169,25 +196,41 @@
       <div class="chart-box">
         <h3>Assaults on staff per 1,000 ADP</h3>
         <div style="position:relative;height:200px"><canvas id="assaultChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Inmate Assault on Staff <code>erra-pzy8</code>, counted by <code>reported_dt</code> and divided by that month's population.
+          <span class="caveat">Reporting runs about a month behind, and only complete months are shown. These are incidents reported by the department, not substantiated findings.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3>Fight incidents per 1,000 ADP</h3>
         <div style="position:relative;height:200px"><canvas id="fightChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Inmate Incidents &mdash; Inmate Fights <code>k548-32d3</code>, counted by <code>incident_dt</code> and divided by that month's population.
+          <span class="caveat">Dated by when the fight happened, unlike the assault and stabbing charts, which are dated by when the incident was reported. Reporting runs about a month behind.</span>
+        </div>
       </div>
     </div>
     <div class="chart-row">
       <div class="chart-box">
         <h3>Slashing and stabbing incidents per 1,000 ADP</h3>
         <div style="position:relative;height:200px"><canvas id="stabChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; NYC Open Data, Inmate Incidents &mdash; Slashing and Stabbing <code>gakf-suji</code>, counted by <code>reported_dt</code> and divided by that month's population.
+          <span class="caveat">Counts incidents, not people injured. A single incident with several victims counts once. Reporting runs about a month behind.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3>Use of force per 100 ADP</h3>
         <div class="cb-dek">Quarterly, fiscal year</div>
         <div style="position:relative;height:200px"><canvas id="forceChart"></canvas></div>
+        <div class="cb-src is-stale">
+          <span class="lbl">Source</span> &middot; NYC Comptroller's DOC dashboard, entered by hand. Latest quarter is FY26 Q1.
+          <span class="caveat">No live feed exists for this measure. The Open Data aggregate <code>2wuc-x56b</code> stopped publishing after FY2021, and the Mayor's Management Report counts a different thing &mdash; 1,724 incidents for FY26 Q1 against the 1,812 shown here &mdash; so it is not substituted in. This chart will not move until the figures are updated by hand.</span>
+        </div>
       </div>
     </div>
     <div class="source">
-      <span>Source: NYC Comptroller DOC Dashboard. Rates calculated by author.</span>
+      <span>Sources are listed under each chart above. Rates per 1,000 average daily population calculated by author. Full method: <a href="methodology.md">methodology</a>.</span>
 
     </div>
   </div>
@@ -200,6 +243,10 @@
       <div class="chart-box">
         <h3>Uniformed employees vs. average daily population</h3>
         <div style="position:relative;height:240px"><canvas id="headcountChart"></canvas></div>
+        <div class="cb-src is-stale">
+          <span class="lbl">Source</span> &middot; NYC Comptroller's DOC dashboard, annual, entered by hand. Latest year is 2024.
+          <span class="caveat">No published feed carries uniformed staff counts. The Open Data roster <code>eddp-3v5g</code> lists active employees but has no date field, so it cannot extend this series. Borough jail capacity is the design capacity of the planned borough-based jails, not current capacity.</span>
+        </div>
       </div>
     </div>
     <div class="chart-row">
@@ -207,11 +254,19 @@
         <h3>Staff sick rate</h3>
         <div class="cb-dek">Share of uniformed staff out sick, monthly</div>
         <div style="position:relative;height:200px"><canvas id="sickChart"></canvas></div>
+        <div class="cb-src is-stale">
+          <span class="lbl">Source</span> &middot; NYC Comptroller's DOC dashboard, entered by hand. Series ends September 2025.
+          <span class="caveat">The city publishes no machine-readable sick-leave feed. The Open Data roster <code>eddp-3v5g</code> has no sick category, so this cannot be automated and will not move until updated by hand.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3>Staff separations by year</h3>
         <div class="cb-dek">Resignations, retirements, dismissals and terminations</div>
         <div style="position:relative;height:200px"><canvas id="sepChart"></canvas></div>
+        <div class="cb-src is-stale">
+          <span class="lbl">Source</span> &middot; NYC Comptroller's DOC dashboard, annual, entered by hand. Latest year is 2025.
+          <span class="caveat">Counts departures, not net staffing change, so it says nothing about hiring over the same period. Not automated.</span>
+        </div>
       </div>
     </div>
     <div class="source">
@@ -229,15 +284,23 @@
         <h3>Missed medical appointments</h3>
         <div class="cb-dek">Monthly total by reason</div>
         <div style="position:relative;height:200px"><canvas id="medChart"></canvas></div>
+        <div class="cb-src is-stale">
+          <span class="lbl">Source</span> &middot; NYC Open Data <code>5n4h-km5r</code>. Series ends November 2025.
+          <span class="caveat">The dataset itself carries nothing later than 2025, so this is as current as the published source allows. "Production refusal" is the department's category for an appointment missed because the person was not brought to the clinic; it does not mean the patient declined care.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3>People with serious mental illness</h3>
-        <div class="cb-dek">Count and share of jail population. From June 2023 the Mayor's Management Report publishes the share only, so the count bars stop there while the share line continues.</div>
+        <div class="cb-dek">Count and share of jail population</div>
         <div style="position:relative;height:200px"><canvas id="mentalChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; Through May 2023, the NYC Comptroller's DOC dashboard, which publishes a count and a share. From June 2023, the Mayor's Management Report indicator "Individuals in custody with a serious mental health diagnosis (% ADP)" <code>rbed-zzin</code>, sourced by the MMR to NYC Health + Hospitals. Across the 14 months both cover, they agree within 0.2 points in 12.
+          <span class="caveat">The MMR publishes a share without a count, so the count bars stop at May 2023 while the share line continues &mdash; the gap is missing data, not a fall to zero. The MMR also lags further behind than the other feeds here, ending October 2025. This is a narrower measure than the <code>bradh</code> mental-health flag in the live custody data, which covers about 61% of the population; the two are not mixed.</span>
+        </div>
       </div>
     </div>
     <div class="source">
-      <span>Source: NYC Comptroller DOC Dashboard</span>
+      <span>Sources are listed under each chart above. Full method: <a href="methodology.md">methodology</a>.</span>
 
     </div>
   </div>
@@ -247,22 +310,36 @@
     <h2>Deaths spiked even as the jail population fell by half</h2>
     <div class="dek">Annual deaths (magenta) over average daily population (chartreuse bars). Rate per 1,000 ADP shown as orange line. Data from 2000 to present, updated daily.</div>
     <div class="chart-row full">
-      <div class="chart-box"><div style="position:relative; height:300px"><canvas id="deathChart"></canvas></div></div>
+      <div class="chart-box">
+        <div style="position:relative; height:300px"><canvas id="deathChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; Deaths 2000&ndash;2022 from a FOIL request to the NYC Board of Correction; 2015&ndash;2021 cross-checked against the federal monitor's Second Status Report of Oct. 28, 2022, p. 19. Deaths from 2023 on are compiled by the author from Department of Correction press releases and news reporting, checked daily. Average daily population from the NYC Comptroller's DOC dashboard.
+          <span class="caveat">The final year is marked with an asterisk because it is incomplete. Its rate counts deaths so far against the current population and is <em>not</em> annualized, so it will read low against the full years beside it until the year closes.</span>
+        </div>
+      </div>
     </div>
     <div class="chart-row">
       <div class="chart-box">
         <h3>Death rate per 1,000 people in custody</h3>
         <div class="cb-dek">2022 was the highest in a generation</div>
         <div style="position:relative; height:200px"><canvas id="deathRateChart"></canvas></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; Same underlying series as the chart above: annual deaths divided by that year's average daily population, times 1,000.
+          <span class="caveat">The current year is partial and not annualized, so its bar understates the full-year rate. Small counts also make these rates volatile &mdash; a handful of deaths moves the line sharply in a jail this size.</span>
+        </div>
       </div>
       <div class="chart-box">
         <h3 id="trackerTitle">2026 deaths</h3>
         <div class="cb-dek" id="trackerDek">Checked daily via news monitoring.</div>
         <div id="trackerList"></div>
+        <div class="cb-src">
+          <span class="lbl">Source</span> &middot; Compiled by the author from Department of Correction press releases and daily monitoring of Gothamist, THE CITY, PIX11, the New York Post, the Daily News, The New York Times, ABC7 and the Vera Institute's jail-deaths tracker. Each entry links to its source.
+          <span class="caveat">This is a press-based count, not an official register, so it can lag or miss a death the city has not announced. It follows the city's convention of counting people who died shortly after release from custody, which is why the total can exceed deaths inside the jails. Causes shown as "Unknown" are awaiting a medical examiner's ruling and are not assumed.</span>
+        </div>
       </div>
     </div>
     <div class="source">
-      <span>Source: FOIL request to NYC Board of Correction (2000-2022); Comptroller DOC Dashboard; author's compilation (2023-present)</span>
+      <span>Sources are listed under each chart above. Full method: <a href="methodology.md">methodology</a>.</span>
 
     </div>
   </div>
@@ -286,7 +363,7 @@
       </table>
     </div>
     <div class="source">
-      <span>Source: FOIL request to NYC Board of Correction (2000-2022); author's compilation (2023-2025)</span>
+      <span>Deaths 2000&ndash;2022 from a FOIL request to the NYC Board of Correction; 2023 to present compiled by the author from Department of Correction press releases and news reporting. Monthly counts for the current year are provisional and the current month is incomplete. Rate is deaths per 1,000 average daily population; the current year is not annualized. Full method: <a href="methodology.md">methodology</a>.</span>
 
     </div>
   </div>
@@ -294,7 +371,7 @@
   <!-- NAMED INDIVIDUALS -->
   <div class="section">
     <h2>Their names</h2>
-    <div class="dek">Every person who died in NYC DOC custody since 2019, compiled from the Comptroller's DOC Dashboard and the Vera Institute of Justice.</div>
+    <div class="dek">Every person who died in NYC DOC custody since 2019, compiled from the Comptroller's DOC Dashboard, the Vera Institute of Justice and Board of Correction records, with the current year added from Department of Correction press releases and news reporting. Ages and causes are as reported; a cause shown as "Unknown" is awaiting a medical examiner's ruling. Race is recorded only where the source states it.</div>
     <div id="namesContainer"></div>
   </div>
 </div>
@@ -302,8 +379,9 @@
 <footer>
   <div class="wrap">
     <strong>Sources</strong><br>
-    All data from the NYC Comptroller's Department of Correction Dashboard unless otherwise noted. Population data is first-of-month snapshots. Violence rates calculated by author from incident counts and population.
+    Every chart on this page states its own source and caveats directly beneath it. In summary: population, admissions, discharges, length of stay and the three violence measures come from NYC Open Data and refresh daily. Serious mental illness comes from the Mayor's Management Report. Use of force, staffing, separations and missed medical appointments have no live feed and are entered by hand from the NYC Comptroller's Department of Correction Dashboard &mdash; those four are labeled where they appear and will lag. In-custody deaths are compiled from Department of Correction releases and daily news monitoring. Rates per 1,000 average daily population are calculated by the author. Full method and dataset IDs: <a href="methodology.md" style="color:inherit">methodology</a>.
     <div class="update-line" id="updateLine"></div>
+    <div class="update-line">Built with AI assistance. Figures are pulled from official feeds automatically and spot-checked, but verify anything you intend to rely on against the source.</div>
   </div>
 </footer>
 

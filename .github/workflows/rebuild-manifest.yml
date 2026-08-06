@@ -1,9 +1,17 @@
 name: Rebuild gallery manifest
 
 # Runs the manifest builder whenever overrides change (admin saves) OR
-# the builder script itself changes, plus daily at 6am ET to pick up new
+# the builder script itself changes, plus a periodic sweep to pick up new
 # Pages-enabled repos that weren't on the gallery yet.
-
+#
+# The sweep used to run hourly, which made this workflow the dominant source
+# of pushes to main: 149 of roughly 200 commits in a representative week.
+# The manifest tracks lastCommit and commitCount for every remote repo, so it
+# genuinely changes almost every hour and the "commit if changed" guard below
+# does not suppress much. Every one of those pushes triggers a Pages rebuild,
+# and Pages deploys were queueing behind each other until the deploy step hit
+# its ten-minute timeout. Four-hourly keeps new projects appearing the same
+# day while cutting Pages rebuilds from this workflow by about 75%.
 on:
   push:
     branches: [main]
@@ -11,7 +19,7 @@ on:
       - 'project-overrides.json'
       - 'scripts/build-manifest.mjs'
   schedule:
-    - cron: '0 * * * *' # every hour, on the hour
+    - cron: '0 */4 * * *' # every four hours
   workflow_dispatch:
   repository_dispatch:
     types: [refresh-gallery]
