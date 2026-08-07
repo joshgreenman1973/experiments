@@ -55,6 +55,7 @@ TRANSIENT = [
     (r"deployment_queued", "Pages deploy queue backed up"),
     (r"Deployment failed, try again later", "Pages deploy failed, retryable"),
     (r"Failed to resolve action download info", "GitHub could not serve an action"),
+    (r"not acquired by Runner", "GitHub never assigned a runner"),
     (r"Service Unavailable|502 Bad Gateway|503 |504 Gateway", "GitHub or an upstream returned 5xx"),
     (r"The (job|operation) was canceled", "run cancelled, probably superseded"),
     (r"__JOB_CANCELLED__", "the job was cancelled before it ran"),
@@ -202,6 +203,25 @@ def failure_text(nwo, job_id, before=40, after=4):
     return "\n".join(lines[max(0, idx - before): idx + after])[-3000:]
 
 
+def annotation_text(nwo, run_id):
+    """Failure annotations for every job in a run.
+
+    A run whose jobs all show 'cancelled' or 'success' has no failing step and
+    no downloadable log -- GitHub's own dynamic Pages workflow fails this way
+    when it cannot get a runner. The only statement of the cause lives in the
+    check-run annotations. Without this, such a run classifies as 'real' on no
+    evidence at all and burns repair attempts hunting a bug that is not there.
+    """
+    data = gh_json(["api", f"repos/{nwo}/actions/runs/{run_id}/jobs"], timeout=90)
+    out = []
+    for job in (data or {}).get("jobs", []):
+        notes = gh_json(["api", f"repos/{nwo}/check-runs/{job['id']}/annotations"],
+                        timeout=60) or []
+        out += [n.get("message", "") for n in notes
+                if n.get("annotation_level") in ("failure", "warning")]
+    return "\n".join(out)[-3000:]
+
+
 def classify(text):
     for rules, kind in ((TRANSIENT, "transient"), (AUTH, "auth"),
                         (GUARD, "guard"), (UPSTREAM, "upstream")):
@@ -233,6 +253,8 @@ def inspect(nwo):
         if not text:
             text = sh(["gh", "run", "view", str(run["id"]), "-R", nwo,
                        "--log-failed"], timeout=120)[-3000:]
+        if not text:
+            text = annotation_text(nwo, run["id"])
         kind, why = classify(text)
         age_h = round((NOW - datetime.datetime.fromisoformat(
             run["created_at"].replace("Z", "+00:00"))).total_seconds() / 3600, 1)
