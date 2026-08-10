@@ -207,6 +207,61 @@ function flagNotice(notice, raw) {
   return null;
 }
 
+// --- Feed staleness ---
+// A quiet news day and a dead upstream feed look identical from here: both
+// return zero rows. Tell them apart by how far the archive has fallen behind,
+// and fail the run once the gap stops being plausible.
+
+const STALE_AFTER_BUSINESS_DAYS = 2;
+
+function businessDaysBetween(fromStr, toStr) {
+  const d = new Date(fromStr + 'T12:00:00');
+  const to = new Date(toStr + 'T12:00:00');
+  let n = 0;
+  while (d < to) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) n++;
+  }
+  return n;
+}
+
+function newestArchivedDate() {
+  const manifestPath = join(DATA_DIR, 'manifest.json');
+  if (!existsSync(manifestPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const valid = (Array.isArray(parsed) ? parsed : [])
+      .filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort((a, b) => b.localeCompare(a));
+    return valid[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+// Exits the process: 0 if the archive is merely current, 1 if the feed has stalled.
+function exitOnNoNewData(targetDate, note) {
+  const newest = newestArchivedDate();
+  if (!newest) {
+    console.error(`FAIL: no data for ${targetDate} and the archive is empty.`);
+    process.exit(1);
+  }
+  const lag = businessDaysBetween(newest, targetDate);
+  if (lag >= STALE_AFTER_BUSINESS_DAYS) {
+    console.error(
+      `FAIL: no new City Record data. Newest record on file is ${newest}, ` +
+      `${lag} business days behind ${targetDate}.\n` +
+      `The Open Data feed appears stalled. Compare:\n` +
+      `  https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx\n` +
+      `  https://a856-cityrecord.nyc.gov/`
+    );
+    process.exit(1);
+  }
+  console.log(`${note} Newest record on file is ${newest} (${lag} business day(s) behind) — within tolerance.`);
+  process.exit(0);
+}
+
 // --- Main ---
 
 async function main() {
@@ -223,8 +278,7 @@ async function main() {
     // Only try fallback if we don't already have that date's data
     const fallbackPath = join(DATA_DIR, `${fallback}.json`);
     if (existsSync(fallbackPath)) {
-      console.log(`${fallback}.json already exists and no new data for ${targetDate}. Nothing to do.`);
-      process.exit(0);
+      exitOnNoNewData(targetDate, `${fallback}.json already exists and no new data for ${targetDate}.`);
     }
 
     raw = await fetchNotices(fallback);
@@ -232,8 +286,7 @@ async function main() {
   }
 
   if (raw.length === 0) {
-    console.log('No City Record data found. Nothing to do.');
-    process.exit(0);
+    exitOnNoNewData(targetDate, 'No City Record data found.');
   }
 
   console.log(`Found ${raw.length} notices for ${date}`);
