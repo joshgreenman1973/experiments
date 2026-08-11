@@ -122,6 +122,7 @@ COLUMNS = [
     ("Ramzi Kassem", "Chief counsel", [
         ("Vilda Vera Mayuga", "Administrative Trials and Hearings"),
         ("Ali Najmi", "Advisory Committee on the Judiciary"),
+        ("Jennifer Jones Austin", "Civilian Complaint Review Board"),
     ]),
     ("Steven Banks", "Corporation counsel", []),
     ("Anna Bahr", "Communications director", [
@@ -155,6 +156,14 @@ CHARTER_NOTES = {
         "Created by executive order in March 2026. It sets policy on violence prevention, survivor "
         "services and community mental health; it does not run the police, fire or correction "
         "departments.",
+    "Civilian Complaint Review Board":
+        "The mayor does not appoint the chair alone. The Charter establishes &#8220;an independent "
+        "civilian complaint review board &#8230; comprised solely of members of the public&#8221; "
+        "(&#167;&#8239;440(a)) and reserves the chair for the one member &#8220;appointed jointly by "
+        "the mayor and the speaker of the council&#8221; (&#167;&#8239;440(b)(1)). Of the other 14 "
+        "seats, the mayor fills five outright and appoints three more designated by the police "
+        "commissioner; the Council fills five and the public advocate one. Members serve three-year "
+        "terms.",
 }
 
 # ---------------------------------------------------------------------------
@@ -213,6 +222,7 @@ DEPTS = {
     "Human Rights": ["Human Rights, City Commission on"],
     "Equity and Racial Justice": ["Mayor's Office of Equity & Racial Justice"],
     "Administrative Trials and Hearings": ["Administrative Trials And Hearings, Office of"],
+    "Civilian Complaint Review Board": ["Civilian Complaint Review Board"],
 }
 
 # Principals who run an agency in their own right rather than a portfolio.

@@ -8,7 +8,7 @@ open into their own charts.
 
 ## Three sources
 
-**The top layer** is 140 appointees, built from `../mamdani-appointee-tracker/data.json`,
+**The top layer** is 154 appointees, built from `../mamdani-appointee-tracker/data.json`,
 where every person carries a link to the press release or news report that named
 them. A snapshot of exactly what went into the page is written to `data/roster.json`
 on every build, so this folder can rebuild itself even if the tracker is not checked
@@ -17,7 +17,7 @@ out beside it.
 **Reporting lines and the offices no announcement covered** come from the city's own
 agency file, `t3jq-9nkf`, snapshotted by `refresh_governance.py` into `data/governance.json`
 so a change in it shows up as a reviewable diff. 132 of its 306 organizations carry a
-published reporting line. 59 boxes are sourced to it, and 24 offices it lists that no
+published reporting line. 59 boxes are sourced to it, and 23 offices it lists that no
 announcement covered are carried at the foot of the column it assigns them to, marked
 as the city's listing rather than an announcement. Matching is exact or by a hand-written
 alias, never by containment: a containment match tied Children's Services to an office
@@ -27,7 +27,7 @@ under Mass Engagement.
 [the Greener Book](https://joshgreenman1973.github.io/nyc-green-book/), which rebuilds
 from the city's Green Book, the agency governance file and the City Record every four
 hours. Both sites are on the same origin, so the chart reads its sibling's data file
-directly. That layer therefore stays current with no rebuild here. 48 boxes open into
+directly. That layer therefore stays current with no rebuild here. 49 boxes open into
 a published chart, down to the division level; the rest have none published and say so.
 Where the City Record has published a personnel action for someone in that chart, their
 last action and salary appear under their name.
@@ -60,7 +60,9 @@ fresh snapshot of the city's agency file; it refuses to write a short read.
   inferred from a name pattern.
 - Columns run deputy mayors first, then the other officials who report to the mayor.
 - Where a bare reporting line would misdescribe an office, the Charter provision that
-  governs it is quoted. The Department of Investigation is the case that prompted it.
+  governs it is quoted. The Department of Investigation is the case that prompted it;
+  the Civilian Complaint Review Board, whose chair the mayor and the Council speaker
+  appoint jointly, is the other.
 - Every open box is deep-linkable: `#gregory-anderson` opens Sanitation.
 - Search covers both layers. It matches the chart's own boxes and every person
   inside every department chart, by name, title or division, so searching a deputy
