@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Line of Sight: Every Camera in New York City We Can Account For</title>
+<meta name="description" content="A layered map of New York City's surveillance apparatus: Department of Transportation traffic cameras, speed and red light and bus lane cameras reconstructed from the tickets they wrote, crowdsourced plate readers, and 28,950 cameras counted at street corners by volunteers.">
+<meta property="og:title" content="Line of Sight: Every Camera in New York City We Can Account For">
+<meta property="og:description" content="Six kinds of camera, four kinds of evidence, one map. Including 2,905 automated enforcement cameras the city refuses to locate, reconstructed from their own tickets.">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090a; --bg2:#0d1113; --panel:#0f1416; --panel2:#151b1e;
+  --line:#20292d; --line2:#2c3840;
+  --ink:#e6edf1; --ink2:#93a4ad; --ink3:#5d6d76;
+  --dot:#22d3ee;        /* DOT traffic cameras */
+  --speed:#f5a524;      /* school zone speed */
+  --red:#f5424b;        /* red light */
+  --bus:#a78bfa;        /* bus lane */
+  --alpr:#5ce68b;       /* plate readers */
+  --cctv:#dfe7ec;       /* other cameras */
+  --shot:#ff5cf4;       /* gunshot detectors */
+  --survey:#b08968;     /* amnesty survey */
+  --focus:#ffe066;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:13px;-webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--dot)}
+.mono{font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------- frame */
+#map{position:absolute;inset:0}
+.maplibregl-ctrl-attrib{font-family:"IBM Plex Mono",monospace;font-size:9px;background:rgba(7,9,10,.82)!important;color:var(--ink3)}
+.maplibregl-ctrl-attrib a{color:var(--ink3)}
+.maplibregl-ctrl-group{background:var(--panel);border:1px solid var(--line)}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)}
+.maplibregl-ctrl-group button span{filter:invert(1) hue-rotate(180deg)}
+
+/* viewfinder brackets, the visual signature of the whole thing */
+.vf{position:absolute;inset:14px;pointer-events:none;z-index:2}
+.vf i{position:absolute;width:20px;height:20px;border:1px solid rgba(230,237,241,.22)}
+.vf i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+.vf i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+.vf i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+.vf i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+
+/* ---------------------------------------------------------------- header */
+header{
+  position:absolute;top:0;left:0;right:0;z-index:6;
+  display:flex;align-items:stretch;gap:0;
+  background:linear-gradient(180deg,rgba(7,9,10,.97) 60%,rgba(7,9,10,0));
+  padding:18px 26px 26px;pointer-events:none;
+}
+header>*{pointer-events:auto}
+.brand{flex:1;min-width:0}
+.rec{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.24em;color:var(--ink3);text-transform:uppercase}
+.rec i{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.9s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.15}}
+h1{
+  margin:7px 0 0;font-weight:700;letter-spacing:-.02em;text-transform:uppercase;
+  font-size:clamp(21px,3.1vw,34px);line-height:.98;
+}
+h1 em{font-style:normal;color:var(--ink3)}
+.dek{margin:8px 0 0;max-width:60ch;color:var(--ink2);font-size:12px;line-height:1.55;font-family:"IBM Plex Sans",sans-serif}
+.inline-a{color:var(--focus);border-bottom:1px solid rgba(255,224,102,.45);padding:0;font:inherit}
+.inline-a:hover{border-bottom-color:var(--focus)}
+.hbtns{display:flex;gap:8px;align-items:flex-start;flex-shrink:0}
+.hbtn{
+  border:1px solid var(--line2);padding:7px 13px;font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink2);background:rgba(15,20,22,.9);white-space:nowrap;
+}
+.hbtn:hover{border-color:var(--ink3);color:var(--ink)}
+.hbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* ---------------------------------------------------------------- panels */
+.panel{
+  position:absolute;z-index:5;background:rgba(12,16,18,.95);
+  border:1px solid var(--line);backdrop-filter:blur(9px);
+}
+#layers{left:26px;bottom:26px;width:326px;max-height:calc(100vh - 210px);display:flex;flex-direction:column}
+#detail{right:26px;top:118px;width:340px;max-height:calc(100vh - 168px);display:none;flex-direction:column}
+#detail.on{display:flex}
+.phead{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);
+  font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);flex-shrink:0;
+}
+.pbody{overflow-y:auto;padding:4px 0 10px}
+.pbody::-webkit-scrollbar{width:8px}
+.pbody::-webkit-scrollbar-thumb{background:var(--line2)}
+.x{font-size:15px;line-height:1;color:var(--ink3);padding:0 2px}
+.x:hover{color:var(--ink)}
+
+/* layer list */
+.grp{padding:12px 14px 4px}
+.grp b{
+  display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink3);font-weight:500;
+}
+.grp b:after{content:"";display:block;height:1px;background:var(--line);margin-top:7px}
+.grp p{margin:6px 0 0;font-size:10.5px;line-height:1.5;color:var(--ink3);font-family:"IBM Plex Sans",sans-serif}
+.lyr{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:7px 14px;border-left:2px solid transparent;
+}
+.lyr:hover{background:var(--panel2)}
+.lyr .sw{width:11px;height:11px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.lyr .nm{flex:1;font-size:11.5px;color:var(--ink2);line-height:1.3}
+.lyr .ct{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.lyr[aria-pressed="true"]{border-left-color:currentColor}
+.lyr[aria-pressed="true"] .nm{color:var(--ink)}
+.lyr[aria-pressed="false"] .sw{background:none!important;box-shadow:inset 0 0 0 1px var(--ink3)}
+.lyr[aria-pressed="false"] .ct{color:var(--line2)}
+
+/* detail panel */
+.dbody{padding:14px}
+.dkicker{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px}
+.dtitle{font-size:16px;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+.dsub{margin-top:5px;color:var(--ink2);font-size:11.5px;line-height:1.5}
+.kv{margin-top:14px;border-top:1px solid var(--line)}
+.kv div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:11px}
+.kv dt{color:var(--ink3);letter-spacing:.06em;text-transform:uppercase;font-size:9.5px;padding-top:1px}
+.kv dd{margin:0;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+.shot{margin-top:12px;border:1px solid var(--line);background:#000;position:relative;aspect-ratio:16/9}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot span{
+  position:absolute;left:7px;bottom:6px;font-size:9px;letter-spacing:.16em;
+  color:#9dffb0;text-shadow:0 0 6px rgba(0,0,0,.9);text-transform:uppercase;
+}
+.note{margin-top:12px;font-size:10.5px;line-height:1.6;color:var(--ink3);font-family:"IBM Plex Sans",sans-serif}
+
+/* radius report */
+.tally{margin-top:12px;display:flex;flex-direction:column;gap:1px}
+.tal{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:11.5px}
+.tal i{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tal .l{flex:1;color:var(--ink2)}
+.tal .n{font-variant-numeric:tabular-nums;font-weight:600}
+.tal.zero .l,.tal.zero .n{color:var(--line2)}
+.tal.zero i{opacity:.25}
+.big{font-size:42px;font-weight:700;line-height:1;letter-spacing:-.03em;margin-top:10px}
+.big small{display:block;font-size:10px;letter-spacing:.18em;color:var(--ink3);font-weight:400;margin-top:7px;text-transform:uppercase}
+.radio{display:flex;gap:0;margin-top:12px;border:1px solid var(--line)}
+.radio button{flex:1;padding:6px 0;font-size:10px;letter-spacing:.1em;color:var(--ink3)}
+.radio button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+/* search */
+.search{position:relative;padding:10px 14px;border-bottom:1px solid var(--line);flex-shrink:0}
+.search input{
+  width:100%;background:var(--bg);border:1px solid var(--line2);color:var(--ink);
+  padding:7px 9px;font:inherit;font-size:11.5px;
+}
+.search input:focus{outline:none;border-color:var(--ink3)}
+.search input::placeholder{color:var(--ink3)}
+.sug{position:absolute;left:14px;right:14px;top:100%;z-index:9;background:var(--panel2);border:1px solid var(--line2);border-top:0}
+.sug button{display:block;width:100%;text-align:left;padding:7px 9px;font-size:11px;color:var(--ink2);border-bottom:1px solid var(--line)}
+.sug button:hover{background:var(--panel);color:var(--ink)}
+
+/* ---------------------------------------------------------------- modal */
+#modal{
+  position:absolute;inset:0;z-index:20;background:rgba(5,7,8,.9);
+  display:none;overflow-y:auto;padding:60px 22px;
+}
+#modal.on{display:block}
+.sheet{
+  max-width:800px;margin:0 auto;background:var(--panel);border:1px solid var(--line2);
+  padding:34px 38px 40px;
+}
+.sheet h2{margin:0 0 4px;font-size:22px;text-transform:uppercase;letter-spacing:-.01em}
+.sheet h3{
+  margin:30px 0 10px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--focus);
+  padding-bottom:7px;border-bottom:1px solid var(--line);
+}
+.sheet p,.sheet li{font-family:"IBM Plex Sans",sans-serif;font-size:13.5px;line-height:1.65;color:var(--ink2)}
+.sheet li{margin-bottom:7px}
+.sheet strong{color:var(--ink);font-weight:600}
+.sheet code{font-size:12px;color:var(--alpr);background:var(--bg);padding:1px 5px}
+.sheet table{width:100%;border-collapse:collapse;margin-top:12px;font-size:11.5px}
+.sheet th,.sheet td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+.sheet th{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.sheet td.n{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.close{position:sticky;top:0;float:right;font-size:11px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+.close:hover{color:var(--ink)}
+.caution{
+  margin-top:26px;padding:12px 14px;border:1px solid var(--line2);background:var(--bg);
+  font-family:"IBM Plex Sans",sans-serif;font-size:11.5px;line-height:1.6;color:var(--ink3);
+}
+
+/* ---------------------------------------------------------------- mobile */
+.only-wide{display:block}
+@media (max-width:860px){
+  header{padding:10px 12px 16px;align-items:flex-start}
+  .dek{display:none}
+  .only-wide{display:none}
+  .rec{font-size:8.5px;letter-spacing:.16em}
+  h1{font-size:18px;margin-top:5px}
+  .hbtn{padding:6px 9px;font-size:9.5px;letter-spacing:.08em}
+  #layers{left:8px;right:8px;bottom:8px;width:auto;max-height:56vh;display:none}
+  #layers.open{display:flex}
+  #detail{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:64vh}
+  .vf{display:none}
+  .sheet{padding:22px 18px 28px}
+  .big{font-size:34px}
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="vf" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+<header>
+  <div class="brand">
+    <div class="rec"><i></i> <span id="rec">Line of sight &middot; New York City</span></div>
+    <h1>Every camera we<br>can account for <em id="hcount"></em></h1>
+    <p class="dek">New York City will not publish a map of the cameras watching its streets. This one is assembled from four kinds of evidence &mdash; the city's own live feeds, the tickets its enforcement cameras wrote, a volunteer census of street corners and an open map anyone can edit. It is not complete. Nothing complete exists. The layers count in different ways and see some of the same hardware, so <button class="inline-a" id="lnkOverlap">they should not be added up</button>.</p>
+  </div>
+  <div class="hbtns">
+    <button class="hbtn" id="btnLayers" aria-pressed="true">Layers</button>
+    <button class="hbtn" id="btnAbout">How we know</button>
+  </div>
+</header>
+
+<section class="panel" id="layers">
+  <div class="phead"><span>Layers</span><span class="mono" id="visCount"></span></div>
+  <div class="search">
+    <input id="q" type="text" placeholder="Find an address or corner&hellip;" autocomplete="off" spellcheck="false">
+    <div class="sug" id="sug" style="display:none"></div>
+  </div>
+  <div class="pbody" id="layerList"></div>
+</section>
+
+<section class="panel" id="detail">
+  <div class="phead"><span id="dhead">Detail</span><button class="x" id="dclose" title="Close">&times;</button></div>
+  <div class="pbody"><div class="dbody" id="dbody"></div></div>
+</section>
+
+<div id="modal">
+  <div class="sheet">
+    <button class="close" id="mclose">Close &times;</button>
+    <h2>How we know</h2>
+    <p>Six kinds of device, four kinds of evidence. The map keeps them apart because they are not equally reliable, and says plainly which is which.</p>
+
+    <h3>1 &middot; Official &mdash; the city's own feed</h3>
+    <p><strong>Department of Transportation traffic cameras.</strong> The agency runs a public network of street cameras and publishes their coordinates and live images through its Traffic Management Center. Click one on the map and you see what it sees. These are the only cameras in this project whose locations the city itself confirms. DOT says the images are not recorded.</p>
+
+    <h3>2 &middot; Derived &mdash; cameras reconstructed from their own tickets</h3>
+    <p>The city does not release the locations of its automated enforcement cameras. A DOT spokesman told <em>West Side Rag</em> in August 2026 that keeping the sites secret makes the program work better.</p>
+    <p>But every ticket a camera writes records the corner it was written at, and those tickets are public. Grouping the Department of Finance's fiscal 2026 violations file by location collapses roughly 5.5 million camera tickets down to the set of corners that were issuing them &mdash; which is to say, the camera list.</p>
+    <p>Three violation codes are written by fixed cameras rather than by a person: <code>36</code> school zone speed, <code>7</code> red light, <code>5</code> bus lane. Finance splits each location across two 20-character columns, so the string has to be reassembled, then split into a travel direction and two street names, then matched against a gazetteer of intersections built by snapping the endpoints of all 122,244 segments in the city's street centerline file onto an 11-metre grid.</p>
+    <table id="mtable"></table>
+    <p style="margin-top:12px">Locations that could not be matched are almost all highway ramps and service roads whose names in the ticket system have no counterpart in the centerline file. They are counted in the table but not drawn on the map. A camera flagged <strong>approximate</strong> in the detail panel was matched by nearest spelling rather than exactly, so its corner is likely but not certain.</p>
+    <p>Two cautions. A camera that wrote no tickets in the period leaves no trace here, and the fiscal 2026 file carries issue dates from July 2024 through June 2026, so a corner in this layer is one that was ticketing at some point in that window &mdash; not necessarily one that is ticketing today. The <strong>last ticket</strong> date in the detail panel is the best available check.</p>
+
+    <h3>3 &middot; Surveyed &mdash; the 2021 volunteer census</h3>
+    <p><strong>Amnesty International's Decode Surveillance NYC.</strong> More than 7,000 volunteers examined 45,000 intersections in Google Street View three times each and counted the cameras visible from each one, noting whether each was bolted to a pole or to a building. The result is the only systematic count of private cameras that exists for this city: <strong>28,950 cameras</strong> at <strong>14,097 corners</strong>, of which about 22,000 were mounted on buildings rather than street furniture.</p>
+    <p>This layer is a count per corner, not a set of camera positions, so it is drawn as graduated circles rather than as points. It is also five years old and reflects whatever Street View imagery volunteers were shown, some of it older still.</p>
+
+    <h3>4 &middot; Crowdsourced &mdash; the open map</h3>
+    <p><strong>Plate readers, other cameras and gunshot detectors from OpenStreetMap</strong>, which is where the <a href="https://deflock.me" target="_blank" rel="noopener">DeFlock</a> project's contributions live. Anyone can add a camera; nobody is required to. Coverage is therefore extremely uneven &mdash; a block someone walked with their phone looks saturated, and the block beside it looks empty. An empty area on this layer means nobody has surveyed it, not that nothing is there. That misreading is exactly what the August 2026 story about the Upper West Side was about.</p>
+    <p>Despite the name, there are no Flock Safety cameras in New York City; the NYPD, DOT and MTA have all said they do not contract with the company. The plate readers here are run mostly by the NYPD, DOT, the MTA and the Port Authority, plus a handful of big-box retailers.</p>
+
+    <h3>Where the layers overlap</h3>
+    <p>The four kinds of evidence look at the same streets from different angles, so they see some of the same hardware. Nothing on this map should be added up into a single grand total.</p>
+    <ul>
+      <li>The headline figure, <strong id="dupTotal"></strong> located devices, counts only the individually placed points. The 2021 survey is <strong>never added to it</strong>: that layer is a count of cameras seen from a corner, and about <strong>3,317</strong> of those were mounted on poles and street furniture rather than buildings &mdash; which is to say, many of them are the traffic and enforcement cameras already drawn as their own layers.</li>
+      <li><span id="dupline"></span></li>
+      <li>The three enforcement layers cannot overlap each other, because each comes from a different violation code. A corner can carry both a speed camera and a red light camera, and where it does, both are drawn.</li>
+      <li>DOT traffic cameras come from a separate official feed and are not enforcement cameras. DOT says they are not used to write tickets.</li>
+    </ul>
+
+    <h3>What is not on this map</h3>
+    <ul>
+      <li><strong>The NYPD's own camera network.</strong> The department's Domain Awareness System takes in thousands of cameras. The NYPD does not publish their locations, and this map has only the few hundred that volunteers have logged.</li>
+      <li><strong>SafeCam.</strong> The NYPD's registry of private cameras whose owners agreed to share footage on request. Locations are not public.</li>
+      <li><strong>Subway and bus cameras.</strong> The MTA has said every station and every bus car is covered. Individual camera positions are not published.</li>
+      <li><strong>Congestion pricing readers.</strong> The tolling gantries around the Manhattan zone read every plate that crosses. They are not itemised here.</li>
+      <li><strong>Doorbell cameras and shop cameras</strong> beyond whatever the 2021 volunteer survey happened to see from an intersection.</li>
+      <li><strong>Mobile enforcement.</strong> Speed and bus-lane cameras mounted on vehicles move, so they have no fixed corner. Mobile bus lane tickets are excluded from the bus lane layer for that reason.</li>
+    </ul>
+
+    <h3>Sources</h3>
+    <ul>
+      <li>NYC DOT Traffic Management Center camera feed, <code>webcams.nyctmc.org</code></li>
+      <li>NYC Open Data, Parking Violations Issued &mdash; Fiscal Year 2026 (<code>pvqr-7yc4</code>)</li>
+      <li>NYC Open Data, Centerline (<code>inkn-q76z</code>) and Borough Boundaries (<code>gthc-hcne</code>)</li>
+      <li>Amnesty International, <a href="https://github.com/amnesty-crisis-evidence-lab/decode-surveillance-nyc" target="_blank" rel="noopener">Decode Surveillance NYC</a>, 2021&ndash;22</li>
+      <li>OpenStreetMap contributors, via the Overpass API, retrieved August 2026</li>
+      <li>Gus Saltonstall, &ldquo;An Upper West Side Flock Camera Map Misunderstanding,&rdquo; <a href="https://www.westsiderag.com/2026/08/13/an-upper-west-side-flock-camera-map-misunderstanding" target="_blank" rel="noopener">West Side Rag</a>, Aug. 13, 2026</li>
+    </ul>
+
+    <div class="caution">Built with AI assistance. The enforcement layers are reconstructed from ticket records by an automated pipeline, not copied from an official list, and roughly one location in fifteen could not be matched to a corner. Check any specific camera against the street before relying on it.</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const LAYERS = [
+  {id:'dot_traffic', name:'DOT traffic cameras', color:'#22d3ee', group:'official', r:3.4},
+  {id:'speed',       name:'School zone speed cameras', color:'#f5a524', group:'derived', r:3.4},
+  {id:'redlight',    name:'Red light cameras', color:'#f5424b', group:'derived', r:3.4},
+  {id:'buslane',     name:'Bus lane cameras', color:'#a78bfa', group:'derived', r:3.4},
+  {id:'alpr',        name:'Licence plate readers', color:'#5ce68b', group:'crowd', r:3.2},
+  {id:'cctv',        name:'Other cameras logged', color:'#dfe7ec', group:'crowd', r:2.8},
+  {id:'gunshot',     name:'Gunshot detectors', color:'#ff5cf4', group:'crowd', r:3.6},
+  {id:'amnesty',     name:'Cameras counted, 2021', color:'#b08968', group:'survey', r:0},
+];
+const GROUPS = [
+  {key:'official', label:'Official', blurb:'Published by the agency that runs them.'},
+  {key:'derived',  label:'Derived from tickets', blurb:'Locations the city withholds, reconstructed from the tickets these cameras wrote.'},
+  {key:'survey',   label:'Surveyed, 2021', blurb:'Volunteers counted cameras visible at each corner. Circles scale with the count.'},
+  {key:'crowd',    label:'Crowdsourced', blurb:'OpenStreetMap and DeFlock. Blank areas mean nobody has looked.'},
+];
+const OPNAME = {nypd:'NYPD', dot:'NYC DOT', mta:'MTA', panynj:'Port Authority',
+                other_gov:'Other government', private:'Private', unknown:'Not recorded'};
+
+const state = {data:{}, on:new Set(LAYERS.map(l=>l.id)), summary:null, pin:null, radius:150};
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+
+const map = new maplibregl.Map({
+  container:'map',
+  style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center:[-73.93,40.717], zoom:10.4, minZoom:8.4, maxZoom:19,
+  attributionControl:{compact:true},
+});
+// Keep the five boroughs clear of the panels rather than centred in the window.
+function frameCity(){
+  const wide = window.innerWidth > 860;
+  map.fitBounds([[-74.27,40.49],[-73.68,40.92]], {
+    padding:{top: wide?150:80, bottom: wide?60:70, left: wide?370:14, right: wide?60:14},
+    duration:0,
+  });
+}
+// Gate on the style rather than on 'load': 'load' waits for basemap tiles, and
+// a slow tile CDN should not stop the camera layers from drawing.
+window.addEventListener('resize', () => { if (!state.pin) frameCity(); });
+map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-right');
+map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}), 'bottom-right');
+
+// ------------------------------------------------------------------ load
+async function boot(){
+  const [summary, ...sets] = await Promise.all([
+    fetch('data/summary.json').then(r=>r.json()),
+    ...LAYERS.map(l => fetch('data/'+l.id+'.json').then(r=>r.json())),
+  ]);
+  state.summary = summary;
+  LAYERS.forEach((l,i) => { state.data[l.id] = sets[i]; });
+  buildLegend();
+  fillModal();
+  const total = LAYERS.filter(l=>l.id!=='amnesty')
+    .reduce((s,l)=>s+state.data[l.id].length,0);
+  $('#hcount').textContent = '— ' + fmt(total);
+  $('#rec').textContent = 'Line of sight · ' + fmt(total) + ' devices located';
+  ready();
+}
+
+// The camera layers must go in exactly once, after the style exists but without
+// waiting on basemap tiles. Whichever signal arrives first wins; the flag keeps
+// a second one from adding everything twice.
+let inited = false;
+function ready(){
+  if (inited || !state.summary || !map.style || !map.getStyle()) return;
+  inited = true;
+  addAll();
+  frameCity();
+  map.resize();
+  // Some browsers settle the canvas a frame or two late; nudge once more.
+  setTimeout(() => { map.resize(); map.triggerRepaint(); }, 500);
+}
+map.on('style.load', ready);
+map.on('load', ready);
+map.on('idle', ready);
+const readyPoll = setInterval(() => {
+  if (inited) return clearInterval(readyPoll);
+  ready();
+}, 120);
+
+function toFC(rows, id){
+  if (id === 'amnesty'){
+    return {type:'FeatureCollection', features: rows.map((r,i)=>({
+      type:'Feature', id:i,
+      geometry:{type:'Point', coordinates:[r[0], r[1]]},
+      properties:{n:r[2], street:r[3], building:r[4], when:r[5], _l:'amnesty'},
+    }))};
+  }
+  return {type:'FeatureCollection', features: rows.map((r,i)=>({
+    type:'Feature', id:i,
+    geometry:{type:'Point', coordinates:[r.lon, r.lat]},
+    properties:Object.assign({}, r, {_l:id}),
+  }))};
+}
+
+function addAll(){
+  // Survey circles sit underneath everything: they are a density, not a device.
+  map.addSource('amnesty', {type:'geojson', data:toFC(state.data.amnesty,'amnesty')});
+  map.addLayer({
+    id:'amnesty', type:'circle', source:'amnesty',
+    paint:{
+      'circle-radius':['interpolate',['linear'],['zoom'],
+        10,['interpolate',['linear'],['get','n'],1,1.1,12,4],
+        14,['interpolate',['linear'],['get','n'],1,3,12,13],
+        17,['interpolate',['linear'],['get','n'],1,7,12,30]],
+      'circle-color':'#b08968',
+      'circle-opacity':['interpolate',['linear'],['zoom'],10,0.24,14,0.28,17,0.3],
+      'circle-stroke-width':['interpolate',['linear'],['zoom'],13,0,15,0.6],
+      'circle-stroke-color':'#c9a184','circle-stroke-opacity':0.45,
+    },
+  });
+
+  LAYERS.filter(l=>l.id!=='amnesty').forEach(l => {
+    map.addSource(l.id, {type:'geojson', data:toFC(state.data[l.id], l.id)});
+    map.addLayer({
+      id:l.id, type:'circle', source:l.id,
+      paint:{
+        'circle-radius':['interpolate',['linear'],['zoom'],10,1.7,13,l.r,16,l.r*2.4,19,l.r*4],
+        'circle-color':l.color,
+        'circle-opacity':0.92,
+        'circle-stroke-width':['interpolate',['linear'],['zoom'],12,0,14,0.8],
+        'circle-stroke-color':'#07090a','circle-stroke-opacity':0.85,
+      },
+    });
+    map.on('click', l.id, e => showDevice(e.features[0].properties, l));
+    map.on('mouseenter', l.id, ()=>{ map.getCanvas().style.cursor='pointer'; });
+    map.on('mouseleave', l.id, ()=>{ map.getCanvas().style.cursor=''; });
+  });
+
+  map.addSource('pin', {type:'geojson', data:{type:'FeatureCollection', features:[]}});
+  map.addLayer({id:'pin-ring', type:'circle', source:'pin',
+    paint:{'circle-radius':['get','px'],'circle-color':'#ffe066','circle-opacity':0.06,
+           'circle-stroke-width':1,'circle-stroke-color':'#ffe066','circle-stroke-opacity':0.55}});
+  map.addLayer({id:'pin-dot', type:'circle', source:'pin',
+    paint:{'circle-radius':4,'circle-color':'#ffe066','circle-stroke-width':1.5,'circle-stroke-color':'#07090a'}});
+
+  map.on('click', e => {
+    const hits = map.queryRenderedFeatures(e.point, {layers:LAYERS.map(l=>l.id).filter(id=>map.getLayer(id))});
+    if (!hits.length) standHere(e.lngLat);
+  });
+  map.on('click','amnesty', e => showCorner(e.features[0].properties));
+  map.on('zoom', drawPin);
+  updateVisible();
+}
+
+// ------------------------------------------------------------- legend UI
+function buildLegend(){
+  const host = $('#layerList');
+  host.innerHTML = '';
+  GROUPS.forEach(g => {
+    const wrap = document.createElement('div');
+    wrap.className = 'grp';
+    wrap.innerHTML = '<b>'+g.label+'</b><p>'+g.blurb+'</p>';
+    host.appendChild(wrap);
+    LAYERS.filter(l=>l.group===g.key).forEach(l => {
+      const n = state.data[l.id].length;
+      const b = document.createElement('button');
+      b.className = 'lyr';
+      b.style.color = l.color;
+      b.setAttribute('aria-pressed','true');
+      b.innerHTML = '<span class="sw" style="background:'+l.color+'"></span>'
+                  + '<span class="nm">'+l.name+'</span>'
+                  + '<span class="ct mono">'+fmt(l.id==='amnesty' ? state.summary.amnesty.cameras : n)+'</span>';
+      b.onclick = () => {
+        const on = state.on.has(l.id);
+        on ? state.on.delete(l.id) : state.on.add(l.id);
+        b.setAttribute('aria-pressed', String(!on));
+        if (map.getLayer(l.id)) map.setLayoutProperty(l.id,'visibility', on?'none':'visible');
+        updateVisible();
+        if (state.pin) standHere(state.pin, true);
+      };
+      host.appendChild(b);
+    });
+  });
+}
+
+function updateVisible(){
+  const n = LAYERS.filter(l=>l.id!=='amnesty' && state.on.has(l.id))
+                  .reduce((s,l)=>s+state.data[l.id].length,0);
+  $('#visCount').textContent = fmt(n)+' shown';
+}
+
+// --------------------------------------------------------- detail panels
+function openDetail(head, html){
+  $('#dhead').textContent = head;
+  $('#dbody').innerHTML = html;
+  $('#detail').classList.add('on');
+}
+$('#dclose').onclick = () => {
+  $('#detail').classList.remove('on');
+  state.pin = null; drawPin();
+};
+
+function row(k,v){ return v==null||v==='' ? '' : '<div><dt>'+k+'</dt><dd>'+v+'</dd></div>'; }
+function esc(s){ return String(s==null?'':s).replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+function title(s){ return String(s||'').replace(/\w\S*/g, t => t[0].toUpperCase()+t.slice(1).toLowerCase()); }
+const DIRWORD = {NB:'northbound',SB:'southbound',EB:'eastbound',WB:'westbound'};
+
+function showDevice(p, l){
+  let head = l.name, body = '';
+  const kick = '<div class="dkicker" style="color:'+l.color+'">'+l.name+'</div>';
+
+  if (l.id === 'dot_traffic'){
+    body = kick + '<div class="dtitle">'+esc(p.name)+'</div>'
+      + '<div class="dsub">'+esc(p.boro)+' · New York City Department of Transportation</div>'
+      + (p.img ? '<div class="shot"><img src="'+esc(p.img)+'?t='+Date.now()+'" alt="Live view from this camera" '
+        + 'onerror="this.parentNode.style.display=\'none\'"><span>Live · '+esc(p.name)+'</span></div>' : '')
+      + '<dl class="kv">'+row('Status', p.online?'Online':'Offline')+row('Evidence','Agency feed')+'</dl>'
+      + '<p class="note">DOT publishes this camera’s position and a refreshing still image. The department says the feeds are not recorded.</p>';
+  } else if (['speed','redlight','buslane'].includes(l.id)){
+    const dir = DIRWORD[p.dir] || '';
+    body = kick
+      + '<div class="dtitle">'+esc(title(p.street))+'<br>at '+esc(title(p.cross))+'</div>'
+      + '<div class="dsub">'+esc(p.boro)+(dir?' · watching '+dir+' traffic':'')+'</div>'
+      + '<dl class="kv">'
+      + row('Tickets written', fmt(p.tickets))
+      + row('First ticket', p.first)
+      + row('Last ticket', p.last)
+      + row('Evidence','Derived from tickets')
+      + row('Corner match', p.fuzzy ? 'Approximate' : 'Exact')
+      + '</dl>'
+      + '<p class="note">The city does not publish this camera’s location. It is here because '
+      + fmt(p.tickets)+' tickets in the Department of Finance’s fiscal 2026 file were written at this corner'
+      + (dir?' against '+dir+' traffic':'')+'.'
+      + (p.fuzzy?' The corner was matched by nearest spelling, so treat the position as approximate.':'')+'</p>';
+  } else {
+    const op = p.op ? esc(p.op) : (OPNAME[p.opkey]||'Not recorded');
+    head = l.name;
+    body = kick
+      + '<div class="dtitle">'+(l.id==='gunshot'?'Gunshot detector':(l.id==='alpr'?'Licence plate reader':'Camera'))+'</div>'
+      + '<div class="dsub">'+esc(p.boro)+' · '+op+'</div>'
+      + '<dl class="kv">'
+      + row('Operator', op)
+      + row('Mounted on', p.mount ? esc(title(p.mount)) : '')
+      + row('Facing', p.dir ? esc(p.dir) : '')
+      + row('Make', p.make ? esc(p.make) : '')
+      + row('Evidence','Crowdsourced')
+      + (p.dup ? row('Note','Sits on a ticketing camera') : '')
+      + '</dl>'
+      + '<p class="note">Logged by a volunteer on OpenStreetMap. '
+      + (p.dup ? 'It is within 40 metres of a camera we independently reconstructed from ticket data, so the two layers may be describing the same hardware. ' : '')
+      + '<a href="https://www.openstreetmap.org/'+esc(p.osm)+'" target="_blank" rel="noopener">Check the entry</a>.</p>';
+  }
+  state.pin = null; drawPin();
+  openDetail(head, body);
+}
+
+function showCorner(p){
+  openDetail('Corner survey, 2021',
+    '<div class="dkicker" style="color:#b08968">Surveyed, 2021</div>'
+    + '<div class="big">'+p.n+'<small>cameras visible from this corner</small></div>'
+    + '<dl class="kv">'
+    + row('On poles and street furniture', p.street)
+    + row('On buildings', p.building)
+    + row('Street View imagery', p.when)
+    + row('Evidence','Volunteer census')
+    + '</dl>'
+    + '<p class="note">Amnesty International volunteers examined this intersection in Google Street View three '
+    + 'times and counted every camera they could see. The figure is their median. It is a count, not a set of '
+    + 'positions, so the circle marks the corner rather than any camera on it.</p>');
+}
+
+// ------------------------------------------------- "what is watching here"
+function drawPin(){
+  if (!map.getSource('pin')) return;
+  if (!state.pin){
+    map.getSource('pin').setData({type:'FeatureCollection', features:[]});
+    return;
+  }
+  const {lng, lat} = state.pin;
+  const mPerPx = 156543.03392 * Math.cos(lat*Math.PI/180) / Math.pow(2, map.getZoom());
+  map.getSource('pin').setData({type:'FeatureCollection', features:[{
+    type:'Feature', geometry:{type:'Point', coordinates:[lng,lat]},
+    properties:{px: state.radius / mPerPx},
+  }]});
+}
+
+function within(lngLat, metres){
+  const out = {};
+  const dLat = metres/111320, dLon = metres/(111320*Math.cos(lngLat.lat*Math.PI/180));
+  LAYERS.forEach(l => {
+    let n = 0, cams = 0;
+    for (const r of state.data[l.id]){
+      const lon = l.id==='amnesty' ? r[0] : r.lon;
+      const lat = l.id==='amnesty' ? r[1] : r.lat;
+      if (Math.abs(lat-lngLat.lat) > dLat || Math.abs(lon-lngLat.lng) > dLon) continue;
+      const y = (lat-lngLat.lat)*111320, x = (lon-lngLat.lng)*111320*Math.cos(lngLat.lat*Math.PI/180);
+      if (x*x + y*y <= metres*metres){ n++; cams += (l.id==='amnesty' ? r[2] : 1); }
+    }
+    out[l.id] = {n, cams};
+  });
+  return out;
+}
+
+function standHere(lngLat, keep){
+  state.pin = lngLat;
+  drawPin();
+  const hits = within(lngLat, state.radius);
+  const devices = LAYERS.filter(l=>l.id!=='amnesty' && state.on.has(l.id))
+                        .reduce((s,l)=>s+hits[l.id].n, 0);
+  const surveyed = state.on.has('amnesty') ? hits.amnesty.cams : 0;
+  const feet = Math.round(state.radius*3.28084/10)*10;
+
+  let tally = '<div class="tally">';
+  LAYERS.forEach(l => {
+    if (!state.on.has(l.id)) return;
+    const v = l.id==='amnesty' ? hits[l.id].cams : hits[l.id].n;
+    tally += '<div class="tal'+(v?'':' zero')+'"><i style="background:'+l.color+'"></i>'
+           + '<span class="l">'+l.name+'</span><span class="n">'+fmt(v)+'</span></div>';
+  });
+  tally += '</div>';
+
+  const radio = '<div class="radio">'
+    + [100,150,300].map(m => '<button data-r="'+m+'" aria-pressed="'+(state.radius===m)+'">'
+        + Math.round(m*3.28084/10)*10+' ft</button>').join('')
+    + '</div>';
+
+  openDetail('Standing here',
+    '<div class="dkicker" style="color:#ffe066">Within '+feet+' feet</div>'
+    + '<div class="big">'+fmt(devices)+'<small>devices located at this spot</small></div>'
+    + (surveyed ? '<p class="note" style="margin-top:10px">Separately, volunteers counted <strong style="color:#b08968">'
+        +fmt(surveyed)+'</strong> cameras at corners inside this circle in 2021, most of them on buildings. '
+        +'That is a different way of counting, not an addition &mdash; any pole-mounted camera above was probably '
+        +'counted there too.</p>' : '')
+    + tally + radio
+    + '<p class="note">Click anywhere else to move the circle. Every count here is a floor, not a total &mdash; '
+    + 'the layers that cover private cameras are the thinnest ones on the map.</p>');
+
+  $('#dbody').querySelectorAll('.radio button').forEach(b => {
+    b.onclick = () => { state.radius = +b.dataset.r; standHere(state.pin, true); };
+  });
+}
+
+// -------------------------------------------------------------- geocoder
+let qt;
+$('#q').addEventListener('input', e => {
+  clearTimeout(qt);
+  const v = e.target.value.trim();
+  if (v.length < 4){ $('#sug').style.display='none'; return; }
+  qt = setTimeout(async () => {
+    try {
+      const r = await fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?size=5&text='+encodeURIComponent(v));
+      const j = await r.json();
+      const box = $('#sug');
+      box.innerHTML = '';
+      (j.features||[]).forEach(f => {
+        const b = document.createElement('button');
+        b.textContent = f.properties.label;
+        b.onclick = () => {
+          const [lng,lat] = f.geometry.coordinates;
+          map.flyTo({center:[lng,lat], zoom:16.4});
+          box.style.display='none';
+          $('#q').value = f.properties.label;
+          setTimeout(()=>standHere({lng,lat}), 700);
+        };
+        box.appendChild(b);
+      });
+      box.style.display = box.children.length ? 'block' : 'none';
+    } catch(err){ $('#sug').style.display='none'; }
+  }, 260);
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search')) $('#sug').style.display='none';
+});
+
+// ----------------------------------------------------------------- chrome
+// On a phone the panel is a sheet the button opens; on a desktop it is always
+// there and the button hides it.
+const narrow = () => window.innerWidth <= 860;
+function setLayersOpen(open){
+  const p = $('#layers');
+  if (narrow()){ p.classList.toggle('open', open); p.style.display = ''; }
+  else { p.classList.remove('open'); p.style.display = open ? 'flex' : 'none'; }
+  $('#btnLayers').setAttribute('aria-pressed', String(open));
+}
+$('#btnLayers').onclick = () => {
+  setLayersOpen($('#btnLayers').getAttribute('aria-pressed') !== 'true');
+};
+setLayersOpen(!narrow());
+$('#btnAbout').onclick = () => $('#modal').classList.add('on');
+$('#lnkOverlap').onclick = () => {
+  $('#modal').classList.add('on');
+  $('#modal').scrollTop = 0;
+  const h = [...document.querySelectorAll('.sheet h3')].find(x => x.textContent.indexOf('overlap') > -1);
+  if (h) h.scrollIntoView({block:'start'});
+};
+$('#mclose').onclick = () => $('#modal').classList.remove('on');
+$('#modal').onclick = e => { if (e.target.id === 'modal') $('#modal').classList.remove('on'); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#modal').classList.remove('on'); });
+
+function fillModal(){
+  const s = state.summary, m = s.enforcement_match;
+  const label = {speed:'School zone speed', redlight:'Red light', buslane:'Bus lane'};
+  let html = '<tr><th>Camera type</th><th style="text-align:right">Corners in tickets</th>'
+           + '<th style="text-align:right">Mapped</th><th style="text-align:right">Share</th></tr>';
+  ['speed','redlight','buslane'].forEach(k => {
+    const r = m[k];
+    html += '<tr><td>'+label[k]+'</td><td class="n">'+fmt(r.distinct_locations)+'</td>'
+          + '<td class="n">'+fmt(r.located)+'</td><td class="n">'
+          + (100*r.located/r.distinct_locations).toFixed(1)+'%</td></tr>';
+  });
+  $('#mtable').innerHTML = html;
+  const devices = LAYERS.filter(l=>l.id!=='amnesty').reduce((n,l)=>n+state.data[l.id].length,0);
+  $('#dupTotal').textContent = fmt(devices);
+  $('#dupline').innerHTML = '<strong>'+s.alpr_overlapping_enforcement + ' of the '
+    + fmt(s.counts.alpr) + ' crowdsourced plate readers</strong> sit within 40 metres of an enforcement camera '
+    + 'reconstructed here independently, so in those places the two layers may be describing the same hardware '
+    + 'twice. Each one is marked in its detail panel. They are left in rather than deleted, because a plate '
+    + 'reader and a ticketing camera can genuinely share a pole.';
+}
+
+boot();
+</script>
+</body>
+</html>
