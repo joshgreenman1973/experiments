@@ -128,9 +128,8 @@ export default function App() {
 
       {view === 'movies' && !hasKey && (
         <div className="max-w-xl mx-auto mb-8 p-4 bg-red-900/20 border border-red-800/30 rounded-lg text-center text-sm text-red-300/80">
-          Movie data isn't configured. Set <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">VITE_TMDB_PROXY</code> (preferred)
-          or <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">VITE_TMDB_API_KEY</code> in a
-          <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">.env</code> file and rebuild.
+          Movie data isn't configured. Set <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">TMDB_PROXY</code> in
+          <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">src/config.js</code> to the deployed Worker URL and rebuild.
         </div>
       )}
 

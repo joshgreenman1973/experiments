@@ -33,25 +33,22 @@ npm run build                      # bake the data into dist/
 ## The TMDB key
 
 The site is static, so anything the browser needs is readable in the published
-JavaScript -- an API key included. The Cloudflare Worker in `worker/` exists to
-avoid that: it holds the key as an encrypted secret and makes the TMDB calls
-itself.
+JavaScript -- an API key included. So the app never sees the key: every TMDB
+request goes through the Cloudflare Worker in `worker/`, which holds the key as
+an encrypted secret, allows only the three endpoints the app uses, and is
+deployed at https://good-time-tmdb.josh-greenman.workers.dev.
 
-One-time setup:
+The app gets that URL from `TMDB_PROXY` in `src/config.js` -- a public URL, safe
+to commit, which is why CI can rebuild the site with no secrets at all. There is
+deliberately no way to supply a raw API key from the frontend.
+
+To change the Worker or its key:
 
 ```bash
 cd worker
-npx wrangler login
-npx wrangler deploy
-npx wrangler secret put TMDB_API_KEY
+npx wrangler deploy                    # after editing src/index.js
+npx wrangler secret put TMDB_API_KEY   # to rotate the key
 ```
-
-Then put the deployed URL in `src/config.js` as `TMDB_PROXY` and rebuild. From
-that point no key is compiled into the site, and CI can rebuild without any
-secrets at all.
-
-Until that is done the app falls back to calling TMDB directly using
-`VITE_TMDB_API_KEY` from `.env`, which does end up in the published bundle.
 
 ## Local development
 

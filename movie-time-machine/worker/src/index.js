@@ -15,11 +15,12 @@ const TMDB_BASE = 'https://api.themoviedb.org/3'
 const ALLOWED_EXACT = new Set(['/discover/movie', '/search/movie'])
 const ALLOWED_PATTERN = /^\/movie\/\d+$/
 
-const ALLOWED_ORIGINS = [
-  'https://joshgreenman1973.github.io',
-  'http://localhost:5176',
-  'http://127.0.0.1:5176',
-]
+const PUBLIC_ORIGIN = 'https://joshgreenman1973.github.io'
+
+// The published site, plus any local dev server port.
+function isAllowedOrigin(origin) {
+  return origin === PUBLIC_ORIGIN || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+}
 
 // TMDB data for a given query changes slowly; cache at the edge to stay well
 // inside the rate limit.
@@ -27,7 +28,7 @@ const CACHE_TTL_SECONDS = 60 * 60 * 6
 
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || ''
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  const allowed = isAllowedOrigin(origin) ? origin : PUBLIC_ORIGIN
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, OPTIONS',

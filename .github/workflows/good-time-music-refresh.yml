@@ -28,13 +28,12 @@ jobs:
         with:
           node-version: '20'
 
-      # The build bakes in whichever TMDB path is configured. If neither is
-      # available the rebuilt bundle would silently lose its movie data, so
-      # stop here rather than publish a broken site.
-      - name: Verify movie data is configured
+      # The proxy URL is baked in at build time. If it were ever emptied, the
+      # rebuilt site would quietly lose its movie panel, so stop instead.
+      - name: Verify the TMDB proxy is configured
         run: |
-          if grep -q "TMDB_PROXY = ''" src/config.js && [ -z "${{ secrets.TMDB_API_KEY }}" ]; then
-            echo "::error::No TMDB source configured. Deploy the Worker in movie-time-machine/worker and set TMDB_PROXY in src/config.js (see the README), or add a TMDB_API_KEY repo secret."
+          if grep -q "TMDB_PROXY = ''" src/config.js; then
+            echo "::error::TMDB_PROXY is empty in src/config.js. Point it at the deployed Worker (see movie-time-machine/README.md) before this can rebuild."
             exit 1
           fi
 
@@ -47,8 +46,6 @@ jobs:
         run: node scripts/scrape-tv-tvmaze.cjs
 
       - name: Rebuild site
-        env:
-          VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           npm ci
           npm run build
