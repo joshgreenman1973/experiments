@@ -6,7 +6,7 @@ const TABS = [
 
 export default function ViewTabs({ active, onChange }) {
   return (
-    <div className="flex justify-center gap-6 sm:gap-10 px-4">
+    <div className="flex justify-center gap-5 sm:gap-10 px-2 sm:px-4">
       {TABS.map((tab) => (
         <button
           key={tab.id}

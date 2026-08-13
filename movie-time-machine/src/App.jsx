@@ -7,7 +7,7 @@ import TVSchedule from './components/TVSchedule'
 import MusicChart from './components/MusicChart'
 import SearchModal from './components/SearchModal'
 import SourcesModal from './components/SourcesModal'
-import { discoverMoviesInTheaters } from './lib/tmdb'
+import { discoverMoviesInTheaters, isConfigured } from './lib/tmdb'
 import { getCatalogStats } from './lib/stats'
 
 function todayStr() {
@@ -83,7 +83,7 @@ export default function App() {
     handleViewChange(newView)
   }
 
-  const hasKey = Boolean(import.meta.env.VITE_TMDB_API_KEY)
+  const hasKey = isConfigured
 
   return (
     <div className="min-h-screen pb-20 app-glow">
@@ -105,10 +105,11 @@ export default function App() {
         <div className="deco-rule" />
       </div>
 
-      <div className="mb-8 relative">
+      {/* pr on mobile keeps the centered tabs clear of the search button */}
+      <div className="mb-8 relative pr-12 sm:pr-0">
         <ViewTabs active={view} onChange={handleViewChange} />
         {/* Search button */}
-        <div className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2">
+        <div className="absolute right-3 sm:right-8 top-1/2 -translate-y-1/2">
           <button
             onClick={() => setSearchOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-film-border/50
@@ -127,8 +128,9 @@ export default function App() {
 
       {view === 'movies' && !hasKey && (
         <div className="max-w-xl mx-auto mb-8 p-4 bg-red-900/20 border border-red-800/30 rounded-lg text-center text-sm text-red-300/80">
-          Add <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">VITE_TMDB_API_KEY</code> to
-          a <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">.env</code> file and restart.
+          Movie data isn't configured. Set <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">VITE_TMDB_PROXY</code> (preferred)
+          or <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">VITE_TMDB_API_KEY</code> in a
+          <code className="bg-red-900/30 px-1.5 py-0.5 rounded text-red-200/80 text-xs">.env</code> file and rebuild.
         </div>
       )}
 

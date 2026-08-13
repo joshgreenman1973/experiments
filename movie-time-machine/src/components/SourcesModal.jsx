@@ -1,6 +1,15 @@
 import { useEffect } from 'react'
+import { getChartCoverage } from '../lib/music-chart'
+
+function monthYear(dateStr) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
+}
 
 export default function SourcesModal({ open, onClose }) {
+  const coverage = getChartCoverage()
   useEffect(() => {
     function handleKey(e) {
       if (e.key === 'Escape') onClose()
@@ -60,10 +69,10 @@ export default function SourcesModal({ open, onClose }) {
               Music charts
             </h3>
             <p>
-              Billboard Hot 100 rankings from January 1962 through March 2026, sourced from <a href="https://github.com/mhollingshead/billboard-hot-100" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">mhollingshead/billboard-hot-100</a> and <a href="https://musicchartsarchive.com/" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">musicchartsarchive.com</a>. We show the top 5 songs for the nearest chart week.
+              Billboard Hot 100 rankings from {coverage ? monthYear(coverage.first) : 'August 1958'} through {coverage ? monthYear(coverage.last) : 'the present'}, sourced from <a href="https://github.com/mhollingshead/billboard-hot-100" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">mhollingshead/billboard-hot-100</a> and <a href="https://musicchartsarchive.com/" target="_blank" rel="noopener noreferrer" className="text-film-gold/80 underline underline-offset-2 hover:text-film-gold">musicchartsarchive.com</a>. We show the top 5 songs for the nearest chart week.
             </p>
             <p className="mt-2 text-film-muted text-xs">
-              <strong className="text-film-text/60">What might not be right:</strong> Chart data before 1962 is not available. A small number of weeks have fewer than 5 entries. Peak position and weeks-on-chart figures are from the source datasets and may not match every published Billboard chart exactly. The Hot 100's methodology has changed over the decades (adding streaming, digital sales, etc.), so rankings from different eras aren't directly comparable.
+              <strong className="text-film-text/60">What might not be right:</strong> The Hot 100 launched in August 1958, so there is nothing before that, and the most recent weeks are only as current as the last data refresh. A small number of weeks have fewer than 5 entries. Peak position and weeks-on-chart figures are from the source datasets and may not match every published Billboard chart exactly. The Hot 100's methodology has changed over the decades (adding streaming, digital sales, etc.), so rankings from different eras aren't directly comparable.
             </p>
           </section>
 

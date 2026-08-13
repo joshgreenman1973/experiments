@@ -57,6 +57,15 @@ export function getChartForDate(dateStr) {
 }
 
 /**
+ * The first and last chart weeks actually present in the bundled data.
+ * Derived rather than hardcoded so the coverage notes can't drift from the file.
+ */
+export function getChartCoverage() {
+  if (!chartDates.length) return null
+  return { first: chartDates[0], last: chartDates[chartDates.length - 1] }
+}
+
+/**
  * Search songs across all chart weeks. Returns first appearances with chart date.
  */
 export function searchSongs(query) {

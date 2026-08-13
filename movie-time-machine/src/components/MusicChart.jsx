@@ -1,14 +1,25 @@
-import { getChartForDate } from '../lib/music-chart'
+import { getChartForDate, getChartCoverage } from '../lib/music-chart'
 
 export default function MusicChart({ date }) {
   const chart = getChartForDate(date)
 
   if (!chart) {
+    const coverage = getChartCoverage()
+    let detail = 'No Billboard Hot 100 data is bundled yet.'
+    if (coverage) {
+      if (date < coverage.first) {
+        detail = `The Hot 100 began in August 1958 -- charts here start with the week of ${formatChartDate(coverage.first)}.`
+      } else if (date > coverage.last) {
+        detail = `Charts here run through the week of ${formatChartDate(coverage.last)}. Later weeks haven't been added yet.`
+      } else {
+        detail = `Charts run from ${formatChartDate(coverage.first)} to ${formatChartDate(coverage.last)}, but this particular week is missing.`
+      }
+    }
     return (
       <div className="text-center py-20 text-film-muted">
         <p className="text-base">No chart data for this date</p>
-        <p className="text-xs mt-1 text-film-muted/60">
-          Billboard Hot 100 data available from 1958 onward
+        <p className="text-xs mt-1 text-film-muted/60 max-w-sm mx-auto px-6 leading-relaxed">
+          {detail}
         </p>
       </div>
     )

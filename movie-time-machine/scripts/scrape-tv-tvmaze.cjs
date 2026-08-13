@@ -14,10 +14,18 @@ const PRIMETIME_START = 19 // 7 PM Eastern
 const PRIMETIME_END = 23   // before 11 PM
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-// Seasons to fetch: 2012-13 through current. Bump the upper bound forward
-// each fall as new primetime schedules become available on TVMaze.
+// Seasons to fetch: 2012-13 through the newest one that has actually started.
+// Each season is sampled from a week in mid-October, so a year only becomes
+// available once that week has aired -- asking earlier returns a half-empty
+// grid. Seasons already present in the data file are skipped, so this is safe
+// to re-run at any time.
 const SEASON_YEARS = []
-for (let y = 2012; y <= 2025; y++) SEASON_YEARS.push(y)
+const now = new Date()
+const newestSeasonYear =
+  now.getMonth() > 9 || (now.getMonth() === 9 && now.getDate() >= 20)
+    ? now.getFullYear()
+    : now.getFullYear() - 1
+for (let y = 2012; y <= newestSeasonYear; y++) SEASON_YEARS.push(y)
 
 /** Find the first Sunday on or after Oct 1 of a given year */
 function getRepresentativeSunday(year) {

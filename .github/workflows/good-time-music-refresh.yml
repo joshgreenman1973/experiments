@@ -1,0 +1,67 @@
+name: Good Time Time Machine — music refresh
+
+# The Billboard data is bundled into the built site, so a refresh means
+# fetching the new chart weeks and rebuilding. Runs Sundays; the Hot 100
+# publishes on Saturdays.
+on:
+  schedule:
+    - cron: '30 13 * * 0' # 13:30 UTC ≈ 09:30 ET Sunday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: good-time-music-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movie-time-machine
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The build bakes in whichever TMDB path is configured. If neither is
+      # available the rebuilt bundle would silently lose its movie data, so
+      # stop here rather than publish a broken site.
+      - name: Verify movie data is configured
+        run: |
+          if grep -q "TMDB_PROXY = ''" src/config.js && [ -z "${{ secrets.TMDB_API_KEY }}" ]; then
+            echo "::error::No TMDB source configured. Deploy the Worker in movie-time-machine/worker and set TMDB_PROXY in src/config.js (see the README), or add a TMDB_API_KEY repo secret."
+            exit 1
+          fi
+
+      - name: Fetch new chart weeks
+        run: node scripts/update-music.cjs
+
+      # No-op except in late autumn, when a new primetime season appears on
+      # TVMaze. Existing seasons are skipped, so re-running costs nothing.
+      - name: Add the new TV season if one has started
+        run: node scripts/scrape-tv-tvmaze.cjs
+
+      - name: Rebuild site
+        env:
+          VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit if the data changed
+        run: |
+          if git diff --quiet -- src/data dist; then
+            echo "No new charts; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data dist
+          git commit -m "Good Time Time Machine: refresh Billboard charts"
+          git pull --rebase origin main
+          git push
