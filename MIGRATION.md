@@ -16,9 +16,12 @@ verified August 14, 2026. The tooling that keeps this honest lives in
   them; `machine/repos.json` (committed here) is the full inventory of
   which folder maps to which remote.
 - **A few project directories live outside `~/Experiments`** and are listed
-  in the `external` section of `machine/repos.json`:
-  `~/personal-dashboard`, `~/streetlightmeter-api`, `~/Debrief` and
-  `~/.claude` (Claude Code memory, settings and scheduled tasks).
+  in the `external` section of `machine/repos.json`. As of August 14, 2026
+  all four are backed by private repos under `joshgreenman1973`:
+  `~/personal-dashboard`, `~/streetlightmeter-api`, `~/Debrief` (repo
+  `debrief`) and `~/.claude` (repo `claude-config` — Claude Code memory,
+  settings, skills and scheduled tasks, whitelisted by its `.gitignore`;
+  a weekly `com.josh.claude-backup` job commits and pushes it).
 
 ## Before leaving the old machine
 
@@ -52,15 +55,21 @@ verified August 14, 2026. The tooling that keeps this honest lives in
    python3 scripts/restore-clones.py --clone
    ```
 
-4. Copy `~/.claude` from the old machine (or its backup). This carries
-   Claude Code memory, settings and scheduled tasks. Without it, Claude
-   starts from scratch.
+4. Restore Claude Code's memory and the other outside-Experiments projects
+   (all private repos, so sign in as `joshgreenman1973` first):
+
+   ```bash
+   git clone https://joshgreenman1973@github.com/joshgreenman1973/claude-config.git ~/.claude && git clone https://joshgreenman1973@github.com/joshgreenman1973/debrief.git ~/Debrief && git clone https://joshgreenman1973@github.com/joshgreenman1973/personal-dashboard.git ~/personal-dashboard && git clone https://joshgreenman1973@github.com/joshgreenman1973/streetlightmeter-api.git ~/streetlightmeter-api
+   ```
+
+   Clone `claude-config` before first launching Claude Code so it starts
+   with memory intact.
 5. Reinstall the recurring local jobs (versioned in `machine/launchagents/`;
    files ending `.retired` or `.superseded-by-action` are inactive history —
    skip them):
 
    ```bash
-   cp ~/Experiments/machine/launchagents/com.josh.joshgreenman-site-refresh.plist ~/Experiments/machine/launchagents/com.joshgreenman.mamdani-captions.plist ~/Experiments/machine/launchagents/com.vitalcity.weekly-report.plist ~/Experiments/machine/launchagents/com.josh.sync-audit.plist ~/Library/LaunchAgents/ && for f in com.josh.joshgreenman-site-refresh com.joshgreenman.mamdani-captions com.vitalcity.weekly-report com.josh.sync-audit; do launchctl load -w ~/Library/LaunchAgents/$f.plist; done
+   cp ~/Experiments/machine/launchagents/com.josh.joshgreenman-site-refresh.plist ~/Experiments/machine/launchagents/com.joshgreenman.mamdani-captions.plist ~/Experiments/machine/launchagents/com.vitalcity.weekly-report.plist ~/Experiments/machine/launchagents/com.josh.sync-audit.plist ~/Experiments/machine/launchagents/com.josh.claude-backup.plist ~/Library/LaunchAgents/ && for f in com.josh.joshgreenman-site-refresh com.joshgreenman.mamdani-captions com.vitalcity.weekly-report com.josh.sync-audit com.josh.claude-backup; do launchctl load -w ~/Library/LaunchAgents/$f.plist; done
    ```
 
 6. Re-create the Keychain items scripts depend on (values come from the
@@ -80,14 +89,13 @@ verified August 14, 2026. The tooling that keeps this honest lives in
 
 ## Things git cannot carry — copy these by hand
 
-- `~/.claude` — Claude Code memory, settings, scheduled tasks. The single
-  most important non-git item.
-- `~/Debrief` — meeting library (642 imported meetings), not in git.
-- `~/personal-dashboard` — not in git.
-- `~/streetlightmeter-api` — not in git (check whether the deployed copy
-  is the source of truth before assuming loss).
-- Keychain items listed above.
+- Keychain items listed above (`ANTHROPIC_API_KEY`, `vc-network-pass`).
+- GitHub sign-ins for both accounts (browser login, nothing to copy).
+- The parts of `~/.claude` its whitelist excludes — session transcripts,
+  history, caches. Losing those loses nothing that matters.
 - Any repo the audit flags `NO-REMOTE` — it exists nowhere but that disk.
+  As of August 14, 2026 that list is empty; the weekly audit will flag any
+  newcomer.
 
 ## Keeping this current
 
