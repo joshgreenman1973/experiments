@@ -93,7 +93,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
   letter-spacing: 0.5px; color: #999; margin-bottom: 6px;
 }
 .filter-group label {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
   font-size: 13px; cursor: pointer; padding: 3px 0;
 }
 .filter-group input[type="checkbox"] { accent-color: #333; width: 15px; height: 15px; }
@@ -106,6 +106,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .dot-temp { background: #f39c12; }
 .dot-pfa { background: #9b59b6; }
 .count { font-size: 11px; color: #999; margin-left: auto; }
+/* Per-source freshness. The city stopped updating some of these feeds years
+   ago; the label says so rather than letting the map imply everything is current. */
+.src-updated { flex-basis: 100%; font-size: 10.5px; color: #999; padding-left: 22px; }
+.src-updated.stale { color: #b45309; }
+.src-updated.failed { color: #b91c1c; }
 .filter-separator { border: none; border-top: 1px solid #eee; margin: 8px 0; }
 .removed-label { color: #999; }
 
@@ -323,30 +328,35 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
             <span class="legend-dot dot-pdc"></span>
             Public Design Commission
             <span class="count" id="count-pdc">&mdash;</span>
+            <span class="src-updated" id="upd-pdc"></span>
           </label>
           <label>
             <input type="checkbox" class="source-toggle" data-source="parks" checked />
             <span class="legend-dot dot-parks"></span>
             Parks Monuments
             <span class="count" id="count-parks">&mdash;</span>
+            <span class="src-updated" id="upd-parks"></span>
           </label>
           <label>
             <input type="checkbox" class="source-toggle" data-source="mta" checked />
             <span class="legend-dot dot-mta"></span>
             MTA Arts &amp; Design
             <span class="count" id="count-mta">&mdash;</span>
+            <span class="src-updated" id="upd-mta"></span>
           </label>
           <label>
             <input type="checkbox" class="source-toggle" data-source="temp" checked />
             <span class="legend-dot dot-temp"></span>
             Parks Temporary Art
             <span class="count" id="count-temp">&mdash;</span>
+            <span class="src-updated" id="upd-temp"></span>
           </label>
           <label>
             <input type="checkbox" class="source-toggle" data-source="pfa" checked />
             <span class="legend-dot dot-pfa"></span>
             Percent for Art
             <span class="count" id="count-pfa">&mdash;</span>
+            <span class="src-updated" id="upd-pfa"></span>
           </label>
           <hr class="filter-separator" />
           <label>
@@ -666,7 +676,8 @@ function addMarker(d, source, lat, lng) {
 async function loadAllData() {
   setStatus('Loading Public Design Commission artworks...');
   let pdcData = [];
-  try { pdcData = await fetchSocrata('https://data.cityofnewyork.us/resource/2pg3-gcaa.json'); } catch (e) {}
+  try { pdcData = await fetchSocrata('https://data.cityofnewyork.us/resource/2pg3-gcaa.json'); }
+  catch (e) { markSourceFailed('pdc', e); }
 
   for (const d of pdcData) {
     const lat = parseFloat(d.latitude), lng = parseFloat(d.longitude);
@@ -683,10 +694,12 @@ async function loadAllData() {
     }, 'pdc', lat, lng);
   }
   document.getElementById('count-pdc').textContent = allMarkers.pdc.length;
+  noteSourceCoverage('pdc', pdcData.length, allMarkers.pdc.length);
   setStatus(`PDC: ${allMarkers.pdc.length}. Loading Parks...`);
 
   let parksData = [];
-  try { parksData = await fetchSocrata('https://data.cityofnewyork.us/resource/6rrm-vxj9.json', 2000); } catch (e) {}
+  try { parksData = await fetchSocrata('https://data.cityofnewyork.us/resource/6rrm-vxj9.json', 2000); }
+  catch (e) { markSourceFailed('parks', e); }
 
   for (const d of parksData) {
     const x = parseFloat(d.x), y = parseFloat(d.y);
@@ -708,6 +721,7 @@ async function loadAllData() {
     }, 'parks', lat, lng);
   }
   document.getElementById('count-parks').textContent = allMarkers.parks.length;
+  noteSourceCoverage('parks', parksData.length, allMarkers.parks.length);
   setStatus(`Parks: ${allMarkers.parks.length}. Loading MTA...`);
 
   let mtaData = [], stationCoords = {};
@@ -748,7 +762,7 @@ async function loadAllData() {
   try {
     const tempResp = await fetch('https://www.nycgovparks.org/bigapps/DPR_PublicArt_001.json');
     if (tempResp.ok) tempData = await tempResp.json();
-  } catch (e) { console.warn('Temp art load failed:', e); }
+  } catch (e) { markSourceFailed('temp', e); }
 
   for (const d of tempData) {
     const lat = parseFloat(d.lat);
@@ -771,6 +785,7 @@ async function loadAllData() {
     }, 'temp', lat, lng);
   }
   document.getElementById('count-temp').textContent = allMarkers.temp.length;
+  noteSourceCoverage('temp', tempData.length, allMarkers.temp.length);
   document.getElementById('count-removed').textContent = removedMarkers.length;
 
   map.addLayer(layers.pdc);
@@ -809,7 +824,8 @@ async function geocodeNYC(address) {
 
 async function loadPercentForArt() {
   let pfaData = [];
-  try { pfaData = await fetchSocrata('https://data.cityofnewyork.us/resource/gzdv-qiga.json'); } catch (e) { return; }
+  try { pfaData = await fetchSocrata('https://data.cityofnewyork.us/resource/gzdv-qiga.json'); }
+  catch (e) { markSourceFailed('pfa', e); return; }
 
   document.getElementById('count-pfa').textContent = 'loading...';
 
@@ -852,6 +868,7 @@ async function loadPercentForArt() {
   }
 
   document.getElementById('count-pfa').textContent = allMarkers.pfa.length;
+  noteSourceCoverage('pfa', pfaData.length, allMarkers.pfa.length);
   buildTypeFilter(); // Refresh counts
 }
 
@@ -1215,7 +1232,75 @@ document.getElementById('tourBtn').addEventListener('click', () => {
   map.fitBounds(window._tourLine.getBounds(), { padding: [40, 40] });
 });
 
+// ---- Source freshness -----------------------------------------------------
+// Each dataset carries its own last-updated stamp on Socrata. Reading it live
+// means the map can say which feeds the city still maintains: the Public
+// Design Commission's outdoor art inventory has not been republished since
+// 2021, and a map that silently mixes a frozen feed with current ones invites
+// the reader to assume all of it is current.
+const SOURCE_META = {
+  pdc:   { host: 'data.cityofnewyork.us', id: '2pg3-gcaa' },
+  parks: { host: 'data.cityofnewyork.us', id: '6rrm-vxj9' },
+  mta:   { host: 'data.ny.gov',           id: '4y8j-9pkd' },
+  pfa:   { host: 'data.cityofnewyork.us', id: 'gzdv-qiga' },
+};
+const STALE_AFTER_DAYS = 550;   // ~18 months: past this, the feed is dormant
+
+// A source can answer 200 and still be unusable. NYC Parks Monuments kept its
+// x/y columns but emptied them, so all 856 records arrive with no coordinates
+// and none can be placed — which on the map looks identical to the source
+// having no artwork in it. Say which of the two it is.
+function noteSourceCoverage(key, rawRows, mapped) {
+  const el = document.getElementById('upd-' + key);
+  if (!el || el.classList.contains('failed')) return;
+  if (rawRows > 0 && mapped === 0) {
+    el.textContent = `source returned ${rawRows.toLocaleString()} records with no ` +
+      `usable coordinates — nothing from it can be mapped`;
+    el.classList.add('failed');
+  }
+}
+
+// A dataset that fails to load used to leave a silent zero in the count, which
+// reads exactly like "there is no public art from this source."
+function markSourceFailed(key, err) {
+  console.warn(key + ' load failed:', err);
+  const el = document.getElementById('upd-' + key);
+  if (!el) return;
+  el.textContent = 'could not load this source — count below is incomplete';
+  el.classList.add('failed');
+  el.classList.remove('stale');
+}
+
+async function loadSourceFreshness() {
+  await Promise.all(Object.entries(SOURCE_META).map(async ([key, meta]) => {
+    const el = document.getElementById('upd-' + key);
+    if (!el) return;
+    try {
+      const r = await fetch(`https://${meta.host}/api/views/${meta.id}.json`);
+      // A load failure is the more important message; don't paper over it.
+      if (el.classList.contains('failed')) return;
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      const ts = j.rowsUpdatedAt;
+      if (!ts) return;
+      const d = new Date(ts * 1000);
+      const days = Math.floor((Date.now() - d) / 86400000);
+      const when = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      if (days > STALE_AFTER_DAYS) {
+        const years = (days / 365).toFixed(days > 730 ? 0 : 1);
+        el.textContent = `source last updated ${when} — not refreshed by the city in ${years} years`;
+        el.classList.add('stale');
+      } else {
+        el.textContent = `source updated ${when}`;
+      }
+    } catch (e) {
+      console.warn('freshness check failed for', key, e);
+    }
+  }));
+}
+
 loadAllData();
+loadSourceFreshness();
 </script>
 </body>
 </html>
