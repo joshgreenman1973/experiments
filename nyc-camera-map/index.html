@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Line of Sight: Every Camera in New York City We Can Account For</title>
+<title>Line of Sight: Every camera in New York City (that we know about)</title>
 <meta name="description" content="A layered map of New York City's surveillance apparatus: Department of Transportation traffic cameras, speed and red light and bus lane cameras reconstructed from the tickets they wrote, crowdsourced plate readers, and 28,950 cameras counted at street corners by volunteers.">
-<meta property="og:title" content="Line of Sight: Every Camera in New York City We Can Account For">
+<meta property="og:title" content="Line of Sight: Every camera in New York City (that we know about)">
 <meta property="og:description" content="Six kinds of camera, four kinds of evidence, one map. Including 2,905 automated enforcement cameras the city refuses to locate, reconstructed from their own tickets.">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,8 +76,12 @@ h1{
 }
 h1 em{font-style:normal;color:var(--ink3)}
 .dek{margin:9px 0 0;max-width:56ch;color:var(--ink2);font-size:12px;line-height:1.6;font-family:"IBM Plex Sans",sans-serif}
+/* The count leads the dek, so it carries weight and full-strength ink rather
+   than italics, which this project does not use for display text. */
+.dek em{font-style:normal;font-weight:600;color:var(--ink)}
 .inline-a{color:var(--focus);border-bottom:1px solid rgba(255,224,102,.45);padding:0;font:inherit}
 .inline-a:hover{border-bottom-color:var(--focus)}
+.tools{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0}
 .hbtns{display:flex;gap:8px;align-items:flex-start;flex-shrink:0}
 .hbtn{
   border:1px solid var(--line2);padding:7px 13px;font-size:10.5px;letter-spacing:.14em;
@@ -91,8 +95,11 @@ h1 em{font-style:normal;color:var(--ink3)}
   position:absolute;z-index:5;background:rgba(12,16,18,.95);
   border:1px solid var(--line);backdrop-filter:blur(9px);
 }
-#layers{left:26px;bottom:26px;width:326px;max-height:calc(100vh - 210px);display:flex;flex-direction:column}
-#detail{right:26px;top:118px;width:340px;max-height:calc(100vh - 168px);display:none;flex-direction:column}
+/* --hdr is the real bottom of the header text, measured at runtime: the
+   headline and standfirst change height with the viewport, and both panels
+   have to clear whatever they actually come to. */
+#layers{left:26px;bottom:26px;width:326px;max-height:calc(100vh - var(--hdr,180px) - 52px);display:flex;flex-direction:column}
+#detail{right:26px;top:var(--hdr,118px);width:340px;max-height:calc(100vh - var(--hdr,118px) - 40px);display:none;flex-direction:column}
 #detail.on{display:flex}
 .phead{
   display:flex;justify-content:space-between;align-items:center;gap:10px;
@@ -157,17 +164,34 @@ h1 em{font-style:normal;color:var(--ink3)}
 .radio button{flex:1;padding:6px 0;font-size:10px;letter-spacing:.1em;color:var(--ink3)}
 .radio button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 
-/* search */
-.search{position:relative;padding:10px 14px;border-bottom:1px solid var(--line);flex-shrink:0}
-.search input{
-  width:100%;background:var(--bg);border:1px solid var(--line2);color:var(--ink);
-  padding:7px 9px;font:inherit;font-size:11.5px;
+/* search — a primary control in the header, not panel furniture */
+.search{position:relative;width:296px;flex-shrink:0}
+.search .mag{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:var(--ink3);font-size:14px;pointer-events:none;line-height:1;
 }
-.search input:focus{outline:none;border-color:var(--ink3)}
+.search input{
+  width:100%;background:rgba(7,9,10,.94);border:1px solid var(--line2);color:var(--ink);
+  padding:9px 44px 9px 30px;font:inherit;font-size:12px;
+}
+.search input:focus{outline:none;border-color:var(--focus);background:var(--bg)}
 .search input::placeholder{color:var(--ink3)}
-.sug{position:absolute;left:14px;right:14px;top:100%;z-index:9;background:var(--panel2);border:1px solid var(--line2);border-top:0}
-.sug button{display:block;width:100%;text-align:left;padding:7px 9px;font-size:11px;color:var(--ink2);border-bottom:1px solid var(--line)}
-.sug button:hover{background:var(--panel);color:var(--ink)}
+.search kbd{
+  position:absolute;right:9px;top:50%;transform:translateY(-50%);
+  border:1px solid var(--line2);color:var(--ink3);font-size:9px;padding:2px 5px;
+  font-family:inherit;pointer-events:none;
+}
+.search input:focus~kbd,.search input:not(:placeholder-shown)~kbd{display:none}
+.sug{
+  position:absolute;left:0;right:0;top:calc(100% - 1px);z-index:9;
+  background:var(--panel2);border:1px solid var(--focus);
+}
+.sug button{
+  display:block;width:100%;text-align:left;padding:8px 10px;font-size:11px;
+  color:var(--ink2);border-bottom:1px solid var(--line);
+}
+.sug button:last-child{border-bottom:0}
+.sug button:hover,.sug button.sel{background:var(--focus);color:var(--bg)}
 
 /* ---------------------------------------------------------------- modal */
 #modal{
@@ -208,6 +232,12 @@ h1 em{font-style:normal;color:var(--ink3)}
   .rec{font-size:8.5px;letter-spacing:.16em}
   h1{font-size:18px;margin-top:5px}
   .hbtn{padding:6px 9px;font-size:9.5px;letter-spacing:.08em}
+  /* Stack the brand and the tools so the search gets the full width. */
+  header{flex-direction:column;gap:10px}
+  .tools{align-items:stretch;width:100%}
+  .hbtns{justify-content:flex-end}
+  .search{width:100%}
+  .search kbd{display:none}
   #layers{left:8px;right:8px;bottom:8px;width:auto;max-height:56vh;display:none}
   #layers.open{display:flex}
   #detail{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:64vh}
@@ -225,21 +255,26 @@ h1 em{font-style:normal;color:var(--ink3)}
 <header>
   <div class="brand">
     <div class="rec"><i></i> <span id="rec">Line of sight &middot; New York City</span></div>
-    <h1>Every camera we<br>can account for <em id="hcount"></em></h1>
-    <p class="dek">New York City will not publish a map of the cameras watching its streets. This one is assembled from four kinds of evidence &mdash; the city's own live feeds, the tickets its enforcement cameras wrote, a volunteer census of street corners and an open map anyone can edit. It is not complete. Nothing complete exists. The layers count in different ways and see some of the same hardware, so <button class="inline-a" id="lnkOverlap">they should not be added up</button>.</p>
+    <h1>Every camera<br>(that we know about)</h1>
+    <p class="dek"><em id="dekcount"></em> New York City will not publish a map of the cameras watching its streets. This one is assembled from four kinds of evidence &mdash; the city's own live feeds, the tickets its enforcement cameras wrote, a volunteer census of street corners and an open map anyone can edit. It is not complete. Nothing complete exists. The layers count in different ways and see some of the same hardware, so <button class="inline-a" id="lnkOverlap">they should not be added up</button>.</p>
   </div>
-  <div class="hbtns">
-    <button class="hbtn" id="btnLayers" aria-pressed="true">Layers</button>
-    <button class="hbtn" id="btnAbout">How we know</button>
+  <div class="tools">
+    <div class="hbtns">
+      <button class="hbtn" id="btnLayers" aria-pressed="true">Layers</button>
+      <button class="hbtn" id="btnAbout">How we know</button>
+    </div>
+    <div class="search">
+      <span class="mag" aria-hidden="true">&#9906;</span>
+      <input id="q" type="text" placeholder="Search an address&hellip;" autocomplete="off"
+             spellcheck="false" aria-label="Search an address to see what is watching it">
+      <kbd>/</kbd>
+      <div class="sug" id="sug" style="display:none"></div>
+    </div>
   </div>
 </header>
 
 <section class="panel" id="layers">
   <div class="phead"><span>Layers</span><span class="mono" id="visCount"></span></div>
-  <div class="search">
-    <input id="q" type="text" placeholder="Find an address or corner&hellip;" autocomplete="off" spellcheck="false">
-    <div class="sug" id="sug" style="display:none"></div>
-  </div>
   <div class="pbody" id="layerList"></div>
 </section>
 
@@ -347,7 +382,18 @@ function frameCity(){
 }
 // Gate on the style rather than on 'load': 'load' waits for basemap tiles, and
 // a slow tile CDN should not stop the camera layers from drawing.
-window.addEventListener('resize', () => { if (!state.pin) frameCity(); });
+// Measure where the header text actually ends and hand it to the panels.
+function measureHeader(){
+  const brand = $('.brand'), tools = $('.tools');
+  if (!brand || !tools) return;
+  const bottom = Math.max(brand.getBoundingClientRect().bottom,
+                          tools.getBoundingClientRect().bottom);
+  document.documentElement.style.setProperty('--hdr', Math.round(bottom + 14) + 'px');
+}
+measureHeader();
+// Webfonts reflow the headline after first paint, so measure again once they land.
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureHeader);
+window.addEventListener('resize', () => { measureHeader(); if (!state.pin) frameCity(); });
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'bottom-right');
 map.addControl(new maplibregl.GeolocateControl({trackUserLocation:false}), 'bottom-right');
 
@@ -363,7 +409,7 @@ async function boot(){
   fillModal();
   const total = LAYERS.filter(l=>l.id!=='amnesty')
     .reduce((s,l)=>s+state.data[l.id].length,0);
-  $('#hcount').textContent = '— ' + fmt(total);
+  $('#dekcount').textContent = fmt(total) + ' cameras are individually located here.';
   $('#rec').textContent = 'Line of sight · ' + fmt(total) + ' devices located';
   ready();
 }
@@ -379,7 +425,7 @@ function ready(){
   frameCity();
   map.resize();
   // Some browsers settle the canvas a frame or two late; nudge once more.
-  setTimeout(() => { map.resize(); map.triggerRepaint(); }, 500);
+  setTimeout(() => { map.resize(); map.triggerRepaint(); measureHeader(); }, 500);
 }
 map.on('style.load', ready);
 map.on('load', ready);
@@ -643,35 +689,67 @@ function standHere(lngLat, keep){
 }
 
 // -------------------------------------------------------------- geocoder
-let qt;
+let qt, sel = -1;
+
+function closeSug(){ $('#sug').style.display='none'; sel = -1; }
+
+function highlight(){
+  const items = [...$('#sug').children];
+  items.forEach((b,i) => b.classList.toggle('sel', i === sel));
+  if (sel >= 0 && items[sel]) items[sel].scrollIntoView({block:'nearest'});
+}
+
+function goTo(f){
+  const [lng,lat] = f.geometry.coordinates;
+  map.flyTo({center:[lng,lat], zoom:16.4});
+  closeSug();
+  $('#q').value = f.properties.label;
+  $('#q').blur();
+  // Land, then answer the question the search is really asking: what is here?
+  setTimeout(() => standHere({lng,lat}), 750);
+}
+
 $('#q').addEventListener('input', e => {
   clearTimeout(qt);
   const v = e.target.value.trim();
-  if (v.length < 4){ $('#sug').style.display='none'; return; }
+  if (v.length < 3){ closeSug(); return; }
   qt = setTimeout(async () => {
     try {
-      const r = await fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?size=5&text='+encodeURIComponent(v));
+      const r = await fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?size=6&text='
+                            + encodeURIComponent(v));
       const j = await r.json();
       const box = $('#sug');
       box.innerHTML = '';
+      sel = -1;
       (j.features||[]).forEach(f => {
         const b = document.createElement('button');
         b.textContent = f.properties.label;
-        b.onclick = () => {
-          const [lng,lat] = f.geometry.coordinates;
-          map.flyTo({center:[lng,lat], zoom:16.4});
-          box.style.display='none';
-          $('#q').value = f.properties.label;
-          setTimeout(()=>standHere({lng,lat}), 700);
-        };
+        b.onclick = () => goTo(f);
         box.appendChild(b);
       });
       box.style.display = box.children.length ? 'block' : 'none';
-    } catch(err){ $('#sug').style.display='none'; }
-  }, 260);
+    } catch(err){ closeSug(); }
+  }, 240);
 });
-document.addEventListener('click', e => {
-  if (!e.target.closest('.search')) $('#sug').style.display='none';
+
+$('#q').addEventListener('keydown', e => {
+  const items = [...$('#sug').children];
+  if (e.key === 'Escape'){ closeSug(); $('#q').blur(); return; }
+  if (!items.length) return;
+  if (e.key === 'ArrowDown'){ e.preventDefault(); sel = (sel+1) % items.length; highlight(); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); sel = (sel<=0?items.length:sel)-1; highlight(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); items[sel < 0 ? 0 : sel].click(); }
+});
+
+document.addEventListener('click', e => { if (!e.target.closest('.search')) closeSug(); });
+
+// "/" jumps to the search from anywhere on the map.
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== $('#q') && !$('#modal').classList.contains('on')){
+    e.preventDefault();
+    $('#q').focus();
+    $('#q').select();
+  }
 });
 
 // ----------------------------------------------------------------- chrome
