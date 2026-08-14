@@ -1,4 +1,4 @@
-# Line of Sight
+# Line of Sight — every camera (that we know about)
 
 A layered map of every camera in New York City that can be accounted for from public
 evidence: 5,697 individually located devices, plus a 2021 volunteer census that counted
