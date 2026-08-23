@@ -63,11 +63,16 @@ push access to `singing-stairs-2`, so the same would apply to a 1.0 repo.
 | 7 | Paste the metadata from §5, set price to $0.99 | ASC | Or hand me the API key and I'll do it |
 | 8 | Press **Submit for Review** | ASC | Always a human action |
 
-### Needs Josh's Mac (this container is Linux — no macOS, no Xcode)
+### Needs a Claude Code session on your Mac — I can do these there
+
+Not "can't be automated." Xcode only runs on macOS, and this session is a
+Claude Code *web* session: a Linux container in the cloud. Run Claude Code in
+a terminal on your Mac and these are mine, the same way the TestFlight
+pipeline was.
 
 | # | Task | Notes |
 |---|------|-------|
-| 9 | Archive and upload the build | I can write the commands; the machine has to be yours |
+| 9 | Archive and upload a build | **Possibly already done — see §4.1** |
 | 10 | Run the screenshot pass | See §7 |
 
 ### I've already done these, on my own
@@ -113,6 +118,29 @@ already registered and item 6 is a five-second confirmation.
 
 The API key ids in `singing-stairs-2/tools/asc.py` (`ZRL2ZT22XY`, issuer
 `cd73ce4b-…`) are account-level, so they work for 1.0 too.
+
+---
+
+### 4.1 You may not need a new build at all
+
+Uploading to TestFlight and uploading to the App Store are **the same
+action**. There is no separate "App Store build": one binary goes to App
+Store Connect, appears in TestFlight for testers, and is selectable from a
+dropdown when you create an App Store version. Singing Stairs 1.0 has already
+made that trip.
+
+So before anyone opens Xcode, check **App Store Connect → your app → the
+build list**. If a 1.0 build is sitting there, the entire build-and-upload
+step is finished and the remaining work is metadata, the paid agreement, and
+Submit.
+
+Two things that would force a fresh upload:
+
+- The build is too old. TestFlight builds stop being installable by testers
+  after 90 days, and a stale build is worth replacing anyway.
+- You want a change in it — a bug fix, a new icon, a version bump.
+
+If neither applies, skip §9 entirely.
 
 ---
 
@@ -336,7 +364,7 @@ button in the bottom right.
 
 ---
 
-## 9. Build and upload — commands for Josh's Mac
+## 9. Build and upload — only if §4.1 says you need a new build
 
 Written against 2.0's project layout; adjust the scheme and project names if
 1.0's differ. From 1.0's repo root:
@@ -374,7 +402,9 @@ must be higher than whatever is up there now.
 2. Josh: confirm the ASC app record and bundle id (§4)
 3. Merge this branch so the privacy and support URLs go live
 4. Optional: push 1.0 to GitHub, which hands me items 18–19
-5. Josh's Mac: run tests, archive, upload
+5. Check the ASC build list (§4.1). If a build is already there, skip to 6.
+   If not, run Claude Code on your Mac and I'll do the tests, archive and
+   upload
 6. Josh or me (with the key): metadata, screenshots, $0.99
 7. Josh: Submit for Review
 8. Review: usually 24–48 hours. Microphone-plus-children is the combination
