@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New York City, examined</title>
+<meta name="description" content="One front door to 117 maps, trackers, explorers and archives built on New York City's public data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* HOUSE SYSTEM — muted riso (inlined: house-style/ is not served on Pages).
+   Rules: no rounded corners, no shadows, no gradients, no stat cards,
+   no emoji icons, no pastel pills. Colour carries meaning only. */
+:root{
+  --paper:#eceee9;--paper2:#e1e4de;--ink:#1b1e1c;--ink2:#5c625d;
+  --hair:#c7ccc5;--hair2:#d8dcd6;
+  --ink1:#2d4a86;--ink2c:#4a6b52;--ink3:#8a4a6b;--ink4:#b07326;--ink5:#2b6f75;
+  --sans:'Karla',system-ui,-apple-system,sans-serif;
+  --display:'Archivo',system-ui,sans-serif;
+  --t-micro:9.5px;--t-small:10px;--t-body:1.02rem;--t-rec:1.04rem;
+  --t-h1:clamp(1.7rem,3.6vw,2.5rem);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--ink1)}
+button{font-family:inherit}
+.sheet{max-width:1400px;margin:0 auto;background:var(--paper);position:relative}
+.strip{background:var(--paper2);border-bottom:1px solid var(--hair);padding:8px 26px;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-size:var(--t-small);letter-spacing:.17em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.strip a{color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--hair)}
+.strip a:hover{color:var(--ink)}
+.head{position:relative;overflow:hidden;padding:26px calc(clamp(150px,22vw,290px) + 52px) 20px 26px}
+.hmark{position:absolute;right:26px;top:26px;width:clamp(150px,22vw,290px);pointer-events:none}
+.hmark svg{width:100%;height:auto;max-height:150px;object-fit:contain;overflow:visible;display:block;mix-blend-mode:multiply}
+@media(max-width:900px){.head{padding-right:26px}.hmark{display:none}}
+h1{font-family:var(--display);font-weight:700;margin:0;font-size:var(--t-h1);
+  line-height:1.02;letter-spacing:-.02em;position:relative;z-index:2}
+.sub{position:relative;z-index:2;margin:9px 0 0;max-width:64ch;font-size:var(--t-body);
+  line-height:1.55;color:#333834}
+.src{position:relative;z-index:2;margin:13px 0 0;font-size:var(--t-small);
+  letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.src a{color:var(--ink2)}
+.capline{padding:9px 26px;border-top:1px solid var(--ink);background:var(--paper2);
+  font-size:var(--t-micro);letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.capline b{color:var(--ink);font-weight:700}
+.controls{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:13px 26px;
+  border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
+  position:sticky;top:0;background:var(--paper);z-index:10}
+input[type=search]{flex:1 1 320px;min-width:200px;font-family:var(--sans);font-size:14.5px;
+  font-weight:500;padding:10px 13px;border:1px solid var(--ink);background:#fff;color:var(--ink);
+  border-radius:0;outline:none;-webkit-appearance:none}
+input[type=search]:focus{box-shadow:inset 0 0 0 2px var(--ink3)}
+.hitline{font-size:var(--t-small);letter-spacing:.11em;text-transform:uppercase;
+  font-weight:700;color:var(--ink2);flex:none}
+.shelfnav{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--hair)}
+.shelfnav a{font-size:var(--t-small);letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+  color:var(--ink2);text-decoration:none;padding:10px 14px;border-right:1px solid var(--hair)}
+.shelfnav a:hover{color:var(--ink);background:var(--paper2)}
+.shelfnav a u{text-decoration:none;color:var(--ink1);margin-left:5px;
+  font-variant-numeric:tabular-nums}
+.colhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:11px 26px 9px;border-bottom:1px solid var(--hair);margin-top:0;
+  font-size:var(--t-micro);letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.colhead b{font-family:var(--display);font-size:1.02rem;font-weight:700;letter-spacing:.01em;
+  text-transform:none;color:var(--ink)}
+.colhead b i{font-style:normal;color:var(--ink1);margin-left:8px;font-family:var(--sans);
+  font-size:var(--t-micro);letter-spacing:.1em;font-variant-numeric:tabular-nums;vertical-align:2px}
+.shelf .blurb{padding:8px 26px 0;margin:0;max-width:70ch;font-size:.95rem;color:var(--ink2)}
+@media(max-width:560px){
+  .colhead{flex-direction:column;align-items:flex-start;gap:3px}
+  .colhead b{white-space:nowrap}
+}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));padding:10px 14px 22px}
+a.rec{display:block;text-align:left;background:none;border:0;border-bottom:1px solid var(--hair2);
+  padding:11px 12px 12px;color:inherit;text-decoration:none;min-width:0}
+a.rec:hover{background:var(--paper2);box-shadow:inset 3px 0 0 var(--ink1)}
+a.rec b{font-family:var(--display);font-weight:600;font-size:var(--t-rec);display:block;
+  letter-spacing:-.012em;line-height:1.25}
+a.rec span{display:block;margin-top:3px;font-size:.9rem;line-height:1.45;color:#3c423d}
+a.rec .meta{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--ink2);display:block;margin-top:5px}
+.hidden{display:none}
+mark{background:none;color:inherit;box-shadow:inset 0 -6px 0 rgba(176,115,38,.35)}
+.empty{padding:36px 26px;color:var(--ink2);font-size:.95rem}
+.foot{padding:18px 26px 44px;border-top:1px solid var(--hair);font-size:.9rem;color:var(--ink2)}
+.foot a{color:var(--ink)}
+.foot p{margin:0 0 10px;max-width:88ch}
+.caution{font-size:var(--t-small);letter-spacing:.05em;text-transform:uppercase;font-weight:700;
+  color:var(--ink2);border:1px dashed var(--hair);padding:9px 12px;margin:14px 0 0;
+  max-width:90ch;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="strip">
+    <div>Josh Greenman &middot; Experiments</div>
+    <div><a href="https://joshgreenman1973.github.io/experiments/">All experiments &rarr;</a></div>
+  </div>
+
+  <header class="head">
+    <h1>New York City, examined</h1>
+    <p class="sub">One front door to 117 maps, trackers, explorers, archives and games,
+      every one built on the city's public data. They live all over; this page is the index.
+      Search the lot, or browse the twelve shelves.</p>
+    <p class="src">Free, no logins, no tracking &middot; sources cited inside each tool</p>
+    <div class="hmark" aria-hidden="true">
+      <!-- The five boroughs as five inks, overprinting. -->
+      <svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- The Bronx — teal, riding Manhattan's shoulder -->
+        <path d="M142 10 L178 2 L214 12 L206 40 L172 50 L146 42 Z" fill="#2b6f75" opacity=".82"/>
+        <!-- Queens — amber, the big eastern mass -->
+        <path d="M160 56 L228 48 L262 74 L246 112 L192 118 L156 96 Z" fill="#b07326" opacity=".82"/>
+        <!-- Brooklyn — indigo, tucked under Queens -->
+        <path d="M120 100 L168 92 L196 116 L180 148 L130 152 L108 128 Z" fill="#2d4a86" opacity=".82"/>
+        <!-- Manhattan — plum, the sliver between them -->
+        <path d="M124 92 L118 52 L134 14 L148 18 L142 58 L138 98 Z" fill="#8a4a6b" opacity=".9"/>
+        <!-- Staten Island — moss, across the harbor gap -->
+        <path d="M28 118 L66 106 L88 120 L74 150 L38 154 Z" fill="#4a6b52" opacity=".82"/>
+      </svg>
+    </div>
+  </header>
+
+  <div class="capline"><b>117 tools</b> on 12 shelves &middot; every link checked live Aug. 21, 2026</div>
+
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search everything — rats, elevators, payroll, an era, a worry&hellip;"
+           aria-label="Search all 117 tools" autocomplete="off" spellcheck="false">
+    <div class="hitline" id="hits">144 tools</div>
+  </div>
+
+  <nav class="shelfnav" id="shelfnav" aria-label="Shelves"></nav>
+
+  <main id="shelves"></main>
+  <div class="empty hidden" id="noresults">Nothing on any shelf matches that. Try a broader word &mdash;
+    the search reads titles, descriptions and a keyword index.</div>
+
+  <footer class="foot">
+    <p><b>What this is.</b> Since 2025 I have been building small, single-purpose tools about
+      New York City &mdash; one question per page, public data underneath, methodology inside.
+      They were scattered across dozens of pages; this guide is the one place they are all
+      organized and searchable. The originals stay where they are; every link here goes to
+      the tool's own page.</p>
+    <p><b>Sourcing.</b> Each tool documents its own sources and methods.</p>
+    <div class="caution">Built with AI assistance under close human direction. The concept, catalog,
+      shelving and descriptions are the author's; Claude Code did the coding and link-checking.
+      Every link on this page was verified live on Aug. 21, 2026. If something here is wrong
+      or dead, please flag it.</div>
+  </footer>
+
+</div>
+
+<script src="guide-data.js"></script>
+<script>
+(function(){
+  const cats = GUIDE.cats, tools = GUIDE.tools;
+  const byCat = {};
+  cats.forEach(c => byCat[c.id] = []);
+  tools.forEach(t => byCat[t.c].push(t));
+
+  // ---- render shelves ----
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const main = document.getElementById('shelves');
+  main.innerHTML = cats.map(c => `
+    <section class="shelf" id="s-${c.id}">
+      <div class="colhead"><b>${esc(c.label)}<i id="n-${c.id}"></i></b><span>${esc(c.blurb)}</span></div>
+      <div class="grid">${byCat[c.id].map(t => `
+        <a class="rec" href="${esc(t.u)}" data-n="${esc(t.n)}">
+          <b>${esc(t.t)}</b>
+          <span>${esc(t.d)}</span>
+        </a>`).join('')}
+      </div>
+    </section>`).join('');
+
+  document.getElementById('shelfnav').innerHTML = cats.map(c =>
+    `<a href="#s-${c.id}">${esc(c.label)}<u>${byCat[c.id].length}</u></a>`).join('');
+
+  // ---- search: one index over title + description + keywords + shelf ----
+  const idx = tools.map(t => ({
+    n: t.n,
+    hay: (t.t + ' ' + t.d + ' ' + (t.k||'') + ' ' + cats.find(c=>c.id===t.c).label).toLowerCase()
+  }));
+  const rows = {};
+  document.querySelectorAll('a.rec').forEach(el => rows[el.dataset.n] = el);
+  const q = document.getElementById('q'), hits = document.getElementById('hits');
+  const noRes = document.getElementById('noresults'), nav = document.getElementById('shelfnav');
+
+  function run(){
+    const terms = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    const perCat = {};
+    idx.forEach(r => {
+      const ok = terms.every(t => r.hay.includes(t));
+      rows[r.n].classList.toggle('hidden', !ok);
+      if (ok){ shown++; const c = tools.find(t=>t.n===r.n).c; perCat[c]=(perCat[c]||0)+1; }
+    });
+    cats.forEach(c => {
+      const n = perCat[c.id]||0;
+      document.getElementById('s-'+c.id).classList.toggle('hidden', n===0);
+      document.getElementById('n-'+c.id).textContent = terms.length ? (n + ' of ' + byCat[c.id].length) : '';
+    });
+    hits.textContent = terms.length ? (shown + ' of ' + tools.length) : (tools.length + ' tools');
+    noRes.classList.toggle('hidden', shown !== 0);
+    nav.classList.toggle('hidden', terms.length > 0);
+  }
+  q.addEventListener('input', run);
+  q.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){
+      const first = document.querySelector('a.rec:not(.hidden)');
+      if (first) window.open(first.href, '_blank', 'noopener');
+    }
+    if (e.key === 'Escape'){ q.value=''; run(); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== q){ e.preventDefault(); q.focus(); }
+  });
+  run();
+})();
+</script>
+</body>
+</html>
