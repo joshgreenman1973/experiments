@@ -3,7 +3,11 @@
    so it works on a plane, in a waiting room, anywhere without signal. */
 importScripts('audio-map.js');
 
-const CACHE = 'sasha-dollhouse-v4';
+/* v5: every clip re-recorded with the warmer voice cast, SAME filenames —
+   the version bump is what evicts the old robotic recordings, because the
+   fetch handler below rightly treats audio as immutable. Bump this any
+   time a clip's content changes under an unchanged name. */
+const CACHE = 'sasha-dollhouse-v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg',
                './icon-180.png', './icon-512.png', './audio-map.js'];
 
