@@ -105,6 +105,18 @@
     .tr-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 30px; }
     .tr-card { border: 1px solid #e8e8e8; border-radius: 3px; background: #fff; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .tr-card .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+    /* Link out to the long-form standing analysis (analysis.html) */
+    .deep-read {
+      display: block; text-decoration: none; color: inherit;
+      background: #fff; border: 1px solid #dbe3ee; border-left: 3px solid #2a5db0;
+      padding: 12px 14px; margin: 0 0 18px;
+    }
+    .deep-read:hover { border-color: #2a5db0; background: #fbfcfe; }
+    .deep-read .dr-kicker { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; color: #2a5db0; }
+    .deep-read .dr-title { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; margin-top: 3px; }
+    .deep-read .dr-sub { font-size: 12.5px; color: #666; margin-top: 3px; line-height: 1.5; }
+    .deep-read .dr-go { font-size: 12px; font-weight: 600; color: #2a5db0; margin-top: 6px; }
+
     .tr-card .v { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-top: 3px; font-variant-numeric: tabular-nums; }
     .tr-card .sub { font-size: 11.5px; color: #999; margin-top: 2px; }
 
@@ -1085,6 +1097,7 @@
   <footer>
     Data source: <a href="https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx">NYC Open Data (dg92-zbpx)</a> ·
     Full City Record: <a href="https://a856-cityrecord.nyc.gov/">a856-cityrecord.nyc.gov</a> ·
+    <a href="analysis.html">The 2026 file</a> ·
     <a href="methodology.html">Methodology</a> ·
     <span id="footer-updated"></span>
   </footer>
@@ -1216,6 +1229,12 @@ function setupTabs() {
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
     });
   });
+  // Allow deep links like index.html#trends so other pages can point at a tab.
+  const wanted = location.hash.replace('#', '');
+  if (wanted) {
+    const target = document.querySelector(`.tab[data-tab="${CSS.escape(wanted)}"]`);
+    if (target) target.click();
+  }
 }
 
 // ── Date navigation ─────────────────────────────────────────
@@ -2206,6 +2225,16 @@ async function renderTrends() {
     — ${T.days} publishing days, ${trNum(T.totals.award_count)} contract awards worth <span class="range">${trMoney(T.totals.award_value)}</span>.
     "Awards" count Procurement-section notices of type <em>Award</em> at the dollar figure published in the City Record;
     figures may include multi-year totals and renewals. <a href="methodology.html">Full methodology &rarr;</a></p>`);
+
+  // Standing long-form analysis of the whole archive — the dashboard shows the
+  // latest movement, analysis.html works through what changed across the year.
+  html.push(`<a class="deep-read" href="analysis.html">
+    <div class="dr-kicker">Standing analysis</div>
+    <div class="dr-title">The 2026 file</div>
+    <div class="dr-sub">Twelve findings from the whole archive: the fiscal-year procurement cliff, renewals outweighing competition,
+      a public-comment section that was renamed and lost its numbers, and an executive-order counter that reset to one.</div>
+    <div class="dr-go">Read the analysis &rarr;</div>
+  </a>`);
 
   // Auto narrative — what changed last month
   html.push(trNarrative(T, last, prev));
