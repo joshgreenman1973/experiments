@@ -7,8 +7,8 @@ The city books pensions, health insurance and legal payouts in three central
 accounts rather than against the agencies that incur them. Every chart of the
 budget inherits that structure. So the published fiscal 2027 budget shows the
 Police Department as a $6.3 billion line carrying no pension contribution and no
-health insurance, and shows Education at $35.0 billion — a figure that *does*
-include $5.1 billion of benefits, because Education buys its own out of its own
+health insurance, and shows Education at $35.0 billion — a figure that already
+includes $5.1 billion of benefits, because Education buys its own out of its own
 budget line. The two numbers are not comparable, and nothing on the chart says so.
 
 Reassign the $17.6 billion that can honestly be traced and the picture changes:
@@ -32,7 +32,8 @@ actually do.
 
 ## What is here
 
-- One fiscal year, the adopted expense budget for the year under way.
+- Every adopted expense budget New York City publishes as open data, fiscal 2017
+  through 2027, with a year selector. The current year is the default.
 - Every agency, ranked, with a toggle between the published line and the fully
   loaded cost. The ranking reshuffles when you switch.
 - A per-agency panel showing the arithmetic line by line, each line marked with
@@ -40,6 +41,15 @@ actually do.
   or followed to the agency that got sued.
 - The $13.3 billion that belongs to nobody: debt service, retiree health care,
   reserves, transit subsidies.
+- The multiple for every agency over $100 million, plotted across all eleven
+  budgets.
+
+That last chart is where the argument lands. The lines barely move. The Police
+Department has been understated by between 77 and 93 percent in every budget
+since fiscal 2017; the Fire Department has run between 1.85 and 2.06 times its
+line. The share of the whole budget sitting in the three central accounts has
+gone from 16.2% to 14.9%. This is not a distortion that crept in, and it is not
+one the city has been closing. It is how the budget is written.
 
 ## How every dollar was assigned
 
@@ -59,13 +69,20 @@ conservative rather than generous.
 
 ## Building
 
-    python3 build/build.py           # fiscal 2027, the current adopted budget
-    python3 build/build.py 2026      # any fiscal year in the dataset
+    python3 build/build.py              # every year the dataset carries
+    python3 build/build.py 2024 2027    # a range
+    python3 build/build.py 2022         # a single year
 
-No dependencies beyond the standard library. The script reconciles every pool
-against the budget's own printed totals and **fails rather than writes** if
-anything misses by more than the rounding on individual lines. Current drift
-across roughly 150 rounded rows: $8.
+No dependencies beyond the standard library. Every year reconciles against the
+budget's own printed totals independently, and the script **fails rather than
+writes** if any of them misses by more than the rounding on individual lines.
+Drift runs $0 to $8 a year across roughly 150 rounded rows.
+
+One trap worth knowing if you touch this: agency numbers in the dataset lose
+their leading zero before fiscal 2027, so the pension agency is `095` in one
+year and `95` in the next. A filter that does not pad matches nothing and the
+year builds with an empty pension pool instead of failing. The build pads, and
+refuses any year that comes back without all three central agencies.
 
 ## Files
 

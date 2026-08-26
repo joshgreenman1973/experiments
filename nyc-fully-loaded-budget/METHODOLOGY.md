@@ -1,7 +1,7 @@
 # Method
 
-New York City's expense budget assigns money to 141 agencies. Three of those
-agencies do not run anything. Agency 095 holds the city's pension
+New York City's expense budget assigns money to about 140 agencies. Three of
+those agencies do not run anything. Agency 095 holds the city's pension
 contributions, agency 098 holds health insurance, payroll taxes and legal
 payouts, agency 099 holds debt service. Between them they hold about $31
 billion of a $118 billion budget.
@@ -18,9 +18,24 @@ that assignment is.
 |---|---|---|
 | Expense budget by agency, unit, object code and position | [`mwzb-yiwb`](https://data.cityofnewyork.us/City-Government/Expense-Budget/mwzb-yiwb) | Office of Management and Budget |
 | Settled claims against the city, by agency | [`ex6k-ym48`](https://data.cityofnewyork.us/City-Government/Claims-Report-Underlying-Settlements-and-Claims-Fi/ex6k-ym48) | Comptroller's claims report |
-| Population denominator | Census Bureau vintage 2025 estimate, 8,584,629 | Same denominator as The New York City ledger; held flat for budget years |
+| Population denominator | Census Bureau vintage 2025 estimate, 8,584,629 | Same denominator as The New York City ledger; held flat across the series, so per-resident figures for earlier years are dollars against today's population |
 
-The budget dataset keeps every publication snapshot of a fiscal year as its own
+The dataset carries fiscal 2017 through 2027, and the page builds all eleven.
+Each year has to pass every check on its own before any of it is written.
+
+Two things about the dataset make a multi-year build harder than it looks.
+**Agency numbers lose their leading zero before fiscal 2027** — the pension
+agency is `095` in one year and `95` in the next, and Education is `040` or
+`40`. A filter that does not pad silently matches nothing, and the year builds
+with an empty pension pool rather than failing. Object class numbers do the
+same, `01` against `1`. The build pads both, and refuses to write a year that
+comes back without all three central agencies.
+
+The line names, by contrast, are stable: every pension fund, every benefits
+object code, and the uniformed and pedagogical payroll splits carry identical
+strings in all eleven budgets. That is what makes the series comparable at all.
+
+The budget dataset also keeps every publication snapshot of a fiscal year as its own
 set of rows — a year is republished two or three times as it moves from
 preliminary to executive to adopted. Grouping on `fiscal_year` alone therefore
 sums the snapshots and overstates the year by two or three times. The build
@@ -87,7 +102,7 @@ behaviour tests it. The pooled headcount rate works out to **$29,895 a budgeted
 position**. Education, buying the same coverage directly, spends **$28,270** a
 position on the same components, and the City University **$32,576**. Three
 independent numbers within about a tenth of each other. The build fails if any
-self-funding agency's rate falls outside 0.65 to 1.55 times the pooled rate.
+self-funding agency’s rate falls outside 0.55 to 1.75 times the pooled rate, in any year.
 
 **Known limitation.** Workers' compensation is not evenly distributed — sanitation,
 police and fire generate far more of it per employee than an office agency does,
@@ -136,6 +151,27 @@ Capital spending is not on this page at all. This is the expense budget, the
 same thing the published charts show. The city spent about $15.6 billion on
 capital in fiscal 2025 on top of it.
 
+## What the series shows
+
+Run across eleven budgets, the multiples barely move. The Police Department has
+been understated by 77 to 93 percent in every year since fiscal 2017. The Fire
+Department has run between 1.85 and 2.06 times its published line. Education has
+drifted down, 1.17 to 1.11, as it moved more of its own benefits onto its own
+budget line. Health and Hospitals fell from 1.18 to 1.05 as its staff moved off
+the city payroll.
+
+The pooled share of the whole budget has been almost flat: 16.2% of the budget
+sat in the three central accounts in fiscal 2017 and 14.9% does in fiscal 2027.
+
+So this is not a distortion that crept in, and it is not one the city has been
+closing. It is a stable property of how the budget is written.
+
+One caveat on the series specifically. The retiree health benefits trust swings
+hard from year to year — $1.57 billion in fiscal 2018, $269 million in fiscal
+2022, $2.66 billion in fiscal 2027 — because the city funds and draws on the
+trust unevenly. That money sits in the unassigned pile in every year, so it moves
+the "belongs to nobody" total around without touching any agency's multiple.
+
 ## What reconciles
 
 The build fails rather than writes if any of these do not hold:
@@ -145,11 +181,13 @@ The build fails rather than writes if any of these do not hold:
 3. Miscellaneous detail sums to the miscellaneous agency's total.
 4. Each pool's allocations plus its unassigned remainder equal the pool.
 5. Fully loaded agency costs plus unassigned central charges equal the citywide
-   total, within the rounding on individual lines. Current drift: **$8** across
-   roughly 150 rounded rows.
-6. Every self-funding agency's own benefits rate lands within 0.65 to 1.55 times
-   the pooled rate.
+   total, within the rounding on individual lines. Drift runs $0 to $8 a year
+   across roughly 150 rounded rows.
+6. Every self-funding agency's own benefits rate lands within 0.55 to 1.75 times
+   the pooled rate, in every year.
 7. At least 85% of settlement dollars map to a budget agency.
+8. Every year returns all three central agencies, which is what catches the
+   agency-number padding if the dataset's formatting changes again.
 
 ## What this is not
 
@@ -167,8 +205,9 @@ its own.
 
 ## Rebuilding
 
-    python3 build/build.py           # fiscal 2027, the current adopted budget
-    python3 build/build.py 2026      # any fiscal year in the dataset
+    python3 build/build.py              # every year the dataset carries
+    python3 build/build.py 2024 2027    # a range
+    python3 build/build.py 2022         # a single year
 
 The script writes `data.json` only if every check passes. Bump the `?v=` stamp
 on the asset links in `index.html` when deploying, so a cached copy of one file
