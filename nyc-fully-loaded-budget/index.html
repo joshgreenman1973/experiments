@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The fully loaded budget — what New York City’s agencies really cost</title>
+<meta name="description" content="New York City's budget parks pensions, health insurance and legal payouts in three central accounts. Put that money back on the agencies that incur it and the Police Department costs $11.5 billion, not $6.3 billion.">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css?v=1">
+<link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+<div class="sheet">
+
+  <div class="strip">
+    <span>Josh Greenman &middot; New York City budget</span>
+    <span>Adopted expense budget, fiscal <b id="fyStrip">2027</b></span>
+  </div>
+
+  <header class="head">
+    <div class="hmark" aria-hidden="true">
+      <svg viewBox="0 0 300 150" role="img">
+        <!-- What the budget shows sits above the line; what it costs sits below. -->
+        <g fill="#2d4a86" style="mix-blend-mode:multiply" opacity=".85">
+          <rect x="18" y="64" width="34" height="18"></rect>
+          <rect x="68" y="52" width="34" height="30"></rect>
+          <rect x="118" y="70" width="34" height="12"></rect>
+          <rect x="168" y="58" width="34" height="24"></rect>
+          <rect x="218" y="72" width="34" height="10"></rect>
+        </g>
+        <g fill="#b07326" style="mix-blend-mode:multiply" opacity=".8">
+          <rect x="18" y="84" width="34" height="34"></rect>
+          <rect x="68" y="84" width="34" height="16"></rect>
+          <rect x="118" y="84" width="34" height="26"></rect>
+          <rect x="168" y="84" width="34" height="14"></rect>
+          <rect x="218" y="84" width="34" height="30"></rect>
+        </g>
+        <g fill="#4a6b52" style="mix-blend-mode:multiply" opacity=".75">
+          <rect x="18" y="120" width="34" height="14"></rect>
+          <rect x="68" y="102" width="34" height="22"></rect>
+          <rect x="118" y="112" width="34" height="18"></rect>
+          <rect x="168" y="100" width="34" height="28"></rect>
+          <rect x="218" y="116" width="34" height="12"></rect>
+        </g>
+        <line x1="6" y1="83" x2="294" y2="83" stroke="#1b1e1c" stroke-width="1.4"></line>
+      </svg>
+    </div>
+    <h1>The fully loaded budget</h1>
+    <p class="sub">New York City books pensions, health insurance and legal payouts in three
+      central accounts rather than against the agencies that incur them. So the published
+      budget says the Police Department costs $6.3 billion. Push the pooled money back where
+      it was actually run up and the number is $11.5 billion. Here is every agency, both ways.</p>
+    <p class="src">Source: <a href="https://data.cityofnewyork.us/City-Government/Expense-Budget/mwzb-yiwb">Office of Management and Budget expense budget</a>
+      and the <a href="https://data.cityofnewyork.us/City-Government/Claims-Report-Underlying-Settlements-and-Claims-Fi/ex6k-ym48">comptroller’s claims report</a>,
+      via NYC Open Data &middot; <a href="#method">How every dollar was assigned</a></p>
+  </header>
+
+  <p class="capline">Adopted expense budget for fiscal year <b id="fyCap">2027</b>, the year now under way &middot;
+    <b id="capTotal">$117.8 billion</b> &middot; <b id="capPos">304,778</b> budgeted positions</p>
+
+  <div class="counts">
+    <div><b id="cTotal">—</b><span>Total expense budget</span></div>
+    <div><b id="cPool">—</b><span>Pooled centrally, then reassigned here</span></div>
+    <div><b id="cUnalloc">—</b><span>Belongs to no agency at all</span></div>
+    <div><b id="cSafety">—</b><span>Police, fire and jails</span></div>
+  </div>
+
+  <div class="controls">
+    <span class="ctl-label">Show each agency</span>
+    <button class="chip big" id="tPub" aria-pressed="true">As published</button>
+    <button class="chip big" id="tLoad" aria-pressed="false">Fully loaded</button>
+    <span class="ctl-sep"></span>
+    <span class="ctl-label">Rank by</span>
+    <button class="chip" data-sort="size" aria-pressed="true">Size</button>
+    <button class="chip" data-sort="mult" aria-pressed="false">How much the line hides</button>
+    <span class="ctl-sep"></span>
+    <span class="ctl-label">Include</span>
+    <select id="cutoff">
+      <option value="100000000">Agencies over $100 million</option>
+      <option value="25000000">Agencies over $25 million</option>
+      <option value="0">Every agency</option>
+    </select>
+  </div>
+
+  <p class="readout" id="readout"></p>
+
+  <section id="rankWrap">
+    <div class="colhead">
+      <span>Agency</span>
+      <span class="legend">
+        <i class="k base"></i>Budget line
+        <i class="k pen"></i>Pension
+        <i class="k fri"></i>Benefits
+        <i class="k jud"></i>Payouts
+      </span>
+      <span>Cost</span>
+    </div>
+    <div id="rank"></div>
+    <p class="rest" id="rest"></p>
+  </section>
+
+  <div class="cols">
+    <div class="col">
+      <div class="colhead"><span>What sits in the pooled accounts</span><span id="poolTot"></span></div>
+      <div class="pad">
+        <p class="lede">Three central accounts hold money that agencies spend but never
+          show. Pensions are the easy case: the budget names the fund on every line, and
+          four of the five funds belong to a single workforce. Health insurance and payroll
+          taxes are shared out by headcount and payroll. Legal payouts follow the
+          comptroller’s own record of which agency got sued.</p>
+        <div id="pools"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="colhead"><span>Nobody’s line</span><span id="unTot"></span></div>
+      <div class="pad">
+        <p class="lede">Even after the work is done, a large share of the budget cannot
+          honestly be charged to anyone running anything today. Debt service is a bill from
+          capital budgets of years past. Retiree health care was earned in agencies as they
+          were staffed decades ago. This is the money a spending debate never quite reaches.</p>
+        <div id="unalloc"></div>
+      </div>
+    </div>
+  </div>
+
+  <section id="method">
+    <div class="colhead"><span>How every dollar was assigned</span><span>Method</span></div>
+    <div class="pad method">
+      <p>Three questions decide where a pooled dollar goes, and each answer carries a
+        different level of confidence. They are marked on every agency’s detail panel.</p>
+
+      <h4>Named in the budget</h4>
+      <p>The city’s pension account lists its payment to each retirement system as a
+        separate line. The Police Pension Fund covers uniformed officers of one department.
+        The Fire Pension Fund covers one department. The Teachers’ Retirement System and
+        the Board of Education Retirement System cover the schools. Those four lines,
+        <b id="mSourced">—</b>, are assigned exactly as the budget writes them. Nothing is
+        modelled.</p>
+
+      <h4>Shared out on the city’s own headcount</h4>
+      <p>The remaining pension line is the city’s payment to the New York City Employees’
+        Retirement System, which covers nearly everyone else. It is divided by payroll, after
+        taking out the uniformed and pedagogical pay that belongs to the four named funds &mdash;
+        a distinction the budget itself draws, in its own object codes.</p>
+      <p>Health insurance, welfare fund contributions and workers’ compensation are divided
+        by budgeted positions, because those costs follow people rather than salaries. Payroll
+        taxes are divided by payroll. The Department of Education and the City University buy
+        their own coverage out of their own budget lines, so they are taken out of the shared
+        pool rather than charged twice.</p>
+      <p class="check">This is the one part of the page that is modelled, and it can be
+        checked against the city’s own behaviour. The shared pool works out to
+        <b id="mRate">—</b> a budgeted position. Education, which buys the same coverage
+        directly, spends <b id="mDoe">—</b> a position, and the City University
+        <b id="mCuny">—</b>. Three independent numbers within about a tenth of each other.</p>
+
+      <h4>Followed to the agency that got sued</h4>
+      <p>The budget provides a single line for judgments and claims. It is split using the
+        comptroller’s record of settled claims, <b id="mClaims">—</b>, by the agency named in
+        each claim. <b id="mMatch">—</b> of settlement dollars name an agency the budget also
+        names; the rest stays unassigned.</p>
+
+      <h4>What was deliberately not done</h4>
+      <p>Debt service is not pushed onto agencies. It could be, roughly, by tracing which
+        function the capital was built for, but the answer would be a guess dressed as
+        arithmetic, and the honest finding is that it belongs to nobody now.</p>
+      <p>Retiree health care is held out of the shared pool for the same reason. Note which
+        way this cuts: officers and firefighters retire earlier and are covered longer than
+        other city workers, so holding retiree coverage aside makes the police and fire
+        figures on this page conservative, not generous.</p>
+      <p>Capital spending is not here at all. This is the expense budget, the same thing the
+        published charts show. The city spent about $15.6 billion on capital in fiscal 2025 on
+        top of it.</p>
+
+      <h4>What reconciles</h4>
+      <p>Every agency line, every pooled account and every central charge on this page adds
+        back to the budget’s own printed total of <b id="mTotal">—</b>. The build fails rather
+        than publishes if it misses by more than the rounding on individual lines
+        (<b id="mDrift">—</b> across roughly 150 of them). The pooled accounts add back to
+        their own totals to the dollar.</p>
+
+      <h4>What this is not</h4>
+      <p>An agency costing more than its published line is not an argument that it should
+        cost less. The point is narrower: the number the city prints next to an agency’s name
+        is not that agency’s cost, the gap is different for every agency, and so any ranking
+        built on published lines is wrong in a way nobody can see from the chart.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p class="caution">A note on data: figures are the adopted budget for a year that has not
+      been audited. Actual spending will differ, and the judgments line in particular is
+      budgeted well below what the city has recently paid out.</p>
+    <p>Built from NYC Open Data. The full arithmetic, agency by agency, is in
+      <a href="METHODOLOGY.md">METHODOLOGY.md</a>; the build script that produces
+      <a href="data.json">data.json</a> is in
+      <a href="https://github.com/joshgreenman1973/nyc-fully-loaded-budget">the repository</a>.
+      Companion to <a href="https://joshgreenman1973.github.io/nyc-budget-per-capita/">The New York City ledger</a>,
+      which runs the same money over 26 years.</p>
+    <p><button class="aibtn" id="aiBtn" aria-expanded="false">And please read this AI caution.</button></p>
+    <div class="aipop" id="aiPop" hidden>
+      <p>Everything substantive here &mdash; the concept, the choice of data, the rules for
+        assigning pooled money and the design &mdash; was decided by a human author. The
+        coding and file work were done by Anthropic’s Claude and Claude Code under close
+        direction. Quality control on this project: every pooled account reconciles to the
+        budget’s own printed total or the build fails; the modelled benefits rate was checked
+        against two agencies that buy the same coverage directly and agrees within about ten
+        percent; the pension assignment uses the budget’s own fund names rather than an
+        estimate; and the settlement split uses the comptroller’s own agency field. The risks
+        of using artificial intelligence remain, and I would be grateful to hear about any red
+        flags you notice.</p>
+    </div>
+  </footer>
+</div>
+
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+  <div class="scrim" data-close></div>
+  <div class="panel">
+    <div class="dhead">
+      <div><span class="lbl" id="dLbl">Agency</span><h2 id="dTitle"></h2></div>
+      <button class="xbtn" data-close aria-label="Close">&times;</button>
+    </div>
+    <div class="dbody" id="dBody"></div>
+  </div>
+</div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>
