@@ -594,7 +594,8 @@ const personalProjects = projects.filter(p => p.audience === 'personal');
 // (stored alongside the ciphertext) — it's the password that's secret.
 // Matches WebCrypto's AES-GCM format (ciphertext || 16-byte tag).
 const GALLERY_PASSWORD = '#9701SW72ct!!!';
-const PERSONAL_PASSWORD = '#9701SW72ct???';
+// Same string as GALLERY_PASSWORD: one password now opens both groups.
+const PERSONAL_PASSWORD = GALLERY_PASSWORD;
 const PBKDF2_ITER = 250000;
 function encryptGroup(records, password) {
   // Derive salt/iv deterministically from the plaintext so unchanged inputs
