@@ -1269,6 +1269,18 @@ async function tryUnlock() {
     if (group === 'professional') {
       document.querySelector('.tab[data-tab="professional"]')?.classList.add('unlocked');
     }
+    // Professional and personal share one password now, so a password that
+    // opened this group is worth trying against the others — otherwise the
+    // same string has to be typed twice to see everything.
+    for (const [other, otherBlob] of Object.entries(DATA.locked || {})) {
+      if (other === group || UNLOCKED[other]) continue;
+      try {
+        UNLOCKED[other] = await decryptGroup(otherBlob, pw);
+        if (other === 'professional') {
+          document.querySelector('.tab[data-tab="professional"]')?.classList.add('unlocked');
+        }
+      } catch { /* different password on that group — leave it locked */ }
+    }
     // "Keep me unlocked on this device" — stash the password locally so future
     // visits auto-decrypt. Soft security: anyone on this device/browser gets in.
     if ($('gate-remember')?.checked) rememberPassword(pw);
