@@ -31,6 +31,14 @@ jobs:
         working-directory: nyc-foil-tracker
         run: npx playwright install --with-deps chromium
 
+      # The whole-log summary runs first: it is a plain Socrata pull, about 90
+      # seconds, no browser involved. The detail scrape that follows depends on
+      # Akamai behaving, so ordering it second means the backlog figures still
+      # refresh on a week when the scrape times out.
+      - name: Summarize the whole OpenRecords log
+        working-directory: nyc-foil-tracker
+        run: node performance.mjs
+
       - name: Run scraper
         working-directory: nyc-foil-tracker
         run: node scrape.mjs --backfill
