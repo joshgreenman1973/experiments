@@ -186,6 +186,52 @@ body::before {
   line-height: 1.5;
 }
 
+/* ── THE BACKLOG ── */
+.backlog-figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+.backlog-figs > div { background: var(--parchment); padding: 1.1rem 1.3rem; }
+.backlog-figs b {
+  display: block;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.backlog-figs b.red { color: var(--red); }
+.backlog-figs span {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate);
+  line-height: 1.5;
+}
+.backlog-lede {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: 78ch;
+  margin: 0.9rem 0 0;
+}
+.backlog-lede b { font-weight: 700; }
+.agency-note {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--slate);
+  margin: 0 0 0.6rem;
+  line-height: 1.5;
+}
+
 /* ── MAIN CONTAINER ── */
 .container {
   max-width: 1200px;
@@ -1006,29 +1052,40 @@ body::before {
   <div class="stats-inner">
     <div class="stat-card">
       <div class="stat-number" id="stat-total">—</div>
-      <div class="stat-label">Filed in 2026</div>
+      <div class="stat-label" id="stat-total-label">Requests logged</div>
     </div>
     <div class="stat-card">
       <div class="stat-number gold" id="stat-tracked">—</div>
-      <div class="stat-label">Tracked here</div>
+      <div class="stat-label">Tracked here in detail</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number red" id="stat-past-due">—</div>
+      <div class="stat-label">Past due, unanswered</div>
     </div>
     <div class="stat-card">
       <div class="stat-number" id="stat-response-time">—</div>
-      <div class="stat-label">Avg. response (days)</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-number red" id="stat-denial-rate">—</div>
-      <div class="stat-label">Denial rate</div>
+      <div class="stat-label">Median days to close</div>
     </div>
   </div>
   <div class="stats-footnote" id="stats-footnote"></div>
 </div>
 
 <div class="coverage-caveat">
-  Tracker covers requests visible on OpenRecords' public list (a rolling window) — not all 599,760 requests in the system. Older requests fall off as new ones come in. See <a href="methodology.html">methodology</a> for what's pulled and how.
+  The request list below covers what OpenRecords shows publicly (a rolling window), <span id="coverage-total">not the full system</span>. Older requests fall off as new ones come in — but the backlog figures and the agency table are computed from every request ever filed. See <a href="methodology.html">methodology</a> for what's pulled and how.
 </div>
 
 <div class="container">
+
+  <!-- THE BACKLOG (whole-log layer) -->
+  <section id="backlog" style="display:none">
+    <div class="section-head">
+      <h2>The backlog</h2>
+      <div class="rule"></div>
+      <span class="count" id="backlog-scope"></span>
+    </div>
+    <div class="backlog-figs" id="backlog-figs"></div>
+    <p class="backlog-lede" id="backlog-lede"></p>
+  </section>
 
   <!-- NEWSWORTHY STRIP -->
   <div class="section-head">
@@ -1141,17 +1198,19 @@ body::before {
     <span class="count" id="agency-period">Which agencies get the most requests?</span>
   </div>
 
+  <p class="agency-note" id="agency-note"></p>
+
   <div class="agency-table-wrap">
     <table class="agency-table" id="agency-table">
       <thead>
         <tr>
           <th data-sort="name">Agency <span class="sort-arrow"></span></th>
-          <th data-sort="total">Requests <span class="sort-arrow"></span></th>
-          <th data-sort="open">Open <span class="sort-arrow"></span></th>
-          <th data-sort="fulfilled">Fulfilled <span class="sort-arrow"></span></th>
-          <th data-sort="denied">Denied <span class="sort-arrow"></span></th>
-          <th data-sort="denial_rate">Denial rate <span class="sort-arrow"></span></th>
-          <th data-sort="avg_days">Avg. days <span class="sort-arrow"></span></th>
+          <th data-sort="total">Requests filed <span class="sort-arrow"></span></th>
+          <th data-sort="past_due">Past due now <span class="sort-arrow"></span></th>
+          <th data-sort="median_days">Median wait <span class="sort-arrow"></span></th>
+          <th data-sort="on_time_pct">Met own deadline <span class="sort-arrow"></span></th>
+          <th data-sort="due_offset">Deadline set <span class="sort-arrow"></span></th>
+          <th data-sort="oldest">Oldest still open <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody id="agency-tbody">
@@ -1176,6 +1235,7 @@ body::before {
 <script>
 const PER_PAGE = 25;
 let allData = null;
+let perf = null;   // data/performance.json — the whole OpenRecords log, summarized
 let filtered = [];
 let currentPage = 1;
 let feedSort = 'date-desc';
@@ -1224,9 +1284,15 @@ function truncate(s, n) {
 
 async function loadData() {
   try {
-    const resp = await fetch('data/requests.json');
+    // Two layers: requests.json is the detail-scraped slice, performance.json is
+    // every request ever filed, summarized. The page works without the second.
+    const [resp, perfResp] = await Promise.all([
+      fetch('data/requests.json'),
+      fetch('data/performance.json').catch(() => null),
+    ]);
     if (!resp.ok) throw new Error('Failed to load data');
     allData = await resp.json();
+    try { perf = perfResp && perfResp.ok ? await perfResp.json() : null; } catch (_) { perf = null; }
     init();
   } catch (err) {
     document.getElementById('request-feed').innerHTML =
@@ -1235,15 +1301,42 @@ async function loadData() {
   }
 }
 
+function renderBacklog() {
+  if (!perf) return;
+  const c = perf.citywide, src = perf.source;
+  const n = (v) => (v == null ? '—' : Number(v).toLocaleString());
+  document.getElementById('backlog-scope').textContent =
+    `All ${n(src.rows)} requests filed since ${src.first_request.slice(0, 4)}, as logged by the city on ${perf.generated}`;
+  document.getElementById('backlog-figs').innerHTML = [
+    [n(c.past_due), 'past their due date, still unanswered', 'red'],
+    [n(c.median_days) + ' days', 'median wait on requests closed in the last year'],
+    [n(c.p90_days) + ' days', 'wait for the slowest tenth of them'],
+    [c.on_time_pct + '%', "closed by the date the agency set itself"],
+  ].map(([fig, lab, cls]) => `<div><b class="${cls || ''}">${fig}</b><span>${lab}</span></div>`).join('');
+  const worst = (c.worst || []).slice(0, 2);
+  document.getElementById('backlog-lede').innerHTML =
+    `The list below tracks recent requests one by one. This counts every request ever filed. ` +
+    `<b>${n(c.past_due)}</b> requests are past the date their agency promised and still have no answer` +
+    (worst.length ? ` — ${worst.map(w => `${n(w.past_due)} at the ${w.agency.replace(/^New York City /, '')}`).join(' and ')}` : '') +
+    `. ${n(c.past_due_since_2024)} of them were filed in 2024 or later, and the oldest go back a decade. ` +
+    `"Closed on time" is measured against the date the agency itself set and may have extended, not a statutory clock, ` +
+    `so an agency that promises a year out can score well while being slow — the table below shows both.`;
+  document.getElementById('backlog').style.display = '';
+}
+
 function init() {
   // Update header
   document.getElementById('last-updated').textContent =
     `Updated ${timeAgo(allData.lastUpdated)} — ${formatDate(allData.lastUpdated)}`;
 
   // Stats
-  const totalNum = typeof allData.totalInSystem === 'number'
-    ? allData.totalInSystem.toLocaleString()
-    : allData.totalInSystem || '—';
+  // Prefer the count from the log itself: allData.totalInSystem is whatever the
+  // scraper last saw, and goes stale between runs.
+  const totalNum = perf
+    ? perf.source.rows.toLocaleString()
+    : (typeof allData.totalInSystem === 'number'
+        ? allData.totalInSystem.toLocaleString()
+        : allData.totalInSystem || '—');
   document.getElementById('stat-total').textContent = totalNum;
   document.getElementById('stat-tracked').textContent = allData.requestsFetched?.toLocaleString() || '—';
 
@@ -1253,14 +1346,17 @@ function init() {
   const denied = allData.requests.filter(r => r.determination === 'Denied');
   const determined = allData.requests.filter(r => r.determination);
 
-  if (withTime.length > 0) {
+  // The headline numbers come from the whole log where one exists: the detail-scraped
+  // slice is too thin to carry them (a determination is recorded for only a few dozen
+  // requests, so a denial rate built on it would be a headline with no sample behind it).
+  if (perf) {
+    document.getElementById('stat-past-due').textContent = perf.citywide.past_due.toLocaleString();
+    document.getElementById('stat-response-time').textContent = perf.citywide.median_days;
+    document.getElementById('stat-total-label').textContent =
+      `Requests logged since ${perf.source.first_request.slice(0, 4)}`;
+  } else if (withTime.length > 0) {
     const avg = Math.round(withTime.reduce((a, r) => a + r.responseTimeDays, 0) / withTime.length);
     document.getElementById('stat-response-time').textContent = avg;
-  }
-
-  if (determined.length > 0) {
-    const rate = ((denied.length / determined.length) * 100).toFixed(1);
-    document.getElementById('stat-denial-rate').textContent = rate + '%';
   }
 
   // Build footnote explaining the stats
@@ -1274,18 +1370,27 @@ function init() {
     parts.push(`Covering ${allData.requests.length.toLocaleString()} requests filed ${formatDate(dates[0])} – ${formatDate(dates[dates.length - 1])}.`);
   }
   const footParts = [];
+  if (perf) {
+    footParts.push(`Requests logged, past due and median days come from all ${perf.source.rows.toLocaleString()} requests in the OpenRecords log; median days counts only requests closed in the last year.`);
+  }
   if (withTime.length > 0) {
-    footParts.push(`Avg. response is the mean days from filing to final agency action across ${withTime.length} closed requests with known response dates.`);
+    footParts.push(`Within the detail-scraped slice, the mean time from filing to final agency action is ${Math.round(withTime.reduce((a, r) => a + r.responseTimeDays, 0) / withTime.length)} days across ${withTime.length} closed requests with known response dates.`);
   }
   if (determined.length > 0) {
     const noRecords = allData.requests.filter(r => r.determination === 'No responsive records').length;
     const granted = determined.length - denied.length - noRecords;
     const breakdown = [`${denied.length} denied`, `${granted} fulfilled or partially granted`];
     if (noRecords > 0) breakdown.push(`${noRecords} closed with no responsive records`);
-    footParts.push(`Denial rate is denials as a share of all ${determined.length} requests with a recorded determination (${breakdown.join(', ')}).`);
+    footParts.push(`Only ${determined.length} requests so far have a determination recorded on their detail page (${breakdown.join(', ')}), too few to state a citywide denial rate.`);
   }
   if (parts.length > 0 || footParts.length > 0) {
     document.getElementById('stats-footnote').textContent = parts.concat(footParts).join(' ');
+  }
+
+  renderBacklog();
+  if (perf) {
+    document.getElementById('coverage-total').textContent =
+      `not the ${perf.source.rows.toLocaleString()} in the system`;
   }
 
   // Populate agency filter
@@ -1860,29 +1965,36 @@ function renderFeed() {
 
 function renderAgencyTable() {
   const tbody = document.getElementById('agency-tbody');
-  if (!allData?.agencyStats) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No agency data.</td></tr>';
+  const scraped = allData?.agencyStats || {};
+  // The columns come from two layers. Everything except the denial rate is computed
+  // from the whole log; the denial rate needs a determination, which only exists for
+  // requests whose detail page has been scraped, so it is shown with its sample size.
+  if (!perf) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Whole-log figures have not been built yet — run <code>node performance.mjs</code>.</td></tr>';
     return;
   }
+  document.getElementById('agency-period').textContent =
+    `All ${perf.source.rows.toLocaleString()} requests, ${perf.source.first_request.slice(0, 4)}–${perf.source.last_request.slice(0, 4)}`;
+  document.getElementById('agency-note').innerHTML =
+    'Requests filed, past due, wait times and deadlines are computed from every request in the OpenRecords log. ' +
+    'Median wait counts only requests an agency actually closed in the last year, so a large stalled backlog does not ' +
+    'flatter it — read the two columns together. "Met own deadline" is measured against the date the agency set for ' +
+    'itself and may have extended, not a statutory clock.';
 
-  // Show the date range these stats cover
-  const dates = allData.requests
-    .map(r => r.dateSubmitted)
-    .filter(Boolean)
-    .sort();
-  if (dates.length > 0) {
-    const oldest = formatDate(dates[0]);
-    const newest = formatDate(dates[dates.length - 1]);
-    document.getElementById('agency-period').textContent =
-      `Based on ${allData.requests.length} requests, ${oldest} – ${newest}`;
-  }
-
-  const entries = Object.entries(allData.agencyStats).map(([name, s]) => ({
-    name,
-    ...s,
-    denial_rate: s.closed > 0 ? (s.denied / s.closed) : 0,
-    avg_days: s.avgResponseDays || 0,
-  }));
+  const entries = perf.agencies.map((a) => {
+    const sc = scraped[a.agency] || {};
+    const determined = (sc.denied || 0) + (sc.fulfilled || 0);
+    return {
+      name: a.agency,
+      total: a.total,
+      past_due: a.past_due,
+      median_days: a.median_days == null ? -1 : a.median_days,
+      on_time_pct: a.on_time_pct == null ? -1 : a.on_time_pct,
+      due_offset: a.median_due_offset == null ? -1 : a.median_due_offset,
+      oldest: a.oldest_past_due || '',
+      determined,
+    };
+  });
 
   entries.sort((a, b) => {
     let av = a[agencySortKey], bv = b[agencySortKey];
@@ -1890,35 +2002,29 @@ function renderAgencyTable() {
     return agencySortDir * (av - bv);
   });
 
-  // Update sort arrows
   document.querySelectorAll('.agency-table th[data-sort]').forEach(th => {
     const arrow = th.querySelector('.sort-arrow');
     th.classList.toggle('sorted', th.dataset.sort === agencySortKey);
-    if (th.dataset.sort === agencySortKey) {
-      arrow.textContent = agencySortDir === 1 ? '▲' : '▼';
-    } else {
-      arrow.textContent = '';
-    }
+    arrow.textContent = th.dataset.sort === agencySortKey ? (agencySortDir === 1 ? '\u25B2' : '\u25BC') : '';
   });
 
-  const maxDenialRate = Math.max(...entries.map(e => e.denial_rate), 0.01);
+  const maxPastDue = Math.max(...entries.map(e => e.past_due), 1);
+  const num = (v) => v.toLocaleString();
 
   tbody.innerHTML = entries.map(e => {
-    const pct = (e.denial_rate * 100).toFixed(1);
-    const barW = Math.round((e.denial_rate / maxDenialRate) * 40);
     const abbr = e.name.match(/\(([^)]+)\)/);
     const displayName = abbr
-      ? `<strong>${abbr[1]}</strong> ${e.name.replace(/\s*\([^)]+\)/, '')}`
+      ? `<strong>${abbr[1]}</strong> ${escapeHtml(e.name.replace(/\s*\([^)]+\)/, ''))}`
       : escapeHtml(e.name);
-
+    const barW = Math.round((e.past_due / maxPastDue) * 40);
     return `<tr>
       <td class="agency-name">${displayName}</td>
-      <td>${e.total}</td>
-      <td>${e.open}</td>
-      <td>${e.fulfilled}</td>
-      <td>${e.denied}</td>
-      <td><span class="denial-bar" style="width:${barW}px"></span>${pct}%</td>
-      <td>${e.avg_days || '—'}</td>
+      <td>${num(e.total)}</td>
+      <td>${e.past_due ? `<span class="denial-bar" style="width:${barW}px"></span>${num(e.past_due)}` : '0'}</td>
+      <td>${e.median_days < 0 ? '\u2014' : num(e.median_days) + 'd'}</td>
+      <td>${e.on_time_pct < 0 ? '\u2014' : e.on_time_pct + '%'}</td>
+      <td>${e.due_offset < 0 ? '\u2014' : num(e.due_offset) + 'd'}</td>
+      <td>${e.oldest ? e.oldest.slice(0, 7) : '\u2014'}</td>
     </tr>`;
   }).join('');
 }
