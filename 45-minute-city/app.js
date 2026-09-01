@@ -283,11 +283,11 @@ function initMap() {
   });
   L.control.zoom({ position: "bottomright" }).addTo(map);
   L.tileLayer(
-    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png",
+    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638",
     { maxZoom: 19, attribution: "" }
   ).addTo(map);
   L.tileLayer(
-    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_only_labels/{z}/{x}/{y}{r}.png",
+    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_only_labels/{z}/{x}/{y}{r}.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638",
     { maxZoom: 19, pane: "shadowPane", opacity: 0.55, attribution: "" }
   ).addTo(map);
 
