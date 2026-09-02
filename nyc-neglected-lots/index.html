@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The lots nobody fixes</title>
+<meta name="description" content="Every vacant lot in New York City and every building the city has flagged as distressed, scored by how many separate agencies recorded neglect there in the last 24 months, with the sanitation lot-cleaning history that ended in 2020.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{--ink3:#7a4b2a}
+.pane{display:none}.pane.on{display:block}
+#map{height:72vh;min-height:520px;background:var(--paper2)}
+.maplibregl-ctrl-group{border-radius:0;box-shadow:none;border:1px solid var(--ink)}
+.maplibregl-ctrl-group button{border-radius:0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;padding:9px 26px;border-bottom:1px solid var(--hair);
+  font-size:var(--t-micro);letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px;mix-blend-mode:multiply}
+.legend i.h{border:2px solid var(--ink);background:none;width:8px;height:8px}
+.side{max-height:calc(72vh + 44px);overflow:auto}
+.dossier{padding:14px 26px 24px}
+.dossier h2{font-family:var(--display);font-weight:700;font-size:1.25rem;letter-spacing:-.015em;margin:0 0 2px;line-height:1.15}
+.dossier .meta{font-size:var(--t-micro);letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--ink2);margin:0 0 12px}
+.agency{border-top:1px solid var(--hair);padding:9px 0}
+.agency b{font-family:var(--display);font-weight:600;font-size:.98rem;display:block}
+.agency b span{font-weight:400;color:var(--ink2);font-size:.85rem;margin-left:6px}
+.agency p{margin:3px 0 0;font-size:.92rem;line-height:1.45;color:#39403a}
+.agency.off{color:var(--ink2)}.agency.off b{color:var(--ink2);font-weight:500}
+.scoreline{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0 0 10px}
+.scoreline .n{display:inline-block;min-width:1.6em;padding:0 6px;color:var(--paper);background:var(--ink1);margin-right:8px;text-align:center}
+.pq{display:inline-flex;gap:2px;vertical-align:middle;margin-left:8px}
+.pq i{width:8px;height:12px;background:var(--hair);display:block}
+.pq i.on{background:var(--ink1)}
+.hint{padding:24px 26px;color:var(--ink2);font-size:.95rem;line-height:1.5}
+.empty{padding:24px 26px;color:var(--ink2)}
+.find{padding:14px 26px 22px;max-width:74ch;font-size:var(--t-body);line-height:1.55}
+.find p{margin:0 0 12px}
+.find h3{font-family:var(--display);font-weight:700;font-size:1.15rem;margin:18px 0 6px;letter-spacing:-.01em}
+.bars{padding:0 26px 16px}
+.brow span{width:150px}
+.brow i.p{background:var(--ink2c)}.brow i.c{background:var(--ink1)}.brow i.x{background:var(--ink5)}
+table.h td.a{max-width:34ch}
+.rowbtn{cursor:pointer}.rowbtn:hover td{background:var(--paper2)}
+.src{margin-top:10px}
+.srcs{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.srcs span{font-size:var(--t-micro);font-weight:700;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--ink1);color:var(--ink1);padding:1px 6px}
+.foot{padding:18px 26px 34px;border-top:1px solid var(--ink);font-size:.9rem;color:var(--ink2)}
+.foot a{color:var(--ink1)}
+.loading{padding:34px 26px;color:var(--ink2)}
+@media(max-width:900px){#map{height:60vh}.side{max-height:none}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="strip">
+    <span>New York City Open Data &middot; 311, Sanitation, Health, Housing, Buildings, Finance</span>
+    <span id="range">Sept. 2024 &ndash; Aug. 2026</span>
+  </div>
+
+  <div class="head">
+    <!-- mark: a chain-link lot fence, gate ajar, weeds through the mesh -->
+    <div class="hmark" aria-hidden="true">
+      <svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="#2d4a86" stroke-width="3" opacity=".9">
+          <path d="M40 300 L40 120 M600 300 L600 120 M320 300 L320 120"/>
+          <path d="M40 130 H600 M40 295 H600"/>
+          <g id="mesh">
+            <path d="M40 140 l40 40 l-40 40 M80 140 l40 40 l-40 40 M120 140 l40 40 l-40 40 M160 140 l40 40 l-40 40 M200 140 l40 40 l-40 40 M240 140 l40 40 l-40 40 M280 140 l40 40 l-40 40"/>
+            <path d="M40 220 l40 40 l-40 40 M80 220 l40 40 l-40 40 M120 220 l40 40 l-40 40 M160 220 l40 40 l-40 40 M200 220 l40 40 l-40 40 M240 220 l40 40 l-40 40 M280 220 l40 40 l-40 40"/>
+            <path d="M80 140 l-40 40 l40 40 M120 140 l-40 40 l40 40 M160 140 l-40 40 l40 40 M200 140 l-40 40 l40 40 M240 140 l-40 40 l40 40 M280 140 l-40 40 l40 40 M320 140 l-40 40 l40 40"/>
+            <path d="M80 220 l-40 40 l40 40 M120 220 l-40 40 l40 40 M160 220 l-40 40 l40 40 M200 220 l-40 40 l40 40 M240 220 l-40 40 l40 40 M280 220 l-40 40 l40 40 M320 220 l-40 40 l40 40"/>
+          </g>
+          <use href="#mesh" transform="translate(280 0)"/>
+          <!-- gate ajar -->
+          <path d="M320 120 L420 150 L420 310 L320 300" stroke="#2d4a86" stroke-width="3.5" fill="#eceee9"/>
+          <path d="M330 150 l30 10 M330 190 l30 10 M330 230 l30 10 M330 270 l30 10"/>
+        </g>
+        <g fill="none" stroke="#4a6b52" stroke-width="4" stroke-linecap="round" opacity=".85">
+          <path d="M70 300 c-8 -40 10 -70 24 -90 M92 300 c2 -30 20 -50 40 -60 M150 300 c-10 -30 0 -60 14 -80 M176 300 c6 -22 14 -44 32 -58 M230 300 c-12 -20 -6 -52 4 -70 M258 300 c4 -26 18 -46 36 -54"/>
+          <path d="M470 300 c-8 -36 6 -62 22 -84 M496 300 c2 -28 20 -46 42 -56 M540 300 c-10 -30 0 -56 14 -76 M570 300 c8 -22 18 -40 34 -52"/>
+        </g>
+        <g fill="#b07326" opacity=".8" style="mix-blend-mode:multiply">
+          <rect x="360" y="270" width="46" height="28" transform="rotate(-8 383 284)"/>
+          <rect x="120" y="278" width="34" height="20" transform="rotate(12 137 288)"/>
+          <circle cx="520" cy="292" r="9"/>
+        </g>
+      </svg>
+    </div>
+    <h1>The lots nobody fixes</h1>
+    <p class="sub">Every vacant lot in New York City, and every building the city has put on a distress list,
+      scored by how many separate agencies recorded neglect there in the last 24 months: neighbors through 311,
+      sanitation inspectors through summonses, health inspectors through rat findings, and the housing, buildings
+      and finance departments through their own lists. Underneath sits the sanitation department's own record of
+      which lots it cleaned, year after year, from late 2010 until that data stopped in 2021.</p>
+    <p class="src">Sources: NYC Open Data &middot; <a href="methodology.html">Methodology</a></p>
+  </div>
+
+  <div class="capline" id="capline">Loading&hellip;</div>
+  <div class="counts" id="counts"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="on" data-p="map">Map</button>
+    <button data-p="hist">Cleaned a decade ago</button>
+    <button data-p="own">Who owns the neglect</button>
+    <button data-p="cd">Residents vs. inspectors</button>
+    <button data-p="list">Ranked list</button>
+  </div>
+
+  <!-- ============ map ============ -->
+  <div class="pane on" id="p-map">
+    <div class="controls">
+      <input id="q" type="search" placeholder="Jump to an address or a borough-block-lot number" autocomplete="off">
+      <select id="f-bo"><option value="">All boroughs</option><option>Manhattan</option><option>Bronx</option><option>Brooklyn</option><option>Queens</option><option>Staten Island</option></select>
+      <select id="f-k"><option value="">Lots and buildings</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option></select>
+      <select id="f-ot"><option value="">Any owner</option><option value="P">Private</option><option value="C">City</option><option value="X">Other public</option></select>
+      <select id="f-sc"><option value="0">Any number of agencies</option><option value="1">1 or more agencies</option><option value="2" selected>2 or more agencies</option><option value="3">3 or more agencies</option><option value="4">4 or more agencies</option></select>
+      <button class="chip" id="f-hist" aria-pressed="false">Cleaned by sanitation 2010&ndash;2021</button>
+      <button class="chip" id="f-big" aria-pressed="false">Lots over 5,000 sq ft</button>
+    </div>
+    <div class="legend">
+      <span><i style="background:#c7ccc5"></i>No agency</span>
+      <span><i style="background:#4a6b52"></i>1 agency</span>
+      <span><i style="background:#2d4a86"></i>2 agencies</span>
+      <span><i style="background:#b07326"></i>3 or more</span>
+      <span><i class="h"></i>Sanitation cleaned it 2010&ndash;2021</span>
+      <span id="showing"></span>
+    </div>
+    <div class="cols">
+      <div class="col"><div id="map"></div></div>
+      <div class="col side">
+        <div class="colhead"><span>Lot file</span><span id="side-n"></span></div>
+        <div id="dossier"><div class="hint">Click a lot. Zoom in past street level and the lots draw as parcels. Colour is the number of separate agencies with a record of neglect there since September 2024; a ring means the sanitation department cleaned that lot at least once between 2010 and 2021.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ history ============ -->
+  <div class="pane" id="p-hist">
+    <div class="cols">
+      <div class="col">
+        <div class="colhead"><span>What the sanitation lot-cleaning file shows</span></div>
+        <div class="find" id="hist-text"></div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span>Cleaned most often, still vacant</span><span>lot records 2010&ndash;2021</span></div>
+        <div class="pad"><table class="h" id="tbl-hist"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ownership ============ -->
+  <div class="pane" id="p-own">
+    <div class="cols">
+      <div class="col">
+        <div class="colhead"><span>Vacant land by owner</span></div>
+        <div class="find" id="own-text"></div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span>Share of lots, by owner</span></div>
+        <div class="bars" id="own-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ residents vs inspectors ============ -->
+  <div class="pane" id="p-cd">
+    <div class="cols">
+      <div class="col">
+        <div class="colhead"><span>Where neighbors and inspectors disagree</span></div>
+        <div class="find" id="cd-text"></div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span>Vacant lots by community district</span><span>flagged in 24 months</span></div>
+        <div class="pad"><table class="h" id="tbl-cd"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ranked list ============ -->
+  <div class="pane" id="p-list">
+    <div class="controls">
+      <input id="q-list" type="search" placeholder="Search address, owner, borough" autocomplete="off">
+      <select id="l-k"><option value="">Lots and buildings</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option></select>
+    </div>
+    <div class="colhead"><span>Ranked by agencies, then by quarters with a record, then by cleaning history</span><span id="c-list"></span></div>
+    <div class="pad"><table class="h" id="tbl-list"></table></div>
+  </div>
+
+  <div class="foot">
+    <p class="caution">And please read this AI caution. The concept, the choice of sources and the layout are the author's (a human).
+      The code, the data pulls and the file handling were done by Anthropic's Claude Code under close direction.
+      Quality control done on this project: every source count was re-queried directly against the NYC Open Data
+      API and compared with the built files; the join keys were spot-checked by hand against the city's property
+      records; the sanitation history layer was checked by reading raw inspector notes for sampled lots.
+      The risks of using AI remain, and red flags in what you see here are welcome.</p>
+    <p><a href="methodology.html">How this was built, what counts as a signal, and what it leaves out &rarr;</a></p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=n=>Number(n||0).toLocaleString('en-US');
+const pct=(a,b)=>b?Math.round(100*a/b)+'%':'–';
+const OT={P:'Private',C:'City',X:'Other public',O:'Other public',M:'Mixed'};
+const COL=['#c7ccc5','#4a6b52','#2d4a86','#b07326'];
+let LOTS=[],F=null,BY={},map,polysLoaded=false,sel=null;
+
+Promise.all([
+  fetch('data/lots.json',{cache:'no-cache'}).then(r=>r.json()),
+  fetch('data/findings.json',{cache:'no-cache'}).then(r=>r.json()),
+]).then(([l,f])=>{LOTS=l.lots;F=f;LOTS.forEach(r=>BY[r.bbl]=r);init();})
+ .catch(e=>{$('#capline').textContent='Could not load data: '+e.message;});
+
+function init(){
+  const c=F.counts;
+  $('#capline').innerHTML='Signals counted between <b>'+F.window[0]+'</b> and <b>'+F.window[1]+'</b> &middot; sanitation cleaning history <b>2010&ndash;2021</b> &middot; one row is one tax lot';
+  $('#counts').innerHTML=[
+    [c.vacant_lots,'Vacant lots in the city'],
+    [c.vacant_any_signal,'Vacant lots with any signal'],
+    [c.vacant_2plus,'Vacant lots, 2+ agencies'],
+    [c.vacant_3plus,'Vacant lots, 3+ agencies'],
+    [c.buildings,'Distressed buildings'],
+    [c.hist_lots,'Cleaned 2010–2021, still vacant'],
+  ].map(([n,l])=>'<div><b>'+nf(n)+'</b><span>'+l+'</span></div>').join('');
+  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p));
+    if(b.dataset.p==='map')map.resize();
+  });
+  initMap(); renderHist(); renderOwn(); renderCD(); renderList();
+  ['#f-bo','#f-k','#f-ot','#f-sc'].forEach(s=>$(s).onchange=applyFilter);
+  ['#f-hist','#f-big'].forEach(s=>$(s).onclick=e=>{const b=e.currentTarget;b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');applyFilter();});
+  $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')jump($('#q').value.trim());});
+  $('#q-list').oninput=renderList;$('#l-k').onchange=renderList;
+}
+
+function feature(r){return {type:'Feature',id:Number(r.bbl),properties:{bbl:r.bbl,sc:Math.min(r.sc,3),h:r.hist?1:0,k:r.k,ot:r.ot==='P'?'P':(r.ot==='C'?'C':'X'),bo:r.bo,area:r.area},geometry:{type:'Point',coordinates:[r.lon,r.lat]}};}
+
+function initMap(){
+  map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',center:[-73.94,40.70],zoom:10,minZoom:9,maxZoom:18,attributionControl:{compact:true}});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  map.on('load',()=>{
+    map.addSource('pts',{type:'geojson',data:{type:'FeatureCollection',features:LOTS.map(feature)}});
+    map.addLayer({id:'pts',type:'circle',source:'pts',maxzoom:16,paint:{
+      'circle-color':['to-color',['at',['get','sc'],['literal',COL]]],
+      'circle-radius':['interpolate',['linear'],['zoom'],10,['case',['>=',['get','sc'],2],2.2,1.2],13,['case',['>=',['get','sc'],2],5,3],16,9],
+      'circle-opacity':['case',['==',['get','sc'],0],.55,.85],
+      'circle-stroke-color':'#1b1e1c','circle-stroke-width':['case',['==',['get','h'],1],['interpolate',['linear'],['zoom'],10,.6,14,1.6],0]}});
+    map.addSource('polys',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'poly-fill',type:'fill',source:'polys',minzoom:15,paint:{'fill-color':['to-color',['at',['min',['get','sc'],3],['literal',COL]]],'fill-opacity':.55}});
+    map.addLayer({id:'poly-line',type:'line',source:'polys',minzoom:15,paint:{'line-color':'#1b1e1c','line-width':['case',['==',['get','h'],1],2,.6]}});
+    map.addLayer({id:'sel',type:'line',source:'polys',minzoom:15,filter:['==','bbl',''],paint:{'line-color':'#8a4a6b','line-width':4}});
+    map.on('click','pts',e=>show(e.features[0].properties.bbl));
+    map.on('click','poly-fill',e=>show(e.features[0].properties.bbl));
+    ['pts','poly-fill'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='');});
+    map.on('zoomend',()=>{if(map.getZoom()>=14.5&&!polysLoaded){polysLoaded=true;fetch('data/polys.geojson').then(r=>r.json()).then(g=>{map.getSource('polys').setData(g);applyFilter();});}});
+    applyFilter();
+  });
+}
+
+function filterExpr(){
+  const f=['all'];
+  const bo=$('#f-bo').value,k=$('#f-k').value,ot=$('#f-ot').value,sc=+$('#f-sc').value;
+  if(bo)f.push(['==',['get','bo'],bo]);
+  if(k)f.push(['==',['get','k'],k]);
+  if(ot)f.push(['==',['get','ot'],ot]);
+  if(sc)f.push(['>=',['get','sc'],Math.min(sc,3)]);
+  if($('#f-hist').getAttribute('aria-pressed')==='true')f.push(['==',['get','h'],1]);
+  if($('#f-big').getAttribute('aria-pressed')==='true')f.push(['>=',['get','area'],5000]);
+  return f;
+}
+function pass(r){
+  const bo=$('#f-bo').value,k=$('#f-k').value,ot=$('#f-ot').value,sc=+$('#f-sc').value;
+  const o=r.ot==='P'?'P':(r.ot==='C'?'C':'X');
+  if(bo&&r.bo!==bo)return false;if(k&&r.k!==k)return false;if(ot&&o!==ot)return false;
+  if(sc&&r.sc<sc)return false;
+  if($('#f-hist').getAttribute('aria-pressed')==='true'&&!r.hist)return false;
+  if($('#f-big').getAttribute('aria-pressed')==='true'&&r.area<5000)return false;
+  return true;
+}
+function applyFilter(){
+  if(!map||!map.getLayer('pts'))return;
+  const f=filterExpr();
+  // point layer uses sc capped at 3, so a 4+ filter is applied on the raw score via the list count only
+  map.setFilter('pts',f);
+  const pf=['all'].concat(f.slice(1).filter(x=>['sc','h','k'].includes(x[1][1])));
+  // polygons carry sc,k,h only
+  map.setFilter('poly-fill',pf);map.setFilter('poly-line',pf);
+  const n=LOTS.filter(pass).length;
+  $('#showing').textContent='Showing '+nf(n)+' of '+nf(LOTS.length);
+}
+function jump(q){
+  if(!q)return;
+  const d=q.replace(/\D/g,'');
+  let r=null;
+  if(d.length===10&&BY[d])r=BY[d];
+  else{const s=q.toLowerCase();r=LOTS.find(x=>x.a&&x.a.toLowerCase()===s)||LOTS.find(x=>x.a&&x.a.toLowerCase().startsWith(s))||LOTS.find(x=>x.a&&x.a.toLowerCase().includes(s));}
+  if(!r){$('#dossier').innerHTML='<div class="empty">No lot in this file matches "'+esc(q)+'".</div>';return;}
+  map.flyTo({center:[r.lon,r.lat],zoom:16.5});show(r.bbl);
+}
+function goto(bbl){
+  document.querySelector('#tabs button[data-p=map]').click();
+  const r=BY[bbl];map.flyTo({center:[r.lon,r.lat],zoom:16.5});show(bbl);
+}
+const CT={'Dirty Condition':'dirty condition','Illegal Dumping':'illegal dumping','Lot Condition':'vacant lot condition','Graffiti':'graffiti','Derelict Vehicles':'derelict vehicle','Rodent':'rodent'};
+function show(bbl){
+  const r=BY[bbl];if(!r)return;sel=bbl;
+  if(map.getLayer('sel'))map.setFilter('sel',['==','bbl',bbl]);
+  const q=r.pq||0;
+  const pq='<span class="pq" title="'+q+' of 9 quarters with a 311, sanitation or health record">'+Array.from({length:9},(_,i)=>'<i class="'+(i<q?'on':'')+'"></i>').join('')+'</span>';
+  const kind=r.k==='V'?'Vacant land':'Building'+(r.lu?' ('+r.lu+')':'');
+  const has=k=>r.src&&r.src.includes(k);
+  let h='<div class="dossier"><h2>'+esc(r.a||'No street address')+'</h2><p class="meta">'+esc(r.bo)+' &middot; BBL '+r.bbl+' &middot; '+kind+' &middot; '+esc(OT[r.ot]||'Private')+(r.own?': '+esc(r.own):'')+' &middot; '+nf(r.area)+' sq ft'+(r.z?' &middot; zoned '+esc(r.z):'')+(r.cd?' &middot; CD '+esc(r.cd):'')+'</p>';
+  h+='<p class="scoreline"><span class="n">'+r.sc+'</span>'+(r.sc===1?'agency':'agencies')+' with a record of neglect'+pq+'</p>';
+  // 311
+  if(has('311')){const parts=Object.entries(r.c311).sort((a,b)=>b[1]-a[1]).map(([k,v])=>nf(v)+' '+(CT[k]||k.toLowerCase()));
+    let res='';if(r.lotres){res=' Sanitation\'s answers to the vacant-lot complaints: '+Object.entries(r.lotres).sort((a,b)=>b[1]-a[1]).map(([k,v])=>v+' '+k).join(', ')+'.';}
+    h+='<div class="agency"><b>Neighbors, through 311<span>'+nf(Object.values(r.c311).reduce((a,b)=>a+b,0))+' complaints</span></b><p>'+parts.join(', ')+'. First '+r.c311_first+', last '+r.c311_last+'.'+res+'</p></div>';}
+  else h+='<div class="agency off"><b>Neighbors, through 311</b><p>No dirty-condition, dumping, lot, graffiti, derelict-vehicle or rodent complaint at this lot.</p></div>';
+  if(has('DSNY'))h+='<div class="agency"><b>Sanitation inspectors<span>'+nf(r.oath)+' summonses</span></b><p>'+r.oath_top.map(([k,v])=>v+' '+esc(k.toLowerCase())).join('; ')+(r.oath_vl?'. Written specifically as a vacant-lot charge: '+r.oath_vl:'')+'.</p></div>';
+  else h+='<div class="agency off"><b>Sanitation inspectors</b><p>No sanitation summons for a dirty sidewalk, dirty area, loose rubbish or dumping.</p></div>';
+  if(has('DOHMH'))h+='<div class="agency"><b>Health inspectors<span>'+r.rat+' failed rat inspection'+(r.rat>1?'s':'')+'</span></b><p>Initial inspections that found active rat signs.</p></div>';
+  else h+='<div class="agency off"><b>Health inspectors</b><p>No initial rodent inspection failed here.</p></div>';
+  if(has('HPD')){let p=[];if(r.aep)p.push('In the Alternative Enforcement Program since '+r.aep.start+(r.aep.units?' ('+r.aep.units+' units)':'')+'.');if(r.ucp)p.push('Underlying Conditions Program order issued '+r.ucp.start+'.');if(r.vacate)p.push('Whole-building vacate order in force since '+r.vacate.date+': '+esc(r.vacate.reason)+(r.vacate.units?', '+r.vacate.units+' units':'')+'.');
+    h+='<div class="agency"><b>Housing Preservation and Development</b><p>'+p.join(' ')+'</p></div>';}
+  else h+='<div class="agency off"><b>Housing Preservation and Development</b><p>Not on a distress list.</p></div>';
+  if(has('DOB')){let p=[];if(r.stalled)p.push('On the stalled construction sites list; complaint received '+r.stalled.since+'.');if(r.facade)p.push('Facade rated unsafe in the current inspection cycle, filed '+r.facade.filed+'.');
+    h+='<div class="agency"><b>Department of Buildings</b><p>'+p.join(' ')+'</p></div>';}
+  else h+='<div class="agency off"><b>Department of Buildings</b><p>Not a stalled site; no unsafe facade filing.</p></div>';
+  if(has('DOF'))h+='<div class="agency"><b>Department of Finance</b><p>On the 2025 tax lien sale list'+(r.lien.water_only?' (water debt only)':'')+'.</p></div>';
+  else h+='<div class="agency off"><b>Department of Finance</b><p>Not on the 2025 tax lien sale list.</p></div>';
+  if(r.hist){const f=r.hist.f.map(x=>x[0]).join(', ');h+='<div class="agency"><b>Sanitation lot-cleaning history<span>'+r.hist.n+' record'+(r.hist.n>1?'s':'')+', '+r.hist.y0+'&ndash;'+r.hist.y1+'</span></b><p>Sanitation\'s lot-cleaning unit opened '+r.hist.n+' record'+(r.hist.n>1?'s':'')+' on this lot between '+r.hist.y0+' and '+r.hist.y1+(r.hist.priv&&r.hist.city?' (both as private and as city-maintained)':r.hist.priv?' as a private lot':' as a city lot')+'.'+(f?' Inspector notes mention: '+f+'.':'')+'</p></div>';}
+  else if(r.k==='V')h+='<div class="agency off"><b>Sanitation lot-cleaning history</b><p>No sanitation lot record ties to this lot in the 2010&ndash;2021 file.</p></div>';
+  h+='<p class="src"><a href="https://zola.planning.nyc.gov/l/lot/'+r.bbl[0]+'/'+parseInt(r.bbl.slice(1,6))+'/'+parseInt(r.bbl.slice(6))+'" target="_blank" rel="noopener">Open in ZoLa</a> &middot; <a href="https://a836-pts-access.nyc.gov/care/search/commonsearch.aspx?mode=persprop" target="_blank" rel="noopener">Finance property search</a></p></div>';
+  $('#dossier').innerHTML=h;
+}
+
+function renderHist(){
+  const c=F.counts,o=F.ownership.hist;
+  $('#hist-text').innerHTML=
+   '<p>From late 2010 until 2021 the sanitation department kept a structured file of every vacant lot it was asked to inspect and clean, with an inspector\'s note on what was found. New requests stop at the end of 2020 and the city now labels the file no longer maintained. '+nf(c.raw.lotsmart_requests)+' of those requests carry coordinates; '+nf(c.raw.lotsmart_on_vacant)+' of them land on a lot that is still vacant land in the 2026 property file.</p>'+
+   '<p>That is '+nf(c.hist_lots)+' lots the city was cleaning years ago that are still empty today. '+nf(c.hist_with_signal)+' of them ('+pct(c.hist_with_signal,c.hist_lots)+') have at least one agency record of neglect in the last 24 months, and '+nf(c.hist_with_residents)+' drew a 311 complaint.</p>'+
+   '<p>By owner: '+nf(o.private||0)+' private, '+nf(o.city||0)+' city, '+nf((o['other public']||0)+(o.mixed||0))+' other public.</p>'+
+   '<p>The table lists the lots that came up most often. Click one to open its file on the map.</p>';
+  $('#tbl-hist').innerHTML='<tr><th>Lot</th><th>Owner</th><th class="n">Records</th><th>Years</th><th class="n">Agencies now</th></tr>'+
+   F.hist_top.map(r=>'<tr class="rowbtn" onclick="goto(\''+r.bbl+'\')"><td class="a"><b>'+esc(r.a||r.bbl)+'</b><br><span style="font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700">'+esc(r.bo)+' · '+nf(r.area)+' sq ft</span></td><td>'+esc(r.ot)+'</td><td class="n">'+r.n+'</td><td>'+r.y0+'–'+r.y1+'</td><td class="n">'+r.sc+'</td></tr>').join('');
+}
+function renderOwn(){
+  const O=F.ownership,c=F.counts;
+  const tot=k=>Object.values(O[k]).reduce((a,b)=>a+b,0);
+  const row=(label,key)=>{const d=O[key],t=tot(key);return '<div style="margin:8px 0 14px"><div class="colhead" style="padding:6px 0">'+label+' · '+nf(t)+' lots</div>'+[['private','p'],['city','c'],['other public','x']].map(([k,cl])=>'<div class="brow"><span>'+k+'</span><i class="'+cl+'" style="width:'+Math.round(100*(d[k]||0)/t)+'%"></i><u>'+pct(d[k]||0,t)+'</u></div>').join('')+'</div>';};
+  $('#own-bars').innerHTML=row('All vacant land','all')+row('With any neglect signal','any_signal')+row('Flagged by two or more agencies','chronic')+row('Cleaned by sanitation 2010–2021','hist');
+  const a=O.all,ch=O.chronic;
+  $('#own-text').innerHTML=
+   '<p>The property file lists '+nf(c.vacant_lots)+' lots as vacant land. '+nf(a.private)+' ('+pct(a.private,c.vacant_lots)+') are privately owned; '+nf(a.city)+' belong to the city and '+nf((a['other public']||0)+(a.mixed||0))+' to other public bodies.</p>'+
+   '<p>Among the '+nf(c.vacant_2plus)+' vacant lots flagged by two or more agencies in the last 24 months, '+nf(ch.private||0)+' ('+pct(ch.private||0,c.vacant_2plus)+') are private and '+nf(ch.city||0)+' ('+pct(ch.city||0,c.vacant_2plus)+') are city-owned.</p>'+
+   '<p>Intro. 811, introduced in the City Council on April 16, 2026, would make the sanitation department the sole agency responsible for cleaning and maintaining city-owned vacant lots. On these numbers it would reach the city-owned share above and none of the private lots, which are handled by notice to the owner and, when a lot is locked, by a court access warrant.</p>'+
+   '<h3>Reading the ownership field</h3><p>The property file\'s owner type is blank for most private lots, marked C for city agencies and X, O or M for other public owners and mixed cases. A blank is treated as private here. Owner names are as recorded by the Department of Finance and can lag a sale.</p>';
+}
+function renderCD(){
+  const rows=Object.entries(F.cd).filter(([k])=>k!=='?'&&k.length===3).map(([k,v])=>({cd:k,...v})).filter(r=>r.lots>=40);
+  rows.forEach(r=>{r.rr=r.res/r.lots;r.ir=r.insp/r.lots;r.gap=r.rr-r.ir;});
+  rows.sort((a,b)=>b.any/b.lots-a.any/a.lots);
+  const name=cd=>({1:'Manhattan',2:'Bronx',3:'Brooklyn',4:'Queens',5:'Staten Island'}[cd[0]])+' CD '+parseInt(cd.slice(1));
+  const mostRes=[...rows].sort((a,b)=>b.gap-a.gap).slice(0,3),mostIns=[...rows].sort((a,b)=>a.gap-b.gap).slice(0,3);
+  $('#cd-text').innerHTML=
+   '<p>Two independent eyes look at the same lots: neighbors, who call 311, and city inspectors, who write sanitation summonses and record rat activity. For each community district with at least 40 vacant lots, the table shows what share of its vacant lots each set of eyes flagged in the last 24 months, and what share both did.</p>'+
+   '<p>Districts where neighbors flag a much larger share than inspectors: '+mostRes.map(r=>name(r.cd)+' ('+pct(r.res,r.lots)+' by neighbors, '+pct(r.insp,r.lots)+' by inspectors)').join('; ')+'.</p>'+
+   '<p>Districts where inspectors flag a larger share than neighbors: '+mostIns.map(r=>name(r.cd)+' ('+pct(r.res,r.lots)+' by neighbors, '+pct(r.insp,r.lots)+' by inspectors)').join('; ')+'.</p>'+
+   '<p>A gap in either direction is a fact about attention, not about the lots. Complaint volume tracks who calls; summons volume tracks where enforcement agents are sent.</p>';
+  $('#tbl-cd').innerHTML='<tr><th>District</th><th class="n">Vacant lots</th><th class="n">Neighbors</th><th class="n">Inspectors</th><th class="n">Both</th><th class="n">2+ agencies</th></tr>'+
+   rows.map(r=>'<tr><td>'+name(r.cd)+'</td><td class="n">'+nf(r.lots)+'</td><td class="n">'+pct(r.res,r.lots)+'</td><td class="n">'+pct(r.insp,r.lots)+'</td><td class="n">'+pct(r.both,r.lots)+'</td><td class="n">'+nf(r.chronic)+'</td></tr>').join('');
+}
+function renderList(){
+  const q=($('#q-list').value||'').toLowerCase(),k=$('#l-k').value;
+  let rows=LOTS.filter(r=>r.sc>=2&&(!k||r.k===k)&&(!q||(r.a&&r.a.toLowerCase().includes(q))||(r.own&&r.own.toLowerCase().includes(q))||r.bo.toLowerCase().includes(q)));
+  rows.sort((a,b)=>b.sc-a.sc||b.pq-a.pq||((b.hist||{}).n||0)-((a.hist||{}).n||0));
+  $('#c-list').textContent=nf(rows.length)+' lots flagged by 2+ agencies';
+  rows=rows.slice(0,300);
+  $('#tbl-list').innerHTML='<tr><th>Lot</th><th>Type</th><th>Owner</th><th class="n">Agencies</th><th>Which</th><th class="n">Quarters</th><th class="n">Cleaned 2010–21</th></tr>'+
+   rows.map(r=>'<tr class="rowbtn" onclick="goto(\''+r.bbl+'\')"><td class="a"><b>'+esc(r.a||r.bbl)+'</b><br><span style="font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700">'+esc(r.bo)+'</span></td><td>'+(r.k==='V'?'Vacant land':'Building')+'</td><td>'+esc(OT[r.ot]||'Private')+'</td><td class="n">'+r.sc+'</td><td>'+r.src.join(', ')+'</td><td class="n">'+r.pq+'</td><td class="n">'+((r.hist||{}).n||'')+'</td></tr>').join('');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology: The lots nobody fixes</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+:root{--ink3:#7a4b2a}
+.doc{max-width:78ch;padding:18px 26px 50px;font-size:var(--t-body);line-height:1.6}
+.doc h2{font-family:var(--display);font-weight:700;font-size:1.3rem;margin:30px 0 8px;letter-spacing:-.015em}
+.doc h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:20px 0 6px}
+.doc p,.doc li{margin:0 0 10px}
+.doc code{font-family:ui-monospace,Menlo,monospace;font-size:.86em;background:var(--paper2);padding:1px 4px}
+table.h{margin:8px 0 16px}
+table.h td{vertical-align:top;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span>Methodology</span><span><a href="index.html">&larr; Back to the map</a></span></div>
+  <div class="head" style="padding-right:26px">
+    <h1>How this was built</h1>
+    <p class="sub">What counts as a signal, how records were tied to a tax lot, what the scores mean and what was left out. Every number on the map is produced by <code>scripts/build_data.py</code> from files pulled by <code>scripts/fetch_raw.py</code>; <code>scripts/verify.py</code> re-queries the sources and checks the totals.</p>
+  </div>
+  <div class="doc">
+
+<h2>The question</h2>
+<p>New York City publishes no dataset of blighted or neglected property. What it publishes is about a dozen datasets, each from a different agency, that record one symptom of neglect at one address. This map ties them to the tax lot and asks a narrow question of each lot: how many separate agencies have a record of neglect here?</p>
+<p>The unit is the tax lot, identified by its borough-block-lot number (BBL). The window is 24 months, <b id="w0"></b> through <b id="w1"></b>, the last date in the 311 feed on the day this was built (<span id="built"></span>). The one exception is the sanitation department's lot-cleaning history, which runs 2010 to 2021 and is shown as history, never counted in the score.</p>
+
+<h2>Which lots are on the map</h2>
+<ul>
+<li><b>Every vacant lot.</b> All <b id="n-vacant"></b> lots the Department of City Planning's PLUTO file (dataset <code>64uk-42ks</code>, August 2026 release) codes as land use 11, vacant land, and that carry a coordinate. Most score zero. They are drawn small and grey so the flagged ones read against them.</li>
+<li><b>Distressed buildings.</b> A lot that is not vacant land joins the map only if it is on a hard city list, meaning the Department of Housing Preservation and Development's Alternative Enforcement Program or Underlying Conditions Program, a whole-building vacate order still in force, or the Department of Buildings' stalled construction sites list; or if four of the six agencies below have a record at it; or if three do and one of them is a tax lien or an unsafe facade filing. That rule yields <b id="n-bldg"></b> buildings. An earlier draft admitted any lot with three agencies and pulled in 12,000 ordinary apartment buildings with a dirty-sidewalk ticket, a rat inspection and a 311 call; that is not blight, so the rule was tightened.</li>
+</ul>
+
+<h2>The six agencies and what counts</h2>
+<table class="h">
+<tr><th>Agency</th><th>Dataset</th><th>What counts as a record</th></tr>
+<tr><td>Neighbors, through 311</td><td>311 Service Requests <code>erm2-nwe9</code></td><td>Any complaint of type Dirty Condition, Illegal Dumping, Lot Condition, Graffiti, Derelict Vehicles or Rodent whose 311 record carries a BBL. <span id="n-311"></span> such complaints fell in the window; <span id="n-311nb"></span> had no BBL (a street corner, a park, a highway) and could not be tied to a lot. Abandoned Vehicle (a plated car, usually a parking dispute), Encampment and Homeless Person Assistance are excluded: they are about people or parking, not the condition of a place.</td></tr>
+<tr><td>Sanitation inspectors</td><td>OATH Hearings Division Case Status <code>jz4z-kudi</code></td><td>Summonses issued by the Department of Sanitation (issuing agency Sanitation Others, DOS Enforcement Agents or Sanitation Police) whose first charge is a dirty-area charge: dirty sidewalk, dirty area, loose rubbish, failure to clean 18 inches into the street, the vacant-lot variants of those, illegal dumping or improper disposal. Recycling, receptacle, set-out-time and snow charges are excluded. <span id="n-oath"></span> summonses in the window; <span id="n-oathnb"></span> lacked a block and lot. Block and lot are as written on the ticket.</td></tr>
+<tr><td>Health inspectors</td><td>Rodent Inspection <code>p937-wjvj</code></td><td>Initial inspections with a result of failed for rat activity. Compliance re-inspections are excluded so one problem is not counted several times. <span id="n-rat"></span> in the window.</td></tr>
+<tr><td>Housing Preservation and Development</td><td>AEP <code>hcir-3275</code>, Underlying Conditions <code>xpbf-ithr</code>, Order to Repair/Vacate <code>tb8q-a3ar</code></td><td>Buildings currently active in the Alternative Enforcement Program (<span id="n-aep"></span>) or the Underlying Conditions Program (<span id="n-ucp"></span>), and whole-building vacate orders with no rescind date (<span id="n-vac"></span>). Partial vacates are excluded.</td></tr>
+<tr><td>Department of Buildings</td><td>Stalled Construction Sites <code>i296-73x5</code>, Facades Compliance Filings <code>xubg-57si</code></td><td>Sites on the most recent daily stalled-sites run (<span id="n-stalled"></span> sites on <span id="stalled-run"></span>; <span id="n-stalled-un"></span> could not be tied to a lot because a stalled site often has no building footprint and its address did not match the property file). Facade filings: a building counts if its latest cycle 9 filing is rated unsafe (<span id="n-facade"></span> buildings). Buildings that never filed are not counted; silence is not evidence.</td></tr>
+<tr><td>Department of Finance</td><td>Tax Lien Sale Lists <code>9rz4-mjek</code></td><td>Properties on the final sale list of the 2025 lien sale (<span id="n-lien"></span>). The 2026 cycle was not on Open Data when this was built. Water-only liens are included and labeled.</td></tr>
+</table>
+
+<h2>The score</h2>
+<p>A lot's score is the number of distinct agencies, out of six, with at least one record at that lot in the window. Complaint volume is deliberately not summed. 311 has super-callers: one address on Schroeders Avenue in Brooklyn logged over 900 neglect complaints in twelve months. Counting agencies instead of calls means one determined caller can move a lot from zero to one, and no further.</p>
+<p>Alongside the score is persistence: the number of distinct calendar quarters, out of nine in the window, in which a 311 complaint, a sanitation summons or a failed rat inspection was recorded at the lot. The first and last quarters are partial (September 2024 only; July and August 2026).</p>
+<p>Three of the six sources record events (311, sanitation summonses, rat inspections) and three record status (a program listing, a stalled site or unsafe facade, a lien). Status sources count once regardless of how long the status has held.</p>
+
+<h2>The sanitation history layer</h2>
+<p>The sanitation department's Lot Cleaning Division logged every request to inspect and clean a vacant lot in a system called LotSmart, with an inspector's note on what was found. The city published the file as Lot Cleaning Dispositions (<code>r4c5-ndkx</code>) and now labels it no longer maintained. It holds 844,435 activity rows; the structured lot records, the ones with an entry date, an address and a block, run from October 2010 to September 2021, and new requests stop at December 31, 2020. A handful of text request dates go back to 2004 but carry no usable lot record. Two comptroller audits, in 2008 and 2021, describe the program and the system.</p>
+<p>Tying those rows to today's lots took some work. The file carries a borough code, a tax block, a house number and street, and a coordinate, but the coordinate is shared by many records, so it is a block-face geocode rather than a lot. Today's vacant lots mostly have no house number in PLUTO. The join rule: same borough and tax block, and the vacant lot's street name equals the row's street name. If that leaves one lot, it matches. If several, the nearest to the row's coordinate is taken and the match is flagged as approximate; the lot file shows how many of a lot's matches were approximate. Rows were first reduced to one per lot record, since the file repeats a record for each activity logged against it; a record is one inspection request for one lot.</p>
+<p>Result: of <b id="ls-rows"></b> distinct lot records, <b id="ls-hit"></b> tie to a lot that is still vacant land in 2026, on <b id="ls-lots"></b> lots. <span id="ls-noblock"></span> records sit on a block that has no vacant lot today (the lot was built on, or became a park or garden), and <span id="ls-nostreet"></span> on a block whose remaining vacant lots front a different street. Both are dropped. The borough codes in the file (6, 7, 8, 9, 10) are not documented; they were mapped to Manhattan, Brooklyn, Queens, Bronx and Staten Island by testing which borough's blocks and addresses each code matched, and the evidence was one-sided in every case.</p>
+<p>The history is context, not score. A lot cleaned a hundred times a decade ago and quiet since scores zero today.</p>
+
+<h2>Ownership</h2>
+<p>Owner type comes from PLUTO. The field is blank for most privately held lots, C for city agencies, X for mixed city and private, O for other public authorities and M for mixed public. Blank is read as private. Owner names are as the Department of Finance records them and can lag a sale. The ownership tab reports the split among all vacant lots, among those with any signal, among those flagged by two or more agencies, and among those the sanitation department cleaned between 2004 and 2020.</p>
+
+<h2>Residents versus inspectors</h2>
+<p>For each community district with at least 40 vacant lots, the table shows the share of its vacant lots that drew a 311 complaint, the share that drew a sanitation summons or a failed rat inspection, and the share that drew both. A gap between the two is a fact about attention. It says who calls and where enforcement agents are sent; it does not say whose eyes are right.</p>
+
+<h2>What was left out, and why</h2>
+<ul>
+<li><b>Streetscape signals</b>: 139,609 empty tree pits, 133,000 open sidewalk violations, dead-tree requests, poor pavement ratings. They are real neglect, but they are so numerous that they would swamp lot-level signals, and the sidewalk file's lot key is an internal ID rather than a BBL. Left for a later pass, to be added only where a block's signal is overwhelming.</li>
+<li><b>The DSNY Scorecard</b> street-cleanliness ratings ended in September 2023. Nothing replaced them on Open Data.</li>
+<li><b>The storefront vacancy registry</b> is annual self-reporting and 2025 is largely unfiled. Not current enough.</li>
+<li><b>Encampment and homeless-assistance complaints</b>: about people, not places.</li>
+<li><b>Noise, crime and 911 calls</b>: not neglect.</li>
+<li><b>SCOUT</b>, the Mayor's Office street-conditions inspection unit, does not publish its street ratings on Open Data; the SCOUT dataset there covers facility inspections.</li>
+</ul>
+
+<h2>Known limits</h2>
+<ul>
+<li>PLUTO's vacant-land code includes tidal wetlands, slivers and side yards. Staten Island's three community districts alone hold more than 4,000 private vacant lots, much of it unbuildable. Use the lot-size filter and the zoning shown in the lot file.</li>
+<li>Roughly one 311 neglect complaint in eight carries no BBL and is invisible here. Complaints at street corners are the usual case.</li>
+<li>Sanitation tickets are written to the block and lot the agent records. A ticket for a dirty sidewalk in front of an occupied building lands on that building's lot; the map only shows such lots if they also meet the distressed-building rule.</li>
+<li>The 311 feed runs about a day and a half behind. The build takes its window from the feed's own last date rather than the calendar.</li>
+<li>Socrata throttles anonymous traffic by address and answers with a 403 that looks like a permissions error. The fetch script retries with backoff.</li>
+<li>Half the history lots (<span id="ls-amb"></span> of <span id="ls-lots2"></span>) got most of their matches by the nearest-of-several rule. Their record counts can be inflated when several vacant lots share a block face; read them as "this block face" rather than "this exact lot."</li>
+</ul>
+
+<h2>Refreshing</h2>
+<p>Delete <code>build/raw/</code>, run <code>scripts/fetch_raw.py</code>, then <code>scripts/build_data.py</code>, then <code>scripts/verify.py</code>. Update the window constants at the top of both scripts first. The fetch takes a few minutes and fails loudly if any source returns nothing.</p>
+
+<h2>AI caution</h2>
+<p>The concept, the choice of sources and the layout are the author's, a human. The code, the data pulls and the file handling were done by Anthropic's Claude Code under close direction. Quality control done on this project: every source count was re-queried directly against the NYC Open Data API and compared with the built files (<code>scripts/verify.py</code>); the join keys were spot-checked by hand against the city's property records; the sanitation history join was checked by reading raw inspector notes and addresses for sampled lots and by measuring how many matches were exact versus approximate. The risks of using AI remain, and red flags in what you see here are welcome.</p>
+
+  </div>
+</div>
+<script>
+fetch('data/findings.json',{cache:'no-cache'}).then(r=>r.json()).then(F=>{
+  const nf=n=>Number(n||0).toLocaleString('en-US');const c=F.counts,r=c.raw;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('w0',F.window[0]);set('w1',F.window[1]);set('built',F.built);
+  set('n-vacant',nf(c.vacant_lots));set('n-bldg',nf(c.buildings));
+  set('n-311',nf(r.c311));set('n-311nb',nf(r.c311_nobbl));set('n-oath',nf(r.oath));set('n-oathnb',nf(r.oath_nobbl));
+  set('n-rat',nf(r.rodent_initial));set('n-aep',nf(r.aep));set('n-ucp',nf(r.ucp));set('n-vac',nf(r.vacate));
+  set('n-stalled',nf(r.stalled));set('stalled-run',r.stalled_run);set('n-stalled-un',nf(r.stalled_unmatched));set('n-facade',nf(r.facade_unsafe));set('n-lien',nf(r.lien));
+  set('ls-rows',nf(r.lotsmart_requests));set('ls-hit',nf(r.lotsmart_on_vacant));set('ls-lots',nf(c.hist_lots));set('ls-lots2',nf(c.hist_lots));
+  set('ls-noblock',nf(r.lotsmart_noblock));set('ls-nostreet',nf(r.lotsmart_nostreet));set('ls-amb',nf(c.hist_ambiguous||0));
+});
+</script>
+</body>
+</html>
