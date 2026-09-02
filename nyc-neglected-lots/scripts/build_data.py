@@ -254,15 +254,28 @@ print(f"LotSmart lot records {n_tot}: matched {n_hit} (single lot on street {n_o
 polys = load("pluto_polys.geojson")["features"]
 
 # ---------------------------------------------------------------- score
+def inwin(d): return bool(d) and d[:10] >= WINDOW_START
 def score_of(s):
+    """Agencies with a record INSIDE the window. A status listing (AEP, vacate order, stalled
+    site, unsafe facade, lien) counts only if it was issued inside the window; older listings
+    that are still in force are shown in the lot file but never scored."""
     src = []
     if sum(s["c311"].values()): src.append("311")
     if sum(s["oath"].values()): src.append("DSNY")
     if s["rat"]: src.append("DOHMH")
-    if s["aep"] or s["ucp"] or s["vacate"]: src.append("HPD")
-    if s["stalled"] or s["facade"]: src.append("DOB")
-    if s["lien"]: src.append("DOF")
+    if (s["aep"] and inwin(s["aep"]["start"])) or (s["ucp"] and inwin(s["ucp"]["start"])) or (s["vacate"] and inwin(s["vacate"]["date"])): src.append("HPD")
+    if (s["stalled"] and inwin(s["stalled"]["since"])) or (s["facade"] and inwin(s["facade"]["filed"])): src.append("DOB")
+    if s["lien"]: src.append("DOF")   # the 2025 sale (May 2025) is inside the window
     return src
+def stale_of(s):
+    """Status listings still in force but issued before the window: shown, not counted."""
+    out = []
+    if s["aep"] and not inwin(s["aep"]["start"]): out.append("aep")
+    if s["ucp"] and not inwin(s["ucp"]["start"]): out.append("ucp")
+    if s["vacate"] and not inwin(s["vacate"]["date"]): out.append("vacate")
+    if s["stalled"] and not inwin(s["stalled"]["since"]): out.append("stalled")
+    if s["facade"] and not inwin(s["facade"]["filed"]): out.append("facade")
+    return out
 
 # universe: every vacant lot + every HPD/DOB-listed building + any other lot flagged by 3+ agencies
 extra = set()
@@ -333,6 +346,7 @@ for b, L in lots.items():
         "lat": round(L["lat"], 6), "lon": round(L["lon"], 6),
         "sc": len(src), "src": src, "pq": len(q),
     }
+    if s and stale_of(s): rec["stale"] = stale_of(s)
     if L["kind"] == "B": rec["lu"] = L.get("landuse", ""); rec["u"] = L.get("units")
     if s:
         if sum(s["c311"].values()):
@@ -423,6 +437,9 @@ findings = {
         "hist_requests": sum(r["hist"]["n"] for r in f1), "hist_ambiguous": sum(1 for r in f1 if r["hist"]["amb"] > r["hist"]["n"] / 2),
         "raw": {"c311": len(c311), "c311_nobbl": n311_nobbl, "oath": len(oath), "oath_nobbl": n_oath_nobbl, "rodent_initial": sum(1 for r in rod if r.get("inspection_type") == "Initial"),
                 "aep": sum(1 for s in sig.values() if s["aep"]), "ucp": sum(1 for s in sig.values() if s["ucp"]), "vacate": sum(1 for s in sig.values() if s["vacate"]),
+                "aep_inwin": sum(1 for s in sig.values() if s["aep"] and inwin(s["aep"]["start"])), "ucp_inwin": sum(1 for s in sig.values() if s["ucp"] and inwin(s["ucp"]["start"])),
+                "vacate_inwin": sum(1 for s in sig.values() if s["vacate"] and inwin(s["vacate"]["date"])), "stalled_inwin": sum(1 for s in sig.values() if s["stalled"] and inwin(s["stalled"]["since"])),
+                "facade_inwin": sum(1 for s in sig.values() if s["facade"] and inwin(s["facade"]["filed"])),
                 "stalled": len(st["sites"]), "stalled_run": st["run"][:10], "stalled_unmatched": n_stalled_unmatched, "facade_unsafe": n_unsafe,
                 "lien": sum(1 for s in sig.values() if s["lien"]), "lotsmart_requests": n_tot, "lotsmart_on_vacant": n_hit, "lotsmart_noblock": n_noblock, "lotsmart_nostreet": n_nostreet,
                 "all_bbls_with_signal": len(sig), "score_dist_all": dict(sorted(dist.items()))},

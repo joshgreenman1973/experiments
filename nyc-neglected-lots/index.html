@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The lots nobody fixes</title>
-<meta name="description" content="Every vacant lot in New York City and every building the city has flagged as distressed, scored by how many separate agencies recorded neglect there in the last 24 months, with the sanitation lot-cleaning history that ended in 2020.">
+<meta name="description" content="Every vacant lot in New York City, every building the city has flagged as distressed and every park property, scored by how many separate agencies recorded neglect there in the last 24 months, with the sanitation lot-cleaning history that ended in 2020.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -91,10 +91,10 @@ table.h td.a{max-width:34ch}
       </svg>
     </div>
     <h1>The lots nobody fixes</h1>
-    <p class="sub">Every vacant lot in New York City, and every building the city has put on a distress list,
-      scored by how many separate agencies recorded neglect there in the last 24 months: neighbors through 311,
+    <p class="sub">Every vacant lot in New York City, every building the city has put on a distress list and every park and
+      playground, scored by how many separate agencies recorded neglect there in the last 24 months: neighbors through 311,
       sanitation inspectors through summonses, health inspectors through rat findings, and the housing, buildings
-      and finance departments through their own lists. Underneath sits the sanitation department's own record of
+      and finance departments through their own lists, and the Parks Department's own inspectors for its properties. Underneath sits the sanitation department's own record of
       which lots it cleaned, year after year, from late 2010 until that data stopped in 2021.</p>
     <p class="src">Sources: NYC Open Data &middot; <a href="methodology.html">Methodology</a></p>
   </div>
@@ -107,6 +107,7 @@ table.h td.a{max-width:34ch}
     <button data-p="hist">Cleaned a decade ago</button>
     <button data-p="own">Who owns the neglect</button>
     <button data-p="cd">Residents vs. inspectors</button>
+    <button data-p="parks">Parks and playgrounds</button>
     <button data-p="list">Ranked list</button>
   </div>
 
@@ -115,7 +116,7 @@ table.h td.a{max-width:34ch}
     <div class="controls">
       <input id="q" type="search" placeholder="Jump to an address or a borough-block-lot number" autocomplete="off">
       <select id="f-bo"><option value="">All boroughs</option><option>Manhattan</option><option>Bronx</option><option>Brooklyn</option><option>Queens</option><option>Staten Island</option></select>
-      <select id="f-k"><option value="">Lots and buildings</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option></select>
+      <select id="f-k"><option value="">Lots, buildings and parks</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option><option value="P">Parks and playgrounds only</option></select>
       <select id="f-ot"><option value="">Any owner</option><option value="P">Private</option><option value="C">City</option><option value="X">Other public</option></select>
       <select id="f-sc"><option value="0">Any number of agencies</option><option value="1">1 or more agencies</option><option value="2" selected>2 or more agencies</option><option value="3">3 or more agencies</option><option value="4">4 or more agencies</option></select>
       <button class="chip" id="f-hist" aria-pressed="false">Cleaned by sanitation 2010&ndash;2021</button>
@@ -127,13 +128,14 @@ table.h td.a{max-width:34ch}
       <span><i style="background:#2d4a86"></i>2 agencies</span>
       <span><i style="background:#b07326"></i>3 or more</span>
       <span><i class="h"></i>Sanitation cleaned it 2010&ndash;2021</span>
+      <span><i style="background:#2b6f75;opacity:.5"></i>Park property (hatched by score)</span>
       <span id="showing"></span>
     </div>
     <div class="cols">
       <div class="col"><div id="map"></div></div>
       <div class="col side">
         <div class="colhead"><span>Lot file</span><span id="side-n"></span></div>
-        <div id="dossier"><div class="hint">Click a lot. Zoom in past street level and the lots draw as parcels. Colour is the number of separate agencies with a record of neglect there since September 2024; a ring means the sanitation department cleaned that lot at least once between 2010 and 2021.</div></div>
+        <div id="dossier"><div class="hint">Click a lot or a park. Zoom in past street level and the lots draw as parcels. Colour is the number of separate agencies with a record of neglect there since September 2024; a ring means the sanitation department cleaned that lot at least once between 2010 and 2021.</div></div>
       </div>
     </div>
   </div>
@@ -180,11 +182,25 @@ table.h td.a{max-width:34ch}
     </div>
   </div>
 
+  <!-- ============ parks ============ -->
+  <div class="pane" id="p-parks">
+    <div class="cols">
+      <div class="col">
+        <div class="colhead"><span>What the Parks Department finds when it inspects itself</span></div>
+        <div class="find" id="parks-text"></div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span>Failed most often by Parks inspectors</span><span>window inspections, 3 or more</span></div>
+        <div class="pad"><table class="h" id="tbl-parks"></table></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ ranked list ============ -->
   <div class="pane" id="p-list">
     <div class="controls">
       <input id="q-list" type="search" placeholder="Search address, owner, borough" autocomplete="off">
-      <select id="l-k"><option value="">Lots and buildings</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option></select>
+      <select id="l-k"><option value="">Lots, buildings and parks</option><option value="V">Vacant land only</option><option value="B">Distressed buildings only</option><option value="P">Parks and playgrounds only</option></select>
     </div>
     <div class="colhead"><span>Ranked by agencies, then by quarters with a record, then by cleaning history</span><span id="c-list"></span></div>
     <div class="pad"><table class="h" id="tbl-list"></table></div>
@@ -209,12 +225,13 @@ const nf=n=>Number(n||0).toLocaleString('en-US');
 const pct=(a,b)=>b?Math.round(100*a/b)+'%':'–';
 const OT={P:'Private',C:'City',X:'Other public',O:'Other public',M:'Mixed'};
 const COL=['#c7ccc5','#4a6b52','#2d4a86','#b07326'];
-let LOTS=[],F=null,BY={},map,polysLoaded=false,sel=null;
+let LOTS=[],PARKS=[],F=null,BY={},PBY={},map,polysLoaded=false,sel=null;
 
 Promise.all([
   fetch('data/lots.json',{cache:'no-cache'}).then(r=>r.json()),
   fetch('data/findings.json',{cache:'no-cache'}).then(r=>r.json()),
-]).then(([l,f])=>{LOTS=l.lots;F=f;LOTS.forEach(r=>BY[r.bbl]=r);init();})
+  fetch('data/parks.json',{cache:'no-cache'}).then(r=>r.json()),
+]).then(([l,f,p])=>{LOTS=l.lots;F=f;PARKS=p.parks;LOTS.forEach(r=>BY[r.bbl]=r);PARKS.forEach(r=>PBY[r.id]=r);init();})
  .catch(e=>{$('#capline').textContent='Could not load data: '+e.message;});
 
 function init(){
@@ -227,13 +244,14 @@ function init(){
     [c.vacant_3plus,'Vacant lots, 3+ agencies'],
     [c.buildings,'Distressed buildings'],
     [c.hist_lots,'Cleaned 2010–2021, still vacant'],
+    [F.parks.two_plus,'Parks flagged by 2+ eyes'],
   ].map(([n,l])=>'<div><b>'+nf(n)+'</b><span>'+l+'</span></div>').join('');
   document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
     document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p));
     if(b.dataset.p==='map')map.resize();
   });
-  initMap(); renderHist(); renderOwn(); renderCD(); renderList();
+  initMap(); renderHist(); renderOwn(); renderCD(); renderParks(); renderList();
   ['#f-bo','#f-k','#f-ot','#f-sc'].forEach(s=>$(s).onchange=applyFilter);
   ['#f-hist','#f-big'].forEach(s=>$(s).onclick=e=>{const b=e.currentTarget;b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');applyFilter();});
   $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')jump($('#q').value.trim());});
@@ -258,13 +276,17 @@ function initMap(){
       'circle-radius':['interpolate',['linear'],['zoom'],10,['case',['>=',['get','sc'],2],2.2,1.2],13,['case',['>=',['get','sc'],2],5,3],16,9],
       'circle-opacity':['case',['==',['get','sc'],0],.55,.85],
       'circle-stroke-color':'#1b1e1c','circle-stroke-width':['interpolate',['linear'],['zoom'],10,['case',['==',['get','h'],1],.6,0],14,['case',['==',['get','h'],1],1.6,0]]}});
+    map.addSource('parks',{type:'geojson',data:'data/parks.geojson'});
+    map.addLayer({id:'park-fill',type:'fill',source:'parks',paint:{'fill-color':['to-color',['at',['min',['get','sc'],3],['literal',COL]]],'fill-opacity':['case',['==',['get','sc'],0],.18,.5]}});
+    map.addLayer({id:'park-line',type:'line',source:'parks',paint:{'line-color':'#2b6f75','line-width':['interpolate',['linear'],['zoom'],10,.4,15,1.4],'line-dasharray':[2,1.5]}});
     map.addSource('polys',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     map.addLayer({id:'poly-fill',type:'fill',source:'polys',minzoom:15,paint:{'fill-color':['to-color',['at',['min',['get','sc'],3],['literal',COL]]],'fill-opacity':.55}});
     map.addLayer({id:'poly-line',type:'line',source:'polys',minzoom:15,paint:{'line-color':'#1b1e1c','line-width':['case',['==',['get','h'],1],2,.6]}});
     map.addLayer({id:'sel',type:'line',source:'polys',minzoom:15,filter:['==','bbl',''],paint:{'line-color':'#8a4a6b','line-width':4}});
     map.on('click','pts',e=>show(e.features[0].properties.bbl));
     map.on('click','poly-fill',e=>show(e.features[0].properties.bbl));
-    ['pts','poly-fill'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='');});
+    map.on('click','park-fill',e=>{if(!map.queryRenderedFeatures(e.point,{layers:['pts','poly-fill']}).length)showPark(e.features[0].properties.id);});
+    ['pts','poly-fill','park-fill'].forEach(l=>{map.on('mouseenter',l,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',l,()=>map.getCanvas().style.cursor='');});
     map.on('zoomend',()=>{if(map.getZoom()>=14.5&&!polysLoaded){polysLoaded=true;fetch('data/polys.geojson').then(r=>r.json()).then(g=>{map.getSource('polys').setData(g);applyFilter();});}});
     applyFilter();
   });
@@ -281,7 +303,14 @@ function filterExpr(){
   if($('#f-big').getAttribute('aria-pressed')==='true')f.push(['>=',['get','area'],5000]);
   return f;
 }
+function passPark(r){
+  const bo=$('#f-bo').value,k=$('#f-k').value,sc=+$('#f-sc').value;
+  if(k&&k!=='P')return false;if(bo&&r.bo!==bo)return false;if(sc&&r.sc<sc)return false;
+  if($('#f-hist').getAttribute('aria-pressed')==='true'||$('#f-big').getAttribute('aria-pressed')==='true'||$('#f-ot').value)return false;
+  return true;
+}
 function pass(r){
+  if($('#f-k').value==='P')return false;
   const bo=$('#f-bo').value,k=$('#f-k').value,ot=$('#f-ot').value,sc=+$('#f-sc').value;
   const o=r.ot==='P'?'P':(r.ot==='C'?'C':'X');
   if(bo&&r.bo!==bo)return false;if(k&&r.k!==k)return false;if(ot&&o!==ot)return false;
@@ -298,8 +327,13 @@ function applyFilter(){
   const pf=['all'].concat(f.slice(1).filter(x=>['sc','h','k'].includes(x[1][1])));
   // polygons carry sc,k,h only
   map.setFilter('poly-fill',pf);map.setFilter('poly-line',pf);
-  const n=LOTS.filter(pass).length;
-  $('#showing').textContent='Showing '+nf(n)+' of '+nf(LOTS.length);
+  // parks: honour kind, borough is not on the geometry so it is applied to the count only; score filter applies
+  const k=$('#f-k').value,sc=+$('#f-sc').value;
+  const pk=['all'];if(k&&k!=='P')pk.push(['==',['get','k'],'zz']);if(sc)pk.push(['>=',['get','sc'],Math.min(sc,3)]);
+  if($('#f-hist').getAttribute('aria-pressed')==='true'||$('#f-big').getAttribute('aria-pressed')==='true'||$('#f-ot').value)pk.push(['==',['get','k'],'zz']);
+  map.setFilter('park-fill',pk);map.setFilter('park-line',pk);
+  const n=LOTS.filter(pass).length,np=PARKS.filter(passPark).length;
+  $('#showing').textContent='Showing '+nf(n)+' lots and '+nf(np)+' parks';
 }
 function jump(q){
   if(!q)return;
@@ -307,12 +341,47 @@ function jump(q){
   let r=null;
   if(d.length===10&&BY[d])r=BY[d];
   else{const s=q.toLowerCase();r=LOTS.find(x=>x.a&&x.a.toLowerCase()===s)||LOTS.find(x=>x.a&&x.a.toLowerCase().startsWith(s))||LOTS.find(x=>x.a&&x.a.toLowerCase().includes(s));}
-  if(!r){$('#dossier').innerHTML='<div class="empty">No lot in this file matches "'+esc(q)+'".</div>';return;}
+  if(!r){const s=q.toLowerCase();const p=PARKS.find(x=>x.a.toLowerCase()===s)||PARKS.find(x=>x.a.toLowerCase().startsWith(s))||PARKS.find(x=>x.a.toLowerCase().includes(s));
+    if(p){map.flyTo({center:[p.lon,p.lat],zoom:15.5});showPark(p.id);return;}
+    $('#dossier').innerHTML='<div class="empty">No lot or park in this file matches "'+esc(q)+'".</div>';return;}
   map.flyTo({center:[r.lon,r.lat],zoom:16.5});show(r.bbl);
 }
 function goto(bbl){
   document.querySelector('#tabs button[data-p=map]').click();
   const r=BY[bbl];map.flyTo({center:[r.lon,r.lat],zoom:16.5});show(bbl);
+}
+function gotoPark(id){
+  document.querySelector('#tabs button[data-p=map]').click();
+  const r=PBY[id];map.flyTo({center:[r.lon,r.lat],zoom:15.5});showPark(id);
+}
+const PD={'Structure - Outdoors':'outdoor structure','Garbage or Litter':'garbage or litter','Grass/Weeds':'grass or weeds','Graffiti or Vandalism':'graffiti or vandalism','Unsecured Facility':'unsecured facility','Rodent Sighting':'rodent sighting','Broken Glass':'broken glass','Syringes':'syringes'};
+function showPark(id){
+  const r=PBY[id];if(!r)return;sel=null;if(map.getLayer('sel'))map.setFilter('sel',['==','bbl','']);
+  const q=r.pq||0;
+  const pq='<span class="pq" title="'+q+' of 9 quarters with a record">'+Array.from({length:9},(_,i)=>'<i class="'+(i<q?'on':'')+'"></i>').join('')+'</span>';
+  const has=k=>r.src.includes(k);
+  let h='<div class="dossier"><h2>'+esc(r.a)+'</h2><p class="meta">'+esc(r.bo)+' &middot; Parks property '+esc(r.id)+' &middot; '+esc(r.t)+' &middot; '+r.acres+' acres'+(r.cb?' &middot; CB '+esc(r.cb):'')+'</p>';
+  h+='<p class="scoreline"><span class="n">'+r.sc+'</span>'+(r.sc===1?'source':'sources')+' with a record of neglect'+pq+'</p>';
+  if(r.n311){const parts=Object.entries(r.c311).sort((a,b)=>b[1]-a[1]).map(([k,v])=>nf(v)+' '+(PD[k]||k.toLowerCase()));
+    h+='<div class="agency'+(has('311')?'':' off')+'"><b>Neighbors, through 311<span>'+nf(r.n311)+' maintenance complaint'+(r.n311>1?'s':'')+'</span></b><p>'+parts.join(', ')+'.'+(has('311')?'':' Fewer than three, so not counted as a source.')+'</p></div>';}
+  else h+='<div class="agency off"><b>Neighbors, through 311</b><p>No park maintenance complaint inside this property\'s boundary.</p></div>';
+  if(r.insp){h+='<div class="agency'+(has('Parks')?'':' off')+'"><b>Parks inspectors<span>'+r.u+' of '+r.insp+' inspections unacceptable</span></b><p>Parks Inspection Program visits in the window'+(r.zones>1?' across '+r.zones+' zones':'')+'. '+(r.u?r.u_clean+' failed on cleanliness; last failed '+r.u_last+'.':'None rated unacceptable.')+(has('Parks')?'':(r.u===1?' One failure is not counted as a source.':''))+'</p></div>';}
+  else h+='<div class="agency off"><b>Parks inspectors</b><p>Not inspected under the Parks Inspection Program in the window.</p></div>';
+  if(r.rat)h+='<div class="agency"><b>Health inspectors<span>'+r.rat+' failed rat inspection'+(r.rat>1?'s':'')+'</span></b><p>Initial inspections inside the boundary that found active rat signs.</p></div>';
+  else h+='<div class="agency off"><b>Health inspectors</b><p>No initial rodent inspection failed inside the boundary.</p></div>';
+  h+='<p class="src"><a href="https://www.nycgovparks.org/parks/'+esc(r.id)+'" target="_blank" rel="noopener">Parks Department page</a></p></div>';
+  $('#dossier').innerHTML=h;
+}
+function renderParks(){
+  const P=F.parks;
+  const ty=Object.entries(P.by_type_flagged).slice(0,6).map(([k,v])=>nf(v)+' '+k.toLowerCase()).join(', ');
+  $('#parks-text').innerHTML=
+   '<p>The Parks Department rates its own properties several times a year under the Parks Inspection Program: overall condition, cleanliness, safety and structure, each acceptable or unacceptable. Between '+F.window[0]+' and '+P.pip_max_date+' (the latest published inspection) it made '+nf(P.inspections)+' visits to '+nf(P.inspected)+' of its '+nf(P.properties)+' properties.</p>'+
+   '<p>'+nf(P.u_two_plus)+' properties were rated unacceptable on overall condition or cleanliness at least twice in that span; '+nf(P.u_three_plus)+' at least three times. Those are the ones counted here as flagged by the department\'s own inspectors.</p>'+
+   '<p>Two other eyes were laid over the park boundaries: '+nf(P.c311_inside)+' of '+nf(P.c311)+' 311 park-maintenance complaints in the window fell inside a mapped property, and '+nf(P.rat_inside)+' failed initial rat inspections did. '+nf(P.two_plus)+' properties are flagged by two or more of the three, '+nf(P.three)+' by all three. By type: '+ty+'.</p>'+
+   '<p>A park is not a lot: a big park draws complaints because it is used, and the department inspects big parks zone by zone. The table ranks by the share of inspections failed, which does not favour size. Click a row to open it on the map.</p>';
+  $('#tbl-parks').innerHTML='<tr><th>Property</th><th>Type</th><th class="n">Failed</th><th class="n">Visits</th><th class="n">311</th><th class="n">Sources</th></tr>'+
+   P.worst.map(r=>'<tr class="rowbtn" onclick="gotoPark(\''+r.id+'\')"><td class="a"><b>'+esc(r.a)+'</b><br><span style="font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700">'+esc(r.bo)+'</span></td><td>'+esc(r.t)+'</td><td class="n">'+r.u+'</td><td class="n">'+r.insp+'</td><td class="n">'+nf(r.n311)+'</td><td class="n">'+r.sc+'</td></tr>').join('');
 }
 const CT={'Dirty Condition':'dirty condition','Illegal Dumping':'illegal dumping','Lot Condition':'vacant lot condition','Graffiti':'graffiti','Derelict Vehicles':'derelict vehicle','Rodent':'rodent'};
 function show(bbl){
@@ -333,11 +402,12 @@ function show(bbl){
   else h+='<div class="agency off"><b>Sanitation inspectors</b><p>No sanitation summons for a dirty sidewalk, dirty area, loose rubbish or dumping.</p></div>';
   if(has('DOHMH'))h+='<div class="agency"><b>Health inspectors<span>'+r.rat+' failed rat inspection'+(r.rat>1?'s':'')+'</span></b><p>Initial inspections that found active rat signs.</p></div>';
   else h+='<div class="agency off"><b>Health inspectors</b><p>No initial rodent inspection failed here.</p></div>';
-  if(has('HPD')){let p=[];if(r.aep)p.push('In the Alternative Enforcement Program since '+r.aep.start+(r.aep.units?' ('+r.aep.units+' units)':'')+'.');if(r.ucp)p.push('Underlying Conditions Program order issued '+r.ucp.start+'.');if(r.vacate)p.push('Whole-building vacate order in force since '+r.vacate.date+': '+esc(r.vacate.reason)+(r.vacate.units?', '+r.vacate.units+' units':'')+'.');
-    h+='<div class="agency"><b>Housing Preservation and Development</b><p>'+p.join(' ')+'</p></div>';}
+  const stale=r.stale||[];const old=k=>stale.includes(k)?' (issued before the window, still listed, not counted)':'';
+  if(has('HPD')||r.aep||r.ucp||r.vacate){let p=[];if(r.aep)p.push('In the Alternative Enforcement Program since '+r.aep.start+(r.aep.units?' ('+r.aep.units+' units)':'')+old('aep')+'.');if(r.ucp)p.push('Underlying Conditions Program order issued '+r.ucp.start+old('ucp')+'.');if(r.vacate)p.push('Whole-building vacate order in force since '+r.vacate.date+': '+esc(r.vacate.reason)+(r.vacate.units?', '+r.vacate.units+' units':'')+old('vacate')+'.');
+    h+='<div class="agency'+(has('HPD')?'':' off')+'"><b>Housing Preservation and Development</b><p>'+p.join(' ')+'</p></div>';}
   else h+='<div class="agency off"><b>Housing Preservation and Development</b><p>Not on a distress list.</p></div>';
-  if(has('DOB')){let p=[];if(r.stalled)p.push('On the stalled construction sites list; complaint received '+r.stalled.since+'.');if(r.facade)p.push('Facade rated unsafe in the current inspection cycle, filed '+r.facade.filed+'.');
-    h+='<div class="agency"><b>Department of Buildings</b><p>'+p.join(' ')+'</p></div>';}
+  if(has('DOB')||r.stalled||r.facade){let p=[];if(r.stalled)p.push('On the stalled construction sites list; complaint received '+r.stalled.since+old('stalled')+'.');if(r.facade)p.push('Facade rated unsafe in the current inspection cycle, filed '+r.facade.filed+old('facade')+'.');
+    h+='<div class="agency'+(has('DOB')?'':' off')+'"><b>Department of Buildings</b><p>'+p.join(' ')+'</p></div>';}
   else h+='<div class="agency off"><b>Department of Buildings</b><p>Not a stalled site; no unsafe facade filing.</p></div>';
   if(has('DOF'))h+='<div class="agency"><b>Department of Finance</b><p>On the 2025 tax lien sale list'+(r.lien.water_only?' (water debt only)':'')+'.</p></div>';
   else h+='<div class="agency off"><b>Department of Finance</b><p>Not on the 2025 tax lien sale list.</p></div>';
@@ -385,12 +455,12 @@ function renderCD(){
 }
 function renderList(){
   const q=($('#q-list').value||'').toLowerCase(),k=$('#l-k').value;
-  let rows=LOTS.filter(r=>r.sc>=2&&(!k||r.k===k)&&(!q||(r.a&&r.a.toLowerCase().includes(q))||(r.own&&r.own.toLowerCase().includes(q))||r.bo.toLowerCase().includes(q)));
+  let rows=LOTS.concat(PARKS).filter(r=>r.sc>=2&&(!k||r.k===k)&&(!q||(r.a&&r.a.toLowerCase().includes(q))||(r.own&&r.own.toLowerCase().includes(q))||r.bo.toLowerCase().includes(q)));
   rows.sort((a,b)=>b.sc-a.sc||b.pq-a.pq||((b.hist||{}).n||0)-((a.hist||{}).n||0));
-  $('#c-list').textContent=nf(rows.length)+' lots flagged by 2+ agencies';
+  $('#c-list').textContent=nf(rows.length)+' lots and parks flagged by 2+ sources';
   rows=rows.slice(0,300);
   $('#tbl-list').innerHTML='<tr><th>Lot</th><th>Type</th><th>Owner</th><th class="n">Agencies</th><th>Which</th><th class="n">Quarters</th><th class="n">Cleaned 2010–21</th></tr>'+
-   rows.map(r=>'<tr class="rowbtn" onclick="goto(\''+r.bbl+'\')"><td class="a"><b>'+esc(r.a||r.bbl)+'</b><br><span style="font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700">'+esc(r.bo)+'</span></td><td>'+(r.k==='V'?'Vacant land':'Building')+'</td><td>'+esc(OT[r.ot]||'Private')+'</td><td class="n">'+r.sc+'</td><td>'+r.src.join(', ')+'</td><td class="n">'+r.pq+'</td><td class="n">'+((r.hist||{}).n||'')+'</td></tr>').join('');
+   rows.map(r=>'<tr class="rowbtn" onclick="'+(r.k==='P'?'gotoPark(\''+r.id+'\')':'goto(\''+r.bbl+'\')')+'"><td class="a"><b>'+esc(r.a||r.bbl)+'</b><br><span style="font-size:var(--t-micro);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700">'+esc(r.bo)+'</span></td><td>'+(r.k==='V'?'Vacant land':r.k==='P'?'Park: '+esc(r.t):'Building')+'</td><td>'+(r.k==='P'?'City (Parks)':esc(OT[r.ot]||'Private'))+'</td><td class="n">'+r.sc+'</td><td>'+r.src.join(', ')+'</td><td class="n">'+r.pq+'</td><td class="n">'+((r.hist||{}).n||'')+'</td></tr>').join('');
 }
 </script>
 </body>
