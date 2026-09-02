@@ -95,4 +95,17 @@ if not done("pluto_polys.geojson"):
         off+=2000
     if not feats: raise SystemExit("FATAL: no polygons")
     save("pluto_polys.geojson", {"type":"FeatureCollection","features":feats})
+# ---------------------------------------------------------------- parks and playgrounds
+if not done("parks.geojson"):
+    print("Parks properties with geometry")
+    u=SOC+"enfh-gkve.geojson?"+urllib.parse.urlencode({"$select":"gispropnum,omppropid,signname,typecategory,acres,borough,communityboard,councildistrict,pip_ratable,retired,multipolygon","$limit":5000})
+    g=get(u)
+    if not g.get("features"): raise SystemExit("FATAL: no park features")
+    save("parks.geojson", g)
+if not done("pip.json"):
+    print("Parks Inspection Program ratings in window")
+    save("pip.json", socrata("yg3y-7juh",{"$select":"prop_id,inspection_id,date,overall_condition,cleanliness,safety_condition,structural_condition,inspectiontype,comments","$where":f"date>='{WINDOW_START}' AND inspectiontype='PIP'"}))
+if not done("c311_parks.json"):
+    print("311 park maintenance complaints in window")
+    save("c311_parks.json", socrata("erm2-nwe9",{"$select":"unique_key,created_date,descriptor,park_facility_name,park_borough,latitude,longitude,status","$where":f"created_date>='{WINDOW_START}' AND complaint_type='Maintenance or Facility' AND descriptor in ('Structure - Outdoors','Garbage or Litter','Grass/Weeds','Graffiti or Vandalism','Unsecured Facility','Rodent Sighting','Broken Glass','Syringes')"}))
 print("ALL RAW DONE")

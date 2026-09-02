@@ -48,5 +48,16 @@ chk("history lots with signal", sum(1 for r in V if r.get("hist") and r["sc"] >=
 chk("score equals length of agency list", sum(1 for r in L if r["sc"] != len(r["src"])), 0)
 chk("every 311-scored lot carries 311 counts", sum(1 for r in L if ("311" in r["src"]) != bool(r.get("c311"))), 0)
 chk("buildings count", sum(1 for r in L if r["k"] == "B"), F["counts"]["buildings"])
+if F.get("parks"):
+    P = F["parks"]; PK = json.load(open(os.path.join(HERE, "..", "data", "parks.json")))["parks"]
+    live_pip = int(q("yg3y-7juh", {"$select": "count(*) as n", "$where": f"date>='{W0}' AND inspectiontype='PIP'"})[0]["n"])
+    ok = abs(live_pip - P["inspections"]) <= max(5, P["inspections"] * 0.01); bad += (not ok); print(f"{'OK ' if ok else 'BAD'} PIP inspections in window: built {P['inspections']:,} live {live_pip:,}")
+    chk("park properties", len(PK), P["properties"])
+    chk("parks 2+ sources", sum(1 for r in PK if r["sc"] >= 2), P["two_plus"])
+    chk("parks: score equals source list", sum(1 for r in PK if r["sc"] != len(r["src"])), 0)
+    chk("parks: Parks flag needs 2+ failures", sum(1 for r in PK if ("Parks" in r["src"]) != (r["u"] >= 2)), 0)
+    chk("parks: 311 flag needs 3+ complaints", sum(1 for r in PK if ("311" in r["src"]) != (r["n311"] >= 3)), 0)
+S = [r for r in L if r.get("stale")]
+chk("no stale-only status is scored", sum(1 for r in L if r.get("stale") and not any(k in ("aep","ucp","vacate") and k not in r["stale"] for k in ("aep","ucp","vacate") if r.get(k)) and "HPD" in r["src"] and not any(r.get(k) and k not in r["stale"] for k in ("aep","ucp","vacate"))), 0)
 print("MISMATCHES:", bad)
 sys.exit(1 if bad else 0)
