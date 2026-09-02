@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How this was built — Paid on public work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css">
+<style>
+:root{--ink3:#7a5a2e}
+.doc{max-width:800px;padding:0 26px 70px}
+.doc h2{font-family:var(--display);font-size:1.1rem;font-weight:700;letter-spacing:-.01em;margin:30px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--hair)}
+.doc p{margin:0 0 13px;line-height:1.62}
+.doc ul{margin:0 0 13px;padding-left:20px}.doc li{margin-bottom:7px;line-height:1.55}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.85em;background:var(--paper2);padding:1px 5px}
+.back{font-size:var(--t-small);letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:var(--ink2);text-decoration:none}
+table.h{margin:6px 0 16px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><a class="back" href="index.html">&larr; Back to the data</a><span>Method</span></div>
+  <div class="head">
+    <h1>How this was built</h1>
+    <p class="sub">Four public sources, the query that pulled each one, how a trade on a payroll was matched to a line in
+      the comptroller's schedule, and what the comparison cannot tell you.</p>
+  </div>
+  <div class="doc">
+
+    <h2>What a certified payroll is</h2>
+    <p>Article 8 of the New York Labor Law requires contractors on public work to pay the prevailing wage and
+      supplemental benefits for each trade, and to file a certified payroll every week showing each worker's
+      classification, hours and rate. On projects let by New York City agencies the city comptroller sets the
+      schedule and enforces it. On projects let by the state and its authorities, including the Metropolitan
+      Transportation Authority, the state Department of Labor does both.</p>
+    <p>The state Department of Labor publishes the payrolls filed through its portal as an open dataset. The
+      comptroller publishes its schedule as a PDF each July. This site reads both.</p>
+
+    <h2>Source 1: the payrolls</h2>
+    <p>Dataset <a href="https://data.ny.gov/Economic-Development/Certified-Payroll-Registration-Seven-Year-Window/w2zp-sf2x" target="_blank" rel="noopener">Certified Payroll Registration: Seven Year Window</a>
+      (data.ny.gov, id <code>w2zp-sf2x</code>), New York State Department of Labor. Each row is one worker on one
+      project for one week: contractor (the field is called <code>account</code>), project name and prevailing rate
+      case number, work category, job title (journeyman or apprentice), straight-time and overtime hours, straight-time
+      and overtime hourly rates, weekly wages, project address and the department of jurisdiction. Workers are not named.</p>
+    <p>Despite the title, the file held only 2026 when it was pulled: the earliest week ending in the whole statewide
+      dataset is January 1, 2026 and the latest is September 8, 2026. Statewide it has 1,345,127 rows.</p>
+    <p>The pull (<code>fetch.py</code>) asks the portal for every row whose project ZIP is 10000 to 10499, 11000 to
+      11499 or 11600 to 11699, or whose project city is a borough name. That returned 92,672 rows. The build
+      (<code>build.py</code>) then keeps only ZIPs that are in the five boroughs (10000 to 10499, 11004 to 11005, 11100
+      to 11499, 11690 to 11699) or a borough city name, which drops the Nassau County ZIPs the wide pull caught.
+      That leaves <strong>76,568 rows</strong>. Borough is assigned from ZIP, then from city name if the ZIP is missing.</p>
+    <p>Of those rows, <strong>55,352 describe a worker-week</strong>: they carry a work category. The other
+      21,216 carry a project, a contractor and a week but no category, hours or rate. They read as weekly statements
+      that no covered work was performed, or as filings the contractor left blank, and they are counted as filings
+      but not as worker-weeks.</p>
+    <p>Two fields are not trusted. The weekly <code>wages</code> column does not reconcile to hours times rate: among
+      45,561 worker-weeks with hours, a rate and a wage figure, the wage was within 1 percent of hours times rate
+      for 0.8 percent of them, and the median ratio was 0.74. Whatever that column holds (net pay, pay across
+      several projects, or something else), it is not shown or summed here. The straight-time rate field is used as
+      filed, including 4,718 worker-weeks where it is zero or blank; those are counted but excluded from every
+      comparison. Thirteen rates above $200 an hour were left in the data as filed.</p>
+
+    <h2>Source 2: the comptroller's schedules</h2>
+    <p>The <a href="https://comptroller.nyc.gov/services/for-the-public/workers-rights/wage-schedules/" target="_blank" rel="noopener">Office of the New York City Comptroller</a>
+      publishes a Construction Worker Prevailing Wage Schedule under Labor Law Article 8 each July. Two are used:
+      <a href="https://comptroller.nyc.gov/wp-content/uploads/2025/07/ConstructionWorkersSchedule-2025-2026.pdf" target="_blank" rel="noopener">July 1, 2025 to June 30, 2026</a>
+      for weeks ending before July 1, 2026, and
+      <a href="https://comptroller.nyc.gov/wp-content/uploads/2026/07/Construction_Worker_Schedule-2026-2027.pdf" target="_blank" rel="noopener">July 1, 2026 to June 30, 2027</a>
+      for weeks ending on or after it. Copies as downloaded are in <code>data/source/</code>.</p>
+    <p>The build reads the text of each PDF and records, for every classification, the effective period, the wage
+      rate per hour and the supplemental benefit rate per hour. Many trades have several classifications (an
+      electrician's day, swing and graveyard shifts; a dozen kinds of truck driver; dozens of machines for operating
+      engineers) and some have rates that step up part way through the year. All of them are kept, and the schedule
+      tab shows every one: 77 trade sections and 510 rate lines across the two years. Three headings wrap across two
+      lines in the PDF and defeated the parser; their rates were typed in by hand from the PDF and are marked as such
+      in <code>build.py</code>: the refrigeration and air-conditioner steamfitter, roadway line striping and the
+      pointer, waterproofer and caulker.</p>
+    <p>The comptroller's <a href="https://comptroller.nyc.gov/wp-content/uploads/2026/06/ConstructionApprenticeSchedule-2026-2027.pdf" target="_blank" rel="noopener">apprentice schedule</a>
+      is a separate document and is not used. Apprentice worker-weeks (2,027) are shown as counts and excluded from
+      the wage comparison.</p>
+
+    <h2>Source 3: the state contractor registry</h2>
+    <p>Since 2024 a business must hold a certificate from the state Department of Labor's public work contractor
+      registry to bid on or perform public work. The registry is published as
+      <a href="https://data.ny.gov/Economic-Development/Contractor-Registry-Certificate/i4jv-zkey" target="_blank" rel="noopener">Contractor Registry Certificate</a>
+      (data.ny.gov, id <code>i4jv-zkey</code>), 14,574 active certificates when pulled. Each record says whether the
+      business has been debarred, has outstanding wage assessments, has a final determination for a labor or tax
+      law violation or a safety violation, is associated with an apprenticeship program, and is a certified minority
+      or women-owned business.</p>
+    <p>Contractors were matched by name, after upper-casing, stripping punctuation and dropping corporate suffixes
+      such as Inc., LLC and Corp. 484 of the 486 contractors in the payroll file matched, and in every sampled case
+      the two names are identical, which is what you would expect since both files come from the same portal. The
+      two that did not match are T L D Services Inc and 192 Branch Interior Services, Inc.</p>
+
+    <h2>Source 4: the state non-responsible entities list</h2>
+    <p><a href="https://data.ny.gov/Government-Finance/Non-Responsible-Entities-Beginning-2019/jhxt-dfv6" target="_blank" rel="noopener">Non-Responsible Entities: Beginning 2019</a>
+      (data.ny.gov, id <code>jhxt-dfv6</code>) is the active list of vendors that a state agency or authority has
+      found non-responsible under Executive Order 192. It had 18 entries when pulled. None matched a contractor in
+      the payroll file. The check is kept in the build so a future match will surface.</p>
+
+    <h2>Matching a payroll trade to a comptroller classification</h2>
+    <p>The two sources do not share a vocabulary. The payroll portal uses the state Department of Labor's trade names
+      (Laborer - Heavy &amp; Highway, Electrician - Heavy &amp; Highway, Teamster - All Dump Trucks). The comptroller
+      uses its own (LABORER - HEAVY &amp; HIGHWAY, ELECTRICIAN, DRIVER: TRUCK (TEAMSTER)). A hand-written crosswalk in
+      <code>build.py</code>, also published as <code>data/crosswalk.json</code>, maps 67 of the 142 payroll categories
+      found in the city to a comptroller section, and sometimes to particular classifications within it. The 67
+      cover 50,245 of the 55,352 worker-weeks. Where the match is a judgment call the site says so on the trade row:
+      the state's building laborer is matched to the comptroller's mason tender because both rates come from the Mason
+      Tenders District Council agreement; the state's heavy-and-highway electrician is matched to the comptroller's
+      day-shift Electrician "A" because the comptroller has no separate heavy-and-highway electrician.</p>
+    <p>Trades left unmatched, with the number of worker-weeks: Laborer - Residential (3,391; the comptroller's
+      construction schedule has no residential rate), Sprinkler Fitter (311; no separate comptroller classification),
+      and 73 smaller categories such as broadband field technician, maintenance electrician and lead abatement
+      painter. They appear on the trade tab with the match switched off.</p>
+
+    <h2>The comparison</h2>
+    <p>For each journey-level worker-week with a reported rate in a matched trade, the build finds the comptroller
+      classifications in force on the week-ending date and sorts the reported straight-time rate into one bucket:</p>
+    <ul>
+      <li><strong>Package.</strong> The rate equals a classification's wage plus its supplemental benefit, within 1
+        percent or 50 cents. Some contractors file the whole hourly package as the rate; those rows are separated
+        rather than counted as far above the wage.</li>
+      <li><strong>At.</strong> The rate is within 1 percent of a classification's wage.</li>
+      <li><strong>Below.</strong> The rate is more than 1 percent under the lowest journey-level wage among the matched
+        classifications. This is the floor test, and it is deliberately lenient: a plumber is not called below
+        unless the rate is under the temporary-services plumber rate, and a demolition laborer is not called below
+        unless it is under the comptroller's Tier B house wrecker rate. For sheet metal workers the duct cleaner
+        rate is excluded from the floor, and for electricians the Local 3 "M" maintenance tiers are excluded, since
+        neither describes construction work.</li>
+      <li><strong>Above.</strong> Everything else.</li>
+      <li><strong>Range.</strong> Operating engineers and survey crews, where the schedule lists a different wage for
+        each machine or role. These are shown as a range and not tested.</li>
+    </ul>
+    <p>Across the 41,191 testable worker-weeks: 3,065 below (7.4 percent), 14,303 at (34.7 percent), 22,448 above
+      (54.5 percent) and 1,375 filed as a package (3.3 percent). The counts row on the front page uses the 44,776
+      journey-level worker-weeks including the untested range trades as its denominator, which is why its shares
+      read slightly lower.</p>
+
+    <h2>What "below" does and does not mean</h2>
+    <p>A rate below the comptroller's wage is a comparison against the city schedule. It is not a finding that the
+      worker was underpaid, for four reasons.</p>
+    <ul>
+      <li>Most of these projects are under state jurisdiction: the Metropolitan Transportation Authority, the state
+        Department of Transportation, the Dormitory Authority and the Port Authority account for the bulk of
+        worker-weeks. On those projects the state Department of Labor's county schedule for the project governs,
+        not the comptroller's. The state schedules are issued per project and are behind a login on the
+        department's portal, so they are not integrated here. The two schedules are drawn from the same union
+        agreements and usually carry the same or very close wage figures for the same trade, but they are not
+        identical and their classifications differ.</li>
+      <li>The match can be wrong for a worker-week. A contractor may file a worker under a broad category when the
+        governing schedule has a lower legitimate tier for that work.</li>
+      <li>The rate field is as filed. A typo, a rate entered as a weekly figure, or a rate entered net of something
+        will all land in the wrong bucket.</li>
+      <li>On federally funded projects the federal Davis-Bacon determination also applies and the higher rate governs;
+        that schedule is not integrated.</li>
+    </ul>
+    <p>The same is true in the other direction: a rate above the comptroller's wage says nothing about whether the
+      supplemental benefits, which are usually as large as the wage, were paid.</p>
+
+    <h2>Agencies and boroughs</h2>
+    <p>The department of jurisdiction is free text on the payroll and was filed 619 different ways. The build
+      collapses obvious variants (NYSDOT, NYS DOT, Department of Transportation) into one name using a list of
+      patterns in <code>build.py</code>. Anything the patterns do not recognise is shown as filed. "Not stated" means
+      the field was blank or said unknown.</p>
+
+    <h2>What is not here</h2>
+    <ul>
+      <li>Projects under city agencies filing directly with the comptroller rather than the state portal. The
+        payroll file carries a handful of city agencies (School Construction Authority, Department of Environmental
+        Protection, Housing Authority, Parks) but nothing like the city's full public work program.</li>
+      <li>Any year before 2026, until the state publishes it.</li>
+      <li>Worker identities, which the state does not publish.</li>
+      <li>Supplemental benefit payments, which the payroll does not itemize.</li>
+    </ul>
+
+    <h2>Reproducing it</h2>
+    <p>Run <code>python3 fetch.py</code> to pull the payroll rows, then <code>python3 build.py</code> to read the
+      schedules, the registry and the non-responsible list from <code>data/source/</code> and write the JSON the
+      site reads. The fetch exits with an error if the portal returns fewer than 1,000 lines, so a broken pull cannot
+      be published as an empty site. Every number on the site is computed in <code>build.py</code>; nothing is
+      typed in except the three hand-transcribed schedule sections noted above.</p>
+
+    <h2>AI caution</h2>
+    <p>The concept, the choice of sources and the design of the comparison were the author's. The code, the PDF
+      parsing and the file handling were done by Anthropic's Claude Code under the author's direction. Checks made
+      along the way: the parsed schedule rates for the mapped trades were read back against the PDF text; the
+      reported-rate modes for the largest trades were checked against the schedule wage by hand (the laborer's
+      $45.60 and $46.60, the electrician's $62.00 and $64.00, the structural ironworker's $58.95 and $59.45); the
+      wage column was tested against hours times rate before being set aside; the registry match was sampled. The
+      risks of AI-assisted work remain. If a number here looks wrong, the source files and the build script are in
+      the repository, and a note would be welcome.</p>
+  </div>
+</div>
+</body>
+</html>
