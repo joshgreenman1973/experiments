@@ -245,13 +245,19 @@ function feature(r){return {type:'Feature',id:Number(r.bbl),properties:{bbl:r.bb
 function initMap(){
   map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',center:[-73.94,40.70],zoom:10,minZoom:9,maxZoom:18,attributionControl:{compact:true}});
   map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
-  map.on('load',()=>{
+  // If the vector style cannot be fetched, fall back to CARTO's raster tiles so the lots still draw.
+  let fellBack=false;
+  map.on('error',e=>{if(fellBack||!e||!e.error)return;const m=String(e.error.message||'');if(/style|Failed to fetch|NetworkError/i.test(m)&&!map.isStyleLoaded()){fellBack=true;map.setStyle(RASTER);}});
+  const RASTER={version:8,sources:{carto:{type:'raster',tiles:['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638','https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638'],tileSize:256,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}},layers:[{id:'carto',type:'raster',source:'carto'}]};
+  let added=false;
+  map.on('style.load',()=>{
+    if(added)return;added=true;
     map.addSource('pts',{type:'geojson',data:{type:'FeatureCollection',features:LOTS.map(feature)}});
     map.addLayer({id:'pts',type:'circle',source:'pts',maxzoom:16,paint:{
       'circle-color':['to-color',['at',['get','sc'],['literal',COL]]],
       'circle-radius':['interpolate',['linear'],['zoom'],10,['case',['>=',['get','sc'],2],2.2,1.2],13,['case',['>=',['get','sc'],2],5,3],16,9],
       'circle-opacity':['case',['==',['get','sc'],0],.55,.85],
-      'circle-stroke-color':'#1b1e1c','circle-stroke-width':['case',['==',['get','h'],1],['interpolate',['linear'],['zoom'],10,.6,14,1.6],0]}});
+      'circle-stroke-color':'#1b1e1c','circle-stroke-width':['interpolate',['linear'],['zoom'],10,['case',['==',['get','h'],1],.6,0],14,['case',['==',['get','h'],1],1.6,0]]}});
     map.addSource('polys',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     map.addLayer({id:'poly-fill',type:'fill',source:'polys',minzoom:15,paint:{'fill-color':['to-color',['at',['min',['get','sc'],3],['literal',COL]]],'fill-opacity':.55}});
     map.addLayer({id:'poly-line',type:'line',source:'polys',minzoom:15,paint:{'line-color':'#1b1e1c','line-width':['case',['==',['get','h'],1],2,.6]}});
