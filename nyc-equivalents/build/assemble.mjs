@@ -25,12 +25,16 @@ const items = src.items.map((it,i)=>{
 });
 // attach each blind fact-check finding by the pair of URLs it actually checked
 const fc = fs.existsSync('factcheck.json') ? JSON.parse(fs.readFileSync('factcheck.json','utf8')) : null;
-const rounds = fs.readdirSync('.').filter(f=>/^factcheck-\d+\.json$/.test(f)).sort()
-  .flatMap(f=>JSON.parse(fs.readFileSync(f,'utf8')));
-const allFc = [...(fc?.items||[]), ...rounds];
+// factcheck.json is the merged ledger and already holds every round, the final
+// adversarial audit last. Prefer an audit row over an earlier round's verdict on
+// the same pair of URLs: the earlier rounds ran against wording since rewritten.
+const allFc = [...(fc?.items||[])];
+const rank = r => r.round==='audit' ? 0 : 1;
 for (const it of items) {
-  const row = allFc.find(f=>f.checked_nyc_url===it.nyc.url && f.checked_match_url===it.match.url);
-  if (row) it.check = {verdict:row.verdict, finding:row.finding};
+  const matches = allFc.filter(f=>f.checked_nyc_url===it.nyc.url && f.checked_match_url===it.match.url);
+  matches.sort((a,b)=>rank(a)-rank(b));
+  const row = matches[0];
+  if (row) it.check = {verdict:row.verdict, finding:row.finding, conflict:row.conflict||null, resolution:row.resolution||null};
 }
 const gaps = items.map(i=>Math.abs(i.ratio-1)*100).sort((a,b)=>a-b);
 const med = gaps[Math.floor(gaps.length/2)];
