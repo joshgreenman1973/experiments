@@ -117,7 +117,7 @@ L = [
  # ---- movement ----
  ("movement","transit",0,"city","Hong Kong",None,[114.17,22.32],
   "runs as many <b>public buses</b> as <b class=k>Hong Kong</b>'s whole franchised fleet","5,800","5,870",
-  None,"MTA's New York City Transit page (2023 fleet); sum of the five franchised bus operations in the Hong Kong government's July 2025 transport fact sheet (3,895 + 1,326 + 226 + 281 + 142). Those five franchises are run by four companies: Citybus has held two of them since it absorbed New World First Bus in 2023. Whether the MTA's 5,800 includes the MTA Bus Company is not stated on its page."),
+  "Hong Kong's total is a sum: the government fact sheet lists five franchised networks separately and never states a combined figure.","MTA's New York City Transit page (2023 fleet); sum of the five franchised bus operations in the Hong Kong government's July 2025 transport fact sheet (3,895 + 1,326 + 226 + 281 + 142). Those five franchises are run by four companies: Citybus has held two of them since it absorbed New World First Bus in 2023. Whether the MTA's 5,800 includes the MTA Bus Company is not stated on its page."),
  ("movement","transit",1,"region","Sub-Saharan Africa",None,[22,-2],
   "carries as many <b>subway riders a year</b> as <b class=k>sub-Saharan Africa</b> has people","1.28 billion","1.29 billion",
   None,"MTA 2025 subway ridership; World Bank 2024 population aggregate for sub-Saharan Africa."),
@@ -294,9 +294,7 @@ L = [
   "files as many <b>311 requests a year</b> as the country of <b class=k>Georgia</b> has people","3.66 million","3.81 million",
   None,"Count of 2025 service requests in the 311 dataset on NYC Open Data; Georgia's 2023 population from Our World in Data. The State Comptroller corroborates 2024 at 'over 3.4 million'."),
 
- ("movement","likeforlike",3,"city","Sydney",None,[151.21,-33.87],
-  "runs a <b>Staten Island Ferry</b> that carries as many passengers as all of <b class=k>Sydney's</b>","over 16 million","15.5 million",
-  None,"Transportation Department ferry facts page for the Staten Island Ferry ('over 16 million passengers annually'); the separate NYC Ferry system carried another 7.4 million in 2024, so the city's combined ferry ridership is higher than this line shows. Sydney Ferries' annual patronage as published by Transdev, its contracted operator, which does not name the year. Both are single-harbour public ferry networks. Washington State Ferries, at 20.1 million, was too far off."),
+
  ("movement","likeforlike",4,"city","Shanghai",None,[121.47,31.23],
   "has almost as many <b>subway stations</b> as <b class=k>Shanghai</b>","472","523",
   "Systems count stations differently: New York's 472 sit inside 423 complexes.",

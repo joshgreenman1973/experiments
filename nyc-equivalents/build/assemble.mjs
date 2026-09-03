@@ -29,7 +29,7 @@ const fc = fs.existsSync('factcheck.json') ? JSON.parse(fs.readFileSync('factche
 // adversarial audit last. Prefer an audit row over an earlier round's verdict on
 // the same pair of URLs: the earlier rounds ran against wording since rewritten.
 const allFc = [...(fc?.items||[])];
-const rank = r => r.round==='audit' ? 0 : 1;
+const rank = r => r.round==='final' ? 0 : r.round==='audit' ? 1 : 2;  // newest check wins
 for (const it of items) {
   const matches = allFc.filter(f=>f.checked_nyc_url===it.nyc.url && f.checked_match_url===it.match.url);
   matches.sort((a,b)=>rank(a)-rank(b));
