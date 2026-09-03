@@ -4,11 +4,17 @@
 import fs from 'node:fs';
 const src = JSON.parse(fs.readFileSync('pairings-src.json','utf8'));
 const fc = fs.existsSync('factcheck.json') ? JSON.parse(fs.readFileSync('factcheck.json','utf8')) : null;
+const extraRounds = fs.readdirSync('.').filter(f=>/^factcheck-\d+\.json$/.test(f)).sort()
+  .flatMap(f=>JSON.parse(fs.readFileSync(f,'utf8')));
+if (fc) fc.items = [...fc.items, ...extraRounds];
 const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const realmLabel = k => src.realms.find(r=>r.key===k)?.label || k;
 const rows = src.items.map((it,i)=>{
   const ratio = it.match_value/it.nyc_value;
-  const fcRow = fc?.items?.find(f=>f.n===i+1);
+  // Findings are matched by the exact pair of source URLs the checker fetched,
+  // not by position: pairings renumber and comparisons get swapped, and a stale
+  // finding attached to the wrong line would be worse than none.
+  const fcRow = fc?.items?.find(f=>f.checked_nyc_url===it.nyc_url && f.checked_match_url===it.match_url);
   return `
 <section class="m" id="p${i+1}">
   <h3><span class="num r-${it.realm}">${i+1}</span> New York City ${esc(it.sentence.replace(/<[^>]+>/g,''))}</h3>

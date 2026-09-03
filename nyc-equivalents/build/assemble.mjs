@@ -16,9 +16,22 @@ const items = src.items.map((it,i)=>{
     nyc_display:it.nyc_display, match_display:it.match_display,
     ratio:+ratio.toFixed(4),
     gap_display:(Math.abs(gapPct)<0.5?'Within half a percent':`${it.place_short||it.place} is ${Math.abs(gapPct).toFixed(gapPct<2?1:0)}% ${gapPct>0?'more':'less'}`),
-    nyc_src:it.nyc_url, match_src:it.match_url
+    nyc_src:it.nyc_url, match_src:it.match_url, compare:it.compare,
+    // the drawer shows a full dossier without a second page load
+    nyc:{label:it.nyc_source, year:it.nyc_year, url:it.nyc_url, quote:it.nyc_quote},
+    match:{label:it.match_source, year:it.match_year, url:it.match_url, quote:it.match_quote},
+    note:it.note, confidence:it.confidence
   };
 });
+// attach each blind fact-check finding by the pair of URLs it actually checked
+const fc = fs.existsSync('factcheck.json') ? JSON.parse(fs.readFileSync('factcheck.json','utf8')) : null;
+const rounds = fs.readdirSync('.').filter(f=>/^factcheck-\d+\.json$/.test(f)).sort()
+  .flatMap(f=>JSON.parse(fs.readFileSync(f,'utf8')));
+const allFc = [...(fc?.items||[]), ...rounds];
+for (const it of items) {
+  const row = allFc.find(f=>f.checked_nyc_url===it.nyc.url && f.checked_match_url===it.match.url);
+  if (row) it.check = {verdict:row.verdict, finding:row.finding};
+}
 const gaps = items.map(i=>Math.abs(i.ratio-1)*100).sort((a,b)=>a-b);
 const med = gaps[Math.floor(gaps.length/2)];
 const maxGap = Math.max(...gaps);

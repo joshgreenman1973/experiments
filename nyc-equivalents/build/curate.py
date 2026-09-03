@@ -1,7 +1,7 @@
 """Builds pairings-src.json from the research files plus the curated list below.
 Each entry names the research file and the row (0-based) it draws its numbers,
 URLs and verbatim quotes from, then adds the sentence, the place and its pin."""
-import json, os
+import json, os, re
 R = {f[:-5]: json.load(open(f'research/{f}')) for f in os.listdir('research') if f.endswith('.json')}
 W = json.load(open('../data/world.json'))['centroids']
 REALMS = [
@@ -293,16 +293,63 @@ L = [
  ("life","daily",8,"country","Georgia (the country)","Georgia",None,
   "files as many <b>311 requests a year</b> as the country of <b class=k>Georgia</b> has people","3.66 million","3.81 million",
   None,"Count of 2025 service requests in the 311 dataset on NYC Open Data; Georgia's 2023 population from Our World in Data. The State Comptroller corroborates 2024 at 'over 3.4 million'."),
+
+ ("movement","likeforlike",3,"city","Sydney",None,[151.21,-33.87],
+  "carries as many <b>ferry passengers</b> as <b class=k>Sydney</b>","over 16 million","15.5 million",
+  None,"Transportation Department ferry facts page for the Staten Island Ferry ('over 16 million passengers annually'); Sydney Ferries' annual patronage as published by Transdev, its contracted operator, which does not name the year. Both are single-harbour public ferry networks. Washington State Ferries, at 20.1 million, was too far off."),
+ ("movement","likeforlike",4,"city","Shanghai",None,[121.47,31.23],
+  "has almost as many <b>subway stations</b> as <b class=k>Shanghai</b>","472","523",
+  "Systems count stations differently: New York's 472 sit inside 423 complexes.",
+  "MTA's New York City Transit page; Shanghai's rail transit network at the end of 2025 as reported by Xinhua from official data. Beijing's own site gives 380 stations, a worse match."),
+
+ ("place","likeforlike",17,"city","Los Angeles",None,[-118.24,34.05],
+  "has as many <b>miles of water pipe</b> as <b class=k>Los Angeles</b>","7,000 mi","7,341 mi",
+  "New York City's figure bundles in-city mains with the upstate tunnels and aqueducts; Los Angeles's counts mains and trunk lines only.","The Environmental Protection Department's 7,000 miles of water mains, tunnels and aqueducts, against the 7,341 miles of mainlines and trunk lines in the Los Angeles Department of Water and Power's 2024-25 water infrastructure plan. Los Angeles reports a further 300 miles of aqueduct separately. An earlier version of this line cited the city's water supply page, which does not state a mileage anywhere on it."),
+
+ ("life","likeforlike",15,"state","Maryland",None,[-76.6,39.0],
+  "runs as many <b>public library outlets</b> as all of <b class=k>Maryland</b>","206","218",
+  "Outlets, not just branch buildings: the count includes 3 central libraries and 5 books-by-mail outlets, against Maryland's 15 and 24.",
+  "Both counts are row counts of one federal file, the Institute of Museum and Library Services Public Libraries Survey for fiscal 2024, so central libraries, branches and books-by-mail outlets are counted the same way on both sides. New York City runs three separate systems: the New York Public Library across the Bronx, Manhattan and Staten Island, plus Brooklyn and Queens. Vermont (190), Oklahoma (223) and Oregon (225) were the next closest states."),
+ ("place","likeforlike",16,"structure","Englischer Garten, Munich","Munich",[11.6,48.16],
+  "has a <b>Central Park</b> about the size of Munich's <b class=k>Englischer Garten</b>","843 acres","929 acres",
+  None,"Central Park Conservancy; the Bavarian Administration of State Palaces, Gardens and Lakes, which gives 376 hectares, converted at 2.47105 acres per hectare. Counting the adjoining Maximilian Park and court gardens takes the Munich park to 411 hectares, or 1,015 acres. No other famous urban park came closer."),
 ]
+# SWAP: replace the comparison side of a pairing, keyed by the (file,row) that
+# supplied its New York City figure. Value is (file,row) in the like-for-like
+# research plus the new place, pin, sentence, display and methodology note.
+SWAP = json.load(open('swap.json')) if os.path.exists('swap.json') else {}
 items=[]
 for realm,f,row,kind,place,short,ll,sentence,nd,md,cav,note in L:
     r = R[f][row]
+    sw = SWAP.get(f'{f}:{row}')
+    if sw:
+        m = R[sw['file']][sw['row']]
+        kind, place, short = sw['kind'], sw['place'], sw.get('place_short')
+        ll, sentence, md = sw.get('lonlat'), sw['sentence'], sw['match_display']
+        cav, note = sw.get('caveat'), sw['note']
+        r = dict(r, match_value=m['match_value'], match_year=m.get('match_year',''),
+                 match_url=m['match_url'], match_label=m['match_label'], match_quote=m['match_quote'])
+        if sw.get('both'):  # the New York City side is restated from the same source too
+            r = dict(r, nyc_value=m['nyc_value'], nyc_year=m.get('nyc_year',''),
+                     nyc_url=m['nyc_url'], nyc_label=m['nyc_label'], nyc_quote=m['nyc_quote'])
+            nd = sw['nyc_display']
     lon,lat = ll if ll else W[place.replace(' (the country)','')]
     items.append(dict(realm=realm,kind=kind,place=place,place_short=short,lon=lon,lat=lat,sentence=sentence,
         nyc_value=r['nyc_value'],match_value=r['match_value'],nyc_display=nd,match_display=md,caveat=cav,note=note,
         nyc_year=r.get('nyc_year',''),nyc_url=r['nyc_url'],nyc_source=r['nyc_label'],nyc_quote=r['nyc_quote'],
         match_year=r.get('match_year',''),match_url=r['match_url'],match_source=r['match_label'],match_quote=r['match_quote'],
         confidence=r.get('confidence','')))
+# Tag each pairing by what the comparison measures. "same" means the other side
+# is the same quantity (subway riders vs subway riders); "scale" means it is a
+# population, a length or a capacity standing in for the size of the number.
+# A "population" pairing is one whose other side is a headcount of people, or a
+# physical length or capacity, standing in only for the size of the number.
+# Everything else compares two measurements of the same kind: riders against
+# riders, dollars against dollars, beds against beds.
+POP = re.compile(r'has people|holds fans|is long|is wide|as \w+ has people')
+for it in items:
+    plain = re.sub(r'<[^>]+>','',it['sentence'])
+    it['compare'] = 'population' if POP.search(plain) else 'same'
 OV = {
  "Spain": dict(match_value=1725152000000, match_url="https://www.imf.org/external/datamapper/api/v1/NGDPD", match_source="GDP of Spain", match_quote="\"ESP\": {... \"2024\": 1725.152 ...}", match_year="2024 (IMF WEO NGDPD)"),
  "Jersey (Channel Islands)": dict(match_value=29120),
