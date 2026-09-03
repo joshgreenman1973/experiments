@@ -23,7 +23,7 @@ const rows = src.items.map((it,i)=>{
     <div><dt>New York City figure</dt><dd>${esc(it.nyc_display)} (${esc(it.nyc_year)}). Source: <a href="${esc(it.nyc_url)}">${esc(it.nyc_source)}</a><br><q>${esc(it.nyc_quote)}</q></dd></div>
     <div><dt>Comparison figure</dt><dd>${esc(it.match_display)} (${esc(it.match_year)}). Source: <a href="${esc(it.match_url)}">${esc(it.match_source)}</a><br><q>${esc(it.match_quote)}</q></dd></div>
     ${it.note?`<div><dt>Definitions and caveats</dt><dd>${esc(it.note)}</dd></div>`:''}
-    ${fcRow?`<div><dt>Blind fact-check</dt><dd><b>${esc(fcRow.verdict)}</b>. ${esc(fcRow.finding)}${fcRow.conflict?`<br><br><b>Contradicting figure found:</b> ${esc(fcRow.conflict)}`:''}${fcRow.resolution?`<br><br><b>What was changed:</b> ${esc(fcRow.resolution)}`:''}</dd></div>`:''}
+    ${fcRow?`<div><dt>Blind fact-check</dt><dd><b>${esc(fcRow.verdict)}</b>. ${esc(fcRow.finding)}${fcRow.reverified?` ${esc(fcRow.reverified)}`:''}${fcRow.conflict?`<br><br><b>Contradicting figure found:</b> ${esc(fcRow.conflict)}`:''}${fcRow.resolution?`<br><br><b>What was changed:</b> ${esc(fcRow.resolution)}`:''}</dd></div>`:''}
   </dl>
 </section>`;
 }).join('\n');
