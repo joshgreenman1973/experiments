@@ -191,6 +191,7 @@ input[type=search]{flex:0 1 300px}
     </select>
     <button class="chip" id="f-same" aria-pressed="false">Same measure both sides</button>
     <button class="chip" id="f-pop" aria-pressed="false">Matched to a population</button>
+    <button class="chip" id="f-land" aria-pressed="false">Matched to a landmark</button>
     <button class="chip" id="f-clear" hidden>Clear</button>
     <span class="spacer"></span>
     <span class="n" id="showing"></span>
@@ -242,6 +243,7 @@ input[type=search]{flex:0 1 300px}
     ['Pairings', items.length],
     ['Same measure both sides', items.filter(i=>i.compare==='same').length],
     ['Matched to a population', items.filter(i=>i.compare==='population').length],
+    ['Matched to a landmark', items.filter(i=>i.compare==='landmark').length],
     ['Countries matched', new Set(items.filter(i=>i.kind==='country').map(i=>i.place)).size],
     ['Source pages', srcN],
     ['Median gap', data.median_gap]
@@ -379,16 +381,19 @@ input[type=search]{flex:0 1 300px}
     state.compare = state.compare===kind ? null : kind;
     document.getElementById('f-same').setAttribute('aria-pressed', state.compare==='same');
     document.getElementById('f-pop').setAttribute('aria-pressed', state.compare==='population');
+    document.getElementById('f-land').setAttribute('aria-pressed', state.compare==='landmark');
     render();
   }
   document.getElementById('f-same').addEventListener('click',e=>toggleCompare('same',e.target));
   document.getElementById('f-pop').addEventListener('click',e=>toggleCompare('population',e.target));
+  document.getElementById('f-land').addEventListener('click',e=>toggleCompare('landmark',e.target));
   document.getElementById('f-clear').addEventListener('click',()=>{
     state.q=''; state.compare=null; document.getElementById('q').value='';
     realms.forEach(r=>activeRealms.add(r.key));
     legend.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',true));
     document.getElementById('f-same').setAttribute('aria-pressed',false);
     document.getElementById('f-pop').setAttribute('aria-pressed',false);
+    document.getElementById('f-land').setAttribute('aria-pressed',false);
     render();
   });
 
@@ -409,7 +414,8 @@ input[type=search]{flex:0 1 300px}
     const it=items.find(x=>x.n===n); if(!it) return;
     openN=n;
     const big=Math.max(1,it.ratio);
-    const cmp = it.compare==='same' ? 'Same measure on both sides' : 'Matched to a population';
+    const cmp = it.compare==='same' ? 'Same measure on both sides'
+      : it.compare==='landmark' ? 'Matched to a landmark distance' : 'Matched to a population';
     document.getElementById('d-kicker').innerHTML =
       `${esc(realms.find(r=>r.key===it.realm).label)} &middot; pairing <b>${n}</b> of ${items.length} &middot; ${cmp}`;
     document.getElementById('d-title').innerHTML = 'New York City '+it.sentence;

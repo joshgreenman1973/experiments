@@ -56,7 +56,7 @@ L = [
   None,"Adopted budget for fiscal 2027 per the city Comptroller; International Monetary Fund estimate of the Dominican Republic's 2025 nominal GDP from the WEO datamapper. Puerto Rico ($126.5 billion) is closer still but is a U.S. territory whose GDP is inflated by pharmaceutical transfer pricing."),
  ("money","money",1,"country","Indonesia",None,[106.85,-6.2],
   "has an <b>economy</b> the size of <b class=k>Indonesia's</b>","$1.38 trillion","$1.40 trillion",
-  None,"Sum of the Bureau of Economic Analysis 2024 GDP for the five counties (New York, Kings, Queens, Bronx, Richmond) as published on FRED; IMF figure for Indonesia's 2024 nominal GDP. Same year on both sides."),
+  "The city total is the sum of five separate county series; the link opens the largest of them, Manhattan, at $1.01 trillion.","Sum of the Bureau of Economic Analysis 2024 GDP for the five counties (New York, Kings, Queens, Bronx, Richmond) as published on FRED; IMF figure for Indonesia's 2024 nominal GDP. Same year on both sides."),
  ("money","money",2,"country","Finland",None,None,
   "has <b>pension funds</b> worth as much as <b class=k>Finland's</b> whole economy","$326 billion","$317 billion",
   None,"Combined assets of the five city pension systems at June 30, 2026, per the city Comptroller; IMF estimate of Finland's 2025 nominal GDP."),
@@ -88,7 +88,7 @@ L = [
  # ---- safety ----
  ("safety","crime",0,"city","Houston",None,[-95.37,29.76],
   "has as many <b>murders a year</b> as <b class=k>Houston</b> has homicides","305","272",
-  "Houston's count is homicides reported to its police. Houston has 2.4 million people to New York City's 8.5 million, so its rate is about three times higher.",
+  "Houston counts homicides, which take in negligent manslaughter and other killings that New York City's murder figure leaves out, so the true gap is wider. Houston has 2.4 million people to New York City's 8.5 million, so its rate is about three times higher.",
   "NYPD year-end 2025 release (murder and non-negligent manslaughter); Houston Police Department 2025 homicide count obtained by the Houston Chronicle through a records request and syndicated on Yahoo News. Houston is 11 percent lower, the widest gap on this page; Memphis (235) and Philadelphia (222) were further off. Populations from Census Vintage 2024."),
  ("safety","crime",1,"city","Philadelphia",None,[-75.16,39.95],
   "has as many <b>people shot each year</b> as <b class=k>Philadelphia</b>","856","906",
@@ -248,9 +248,7 @@ L = [
   "Licensed and in good standing; far fewer actually drive in a given month.",
   "Count of the Taxi and Limousine Commission's active for-hire-vehicle driver list on NYC Open Data, Sept. 2, 2026; World Bank 2024 population for Saint Lucia."),
  # ---- daily life and culture ----
- ("life","learning",0,"country","Canada",None,[-75.7,45.42],
-  "welcomes as many <b>visitors to Central Park</b> as <b class=k>Canada</b> has people","over 42 million","41.3 million",
-  None,"Central Park Conservancy's about page ('over 42 million visitors annually', an estimate rather than a turnstile count); World Bank 2024 population for Canada."),
+
  ("life","learning",4,"country","Finland",None,None,
   "draws as many <b>visitors to the Met</b> as <b class=k>Finland</b> has people","over 5.7 million","5.62 million",
   None,"The Metropolitan Museum of Art's fiscal 2025 attendance, from its press release as reprinted by ArtDependence (the museum's own site blocks automated fetches); World Bank 2024 population for Finland."),
@@ -267,8 +265,8 @@ L = [
 
  ("life","daily",0,"city","Mumbai",None,[72.88,19.08],
   "drinks as much <b>water</b> a day as <b class=k>Mumbai</b>","1 billion gallons","1.06 billion gallons",
-  "The Central Park Reservoir holds one billion gallons: the city empties it every day.",
-  "Greater Mumbai has about 12 to 13 million people. Department of Environmental Protection water supply page (one billion gallons a day); the BrihanMumbai Municipal Corporation's daily supply of 4,000 million litres as reported by the Free Press Journal in September 2025 (other outlets cite 3,950 to 4,100). Converted at 3.78541 litres per US gallon. The Central Park Conservancy's own page says the reservoir 'holds 1 billion gallons of water' and would supply the city 'for about one day'. No country's tap-water production fell within 10 percent; the whole Netherlands produces 1,160 million cubic metres a year against the city's 1,382."),
+  "For scale, that is roughly what the Central Park Reservoir holds, though the reservoir was taken out of service in 1993 and no longer supplies anyone.",
+  "Greater Mumbai has about 12 to 13 million people. Department of Environmental Protection water supply page (one billion gallons a day); the BrihanMumbai Municipal Corporation's daily supply of 4,000 million litres as reported by the Free Press Journal in September 2025 (other outlets cite 3,950 to 4,100). Converted at 3.78541 litres per US gallon. The Central Park Conservancy's page says the reservoir 'holds 1 billion gallons of water' and, if it were still in use, would supply the city 'for about one day'. It was decommissioned in 1993. No country's tap-water production fell within 10 percent; the whole Netherlands produces 1,160 million cubic metres a year against the city's 1,382."),
  ("life","daily",2,"country","Hungary",None,None,
   "uses as much <b>electricity</b> in a year as all of <b class=k>Hungary</b>","49.7 TWh","48.7 TWh",
   None,"New York Independent System Operator 2025 Gold Book, Table I-2, 2024 actual annual energy for Zone J (New York City); Hungary's 2024 electricity demand from Ember's yearly data as republished by Our World in Data. Statewide load was 150.9 TWh."),
@@ -278,7 +276,7 @@ L = [
   "Mayor's Office of Climate and Environmental Justice citywide inventory on NYC Open Data, 2024 total (CO2 equivalent, 100-year); Denmark's 2024 total greenhouse gas emissions from Our World in Data (Jones et al.), a national series that includes land-use change. Hungary (47.5 million tons, ratio 0.99) is the closest but already carries the electricity line."),
  ("life","daily",4,"structure","Eiffel Tower","Eiffel Tower",[2.29,48.86],
   "hauls away an <b>Eiffel Tower</b> of trash and recycling every day","10,886 tonnes","10,100 tonnes",
-  None,"Department of Sanitation about page ('24 million pounds of trash, recycling, and compostable material every day', converted to metric tonnes); the Eiffel Tower's official key figures (10,100 tonnes total, 7,300 of it the metal frame)."),
+  "The city figure is converted: the Sanitation Department states 24 million pounds a day, which is 10,886 tonnes.","Department of Sanitation about page ('24 million pounds of trash, recycling, and compostable material every day', converted to metric tonnes); the Eiffel Tower's official key figures (10,100 tonnes total, 7,300 of it the metal frame)."),
  ("life","daily",5,"company","KFC (worldwide)","KFC",[-85.76,38.25],
   "has as many <b>restaurants and cafes</b> as there are <b class=k>KFCs</b> in the world","31,304","33,897",
   "Every food-service place the Health Department inspects, including bars that serve food and college cafeterias.",
@@ -340,14 +338,18 @@ for realm,f,row,kind,place,short,ll,sentence,nd,md,cav,note in L:
 # Tag each pairing by what the comparison measures. "same" means the other side
 # is the same quantity (subway riders vs subway riders); "scale" means it is a
 # population, a length or a capacity standing in for the size of the number.
-# A "population" pairing is one whose other side is a headcount of people, or a
-# physical length or capacity, standing in only for the size of the number.
+# A "population" pairing stands the number against a headcount of people; a
+# "landmark" pairing stands a length against a famous distance. Both are scale
+# stand-ins rather than measurements of the same thing.
 # Everything else compares two measurements of the same kind: riders against
 # riders, dollars against dollars, beds against beds.
-POP = re.compile(r'has people|holds fans|is long|is wide|as \w+ has people')
+POP = re.compile(r'has people|holds fans')
+DIST = re.compile(r'is long|is wide')
 for it in items:
     plain = re.sub(r'<[^>]+>','',it['sentence'])
-    it['compare'] = 'population' if POP.search(plain) else 'same'
+    it['compare'] = ('population' if POP.search(plain)
+                     else 'landmark' if DIST.search(plain)
+                     else 'same')
 OV = {
  "Spain": dict(match_value=1725152000000, match_url="https://www.imf.org/external/datamapper/api/v1/NGDPD", match_source="GDP of Spain", match_quote="\"ESP\": {... \"2024\": 1725.152 ...}", match_year="2024 (IMF WEO NGDPD)"),
  "Jersey (Channel Islands)": dict(match_value=29120),
