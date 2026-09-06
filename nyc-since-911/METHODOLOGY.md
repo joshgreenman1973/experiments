@@ -18,13 +18,17 @@ Research was done with Anthropic's Claude Code under the author's direction, usi
 
 - Percent change is (now - then) / then, computed by the page script from the values shown. Where the ratio is 3 or more it is shown as a multiple.
 - Percentage-point differences are shown for shares and rates.
-- Dollar figures are nominal, in dollars of their own year, and the page marks them "nominal". No inflation adjustment is applied.
+- Dollar figures are shown nominal, in dollars of their own year, and the page marks them "nominal". Where a caption gives a real change, it uses the Bureau of Labor Statistics' New York-area CPI-U (series CUURS12ASA0), annual averages of monthly values fetched from the BLS API on Sept. 6, 2026 and saved in `data/cpi_ny_annual.json` (2025 is an 11-month average). Fiscal-year budgets are deflated with the calendar year in which the fiscal year mostly falls.
 - Derived figures: the 2000 count of children under 18 is the sum of eight age cells from Census Summary File 1; the 2000 share of adults with a bachelor's degree sums eight degree cells from Summary File 3; the 2000 work-from-home share divides the 'worked at home' cell by all workers 16 and over; the 2025 airport total sums the three airports' published figures so it covers the same airports as 2001.
 - The Asian, white, Black and Hispanic shares are computed from the census counts and totals in the API responses.
 
 ## Like-for-like check
 
 Every pair was checked on Sept. 6, 2026 for a matching definition, universe and source series. Where the two ends came from different products (a decennial census count and an American Community Survey estimate; an executive budget proposal and an adopted budget; a Downtown Alliance figure drawn from a broker's report and a later one from Cushman & Wakefield), the label or the methodology page says so.
+
+## Skeptic's pass
+
+A final review on Sept. 6, 2026 asked of each row what an economist, demographer or statistician would object to. Changes made as a result: the counterterrorism row no longer shows a zero baseline, since the NYPD's intelligence division predates 9/11 and the current budget line combines both bureaus; real-dollar changes were added to every money row; the 2020 census race-coding change is stated on the page; and caveats were added on early stop-and-frisk reporting, tourism estimate methods, the 2021 Housing and Vacancy Survey redesign, the ACS population controls behind the 2024 count of children, and whether the 2001 life table includes attack deaths.
 
 ## Known limitations
 
