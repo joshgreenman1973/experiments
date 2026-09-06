@@ -19,15 +19,19 @@ Research was done with Anthropic's Claude Code under the author's direction, usi
 - Percent change is (now - then) / then, computed by the page script from the values shown. Where the ratio is 3 or more it is shown as a multiple.
 - Percentage-point differences are shown for shares and rates.
 - Dollar figures are nominal, in dollars of their own year, and the page marks them "nominal". No inflation adjustment is applied.
-- Two derived figures: the 2000 count of children under 18 is the sum of eight age cells from Census Summary File 1; the 2001 count of Lower Manhattan hotels (6) is derived from the Downtown Alliance's statement that its 2011 count of 18 was "triple" the 2001 count.
+- Derived figures: the 2000 count of children under 18 is the sum of eight age cells from Census Summary File 1; the 2000 share of adults with a bachelor's degree sums eight degree cells from Summary File 3; the 2000 work-from-home share divides the 'worked at home' cell by all workers 16 and over; the 2025 airport total sums the three airports' published figures so it covers the same airports as 2001.
 - The Asian, white, Black and Hispanic shares are computed from the census counts and totals in the API responses.
+
+## Like-for-like check
+
+Every pair was checked on Sept. 6, 2026 for a matching definition, universe and source series. Where the two ends came from different products (a decennial census count and an American Community Survey estimate; an executive budget proposal and an adopted budget; a Downtown Alliance figure drawn from a broker's report and a later one from Cushman & Wakefield), the label or the methodology page says so.
 
 ## Known limitations
 
 - The 2000 and 2020 census race categories are close but not identical because of changes to the 2020 questionnaire.
-- The 2002 and 2023 Housing and Vacancy Survey rent figures may not use the same definition (gross versus contract rent).
+- Rent is median contract rent (excluding utilities) in both the 2002 and 2023 Housing and Vacancy Survey findings.
 - Lower Manhattan employment spans a 2018 change in how government jobs are counted.
 - The NYPD's 2000 headcount peak comes from secondary sources that agree with each other (40,285 and 40,280) and with the City Comptroller's description of a required peak of 40,710.
 - The count of buildings 1,000 feet or taller relies on a maintained encyclopedia list; the tall-buildings council's database could not be fetched.
 - The fiscal 2002 budget figure is the April 2001 executive proposal, the last budget document before the attacks, rather than the total adopted in June 2001.
-- Federal homeland security grant amounts to the New York City area swing widely year to year; the fiscal 2025 award is disputed between FEMA's published allocation and the state's account of what was issued.
+- Federal homeland security grants compare two awards (fiscal 2004 and fiscal 2024) to the same New York urban area. Fiscal 2025 is disputed between FEMA's published allocation and the state's account of what was issued, and fiscal 2026 is so far only a target allocation, so neither is used as the headline figure.
