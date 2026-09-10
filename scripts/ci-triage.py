@@ -44,10 +44,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NOW = datetime.datetime.now(datetime.timezone.utc)
 
 # Runner noise that crowds out the actual error. Dropped before classifying.
+#
+# The Node deprecation lines are here for a second reason beyond readability.
+# The runner writes them from a different stream than the step output, so they
+# land in the log in a racing order -- "Successfully set up CPython" can come
+# before or after them from one run to the next. failure_text feeds signature(),
+# and signature() hashes the text, so a pure reordering of noise changes the
+# hash of an otherwise identical failure. That silently resets the escalation
+# cooldown and re-pings Josh about something he was already told about. Stripping
+# digits does not help; only dropping the lines does.
 NOISE = re.compile(
     r"^\s*(pythonLocation|PKG_CONFIG_PATH|Python[0-9_]*_ROOT_DIR|LD_LIBRARY_PATH|"
     r"AGENT_TOOLSDIRECTORY|shell:|env:|##\[endgroup\]|\[command\]/usr/bin/git|"
-    r"Temporarily overriding HOME|Adding repository directory|git version)")
+    r"Temporarily overriding HOME|Adding repository directory|git version|"
+    r"\(node:[0-9]+\) \[DEP[0-9]+\]|\(Use `node --trace-deprecation|"
+    r"Node [0-9]+ is being deprecated|##\[warning\]Node\.js [0-9]+ is deprecated)")
 
 # Ordered: infrastructure first, then intent, then blame.
 TRANSIENT = [
