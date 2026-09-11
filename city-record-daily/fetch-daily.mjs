@@ -20,12 +20,73 @@ function today() {
   return d.toISOString().slice(0, 10);
 }
 
+// The City Record comes out on business days, and a legal holiday is not one.
+// Weekends alone are not enough: on the Tuesday after Labor Day, a weekday-only
+// calendar looks back at a Monday that never had an edition and then reports the
+// archive as a day further behind than it is. Compute the holidays each year
+// rather than keeping a hand-written table that quietly expires.
+
+const ymd = d => d.toISOString().slice(0, 10);
+const utc = (y, m, day) => new Date(Date.UTC(y, m - 1, day));
+
+// nth (1-based) occurrence of a weekday (0=Sun) in a month; n = -1 for the last.
+function nthWeekday(year, month, weekday, n) {
+  if (n === -1) {
+    const last = utc(year, month + 1, 0);
+    return utc(year, month, last.getUTCDate() - ((last.getUTCDay() - weekday + 7) % 7));
+  }
+  const first = utc(year, month, 1);
+  return utc(year, month, 1 + ((weekday - first.getUTCDay() + 7) % 7) + (n - 1) * 7);
+}
+
+// A fixed-date holiday landing on a weekend is observed on the nearest weekday.
+function observed(d) {
+  const dow = d.getUTCDay();
+  if (dow === 6) return new Date(d.getTime() - 86400000);
+  if (dow === 0) return new Date(d.getTime() + 86400000);
+  return d;
+}
+
+const holidayCache = new Map();
+
+function holidaysFor(year) {
+  if (!holidayCache.has(year)) {
+    const days = [
+      observed(utc(year, 1, 1)),    // New Year's Day
+      nthWeekday(year, 1, 1, 3),    // Martin Luther King Jr. Day
+      nthWeekday(year, 2, 1, 3),    // Presidents' Day
+      nthWeekday(year, 5, 1, -1),   // Memorial Day
+      observed(utc(year, 6, 19)),   // Juneteenth
+      observed(utc(year, 7, 4)),    // Independence Day
+      nthWeekday(year, 9, 1, 1),    // Labor Day
+      nthWeekday(year, 10, 1, 2),   // Columbus Day
+      // Election Day: the Tuesday after the first Monday in November
+      new Date(nthWeekday(year, 11, 1, 1).getTime() + 86400000),
+      observed(utc(year, 11, 11)),  // Veterans Day
+      nthWeekday(year, 11, 4, 4),   // Thanksgiving
+      observed(utc(year, 12, 25)),  // Christmas
+    ];
+    holidayCache.set(year, new Set(days.map(ymd)));
+  }
+  return holidayCache.get(year);
+}
+
+function isHoliday(dateStr) {
+  const year = Number(dateStr.slice(0, 4));
+  // New Year's Day falling on a Saturday is observed on Dec 31 of the year before.
+  return holidaysFor(year).has(dateStr) || holidaysFor(year + 1).has(dateStr);
+}
+
+function isPublishingDay(dateStr) {
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  return dow !== 0 && dow !== 6 && !isHoliday(dateStr);
+}
+
 function prevBusinessDay(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
-  const dow = d.getDay(); // 0=Sun, 6=Sat
-  if (dow === 1) d.setDate(d.getDate() - 3); // Mon → Fri
-  else if (dow === 0) d.setDate(d.getDate() - 2); // Sun → Fri
-  else d.setDate(d.getDate() - 1);
+  do {
+    d.setDate(d.getDate() - 1);
+  } while (!isPublishingDay(d.toISOString().slice(0, 10)));
   return d.toISOString().slice(0, 10);
 }
 
@@ -212,16 +273,17 @@ function flagNotice(notice, raw) {
 // return zero rows. Tell them apart by how far the archive has fallen behind,
 // and fail the run once the gap stops being plausible.
 
-const STALE_AFTER_BUSINESS_DAYS = 2;
+const STALE_AFTER_PUBLISHING_DAYS = 2;
 
-function businessDaysBetween(fromStr, toStr) {
+// Days the City Record could have come out between the two dates, weekends and
+// legal holidays excluded — i.e. how many editions the archive is actually short.
+function publishingDaysBetween(fromStr, toStr) {
   const d = new Date(fromStr + 'T12:00:00');
   const to = new Date(toStr + 'T12:00:00');
   let n = 0;
   while (d < to) {
     d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) n++;
+    if (isPublishingDay(d.toISOString().slice(0, 10))) n++;
   }
   return n;
 }
@@ -247,18 +309,18 @@ function exitOnNoNewData(targetDate, note) {
     console.error(`FAIL: no data for ${targetDate} and the archive is empty.`);
     process.exit(1);
   }
-  const lag = businessDaysBetween(newest, targetDate);
-  if (lag >= STALE_AFTER_BUSINESS_DAYS) {
+  const lag = publishingDaysBetween(newest, targetDate);
+  if (lag >= STALE_AFTER_PUBLISHING_DAYS) {
     console.error(
       `FAIL: no new City Record data. Newest record on file is ${newest}, ` +
-      `${lag} business days behind ${targetDate}.\n` +
+      `${lag} publishing days behind ${targetDate}.\n` +
       `The Open Data feed appears stalled. Compare:\n` +
       `  https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx\n` +
       `  https://a856-cityrecord.nyc.gov/`
     );
     process.exit(1);
   }
-  console.log(`${note} Newest record on file is ${newest} (${lag} business day(s) behind) — within tolerance.`);
+  console.log(`${note} Newest record on file is ${newest} (${lag} publishing day(s) behind) — within tolerance.`);
   process.exit(0);
 }
 
