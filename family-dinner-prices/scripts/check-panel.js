@@ -40,10 +40,14 @@ function fetchOnce(url, timeout = 12000, redirects = 0) {
     if (redirects > 5) return reject(new Error('TOO_MANY_REDIRECTS'));
     let mod; try { mod = url.startsWith('https') ? https : http; } catch { return reject(new Error('BAD_URL')); }
     const req = mod.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FamilyDinnerBot/1.0)' } }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { let loc = res.headers.location; if (loc.startsWith('/')) { const u = new URL(url); loc = u.origin + loc; } return fetchOnce(loc, timeout, redirects + 1).then(resolve).catch(reject); }
-      if (res.statusCode === 404 || res.statusCode === 410) return reject(new Error('GONE_' + res.statusCode));
-      if (res.statusCode !== 200) return reject(new Error('HTTP_' + res.statusCode));
-      let b = ''; res.on('data', c => b += c); res.on('end', () => resolve({ body: b, headers: res.headers }));
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { res.resume(); let loc; try { loc = new URL(res.headers.location, url).href; } catch { return reject(new Error('BAD_REDIRECT')); } return fetchOnce(loc, timeout, redirects + 1).then(resolve).catch(reject); }
+      if (res.statusCode === 404 || res.statusCode === 410) { res.resume(); return reject(new Error('GONE_' + res.statusCode)); }
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('HTTP_' + res.statusCode)); }
+      // A dropped connection mid-body emits 'aborted'/'error' on the response, not the request.
+      // Unhandled, the promise never settles, the event loop drains and node exits 0 mid-panel
+      // (Sept. 1, 2026 run stopped silently at restaurant 10 of 77).
+      let b = ''; res.setEncoding('utf8'); res.on('data', c => b += c); res.on('end', () => resolve({ body: b, headers: res.headers }));
+      res.on('aborted', () => reject(new Error('ABORTED'))); res.on('error', e => reject(new Error(e.code || e.message)));
     });
     req.on('error', e => reject(new Error(e.code || e.message)));
     req.setTimeout(timeout, () => { req.destroy(); reject(new Error('TIMEOUT')); });
@@ -121,6 +125,7 @@ async function main() {
     await new Promise(r => setTimeout(r, 250));
   }
 
+  if (priced === 0) throw new Error('0 restaurants priced; refusing to write an empty snapshot');
   doc.meta.count = Object.values(panel).filter(r => r.status !== 'dropped').length;
   fs.writeFileSync(docPath, JSON.stringify(doc, null, 2));
   fs.writeFileSync(path.join(snapDir, `${today}.json`), JSON.stringify(snap, null, 2));
@@ -129,4 +134,7 @@ async function main() {
   if (snap.dropped.length) console.log(`Dropped: ${snap.dropped.join(', ')}`);
   console.log(`Active panel now: ${doc.meta.count}`);
 }
-main().catch(e => { console.error('Fatal:', e); process.exit(1); });
+// Fail loud: if the event loop drains before main() finishes, a fetch hung without settling.
+let finished = false;
+process.on('beforeExit', () => { if (!finished) { console.error('\nFatal: exited before the panel check finished (a fetch never settled). No snapshot written.'); process.exit(1); } });
+main().then(() => { finished = true; }).catch(e => { console.error('Fatal:', e); process.exit(1); });
