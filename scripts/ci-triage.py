@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import datetime
 
 ACCOUNTS = ["joshgreenman1973", "vitalcity-nyc"]
@@ -180,7 +181,13 @@ def disabled_workflow_ids(nwo):
     intentionally-parked job (block-pulse, waiting on API credit) resurfaces in
     every scan and burns a repair slot on something that cannot run.
     """
-    data = gh_json(["api", f"repos/{nwo}/actions/workflows?per_page=100"], timeout=90)
+    # A timed-out lookup returns None, which would read as "nothing disabled"
+    # and let a parked workflow back into the queue. Try again before trusting it.
+    for _ in range(3):
+        data = gh_json(["api", f"repos/{nwo}/actions/workflows?per_page=100"], timeout=90)
+        if data:
+            break
+        time.sleep(5)
     return {w["id"] for w in (data or {}).get("workflows", [])
             if w.get("state") != "active"}
 
