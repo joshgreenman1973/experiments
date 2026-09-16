@@ -36,7 +36,7 @@ let playTimer = null;
 let routeShapes = null;
 let routeShapeIndex = null; // routeId → GeoJSON feature (built once on shape load)
 let selectedRoute = null;
-let sortMode = 'name'; // 'name', 'bunching', 'gaps', 'buses'
+let sortMode = 'name'; // 'name', 'buses', 'speed'
 let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S', 'top25', 'nearby'
 let userLocation = null; // {lat, lon} from geolocation
 let busSpeedCache = {}; // busId → speed in mph
@@ -687,11 +687,12 @@ function computeMetrics(snapshot) {
       if (spd != null && spd > 0) rm.speeds.push(spd);
     }
 
-    // Detect bunching: find pairs of buses very close together
-    detectBunching(buses, rm, bunchedIds);
-
-    // Estimate gaps between consecutive buses
-    estimateGaps(buses, route, dir, rm);
+    // Bunching and gap/wait estimates were retired in September 2026 after an
+    // audit found them indefensible (250 m proximity flagged Limited-passing-
+    // local and buses parked at terminals; gaps sorted buses on a lat/lon axis
+    // and skipped routes with < 3 buses). detectBunching/estimateGaps are kept
+    // below for reference but no longer called; a replacement wait measure is
+    // being built.
   }
 
   // Apply bunching flags to snapshot vehicles
@@ -700,8 +701,6 @@ function computeMetrics(snapshot) {
   }
   totalBunching = countBunchPairs(routeMetrics);
 
-  // Identify long waits
-  const { longWaits20, longWaits30 } = identifyLongWaits(routeMetrics);
 
   // Compute system-wide averages
   // Compute per-route averages, then system-wide as mean of route averages
@@ -720,24 +719,8 @@ function computeMetrics(snapshot) {
 
   const systemAvgSpeed = routeAvgSpeeds.length > 0 ? speedSmooth.push(round1(avg(routeAvgSpeeds))) : speedSmooth.current();
 
-  // Average rider wait time = E[gap^2] / (2 * E[gap])
-  let avgRiderWait = null;
-  if (allGaps.length > 0) {
-    const meanGap = avg(allGaps);
-    const meanGapSq = allGaps.reduce((a, b) => a + b * b, 0) / allGaps.length;
-    const rawWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
-    if (rawWait != null) avgRiderWait = waitSmooth.push(rawWait);
-  } else {
-    avgRiderWait = waitSmooth.current();
-  }
-
-  // Smoothed gap counts
-  const smoothG30 = Math.round(gap30Smooth.push(longWaits30.length));
-  const smoothG20 = Math.round(gap20Smooth.push(longWaits20.length));
-
   // ── Update DOM ──
-  updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed, avgRiderWait, smoothG30, smoothG20);
-  renderWaitAlerts(longWaits20, longWaits30);
+  updateSystemStats(vehicles, routeMetrics, systemAvgSpeed);
   renderBuses(snapshot);
   renderRouteList(routeMetrics);
 }
@@ -837,14 +820,9 @@ function identifyLongWaits(routeMetrics) {
 }
 
 /** Update the system-wide stat cards in the DOM */
-function updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed, avgRiderWait, smoothG30, smoothG20) {
+function updateSystemStats(vehicles, routeMetrics, systemAvgSpeed) {
   dom['stat-buses'].textContent = vehicles.length.toLocaleString();
   dom['stat-routes-count'].textContent = `${Object.keys(routeMetrics).length} routes`;
-
-  dom['stat-bunching'].textContent = totalBunching;
-  dom['stat-bunching'].className = `value ${totalBunching > 50 ? 'bad' : totalBunching > 20 ? 'warn' : 'good'}`;
-
-  dom['stat-gaps'].textContent = smoothG30 + smoothG20;
 
   const speedEl = dom['stat-speed'];
   if (systemAvgSpeed != null) {
@@ -854,14 +832,6 @@ function updateSystemStats(vehicles, routeMetrics, totalBunching, systemAvgSpeed
     if (hint) hint.style.display = 'none';
   } else {
     speedEl.textContent = '\u2014';
-  }
-
-  const waitEl = dom['stat-wait'];
-  if (avgRiderWait != null) {
-    waitEl.textContent = avgRiderWait.toFixed(1);
-    waitEl.className = `value ${avgRiderWait > 15 ? 'bad' : avgRiderWait > 10 ? 'warn' : 'accent'}`;
-  } else {
-    waitEl.textContent = '\u2014';
   }
 }
 
@@ -997,12 +967,6 @@ function renderRouteList(metrics) {
 
   // Sort
   switch (sortMode) {
-    case 'bunching':
-      routes.sort((a, b) => b.bunching - a.bunching || a.route.localeCompare(b.route));
-      break;
-    case 'gaps':
-      routes.sort((a, b) => b.gaps - a.gaps || a.route.localeCompare(b.route));
-      break;
     case 'buses':
       routes.sort((a, b) => b.buses - a.buses || a.route.localeCompare(b.route));
       break;
@@ -1024,8 +988,6 @@ function renderRouteList(metrics) {
         <div class="route-dest" title="${r.dest}">${r.dest}</div>
         <div class="route-metric">${r.buses}</div>
         <div class="route-metric ${spdClass}">${spdStr}</div>
-        <div class="route-metric ${r.bunching > 0 ? 'bad' : ''}">${r.bunching || '\u2014'}</div>
-        <div class="route-metric ${r.gaps > 0 ? 'warn' : ''}">${r.gaps || '\u2014'}</div>
       </div>
     `;
   }).join('');
@@ -1108,8 +1070,8 @@ function setupControls() {
 
   // Sort button (cycles through modes)
   dom['sort-btn'].addEventListener('click', () => {
-    const modes = ['name', 'buses', 'speed', 'bunching', 'gaps'];
-    const labels = ['A\u2013Z', 'Buses', 'Speed', 'Bunch', 'Gaps'];
+    const modes = ['name', 'buses', 'speed'];
+    const labels = ['A\u2013Z', 'Buses', 'Speed'];
     const idx = modes.indexOf(sortMode);
     sortMode = modes[(idx + 1) % modes.length];
     dom['sort-btn'].textContent = labels[(idx + 1) % labels.length];
@@ -1388,7 +1350,6 @@ async function loadTrends() {
 
   renderTrends(latest, weekly);
   renderBoroughTrends(latest, weeklyRoutes);
-  renderBoroughCard(latest);
   renderRidershipTrends(ridership);
   renderGeoCuts(latest, weeklyRoutes, routeClasses);
 }
@@ -1433,9 +1394,21 @@ function renderBoroughTrends(latest, weeklyRoutes) {
   }
   if (emptyEl) emptyEl.style.display = 'none';
 
-  // Speed series (aligned to fullWeeks order) for a borough code.
-  const boroSpeedSeries = code =>
-    fullWeeks.map(w => w.byBorough?.[code]?.avgSpeed ?? null);
+  // Borough speed = plain mean of the borough's local, limited and SBS route
+  // speeds for the week. Rebuilt from route-level rows because the roll-up's
+  // byBorough groups by first letter, which lumps SIM/BM/QM express routes in
+  // with their borough (SIM routes alone pulled Staten Island up by ~1.5 mph).
+  const EXPRESS_RE = /^(BM|BXM|QM|SIM|X)\d/i;
+  const boroOf = r => { const u = r.toUpperCase(); if (EXPRESS_RE.test(u)) return null; if (u.startsWith('BX')) return 'Bx'; for (const c of ['B', 'Q', 'M', 'S']) if (u.startsWith(c)) return c; return null; };
+  const boroSpeedSeries = code => fullWeeks.map(w => {
+    const v = [];
+    for (const [route, hist] of Object.entries(weeklyRoutes || {})) {
+      if (boroOf(route) !== code) continue;
+      const row = hist.find(h => h.period === w.period);
+      if (row && row.daysSeen >= 4 && row.avgSpeed != null) v.push(row.avgSpeed);
+    }
+    return v.length ? round1(avg(v)) : null;
+  });
 
   // Speed series for one route, aligned to the same weeks as fullWeeks so the
   // sparkline lines up. weeklyRoutes[route] is a chronological array of periods.
@@ -1754,20 +1727,19 @@ function renderTrends(data, weeklyAll) {
   const tbody = dom['tray-table-body'];
 
   // ── Current and prior full week from latest.json ──
-  const thisWeek = data?.thisWeek?.days >= 7 ? data.thisWeek : null;
-  const lastWeek = data?.lastWeek?.days >= 7 ? data.lastWeek : null;
+  // The latest two FULL, adequately covered weeks. latest.json's thisWeek is
+  // the week in progress most days, which left this section empty.
+  const fullHist = (data?.weeklyHistory || []).filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
+  const thisWeek = fullHist[fullHist.length - 1] || null;
+  const lastWeek = fullHist[fullHist.length - 2] || null;
 
   // Collapsed-row summary text — lead with the time-of-day-normalized figures
   // (the comparable ones), falling back to raw for any legacy pre-norm row.
   if (summaryEl) {
     const twSpeed = thisWeek?.avgSpeedHourNorm ?? thisWeek?.avgSpeed;
-    const twWait = thisWeek?.avgWaitHourNorm ?? thisWeek?.avgWait;
     if (twSpeed != null) {
       const bits = [
         `${twSpeed} mph`,
-        twWait != null ? `${twWait} min wait` : null,
-        thisWeek.avgReliability != null ? `${thisWeek.avgReliability}% reliable` : null,
-        thisWeek.bunchPer100Buses != null ? `${thisWeek.bunchPer100Buses} bunched/100 buses` : null,
         thisWeek.coveragePct != null ? `${thisWeek.coveragePct}% coverage` : null,
       ].filter(Boolean);
       summaryEl.textContent = `Week of ${thisWeek.startDate}: ${bits.join(' · ')}`;
@@ -1803,15 +1775,11 @@ function renderTrends(data, weeklyAll) {
     };
     // Cards use the time-of-day-normalized metrics (comparable week-over-week).
     pushIfPresent('Avg speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
-    pushIfPresent('Avg wait', 'min', 'avgWaitHourNorm', 'lower is better');
-    pushIfPresent('Reliability', '%', 'avgReliability', 'higher is better');
-    pushIfPresent('Bunching', '/100 buses', 'bunchPer100Buses', 'lower is better');
-    pushIfPresent('20+ min gaps', '/snap', 'avgBigGap20PerSnap', 'lower is better');
     pushIfPresent('Active buses', '', 'avgActiveBuses', 'higher is better');
 
     // Monthly roll-ups, only when we have a full calendar month of data
-    const thisMonth = data?.thisMonth?.days >= 28 ? data.thisMonth : null;
-    const lastMonth = data?.lastMonth?.days >= 28 ? data.lastMonth : null;
+    const thisMonth = data?.thisMonth?.days >= 28 && data.thisMonth.coveragePct >= TREND_COVERAGE_MIN ? data.thisMonth : null;
+    const lastMonth = data?.lastMonth?.days >= 28 && data.lastMonth.coveragePct >= TREND_COVERAGE_MIN ? data.lastMonth : null;
     const pushMonth = (label, unit, field, direction) => {
       if (thisMonth?.[field] == null) return;
       const change = lastMonth?.[field] != null
@@ -1827,8 +1795,6 @@ function renderTrends(data, weeklyAll) {
       ));
     };
     pushMonth('Monthly speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
-    pushMonth('Monthly reliability', '%', 'avgReliability', 'higher is better');
-    pushMonth('Monthly bunching', '/100 buses', 'bunchPer100Buses', 'lower is better');
 
     if (cards.length > 0) {
       if (emptyEl) emptyEl.style.display = 'none';
@@ -1869,7 +1835,7 @@ function renderTrends(data, weeklyAll) {
   if (tbody) {
     const rows = Array.isArray(weeklyAll) ? [...weeklyAll] : [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="11">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
+      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="7">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
     } else {
       rows.reverse(); // newest first
       const currentPeriod = thisWeek?.period;
@@ -1885,8 +1851,6 @@ function renderTrends(data, weeklyAll) {
         // Prefer the time-of-day-normalized figures (fall back to raw only if a
         // legacy row predates normalization).
         const spd = w.avgSpeedHourNorm ?? w.avgSpeed;
-        const wait = w.avgWaitHourNorm ?? w.avgWait;
-        const bunch = w.bunchPer100Buses;
         const covCell = w.coveragePct != null
           ? `${w.coveragePct}%${lowCoverage ? ' *' : ''}` : '\u2014';
         return `<tr class="${rowCls}">
@@ -1895,10 +1859,6 @@ function renderTrends(data, weeklyAll) {
           <td class="num">${daysCell}</td>
           <td class="num">${covCell}</td>
           <td class="num">${cell(spd)}</td>
-          <td class="num">${cell(wait)}</td>
-          <td class="num">${cell(w.avgReliability)}</td>
-          <td class="num">${cell(bunch)}</td>
-          <td class="num">${cell(w.avgBigGap20PerSnap)}</td>
           <td class="num">${cell(w.avgActiveBuses)}</td>
           <td class="num">${cell(w.avgRoutes)}</td>
         </tr>`;
@@ -1909,10 +1869,10 @@ function renderTrends(data, weeklyAll) {
 
 /** Filter history arrays to only include full periods */
 function fullWeeksField(history, field) {
-  return history?.filter(w => w.days >= 7).map(w => w[field]) || [];
+  return history?.filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN).map(w => w[field]) || [];
 }
 function fullMonthsField(history, field) {
-  return history?.filter(m => m.days >= 28).map(m => m[field]) || [];
+  return history?.filter(m => m.days >= 28 && m.coveragePct >= TREND_COVERAGE_MIN).map(m => m[field]) || [];
 }
 
 function trendCard(label, value, unit, change, direction, period, sparkData) {

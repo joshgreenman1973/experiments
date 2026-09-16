@@ -4,51 +4,50 @@ Project: https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-track
 
 TWO SEPARATE DATA SOURCES LIVE HERE. Do not mix them.
 
-  A. PERFORMANCE (speed, wait, bunching) — our own observations, collected every
-     5 minutes from the MTA BusTime SIRI feed since 2026-03-18. These are
-     estimates from GPS positions, NOT official MTA performance metrics, and are
-     computed differently from the MTA's published figures.
+  A. SPEED — our own observations from the MTA BusTime feed, collected in short
+     bursts twice an hour since April 2026. These are estimates from GPS
+     positions, NOT official MTA figures. On local routes they read about 9%
+     faster than the MTA's published speeds, because readings under 0.5 mph
+     (buses stopped at stops and lights) are dropped; routes rank in nearly the
+     same order as the MTA's.
 
   B. RIDERSHIP (boardings) — the MTA's own Automatic Passenger Counter data,
      republished from data.ny.gov dataset fvdm-uavx. The MTA treats these as
      estimates: counters miss some riders and not every bus carries one.
+
+  Bunching, gap, wait and "reliability" figures are no longer exported. An audit
+  in September 2026 found them unreliable.
 
 ---------------------------------------------------------------- weekly-system.csv
 One row per ISO week (source A).
   period                          ISO week, e.g. 2026-W30
   start_date, end_date            first and last date covered
   days                            days of data captured, out of 7
-  coverage_pct                    share of 6am-11pm ET clock-hours actually sampled
+  coverage_pct                    share of operating clock-hours actually sampled
   comparable                      true when days=7 AND coverage_pct>=50
   avg_speed_hour_norm_mph         mph, every hour of day weighted equally <-- USE THIS to compare weeks
-  avg_wait_hour_norm_min          expected rider wait, hour-of-day normalized <-- USE THIS
-  bunch_per_100_buses             bunched pairs per 100 active buses (fleet-size normalized)
   avg_speed_raw_mph               snapshot-weighted mean; NOT comparable across weeks
-  avg_wait_raw_min                snapshot-weighted mean; NOT comparable across weeks
-  reliability_pct                 share of snapshots with more than one bus on the route
-                                  (this is NOT schedule adherence)
-  routes_with_20min_gaps_per_snap routes per snapshot showing a 20+ minute gap
-  avg_active_buses, peak_active_buses
+  avg_active_buses, peak_active_buses   buses in the feed per snapshot (raw, not
+                                  hour-normalized)
 
-  Why "hour normalized": collection drops some hourly runs, and which hours land
-  varies. Bus speed swings ~3 mph across the day, so raw weekly means move with
-  the sampling mix rather than with real service. Rows below 50% coverage or
-  under 7 days should not be compared head-to-head with full weeks.
+  Why "hour normalized": collection drops some runs, and which hours land varies.
+  Bus speed swings ~3 mph across the day, so raw weekly means move with the
+  sampling mix rather than with real service. Rows below 50% coverage or under
+  7 days should not be compared head-to-head with full weeks.
 
 --------------------------------------------------------------- weekly-borough.csv
-One row per borough per week (source A).
-  borough      M = Manhattan, B = Brooklyn, Bx = Bronx, Q = Queens,
-               S = Staten Island, X = express routes, other = unclassified
-  avg_speed_mph, avg_wait_min, avg_buses    raw weekly means of daily route means
-                                            (NOT hour-normalized — directional only)
-  bunch_pairs_per_snapshot                  raw count
-  bunch_per_100_buses                       fleet-size normalized; use this one
+One row per group per week (source A).
+  group          M = Manhattan, B = Brooklyn, Bx = Bronx, Q = Queens,
+                 S = Staten Island (local, limited and Select Bus Service routes,
+                 assigned by the letters in the route name), X = all express
+                 routes (BM, BxM, QM, SIM, X)
+  routes         routes averaged that week (seen on at least 4 days)
+  avg_speed_mph  plain mean of those routes' weekly speeds. NOT hour-normalized;
+                 read as direction, not precision.
 
 ----------------------------------------------------------------- weekly-routes.csv
 One row per route per week (source A). Same caveats as weekly-borough.csv.
-  days_seen                       days that week with any observation of the route
-  reliability_pct                 see note above — not schedule adherence
-  gap20_count, gap30_count        observations with a 20+ / 30+ minute gap
+  days_seen      days that week with any observation of the route
 
 -------------------------------------------------------- route-ridership-monthly.csv
 One row per route per COMPLETE calendar month (source B).

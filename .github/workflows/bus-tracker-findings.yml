@@ -1,0 +1,55 @@
+name: Bus Tracker Weekly Findings
+
+# Rebuilds findings.html's data ("Round and Round") once a week. Monday 10:30
+# UTC is after the daily processor (05:00 UTC) has rolled up Sunday, so the
+# ISO week just ended is complete.
+on:
+  schedule:
+    - cron: '30 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Pulls the MTA's own published bus metrics for the comparison section.
+      # Fails loud on empty or implausible responses. If it fails, the charts
+      # below still rebuild from the last good official.json, and the run
+      # ends red so someone looks.
+      - name: Fetch MTA official metrics
+        id: official
+        run: python3 nyc-bus-tracker/scripts/fetch_mta_official.py
+
+      - name: Build findings.json
+        if: always()
+        run: node nyc-bus-tracker/scripts/build_findings.js
+
+      - name: Commit if changed
+        if: always()
+        run: |
+          git config user.name "bus-tracker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add nyc-bus-tracker/data/findings/ nyc-bus-tracker/data/mta/
+          if git diff --cached --quiet; then
+            echo "Findings unchanged."
+            exit 0
+          fi
+          git commit -m "Bus tracker: weekly findings ($(date -u '+%Y-%m-%d'))"
+          for i in 1 2 3; do
+            git push origin main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1

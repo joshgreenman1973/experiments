@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Round and Round &mdash; what the bus tracker has learned so far</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Round and Round: weekly charts of New York City bus speed and ridership, built from months of GPS snapshots of every bus. Companion to All Through the Town." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="findings.css?v=2" />
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <nav class="crumbs">
+      <a href="index.html">&larr; All Through the Town <span>live map</span></a>
+      <a href="ridership.html">The People on the Bus <span>ridership map</span></a>
+    </nav>
+    <h1 class="title">Round and <span>Round</span></h1>
+    <p class="dek" id="dek">What months of watching every New York City bus has shown so far.</p>
+    <p class="edition" id="edition"></p>
+  </header>
+
+  <section class="block learned">
+    <div class="side">
+      <h2>What we've learned</h2>
+      <p class="note">Rewritten from the numbers every Monday, once the week before is complete.</p>
+    </div>
+    <ul class="learned-list" id="learned"></ul>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Week by week</h2>
+      <p>Speed for the whole system, one point per full week, with the number of buses in service below. Both give each hour of the day equal weight. Each hour of the day gets equal weight, so a week the collector sampled more mornings than evenings still compares fairly with the rest.</p>
+      <p class="note"><span class="key hollow"></span> Hollow points are weeks when the collector captured less than half the day. They are shown but not trusted, and the lines skip them.</p>
+    </div>
+    <div class="main">
+      <div class="chart-head">
+        <label class="zero"><input type="checkbox" data-zero="weekly" /> Start y-axes at zero</label>
+      </div>
+      <div class="chart" id="chart-speed" data-h="210"></div>
+      <div class="chart" id="chart-buses" data-h="170"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>The shape of a day</h2>
+      <p id="day-copy">Average by hour of the day, Eastern time. The bars behind the line are buses in service.</p>
+      <p class="legend">
+        <span><i class="sw recent"></i><b id="day-recent-label">Recent weeks</b></span>
+        <span><i class="sw base"></i><b id="day-base-label">First weeks</b></span>
+      </p>
+      <p class="note">The collector does not run from about midnight to 6 a.m., so those hours are missing.</p>
+    </div>
+    <div class="main">
+      <div class="chart-head">
+        <label class="zero"><input type="checkbox" data-zero="day" /> Start y-axis at zero</label>
+      </div>
+      <div class="chart" id="chart-day" data-h="340"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>By borough</h2>
+      <p>Routes grouped by the letters in their names: M, B, Q, Bx and S. Express buses (BM, BxM, QM, SIM and X routes) are a group of their own. Each point is the plain average of the group's route speeds for the week. Unlike the system chart above, they are not balanced by hour, so read them for direction rather than to the decimal.</p>
+    </div>
+    <div class="main">
+      <div class="chart-head">
+        <label class="zero"><input type="checkbox" data-zero="boro" /> Start y-axis at zero</label>
+      </div>
+      <div class="chart" id="chart-boro" data-h="380"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Every busy route</h2>
+      <p id="routes-copy">Each dot is a route with at least five buses on the road at a time on average, over the last four usable weeks. Further left is slower; higher carries more riders. Slow, crowded routes sit in the top left.</p>
+      <div class="chips" id="boro-chips"></div>
+      <p class="note">Riders are the MTA's passenger-counter average for weekdays in the latest published month. Routes without counter data sit on the bottom line.</p>
+    </div>
+    <div class="main">
+      <div class="chart" id="chart-routes" data-h="460"></div>
+      <div class="slowest">
+        <h3>Slowest ten</h3>
+        <ol id="slowest"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Riders</h2>
+      <p id="riders-copy">Average weekday boardings across the system, counted by the MTA's on-board passenger counters. The dashed line is the same month a year earlier.</p>
+      <p class="legend">
+        <span><i class="sw riders"></i><b>This month</b></span>
+        <span><i class="sw prior"></i><b>Same month, year before</b></span>
+      </p>
+      <p class="note">The MTA publishes these about a month behind, so this chart lags the others.</p>
+    </div>
+    <div class="main">
+      <div class="chart-head">
+        <label class="zero"><input type="checkbox" data-zero="riders" /> Start y-axis at zero</label>
+      </div>
+      <div class="chart" id="chart-riders" data-h="300"></div>
+    </div>
+  </section>
+
+  <section class="block" id="official-block" hidden>
+    <div class="side">
+      <h2>Checked against the MTA</h2>
+      <p id="official-copy"></p>
+    </div>
+    <div class="main" id="official-main"></div>
+  </section>
+
+  <footer class="foot">
+    <details class="method">
+      <summary>How these numbers are made</summary>
+      <div class="method-body">
+        <p><strong>Positions.</strong> A GitHub Actions job asks the <a href="https://bustime.mta.info/wiki/Developers/Index" target="_blank" rel="noopener">MTA BusTime API</a> for the location of every bus in service, in short bursts twice an hour, from about 6 a.m. to midnight. Raw snapshots are archived; nothing here is from a model or a guess about where buses were.</p>
+        <p><strong>Speed.</strong> For each bus seen in two snapshots no more than 10 minutes apart, straight-line distance divided by elapsed time. Readings under 0.5 mph (parked or laying over) and over 60 mph (GPS errors) are dropped. Each route gets an average, and the system figure is the plain average of routes, so a route with 30 buses counts the same as one with five. Straight-line distance runs short of the street distance on routes that turn, which pulls speeds down; dropping stopped buses pushes them up. Checked against the MTA, the second effect wins on local routes: the tracker reads them about 9% faster than the MTA does.</p>
+        <p><strong>No wait or bunching figures.</strong> The tracker used to estimate rider waits and count bunched buses. An audit in September 2026 found neither held up. The bunching count flagged Limited buses passing locals, and buses parked together at the end of the line. The wait estimate lined buses up on a north-south or east-west axis instead of along the route, and skipped routes with fewer than three buses running. Both have been removed while a replacement wait measure is built.</p>
+        <p><strong>Balancing the hours.</strong> Collection misses some runs, and which hours get missed varies. Because buses are about three mph slower in mid-afternoon than at 6 a.m., the weekly speed gives each hour of the day equal weight. A week counts as usable when all seven days are present and at least half the hour slots were captured. Most of June 2026 fell below that line.</p>
+        <p><strong>Borough and route figures</strong> are plain averages of route speeds without the hour balancing, and should be read as direction, not precision. Routes are assigned to boroughs by the letters in their names, so a route counts toward the borough its name starts with even where it crosses into another. Express routes (BM, BxM, QM, SIM, X) are grouped separately.</p>
+        <p><strong>Riders</strong> come from the MTA's <a href="https://data.ny.gov/Transportation/MTA-Bus-Stop-Level-Ridership-Beginning-2024/fvdm-uavx" target="_blank" rel="noopener">Bus Stop Level Ridership</a> dataset, boardings recorded by automatic passenger counters. Weekday averages divide Monday-to-Friday boardings by the number of calendar weekdays, so months with holidays read slightly low. Months missing any days are dropped.</p>
+        <p><strong>What we've learned</strong> is generated from the same file the charts use. "The start" means the first five usable weeks; "recently" means the last four. The trend is a least-squares line through every usable week.</p>
+        <p><strong>The MTA check.</strong> Each week a second job pulls the MTA's own published bus speeds, wait assessment, extra time at stops and daily ridership from data.ny.gov and lines them up with the tracker for every month both cover. The MTA's wait and journey figures are pulled but not compared, since the tracker no longer estimates waits. To compare like with like, the MTA's hour-by-hour route speeds are averaged the way the tracker averages its own: every route and every hour from 6 a.m. to midnight counts equally. Months where the tracker captured less than half the day, or missed days, are left out. Script: <code>scripts/fetch_mta_official.py</code>; results in <a href="data/mta/official.json">official.json</a>.</p>
+        <p><strong>Weekly update.</strong> Every Monday morning a job rebuilds <a href="data/findings/findings.json">findings.json</a>, stopping at the last complete week, and fails loudly rather than publishing if the inputs look wrong. The weekly, borough and route tables are also in the <a href="data/downloads/">download folder</a> as CSV. Code: <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-tracker" target="_blank" rel="noopener">project repo</a>.</p>
+      </div>
+    </details>
+    <div class="caution-wrap">
+      <button class="ai-caution-btn" id="ai-caution-btn" type="button">AI caution</button>
+      <div class="ai-caution-pop" id="ai-caution-pop" hidden>
+        <p>The concept, the choice of data and the layout of this page came from its author, a human. The code was written mainly by Anthropic's Claude, under close direction. The checks included recomputing the headline figures directly from the published weekly files and checking them against MTA datasets. Speeds are estimates made from GPS positions, not official MTA numbers, and AI-built pipelines can still go wrong. Please flag anything that looks off.</p>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<div class="tip" id="tip" hidden></div>
+<script src="findings.js?v=2"></script>
+</body>
+</html>
