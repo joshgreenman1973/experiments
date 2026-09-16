@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How many? Measuring campus sexual assault</title>
-<meta name="description" content="Four serious surveys ask how often college women are sexually assaulted. Their answers differ by an order of magnitude. A data story about what the instruments actually measure.">
+<meta name="description" content="Surveys of how often college women are sexually assaulted produce answers that differ by more than an order of magnitude. A data story about what each instrument measures.">
 <style>
 :root{
   --paper:#f6f3ec; --panel:#fffdf9; --ink:#15171b; --charcoal:#5a5d63; --faint:#8b8d92;
@@ -44,7 +44,6 @@ a:hover{color:var(--rust);text-decoration-color:var(--rust);}
 .kicker span{color:rgba(255,255,255,.45);}
 .hero h1{font-family:var(--font-display);font-weight:400;font-size:clamp(40px,7.2vw,80px);line-height:1.02;
   letter-spacing:-.015em;color:#fff;margin-bottom:26px;max-width:15ch;}
-.hero h1 em{font-style:italic;color:#e0714f;}
 .hero-sub{font-size:clamp(17px,2vw,21px);line-height:1.55;color:rgba(255,255,255,.76);max-width:52ch;
   padding-top:24px;border-top:1px solid rgba(255,255,255,.2);font-weight:300;}
 .hero-figs{display:flex;flex-wrap:wrap;gap:0;margin-top:52px;border-top:1px solid rgba(255,255,255,.14);}
@@ -100,9 +99,8 @@ h3{font-family:var(--font-display);font-weight:400;font-size:23px;line-height:1.
 .scale-dot{position:absolute;top:50%;width:15px;height:15px;border-radius:50%;transform:translate(-50%,-50%) scale(0);
   transition:transform .7s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 0 4px var(--panel);}
 .visible .scale-dot{transform:translate(-50%,-50%) scale(1);}
-.scale-bar{position:absolute;top:50%;height:3px;transform:translateY(-50%) scaleX(0);transform-origin:left;
-  transition:transform .9s cubic-bezier(.22,1,.36,1);opacity:.35;}
-.visible .scale-bar{transform:translateY(-50%) scaleX(1);}
+.scale-row .gridline span{display:none;}
+.scale-head + .scale-row .gridline span{display:block;}
 .scale-val{font-family:var(--font-mono);font-size:15px;text-align:right;}
 .scale-foot{font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.55;}
 
@@ -134,7 +132,7 @@ h3{font-family:var(--font-display);font-weight:400;font-size:23px;line-height:1.
 .dial-out{padding:30px 26px;display:flex;flex-direction:column;justify-content:center;background:rgba(168,65,42,.045);}
 .dial-n{font-family:var(--font-mono);font-size:60px;line-height:1;letter-spacing:-.03em;color:var(--rust);}
 .dial-of{font-size:13px;color:var(--charcoal);margin-top:12px;line-height:1.5;}
-.dial-q{font-size:12.5px;line-height:1.6;color:var(--charcoal);margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);font-style:italic;}
+.dial-q{font-size:12.5px;line-height:1.6;color:var(--charcoal);margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);}
 
 /* ── dot plot (nine schools) ────────────────────────────── */
 .dp-row{display:grid;grid-template-columns:88px 1fr 52px;align-items:center;gap:16px;padding:9px 0;}
@@ -144,6 +142,7 @@ h3{font-family:var(--font-display);font-weight:400;font-size:23px;line-height:1.
 .dp-dot{position:absolute;top:50%;width:13px;height:13px;border-radius:50%;background:var(--slate);
   transform:translate(-50%,-50%) scale(0);transition:transform .6s cubic-bezier(.34,1.56,.64,1);}
 .visible .dp-dot{transform:translate(-50%,-50%) scale(1);}
+.dp-ci{position:absolute;top:50%;height:3px;transform:translateY(-50%);background:var(--slate);opacity:.3;border-radius:2px;}
 .dp-row.avg .dp-dot{background:var(--rust);width:15px;height:15px;}
 .dp-row.avg .dp-label,.dp-row.avg .dp-val{color:var(--rust);font-weight:600;}
 .dp-val{font-family:var(--font-mono);font-size:13px;}
@@ -160,6 +159,8 @@ h3{font-family:var(--font-display);font-weight:400;font-size:23px;line-height:1.
 .fn-bar{height:26px;background:rgba(21,23,27,.05);position:relative;overflow:hidden;}
 .fn-fill{height:100%;width:0;transition:width 1.2s cubic-bezier(.22,1,.36,1);}
 .fn-sub{font-size:11.5px;color:var(--faint);margin-top:6px;}
+.fn-compare{margin-top:30px;padding-top:18px;border-top:1px dashed var(--rule-hard);}
+.fn-compare .fn-bar{background:transparent;border:1px dashed var(--rule-hard);}
 
 /* ── stat strip ─────────────────────────────────────────── */
 .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);}
@@ -194,7 +195,6 @@ h3{font-family:var(--font-display);font-weight:400;font-size:23px;line-height:1.
   .rv{opacity:1!important;transform:none!important;transition:none!important;}
   .kicker,.hero h1,.hero-sub,.hero-figs{animation:none!important;opacity:1!important;transform:none!important;}
   .scale-dot,.dp-dot{transform:translate(-50%,-50%) scale(1)!important;transition:none!important;}
-  .scale-bar{transform:translateY(-50%) scaleX(1)!important;transition:none!important;}
   .fn-fill,.b-track{transition:none!important;}
 }
 
@@ -212,7 +212,8 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
   .dial-opts{border-right:none;border-bottom:1px solid var(--rule);}
   .scale-row{grid-template-columns:1fr;gap:8px;}
   .scale-val{text-align:left;}
-  .scale-track{height:26px;}
+  .scale-track{height:30px;}
+  .scale-row .gridline span{display:block;}
 }
 @media(max-width:600px){
   .section{padding:60px 22px;}
@@ -237,7 +238,6 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
   <a href="#record"><span class="tip">The record</span></a>
   <a href="#after"><span class="tip">What follows</span></a>
   <a href="#society"><span class="tip">Beyond campus</span></a>
-  <a href="#trust"><span class="tip">Trust</span></a>
   <a href="#sources"><span class="tip">Sources</span></a>
 </nav>
 
@@ -251,20 +251,20 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
   </svg>
   <div class="hero-inner">
     <div class="kicker">A data story <span>/ measurement</span></div>
-    <h1>How many? The <em>arithmetic</em> of campus sexual assault</h1>
-    <p class="hero-sub">Four serious attempts to count how often college women are sexually assaulted. Two of them come from the same federal agency. Their answers differ by an order of magnitude &mdash; and much of the difference is built into the instruments before a single student answers a question.</p>
+    <h1>How many? The arithmetic of campus sexual assault</h1>
+    <p class="hero-sub">Three large surveys and one administrative count try to measure how often college women are sexually assaulted. Two of the surveys come from the same federal agency. Their answers differ by more than an order of magnitude, and much of the difference comes from how each instrument is built: what it asks, over what period and of whom.</p>
     <div class="hero-figs">
       <div class="hero-fig">
         <div class="hero-fig-n">6.1<small> /1,000</small></div>
-        <div class="hero-fig-l">Annual rate, female students 18&ndash;24, national crime survey</div>
+        <div class="hero-fig-l">Victimizations a year, female students 18&ndash;24, including attempts and threats, national crime survey</div>
       </div>
       <div class="hero-fig">
         <div class="hero-fig-n">10.3<small>%</small></div>
-        <div class="hero-fig-l">One academic year, nine schools, federal validation study</div>
+        <div class="hero-fig-l">Share of undergraduate women, part of one academic year, nine schools, federal validation study</div>
       </div>
       <div class="hero-fig">
         <div class="hero-fig-n">25.9<small>%</small></div>
-        <div class="hero-fig-l">Since enrolling, 33 schools, university-run climate survey</div>
+        <div class="hero-fig-l">Share of undergraduate women since enrolling, 33 schools, university-run climate survey</div>
       </div>
     </div>
   </div>
@@ -276,80 +276,88 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
   <div class="wrap">
     <div class="sec-num rv">01 &mdash; The instruments</div>
     <h2 class="rv">Put every estimate on one axis and the gap is not subtle</h2>
-    <p class="standfirst rv">Every figure below comes from a published federal or academic source, and all of them are measuring something in the same neighborhood: sexual assault of women at American colleges. The axis is logarithmic, because a linear one would not fit them.</p>
+    <p class="standfirst rv">Every figure below comes from a published federal or academic source, and all of them measure something in the same neighborhood: sexual assault of college women. The axis is logarithmic, because a linear one would not fit them. The units differ, and each row says what it counts.</p>
   </div>
 
   <div class="wide rv">
     <div class="panel">
-      <div class="scale-head"><span>Annual rate per 1,000 women</span><span>Log scale</span></div>
+      <div class="scale-head"><span>Rate per 1,000 &middot; units differ by row</span><span>Log scale</span></div>
 
       <div class="scale-row">
-        <div class="scale-label"><b>Federal campus crime reports</b><span>Reported on-campus rapes, 2021 &middot; derived rate</span></div>
+        <div class="scale-label"><b>Federal campus crime reports</b><span>Reported on-campus rapes per 1,000 students, all genders; victims include non-students &middot; 2021 &middot; derived</span></div>
         <div class="scale-track">
           <div class="gridline" style="left:22.6%"><span>1</span></div>
           <div class="gridline" style="left:54.9%"><span>10</span></div>
           <div class="gridline" style="left:87.2%"><span>100</span></div>
-          <div class="scale-bar" style="left:0;width:6.2%;background:var(--slate);"></div>
           <div class="scale-dot" style="left:6.2%;background:var(--slate);"></div>
         </div>
         <div class="scale-val">0.31</div>
       </div>
 
       <div class="scale-row">
-        <div class="scale-label"><b>National Crime Victimization Survey</b><span>Female students 18&ndash;24, 1995&ndash;2013 average</span></div>
+        <div class="scale-label"><b>Crime survey &mdash; completed rape</b><span>Victimizations per 1,000 female students 18&ndash;24 a year &middot; 1995&ndash;2013 average</span></div>
         <div class="scale-track">
-          <div class="gridline" style="left:22.6%"></div>
-          <div class="gridline" style="left:54.9%"></div>
-          <div class="gridline" style="left:87.2%"></div>
-          <div class="scale-bar" style="left:0;width:47.9%;background:var(--moss);"></div>
-          <div class="scale-dot" style="left:47.9%;background:var(--moss);"></div>
+          <div class="gridline" style="left:22.6%"><span>1</span></div>
+          <div class="gridline" style="left:54.9%"><span>10</span></div>
+          <div class="gridline" style="left:87.2%"><span>100</span></div>
+          <div class="scale-dot" style="left:32.3%;background:var(--moss);"></div>
+        </div>
+        <div class="scale-val">2.0</div>
+      </div>
+
+      <div class="scale-row">
+        <div class="scale-label"><b>Validation study &mdash; completed rape</b><span>Incidents per 1,000 undergraduate women &middot; 2014&ndash;15 academic year to spring survey</span></div>
+        <div class="scale-track">
+          <div class="gridline" style="left:22.6%"><span>1</span></div>
+          <div class="gridline" style="left:54.9%"><span>10</span></div>
+          <div class="gridline" style="left:87.2%"><span>100</span></div>
+          <div class="scale-dot" style="left:78.6%;background:var(--ochre);"></div>
+        </div>
+        <div class="scale-val">54</div>
+      </div>
+
+      <div class="scale-row">
+        <div class="scale-label"><b>Crime survey &mdash; all rape and sexual assault</b><span>Victimizations per 1,000 female students 18&ndash;24 a year, including attempts and threats &middot; 1995&ndash;2013 average</span></div>
+        <div class="scale-track">
+          <div class="gridline" style="left:22.6%"><span>1</span></div>
+          <div class="gridline" style="left:54.9%"><span>10</span></div>
+          <div class="gridline" style="left:87.2%"><span>100</span></div>
+          <div class="scale-dot" style="left:48.0%;background:var(--moss);"></div>
         </div>
         <div class="scale-val">6.1</div>
       </div>
 
       <div class="scale-row">
-        <div class="scale-label"><b>Campus Climate Survey Validation Study &mdash; rape</b><span>Undergraduate women, 2014&ndash;15 academic year</span></div>
+        <div class="scale-label"><b>Validation study &mdash; completed sexual assault</b><span>Incidents per 1,000 undergraduate women, rape plus sexual battery &middot; 2014&ndash;15 academic year to spring survey</span></div>
         <div class="scale-track">
-          <div class="gridline" style="left:22.6%"></div>
-          <div class="gridline" style="left:54.9%"></div>
-          <div class="gridline" style="left:87.2%"></div>
-          <div class="scale-bar" style="left:0;width:74.7%;background:var(--ochre);"></div>
-          <div class="scale-dot" style="left:74.7%;background:var(--ochre);"></div>
+          <div class="gridline" style="left:22.6%"><span>1</span></div>
+          <div class="gridline" style="left:54.9%"><span>10</span></div>
+          <div class="gridline" style="left:87.2%"><span>100</span></div>
+          <div class="scale-dot" style="left:95.1%;background:var(--rust);"></div>
         </div>
-        <div class="scale-val">41</div>
+        <div class="scale-val">176</div>
       </div>
 
       <div class="scale-row">
-        <div class="scale-label"><b>Campus Climate Survey Validation Study &mdash; sexual assault</b><span>Undergraduate women, 2014&ndash;15 academic year</span></div>
+        <div class="scale-label"><b>AAU climate survey &mdash; all undergraduate women</b><span>Women per 1,000 reporting nonconsensual contact, including attempts and touching &middot; fall 2018 term to spring 2019 survey</span></div>
         <div class="scale-track">
-          <div class="gridline" style="left:22.6%"></div>
-          <div class="gridline" style="left:54.9%"></div>
-          <div class="gridline" style="left:87.2%"></div>
-          <div class="scale-bar" style="left:0;width:87.6%;background:var(--rust);"></div>
-          <div class="scale-dot" style="left:87.6%;background:var(--rust);"></div>
+          <div class="gridline" style="left:22.6%"><span>1</span></div>
+          <div class="gridline" style="left:54.9%"><span>10</span></div>
+          <div class="gridline" style="left:87.2%"><span>100</span></div>
+          <div class="scale-dot" style="left:90.7%;background:var(--plum);"></div>
         </div>
-        <div class="scale-val">103</div>
+        <div class="scale-val">128</div>
       </div>
 
-      <div class="scale-row">
-        <div class="scale-label"><b>AAU climate survey &mdash; first-year women</b><span>Nonconsensual sexual contact, current academic year, 2019</span></div>
-        <div class="scale-track">
-          <div class="gridline" style="left:22.6%"></div>
-          <div class="gridline" style="left:54.9%"></div>
-          <div class="gridline" style="left:87.2%"></div>
-          <div class="scale-bar" style="left:0;width:93.8%;background:var(--plum);"></div>
-          <div class="scale-dot" style="left:93.8%;background:var(--plum);"></div>
-        </div>
-        <div class="scale-val">161</div>
-      </div>
-
-      <p class="scale-foot">The first marker is the only derived number here: 5,839 reported on-campus rapes in calendar 2021, divided by 18.6 million students. It is an administrative count of what reached an official record, not an estimate of how often assault occurs. The crime-survey marker counts victimizations; the two climate-survey markers count women victimized at least once. Because victims are often victimized more than once, the like-for-like gap is somewhat narrower than the axis suggests &mdash; and still roughly tenfold.</p>
-      <p class="src">Sources: <a href="https://nces.ed.gov/programs/digest/d23/tables/dt23_329.10.asp" target="_blank" rel="noopener">NCES Digest table 329.10</a> and <a href="https://nces.ed.gov/fastfacts/display.asp?id=98" target="_blank" rel="noopener">NCES enrollment</a>; <a href="https://bjs.ojp.gov/library/publications/rape-and-sexual-assault-among-college-age-females-1995-2013" target="_blank" rel="noopener">BJS, NCJ 248471</a>; <a href="https://bjs.ojp.gov/content/pub/pdf/ccsvsftr.pdf" target="_blank" rel="noopener">BJS/RTI Campus Climate Survey Validation Study</a>; <a href="https://www.aau.edu/sites/default/files/AAU-Files/Key-Issues/Campus-Safety/Revised%20Aggregate%20report%20%20and%20appendices%201-7_(01-16-2020_FINAL).pdf" target="_blank" rel="noopener">AAU 2019</a>.</p>
+      <p class="scale-foot">The first row is the only derived number here: 5,839 reported on-campus rapes in calendar 2021, divided by 18.6 million students of all genders. It is an administrative count of what reached an official record, not an estimate of how often assault occurs. Rows two through five are all victimization rates, incidents per 1,000 women, so they can be set against each other. For completed rape, the validation study's rate of 54 per 1,000 is 27 times the crime survey's 2.0, and it covers a shorter period: the months from the start of the 2014&ndash;15 academic year to a survey fielded in spring 2015, against a full year for the crime survey. The crime survey's figures are averages for 1995&ndash;2013; in 2013 alone, the rate of rape and sexual assault for college-age women was about 4.3 per 1,000. The last row counts women, not incidents, and includes attempted penetration and sexual touching, so it cannot be compared directly with the rows above it.</p>
+      <p class="src">Sources: <a href="https://nces.ed.gov/programs/digest/d23/tables/dt23_329.10.asp" target="_blank" rel="noopener">NCES Digest table 329.10</a> and <a href="https://nces.ed.gov/fastfacts/display.asp?id=98" target="_blank" rel="noopener">NCES enrollment</a>; <a href="https://bjs.ojp.gov/library/publications/rape-and-sexual-assault-among-college-age-females-1995-2013" target="_blank" rel="noopener">BJS, NCJ 248471</a>, table 1; <a href="https://bjs.ojp.gov/content/pub/pdf/ccsvsftr.pdf" target="_blank" rel="noopener">BJS/RTI Campus Climate Survey Validation Study</a>, p. ES-7; <a href="https://www.aau.edu/sites/default/files/AAU-Files/Key-Issues/Campus-Safety/Revised%20Aggregate%20report%20%20and%20appendices%201-7_(01-16-2020_FINAL).pdf" target="_blank" rel="noopener">AAU 2019</a>, table A7-5.</p>
     </div>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">Two of these instruments belong to the same agency. The Bureau of Justice Statistics runs the National Crime Victimization Survey, which puts the annual rate for female students at <strong>6.1 per 1,000</strong>. The same bureau, working with RTI International, ran a nine-school pilot that put the share of undergraduate women sexually assaulted in a single academic year at <strong>10.3 percent</strong> &mdash; 103 per 1,000. The bureau did not change its mind between the two. It changed the instrument.</p>
+    <p class="prose rv">Two of these instruments belong to the same agency. The Bureau of Justice Statistics runs the National Crime Victimization Survey, which puts the rate of completed rape for female students at <strong>2.0 victimizations per 1,000</strong> a year. The same bureau, working with RTI International, ran a nine-school pilot that counted <strong>54 completed rapes per 1,000</strong> undergraduate women in part of a single academic year, and found that 4.1 percent of those women had been raped. Between the two, the questions changed. So did the schools, the years, the interview mode and the response rates.</p>
+    <p class="prose rv">One study changed only the questions. In the spring of 1997, Bonnie Fisher, Francis Cullen and Michael Turner surveyed two national samples of college women by telephone, about the same academic year. The main sample of 4,446 heard screening questions that described specific sexual acts. A comparison sample of 4,432 heard the screening questions and incident report used by the crime survey. The share reporting a completed rape was <strong>1.7 percent</strong> in the main sample and <strong>0.16 percent</strong> in the comparison sample, 11 times smaller. The authors concluded that, if their own method was defensible, &ldquo;it seems likely that NCVS underestimates the true incidence of rape victimization.&rdquo;</p>
+    <p class="src rv">Sources: BJS NCJ 248471, table 1; BJS/RTI CCSVS, pp. ES-6 and ES-7; <a href="https://www.ojp.gov/pdffiles1/nij/182369.pdf" target="_blank" rel="noopener">Fisher, Cullen &amp; Turner, The Sexual Victimization of College Women, National Institute of Justice and BJS (NCJ 182369, 2000)</a>, pp. 19&ndash;21.</p>
   </div>
 
   <div class="wide rv">
@@ -357,12 +365,13 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div class="card">
         <div class="card-tag" style="color:var(--moss)">Crime survey</div>
         <div class="card-n">6.1<small> per 1,000</small></div>
-        <div class="card-d">Rape and sexual assault victimizations per year, female students aged 18&ndash;24.</div>
+        <div class="card-d">Rape and sexual assault victimizations per year, female students aged 18&ndash;24, including attempts and threats. Completed rape alone: 2.0.</div>
         <dl>
           <dt>Frame</dt><dd>A survey about crime</dd>
           <dt>Recall</dt><dd>Bounded, six months</dd>
           <dt>Mode</dt><dd>Interviewer, panel</dd>
           <dt>Counts</dt><dd>Victimizations</dd>
+          <dt>Response</dt><dd>88% of persons (2013)</dd>
         </dl>
       </div>
       <div class="card">
@@ -390,7 +399,7 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div class="card">
         <div class="card-tag" style="color:var(--slate)">Meta-analysis</div>
         <div class="card-n">17.5<small>%</small></div>
-        <div class="card-d">Pooled prevalence for women across 131 studies in 21 countries. Rape alone: 5.9 percent.</div>
+        <div class="card-d">Pooled prevalence for women from 97 study estimates, drawn from 131 articles in 21 countries. Rape alone: 5.9 percent.</div>
         <dl>
           <dt>Frame</dt><dd>Mixed</dd>
           <dt>Recall</dt><dd>Mixed</dd>
@@ -399,14 +408,14 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
         </dl>
       </div>
     </div>
-    <p class="src">Sources: BJS NCJ 248471; BJS/RTI CCSVS, p. ES-6; AAU 2019, p. 14; <a href="https://journals.sagepub.com/doi/10.1177/15248380231196119" target="_blank" rel="noopener">Steele et al., Trauma, Violence &amp; Abuse (2024)</a>. The meta-analysis pools studies with different reference periods; its authors report heterogeneity above 97 percent, meaning the studies disagree far more than sampling error alone would explain.</p>
+    <p class="src">Sources: BJS NCJ 248471, table 1 and methodology; BJS/RTI CCSVS, pp. ES-5 and ES-6; AAU 2019, pp. 5 and 14; <a href="https://journals.sagepub.com/doi/10.1177/15248380231196119" target="_blank" rel="noopener">Steele et al., Trauma, Violence &amp; Abuse (2024)</a>. The meta-analysis is international and pools studies with different reference periods; its authors report heterogeneity above 97 percent, meaning the studies disagree far more than sampling error alone would explain.</p>
     <div class="wrap" style="padding:0;">
-      <div class="note rv" style="margin-top:30px;"><b>How noisy is the underlying literature?</b> Pool the 97 studies of women in that meta-analysis by recall period and the past-year estimate comes out at <b>18.0 percent</b> &mdash; higher than the <b>16.8 percent</b> estimate for a student's entire time in higher education. A single year cannot contain more than several years. The inversion is not a finding about students; it is a measurement of how far apart the studies are.</div>
+      <div class="note rv" style="margin-top:30px;"><b>How far apart are the studies?</b> Split the meta-analysis's estimates for women by recall period and the past-year figure, from 47 estimates, comes out at <b>18.0 percent</b>. The figure for a student's entire time in higher education, from 50 largely different estimates, is <b>16.8 percent</b>. Within one survey, a single year could not exceed several. Across these pooled studies it does, slightly, and the two confidence intervals overlap. The comparison says more about the spread of the literature than about students.</div>
     </div>
   </div>
 
   <div class="wrap">
-    <div class="note rv"><b>The comparison to avoid.</b> A cumulative rate &mdash; "since enrolling" &mdash; covers up to four years and climbs with every year a student stays. An academic-year rate covers about nine months. Setting one against the other without saying which is which is the most common error in this literature, and it is available to both sides of the argument.</div>
+    <div class="note rv"><b>The comparison to avoid.</b> A cumulative rate &mdash; "since enrolling" &mdash; covers up to four years and climbs with every year a student stays. An academic-year rate covers the months from the start of the fall term to the date of the survey. Setting one against the other without saying which is which is the most common error in this literature, and it is available to both sides of the argument.</div>
   </div>
 </section>
 
@@ -414,49 +423,53 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
 <section class="section" id="dial">
   <div class="wrap">
     <div class="sec-num rv">02 &mdash; Definitions</div>
-    <h2 class="rv">One survey, one population, five defensible answers</h2>
-    <p class="standfirst rv">Everything below comes from a single survey of a single group &mdash; undergraduate women in the AAU's 2019 study, asked about their time since enrolling. Each figure is one the AAU itself published. What changes is only which behaviors and which tactics you decide to count.</p>
+    <h2 class="rv">One survey, one population, six defensible answers</h2>
+    <p class="standfirst rv">Everything below comes from a single survey of a single group: undergraduate women in the AAU's 2019 study, asked about their time since enrolling. Each figure is one the AAU itself published. What changes is which behaviors and which tactics you decide to count.</p>
   </div>
 
   <div class="wide rv">
     <div class="dial">
       <div class="dial-opts" role="radiogroup" aria-label="Choose a definition">
         <label class="dial-opt">
-          <input type="radio" name="def" value="7.3" data-of="Penetration or attempted penetration by physical force." data-q="&ldquo;Among undergraduate women, 7.3 percent reported penetration by physical force.&rdquo;">
-          <span class="dial-opt-t"><span class="dial-mark"></span><span>Penetration by physical force</span></span>
+          <input type="radio" name="def" value="7.3" data-of="Completed or attempted penetration by physical force only. The AAU's table labels this &ldquo;physical force only&rdquo;; women who reported both force and inability to consent are counted separately." data-q="&ldquo;Among undergraduate women, 7.3 percent reported penetration by physical force.&rdquo;">
+          <span class="dial-opt-t"><span class="dial-mark"></span><span>Penetration by physical force only</span></span>
         </label>
         <label class="dial-opt">
-          <input type="radio" name="def" value="5.4" data-of="Penetration where the student was unable to consent or stop what was happening." data-q="&ldquo;and 5.4 percent reported penetration related to an inability to consent.&rdquo;">
-          <span class="dial-opt-t"><span class="dial-mark"></span><span>Penetration by inability to consent</span></span>
+          <input type="radio" name="def" value="5.4" data-of="Completed or attempted penetration where the student was unable to consent or stop what was happening, with no physical force reported. The AAU's table labels this &ldquo;inability to consent or stop what was happening only.&rdquo;" data-q="&ldquo;and 5.4 percent reported penetration related to an inability to consent.&rdquo;">
+          <span class="dial-opt-t"><span class="dial-mark"></span><span>Penetration by inability to consent only</span></span>
         </label>
         <label class="dial-opt">
-          <input type="radio" name="def" value="12.8" data-of="Any penetration or attempted penetration, by force or inability to consent. The AAU notes this category &ldquo;meets the legal definitions for rape in many jurisdictions.&rdquo;" data-q="&ldquo;undergraduate women had a prevalence rate of 12.8 percent compared to 4.6 percent of women graduate/professional students.&rdquo;" checked>
-          <span class="dial-opt-t"><span class="dial-mark"></span><span>Any penetration, either tactic</span></span>
+          <input type="radio" name="def" value="2.5" data-of="Completed or attempted penetration involving both physical force and inability to consent." data-q="&ldquo;Instances of physical force and inability to consent together were reported by 2.5 percent of undergraduate women.&rdquo;">
+          <span class="dial-opt-t"><span class="dial-mark"></span><span>Penetration involving both tactics</span></span>
+        </label>
+        <label class="dial-opt">
+          <input type="radio" name="def" value="12.8" data-of="Any completed or attempted penetration, by force, inability to consent or both. The AAU notes this category &ldquo;meets the legal definitions for rape in many jurisdictions.&rdquo;" data-q="&ldquo;undergraduate women had a prevalence rate of 12.8 percent compared to 4.6 percent of women graduate/professional students.&rdquo;" checked>
+          <span class="dial-opt-t"><span class="dial-mark"></span><span>Any penetration, any of these tactics</span></span>
         </label>
         <label class="dial-opt">
           <input type="radio" name="def" value="19.6" data-of="Sexual touching by force or inability to consent, with no penetration required." data-q="&ldquo;among women, 19.6 percent of undergraduates reported sexual touching compared to 6.9 percent of graduates/professionals.&rdquo;">
           <span class="dial-opt-t"><span class="dial-mark"></span><span>Sexual touching</span></span>
         </label>
         <label class="dial-opt">
-          <input type="radio" name="def" value="25.9" data-of="Nonconsensual sexual contact of any kind &mdash; penetration, attempted penetration or touching &mdash; by force or inability to consent. This is the figure that became &ldquo;1 in 4.&rdquo;" data-q="&ldquo;the estimate for women undergraduates is between two and three times higher at 25.9 percent than women graduate and professional students, at 9.7 percent.&rdquo;">
-          <span class="dial-opt-t"><span class="dial-mark"></span><span>All nonconsensual sexual contact</span></span>
+          <input type="radio" name="def" value="25.9" data-of="Penetration, attempted penetration or sexual touching by force or inability to consent. The AAU also asked about contact through coercion and without voluntary agreement; those are not in this total." data-q="&ldquo;the estimate for women undergraduates is between two and three times higher at 25.9 percent than women graduate and professional students, at 9.7 percent.&rdquo;">
+          <span class="dial-opt-t"><span class="dial-mark"></span><span>All contact by force or inability to consent</span></span>
         </label>
       </div>
       <div class="dial-out">
         <div class="dial-n" id="dialN">12.8%</div>
-        <div class="dial-of" id="dialOf">Any penetration or attempted penetration, by force or inability to consent. The AAU notes this category &ldquo;meets the legal definitions for rape in many jurisdictions.&rdquo;</div>
+        <div class="dial-of" id="dialOf">Any completed or attempted penetration, by force, inability to consent or both. The AAU notes this category &ldquo;meets the legal definitions for rape in many jurisdictions.&rdquo;</div>
         <div class="dial-q" id="dialQ">&ldquo;undergraduate women had a prevalence rate of 12.8 percent compared to 4.6 percent of women graduate/professional students.&rdquo;</div>
       </div>
     </div>
-    <p class="src">All figures: AAU 2019 report, pp. 14&ndash;15, undergraduate women, since enrolling at the school. These are the AAU's own published subtotals, not sums calculated here, and the categories overlap &mdash; one student can appear in several.</p>
+    <p class="src">All figures: AAU 2019 report, pp. 14&ndash;15, and appendix table A7-5, undergraduate women, since enrolling at the school. These are the AAU's own published subtotals, not sums calculated here. They should not be added together: one student can appear in several categories.</p>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">This is why two people can quote the same study and appear to be describing different countries. A commentator who says one in four is citing the widest category. A commentator who says one in eight is citing the category the survey itself associates with the legal definition of rape. A commentator who says roughly one in fourteen is citing forcible penetration. None of them is inventing a number.</p>
-    <p class="prose rv">The second lever is who answers. The AAU survey reached <strong>21.9 percent</strong> of the students it invited &mdash; 26.1 percent of women &mdash; and school-level response ranged from 6 percent to 68 percent. The federal validation study reached <strong>54 percent</strong> of the women it invited. Low response does not automatically mean an estimate is too high; it means the band of uncertainty is wider in both directions, a point the AAU's own report makes plainly.</p>
+    <p class="prose rv">This is why two people can quote the same study and appear to be describing different countries. A commentator who says one in four is citing the broadest force-or-incapacitation category. A commentator who says one in eight is citing the category the survey itself associates with the legal definition of rape. A commentator who says roughly one in fourteen is citing penetration by physical force alone, which leaves out the 2.5 percent who reported force and incapacitation together. None of them is inventing a number.</p>
+    <p class="prose rv">The second lever is who answers. The AAU survey reached <strong>21.9 percent</strong> of the students it invited, including 26.1 percent of women, and school-level response ranged from 6 percent to 68 percent. The federal validation study reached an average of <strong>54 percent</strong> of the women it invited. A low response rate raises the risk of bias, which can run in either direction. Both surveys tested for it. The validation study compared respondents with nonrespondents on school records and found &ldquo;little evidence of nonresponse bias,&rdquo; and students who answered late in the field period reported sexual assault at the same rate as those who answered early. The AAU found a small upward bias, and &ldquo;little evidence that non-response bias can explain the high rates of victimization.&rdquo;</p>
     <div class="quote rv">
-      If non-respondents are more likely to be victimized, then there will be a negative bias in the estimates (i.e., the estimated victimization rate will be too low). If non-respondents are less likely to be victimized, then estimates are too high.
-      <cite>Report on the AAU Campus Climate Survey on Sexual Assault and Misconduct, 2019, p. 6</cite>
+      Analysis of the 2015 data found some evidence that the non-response is in a positive direction&mdash;that is the published estimates were too high, although not by a large amount.
+      <cite>Report on the AAU Campus Climate Survey on Sexual Assault and Misconduct, 2019, p. 7; see also p. xvii and appendix 4. Validation study: BJS/RTI CCSVS, pp. ES-5 and 50.</cite>
     </div>
   </div>
 </section>
@@ -466,12 +479,12 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
   <div class="wrap">
     <div class="sec-num rv">03 &mdash; Variation</div>
     <h2 class="rv">The same questionnaire, nine campuses, one in two to one in eight</h2>
-    <p class="standfirst rv">The federal validation study fielded an identical instrument, in the same weeks of 2015, at nine institutions. Among fourth-year women asked whether they had experienced unwanted or nonconsensual sexual contact since entering college, the answer ranged from 13 percent at one school to 51 percent at another.</p>
+    <p class="standfirst rv">The federal validation study fielded an identical instrument at nine institutions in the spring of 2015. Among fourth-year women asked whether they had experienced unwanted or nonconsensual sexual contact since entering college, the answer ranged from 13 percent at one school to 51 percent at another.</p>
   </div>
 
   <div class="wide rv">
     <div class="panel">
-      <p class="chart-cap">Fourth-year undergraduate women reporting sexual assault since entering college, by school</p>
+      <p class="chart-cap">Fourth-year undergraduate women reporting unwanted or nonconsensual sexual contact since entering college, by school. Lines show approximate 95 percent confidence intervals.</p>
       <div id="dotplot"></div>
       <div class="dp-axis">
         <div></div>
@@ -485,12 +498,12 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
         </div>
         <div></div>
       </div>
-      <p class="src">Source: BJS/RTI Campus Climate Survey Validation Study, p. 76. Four-year schools only. The study attaches an explicit caution to these cumulative figures: no incident-level detail was collected for victimizations before the 2014&ndash;15 academic year, and a reference period of roughly 3.5 years is more vulnerable to recall error and telescoping. The better-validated academic-year figures from the same nine schools vary almost as widely: 4.2 percent to 20.0 percent.</p>
+      <p class="src">Source: BJS/RTI Campus Climate Survey Validation Study, p. 76, and appendix tables E-10 to E-18 for standard errors; intervals are each estimate plus or minus 1.96 standard errors. The study's published average of 25.1 percent covers only its four-year schools. It equals the average of the eight schools other than School 2. The study also reports that School 2 did not reach its target sample size. The study attaches an explicit caution to these cumulative figures: no incident-level detail was collected for victimizations before the 2014&ndash;15 academic year, and a reference period of roughly 3.5 years is more vulnerable to recall error and telescoping. The academic-year figures from the same nine schools range from 4.2 percent to 20.0 percent.</p>
     </div>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">Both of the numbers that get quoted nationally &mdash; the one in four and the six in a thousand &mdash; are averages taken across places that do not resemble one another. Within this single study, run to a single protocol, the spread from the lowest campus to the highest is wider than the gap between the two studies that are usually set against each other.</p>
+    <p class="prose rv">The AAU's 25.9 percent is itself an average across 33 schools, whose rates for undergraduate women range from 14.0 percent to 32.0 percent (AAU 2019, p. 17). Within this single study, run to a single protocol, each school's confidence interval spans roughly 4 to 9 percentage points. The distance from the lowest school to the highest is 37.6 points. Most of the spread is larger than sampling error can explain.</p>
   </div>
 </section>
 
@@ -498,13 +511,13 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
 <section class="section" id="record">
   <div class="wrap">
     <div class="sec-num rv">04 &mdash; The official record</div>
-    <h2 class="rv">Of every hundred rapes the survey found, about three could ever appear in the federal count</h2>
+    <h2 class="rv">Of every hundred rapes the survey found, about three would be expected to reach the federal count</h2>
     <p class="standfirst rv">The validation study did the arithmetic itself. It compared what students told the survey with what the same nine schools reported under the Clery Act, the federal law requiring colleges to publish campus crime statistics.</p>
   </div>
 
   <div class="wide rv">
     <div class="panel">
-      <p class="chart-cap">Completed rapes of undergraduates at nine schools, 2014&ndash;15 academic year</p>
+      <p class="chart-cap">Completed rapes of male and female undergraduates at nine schools, 2014&ndash;15 academic year, as estimated by the survey</p>
 
       <div class="fn-row">
         <div class="fn-top"><div class="fn-name">Reported by students to the survey</div><div class="fn-num">2,380</div></div>
@@ -516,25 +529,25 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
         <div class="fn-sub">32 percent &mdash; the rest happened somewhere Clery does not reach</div>
       </div>
       <div class="fn-row">
-        <div class="fn-top"><div class="fn-name">On campus <em>and</em> reported to school authorities</div><div class="fn-num">~60</div></div>
+        <div class="fn-top"><div class="fn-name">On campus and reported to school authorities</div><div class="fn-num">~60</div></div>
         <div class="fn-bar"><div class="fn-fill" data-w="2.5" style="background:var(--slate);"></div></div>
-        <div class="fn-sub">Margin of error 30 to 90 incidents &mdash; about 3 percent of all completed rapes the survey captured</div>
+        <div class="fn-sub">Margin of error 30 to 90 incidents; about 3 percent of all completed rapes the survey captured</div>
       </div>
-      <div class="fn-row">
-        <div class="fn-top"><div class="fn-name">Actually appearing in the schools' Clery filings</div><div class="fn-num">40</div></div>
+      <div class="fn-row fn-compare">
+        <div class="fn-top"><div class="fn-name">For comparison, not a funnel stage: rapes in the nine schools' Clery filings, calendar 2014</div><div class="fn-num">40</div></div>
         <div class="fn-bar"><div class="fn-fill" data-w="1.7" style="background:var(--ink);"></div></div>
-        <div class="fn-sub">Not statistically different from the survey's estimate of what should have been filed</div>
+        <div class="fn-sub">A different count: calendar year rather than academic year, and victims of any status under Clery's own rules. The bureau found it not statistically different from the survey's estimate of about 60.</div>
       </div>
 
-      <p class="src">Source: BJS/RTI Campus Climate Survey Validation Study, p. 110. The bureau's own caveats apply: Clery covers all students and employees while the survey covered undergraduates; some victimized students may have left school; and the two collections define rape, campus geography and reporting officials somewhat differently.</p>
+      <p class="src">Source: BJS/RTI Campus Climate Survey Validation Study, p. 110. All three rows are survey estimates; the report gives a margin of error only for the third. The bureau's own caveats apply: Clery covers all students and employees while the survey covered undergraduates; some victimized students may have left school; and the two collections define rape, campus geography and reporting officials somewhat differently.</p>
     </div>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">That convergence matters in both directions. It is evidence that Clery numbers are not being fabricated &mdash; the schools reported roughly what the survey predicted they would. It is also evidence that Clery numbers cannot be read as a measure of how much sexual assault happens, because the law was never built to capture it. As the bureau put it: <strong>the vast majority of rapes are not reported to authorities and are not represented in an institution's Clery numbers.</strong></p>
+    <p class="prose rv">The two counts were close: the schools reported roughly what the survey predicted would reach them. Most rapes the survey found happened off campus or were never reported to school authorities, so they fall outside what Clery counts. As the bureau put it: <strong>the vast majority of rapes are not reported to authorities and are not represented in an institution's Clery numbers.</strong></p>
 
     <h3 class="rv">Why students say they do not report</h3>
-    <p class="chart-cap rv">Reasons given by women who did not contact a program or resource after an incident involving penetration, AAU 2019. More than one answer allowed.</p>
+    <p class="chart-cap rv">Reasons given for not contacting a program or resource, per 100 incidents involving penetration of women, AAU 2019. More than one answer allowed. The five most common reasons are shown.</p>
   </div>
 
   <div class="wide rv">
@@ -544,12 +557,12 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div class="b-row"><div class="b-name"><div class="b-track" data-w="83.4"></div><span>Embarrassed, ashamed, or too difficult emotionally</span></div><div class="b-val">41.7%</div></div>
       <div class="b-row"><div class="b-name"><div class="b-track" data-w="49"></div><span>Did not want to get the person in trouble</span></div><div class="b-val">24.5%</div></div>
       <div class="b-row"><div class="b-name"><div class="b-track" data-w="43.8"></div><span>Did not think resources could help</span></div><div class="b-val">21.9%</div></div>
-      <p class="src">Source: AAU 2019, p. 30. Bars are scaled to twice each percentage so the shortest remains legible; the labeled figures are the published values. Across the 33 schools, women contacted a program in 29.5 percent of penetration incidents &mdash; ranging from 16.5 percent at one school to 65.6 percent at another. In the federal validation study, 12.5 percent of rape incidents were reported to any official.</p>
+      <p class="src">Source: AAU 2019, p. 30, and table 21. Bars are scaled to twice each percentage so the shortest remains legible; the labeled figures are the published values. Across the 33 schools, women contacted a program in 29.5 percent of penetration incidents &mdash; ranging from 16.5 percent at one school to 65.6 percent at another. In the federal validation study, 12.5 percent of rape incidents were reported to any official.</p>
     </div>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">Among students who did report, most found the response useful: in the validation study, victims considered the official helpful in 81 percent of reported rape incidents. The barrier that shows up largest in the data is not a belief that the system will fail. It is a judgment about the seriousness of what happened &mdash; which is, once again, a question about definitions.</p>
+    <p class="prose rv">Asked for the single most important reason, women most often said they could handle it themselves, for 20.0 percent of incidents, followed by a judgment that the incident was not serious enough, for 16.8 percent. In the validation study, victims considered the official helpful in 81 percent of the rape incidents that were reported; that figure covers only incidents that reached an official.</p>
   </div>
 </section>
 
@@ -557,8 +570,8 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
 <section class="section" id="after">
   <div class="wrap">
     <div class="sec-num rv">05 &mdash; Consequences</div>
-    <h2 class="rv">For the women who are counted, the effects are still measurable a decade later</h2>
-    <p class="standfirst rv">The largest recent study of what happens afterward is population-scale and Finnish. Researchers linked every police report and hospital admission for rape between 2006 and 2019 to national records of employment, earnings, education and prescriptions, then compared each victim with observationally equivalent women who were not assaulted.</p>
+    <h2 class="rv">For victims whose cases reached police or hospitals, the effects lasted at least a decade</h2>
+    <p class="standfirst rv">A 2026 Finnish working paper, not yet published in a journal, measures what happens afterward across a whole country. Researchers linked police reports and hospital admissions for rape and related sexual offenses between 2006 and 2019 to national records of employment, earnings, education and prescriptions, then compared each victim with observationally equivalent women who were not assaulted.</p>
   </div>
 
   <div class="wide rv">
@@ -568,15 +581,15 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div><div class="n" style="color:var(--plum)">+6 pts</div><div class="l">Anti-depressant use &mdash; a 28 percent rise against baseline</div></div>
       <div><div class="n" style="color:var(--slate)">41%</div><div class="l">Of victims in the data were under 21 when they were assaulted</div></div>
     </div>
-    <p class="src">Source: <a href="https://ifs.org.uk/sites/default/files/2026-02/WP202615-The-economic-impacts-of-rape.pdf" target="_blank" rel="noopener">Adams, Huttunen, Nix &amp; Zhang, &ldquo;The Economic Impacts of Rape,&rdquo; IFS Working Paper 26/15, February 2026</a>. Finland, 2006&ndash;2019. A matched-control event study, not an experiment; the comparison group is observationally equivalent women, and the estimates cover assaults that reached a police or hospital record.</p>
+    <p class="src">Source: <a href="https://ifs.org.uk/sites/default/files/2026-02/WP202615-The-economic-impacts-of-rape.pdf" target="_blank" rel="noopener">Adams, Huttunen, Nix &amp; Zhang, &ldquo;The Economic Impacts of Rape,&rdquo; IFS Working Paper 26/15, February 2026</a>. Finland, 2006&ndash;2019. A matched-control event study, not an experiment; the comparison group is observationally equivalent women. The paper's &ldquo;rape&rdquo; category is broader than the legal term: half the police cases are rape or aggravated rape, 41 percent are sexual abuse, coercion into a sexual act or sexual harassment, and the rest are attempts. Cases that reach police or hospitals may be more severe than many incidents counted in campus surveys, so these effects should not be applied to survey totals.</p>
   </div>
 
   <div class="wrap">
     <p class="prose rv">The finding most relevant to a campus is what happens to the youngest victims. Women raped as adolescents were, by the age of 25, <strong>10 percentage points less likely to have graduated from college</strong> and 14 points less likely to be employed than young women with the same pre-assault grades, mental health and family circumstances. The authors note that the drop in college completion is sharpest among the most academically able teenage victims &mdash; the students who, on every prior indicator, were most likely to finish.</p>
-    <p class="prose rv">The harm also does not stop at the person. When a girl in a Finnish school cohort was raped, her female classmates' antidepressant prescriptions rose measurably &mdash; the equivalent of one additional classmate on medication. There was no such effect among male classmates.</p>
+    <p class="prose rv">The harm also does not stop at the person. When an adolescent girl was assaulted, antidepressant prescriptions rose among her female classmates. The authors put the size at roughly one additional girl on antidepressants for every five classes in which a girl was assaulted. They found no effect among male classmates.</p>
 
-    <div class="note rv"><b>What this evidence is and is not.</b> It is population-scale, administrative and longitudinal, which is rare. It is also Finnish, and it captures assaults that entered an official record. Campus-specific work is weaker by design: a systematic review of thirteen studies reports that across all of them, sexual assault was associated with &ldquo;more academic problems including lower grade point average, dropping out of university, and self-regulated learning problems&rdquo; &mdash; associations drawn from observational data, not causal estimates, and the authors note the number of studies is small even as the results are consistent.</div>
-    <p class="src rv">Sources: Adams et al. (2026); <a href="https://journals.sagepub.com/doi/full/10.1177/15248380211030247" target="_blank" rel="noopener">Molstad, Weinhardt &amp; Jones, Trauma, Violence &amp; Abuse (2023)</a>. In the AAU survey, 15.1 percent of women reported physical injuries from incidents involving penetration.</p>
+    <div class="note rv"><b>What this evidence is and is not.</b> It is population-scale, administrative and longitudinal, which is rare. It is also Finnish, it has not yet been through journal review, and it captures assaults that entered an official record. Campus-specific work is weaker by design: a systematic review of thirteen studies reports that across all of them, sexual assault was associated with &ldquo;more academic problems including lower grade point average, dropping out of university, and self-regulated learning problems&rdquo; &mdash; associations drawn from observational data, not causal estimates, and the authors note the number of studies is small even as the results are consistent.</div>
+    <p class="src rv">Sources: Adams et al. (2026); <a href="https://journals.sagepub.com/doi/full/10.1177/15248380211030247" target="_blank" rel="noopener">Molstad, Weinhardt &amp; Jones, Trauma, Violence &amp; Abuse (2023)</a>. In the AAU survey, women reported physical injuries in 15.1 percent of incidents involving penetration (AAU 2019, p. 28 and table 20).</p>
   </div>
 </section>
 
@@ -584,7 +597,7 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
 <section class="section" id="society">
   <div class="wrap">
     <div class="sec-num rv">06 &mdash; Beyond campus</div>
-    <h2 class="rv">Enrolled women are not at higher risk than their peers who are not in college</h2>
+    <h2 class="rv">In the crime survey, enrolled women were not at higher risk than their peers outside college</h2>
     <p class="standfirst rv">One instrument, one definition, one period: the national crime survey measured students and non-students of the same age side by side.</p>
   </div>
 
@@ -594,54 +607,23 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div><div class="n" style="color:var(--rust)">7.6</div><div class="l">Per 1,000 <b>non-students</b> of the same age &mdash; 1.2 times the student rate</div></div>
       <div><div class="n" style="color:var(--slate)">80%</div><div class="l">Of student victimizations went unreported to police, against 67 percent for non-students</div></div>
     </div>
-    <p class="src">Source: BJS, NCJ 248471, covering 1995&ndash;2013. One survey, one definition, one period &mdash; which is what makes the comparison usable.</p>
+    <p class="src">Source: BJS, NCJ 248471, table 1, covering 1995&ndash;2013. One survey, one definition, one period, which is what makes the comparison usable. The difference in total rates is statistically significant at the 90 percent confidence level. &ldquo;Students&rdquo; includes women enrolled full or part time in a college, university, trade school or vocational school. By 2013 the rates had converged, at about 4.3 per 1,000 for both groups. The comparison inherits the crime survey's own measurement: student victimizations were less likely to be reported to police, and the survey cannot show whether students were also less likely to describe an incident to an interviewer as a crime.</p>
   </div>
 
   <div class="wrap">
-    <p class="prose rv">The national lifetime figures place the college years inside the period of highest risk rather than apart from it. The Centers for Disease Control and Prevention reports that <strong>more than one in five women</strong> have experienced completed or attempted rape in their lifetimes, and that nearly half of women have experienced some form of contact sexual violence. Most of it begins early: <strong>more than four in five female rape survivors were first raped before the age of 25</strong>, and almost half before 18 &mdash; that is, before the traditional college years begin.</p>
-    <p class="prose rv">That is the context a campus figure sits inside. A number covering ages 18 to 22 is measuring the years in which risk is highest for everyone in that age group, enrolled or not, and it is measuring a population some of whom arrived already having been assaulted. The federal cost estimate the CDC cites for a single rape &mdash; medical care, lost productivity, criminal justice &mdash; is <strong>$122,461</strong> per survivor.</p>
-    <p class="src rv">Source: <a href="https://www.cdc.gov/sexual-violence/about/index.html" target="_blank" rel="noopener">CDC, About Sexual Violence</a>, updated December 2025, drawing on the National Intimate Partner and Sexual Violence Survey. Lifetime figures from the CDC and annual figures from the crime survey come from different instruments and cannot be added together.</p>
-  </div>
-</section>
-
-<!-- ══════════════════ 7 · TRUST ══════════════════ -->
-<section class="section" id="trust">
-  <div class="wrap">
-    <div class="sec-num rv">07 &mdash; The audience</div>
-    <h2 class="rv">Seventy percent of Americans say higher education is going the wrong way</h2>
-    <p class="standfirst rv">In September 2025, 70 percent of American adults told Pew that higher education is headed in the wrong direction &mdash; up from 56 percent five years earlier, with majorities in both parties saying so.</p>
-  </div>
-
-  <div class="wide rv">
-    <div class="panel bars">
-      <p class="chart-cap">Share saying the higher education system is headed in the wrong direction</p>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="77"></div><span>Republicans and Republican leaners</span></div><div class="b-val">77%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="70"></div><span>All adults, 2025</span></div><div class="b-val">70%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="65"></div><span>Democrats and Democratic leaners</span></div><div class="b-val">65%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="56"></div><span>All adults, 2020</span></div><div class="b-val">56%</div></div>
-
-      <p class="chart-cap" style="margin-top:30px;">Share rating colleges fair or poor on&hellip;</p>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="79"></div><span>Keeping tuition affordable</span></div><div class="b-val">79%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="55"></div><span>Preparing students for well-paying jobs</span></div><div class="b-val">55%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="49"></div><span>Developing critical thinking skills</span></div><div class="b-val">49%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="46"></div><span>Supporting students' mental health</span></div><div class="b-val">46%</div></div>
-      <div class="b-row"><div class="b-name"><div class="b-track" data-w="45"></div><span>Free speech and a wide range of opinions</span></div><div class="b-val">45%</div></div>
-      <p class="src">Source: <a href="https://www.pewresearch.org/short-reads/2025/10/15/growing-share-of-americans-say-the-us-higher-education-system-is-headed-in-the-wrong-direction/" target="_blank" rel="noopener">Pew Research Center</a>, 3,445 U.S. adults, September 22&ndash;28, 2025. Adults with a college degree were slightly more critical than those without: 74 percent versus 69 percent.</p>
-    </div>
-  </div>
-
-  <div class="wrap">
-    <p class="prose rv">Pew did not ask about sexual assault, and nothing in this survey attributes the decline to campus safety. It is included here for one reason: it describes the audience. Campus climate results are published into a country where seven in ten adults, across both parties, already say the system is headed the wrong way.</p>
-    <div class="note rv"><b>What follows from the measurement choices.</b> Each choice on this page has a direction. Widening the definitions, lengthening the recall period and surveying the whole student body about sexual misconduct all push a published figure up, without anything changing on the campus itself. Tightening them pushes it down. That is why the same institution can produce two very different numbers in the same year, and why the questions worth asking of any figure are: what was counted, over what period, of whom, and how many answered.</div>
+    <p class="prose rv">The college years fall inside the period of highest risk. From 1997 to 2013, according to the Bureau of Justice Statistics, women ages 18 to 24 consistently had higher rates of rape and sexual assault than women in any other age group. The Centers for Disease Control and Prevention reports that <strong>more than one in five women</strong> have experienced completed or attempted rape in their lifetimes, and that nearly half of women have experienced some form of contact sexual violence. Most of it begins early: <strong>more than four in five female rape survivors were first raped before the age of 25</strong>, and almost half before 18, before the traditional college years begin.</p>
+    <p class="prose rv">A campus figure covering ages 18 to 22 measures the years in which risk is highest for everyone in that age group, enrolled or not, in a population some of whom arrived having already been assaulted. The CDC puts the lifetime cost of rape, including medical care, lost productivity and criminal justice costs, at <strong>$122,461</strong> per survivor.</p>
+    <p class="src rv">Sources: BJS, NCJ 248471, figure 2; <a href="https://www.cdc.gov/sexual-violence/about/index.html" target="_blank" rel="noopener">CDC, About Sexual Violence</a>, updated December 2025, drawing on the National Intimate Partner and Sexual Violence Survey. Lifetime figures from the CDC and annual figures from the crime survey come from different instruments and cannot be added together.</p>
+    <div class="note rv"><b>What follows from the measurement choices.</b> Each choice on this page has a direction. Broader definitions, longer recall periods, screening questions that describe specific acts and surveys framed around sexual misconduct tend to push a published figure up. A survey framed around crime, screening questions that do not describe specific acts and a bounded six-month recall period tend to push it down. Neither set of choices is neutral, and none of them changes anything on a campus. The questions worth asking of any figure: what was counted, over what period, of whom, and how many answered.</div>
   </div>
 </section>
 
 <!-- ══════════════════ SOURCES ══════════════════ -->
 <section class="section" id="sources">
   <div class="wrap">
-    <div class="sec-num rv">08 &mdash; Sources</div>
+    <div class="sec-num rv">07 &mdash; Sources</div>
     <h2 class="rv">Every figure, and where it came from</h2>
-    <p class="standfirst rv">Each number on this page was read in the primary document &mdash; the federal report, the peer-reviewed paper or the agency table &mdash; not in a summary of it. A companion ledger lists every figure with the quoted source language and its complications.</p>
+    <p class="standfirst rv">Each number on this page was read in the primary document: the federal report, the journal article, the working paper or the agency table. A companion ledger lists every figure with the quoted source language and its complications.</p>
 
     <div class="srclist rv">
       <div class="srcitem"><b>Federal statistics</b></div>
@@ -656,10 +638,10 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       <div class="srcitem"><a href="https://journals.sagepub.com/doi/10.1177/15248380231196119" target="_blank" rel="noopener">Steele, Martin, Sciarra, Melendez-Torres, Degli Esposti and Humphreys, The Prevalence of Sexual Assault Among Higher Education Students</a>, Trauma, Violence &amp; Abuse (2024) &mdash; <a href="https://europepmc.org/articles/PMC11155219" target="_blank" rel="noopener">free full text</a></div>
       <div class="srcitem"><a href="https://journals.sagepub.com/doi/full/10.1177/15248380211030247" target="_blank" rel="noopener">Molstad, Weinhardt and Jones, Sexual Assault as a Contributor to Academic Outcomes in University</a>, Trauma, Violence &amp; Abuse (2023)</div>
       <div class="srcitem"><a href="https://ifs.org.uk/sites/default/files/2026-02/WP202615-The-economic-impacts-of-rape.pdf" target="_blank" rel="noopener">Adams, Huttunen, Nix and Zhang, The Economic Impacts of Rape</a>, Institute for Fiscal Studies Working Paper 26/15 (2026)</div>
-      <div class="srcitem"><a href="https://www.pewresearch.org/short-reads/2025/10/15/growing-share-of-americans-say-the-us-higher-education-system-is-headed-in-the-wrong-direction/" target="_blank" rel="noopener">Pew Research Center, Growing share of Americans say the U.S. higher education system is headed in the wrong direction</a> (2025)</div>
+      <div class="srcitem"><a href="https://www.ojp.gov/pdffiles1/nij/182369.pdf" target="_blank" rel="noopener">Fisher, Cullen and Turner, The Sexual Victimization of College Women</a>, National Institute of Justice and Bureau of Justice Statistics (NCJ 182369, 2000)</div>
     </div>
 
-    <div class="note rv" style="margin-top:34px;"><b>One derived number.</b> The 0.31 per 1,000 rate on the opening axis is the only figure calculated here rather than published: 5,839 reported on-campus rapes in calendar 2021 divided by 18.6 million enrolled students. Every other figure is quoted as its source published it. The 2020 and 2021 campus-crime counts cover terms disrupted by COVID-19 closures and should not be read as a trend.</div>
+    <div class="note rv" style="margin-top:34px;"><b>Derived numbers.</b> Two kinds of figures are calculated here rather than published. The 0.31 per 1,000 rate on the opening axis is 5,839 reported on-campus rapes in calendar 2021 divided by 18.6 million enrolled students of all genders. The confidence intervals on the nine-school chart are each published estimate plus or minus 1.96 times its published standard error. Ratios in the text, such as 27 times, are simple divisions of published figures. Every other figure is quoted as its source published it. The 2020 and 2021 campus-crime counts cover terms disrupted by COVID-19 closures and should not be read as a trend.</div>
 
     <p class="prose rv" style="margin-top:26px;font-size:15px;color:var(--charcoal);">If you or someone you know needs support, the National Sexual Assault Hotline is 800.656.HOPE (4673).</p>
   </div>
@@ -697,11 +679,11 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
     bar.style.width=(dh>0?(window.scrollY/dh*100):0)+'%';
   },{passive:true});
 
-  /* nine-school dot plot — CCSVS p.76, fourth-year women, since entering college */
+  /* nine-school dot plot — CCSVS p.76, fourth-year women, since entering college; SEs from tables E-10 to E-18 */
   var schools=[
-    ['School 1',50.8],['School 5',31.9],['School 7',26.6],['School 8',23.7],
-    ['Average',25.1],
-    ['School 3',19.8],['School 6',18.1],['School 9',16.0],['School 4',13.7],['School 2',13.2]
+    ['School 1',50.8,2.1],['School 5',31.9,1.9],['School 7',26.6,1.4],
+    ['Average',25.1,null],
+    ['School 8',23.7,1.4],['School 3',19.8,1.3],['School 6',18.1,1.1],['School 9',16.0,1.6],['School 4',13.7,1.1],['School 2',13.2,2.4]
   ];
   var MAXV=55, dp=document.getElementById('dotplot');
   if(dp){
@@ -709,8 +691,8 @@ footer{background:#12141a;color:#b9bcc2;padding:64px 32px 72px;}
       var isAvg = s[0]==='Average';
       var row=document.createElement('div');
       row.className='dp-row'+(isAvg?' avg':'');
-      row.innerHTML='<div class="dp-label">'+(isAvg?'Average':s[0])+'</div>'+
-        '<div class="dp-track"><div class="dp-dot" style="left:'+(s[1]/MAXV*100)+'%"></div></div>'+
+      row.innerHTML='<div class="dp-label">'+(isAvg?'Avg. of 8':s[0])+'</div>'+
+        '<div class="dp-track">'+(s[2]?'<div class="dp-ci" style="left:'+((s[1]-1.96*s[2])/MAXV*100)+'%;width:'+(2*1.96*s[2]/MAXV*100)+'%"></div>':'')+'<div class="dp-dot" style="left:'+(s[1]/MAXV*100)+'%"></div></div>'+
         '<div class="dp-val">'+s[1].toFixed(1)+'%</div>';
       dp.appendChild(row);
     });
