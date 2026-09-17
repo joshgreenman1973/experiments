@@ -108,7 +108,10 @@ RATIOS = [
         "caveat": "Not a clearance rate and not a solve rate. An arrest made this year may be for a "
                   "crime reported in an earlier one, a single crime can produce several arrests or "
                   "none, and an arrest is not a conviction. Read it as arrest activity relative to "
-                  "reported crime, nothing more.",
+                  "reported crime, nothing more. One further wrinkle: the printed report restated "
+                  "the major felony count for fiscal 2022 to 2025, by about a fifth of a per cent. "
+                  "The years up to 2025 here use the open data figures and fiscal 2026 uses the "
+                  "report's, which is a smaller inconsistency than the rounding but is worth knowing.",
     },
     {
         "id": "dob-response",
