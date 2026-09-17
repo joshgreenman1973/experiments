@@ -76,6 +76,11 @@ fresh snapshot of the city's agency file; it refuses to write a short read.
 
 ## Reporting lines
 
+The columns follow Executive Order 23 (Sept. 8, 2026), the mayor's own statement of which
+offices each deputy mayor, the chief of staff, the chief counsel and the communications director
+supervise or keep liaison with. `EO23` in build.py records the section and verb for every box the
+order names, and the box cites it. Offices the order does not name keep the placement below.
+
 The city publishes 132 of them in `t3jq-9nkf`, which is the source used here. Open any
 box and it shows where that file puts the office, and says so plainly if this chart
 shows it somewhere else. The file is updated annually and still carries a few portfolio

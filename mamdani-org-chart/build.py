@@ -35,14 +35,15 @@ COLUMNS = [
         ("Peter White", "Deed Theft Prevention"),
         ("Ahmer Qadeer", "Pensions and Investments"),
         ("Renee Campion", "Labor Relations"),
-        ("Kamar Samuels", "Education"),
         ("Celeste Ramirez", "School Construction Authority"),
         ("Stanley Richards", "Correction"),
         ("Sharun Goodwin", "Probation"),
         ("Justine Olderman", "Criminal justice coordinator"),
         ("Deanna Logan", "Criminal Justice"),
         ("Dana Kaplan", "Close Rikers"),
-        ("Bharti Sharma", "Innovation through Data Intelligence"),
+        ("Emmy Liss", "Child Care and Early Childhood Education"),
+        ("Phylisa Wisdom", "Combat Antisemitism"),
+        ("Jennifer Jones Austin", "Civilian Complaint Review Board"),
         ("Asim Rehman", "Business Integrity Commission"),
         ("Elizabeth Adams", "Fast and free buses"),
         ("Bitta Mostofi", "Strategic coordination"),
@@ -71,9 +72,7 @@ COLUMNS = [
         ("Lillian Bonsignore", "Fire Department"),
         ("Christina Farrell", "Emergency Management"),
         ("Lisa Gelobter", "Technology and Innovation"),
-        ("Annie Levers", "Mayor's Office of Operations"),
         ("Shawn(ta) Smith-Cruz", "Records and Information Services"),
-        ("Annie Elisa Minguez", "Nonprofit Services"),
         ("Louise Yeung", "Climate and Environmental Justice"),
         ("Annel Hernandez", "Public utility advocate"),
     ]),
@@ -85,10 +84,11 @@ COLUMNS = [
         ("Rebecca Jones Gaston", "Children's Services"),
         ("Winette Saunders", "Children's Services"),
         ("Sandra Escamilla-Davies", "Youth and Community Development"),
-        ("Emmy Liss", "Child Care and Early Childhood Education"),
         ("Lisa Scott-McKenzie", "Aging"),
         ("Yesenia Mata", "Veterans' Services"),
         ("Nisha Agarwal", "People with Disabilities"),
+        ("Bharti Sharma", "Innovation through Data Intelligence"),
+        ("Annie Elisa Minguez", "Nonprofit Services"),
         ("Siddhartha Sanchez", "Food Policy"),
     ]),
     ("Julie Su", "Deputy mayor for economic justice", [
@@ -102,7 +102,9 @@ COLUMNS = [
         ("Rafael Espinal", "Media and Entertainment"),
         ("Christine Clarke", "Human Rights"),
         ("Afua Atta-Mensah", "Equity and Racial Justice"),
+        ("Taylor Brown", "LGBTQIA+ Affairs"),
         ("Faiza Ali", "Immigrant Affairs"),
+        ("Tony Perlstein", "Worker Power"),
     ]),
     ("Renita Francois", "Deputy mayor for community safety", [
         ("Ayesha Delany-Brumsey", "Community Safety"),
@@ -111,6 +113,7 @@ COLUMNS = [
         ("Jahmila Edwards", "Intergovernmental Affairs"),
         ("Odetty Tineo", "City Legislative Affairs"),
         ("Tascha Van Auken", "Mass Engagement"),
+        ("Annie Levers", "Mayor's Office of Operations"),
         ("Stephanie Silkowski", "Appointments"),
         ("Ana Maria Archila", "International Affairs"),
         ("Kate Smith", "Mayor's Fund"),
@@ -122,7 +125,6 @@ COLUMNS = [
     ("Ramzi Kassem", "Chief counsel", [
         ("Vilda Vera Mayuga", "Administrative Trials and Hearings"),
         ("Ali Najmi", "Advisory Committee on the Judiciary"),
-        ("Jennifer Jones Austin", "Civilian Complaint Review Board"),
     ]),
     ("Steven Banks", "Corporation counsel", []),
     ("Anna Bahr", "Communications director", [
@@ -136,8 +138,7 @@ COLUMNS = [
     ("Jessica Tisch", "Police commissioner", []),
     ("__MAYOR__", "Reporting to the mayor", [
         ("Nadia Shihata", "Investigation"),
-        ("Taylor Brown", "LGBTQIA+ Affairs"),
-        ("Phylisa Wisdom", "Combat Antisemitism"),
+        ("Kamar Samuels", "Education"),
     ]),
 ]
 
@@ -165,6 +166,96 @@ CHARTER_NOTES = {
         "commissioner; the Council fills five and the public advocate one. Members serve three-year "
         "terms.",
 }
+
+# ---------------------------------------------------------------------------
+# Executive Order 23 (Sept. 8, 2026), "Senior Leadership," is the mayor's own
+# statement of who supervises what, and it overrides the agency file below where
+# the two disagree. Each entry is the section that names the office and the verb
+# the order uses. An office the order does not name gets no line rather than a
+# guessed one. Executive Order 20 created the worker power office separately.
+# ---------------------------------------------------------------------------
+EO23_URL = "https://www.nyc.gov/mayors-office/news/2026/09/executive-order-no--23.html"
+EO20_URL = "https://www.nyc.gov/mayors-office/news/2026/09/executive-order-no--20.html"
+_SUP, _LIA = "supervise and coordinate", "maintain liaison with"
+_EO_POSTS = {
+    "2": "first deputy mayor", "4": "deputy mayor for community safety",
+    "5": "deputy mayor for economic justice", "6": "deputy mayor for health and human services",
+    "7": "deputy mayor for housing and planning", "8": "deputy mayor for operations",
+    "9": "chief of staff", "10": "chief counsel to the mayor and City Hall",
+    "11": "director of communications",
+}
+EO23 = {
+    "Management and Budget": ("2(d)", _SUP), "Finance": ("2(d)", _SUP),
+    "Labor Relations": ("2(d)", _SUP), "Correction": ("2(d)", _SUP),
+    "Probation": ("2(d)", _SUP), "Criminal justice coordinator": ("2(d)", _SUP),
+    "Criminal Justice": ("2(d)", _SUP), "Close Rikers": ("2(d)", _SUP),
+    "Business Integrity Commission": ("2(d)", _SUP),
+    "Child Care and Early Childhood Education": ("2(d)", _SUP),
+    "Combat Antisemitism": ("2(d)", _SUP),
+    "School Construction Authority": ("2(i)", _LIA),
+    "Civilian Complaint Review Board": ("2(i)", _LIA),
+    "Community Safety": ("4(c)", _SUP),
+    "Human Rights": ("5(c)", _SUP), "Consumer and Worker Protection": ("5(c)", _SUP),
+    "Cultural Affairs": ("5(c)", _SUP), "Small Business Services": ("5(c)", _SUP),
+    "Immigrant Affairs": ("5(c)", _SUP), "Media and Entertainment": ("5(c)", _SUP),
+    "Minority and Women-Owned Business": ("5(c)", _SUP),
+    "Equity and Racial Justice": ("5(c)", _SUP), "LGBTQIA+ Affairs": ("5(c)", _SUP),
+    "Taxi and Limousine Commission": ("5(c)", _SUP),
+    "Economic Development Corporation": ("5(d)", _SUP),
+    "Children's Services": ("6(c)", _SUP),
+    "Innovation through Data Intelligence": ("6(c)", _SUP),
+    "Aging": ("6(c)", _SUP), "Health and Mental Hygiene": ("6(c)", _SUP),
+    "Social Services": ("6(c)", _SUP), "Veterans' Services": ("6(c)", _SUP),
+    "Youth and Community Development": ("6(c)", _SUP), "Food Policy": ("6(c)", _SUP),
+    "Nonprofit Services": ("6(c)", _SUP), "People with Disabilities": ("6(c)", _SUP),
+    "Chief Medical Examiner": ("6(c)", _SUP),
+    "Health + Hospitals": ("6(d)", _LIA),
+    "Buildings": ("7(c)", _SUP), "City Planning": ("7(c)", _SUP),
+    "Housing Preservation and Development": ("7(c)", _SUP),
+    "Landmarks Preservation Commission": ("7(c)", _SUP),
+    "Office to Protect Tenants": ("7(c)", _SUP), "Public Design Commission": ("7(c)", _SUP),
+    "Standards and Appeals": ("7(d)", _LIA),
+    "Housing Development Corporation": ("7(d)", _LIA), "Housing Authority": ("7(d)", _LIA),
+    "Citywide Administrative Services": ("8(c)", _SUP),
+    "Design and Construction": ("8(c)", _SUP), "Environmental Protection": ("8(c)", _SUP),
+    "Parks and Recreation": ("8(c)", _SUP), "Records and Information Services": ("8(c)", _SUP),
+    "Sanitation": ("8(c)", _SUP), "Transportation": ("8(c)", _SUP),
+    "Fire Department": ("8(c)", _SUP), "Climate and Environmental Justice": ("8(c)", _SUP),
+    "Contract Services": ("8(c)", _SUP), "Emergency Management": ("8(c)", _SUP),
+    "Technology and Innovation": ("8(c)", _SUP),
+    "Mayor's Fund": ("9(c)", _SUP), "Appointments": ("9(c)", _SUP),
+    "Citywide Event Coordination": ("9(c)", _SUP),
+    "Intergovernmental Affairs": ("9(c)", _SUP), "International Affairs": ("9(c)", _SUP),
+    "Mass Engagement": ("9(c)", _SUP), "Mayor's Office of Operations": ("9(c)", _SUP),
+    "Advisory Committee on the Judiciary": ("10(d)", _SUP),
+    "Administrative Trials and Hearings": ("10(d)", _SUP),
+    "Press secretary": ("11(c)", _SUP),
+}
+# Section 12 has these report straight to the mayor, while section 2 also has the
+# first deputy mayor supervise the police department and the schools.
+EO23_DIRECT = {
+    "Investigation": "Section 12 has the commissioner report directly to the mayor; section 10(e) "
+                     "has the chief counsel maintain liaison with the department.",
+    "Education": "Section 12 has the chancellor report directly to the mayor; section 2(d) also has "
+                 "the first deputy mayor supervise and coordinate New York City Public Schools.",
+}
+
+
+def eo_note(label):
+    """The dossier line citing where the executive order puts an office."""
+    link = lambda u, t: f'<a href="{u}" target="_blank" rel="noopener">{t}</a>'
+    if label in EO23_DIRECT:
+        return f'{link(EO23_URL, "Executive Order 23")} (Sept. 8, 2026): {esc(EO23_DIRECT[label])}'
+    if label == "Worker Power":
+        return (f'{link(EO20_URL, "Executive Order 20")} (Sept. 3, 2026) created the office and has '
+                f'the deputy mayor for economic justice supervise and coordinate it (section 5).')
+    if label not in EO23:
+        return ""
+    sec, verb = EO23[label]
+    post = _EO_POSTS[sec.split("(")[0]]
+    return (f'{link(EO23_URL, "Executive Order 23")} (Sept. 8, 2026) has the {post} '
+            f'{verb} this office (section {sec}).')
+
 
 # ---------------------------------------------------------------------------
 # Department charts. Maps a box label in COLUMNS to the agency name(s) used by
@@ -458,6 +549,7 @@ def entry(name, label, n, column_title=""):
         date = '<abbr title="announcement date not published">n.d.</abbr>'
     attrs, staff = dept_attrs(label)
     charter = CHARTER_NOTES.get(label, "")
+    eo = eo_note(label)
     g = gov_row(label, p.get("agency", ""))
     gattrs = ""
     if g:
@@ -471,7 +563,7 @@ def entry(name, label, n, column_title=""):
    id="{slug(name)}"
    data-name="{esc(name.lower())}" data-label="{esc(label.lower())}" data-flag="{cls}"
    data-person="{esc(name)}" data-title="{esc(p['title'])}" data-agency="{esc(p['agency'])}"
-   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}" data-mine="{esc(column_title)}" data-charter="{charter}"
+   data-notes="{esc(p.get('notes') or '')}" data-source="{esc(p['source'])}" data-mine="{esc(column_title)}" data-charter="{charter}" data-eo="{esc(eo)}"
    data-date="{esc(date if not date.startswith('<') else '')}" data-status="{esc(flabel)}"{attrs}{gattrs}>
   <span class="num">{n:03d}</span>
   <span class="unit">{esc(label)}</span>
@@ -550,8 +642,8 @@ def build():
     cols = []
     for principal, title, reports in COLUMNS:
         if principal == "__MAYOR__":
-            head = ('<div class="col-head direct"><span class="rank">Not in a deputy '
-                    f'mayor\'s portfolio</span><h3>{esc(title)}</h3></div>')
+            head = ('<div class="col-head direct"><span class="rank">Report directly '
+                    f'to the mayor</span><h3>{esc(title)}</h3></div>')
         else:
             p = PEOPLE[principal]
             attrs, staff = dept_attrs(None, COLUMN_DEPTS.get(principal))
