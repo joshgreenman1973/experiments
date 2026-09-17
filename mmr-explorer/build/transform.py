@@ -18,6 +18,10 @@ Rules that took reading the data to work out, and that the site depends on:
   "(minutes:seconds)", so they are decoded as such.
 * The indicator title lies often enough that the description field is the
   only trustworthy statement of what is being counted. Carry it everywhere.
+* Fiscal 2026 does not come from this table at all. The open data stops in
+  March 2026; the finished year is read out of the printed report by
+  build/pdf2026.py and merged here, flagged so the site can say which years
+  came from where.
 """
 import json, os, re, sys, math
 from collections import defaultdict, Counter
@@ -29,6 +33,7 @@ RAW = os.path.join(HERE, "raw")
 OUT = os.path.abspath(os.path.join(HERE, "..", "data"))
 
 FLAT = 0.01          # |relative change| under this reads as unchanged
+MT_LIST = ["Number", "Percentage", "Currency", "TimeSpan", "Ratio"]
 GEOTYPE = {"B": "Borough", "CB": "Community district", "PP": "Police precinct",
            "SD": "School district"}
 
@@ -253,14 +258,15 @@ def main():
     latest_ytd_fy = max(fy for d in ytd.values() for fy in d)
     complete = [y for y in years if sum(1 for i in annual if y in annual[i]) > 500]
     latest_complete = max(complete)
+    od_complete = latest_complete        # last year the OPEN DATA finished
     partial_through = 0
-    if latest_ytd_fy > latest_complete:
+    if latest_ytd_fy > od_complete:
         months = {m for i in ytd for m in ytd[i].get(latest_ytd_fy, {})}
         # fiscal months run July(7)..June(6)
         order = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
         have = [m for m in order if m in months]
         partial_through = have[-1] if have else 0
-    print(f"  complete through FY{latest_complete}; "
+    print(f"  open data complete through FY{latest_complete}; "
           f"FY{latest_ytd_fy} partial through month {partial_through}")
 
     # ---- build the indicator records ---------------------------------------
@@ -268,7 +274,7 @@ def main():
     agencies = sorted(agency_name, key=lambda a: agency_name[a])
     aidx = {a: i for i, a in enumerate(agencies)}
     DIR = {"Up": 1, "Down": -1}
-    MT = ["Number", "Percentage", "Currency", "TimeSpan", "Ratio"]
+    MT = MT_LIST
     FREQ = ["Monthly", "Quarterly", "Annually", "Bi-Annually", "PMMR/MMR"]
     RP = ["Fiscal Year", "Calendar Year", "School Year"]
 
@@ -331,6 +337,48 @@ def main():
         ind.append(rec)
         by_id[iid] = rec
 
+    # ---- fiscal 2026, read out of the printed report ----------------------
+    pdf_path = os.path.join(OUT, "fy2026.json")
+    pdf = json.load(open(pdf_path)) if os.path.exists(pdf_path) else None
+    pdf_meta = None
+    if pdf:
+        pfy = pdf["fy"]
+        if pfy not in years:
+            years.append(pfy)
+            YEARS = years
+        pi = years.index(pfy)
+        placed = tgt = 0
+        for rec in ind:
+            while len(rec["v"]) < len(years):
+                rec["v"].append(None)
+            d = pdf["ind"].get(rec["id"])
+            if not d:
+                continue
+            if "v" in d:
+                rec["v"][pi] = d["v"]
+                placed += 1
+            if "t26" in d or "t27" in d:
+                rec["tgt"] = {k: d[k] for k in ("t26", "t27") if k in d}
+                tgt += 1
+            rec["pdf"] = {"p": d["p"], "raw": d.get("raw")}
+            if "restated" in d:
+                # The printed report revised this series' earlier years. Both
+                # versions ship so a reader can see exactly what changed.
+                rec["pdf"]["restated"] = d["restated"]
+        # stats have to be recomputed now that the series runs a year longer
+        for rec in ind:
+            is_pct = rec["mt"] == MT_LIST.index("Percentage") if rec["mt"] >= 0 else False
+            rec["st"] = ST.series_stats(rec["v"], YEARS, rec["dir"], is_pct)
+            sus = ST.suspect(rec["v"], YEARS, is_pct) or {}
+            sus.update(rec.get("sus") or {})
+            rec["sus"] = sus or None
+            if not rec["sus"]:
+                rec.pop("sus", None)
+        latest_complete = pfy
+        pdf_meta = pdf["source"]
+        print(f"  fiscal {pfy} from the printed report: {placed:,} figures, {tgt:,} with targets")
+
+
     nvals = sum(1 for r in ind if any(v is not None for v in r["v"]))
     print(f"  {len(ind):,} indicator records, {nvals:,} with a full-year figure")
 
@@ -340,13 +388,17 @@ def main():
         "svc": S_svc.vals, "goal": S_goal.vals, "desc": S_desc.vals, "src": S_src.vals,
         "mt": MT, "fq": FREQ, "rp": RP, "geotype": GEOTYPE,
         "years": years, "latest": latest_complete,
+        "pdfYear": pdf["fy"] if pdf else None,
+        "pdfSource": pdf_meta,
+        "pdfPageBase": "https://www.nyc.gov/assets/operations/downloads/pdf/mmr2026/2026_mmr.pdf#page=",
         "mmrBase": MMR_BASE,
         "dataset": "rbed-zzin",
         "datasetUrl": "https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin",
         "rowsUrl": "https://data.cityofnewyork.us/resource/rbed-zzin.json?$order=valuedate&id=",
         "mmrPage": "https://www.nyc.gov/site/operations/reports/mmr.page",
         "dmmr": "https://dmmr.nyc.gov/",
-        "partialFy": latest_ytd_fy if latest_ytd_fy > latest_complete else None,
+        "odLatest": od_complete,
+        "partialFy": latest_ytd_fy if latest_ytd_fy > od_complete else None,
         "partialThrough": partial_through,
         "ind": [r for r in ind if not r["_geo"]],
     }

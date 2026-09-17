@@ -18,7 +18,8 @@ const state = {
   view: 'board',
   flat: 0.01,          // |relative change| under this reads as no material change
   criticalOnly: false,
-  fromYear: null,      // scoreboard comparison baseline
+  fromYear: null,      // comparison baseline, set anywhere on the site
+  toYear: null,        // the year being compared TO, latest by default
   agency: null,
   q: '',
   filters: { agency: '', dir: '', mt: '', live: 'live', critical: '' },
@@ -158,12 +159,23 @@ function lineChart(rec, opts) {
 
   const flagged = rec.sus || {};
   pts.forEach((p, k) => {
-    const isFlag = flagged[String(years[p[0]])];
+    const yr = years[p[0]];
+    const isFlag = flagged[String(yr)];
+    const fromPdf = !opts.plain && yr === D.pdfYear;
     svg.appendChild(svgEl('circle', {
-      class: 'pt' + (k === pts.length - 1 ? ' last' : '') + (isFlag ? ' flag' : ''),
-      cx: X(p[0]).toFixed(1), cy: Y(p[1]).toFixed(1), r: isFlag ? 5 : 3.6
+      class: 'pt' + (k === pts.length - 1 && !fromPdf ? ' last' : '') + (isFlag ? ' flag' : '') + (fromPdf ? ' pdf' : ''),
+      cx: X(p[0]).toFixed(1), cy: Y(p[1]).toFixed(1), r: isFlag ? 5 : 3.9
     }));
   });
+  // the target the agency set itself, where the report prints one
+  const tgt = !opts.plain && rec.tgt && rec.tgt.t26;
+  if (tgt != null && D.pdfYear && tgt >= lo && tgt <= hi) {
+    const xi = years.indexOf(D.pdfYear);
+    svg.appendChild(svgEl('line', { class: 'tgt', x1: (X(xi) - 12).toFixed(1), x2: (X(xi) + 12).toFixed(1), y1: Y(tgt).toFixed(1), y2: Y(tgt).toFixed(1) }));
+    const tl = svgEl('text', { class: 'tgtlbl', x: (X(xi) - 16).toFixed(1), y: (Y(tgt) + 3.5).toFixed(1), 'text-anchor': 'end' });
+    tl.textContent = 'target ' + fmtVal(tgt, mt, rec);
+    svg.appendChild(tl);
+  }
 
   // pointer readout
   const cursor = svgEl('line', { class: 'cursor', y1: T, y2: H - B, opacity: 0 });
@@ -338,7 +350,7 @@ function indicatorRow(rec, opts) {
   opts = opts || {};
   const b = el('button', 'row');
   b.type = 'button';
-  const s = opts.score !== undefined ? opts.score : score(rec, state.fromYear, D.latest);
+  const s = opts.score !== undefined ? opts.score : score(rec, state.fromYear, state.toYear);
   const cls = s === null ? '' : VCLASS[s];
   const t = el('div', 't');
   const title = el('b');
@@ -368,8 +380,10 @@ function indicatorRow(rec, opts) {
   if (opts.measureText) {
     chg.innerHTML = esc(opts.measureText) + '<small>' + esc(opts.measureLabel || '') + '</small>';
   } else {
-    const r = relChange(rec, state.fromYear, D.latest);
-    chg.innerHTML = esc(fmtPct(r)) + '<small>' + (r == null ? 'not comparable' : 'vs FY' + String(state.fromYear).slice(2)) + '</small>';
+    const r = relChange(rec, state.fromYear, state.toYear);
+    const missing = rec.v[D.yi[state.toYear]] == null ? (state.toYear === D.pdfYear ? 'not in the ' + state.toYear + ' report' : 'no FY' + String(state.toYear).slice(2) + ' figure')
+      : rec.v[D.yi[state.fromYear]] == null ? 'no FY' + String(state.fromYear).slice(2) + ' figure' : 'not comparable';
+    chg.innerHTML = esc(fmtPct(r)) + '<small>' + (r == null ? missing : 'FY' + String(state.fromYear).slice(2) + '\u2192' + String(state.toYear).slice(2)) + '</small>';
   }
   b.appendChild(chg);
   b.addEventListener('click', () => openIndicator(rec.id));
@@ -412,13 +426,6 @@ function viewBoard(host) {
 
   const bar = el('div', 'bar2');
   bar.innerHTML =
-    `<label for="from">Compare fiscal ${D.latest} with</label>` +
-    `<select id="from">` + D.years.filter(y => y < D.latest).reverse().map(y =>
-      `<option value="${y}"${y === state.fromYear ? ' selected' : ''}>fiscal ${y}${y === D.latest - 1 ? ' (the year before)' : y === 2019 ? ' (before the pandemic)' : y === D.years[0] ? ' (start of this data)' : ''}</option>`).join('') +
-    `</select>` +
-    `<label for="flat">Call it unchanged below</label>` +
-    `<select id="flat">` + [[0, 'any change counts'], [0.01, '1%'], [0.02, '2%'], [0.05, '5%'], [0.1, '10%']].map(([v, l]) =>
-      `<option value="${v}"${v === state.flat ? ' selected' : ''}>${l}</option>`).join('') + `</select>` +
     `<button class="chip" id="crit" aria-pressed="${state.criticalOnly}">Only the city's critical indicators</button>` +
     `<span class="spacer"></span><span class="count" id="bcount"></span>`;
   host.appendChild(bar);
@@ -430,9 +437,9 @@ function viewBoard(host) {
 
   const drawLeft = () => {
     left.innerHTML = '';
-    left.appendChild(sectionHead(`Citywide, fiscal ${state.fromYear} to fiscal ${D.latest}`, '', '01'));
+    left.appendChild(sectionHead(`Citywide, fiscal ${state.fromYear} to fiscal ${state.toYear}`, '', '01'));
     const pad = el('div', 'pad');
-    const t = tally(pool(), state.fromYear, D.latest);
+    const t = tally(pool(), state.fromYear, state.toYear);
     $('#bcount').textContent = t.n.toLocaleString() + ' indicators scored';
     pad.appendChild(verdictBar(t, 34));
     pad.appendChild(keyRow(t));
@@ -440,14 +447,14 @@ function viewBoard(host) {
     note.innerHTML =
       `Of <b>${pool().length.toLocaleString()}</b> citywide indicators still being reported, ` +
       `<b>${t.n.toLocaleString()}</b> can be scored: they carry a figure for both fiscal ${state.fromYear} ` +
-      `and fiscal ${D.latest}, and the city states which direction it wants them to move. ` +
+      `and fiscal ${state.toYear}, and the city states which direction it wants them to move. ` +
       `<b>${t.none.toLocaleString()}</b> are counted but carry no desired direction, so the city itself ` +
       `will not say whether a rise is good news. Another <b>${t.gap.toLocaleString()}</b> are missing one ` +
       `of the two years. Change is measured against each indicator's own fiscal ${state.fromYear} figure.`;
     pad.appendChild(note);
 
     // what moved most, both ways
-    const scored = pool().map(r => ({ r, g: (relChange(r, state.fromYear, D.latest) || 0) * r.dir, has: relChange(r, state.fromYear, D.latest) != null && r.dir }))
+    const scored = pool().map(r => ({ r, g: (relChange(r, state.fromYear, state.toYear) || 0) * r.dir, has: relChange(r, state.fromYear, state.toYear) != null && r.dir }))
       .filter(x => x.has && !(state.hideLowBase && looksLikeRecount(x.r)));
     scored.sort((a, b) => b.g - a.g);
     const mk = (title, list) => {
@@ -465,7 +472,7 @@ function viewBoard(host) {
         const spw = el('span'); spw.appendChild(sparkline(x.r.v, { cls: x.g > 0 ? 'g' : 'b', w: 58, h: 20 })); row.appendChild(spw);
         const v = el('span');
         v.style.cssText = 'text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:' + (x.g > 0 ? 'var(--good)' : 'var(--bad)');
-        v.textContent = fmtPct(relChange(x.r, state.fromYear, D.latest));
+        v.textContent = fmtPct(relChange(x.r, state.fromYear, state.toYear));
         row.appendChild(v);
         row.addEventListener('click', () => openIndicator(x.r.id));
         ul.appendChild(row);
@@ -475,7 +482,7 @@ function viewBoard(host) {
     mk('Moved furthest the city\'s way', scored.slice(0, 8));
     mk('Moved furthest against it', scored.slice(-8).reverse());
     const foot = el('p', 'note');
-    foot.innerHTML = 'Ranked by change against each indicator\'s own fiscal ' + state.fromYear + ' figure. ' +
+    foot.innerHTML = 'Ranked by change from each indicator\'s own fiscal ' + state.fromYear + ' figure to its fiscal ' + state.toYear + ' one. ' +
       (state.hideLowBase
         ? 'Moves off a near-zero base, and one-year moves of 100 per cent or more, are held back: almost every one of them is a change in how something is counted rather than a change on the ground. <a href="#" id="showlow">Put them back in</a>.'
         : 'Moves off a near-zero base and one-year moves of 100 per cent or more are included, and they dominate. <a href="#" id="showlow">Hold them back</a>.');
@@ -490,7 +497,7 @@ function viewBoard(host) {
     const pad = el('div', 'pad');
     const rowsData = D.agencies.map((a, i) => {
       const recs = pool().filter(r => r.a === i);
-      const t = tally(recs, state.fromYear, D.latest);
+      const t = tally(recs, state.fromYear, state.toYear);
       return { a, i, t, share: t.n ? t.g / t.n : null };
     }).filter(x => x.t.n >= 10);
     const table = el('table', 'league');
@@ -542,8 +549,6 @@ function viewBoard(host) {
     right.appendChild(pad);
   };
 
-  $('#from').addEventListener('change', e => { state.fromYear = +e.target.value; drawLeft(); drawRight(); syncHash(); });
-  $('#flat').addEventListener('change', e => { state.flat = +e.target.value; drawLeft(); drawRight(); drawMast(); });
   $('#crit').addEventListener('click', e => {
     state.criticalOnly = !state.criticalOnly;
     e.target.setAttribute('aria-pressed', state.criticalOnly);
@@ -576,7 +581,7 @@ function viewAgencies(host) {
   D.agencies.forEach((a, i) => {
     const recs = D.live.filter(r => r.a === i);
     if (!recs.length && !D.byAgency[i].length) return;
-    const t = tally(recs, state.fromYear, D.latest);
+    const t = tally(recs, state.fromYear, state.toYear);
     const b = el('button');
     b.type = 'button';
     if (i === state.agency) b.classList.add('on');
@@ -601,7 +606,7 @@ function drawAgency(body) {
   const i = state.agency, a = D.agencies[i];
   const recs = D.byAgency[i];
   const live = recs.filter(r => !r.rt);
-  const t = tally(live, state.fromYear, D.latest);
+  const t = tally(live, state.fromYear, state.toYear);
   body.innerHTML = '';
   body.appendChild(sectionHead(esc(a.n), esc(a.c), '03'));
 
@@ -612,7 +617,7 @@ function drawAgency(body) {
   }
   const note = el('p', 'note');
   note.innerHTML = `${recs.length.toLocaleString()} indicators on file, ${live.length.toLocaleString()} still reported` +
-    (t.n ? `, ${t.n.toLocaleString()} scorable between fiscal ${state.fromYear} and fiscal ${D.latest}` : '') + '.';
+    (t.n ? `, ${t.n.toLocaleString()} scorable between fiscal ${state.fromYear} and fiscal ${state.toYear}` : '') + '.';
   pad.appendChild(note);
 
   const links = el('div', 'links');
@@ -643,7 +648,7 @@ function drawAgency(body) {
       wrap.appendChild(h);
       const saveYears = D.years, saveYi = D.yi;
       D.years = yrs; D.yi = {}; yrs.forEach((y, k) => D.yi[y] = k);
-      const svg = lineChart(fake, { h: 170 });
+      const svg = lineChart(fake, { h: 170, plain: true });
       D.years = saveYears; D.yi = saveYi;
       wrap.appendChild(svg);
       rp.appendChild(wrap);
@@ -760,6 +765,14 @@ function searchRecords() {
    ======================================================================== */
 const MEASURES = [
   {
+    k: 'win', label: 'Change between the two years chosen above', dir: true,
+    blurb: 'Change from the baseline year to the compared year set at the top of the page, signed so that a rise counts as good news only when the city says a rise is good news. Change the pair up there and this list re-ranks.',
+    ends: ['Moved furthest the city\'s way', 'Moved furthest against it'],
+    get: r => { const c = relChange(r, state.fromYear, state.toYear); return c == null || !r.dir ? null : c * r.dir; },
+    txt: r => fmtPct(relChange(r, state.fromYear, state.toYear)),
+    sub: r => 'FY' + String(state.fromYear).slice(2) + '\u2192' + String(state.toYear).slice(2),
+  },
+  {
     k: 'g1', label: 'Change since the year before', dir: true,
     blurb: 'Percentage change between an indicator\'s two most recent published years, signed so that a rise counts as good news only when the city says a rise is good news.',
     ends: ['Moved furthest the city\'s way', 'Moved furthest against it'],
@@ -831,6 +844,16 @@ const MEASURES = [
     ends: ['Biggest step', 'Smallest step'],
     get: r => r.st && r.st.br,
     txt: r => fmtPct(r.st.br, 0), sub: r => 'somewhere in FY' + String(r.st.fy).slice(2) + '–' + String(r.st.ly).slice(2),
+  },
+  {
+    k: 'tgt', label: 'Distance from its own target', dir: true,
+    blurb: 'The open data has never carried target figures; the printed report does. This is how far the latest year landed from the target the agency set itself, as a share of that target, signed so that positive means it cleared the bar. Only the indicators the report prints a target for can appear.',
+    ends: ['Cleared its own target by most', 'Missed its own target by most'],
+    needs: r => r.tgt && r.tgt.t26 != null && D.pdfYear && r.v[D.yi[D.pdfYear]] != null && r.dir && r.tgt.t26 !== 0,
+    get: r => (r.tgt && r.tgt.t26 && D.pdfYear && r.v[D.yi[D.pdfYear]] != null && r.dir)
+      ? ((r.v[D.yi[D.pdfYear]] - r.tgt.t26) / Math.abs(r.tgt.t26)) * r.dir : null,
+    txt: r => fmtPct(((r.v[D.yi[D.pdfYear]] - r.tgt.t26) / Math.abs(r.tgt.t26))),
+    sub: r => 'vs target ' + fmtVal(r.tgt.t26, r.mt, r),
   },
   {
     k: 'sus', label: 'Figures that cannot be right', dir: false,
@@ -913,6 +936,96 @@ function viewOutliers(host) {
     e.target.setAttribute('aria-pressed', state.hideLowBase); run();
   });
   fillExt(); run();
+}
+
+/* ===========================================================================
+   View: ratios
+   Two figures the report already prints, divided. Nothing here is mined: a
+   machine looking for pairs whose ratio stays under one will cheerfully
+   propose sewer miles over satisfaction surveys returned. Each pair was
+   picked because the two indicators genuinely share a denominator, and
+   checked against the city's own description of both.
+   ======================================================================== */
+let RATIOS_DATA = null;
+function viewRatios(host) {
+  host.appendChild(sectionHead('Ratios the city has the numbers for but does not publish', '', '09'));
+  const intro = el('div', 'pad');
+  const p = el('p', 'note');
+  p.style.maxWidth = '84ch';
+  p.innerHTML = 'Everything on this page is two figures from the report divided by one another. ' +
+    'The report prints both and never puts them together — the cost of a jail bed, the share of ' +
+    'complaints an inspector actually goes out to, how many people leave the shelter system for a ' +
+    'home against how many arrive. Each one states the question it answers and the thing it cannot ' +
+    'be read as, and shows both components so the arithmetic stays visible. ' +
+    'There are eight, not eighty, because these are the pairs that survived checking.';
+  intro.appendChild(p);
+  host.appendChild(intro);
+
+  const body = el('div');
+  host.appendChild(body);
+  body.appendChild(el('div', 'loading', 'Loading\u2026'));
+
+  const draw = data => {
+    body.innerHTML = '';
+    data.ratios.forEach((r, i) => {
+      const sec = el('section', 'ratio');
+      const h = el('div', 'rhead');
+      h.innerHTML = `<span class="rag">${esc(r.agency)}</span><h3>${esc(r.title)}</h3>`;
+      sec.appendChild(h);
+      const pad = el('div', 'pad');
+      const q = el('p'); q.className = 'rq'; q.textContent = r.question;
+      pad.appendChild(q);
+
+      const last = r.pts[r.pts.length - 1], first = r.pts[0];
+      const fmtR = v => r.money ? '$' + Math.round(v).toLocaleString('en-US') : (Math.round(v * 10) / 10).toLocaleString('en-US');
+      const lead = el('p', 'rlead');
+      lead.innerHTML = `<b>${esc(fmtR(last.v))}</b> <span>${esc(r.unit)}</span> in fiscal ${last.y}, ` +
+        `against ${esc(fmtR(first.v))} in fiscal ${first.y}.`;
+      pad.appendChild(lead);
+
+      const fake = {
+        v: D.years.map(y => { const pt = r.pts.find(x => x.y === y); return pt ? pt.v : null; }),
+        mt: r.money ? MT_CUR : MT_NUMBER, sus: null, ts: 0, tu: '',
+      };
+      pad.appendChild(lineChart(fake, { h: 220, plain: true }));
+
+      const tbl = el('table', 'vtable');
+      tbl.style.marginTop = '14px';
+      const ys = r.pts.map(x => x.y);
+      const row = (label, get, cls) => '<tr><td>' + esc(label) + '</td>' +
+        r.pts.map(x => `<td class="${cls || ''}">${esc(get(x))}</td>`).join('') + '</tr>';
+      tbl.innerHTML = '<thead><tr><th>Fiscal year</th>' + ys.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>' +
+        row(r.numLabel.length > 58 ? r.numLabel.slice(0, 57) + '\u2026' : r.numLabel, x => fmtNum(x.n)) +
+        row(r.denLabel.length > 58 ? r.denLabel.slice(0, 57) + '\u2026' : r.denLabel, x => fmtNum(x.d)) +
+        row('The ratio', x => fmtR(x.v)) +
+        '</tbody>';
+      pad.appendChild(tbl);
+
+      const links = el('div', 'links');
+      links.style.marginTop = '12px';
+      r.numIds.concat(r.denIds).forEach(id => {
+        if (!D.byId[id]) return;
+        const a = document.createElement('a');
+        a.href = '#i/' + id;
+        a.textContent = D.byId[id].n.length > 46 ? D.byId[id].n.slice(0, 45) + '\u2026' : D.byId[id].n;
+        links.appendChild(a);
+      });
+      pad.appendChild(links);
+
+      const c = el('div', 'warn');
+      c.innerHTML = '<b>What it is not.</b> ' + esc(r.caveat);
+      pad.appendChild(c);
+      sec.appendChild(pad);
+      body.appendChild(sec);
+    });
+  };
+
+  if (RATIOS_DATA) { draw(RATIOS_DATA); return; }
+  fetch('data/ratios.json').then(r => r.ok ? r.json() : null).then(data => {
+    if (!data) { body.innerHTML = '<div class="empty">Could not load the ratios.</div>'; return; }
+    RATIOS_DATA = data;
+    draw(data);
+  });
 }
 
 /* ===========================================================================
@@ -1017,6 +1130,26 @@ function openIndicator(id) {
 
   body.appendChild(Object.assign(el('h4'), { textContent: 'Full fiscal years, ' + D.years[0] + ' to ' + D.latest }));
   body.appendChild(lineChart(rec));
+  if (D.pdfYear && rec.v[D.yi[D.pdfYear]] != null) {
+    const pr = el('p', 'prov');
+    const pg = rec.pdf && rec.pdf.p;
+    pr.innerHTML = `Fiscal ${D.pdfYear} (the open circle) is read from the printed report` +
+      (rec.pdf && rec.pdf.raw ? `, where it is printed as <b>${esc(rec.pdf.raw)}</b>` : '') +
+      (pg ? ` on <a href="${esc(D.pdfPageBase + pg)}" target="_blank" rel="noopener" style="color:inherit">page ${pg}</a>` : '') +
+      `. Every earlier year comes from the open data table.`;
+    body.appendChild(pr);
+    if (rec.pdf && rec.pdf.restated) {
+      const w = el('div', 'warn');
+      const yrs = [2022, 2023, 2024, 2025];
+      const was = yrs.map(y => fmtVal(rec.v[D.yi[y]], rec.mt, rec)).join('  ');
+      w.innerHTML = '<b>Restated.</b> The printed report gives this series a different history from ' +
+        'the one the open data holds. Fiscal 2022 to 2025 read ' +
+        `<span style="font-family:var(--mono)">${esc(rec.pdf.restated.join('  '))}</span> in the report ` +
+        `and <span style="font-family:var(--mono)">${esc(was)}</span> in the data. The chart plots the ` +
+        'open data for those years and the report for fiscal ' + D.pdfYear + '.';
+      body.appendChild(w);
+    }
+  }
   const st = rec.st;
   const cap = el('p', 'chartcap');
   if (st) {
@@ -1028,6 +1161,10 @@ function openIndicator(id) {
       (st.rec === 1 ? 'It is the highest figure on record. ' : st.rec === -1 ? 'It is the lowest figure on record. ' : '') +
       (st.z != null ? `It sits ${Math.abs(st.z).toFixed(1)} standard deviations ${st.z > 0 ? 'above' : 'below'} the average of its earlier years. ` : '') +
       (st.gst ? `That is ${Math.abs(st.gst)} consecutive years moving ${st.gst > 0 ? 'the city\'s way' : 'against it'}. ` : '') +
+      (rec.tgt && rec.tgt.t26 != null && rec.v[D.yi[D.pdfYear]] != null && rec.dir
+        ? `The agency set itself a target of ${esc(fmtVal(rec.tgt.t26, rec.mt, rec))} for fiscal ${D.pdfYear} and ` +
+          ((rec.dir === 1 ? rec.v[D.yi[D.pdfYear]] >= rec.tgt.t26 : rec.v[D.yi[D.pdfYear]] <= rec.tgt.t26) ? 'met it. ' : 'missed it. ')
+        : '') +
       (st.cagr != null && st.n >= 5
         ? `Across the whole run it has moved ${esc(fmtPct(st.cagr, 1))} a year, and a straight line through every published year explains ${st.r2 != null ? (st.r2 * 100).toFixed(0) + ' per cent' : 'an unknown share'} of the movement.`
         : '');
@@ -1110,6 +1247,8 @@ function openIndicator(id) {
     ['Accumulates through the year', rec.ad ? 'Yes' : 'No'],
     ['Flagged critical by the city', rec.cr ? 'Yes' : 'No'],
     ['Retired', rec.rt ? 'Yes' : 'No'],
+    ['Target, fiscal ' + (D.pdfYear || ''), rec.tgt && rec.tgt.t26 != null ? fmtVal(rec.tgt.t26, rec.mt, rec) : 'none printed'],
+    ['Target, fiscal ' + ((D.pdfYear || 0) + 1), rec.tgt && rec.tgt.t27 != null ? fmtVal(rec.tgt.t27, rec.mt, rec) : 'none printed'],
     ['Indicator id', rec.id],
   ];
   rows.forEach(([k, v]) => {
@@ -1155,7 +1294,7 @@ function drawMast() {
   const yrs = D.years.slice(1);
   const bw = (W - L) / yrs.length;
   yrs.forEach((y, i) => {
-    const t = tally(D.live, y - 1, y);
+    const t = tally(D.live, D.years[D.yi[y] - 1], y);
     const x = L + i * bw;
     const h = H - T - B;
     let acc = T;
@@ -1179,9 +1318,57 @@ function drawMast() {
 }
 
 /* ===========================================================================
+   The comparison window, set once and obeyed everywhere
+   Every change on this site is a change between two named years. Rather than
+   bury that on one tab, the pair sits above every view and the whole page
+   answers to it.
+   ======================================================================== */
+function yearBar() {
+  const bar = el('div', 'yearbar');
+  const opts = (sel, skip) => D.years.filter(y => y !== skip).map(y => {
+    let tag = '';
+    if (y === D.pdfYear) tag = ' — printed report';
+    else if (y === D.years[0]) tag = ' — start of this data';
+    else if (y === 2019) tag = ' — before the pandemic';
+    return `<option value="${y}"${y === sel ? ' selected' : ''}>fiscal ${y}${tag}</option>`;
+  }).join('');
+  bar.innerHTML =
+    `<span class="lbl">Compare</span>` +
+    `<select id="y-to" aria-label="Year being compared">${opts(state.toYear)}</select>` +
+    `<span class="lbl">with</span>` +
+    `<select id="y-from" aria-label="Baseline year">${opts(state.fromYear)}</select>` +
+    `<span class="lbl">calling it unchanged below</span>` +
+    `<select id="y-flat" aria-label="Threshold for no material change">` +
+    [[0, 'any change'], [0.01, '1%'], [0.02, '2%'], [0.05, '5%'], [0.1, '10%']].map(([v, l]) =>
+      `<option value="${v}"${v === state.flat ? ' selected' : ''}>${l}</option>`).join('') + `</select>` +
+    `<span class="spacer"></span>` +
+    `<button class="chip" id="y-reset">Reset</button>`;
+  bar.querySelector('#y-to').addEventListener('change', e => { state.toYear = +e.target.value; refresh(); });
+  bar.querySelector('#y-from').addEventListener('change', e => { state.fromYear = +e.target.value; refresh(); });
+  bar.querySelector('#y-flat').addEventListener('change', e => { state.flat = +e.target.value; refresh(); });
+  bar.querySelector('#y-reset').addEventListener('click', () => {
+    state.toYear = D.latest; state.fromYear = D.latest - 1; state.flat = 0.01; refresh(true);
+  });
+  return bar;
+}
+function refresh(rebuildBar) {
+  if (state.fromYear === state.toYear) {
+    state.fromYear = D.years[Math.max(0, D.yi[state.toYear] - 1)];
+  }
+  if (rebuildBar) {
+    const old = $('.yearbar');
+    if (old) old.replaceWith(yearBar());
+  }
+  drawMast();
+  countBand();
+  go(state.view);
+  syncHash();
+}
+
+/* ===========================================================================
    Routing and boot
    ======================================================================== */
-const VIEWS = { board: viewBoard, agencies: viewAgencies, search: viewSearch, outliers: viewOutliers, retired: viewRetired };
+const VIEWS = { board: viewBoard, agencies: viewAgencies, search: viewSearch, outliers: viewOutliers, ratios: viewRatios, retired: viewRetired };
 
 function go(v) {
   state.view = v;
@@ -1218,6 +1405,25 @@ function fromHash() {
   go(parts[0]);
 }
 
+function countBand() {
+  const t = tally(D.live, state.fromYear, state.toYear);
+  const withLatest = D.ind.filter(r => r.v[D.yi[state.toYear]] != null).length;
+  $('#capline').innerHTML =
+    `Full fiscal years <b>${D.years[0]}</b> to <b>${D.latest}</b>` +
+    (D.pdfYear ? ` &nbsp;·&nbsp; fiscal ${D.pdfYear} is read from the <b>printed report</b>, not the open data, which still stops at ${monthName(D.partialThrough)} ${monthYear(D.partialThrough, D.partialFy)}` : '');
+  const span = `fiscal ${String(state.fromYear).slice(2)}\u2192${String(state.toYear).slice(2)}`;
+  const cells = [
+    [D.ind.length.toLocaleString(), 'citywide indicators on file'],
+    [D.agencies.length, 'agencies and initiatives'],
+    [withLatest.toLocaleString(), 'filed a fiscal ' + state.toYear + ' figure'],
+    [t.g.toLocaleString(), 'moved the city\'s way, ' + span, 'g'],
+    [t.b.toLocaleString(), 'moved against it, ' + span, 'b'],
+    [D.ind.filter(r => !r.dir).length.toLocaleString(), 'carry no direction the city will name'],
+  ];
+  $('#counts').innerHTML = cells.map(([v, l, c]) =>
+    `<div><b class="${c || ''}">${v}</b><span>${l}</span></div>`).join('');
+}
+
 function boot(raw) {
   Object.assign(D, raw);
   D.yi = {}; D.years.forEach((y, i) => D.yi[y] = i);
@@ -1232,26 +1438,13 @@ function boot(raw) {
     ].join(' ').toLowerCase();
   });
   D.live = D.ind.filter(r => !r.rt);
-  state.fromYear = D.latest - 1;
+  state.toYear = D.latest;
+  state.fromYear = D.years[D.yi[D.latest] - 1];
   D.loaded = true;
 
   $('#strip-range').innerHTML = `Fiscal ${D.years[0]} – fiscal ${D.latest}`;
 
-  const t = tally(D.live, D.latest - 1, D.latest);
-  const withLatest = D.ind.filter(r => r.v[D.yi[D.latest]] != null).length;
-  $('#capline').innerHTML =
-    `Full fiscal years <b>${D.years[0]}</b> to <b>${D.latest}</b> &nbsp;·&nbsp; fiscal ${D.partialFy} runs in the open data only through <b>${monthName(D.partialThrough)} ${monthYear(D.partialThrough, D.partialFy)}</b>`;
-  const counts = $('#counts');
-  const cells = [
-    [D.ind.length.toLocaleString(), 'citywide indicators on file'],
-    [D.agencies.length, 'agencies and initiatives'],
-    [withLatest.toLocaleString(), 'filed a fiscal ' + D.latest + ' figure'],
-    [t.g.toLocaleString(), 'moved the city\'s way last year', 'g'],
-    [t.b.toLocaleString(), 'moved against it', 'b'],
-    [D.ind.filter(r => !r.dir).length.toLocaleString(), 'carry no direction the city will name'],
-  ];
-  counts.innerHTML = cells.map(([v, l, c]) =>
-    `<div><b class="${c || ''}">${v}</b><span>${l}</span></div>`).join('');
+  countBand();
 
   $('#footnote').innerHTML =
     `Built ${new Date().toISOString().slice(0, 10)} from dataset <a href="${esc(D.datasetUrl)}" target="_blank" rel="noopener">rbed-zzin</a> ` +
@@ -1259,6 +1452,7 @@ function boot(raw) {
     `<a href="methodology.html">Method, checks and known limits</a> &nbsp;·&nbsp; ` +
     `<a href="https://www.nyc.gov/site/operations/reports/mmr.page" target="_blank" rel="noopener">The report itself</a>`;
 
+  $('#tabs').insertAdjacentElement('afterend', yearBar());
   drawMast();
   $$('#tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.v)));
   $('#drawer').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeDrawer(); });

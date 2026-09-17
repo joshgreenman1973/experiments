@@ -80,6 +80,45 @@ emergencies by fire companies (minutes:seconds) 9:01 9:24 9:37 9:42 10:41&rdquo;
 9:37 for fiscal 2024 and 9:42 for fiscal 2025.
 </blockquote>
 
+<h2>Fiscal 2026 comes out of the PDF, not the data portal</h2>
+<p>The city published the fiscal 2026 Mayor's Management Report on 17 September 2026. The open data
+table behind it was last refreshed on 12 May 2026 and still carries fiscal 2026 only through March.
+The finished year therefore exists, for now, only inside a 544-page PDF. This site reads it out of
+there, and marks every figure that came from it.</p>
+<p>Nothing is matched by name. Printed row labels and dataset indicator names disagree often enough
+that name matching would quietly attach the wrong number to the wrong indicator &mdash; three
+Department of City Planning goals each print a row called &ldquo;Median days for projects to enter
+public review&rdquo;, and four separate rows in the education chapter print as &ldquo;&ndash; Math
+(%)&rdquo;. Instead every printed row is located by requiring its fiscal 2022 to 2025 columns to
+equal that indicator's own figures in the dataset, to the precision the report prints them at. That
+identifies the row and proves in the same step that the earlier years were not restated underneath
+it. A row is accepted only when at least three years line up, all of them agree, and no other
+indicator in the same chapter claims it.</p>
+<p>That places <b>2,001</b> fiscal 2026 figures. Where it does not place one, the site says the
+indicator has no fiscal 2026 figure rather than guessing. Roughly 350 printed rows went unmatched,
+and five whole initiative chapters are missing from the 2026 report because those initiatives ended.</p>
+<p>Checks on the result: 2,029 matched pairs were re-read from the stored printed line and compared
+against the dataset again, across 7,960 individual year-cells, with no disagreements. One printed
+line is claimed by two indicators &mdash; two Department for the Aging rows that have reported 100
+per cent every year since 2022 and are indistinguishable from their histories &mdash; and both carry
+the same figure either way.</p>
+
+<h2>The targets, which the open data has never carried</h2>
+<p>The printed tables have two columns the data portal does not publish at all: the target the
+agency set itself for the year just ended, and its target for the year ahead. Those are read here
+too, for the <b>564</b> indicators that print one. They appear as a mark on the chart, in the record
+beside each indicator, and as a ranking of their own under the outliers tab. Most indicators have no
+target: a blank means the report printed none, not that the agency missed.</p>
+
+<h2>Series the report has restated</h2>
+<p>Forty-six indicators print a fiscal 2022 to 2025 history in the report that does not match the
+history in the open data. The police chapter's headline is one of them: the report prints 119,748
+major felonies for fiscal 2022 where the dataset says 119,313, and revises 2023, 2024 and 2025 upward
+as well. These are revisions, not errors, and they are almost all small.</p>
+<p>They are accepted on a tighter leash than everything else &mdash; every year within one and a half
+per cent, a name that clearly matches, and no competition for the row &mdash; and they are flagged,
+with both versions of the history shown, so a reader can see exactly what moved.</p>
+
 <h2>Time figures come in two kinds</h2>
 <p>The dataset marks 74 of these indicators as measuring elapsed time, and it writes them two
 incompatible ways without saying which is which in the data itself. The title is the only tell.</p>
@@ -162,18 +201,20 @@ is the point.</p>
 
 <h2>What this cannot tell you</h2>
 <ul>
-<li><b>The fiscal 2026 report is out; the open data is not.</b> The city published the fiscal 2026
-Mayor's Management Report in September 2026, but the underlying dataset was last updated on
-12 May 2026 and carries fiscal 2026 only through March. Every full-year figure on this site
-therefore stops at fiscal 2025. The month-by-month charts show fiscal 2026 as far as it goes and
-say so.</li>
+<li><b>Fiscal 2026 rests on reading a PDF.</b> Every figure for that year was extracted from the
+printed report and matched to its indicator by history, as described above. The checks are strong
+and the method refuses rather than guesses, but it is still a machine reading a document. Each one
+shows the figure exactly as printed and links to the page it came from, so any single number can be
+checked in a few seconds. Earlier years come straight from the data portal.</li>
+<li><b>Spending and headcount stop at fiscal 2025.</b> The agency resources tables have not been
+refreshed for fiscal 2026, so the two ratios built on agency spending end a year earlier than the
+rest of the site.</li>
 <li><b>The history starts at fiscal 2016.</b> That is where this dataset starts. The city publishes
 a separate table for fiscal 2003 to 2012, with no indicator identifiers and no overlap, so joining
 the two would mean matching on indicator titles across a three-year gap. That is a guess dressed as
 a series, and it is not attempted here.</li>
-<li><b>There are no targets.</b> The printed chapters carry target figures for some indicators. The
-open dataset does not, so nothing here says whether an agency hit its own target &mdash; only which
-way the number moved.</li>
+<li><b>Most indicators have no target.</b> The report prints one for about a quarter of them. For
+the rest, nothing here can say whether an agency hit a goal, only which way the number moved.</li>
 <li><b>Indicators are not comparable to one another.</b> A response time, a completion rate, a count
 of summonses and a dollar total share nothing but a row in the same table. The description the city
 wrote for each one is shown with every chart, because titles and descriptions disagree often enough
@@ -185,13 +226,26 @@ scoreboard, and appear under the indicator they belong to.</li>
 <li><b>Dollars are as published.</b> Spending figures are not adjusted for inflation.</li>
 </ul>
 
+<h2>The ratios</h2>
+<p>The last tab divides one published figure by another. None of it is mined. A search for pairs of
+indicators whose ratio happens to stay below one returns four thousand candidates, led by sewer miles
+over satisfaction surveys returned, and there is no arithmetic test that separates those from a real
+rate. So the eight on that page were chosen by hand, each because the two indicators genuinely share
+a denominator universe, and each was checked against the city's own description of both before it went
+in. Every one states the question it answers and the thing it cannot be read as, and shows both
+components year by year so the arithmetic stays visible.</p>
+<p>Two of them divide by an agency's total spending, which covers much more than the activity being
+counted. Those say so in the largest type available.</p>
+
 <h2>Rebuilding it</h2>
-<p>Two scripts, no dependencies beyond Python 3. <code>build/fetch.py</code> pages the three tables
-off the open data portal into <code>build/raw/</code> and fails loudly if a page comes back short.
-<code>build/transform.py</code> turns them into the files the page reads.
-<code>build/stats.py</code> holds the outlier measures, one function, commented with why each one
-exists. Nothing is cached between runs and nothing is hand-edited, so rerunning it after the city
-posts fiscal 2026 will pick that year up on its own.</p>
+<p>Four scripts, and nothing beyond Python 3 and <code>pypdf</code>. <code>build/fetch.py</code>
+pages the three tables off the open data portal and fails loudly if a page comes back short.
+<code>build/pdf2026.py</code> fetches the printed report, parses its tables and matches every row by
+history. <code>build/transform.py</code> merges the two into the files the page reads.
+<code>build/stats.py</code> holds the outlier measures and <code>build/ratios.py</code> the curated
+ratios, each commented with why it exists and what it cannot tell you. Nothing is cached between runs
+and nothing is hand-edited, so rerunning it after the portal catches up will take fiscal 2026 from
+the data rather than the PDF.</p>
 
 <p class="back" style="margin-top:38px"><a href="index.html">Back to the report card</a></p>
 </article>
