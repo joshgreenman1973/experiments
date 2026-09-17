@@ -289,6 +289,85 @@ function barChart(items, opts) {
 }
 
 /* ===========================================================================
+   Description tooltips
+   Indicator titles are short and, often enough, misleading. The city writes a
+   description for almost every one, and that description is the only reliable
+   statement of what is being counted -- so it follows the pointer rather than
+   sitting two clicks away.
+   ======================================================================== */
+const tip = { el: null, timer: null, id: null, host: null };
+function tipInit() {
+  if (tip.el || matchMedia('(pointer: coarse)').matches) return;
+  tip.el = el('div', 'tip');
+  tip.el.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip.el);
+
+  const place = e => {
+    const pad = 14, w = tip.el.offsetWidth, h = tip.el.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > innerHeight - 8) y = Math.max(8, e.clientY - h - pad);
+    tip.el.style.transform = `translate(${Math.max(8, x)}px, ${y}px)`;
+  };
+  const hide = () => {
+    clearTimeout(tip.timer);
+    tip.id = null;
+    tip.host = null;
+    tip.el.classList.remove('on');
+  };
+
+  const show = (host, e, fromFocus) => {
+    const id = host.dataset.tip;
+    if (id === tip.id) return;
+    hide();
+    tip.id = id;
+    const rec = D.byId[id];
+    if (!rec) return;
+    const desc = rec.d >= 0 ? D.desc[rec.d] : null;
+    const bits = [D.agencies[rec.a].n];
+    if (rec.mt >= 0) bits.push(mtWord(rec.mt).toLowerCase());
+    bits.push(rec.dir === 1 ? 'city wants it higher' : rec.dir === -1 ? 'city wants it lower' : 'no direction given');
+    if (rec.src >= 0) bits.push('source: ' + D.src[rec.src]);
+    tip.el.innerHTML =
+      `<b>${esc(rec.n)}</b>` +
+      `<p>${desc ? esc(desc) : 'The city publishes no description for this indicator.'}</p>` +
+      `<span>${esc(bits.join('  \u00b7  '))}</span>`;
+    tip.host = fromFocus ? host : null;
+    place(e);
+    tip.timer = setTimeout(() => tip.el.classList.add('on'), 110);
+  };
+  const anchor = () => {
+    if (!tip.host) return;
+    const r = tip.host.getBoundingClientRect();
+    place({ clientX: r.left + 24, clientY: r.bottom - 6 });
+  };
+  document.addEventListener('mouseover', e => {
+    const host = e.target.closest && e.target.closest('[data-tip]');
+    if (!host) { if (tip.id) hide(); return; }
+    show(host, e);
+  });
+  document.addEventListener('mousemove', e => { if (tip.id) place(e); });
+  // Keyboard users tab through these rows, so the description follows focus too,
+  // anchored under the row rather than under a pointer that is not there.
+  document.addEventListener('focusin', e => {
+    const host = e.target.closest && e.target.closest('[data-tip]');
+    if (!host) { hide(); return; }
+    const r = host.getBoundingClientRect();
+    show(host, { clientX: r.left + 24, clientY: r.bottom - 6 }, true);
+  });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('mouseout', e => {
+    if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('[data-tip]')) hide();
+  });
+  // Focusing a row scrolls it into view, so a scroll-to-hide rule would cancel
+  // the tooltip the keyboard just asked for. Follow the row instead.
+  addEventListener('scroll', () => { if (tip.host) anchor(); else hide(); }, { passive: true });
+  addEventListener('blur', hide);
+  tipHide = hide;
+}
+let tipHide = () => {};
+
+/* ===========================================================================
    Scoring
    Every comparison here names both of its years. A change from the last year
    published to the latest complete one is a different claim from a change
@@ -352,6 +431,7 @@ function indicatorRow(rec, opts) {
   opts = opts || {};
   const b = el('button', 'row');
   b.type = 'button';
+  b.dataset.tip = rec.id;
   const s = opts.score !== undefined ? opts.score : score(rec, state.fromYear, state.toYear);
   const cls = s === null ? '' : VCLASS[s];
   const t = el('div', 't');
@@ -466,6 +546,7 @@ function viewBoard(host) {
       list.forEach(x => {
         const row = el('button');
         row.type = 'button';
+        row.dataset.tip = x.r.id;
         row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) 60px 74px;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--hair2);padding:7px 0;cursor:pointer;font:inherit;color:inherit';
         const nm = el('span');
         nm.style.cssText = 'min-width:0;font-size:13.5px;line-height:1.3';
@@ -1018,6 +1099,7 @@ function viewRatios(host) {
         if (!D.byId[id]) return;
         const a = document.createElement('a');
         a.href = '#i/' + id;
+        a.dataset.tip = id;
         a.textContent = D.byId[id].n.length > 46 ? D.byId[id].n.slice(0, 45) + '\u2026' : D.byId[id].n;
         links.appendChild(a);
       });
@@ -1277,6 +1359,7 @@ function openIndicator(id) {
     `<a href="${esc(D.dmmr)}" target="_blank" rel="noopener">City's dynamic MMR</a>`;
   body.appendChild(links);
 
+  tipHide();
   const dr = $('#drawer');
   dr.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -1463,6 +1546,7 @@ function boot(raw) {
     `<a href="methodology.html">Method, checks and known limits</a> &nbsp;·&nbsp; ` +
     `<a href="https://www.nyc.gov/site/operations/reports/mmr.page" target="_blank" rel="noopener">The report itself</a>`;
 
+  tipInit();
   $('#tabs').insertAdjacentElement('afterend', yearBar());
   drawMast();
   $$('#tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.v)));
