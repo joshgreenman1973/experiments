@@ -168,7 +168,9 @@ function lineChart(rec, opts) {
     }));
   });
   // the target the agency set itself, where the report prints one
-  const tgt = !opts.plain && rec.tgt && rec.tgt.t26;
+  // Explicitly null, not false: `false != null` is true in JavaScript, which
+  // once put a phantom "target 0" line on every chart drawn with plain:true.
+  const tgt = (!opts.plain && rec.tgt && rec.tgt.t26 != null) ? rec.tgt.t26 : null;
   if (tgt != null && D.pdfYear && tgt >= lo && tgt <= hi) {
     const xi = years.indexOf(D.pdfYear);
     svg.appendChild(svgEl('line', { class: 'tgt', x1: (X(xi) - 12).toFixed(1), x2: (X(xi) + 12).toFixed(1), y1: Y(tgt).toFixed(1), y2: Y(tgt).toFixed(1) }));
@@ -957,7 +959,7 @@ function viewRatios(host) {
     'complaints an inspector actually goes out to, how many people leave the shelter system for a ' +
     'home against how many arrive. Each one states the question it answers and the thing it cannot ' +
     'be read as, and shows both components so the arithmetic stays visible. ' +
-    'There are eight, not eighty, because these are the pairs that survived checking.';
+    '<span id="rcount"></span>';
   intro.appendChild(p);
   host.appendChild(intro);
 
@@ -966,12 +968,21 @@ function viewRatios(host) {
   body.appendChild(el('div', 'loading', 'Loading\u2026'));
 
   const draw = data => {
+    const c = $('#rcount');
+    if (c) c.innerHTML = `There are <b>${data.ratios.length}</b>, not eighty, because these are the ` +
+      'pairs that survived checking: both sides have to be measured over the same period, cover the ' +
+      'same unbroken run of years, and mean something when divided.';
     body.innerHTML = '';
     data.ratios.forEach((r, i) => {
       const sec = el('section', 'ratio');
       const h = el('div', 'rhead');
       h.innerHTML = `<span class="rag">${esc(r.agency)}</span><h3>${esc(r.title)}</h3>`;
       sec.appendChild(h);
+      const basis = el('p', 'rbasis');
+      basis.textContent = (r.years ? r.years.charAt(0).toUpperCase() + r.years.slice(1) : '') +
+        (r.period ? ' \u00b7 both sides measured over the ' + r.period.toLowerCase() : '') +
+        ' \u00b7 only years where both figures exist are plotted';
+      sec.appendChild(basis);
       const pad = el('div', 'pad');
       const q = el('p'); q.className = 'rq'; q.textContent = r.question;
       pad.appendChild(q);
@@ -987,7 +998,7 @@ function viewRatios(host) {
         v: D.years.map(y => { const pt = r.pts.find(x => x.y === y); return pt ? pt.v : null; }),
         mt: r.money ? MT_CUR : MT_NUMBER, sus: null, ts: 0, tu: '',
       };
-      pad.appendChild(lineChart(fake, { h: 220, plain: true }));
+      pad.appendChild(lineChart(fake, { h: 150, plain: true }));
 
       const tbl = el('table', 'vtable');
       tbl.style.marginTop = '14px';

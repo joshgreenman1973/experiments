@@ -53,6 +53,39 @@ ended. It comes out as a book of agency chapters in PDF, and separately as a mac
 table on the open data portal. This site is built entirely from the machine-readable table, with
 the PDFs used to check it.</p>
 
+<h2>What was built, and what went wrong on the way</h2>
+<p>A transparent account, because a page that ranks four thousand numbers should say how it got
+them and where it nearly went wrong.</p>
+<p>The work started from the open data table alone and produced the scoreboard, the agency pages,
+the search and the outlier rankings. Fiscal 2026 was added afterwards, once it became clear the
+printed report was out and the data portal had not caught up. Four things had to be corrected along
+the way, and they are worth stating because each one would have put wrong numbers on the screen.</p>
+<ul>
+<li><b>The time encoding.</b> The first version decoded every indicator marked as elapsed time as a
+clock reading, on the understanding that a published 9.42 always means nine minutes forty-two
+seconds. Testing that against all 8,245 published time values showed it fails 74 times: 39 of the
+101 indicators whose titles name a single unit publish fractions above .59, which cannot be a count
+of seconds. The rule is now driven by the title, and the Fire Department's unlabelled response times
+are decoded as clock readings only because the published chapter labels every one of them
+&ldquo;(minutes:seconds)&rdquo;.</li>
+<li><b>Percentages above 100.</b> An early check flagged any percentage over 100 as impossible. That
+was wrong: many of these indicators measure performance against a target, and beating the target is
+the point. The rule now flags only figures that cannot be a percentage at all, which leaves two.</li>
+<li><b>Labels swallowing the table header.</b> The report prints its column header directly above the
+first row of every table. That header was being absorbed into the first indicator's label, which is
+why the police chapter's headline &mdash; major felony crime, the single most quoted line in the
+report &mdash; failed to place at first. Sub-rows had the same problem in reverse: a row printing
+only &ldquo;&ndash; Math (%)&rdquo; needs its parent's stem, and four separate education indicators
+print exactly that.</li>
+<li><b>An assumed uniqueness check that was checking the wrong thing.</b> Duplicate detection keyed on
+page and label, which collapsed genuinely different rows that happen to share a truncated label &mdash;
+two library systems both printing &ldquo;Program attendance&rdquo;. The check now keys on the printed
+line itself.</li>
+</ul>
+<p>None of those produced a wrong number on the published site, because each was caught by a check
+before the data shipped. They are listed here because the fact that they existed is the argument for
+the checks.</p>
+
 <h2>Where the numbers come from</h2>
 <table>
 <tr><td>Indicators</td><td><a href="https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin" target="_blank" rel="noopener">Mayor's Management Report &mdash; Agency Performance Indicators</a> (<code>rbed-zzin</code>), 768,409 rows: one row per indicator per month, for 6,153 indicators across 53 agencies and citywide initiatives.</td></tr>
@@ -230,12 +263,18 @@ scoreboard, and appear under the indicator they belong to.</li>
 <p>The last tab divides one published figure by another. None of it is mined. A search for pairs of
 indicators whose ratio happens to stay below one returns four thousand candidates, led by sewer miles
 over satisfaction surveys returned, and there is no arithmetic test that separates those from a real
-rate. So the eight on that page were chosen by hand, each because the two indicators genuinely share
-a denominator universe, and each was checked against the city's own description of both before it went
-in. Every one states the question it answers and the thing it cannot be read as, and shows both
+rate. So the ones on that page were chosen by hand, each because the two indicators genuinely share a
+denominator universe, and each was checked against the city's own description of both before it went
+in. The build enforces three rules and fails rather than publishing: both sides must be measured over
+the same reporting period, the usable years must be an unbroken run with both figures present, and a
+figure presented as a share of something cannot land far outside that something unless the entry says
+why it can. That last rule caught four pairs whose identifiers had been transcribed wrongly, including
+a taxi inspection pass rate that came out at 334 per cent. Every one states the question it answers and the thing it cannot be read as, and shows both
 components year by year so the arithmetic stays visible.</p>
 <p>Two of them divide by an agency's total spending, which covers much more than the activity being
-counted. Those say so in the largest type available.</p>
+counted, and three divide by a count of active library cards that the city has plainly redefined more
+than once. All five say so on the page: the library ones tell you to read the level and not the trend.
+Two candidates were dropped outright once it turned out the city already publishes the rate itself.</p>
 
 <h2>Rebuilding it</h2>
 <p>Four scripts, and nothing beyond Python 3 and <code>pypdf</code>. <code>build/fetch.py</code>
@@ -246,6 +285,25 @@ history. <code>build/transform.py</code> merges the two into the files the page 
 ratios, each commented with why it exists and what it cannot tell you. Nothing is cached between runs
 and nothing is hand-edited, so rerunning it after the portal catches up will take fiscal 2026 from
 the data rather than the PDF.</p>
+
+<h2>A caution</h2>
+<details class="aic">
+  <summary>And please read this AI caution.</summary>
+  <div class="aicbody">
+    <p>The concept, the choice of sources and the design direction for this project were set by a
+    human, who pushed hard on verification throughout. The extraction, the code and the checks were
+    done by Anthropic's Claude and Claude Code under that direction.</p>
+    <p>The quality control that was actually performed is set out on this page: every fiscal 2026
+    figure located by matching an indicator's own published history rather than its name, all 2,029
+    matches re-checked across 7,960 year-cells, headline figures verified by hand against the printed
+    chapters, twenty random matches read line by line, and every indistinguishable pair examined
+    individually. The time-encoding rule was rewritten after a test across all 8,245 published values
+    disproved the simpler assumption. Automatically generated ratios were discarded in favour of eight
+    built and checked by hand.</p>
+    <p>Nevertheless, the risks of using AI remain. If you spot a red flag in anything here, please say
+    so &mdash; it is a great deal easier to check one number than four thousand.</p>
+  </div>
+</details>
 
 <p class="back" style="margin-top:38px"><a href="index.html">Back to the report card</a></p>
 </article>
