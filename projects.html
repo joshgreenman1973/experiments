@@ -1754,6 +1754,12 @@ function card(p, i, isFeatured) {
   const commitsRow = Number.isFinite(p.commitCount)
     ? `<dt>commits</dt><dd>${p.commitCount.toLocaleString()}</dd>`
     : '';
+  // The repo slug, not the folder path. Projects discovered through the GitHub
+  // API (rather than walked on disk) have no relPath, so the old path-based row
+  // rendered empty on the published page; `name` is always set.
+  const slugRow = p.name
+    ? `<dt>id</dt><dd>${escapeHtml(p.name)}</dd>`
+    : '';
 
   const links = [];
   // Single "Open" link, pointing to the canonical live page. Prefers the
@@ -1781,7 +1787,7 @@ function card(p, i, isFeatured) {
     ${p.description ? `<p class="card-desc">${escapeHtml(p.description)}</p>` : ''}
     <div class="meta-rule"></div>
     <dl class="meta">
-      <dt>id</dt><dd>${escapeHtml(p.relPath)}</dd>
+      ${slugRow}
       ${ownerRow}
       ${updated}
       ${commitsRow}
@@ -1789,10 +1795,10 @@ function card(p, i, isFeatured) {
     </dl>
     <div class="links">
       ${links.join('')}
-      <button class="copy-path" data-path="${escapeHtml(p.localPath)}">Copy path</button>
+      ${p.localPath ? `<button class="copy-path" data-path="${escapeHtml(p.localPath)}">Copy path</button>` : ''}
     </div>`;
 
-  d.querySelector('.copy-path').addEventListener('click', e => {
+  d.querySelector('.copy-path')?.addEventListener('click', e => {
     navigator.clipboard.writeText(e.target.dataset.path).then(() => {
       const t = e.target.textContent;
       e.target.textContent = 'Copied';
