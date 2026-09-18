@@ -267,7 +267,7 @@ def eo_note(label):
 # Department charts. Maps a box label in COLUMNS to the agency name(s) used by
 # the Greener Book (joshgreenman1973.github.io/nyc-green-book), which publishes
 # the Green Book's own division hierarchy for 124 agencies and refreshes itself
-# every four hours. A label absent from here has no published department chart,
+# every Monday. A label absent from here has no published department chart,
 # and the page says so rather than inventing one. Verified by hand: fuzzy
 # matching produced false positives bad enough to mislead (it paired the public
 # utility advocate with the public advocate, and the tenant protection office

@@ -25,8 +25,8 @@ under Mass Engagement.
 
 **The department layer** is fetched at runtime from
 [the Greener Book](https://joshgreenman1973.github.io/nyc-green-book/), which rebuilds
-from the city's Green Book, the agency governance file and the City Record every four
-hours. Both sites are on the same origin, so the chart reads its sibling's data file
+every Monday from the city's Green Book, the agency governance file and the City
+Record. Both sites are on the same origin, so the chart reads its sibling's data file
 directly. That layer therefore stays current with no rebuild here. 49 boxes open into
 a published chart, down to the division level; the rest have none published and say so.
 Where the City Record has published a personnel action for someone in that chart, their
