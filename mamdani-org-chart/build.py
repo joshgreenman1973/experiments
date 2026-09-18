@@ -96,6 +96,8 @@ COLUMNS = [
         ("Lina Khan", "Economic Development Corporation"),
         ("Midori Valdivia", "Taxi and Limousine Commission"),
         ("Kenny Minaya", "Small Business Services"),
+        ("Carina Kaufman-Gutierrez", "Street Vendor Services"),
+        ("Delia Awusi", "Mom-and-pop czar"),
         ("Sam Levine", "Consumer and Worker Protection"),
         ("Michael Garner", "Minority and Women-Owned Business"),
         ("Diya Vij", "Cultural Affairs"),
@@ -105,6 +107,7 @@ COLUMNS = [
         ("Taylor Brown", "LGBTQIA+ Affairs"),
         ("Faiza Ali", "Immigrant Affairs"),
         ("Tony Perlstein", "Worker Power"),
+        ("Doug Lipari", "Talent and Workforce Development"),
     ]),
     ("Renita Francois", "Deputy mayor for community safety", [
         ("Ayesha Delany-Brumsey", "Community Safety"),
@@ -129,6 +132,7 @@ COLUMNS = [
     ("Steven Banks", "Corporation counsel", []),
     ("Anna Bahr", "Communications director", [
         ("Joe Calvello", "Press secretary"),
+        ("Mazin Sidahmed", "Ethnic and Community Media"),
         ("Dora Pekec", "Senior spokesperson"),
         ("Monica Klein", "Senior adviser"),
         ("Lekha Sunder", "Deputy director"),
@@ -201,6 +205,7 @@ EO23 = {
     "Minority and Women-Owned Business": ("5(c)", _SUP),
     "Equity and Racial Justice": ("5(c)", _SUP), "LGBTQIA+ Affairs": ("5(c)", _SUP),
     "Taxi and Limousine Commission": ("5(c)", _SUP),
+    "Talent and Workforce Development": ("5(c)", _SUP),
     "Economic Development Corporation": ("5(d)", _SUP),
     "Children's Services": ("6(c)", _SUP),
     "Innovation through Data Intelligence": ("6(c)", _SUP),
@@ -230,6 +235,7 @@ EO23 = {
     "Advisory Committee on the Judiciary": ("10(d)", _SUP),
     "Administrative Trials and Hearings": ("10(d)", _SUP),
     "Press secretary": ("11(c)", _SUP),
+    "Ethnic and Community Media": ("11(c)", _SUP),
 }
 # Section 12 has these report straight to the mayor, while section 2 also has the
 # first deputy mayor supervise the police department and the schools.
@@ -343,6 +349,15 @@ BOARDS = [
     ("Metropolitan Transportation Authority board", ["Melanie Hartzog", "Janette Sadik-Khan",
                                                      "Dan Garodnick", "David Jones"]),
     ("Quadrennial Advisory Commission", ["Carl Weisbrod", "Lilliam Barrios-Paoli", "Larian Angelo"]),
+    ("Board of Health", ["Dave Chokshi"]),
+    ("Commission on Government Efficiency", ["Patrick Gaspard", "Ann Cheng", "Marco A. Carrión",
+                                             "Henry A. Garrido", "Susan Kang", "Kapil Longani",
+                                             "Ruth Messinger", "Theodore Moore", "Ana Oliveira",
+                                             "Dawn Pinnock", "Carlina Rivera", "Esther Rosario",
+                                             "Marc V. Shaw", "Barika X. Williams", "Emma Wolfe",
+                                             "Kathryn Wylde"]),
+    ("Mayor's Fund board", ["Elle Bisgaard-Church", "Tony Perlstein", "Julie Chen", "Christina Cover",
+                            "Shawn V. Morehead", "Rickke Mananzala", "Javier H. Valdés"]),
     ("Panel for Educational Policy", ["Karla Cordero", "Tariq Khan", "Mehrain Mahdi", "Alan Ong",
                                      "Amy Fair", "Courtney Rajwani", "Crystal Vera-Montalvo",
                                      "Marjorie Dienstag", "Lucas Koehler", "Primo Lasana",
