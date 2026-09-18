@@ -3,7 +3,8 @@ import json, pathlib, sys, unittest
 from unittest.mock import patch
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build'))
-import stats, transform
+import stats, transform, ratios
+import tempfile, contextlib, io
 
 class StatisticsTests(unittest.TestCase):
     def test_streak_breaks_at_missing_year(self):
@@ -73,15 +74,34 @@ class PublishedDataTests(unittest.TestCase):
             self.assertEqual(r['dir'],p['direction'],id)
             count+=1
         self.assertGreater(count,1900)
+    def test_ratio_build_rejects_definition_break_or_missing_history(self):
+        for failure in ('break', 'missing', 'reconciliation'):
+            data=json.loads((ROOT/'data/indicators.json').read_text())
+            record=next(r for r in data['ind'] if r['id']=='10950')
+            if failure=='break':record['breaks']=[2024]
+            elif failure=='missing':record['v'][data['years'].index(2023)]=None
+            else:record['v'][data['years'].index(2023)]+=1
+            with tempfile.TemporaryDirectory() as directory:
+                pathlib.Path(directory,'indicators.json').write_text(json.dumps(data))
+                with patch.object(ratios,'OUT',directory), contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaises(SystemExit):ratios.main()
+                self.assertFalse(pathlib.Path(directory,'ratios.json').exists())
     def test_ratio_arithmetic_and_resource_labels(self):
         ratios=json.loads((ROOT/'data/ratios.json').read_text())['ratios']
         for r in ratios:
-            scale=100 if r['unit'].startswith('per 100') else 1
+            scale=100 if r['kind']=='share' else 1
             for p in r['pts']:
                 self.assertAlmostEqual(p['v'],p['n']/p['d']*scale,places=3,msg=r['id'])
         byid={r['id']:r for r in ratios}
-        self.assertIn('Personnel',byid['dsny-tons']['denLabel'])
         self.assertIn('Overtime',byid['doc-ot']['numLabel'])
-        self.assertAlmostEqual(byid['doc-cost']['pts'][-1]['v'],1356.2e6/6823,places=3)
+        self.assertAlmostEqual(byid['doc-ot']['pts'][-1]['v'],341.1/1356.2*100,places=3)
+        self.assertEqual(len(ratios),8)
+        for r in ratios:
+            self.assertEqual([p['y'] for p in r['pts']],list(range(r['reviewedYears'][0],r['reviewedYears'][1]+1)))
+            self.assertGreaterEqual(len(r['pts']),5)
+            self.assertTrue(all(0 <= p['v'] <= 100 and 0 <= p['n'] <= p['d'] for p in r['pts']))
+            self.assertTrue(r['historyNote'])
+        self.assertAlmostEqual(byid['oath-default']['pts'][-1]['v'],453811/686960*100,places=3)
+        self.assertTrue(set(byid).isdisjoint({'bpl-circ','nypl-circ','qpl-circ','ccrb-sub','nypd-arrests','dot-potholes','doc-cost','dsny-cost','dsny-tons'}))
 
 if __name__=='__main__':unittest.main()

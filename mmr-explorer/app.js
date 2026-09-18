@@ -1058,12 +1058,9 @@ function viewRatios(host) {
   const intro = el('div', 'pad');
   const p = el('p', 'note');
   p.style.maxWidth = '84ch';
-  p.innerHTML = 'Everything on this page is two figures from the report divided by one another. ' +
-    'These calculations describe agency spending relative to population, complaints responded to ' +
-    'relative to complaints received, and how many people leave the shelter system for a ' +
-    'home against how many arrive. Each one states the question it answers and the thing it cannot ' +
-    'be read as, and shows both components so the arithmetic stays visible. ' +
-    '<span id="rcount"></span>';
+  p.innerHTML = 'Each ratio divides a subset by its matching total. Every card shows five consecutive years, ' +
+    'the numerator and denominator, and the calculation. Only reviewed, comparable histories are included. ' +
+    'The scoreboard’s comparison years do not shorten these trends. <span id="rcount"></span>';
   intro.appendChild(p);
   host.appendChild(intro);
 
@@ -1073,14 +1070,9 @@ function viewRatios(host) {
 
   const draw = data => {
     const c = $('#rcount');
-    if (c) c.innerHTML = `There are <b>${data.ratios.length}</b> curated ratios. The build checks matching period types and ` +
-      'an unbroken run of overlapping years. Some are shares; others compare separate flows or total agency resources with one output. Read each caveat before interpreting a trend. The displayed points are limited to the comparison window above.';
+    if (c) c.textContent = `${data.ratios.length} ratios are included.`;
     body.innerHTML = '';
-    data.ratios.forEach((original, i) => {
-      const selected = original.pts.filter(p => p.y >= Math.min(state.fromYear, state.toYear) && p.y <= Math.max(state.fromYear, state.toYear));
-      const r = { ...original, pts: selected };
-      if (!r.pts.length) return;
-      r.years = 'fiscal ' + r.pts[0].y + ' to ' + r.pts[r.pts.length - 1].y;
+    data.ratios.forEach((r, i) => {
       const sec = el('section', 'ratio');
       const h = el('div', 'rhead');
       h.innerHTML = `<span class="rag">${esc(r.agency)}</span><h3>${esc(r.title)}</h3>`;
@@ -1088,7 +1080,7 @@ function viewRatios(host) {
       const basis = el('p', 'rbasis');
       basis.textContent = (r.years ? r.years.charAt(0).toUpperCase() + r.years.slice(1) : '') +
         (r.period ? ' \u00b7 both sides measured over the ' + r.period.toLowerCase() : '') +
-        ' \u00b7 only years where both figures exist are plotted';
+        ' \u00b7 five-year trend';
       sec.appendChild(basis);
       const pad = el('div', 'pad');
       const q = el('p'); q.className = 'rq'; q.textContent = r.question;
@@ -1097,14 +1089,21 @@ function viewRatios(host) {
       const last = r.pts[r.pts.length - 1], first = r.pts[0];
       const fmtR = v => r.money ? '$' + Math.round(v).toLocaleString('en-US') : (Math.round(v * 10) / 10).toLocaleString('en-US');
       const lead = el('p', 'rlead');
-      lead.innerHTML = `<b>${esc(fmtR(last.v))}</b> <span>${esc(r.unit)}</span> in fiscal ${last.y}, ` +
-        (first.y !== last.y ? `against ${esc(fmtR(first.v))} in fiscal ${first.y}.` : 'the only available year in this window.');
+      lead.innerHTML = `<b>${esc(fmtR(last.v))}%</b> in fiscal ${last.y}, ` +
+        `against ${esc(fmtR(first.v))}% in fiscal ${first.y}.`;
       pad.appendChild(lead);
 
-      const ratioYears = D.years.filter(y => y >= Math.min(state.fromYear,state.toYear) && y <= Math.max(state.fromYear,state.toYear));
+      const formula = el('p', 'note');
+      formula.textContent = `${fmtFiled(last.n, MT_NUMBER)} ÷ ${fmtFiled(last.d, MT_NUMBER)} × 100 = ${fmtR(last.v)}% in FY${last.y}.`;
+      pad.appendChild(formula);
+      const change = last.v - first.v;
+      const trend = el('p', 'note');
+      trend.textContent = `${change > 0 ? '+' : ''}${fmtR(change)} percentage points since FY${first.y}.`;
+      pad.appendChild(trend);
+      const ratioYears = r.pts.map(p => p.y);
       const fake = {
         v: ratioYears.map(y => { const pt = r.pts.find(x => x.y === y); return pt ? pt.v : null; }),
-        mt: r.money ? MT_CUR : MT_NUMBER, sus: null, ts: 0, tu: '',
+        mt: MT_PCT, sus: null, ts: 0, tu: '',
       };
       pad.appendChild(lineChart(fake, { h: 150, plain: true, years: ratioYears }));
 
@@ -1116,7 +1115,7 @@ function viewRatios(host) {
       tbl.innerHTML = '<thead><tr><th>Fiscal year</th>' + ys.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>' +
         row(r.numLabel, x => fmtFiled(x.n, MT_NUMBER)) +
         row(r.denLabel, x => fmtFiled(x.d, MT_NUMBER)) +
-        row('The ratio', x => fmtR(x.v)) +
+        row('The ratio', x => fmtR(x.v) + '%') +
         '</tbody>';
       pad.appendChild(tbl);
 
@@ -1144,13 +1143,15 @@ function viewRatios(host) {
       });
       pad.appendChild(links);
 
+      const historyNote = el('p', 'note', r.historyNote);
+      pad.appendChild(historyNote);
       const c = el('div', 'warn');
-      c.innerHTML = '<b>What it is not.</b> ' + esc(r.caveat);
+      c.innerHTML = '<b>How to read it.</b> ' + esc(r.caveat);
       pad.appendChild(c);
       sec.appendChild(pad);
       body.appendChild(sec);
     });
-    if (!body.children.length) body.appendChild(el('div', 'empty', 'No ratios have data in the selected years. Choose an earlier comparison window.'));
+    if (!body.children.length) body.appendChild(el('div', 'empty', 'No ratios currently meet the history and comparability requirements.'));
   };
 
   if (RATIOS_DATA) { draw(RATIOS_DATA); return; }
@@ -1519,6 +1520,8 @@ const VIEWS = { board: viewBoard, agencies: viewAgencies, search: viewSearch, ou
 
 function go(v) {
   state.view = v;
+  const comparisonBar = $('.yearbar');
+  if (comparisonBar) comparisonBar.hidden = v === 'ratios';
   $$('#tabs button').forEach(b => { b.classList.toggle('on', b.dataset.v === v); b.setAttribute('aria-selected', String(b.dataset.v === v)); });
   const host = $('#view');
   host.innerHTML = '';

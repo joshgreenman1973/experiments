@@ -74,3 +74,18 @@ Run `python3 -m unittest discover -s tests -v`, `node tests/test_app.cjs`, and `
 Most PDF footnotes remain unstructured. Numerically ambiguous matches still need semantic review. School/calendar/fiscal reporting periods remain different. Indicator counts have no importance weighting and are correlated; an agency ranking is not a statistically independent sample or comprehensive performance grade. A selected period does not eliminate composition changes. Future source releases and new indicators require review rather than blind trust in the parser.
 
 The fixes and regenerated data are published from the repository’s main branch through GitHub Pages.
+
+
+## Follow-up: stricter ratios and full trend context
+
+The earlier recommendations above are superseded by this implemented curation decision. The page now has **eight subset shares**, replacing the 23 assorted quotients. Retained: DHS subsidized exit shares (single adults and families with children), NYCHA homeless applicants’ share of conventional placements, TLC inspection-event pass share, and DOC/NYPD/FDNY overtime shares. Added: OATH default decisions / all decisions. Removed: three shelter exit/arrival comparisons; DOC spending/population; both DSNY spending or staffing/tonnage measures; two DOB response/receipt comparisons; graffiti closures/receipts; housing violation closures/issues; CCRB substantiations/all closures; arrests/crimes; all three circulation/card ratios; and potholes/work orders.
+
+Each card now always shows five years, its complete component table, the latest arithmetic, and a percentage-point change. The scoreboard controls are hidden on this page and cannot crop those histories. No historical range is extended merely because earlier data exist.
+
+Evidence for the displayed spans:
+
+- DHS, NYCHA, TLC and OATH: both components are printed side by side in the FY2026 report's FY2022–2026 tables, PDF pages 265, 429, 196 and 136 respectively. Definitions in the raw FY2022–2026 observations were consistent for the ten component indicators. Reviewed change notes on pages 268, 432, 200 and 139 do not identify a break for these measures. DHS subsidized plus unsubsidized exits, and OATH default plus hearing/administrative decisions, reconcile to their totals in all five years.
+- DOC, NYPD, FDNY: FY2021–2025 numerator and denominator each use the same resource categories and monetary units, with final prior-year actuals from the FY2022–2026 PMMR releases. The build enforces that final-actual field and fiscal-year alignment. These are shares of each agency's own reported expenditures; no claim about staffing adequacy or service quality follows from them.
+- Library ratios are dropped because the historical comparability issue remains unresolved. The other removed comparisons either do not describe a subset of a common total or have a material scope mismatch. They are not retained merely with stronger caveats.
+
+Build checks require all five reviewed years, matching period types, shares in range, no flagged values or known definition breaks, and component reconciliation where a complement is available. The curation is intentionally conservative; these checks still cannot guarantee that the source has disclosed every change.

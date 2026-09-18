@@ -39,7 +39,7 @@ Run from this directory. The first transformation supplies the matching index (i
 - Missing or flagged values, zero percentage baselines and documented definition breaks are not scored.
 - Flagged observations are displayed but excluded from derived statistics.
 - Streaks and biggest annual steps require consecutive years. Percentage-point rankings compare percentage units only.
-- Ratio components require known matching period types and consecutive overlapping years. True shares are bounded by 0–100%; flow comparisons are not.
+- Ratios are eight curated subset shares with five explicitly reviewed years each. Full history is always shown, independently of the scoreboard controls. Missing, flagged, non-reconciling or definition-incompatible inputs fail the build; shares must be 0–100%. Extending the reviewed years requires source review.
 - Final resource actuals use the PMMR's `previous_fy_actual` and the previous fiscal year, not its current-year budget plans.
 - Numeric targets, directional targets and extraction gaps remain distinct.
 
