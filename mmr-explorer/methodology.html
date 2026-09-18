@@ -46,264 +46,59 @@
 <p class="kicker">Method, checks and limits</p>
 <h1>How this was built</h1>
 
-<p>The Mayor's Management Report is required by chapter 1 of the New York City Charter. The city
-publishes it twice a year: a preliminary edition in January or February covering the first four
-months of the fiscal year, and the full edition each September covering the fiscal year just
-ended. It comes out as a book of agency chapters in PDF, and separately as a machine-readable
-table on the open data portal. This site is built entirely from the machine-readable table, with
-the PDFs used to check it.</p>
+<p>This explorer combines the city's agency performance dataset with the fiscal 2026 Mayor's Management Report. The open-data extract ends in March 2026; the completed year's values therefore come from the printed report where a row can be verified.</p>
 
-<h2>What was built, and what went wrong on the way</h2>
-<p>A transparent account, because a page that ranks four thousand numbers should say how it got
-them and where it nearly went wrong.</p>
-<p>The work started from the open data table alone and produced the scoreboard, the agency pages,
-the search and the outlier rankings. Fiscal 2026 was added afterwards, once it became clear the
-printed report was out and the data portal had not caught up. Four things had to be corrected along
-the way, and they are worth stating because each one would have put wrong numbers on the screen.</p>
+<h2>Sources and publication dates</h2>
 <ul>
-<li><b>The time encoding.</b> The first version decoded every indicator marked as elapsed time as a
-clock reading, on the understanding that a published 9.42 always means nine minutes forty-two
-seconds. Testing that against all 8,245 published time values showed it fails 74 times: 39 of the
-101 indicators whose titles name a single unit publish fractions above .59, which cannot be a count
-of seconds. The rule is now driven by the title, and the Fire Department's unlabelled response times
-are decoded as clock readings only because the published chapter labels every one of them
-&ldquo;(minutes:seconds)&rdquo;.</li>
-<li><b>Percentages above 100.</b> An early check flagged any percentage over 100 as impossible. That
-was wrong: many of these indicators measure performance against a target, and beating the target is
-the point. The rule now flags only figures that cannot be a percentage at all, which leaves two.</li>
-<li><b>Labels swallowing the table header.</b> The report prints its column header directly above the
-first row of every table. That header was being absorbed into the first indicator's label, which is
-why the police chapter's headline &mdash; major felony crime, the single most quoted line in the
-report &mdash; failed to place at first. Sub-rows had the same problem in reverse: a row printing
-only &ldquo;&ndash; Math (%)&rdquo; needs its parent's stem, and four separate education indicators
-print exactly that.</li>
-<li><b>An assumed uniqueness check that was checking the wrong thing.</b> Duplicate detection keyed on
-page and label, which collapsed genuinely different rows that happen to share a truncated label &mdash;
-two library systems both printing &ldquo;Program attendance&rdquo;. The check now keys on the printed
-line itself.</li>
+<li><a href="https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin">Agency performance indicators</a>: 768,409 rows in the September 2026 extract, covering 6,153 citywide and geographic series.</li>
+<li><a href="https://www.nyc.gov/assets/operations/downloads/pdf/mmr2026/2026_mmr.pdf">Fiscal 2026 report</a>: 544 PDF pages. Links use the PDF page index, which differs from the printed page number.</li>
+<li><a href="https://data.cityofnewyork.us/resource/4qmi-txnk.json?$limit=50000">MMR agency resources</a> and <a href="https://data.cityofnewyork.us/resource/nvzu-6t9y.json?$limit=50000">PMMR agency resources</a>: spending and staffing. Final prior-year actuals in the following PMMR replace provisional MMR actuals. Current-year plans are not used as actuals. These series currently stop at FY2025; FY2026 resources printed in the PDF have not been extracted.</li>
 </ul>
-<p>None of those produced a wrong number on the published site, because each was caught by a check
-before the data shipped. They are listed here because the fact that they existed is the argument for
-the checks.</p>
+<p>The footer gives the data build date, not the date you opened the page. The JSON records the source PDF's SHA-256 checksum, source information, and the build timestamp. The city's <a href="https://dmmr.nyc.gov/">Dynamic MMR</a> is linked for reference and is not scraped.</p>
 
-<h2>Where the numbers come from</h2>
-<table>
-<tr><td>Indicators</td><td><a href="https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin" target="_blank" rel="noopener">Mayor's Management Report &mdash; Agency Performance Indicators</a> (<code>rbed-zzin</code>), 768,409 rows: one row per indicator per month, for 6,153 indicators across 53 agencies and citywide initiatives.</td></tr>
-<tr><td>Spending and staff</td><td><a href="https://data.cityofnewyork.us/resource/4qmi-txnk" target="_blank" rel="noopener">MMR Agency Resources</a> (<code>4qmi-txnk</code>) and <a href="https://data.cityofnewyork.us/resource/nvzu-6t9y" target="_blank" rel="noopener">Preliminary MMR Agency Resources</a> (<code>nvzu-6t9y</code>).</td></tr>
-<tr><td>Chapters</td><td>The <a href="https://www.nyc.gov/site/operations/reports/mmr.page" target="_blank" rel="noopener">fiscal 2026 agency chapters</a>, linked from every indicator and every agency page here.</td></tr>
-<tr><td>The city's own tool</td><td>The <a href="https://dmmr.nyc.gov/" target="_blank" rel="noopener">Dynamic Mayor's Management Report</a>. This site does not read from it or copy anything out of it &mdash; its robots file asks not to be crawled, and that request is respected.</td></tr>
-</table>
+<h2>Annual figures and time units</h2>
+<p>The June row supplies each fiscal-year slot from Open Data's year-to-date values. A fiscal-year slot is not a guarantee that the underlying observation covers July through June: school-year and calendar-year measures retain their reporting-period label in the indicator record.</p>
+<p>Times named as minutes:seconds or hours:minutes are decoded from the portal's clock encoding: 9.42 becomes 9:42, not 9.42 decimal minutes. FDNY response times use that encoding based on their PDF labels. Titles naming only minutes, hours or days retain decimal units. Original clock encodings remain visible in the detail table. Invalid clock fractions are flagged, not silently converted.</p>
 
-<h2>Picking a fiscal year figure out of 768,409 rows</h2>
-<p>The table carries a row for every indicator for every month, and the value in each row is the
-figure for the fiscal year so far, not the figure for that month. New York City's fiscal year runs
-July to June, so the row dated 1 June carries the full-year figure. That is the one used here.
-It holds regardless of what an indicator's stated reporting period is: indicators reported on a
-school year or a calendar year still land their annual figure on the June row.</p>
+<h2>How PDF rows are matched</h2>
+<p>The first pass requires agreement with at least three available FY2022–2025 values, within the report's displayed precision. Names help resolve clear ties. A second pass accepts small revisions only when histories are within 1.5%, names agree sufficiently, and the candidate is unambiguous. Five DOB complaint series use explicitly reviewed revisions: both the old and revised histories must match the values documented on PDF page 375. That review restores their FY2026 values without relaxing matching for unrelated rows.</p>
+<p>The build now carries 2,042 matched records, including 2,006 FY2026 values and additional targets. A missing match is an extraction gap, not evidence that an indicator is absent from the report. New indicators without three years of history and larger revisions may remain unmatched. The tool is not a complete transcription of every printed table.</p>
+<p>Matching numbers does not prove identical definitions. The report's explanations, changed methodologies, and footnotes still matter. For example, the four library six-day opening measures include branches closed for long-term renovations starting in FY2026. Those values remain visible, but comparisons across that documented break are excluded from scoring.</p>
 
-<p>Two checks against the published fiscal 2026 chapters, which print the last five fiscal years
-side by side:</p>
-<blockquote>
-<b>Police.</b> The chapter's table reads &ldquo;Felonious assault 25,034 26,959 28,850 29,576 29,996&rdquo;
-for fiscal 2022 through 2026. This site reads 28,850 for fiscal 2024 and 29,576 for fiscal 2025.
-</blockquote>
-<blockquote>
-<b>Fire.</b> The chapter reads &ldquo;End-to-end average response time to life-threatening medical
-emergencies by fire companies (minutes:seconds) 9:01 9:24 9:37 9:42 10:41&rdquo;. This site reads
-9:37 for fiscal 2024 and 9:42 for fiscal 2025.
-</blockquote>
+<h2>Revisions and source precedence</h2>
+<p>While FY2026 is unavailable as a completed year in Open Data, matched series use the printed report's available FY2022–2026 history. This avoids joining an old FY2025 denominator to a revised FY2026 figure. Open circles identify report-derived values. Original Open Data values that differ are retained in a separate comparison table; differences can be revisions or rounding. Older years remain from Open Data, so a boundary between publications remains and should be considered when interpreting long trends.</p>
+<p>The report's desired direction governs FY2026 scoring and numeric target judgments. Historical year comparisons use the direction recorded for the compared year in Open Data. Eighteen conflicting direction labels were found in the audit, including unfilled early-childhood seats incorrectly labeled “higher is better” in the old metadata. Numeric targets, directional arrows, and unknown or unextracted targets are represented separately.</p>
+<p>If Open Data later supplies a completed year, its available annual values take precedence over the PDF fallback. Matching, revisions, and coverage should still be reviewed after an upstream update; the build is not a general parser for future report layouts.</p>
 
-<h2>Fiscal 2026 comes out of the PDF, not the data portal</h2>
-<p>The city published the fiscal 2026 Mayor's Management Report on 17 September 2026. The open data
-table behind it was last refreshed on 12 May 2026 and still carries fiscal 2026 only through March.
-The finished year therefore exists, for now, only inside a 544-page PDF. This site reads it out of
-there, and marks every figure that came from it.</p>
-<p>Nothing is matched by name. Printed row labels and dataset indicator names disagree often enough
-that name matching would quietly attach the wrong number to the wrong indicator &mdash; three
-Department of City Planning goals each print a row called &ldquo;Median days for projects to enter
-public review&rdquo;, and four separate rows in the education chapter print as &ldquo;&ndash; Math
-(%)&rdquo;. Instead every printed row is located by requiring its fiscal 2022 to 2025 columns to
-equal that indicator's own figures in the dataset, to the precision the report prints them at. That
-identifies the row and proves in the same step that the earlier years were not restated underneath
-it. A row is accepted only when at least three years line up, all of them agree, and no other
-indicator in the same chapter claims it.</p>
-<p>That places <b>2,001</b> fiscal 2026 figures. Where it does not place one, the site says the
-indicator has no fiscal 2026 figure rather than guessing. Roughly 350 printed rows went unmatched,
-and five whole initiative chapters are missing from the 2026 report because those initiatives ended.</p>
-<p>Checks on the result: 2,029 matched pairs were re-read from the stored printed line and compared
-against the dataset again, across 7,960 individual year-cells, with no disagreements. One printed
-line is claimed by two indicators &mdash; two Department for the Aging rows that have reported 100
-per cent every year since 2022 and are indistinguishable from their histories &mdash; and both carry
-the same figure either way.</p>
+<h2>What the scoreboard measures</h2>
+<p>The scoreboard counts indicators moving toward or away from the city's desired direction. It is not an overall agency performance grade. Indicators are not independent, equally important, or equally representative of residents' experiences. A larger number of indicators does not by itself make an agency's score more reliable.</p>
+<p>Percentage change uses the selected baseline. Exact equality is always unchanged, including at the “any change” setting. Changes smaller than the selected relative threshold are unchanged. Missing values, a zero baseline, flagged values, documented definition breaks, and no desired direction can prevent scoring. Zero-baseline values remain visible even though percentage change is undefined.</p>
+<p>The minimum of ten scorable indicators for the agency table is a display rule, not a statistical confidence threshold. The annual overview uses that year's available indicators, so its composition can change over time. The current live/retired classification is applied throughout.</p>
 
-<h2>The targets, which the open data has never carried</h2>
-<p>The printed tables have two columns the data portal does not publish at all: the target the
-agency set itself for the year just ended, and its target for the year ahead. Those are read here
-too, for the <b>564</b> indicators that print one. They appear as a mark on the chart, in the record
-beside each indicator, and as a ranking of their own under the outliers tab. Most indicators have no
-target: a blank means the report printed none, not that the agency missed.</p>
-
-<h2>Series the report has restated</h2>
-<p>Forty-six indicators print a fiscal 2022 to 2025 history in the report that does not match the
-history in the open data. The police chapter's headline is one of them: the report prints 119,748
-major felonies for fiscal 2022 where the dataset says 119,313, and revises 2023, 2024 and 2025 upward
-as well. These are revisions, not errors, and they are almost all small.</p>
-<p>They are accepted on a tighter leash than everything else &mdash; every year within one and a half
-per cent, a name that clearly matches, and no competition for the row &mdash; and they are flagged,
-with both versions of the history shown, so a reader can see exactly what moved.</p>
-
-<h2>Time figures come in two kinds</h2>
-<p>The dataset marks 74 of these indicators as measuring elapsed time, and it writes them two
-incompatible ways without saying which is which in the data itself. The title is the only tell.</p>
+<h2>Outliers and comparability</h2>
 <ul>
-<li>Where the title names a pair &mdash; <code>(minutes:seconds)</code> or <code>(hours:minutes)</code>
-&mdash; the figure is a clock reading. A published 9.42 means nine minutes and forty-two seconds.
-44 indicators work this way.</li>
-<li>Where the title names a single unit &mdash; <code>(minutes)</code>, <code>(hours)</code>,
-<code>(days)</code> &mdash; the figure is an ordinary decimal. A published 74.0 means 74 minutes.
-39 of these publish fractions above .59, which could not be a count of seconds, so this is not a
-guess.</li>
-<li>Fire Department response times carry no unit in the dataset at all. The published chapter
-labels every one of them <code>(minutes:seconds)</code>, so they are read as clock readings.</li>
+<li><b>Selected-year change</b> follows the comparison controls. Other measures explicitly use the latest available readings or the whole comparable series.</li>
+<li><b>Latest two readings</b> can span a gap; the two years are labeled. They are not automatically described as a one-year change.</li>
+<li><b>Percentage-point change</b> ranks percentage indicators only. Raw dollars, counts and time units cannot be meaningfully ranked together.</li>
+<li><b>Compounded annual change</b> uses endpoints and elapsed years and requires positive values throughout. It does not establish that improvement was steady.</li>
+<li><b>Fitted trend</b> is a least-squares slope divided by the series mean. The fit indicates how well a straight line describes the data; low fit does not establish a particular cause.</li>
+<li><b>Streaks and biggest one-year steps</b> require adjacent years. Missing or flagged years break a streak.</li>
+<li><b>Historical variability and unusual readings</b> are descriptive, not significance tests or evidence of causation.</li>
 </ul>
-<p>Where an indicator is written as clock readings, the drawer shows both the reading and the raw
-figure as filed, so nothing is taken on trust.</p>
+<p>Flagged values remain in charts and tables but are excluded from derived statistics and scoring. A separate filter holds back near-zero baselines and changes of 100% or more. For the selected-year ranking it uses the selected baseline; for other rankings it uses the latest step. This is a sensitivity filter, not a finding that the city changed its counting rules. Geographic bars use one selected year and omit areas missing that year's observation.</p>
 
-<h2>What &ldquo;moved the city's way&rdquo; means</h2>
-<p>The city attaches a desired direction to most indicators &mdash; up, down, or none. That label is
-the city's, not this site's. Scoring here is simply: take an indicator's figure in the baseline
-year and its figure in the latest complete year, work out the change, and check it against the
-city's own stated direction.</p>
-<ul>
-<li>An indicator is <b>scorable</b> only if it has a figure in both years and the city states a
-direction. Of 2,347 citywide indicators still being reported, about 1,285 clear that bar for the
-most recent year-on-year comparison.</li>
-<li><b>1,271 indicators carry no desired direction at all.</b> The city counts them and declines to
-say whether a rise is good news. They are never scored here, in either column.</li>
-<li>A change smaller than the threshold set on the scoreboard, 1 per cent by default, counts as no
-material change. You can set that to zero or up to 10 per cent and watch the whole picture move,
-which is the point of exposing it.</li>
-<li>Every comparison on the site names both of its years. A change since last year and a change
-since 2016 are different claims and are never blended.</li>
-</ul>
-<p>What this scoring is not: a judgment about whether an agency is doing a good job. It counts how
-many of an agency's own indicators moved which way. An agency with four indicators and an agency
-with a hundred are not measured on the same footing, which is why any agency with fewer than ten
-scorable indicators is left out of the league table, and why the count is always shown next to the
-share.</p>
+<h2>What the ratios mean</h2>
+<p>The ratios are curated questions, not automatically discovered correlations. Both components must have a known matching reporting period and an unbroken overlap of usable years. True subset shares must stay between 0 and 100%; comparisons between incoming and outgoing flows may exceed 100%. These arithmetic checks cannot prove that two definitions or populations are compatible.</p>
+<p>The taxi ratio includes initial inspections and retests, so it is an inspection-event pass share, not a first-pass rate. CCRB substantiated complaints divided by all case closures is not the official substantiation rate, which uses fully investigated complaints. The ratio entry links to a CCRB definition reference. Shelter exits divided by arrivals and violations closed divided by issues are flow comparisons, not cohort success rates. Library circulation per non-expired card is not circulation per person, and cross-system comparability has not been established merely by matching units.</p>
+<p>Spending ratios use nominal dollars and cover an entire agency, not necessarily the cost of the activity in the denominator. Each entry shows its components, source links, periods and limitation. The comparison controls limit the displayed ratio years; missing endpoint data can make a ratio's visible span shorter.</p>
 
-<h2>The outlier measures</h2>
-<p>These disagree with each other on purpose. An indicator can be the year's biggest percentage
-move and completely ordinary against its own record; another can barely move and still be the worst
-reading the city has ever published.</p>
-<table>
-<tr><td>Change since the year before</td><td>Percentage change between an indicator's two most recent published years.</td></tr>
-<tr><td>Sustained trend, per year</td><td>The first-to-last change compounded over the years between, so a 60 per cent rise across nine years reads as the 5.4 per cent a year it is. Uses only the two ends of the run.</td></tr>
-<tr><td>Trend through every year</td><td>A straight line fitted through every published year, as a percentage of the indicator's own average, per year. The fit figure is the share of the movement that line explains: near 1 is a steady march, near 0 means two stray years are doing the work and the rate should not be quoted.</td></tr>
-<tr><td>Change across its whole run</td><td>First published year to latest, whatever the gap.</td></tr>
-<tr><td>Point change</td><td>The raw difference in the indicator's own units. For a percentage this is percentage points, usually the fairer reading of a rate.</td></tr>
-<tr><td>Distance from its own normal</td><td>How far the latest figure sits from the average of every earlier year, in standard deviations of that indicator's own history. Finds figures that are strange for themselves rather than merely large.</td></tr>
-<tr><td>Best or worst on record</td><td>The latest figure is the highest or lowest in everything published since fiscal 2016.</td></tr>
-<tr><td>How much it swings</td><td>Spread relative to its own average. Left blank for series that sit at zero in most years, where the ratio means nothing.</td></tr>
-<tr><td>Consecutive years one way</td><td>An unbroken run ending at the latest figure. A long run is a harder fact than a single year's move.</td></tr>
-<tr><td>Biggest single-year step</td><td>The largest one-year jump anywhere in the series. Above about 100 per cent this is usually a redefinition, which is exactly why it is worth finding.</td></tr>
-</table>
+<h2>Audit and checks</h2>
+<p>A September 18, 2026 audit compared all 49,219 nonempty historical cells in the original build with the current June source rows and found no disagreements after time conversion. It independently located 1,992 of the original 2,029 PDF matches using column coordinates; 36 had multiple numerical candidates, and one table without year headers was inspected visually. Those checks do not certify the identity of every ambiguous row. All 238 original plotted ratio calculations reproduced.</p>
+<p>The audit nevertheless found consequential interpretation and software errors: reversed desired directions, unchanged values classified as deterioration at the zero threshold, mislabeled taxi and CCRB ratios, ignored final resource actuals, gaps counted as consecutive years, and displayed comparison years that disagreed with the calculation. These were corrected, with regression checks added. See the <a href="https://github.com/joshgreenman1973/experiments/tree/main/mmr-explorer">repository</a> for the build scripts, tests and audit notes.</p>
+<p>This project was initially built with Claude and subsequently audited and corrected with Codex under human direction. Automated checks reduce mistakes; they do not establish that every source figure, definition, or interpretation is correct. Check the linked report and notes before quoting a consequential finding.</p>
 
-<h2>What gets held back, and what gets flagged</h2>
-<p>Two different things, and neither of them changes a number.</p>
-<h3>Held back</h3>
-<p>Rankings hold back two kinds of move by default, and a control on the page puts them straight
-back in. A move measured off a near-zero base &mdash; where last year's figure was under 1, or
-under a twentieth of the indicator's own typical value &mdash; and any one-year move of 100 per
-cent or more. Neither proves anything on its own. Between them they account for almost every
-four-figure percentage in this data, and almost all of those turn out to be a change in how
-something is counted rather than a change on the ground.</p>
-<h3>Flagged</h3>
-<p>A handful of published figures cannot be what their label says. They are shown exactly as the
-city filed them, marked in the charts and tables, and listed under the outliers tab.</p>
-<ul>
-<li>The Police Department's fiscal 2020 figure for the share of loud-music noise complaints meeting
-its response target is filed as <code>184112</code>, in a series that otherwise runs 83 to 98.</li>
-<li>311's fiscal 2022 figure for calls in languages other than English or Spanish is filed as
-<code>168355</code> in a series reported in thousands, where every other year runs 60 to 264. It
-appears to be that year's raw call count dropped into a column measured in thousands.</li>
-</ul>
-<p>A percentage above 100 is not flagged. Plenty of these indicators measure performance against a
-target &mdash; pruning goal completed, revenue as a share of target &mdash; and beating the target
-is the point.</p>
-
-<h2>What this cannot tell you</h2>
-<ul>
-<li><b>Fiscal 2026 rests on reading a PDF.</b> Every figure for that year was extracted from the
-printed report and matched to its indicator by history, as described above. The checks are strong
-and the method refuses rather than guesses, but it is still a machine reading a document. Each one
-shows the figure exactly as printed and links to the page it came from, so any single number can be
-checked in a few seconds. Earlier years come straight from the data portal.</li>
-<li><b>Spending and headcount stop at fiscal 2025.</b> The agency resources tables have not been
-refreshed for fiscal 2026, so the two ratios built on agency spending end a year earlier than the
-rest of the site.</li>
-<li><b>The history starts at fiscal 2016.</b> That is where this dataset starts. The city publishes
-a separate table for fiscal 2003 to 2012, with no indicator identifiers and no overlap, so joining
-the two would mean matching on indicator titles across a three-year gap. That is a guess dressed as
-a series, and it is not attempted here.</li>
-<li><b>Most indicators have no target.</b> The report prints one for about a quarter of them. For
-the rest, nothing here can say whether an agency hit a goal, only which way the number moved.</li>
-<li><b>Indicators are not comparable to one another.</b> A response time, a completion rate, a count
-of summonses and a dollar total share nothing but a row in the same table. The description the city
-wrote for each one is shown with every chart, because titles and descriptions disagree often enough
-that the title alone is not safe to quote.</li>
-<li><b>Geographic breakouts are the city's own.</b> Where an indicator is broken out by borough,
-community district, police precinct or school district, the city files each area as its own
-indicator hanging off a citywide parent. Those 3,274 series are kept out of search and the
-scoreboard, and appear under the indicator they belong to.</li>
-<li><b>Dollars are as published.</b> Spending figures are not adjusted for inflation.</li>
-</ul>
-
-<h2>The ratios</h2>
-<p>The last tab divides one published figure by another. None of it is mined. A search for pairs of
-indicators whose ratio happens to stay below one returns four thousand candidates, led by sewer miles
-over satisfaction surveys returned, and there is no arithmetic test that separates those from a real
-rate. So the ones on that page were chosen by hand, each because the two indicators genuinely share a
-denominator universe, and each was checked against the city's own description of both before it went
-in. The build enforces three rules and fails rather than publishing: both sides must be measured over
-the same reporting period, the usable years must be an unbroken run with both figures present, and a
-figure presented as a share of something cannot land far outside that something unless the entry says
-why it can. That last rule caught four pairs whose identifiers had been transcribed wrongly, including
-a taxi inspection pass rate that came out at 334 per cent. Every one states the question it answers and the thing it cannot be read as, and shows both
-components year by year so the arithmetic stays visible.</p>
-<p>Two of them divide by an agency's total spending, which covers much more than the activity being
-counted, and three divide by a count of active library cards that the city has plainly redefined more
-than once. All five say so on the page: the library ones tell you to read the level and not the trend.
-Two candidates were dropped outright once it turned out the city already publishes the rate itself.</p>
-
-<h2>Rebuilding it</h2>
-<p>Four scripts, and nothing beyond Python 3 and <code>pypdf</code>. <code>build/fetch.py</code>
-pages the three tables off the open data portal and fails loudly if a page comes back short.
-<code>build/pdf2026.py</code> fetches the printed report, parses its tables and matches every row by
-history. <code>build/transform.py</code> merges the two into the files the page reads.
-<code>build/stats.py</code> holds the outlier measures and <code>build/ratios.py</code> the curated
-ratios, each commented with why it exists and what it cannot tell you. Nothing is cached between runs
-and nothing is hand-edited, so rerunning it after the portal catches up will take fiscal 2026 from
-the data rather than the PDF.</p>
-
-<h2>A caution</h2>
-<details class="aic">
-  <summary>And please read this AI caution.</summary>
-  <div class="aicbody">
-    <p>The concept, the choice of sources and the design direction for this project were set by a
-    human, who pushed hard on verification throughout. The extraction, the code and the checks were
-    done by Anthropic's Claude and Claude Code under that direction.</p>
-    <p>The quality control that was actually performed is set out on this page: every fiscal 2026
-    figure located by matching an indicator's own published history rather than its name, all 2,029
-    matches re-checked across 7,960 year-cells, headline figures verified by hand against the printed
-    chapters, twenty random matches read line by line, and every indistinguishable pair examined
-    individually. The time-encoding rule was rewritten after a test across all 8,245 published values
-    disproved the simpler assumption. Automatically generated ratios were discarded in favour of eight
-    built and checked by hand.</p>
-    <p>Nevertheless, the risks of using AI remain. If you spot a red flag in anything here, please say
-    so &mdash; it is a great deal easier to check one number than four thousand.</p>
-  </div>
-</details>
+<h2>Rebuilding</h2>
+<p>See the README for the complete command sequence. Python 3 and <code>pypdf</code> build the data; Node runs the browser-logic regression assertions. The PDF is cached unless <code>--refresh</code> is requested. Extracted text is reused only when its source checksum matches. Source tables are downloaded to temporary files and replace prior snapshots only after the expected row count is reached.</p>
 
 <p class="back" style="margin-top:38px"><a href="index.html">Back to the report card</a></p>
 </article>

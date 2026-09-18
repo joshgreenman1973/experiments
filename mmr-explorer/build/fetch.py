@@ -43,7 +43,8 @@ def pull(name, res, where, page=25000):
     print(f"{name}: {total:,} rows expected")
     out = os.path.join(RAW, name + ".ndjson")
     got = 0
-    with open(out, "w") as fh:
+    temporary = out + ".tmp"
+    with open(temporary, "w") as fh:
         off = 0
         while off < total:
             q = (f"https://data.cityofnewyork.us/resource/{res}.json"
@@ -60,8 +61,9 @@ def pull(name, res, where, page=25000):
             print(f"  {got:,}/{total:,}", end="\r", flush=True)
             time.sleep(0.4)
     print(f"  {got:,}/{total:,} written to {out}")
-    if got < total * 0.99:
+    if got != total:
         raise SystemExit(f"FAIL {name}: got {got:,} of {total:,}")
+    os.replace(temporary, out)
     return got
 
 if __name__ == "__main__":

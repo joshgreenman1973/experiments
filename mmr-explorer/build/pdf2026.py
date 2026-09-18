@@ -5,13 +5,11 @@ The city published the fiscal 2026 report on 17 September 2026. The open data
 table behind it still stops in March 2026, so the finished year exists only in
 a 544-page PDF. This reads it.
 
-Nothing is matched by name. Printed row labels and dataset indicator names
-disagree often enough that name matching would quietly attach the wrong number
-to the wrong indicator -- three Department of City Planning goals each print a
-row called "Median days for projects to enter public review". Instead every
-printed row is located by requiring its fiscal 2022 to 2025 columns to equal
-that indicator's own figures in the dataset. That identifies the row and proves
-in the same step that nothing was restated.
+Rows are matched primarily by their fiscal 2022-2025 values. Names break clear
+ties and help match small restatements. Explicitly reviewed larger DOB
+revisions require exact old and revised histories. This validates numerical
+agreement; it does not prove that definitions stayed constant. Unmatched rows
+are omitted and the interface describes that as an extraction gap.
 
 The printed tables also carry something the open data has never published: the
 target the agency set for each indicator. Those are read too.
@@ -84,7 +82,7 @@ CHAPTER = {
 
 
 def fetch():
-    if os.path.exists(PDF) and os.path.getsize(PDF) > 1_000_000:
+    if "--refresh" not in sys.argv and os.path.exists(PDF) and os.path.getsize(PDF) > 1_000_000:
         blob = open(PDF, "rb").read()
         return hashlib.sha256(blob).hexdigest(), len(blob), "local copy"
     req = urllib.request.Request(PDF_URL, headers={"User-Agent": UA})
@@ -99,13 +97,16 @@ def fetch():
 
 
 def text_of():
-    if os.path.exists(TXT) and os.path.getsize(TXT) > 100_000:
+    digest = hashlib.sha256(open(PDF, "rb").read()).hexdigest()
+    stamp = TXT + ".sha256"
+    if os.path.exists(TXT) and os.path.exists(stamp) and open(stamp).read() == digest:
         return open(TXT).read()
     import pypdf
     reader = pypdf.PdfReader(PDF)
     parts = [f"\n<<<PAGE {i+1}>>>\n" + (p.extract_text() or "") for i, p in enumerate(reader.pages)]
     t = "".join(parts)
     open(TXT, "w").write(t)
+    open(stamp, "w").write(digest)
     return t
 
 
@@ -286,6 +287,10 @@ def main():
         for kids in json.load(open(os.path.join(geo_dir, fn))).values():
             inds.extend(kids)
     print(f"  {len(inds):,} indicators to place")
+    for rec in inds:
+        for y, value in rec.get("pdf", {}).get("original", {}).items():
+            if int(y) in yi:
+                rec["v"][yi[int(y)]] = value
 
     by_chapter = defaultdict(list)
     for r in inds:
@@ -358,10 +363,29 @@ def main():
                     restated[rec["id"]].append(row)
                     claimed_r[id(row)].append(rec)
 
+    # Reviewed against the explicit revisions on PDF page 375 (printed p.363).
+    # Require both old and revised histories; this is not a looser fuzzy match.
+    reviewed = {
+        "5506": ([20410,21012,21691,20028], [20204,19867,21516,19869]),
+        "5507": ([64791,69603,75554,75932], [63279,68480,73547,73641]),
+        "5508": ([19849,19489,20861,19729], [19699,19398,20757,19416]),
+        "5509": ([56413,58965,62962,58160], [54954,57847,61013,55882]),
+        "5511": ([10.4,10.8,12.9,17.6], [10.0,10.3,12.5,17.4]),
+    }
     out, amb_ind, amb_row = {}, 0, 0
     for rec in inds:
         opts = pairs.get(rec["id"], [])
         was_restated = False
+        if rec["id"] in reviewed:
+            old, revised = reviewed[rec["id"]]
+            history = [rec.get("pdf", {}).get("original", {}).get(str(y), rec["v"][yi[y]]) for y in FYS]
+            if history != old:
+                sys.exit(f"FAIL: reviewed source history changed for {rec['id']}")
+            opts = [r for r in rows if r["page"] == 371 and
+                    [cell(x)[0] for x in r["actuals"][:4]] == revised]
+            if len(opts) != 1:
+                sys.exit(f"FAIL: reviewed PDF row changed for {rec['id']}")
+            was_restated = True
         if not opts:
             opts = restated.get(rec["id"], [])
             if not opts or len(claimed_r[id(opts[0])]) > 1:
@@ -377,9 +401,18 @@ def main():
         v, _ = cell(row["actuals"][4])
         t26, _ = cell(row["t26"])
         t27, _ = cell(row["t27"])
-        if v is None and t26 is None and t27 is None:
+        directional = {k: row[k] for k in ("t26", "t27") if row[k] in ("ñ", "ò")}
+        if v is None and t26 is None and t27 is None and not directional:
             continue
         rowdata = {"p": row["page"], "lbl": row["label"][:160], "line": row["line"][:240]}
+        rowdata["direction"] = {"Up": 1, "Down": -1}.get(row["want"], 0)
+        if directional:
+            rowdata["directionalTargets"] = {k: ("up" if v == "ñ" else "down") for k, v in directional.items()}
+        # Keep printed histories for a consistent publication vintage. The
+        # transformer retains original Open Data values for inspection.
+        rowdata["history"] = {str(y): cell(row["actuals"][k])[0] for k, y in enumerate(FYS)}
+        if rec["id"] in reviewed:
+            rowdata["reviewNote"] = "Earlier years revised to remove internally generated complaints and agency referrals; PDF page 375."
         if was_restated:
             rowdata["restated"] = [row["actuals"][k] for k in range(4)]
         if v is not None:
@@ -409,11 +442,13 @@ def main():
             "publisher": "Mayor's Office of Operations, City of New York",
             "url": PDF_URL, "released": "2026-09-17",
             "sha256": sha, "bytes": size, "last_modified_header": last_mod,
-            "retrieved": dt.date.today().isoformat(),
+            "processed": dt.date.today().isoformat(),
+            "retrieved": None if last_mod == "local copy" else dt.date.today().isoformat(),
             "why": "NYC Open Data's indicator table (rbed-zzin) still carries fiscal 2026 only "
                    "through March, so the finished year is read from the printed report. Every "
                    "row is located by matching its fiscal 2022-2025 columns against the dataset's "
-                   "own figures for the same indicator, never by name.",
+                   "own figures. Names disambiguate ties and help match small revisions. Five DOB "
+                   "series use explicitly reviewed histories documented on PDF page 375.",
         },
         "fy": 2026,
         "ind": out,

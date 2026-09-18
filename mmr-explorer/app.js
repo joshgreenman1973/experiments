@@ -50,9 +50,8 @@ function fmtNum(v) {
 function fmtTime(v) {
   if (v == null) return '—';
   const neg = v < 0; v = Math.abs(v);
-  const whole = Math.floor(v);
-  const sub = Math.round((v - whole) * 60);
-  return (neg ? '-' : '') + whole + ':' + String(sub === 60 ? 0 : sub).padStart(2, '0');
+  const ticks = Math.round(v * 60);
+  return (neg ? '-' : '') + Math.floor(ticks / 60) + ':' + String(ticks % 60).padStart(2, '0');
 }
 /* `rec` carries how this indicator's time figures are written: `ts` is 1 for a
    clock reading like 9:42 and 0 for a plain decimal like 74 minutes. */
@@ -66,6 +65,12 @@ function fmtVal(v, mt, rec) {
   if (mt === MT_PCT) return (Math.round(v * 10) / 10).toLocaleString('en-US') + '%';
   if (mt === MT_CUR) return '$' + fmtNum(v);
   return fmtNum(v);
+}
+function fmtFiled(v, mt, rec) {
+  if (v == null) return '—';
+  if (mt === MT_TIME && rec && rec.ts) return fmtTime(v);
+  const value = Number(v).toLocaleString('en-US', { maximumFractionDigits: 6 });
+  return (mt === MT_CUR ? '$' : '') + value + (mt === MT_PCT ? '%' : '');
 }
 function fmtPct(r, digits) {
   if (r == null) return '—';
@@ -87,7 +92,7 @@ function fmtPoints(v, mt, rec) {
 function verdictOf(r) {
   const st = r.st;
   if (!st || st.g1 == null) return null;
-  if (Math.abs(st.g1) < state.flat) return 0;
+  if (st.g1 === 0 || Math.abs(st.g1) < state.flat) return 0;
   return st.g1 > 0 ? 1 : -1;
 }
 const VCLASS = { '1': 'g', '-1': 'b', '0': 'f' };
@@ -120,7 +125,7 @@ function sparkline(vals, opts) {
 /* A full year-by-year line, with a readout that follows the pointer. */
 function lineChart(rec, opts) {
   opts = opts || {};
-  const years = D.years, vals = rec.v, mt = rec.mt;
+  const years = opts.years || D.years, vals = rec.v, mt = rec.mt;
   const W = 680, H = opts.h || 250, L = 62, R = 16, T = 18, B = 34;
   const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img' });
   const pts = [];
@@ -130,7 +135,7 @@ function lineChart(rec, opts) {
   if (lo === hi) { lo -= Math.abs(lo) * 0.1 + 1; hi += Math.abs(hi) * 0.1 + 1; }
   if (lo > 0 && lo < hi * 0.45) lo = 0;            // only zero-base when it is honest to
   const pad = (hi - lo) * 0.08; hi += pad; if (lo !== 0) lo -= pad;
-  const X = i => L + (i / (years.length - 1)) * (W - L - R);
+  const X = i => L + (i / Math.max(1, years.length - 1)) * (W - L - R);
   const Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
 
   // gridlines and value axis
@@ -161,7 +166,7 @@ function lineChart(rec, opts) {
   pts.forEach((p, k) => {
     const yr = years[p[0]];
     const isFlag = flagged[String(yr)];
-    const fromPdf = !opts.plain && yr === D.pdfYear;
+    const fromPdf = !opts.plain && rec.pdf && ((yr === D.pdfYear && rec.pdf.valueSource !== 'open-data') || (rec.pdf.historyYears || []).includes(yr));
     svg.appendChild(svgEl('circle', {
       class: 'pt' + (k === pts.length - 1 && !fromPdf ? ' last' : '') + (isFlag ? ' flag' : '') + (fromPdf ? ' pdf' : ''),
       cx: X(p[0]).toFixed(1), cy: Y(p[1]).toFixed(1), r: isFlag ? 5 : 3.9
@@ -378,6 +383,14 @@ function relChange(rec, fromY, toY) {
   if (a == null || b == null || a === 0) return null;
   return (b - a) / Math.abs(a);
 }
+function directionFor(rec, year) {
+  return rec.dirs && rec.dirs[String(year)] != null ? rec.dirs[String(year)] : rec.dir;
+}
+function targetText(rec, key) {
+  if (rec.tgt && rec.tgt[key] != null) return fmtVal(rec.tgt[key], rec.mt, rec);
+  if (rec.targetDirections && rec.targetDirections[key]) return 'Directional target: ' + rec.targetDirections[key];
+  return rec.pdf ? 'None printed' : 'Not extracted; check the chapter';
+}
 function ptChange(rec, fromY, toY) {
   const a = rec.v[D.yi[fromY]], b = rec.v[D.yi[toY]];
   if (a == null || b == null) return null;
@@ -385,18 +398,21 @@ function ptChange(rec, fromY, toY) {
 }
 /* +1 the city's way, -1 against it, 0 no material change, null unscorable */
 function score(rec, fromY, toY) {
-  if (!rec.dir) return null;
+  if (rec.sus && (rec.sus[String(fromY)] || rec.sus[String(toY)])) return null;
+  if ((rec.breaks || []).some(y => Math.min(fromY,toY) < y && y <= Math.max(fromY,toY))) return null;
+  const direction = directionFor(rec, toY);
+  if (!direction) return null;
   const r = relChange(rec, fromY, toY);
   if (r == null) return null;
-  const g = r * rec.dir;
-  if (Math.abs(g) < state.flat) return 0;
+  const g = r * direction;
+  if (g === 0 || Math.abs(g) < state.flat) return 0;
   return g > 0 ? 1 : -1;
 }
 function tally(recs, fromY, toY) {
   const t = { g: 0, b: 0, f: 0, n: 0, none: 0, gap: 0 };
   recs.forEach(r => {
     const s = score(r, fromY, toY);
-    if (s === null) { if (!r.dir) t.none++; else t.gap++; return; }
+    if (s === null) { if (!directionFor(r, toY)) t.none++; else t.gap++; return; }
     t.n++;
     if (s > 0) t.g++; else if (s < 0) t.b++; else t.f++;
   });
@@ -443,7 +459,8 @@ function indicatorRow(rec, opts) {
   const bits = [D.agencies[rec.a].c];
   if (rec.cr) bits.push('critical');
   if (rec.rt) bits.push('retired');
-  bits.push(rec.dir === 1 ? 'city wants higher' : rec.dir === -1 ? 'city wants lower' : 'no direction given');
+  const dir = directionFor(rec, state.toYear);
+  bits.push(dir === 1 ? 'city wants higher' : dir === -1 ? 'city wants lower' : 'no direction given');
   meta.innerHTML = bits.map((x, i) => i === 0 ? `<em>${esc(x)}</em>` : esc(x)).join(' &nbsp;·&nbsp; ');
   t.appendChild(meta);
   b.appendChild(t);
@@ -463,7 +480,7 @@ function indicatorRow(rec, opts) {
     chg.innerHTML = esc(opts.measureText) + '<small>' + esc(opts.measureLabel || '') + '</small>';
   } else {
     const r = relChange(rec, state.fromYear, state.toYear);
-    const missing = rec.v[D.yi[state.toYear]] == null ? (state.toYear === D.pdfYear ? 'not in the ' + state.toYear + ' report' : 'no FY' + String(state.toYear).slice(2) + ' figure')
+    const missing = rec.v[D.yi[state.toYear]] == null ? (state.toYear === D.pdfYear ? 'FY' + state.toYear + ' not extracted' : 'no FY' + String(state.toYear).slice(2) + ' figure')
       : rec.v[D.yi[state.fromYear]] == null ? 'no FY' + String(state.fromYear).slice(2) + ' figure' : 'not comparable';
     chg.innerHTML = esc(fmtPct(r)) + '<small>' + (r == null ? missing : 'FY' + String(state.fromYear).slice(2) + '\u2192' + String(state.toYear).slice(2)) + '</small>';
   }
@@ -474,7 +491,14 @@ function indicatorRow(rec, opts) {
 /* Near-zero baseline, or a one-year move of 100 per cent or more. Neither
    proves a counting change, but between them they account for almost every
    four-figure percentage in this data. Held back by default, never hidden. */
-function looksLikeRecount(r) { return !!(r.st && (r.st.lowbase || r.st.bigstep)); }
+function looksLikeRecount(r, selectedWindow = false) {
+  if (!selectedWindow) return !!(r.st && (r.st.lowbase || r.st.bigstep));
+  const base = r.v[D.yi[state.fromYear]], change = relChange(r, state.fromYear, state.toYear);
+  if (base == null || change == null) return false;
+  const vs = r.v.filter(v => v != null).map(Math.abs).sort((a,b) => a-b);
+  const mid = Math.floor(vs.length / 2), median = vs.length % 2 ? vs[mid] : (vs[mid-1] + vs[mid]) / 2;
+  return Math.abs(base) < Math.max(1, .05 * median) || Math.abs(change) >= 1;
+}
 function lastIndex(v) { for (let i = v.length - 1; i >= 0; i--) if (v[i] != null) return i; return null; }
 
 function renderRows(host, recs, limit, opts) {
@@ -532,12 +556,12 @@ function viewBoard(host) {
       `and fiscal ${state.toYear}, and the city states which direction it wants them to move. ` +
       `<b>${t.none.toLocaleString()}</b> are counted but carry no desired direction, so the city itself ` +
       `will not say whether a rise is good news. Another <b>${t.gap.toLocaleString()}</b> are missing one ` +
-      `of the two years. Change is measured against each indicator's own fiscal ${state.fromYear} figure.`;
+      `of the two years, cross a documented definition change, have a flagged value, or have a zero baseline, for which percentage change is undefined. Change is measured against each indicator's own fiscal ${state.fromYear} figure.`;
     pad.appendChild(note);
 
     // what moved most, both ways
-    const scored = pool().map(r => ({ r, g: (relChange(r, state.fromYear, state.toYear) || 0) * r.dir, has: relChange(r, state.fromYear, state.toYear) != null && r.dir }))
-      .filter(x => x.has && !(state.hideLowBase && looksLikeRecount(x.r)));
+    const scored = pool().map(r => ({ r, g: (relChange(r, state.fromYear, state.toYear) || 0) * directionFor(r, state.toYear), has: score(r, state.fromYear, state.toYear) != null }))
+      .filter(x => x.has && !(state.hideLowBase && looksLikeRecount(x.r, true)));
     scored.sort((a, b) => b.g - a.g);
     const mk = (title, list) => {
       const h = el('h4'); h.style.cssText = 'margin:26px 0 6px;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink2);font-weight:400;padding-bottom:6px;border-bottom:1px solid var(--hair)';
@@ -567,7 +591,7 @@ function viewBoard(host) {
     const foot = el('p', 'note');
     foot.innerHTML = 'Ranked by change from each indicator\'s own fiscal ' + state.fromYear + ' figure to its fiscal ' + state.toYear + ' one. ' +
       (state.hideLowBase
-        ? 'Moves off a near-zero base, and one-year moves of 100 per cent or more, are held back: almost every one of them is a change in how something is counted rather than a change on the ground. <a href="#" id="showlow">Put them back in</a>.'
+        ? 'Moves off a near-zero base, and one-year moves of 100 per cent or more, are held back: these can be real changes or changes in how the measure is counted. <a href="#" id="showlow">Put them back in</a>.'
         : 'Moves off a near-zero base and one-year moves of 100 per cent or more are included, and they dominate. <a href="#" id="showlow">Hold them back</a>.');
     pad.appendChild(foot);
     left.appendChild(pad);
@@ -603,6 +627,8 @@ function viewBoard(host) {
       cols.forEach(c2 => {
         const th = el('th', c2.n ? 'n' : (c2.k === 'bar' ? 'ab' : ''), c2.l);
         if (c2.k === sortK) th.setAttribute('aria-sort', asc ? 'ascending' : 'descending');
+        th.tabIndex = 0;
+        th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); th.click(); } });
         th.addEventListener('click', () => { if (sortK === c2.k) asc = !asc; else { sortK = c2.k; asc = c2.k === 'nm'; } draw(); });
         tr.appendChild(th);
       });
@@ -611,7 +637,7 @@ function viewBoard(host) {
       rowsData.forEach(x => {
         const r = el('tr');
         const td1 = el('td');
-        td1.innerHTML = `<span class="nm">${esc(x.a.n)}</span> <span class="code">${esc(x.a.c)}</span>`;
+        td1.innerHTML = `<button class="agency-link" type="button"><span class="nm">${esc(x.a.n)}</span> <span class="code">${esc(x.a.c)}</span></button>`;
         r.appendChild(td1);
         r.appendChild(el('td', 'n', String(x.t.n)));
         const tdb = el('td', 'ab');
@@ -627,7 +653,7 @@ function viewBoard(host) {
     pad.appendChild(table);
     const n2 = el('p', 'note');
     n2.innerHTML = 'Agencies with fewer than ten scorable indicators are left out — a three-of-four "success rate" is not a fact about an agency. ' +
-      'Share is of scored indicators only, and a big agency\'s share is a much sturdier number than a small one\'s. Click any row for the agency in full.';
+      'Share is of scored indicators only. Indicator counts are not independent observations or a measure of statistical confidence. Open an agency for the underlying measures.';
     pad.appendChild(n2);
     right.appendChild(pad);
   };
@@ -635,7 +661,7 @@ function viewBoard(host) {
   $('#crit').addEventListener('click', e => {
     state.criticalOnly = !state.criticalOnly;
     e.target.setAttribute('aria-pressed', state.criticalOnly);
-    drawLeft(); drawRight();
+    drawLeft(); drawRight(); syncHash();
   });
   drawLeft(); drawRight();
 }
@@ -729,19 +755,17 @@ function drawAgency(body) {
       const lastV = [...vals].reverse().find(v => v != null);
       h.textContent = label + ' — ' + fmt(lastV) + ' in fiscal ' + yrs[vals.length - 1 - [...vals].reverse().findIndex(v => v != null)];
       wrap.appendChild(h);
-      const saveYears = D.years, saveYi = D.yi;
-      D.years = yrs; D.yi = {}; yrs.forEach((y, k) => D.yi[y] = k);
-      const svg = lineChart(fake, { h: 170, plain: true });
-      D.years = saveYears; D.yi = saveYi;
+      const svg = lineChart(fake, { h: 170, plain: true, years: yrs });
       wrap.appendChild(svg);
       rp.appendChild(wrap);
     };
     mkSeries('exp', 'Expenditures, $ millions', v => '$' + fmtNum(v) + 'm');
-    mkSeries('pers', 'Personnel, full-time headcount', v => fmtNum(v));
+    mkSeries('pers', 'Personnel, full-time and FTE', v => fmtNum(v));
     const rn = el('p', 'note');
-    rn.innerHTML = 'Actual expenditures and personnel as reported in the agency resources table of the Mayor\'s Management Report ' +
-      `(<a href="https://data.cityofnewyork.us/resource/4qmi-txnk.json?agency=${encodeURIComponent(a.c)}" target="_blank" rel="noopener">raw rows</a>). ` +
-      'Where an agency reports uniformed and civilian headcount separately, the two are added. Dollars are as published and are not inflation-adjusted.';
+    rn.innerHTML = 'Resource actuals come from the MMR and the following PMMR. Final prior-year actuals in the PMMR replace provisional MMR actuals when available. ' +
+      '<a href="https://data.cityofnewyork.us/resource/4qmi-txnk.json?$limit=50000">MMR resource rows</a> · ' +
+      '<a href="https://data.cityofnewyork.us/resource/nvzu-6t9y.json?$limit=50000">PMMR resource rows</a>. ' +
+      'Uniformed and civilian personnel are added only when both are reported. Dollars are not inflation-adjusted.';
     rp.appendChild(rn);
     body.appendChild(rp);
   }
@@ -770,16 +794,16 @@ function drawAgency(body) {
 function viewSearch(host) {
   const bar = el('div', 'bar2');
   bar.innerHTML =
-    `<input type="search" id="q" placeholder="Search ${D.ind.length.toLocaleString()} indicators — try &quot;response time&quot;, &quot;mold&quot;, &quot;overtime&quot;, &quot;lead&quot;" value="${esc(state.q)}" autocomplete="off" spellcheck="false">` +
-    `<select id="f-agency"><option value="">Every agency</option>` +
+    `<input type="search" id="q" aria-label="Search indicators" placeholder="Search ${D.ind.length.toLocaleString()} indicators — try &quot;response time&quot;, &quot;mold&quot;, &quot;overtime&quot;, &quot;lead&quot;" value="${esc(state.q)}" autocomplete="off" spellcheck="false">` +
+    `<select id="f-agency" aria-label="Filter by agency"><option value="">Every agency</option>` +
     D.agencies.map((a, i) => `<option value="${i}"${String(i) === state.filters.agency ? ' selected' : ''}>${esc(a.n)}</option>`).join('') + `</select>` +
-    `<select id="f-live">` +
+    `<select id="f-live" aria-label="Reporting status">` +
     [['live', 'Still reported'], ['', 'Including retired'], ['retired', 'Retired only']].map(([v, l]) =>
       `<option value="${v}"${v === state.filters.live ? ' selected' : ''}>${l}</option>`).join('') + `</select>` +
-    `<select id="f-dir"><option value="">Any direction</option>` +
+    `<select id="f-dir" aria-label="Desired direction"><option value="">Any direction</option>` +
     [['1', 'City wants it higher'], ['-1', 'City wants it lower'], ['0', 'No direction given']].map(([v, l]) =>
       `<option value="${v}"${v === state.filters.dir ? ' selected' : ''}>${l}</option>`).join('') + `</select>` +
-    `<select id="f-mt"><option value="">Any unit</option>` +
+    `<select id="f-mt" aria-label="Measurement unit"><option value="">Any unit</option>` +
     D.mt.map((m, i) => `<option value="${i}"${String(i) === state.filters.mt ? ' selected' : ''}>${esc(MT_WORD[m] || m)}</option>`).join('') + `</select>` +
     `<button class="chip" id="f-crit" aria-pressed="${state.filters.critical === '1'}">Critical only</button>` +
     `<span class="spacer"></span><span class="count" id="scount"></span>`;
@@ -803,14 +827,14 @@ function viewSearch(host) {
     clearTimeout(timer);
     timer = setTimeout(() => { state.q = qbox.value.trim(); run(); syncHash(); }, 140);
   });
-  $('#f-agency').addEventListener('change', e => { state.filters.agency = e.target.value; run(); });
-  $('#f-live').addEventListener('change', e => { state.filters.live = e.target.value; run(); });
-  $('#f-dir').addEventListener('change', e => { state.filters.dir = e.target.value; run(); });
-  $('#f-mt').addEventListener('change', e => { state.filters.mt = e.target.value; run(); });
+  $('#f-agency').addEventListener('change', e => { state.filters.agency = e.target.value; run(); syncHash(); });
+  $('#f-live').addEventListener('change', e => { state.filters.live = e.target.value; run(); syncHash(); });
+  $('#f-dir').addEventListener('change', e => { state.filters.dir = e.target.value; run(); syncHash(); });
+  $('#f-mt').addEventListener('change', e => { state.filters.mt = e.target.value; run(); syncHash(); });
   $('#f-crit').addEventListener('click', e => {
     state.filters.critical = state.filters.critical === '1' ? '' : '1';
     e.target.setAttribute('aria-pressed', state.filters.critical === '1');
-    run();
+    run(); syncHash();
   });
   run();
   if (state.q) qbox.focus();
@@ -823,7 +847,7 @@ function searchRecords() {
   if (f.agency !== '') recs = recs.filter(r => String(r.a) === f.agency);
   if (f.live === 'live') recs = recs.filter(r => !r.rt);
   else if (f.live === 'retired') recs = recs.filter(r => r.rt);
-  if (f.dir !== '') recs = recs.filter(r => String(r.dir) === f.dir);
+  if (f.dir !== '') recs = recs.filter(r => String(directionFor(r, state.toYear)) === f.dir);
   if (f.mt !== '') recs = recs.filter(r => String(r.mt) === f.mt);
   if (f.critical === '1') recs = recs.filter(r => r.cr);
   if (terms.length) recs = recs.filter(r => terms.every(t => r._h.indexOf(t) >= 0));
@@ -851,12 +875,12 @@ const MEASURES = [
     k: 'win', label: 'Change between the two years chosen above', dir: true,
     blurb: 'Change from the baseline year to the compared year set at the top of the page, signed so that a rise counts as good news only when the city says a rise is good news. Change the pair up there and this list re-ranks.',
     ends: ['Moved furthest the city\'s way', 'Moved furthest against it'],
-    get: r => { const c = relChange(r, state.fromYear, state.toYear); return c == null || !r.dir ? null : c * r.dir; },
+    get: r => { const c = relChange(r, state.fromYear, state.toYear); return c == null || !directionFor(r, state.toYear) || score(r, state.fromYear, state.toYear) == null ? null : c * directionFor(r, state.toYear); },
     txt: r => fmtPct(relChange(r, state.fromYear, state.toYear)),
     sub: r => 'FY' + String(state.fromYear).slice(2) + '\u2192' + String(state.toYear).slice(2),
   },
   {
-    k: 'g1', label: 'Change since the year before', dir: true,
+    k: 'g1', label: 'Change between the latest two available readings', dir: true,
     blurb: 'Percentage change between an indicator\'s two most recent published years, signed so that a rise counts as good news only when the city says a rise is good news.',
     ends: ['Moved furthest the city\'s way', 'Moved furthest against it'],
     get: r => r.st && r.st.g1,
@@ -879,17 +903,17 @@ const MEASURES = [
   },
   {
     k: 'gtr', label: 'Trend through every year published', dir: true,
-    blurb: 'A straight line fitted through every published year, not just the first and last, expressed as a percentage of the indicator\'s own average per year. The fit figure says how much of the movement that line actually explains: near 1 is a steady march, near 0 means the line is an artefact of two stray years and the per-year rate should not be quoted.',
+    blurb: 'A straight line fitted through every published year, not just the first and last, expressed as a percentage of the indicator\'s own average per year. The fit figure says how much of the movement that line actually explains: near 1 is a steady march, near 0 means a straight line explains little of the variation, so the slope alone is a poor summary.',
     ends: ['Steepest line the city\'s way', 'Steepest line against it'],
     get: r => r.st && r.st.n >= 5 ? r.st.gtr : null,
     txt: r => fmtPct(r.st.tr, 1) + '/yr',
     sub: r => 'fit ' + (r.st.r2 != null ? r.st.r2.toFixed(2) : '—'),
   },
   {
-    k: 'gp1', label: 'Point change since the year before', dir: true,
-    blurb: 'The raw difference between the last two published figures, in the indicator\'s own units. For a percentage this is percentage points, which is usually the fairer reading; for a response time it is minutes and seconds.',
+    k: 'gp1', label: 'Percentage-point change (latest two readings)', dir: true,
+    blurb: 'The difference between the latest two available percentage readings, in percentage points. Counts, dollars and time units are excluded because their raw differences cannot be ranked on the same scale.',
     ends: ['Biggest gain in the city\'s favour', 'Biggest loss'],
-    get: r => r.st && r.st.gp1,
+    get: r => r.mt === MT_PCT && r.st ? r.st.gp1 : null,
     txt: r => fmtPoints(r.st.p1, r.mt, r), sub: r => 'FY' + String(r.st.py).slice(2) + '→' + String(r.st.ly).slice(2),
   },
   {
@@ -923,7 +947,7 @@ const MEASURES = [
   },
   {
     k: 'br', label: 'Biggest single-year step it ever took', dir: false,
-    blurb: 'The largest one-year jump anywhere in the series. Above about 100 per cent this almost always means the indicator was redefined, recounted or restated — which is exactly why it is worth looking at.',
+    blurb: 'The largest one-year jump anywhere in the series. Large steps can reflect real changes, revisions or changed definitions. Check the chapter notes before interpreting them.',
     ends: ['Biggest step', 'Smallest step'],
     get: r => r.st && r.st.br,
     txt: r => fmtPct(r.st.br, 0), sub: r => 'somewhere in FY' + String(r.st.fy).slice(2) + '–' + String(r.st.ly).slice(2),
@@ -954,10 +978,10 @@ function viewOutliers(host) {
   bar.innerHTML =
     `<label for="meas">Rank by</label><select id="meas">` +
     MEASURES.map(x => `<option value="${x.k}"${x.k === state.measure ? ' selected' : ''}>${esc(x.label)}</option>`).join('') +
-    `</select><select id="ext"></select>` +
-    `<select id="o-agency"><option value="">Every agency</option>` +
+    `</select><select id="ext" aria-label="Ranking end"></select>` +
+    `<select id="o-agency" aria-label="Filter by agency"><option value="">Every agency</option>` +
     D.agencies.map((a, i) => `<option value="${i}"${String(i) === state.filters.agency ? ' selected' : ''}>${esc(a.n)}</option>`).join('') + `</select>` +
-    `<select id="o-live">` +
+    `<select id="o-live" aria-label="Reporting status">` +
     [['live', 'Still reported'], ['', 'Including retired']].map(([v, l]) =>
       `<option value="${v}"${v === state.filters.live ? ' selected' : ''}>${l}</option>`).join('') + `</select>` +
     `<button class="chip" id="o-crit" aria-pressed="${state.filters.critical === '1'}">Critical only</button>` +
@@ -979,12 +1003,12 @@ function viewOutliers(host) {
 
   const run = () => {
     const c = m();
-    blurb.textContent = c.blurb;
+    blurb.textContent = c.blurb + (c.k === 'win' ? '' : ' This measure uses the latest available readings or full history, independently of the comparison years above.');
     let recs = D.ind.filter(r => r.st || c.k === 'sus');
     if (state.filters.agency !== '') recs = recs.filter(r => String(r.a) === state.filters.agency);
     if (state.filters.live === 'live') recs = recs.filter(r => !r.rt);
     if (state.filters.critical === '1') recs = recs.filter(r => r.cr);
-    if (state.hideLowBase) recs = recs.filter(r => !looksLikeRecount(r));
+    if (state.hideLowBase && c.k !== 'sus') recs = recs.filter(r => !looksLikeRecount(r, c.k === 'win'));
     if (c.needs) recs = recs.filter(c.needs);
     recs = recs.filter(r => c.get(r) != null);
     const sign = state.extreme === 'best' ? -1 : 1;
@@ -1008,15 +1032,15 @@ function viewOutliers(host) {
 
   $('#meas').addEventListener('change', e => { state.measure = e.target.value; fillExt(); run(); syncHash(); });
   $('#ext').addEventListener('change', e => { state.extreme = e.target.value; run(); syncHash(); });
-  $('#o-agency').addEventListener('change', e => { state.filters.agency = e.target.value; run(); });
-  $('#o-live').addEventListener('change', e => { state.filters.live = e.target.value; run(); });
+  $('#o-agency').addEventListener('change', e => { state.filters.agency = e.target.value; run(); syncHash(); });
+  $('#o-live').addEventListener('change', e => { state.filters.live = e.target.value; run(); syncHash(); });
   $('#o-crit').addEventListener('click', e => {
     state.filters.critical = state.filters.critical === '1' ? '' : '1';
-    e.target.setAttribute('aria-pressed', state.filters.critical === '1'); run();
+    e.target.setAttribute('aria-pressed', state.filters.critical === '1'); run(); syncHash();
   });
   $('#o-low').addEventListener('click', e => {
     state.hideLowBase = !state.hideLowBase;
-    e.target.setAttribute('aria-pressed', state.hideLowBase); run();
+    e.target.setAttribute('aria-pressed', state.hideLowBase); run(); syncHash();
   });
   fillExt(); run();
 }
@@ -1025,19 +1049,18 @@ function viewOutliers(host) {
    View: ratios
    Two figures the report already prints, divided. Nothing here is mined: a
    machine looking for pairs whose ratio stays under one will cheerfully
-   propose sewer miles over satisfaction surveys returned. Each pair was
-   picked because the two indicators genuinely share a denominator, and
-   checked against the city's own description of both.
+   propose sewer miles over satisfaction surveys returned. The curated pairs include shares, flow comparisons and resource intensity.
+   Each carries its own interpretation limits.
    ======================================================================== */
 let RATIOS_DATA = null;
 function viewRatios(host) {
-  host.appendChild(sectionHead('Ratios the city has the numbers for but does not publish', '', '09'));
+  host.appendChild(sectionHead('Ratios from the report’s figures', '', '09'));
   const intro = el('div', 'pad');
   const p = el('p', 'note');
   p.style.maxWidth = '84ch';
   p.innerHTML = 'Everything on this page is two figures from the report divided by one another. ' +
-    'The report prints both and never puts them together — the cost of a jail bed, the share of ' +
-    'complaints an inspector actually goes out to, how many people leave the shelter system for a ' +
+    'These calculations describe agency spending relative to population, complaints responded to ' +
+    'relative to complaints received, and how many people leave the shelter system for a ' +
     'home against how many arrive. Each one states the question it answers and the thing it cannot ' +
     'be read as, and shows both components so the arithmetic stays visible. ' +
     '<span id="rcount"></span>';
@@ -1050,11 +1073,14 @@ function viewRatios(host) {
 
   const draw = data => {
     const c = $('#rcount');
-    if (c) c.innerHTML = `There are <b>${data.ratios.length}</b>, not eighty, because these are the ` +
-      'pairs that survived checking: both sides have to be measured over the same period, cover the ' +
-      'same unbroken run of years, and mean something when divided.';
+    if (c) c.innerHTML = `There are <b>${data.ratios.length}</b> curated ratios. The build checks matching period types and ` +
+      'an unbroken run of overlapping years. Some are shares; others compare separate flows or total agency resources with one output. Read each caveat before interpreting a trend. The displayed points are limited to the comparison window above.';
     body.innerHTML = '';
-    data.ratios.forEach((r, i) => {
+    data.ratios.forEach((original, i) => {
+      const selected = original.pts.filter(p => p.y >= Math.min(state.fromYear, state.toYear) && p.y <= Math.max(state.fromYear, state.toYear));
+      const r = { ...original, pts: selected };
+      if (!r.pts.length) return;
+      r.years = 'fiscal ' + r.pts[0].y + ' to ' + r.pts[r.pts.length - 1].y;
       const sec = el('section', 'ratio');
       const h = el('div', 'rhead');
       h.innerHTML = `<span class="rag">${esc(r.agency)}</span><h3>${esc(r.title)}</h3>`;
@@ -1072,14 +1098,15 @@ function viewRatios(host) {
       const fmtR = v => r.money ? '$' + Math.round(v).toLocaleString('en-US') : (Math.round(v * 10) / 10).toLocaleString('en-US');
       const lead = el('p', 'rlead');
       lead.innerHTML = `<b>${esc(fmtR(last.v))}</b> <span>${esc(r.unit)}</span> in fiscal ${last.y}, ` +
-        `against ${esc(fmtR(first.v))} in fiscal ${first.y}.`;
+        (first.y !== last.y ? `against ${esc(fmtR(first.v))} in fiscal ${first.y}.` : 'the only available year in this window.');
       pad.appendChild(lead);
 
+      const ratioYears = D.years.filter(y => y >= Math.min(state.fromYear,state.toYear) && y <= Math.max(state.fromYear,state.toYear));
       const fake = {
-        v: D.years.map(y => { const pt = r.pts.find(x => x.y === y); return pt ? pt.v : null; }),
+        v: ratioYears.map(y => { const pt = r.pts.find(x => x.y === y); return pt ? pt.v : null; }),
         mt: r.money ? MT_CUR : MT_NUMBER, sus: null, ts: 0, tu: '',
       };
-      pad.appendChild(lineChart(fake, { h: 150, plain: true }));
+      pad.appendChild(lineChart(fake, { h: 150, plain: true, years: ratioYears }));
 
       const tbl = el('table', 'vtable');
       tbl.style.marginTop = '14px';
@@ -1087,14 +1114,26 @@ function viewRatios(host) {
       const row = (label, get, cls) => '<tr><td>' + esc(label) + '</td>' +
         r.pts.map(x => `<td class="${cls || ''}">${esc(get(x))}</td>`).join('') + '</tr>';
       tbl.innerHTML = '<thead><tr><th>Fiscal year</th>' + ys.map(y => `<th>${y}</th>`).join('') + '</tr></thead><tbody>' +
-        row(r.numLabel.length > 58 ? r.numLabel.slice(0, 57) + '\u2026' : r.numLabel, x => fmtNum(x.n)) +
-        row(r.denLabel.length > 58 ? r.denLabel.slice(0, 57) + '\u2026' : r.denLabel, x => fmtNum(x.d)) +
+        row(r.numLabel, x => fmtFiled(x.n, MT_NUMBER)) +
+        row(r.denLabel, x => fmtFiled(x.d, MT_NUMBER)) +
         row('The ratio', x => fmtR(x.v)) +
         '</tbody>';
       pad.appendChild(tbl);
 
       const links = el('div', 'links');
       links.style.marginTop = '12px';
+      if (r.resourceComponents && r.resourceComponents.length) {
+        ['4qmi-txnk', 'nvzu-6t9y'].forEach(dataset => {
+          const a = document.createElement('a');
+          a.href = 'https://data.cityofnewyork.us/resource/' + dataset + '.json?$limit=50000&agency=' + encodeURIComponent(r.agency);
+          a.textContent = dataset === 'nvzu-6t9y' ? 'Final prior-year resource actuals' : 'MMR resource actuals';
+          a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a);
+        });
+      }
+      if (r.sourceUrl) {
+        const a = document.createElement('a'); a.href = r.sourceUrl;
+        a.textContent = 'Definition reference'; a.target = '_blank'; a.rel = 'noopener'; links.appendChild(a);
+      }
       r.numIds.concat(r.denIds).forEach(id => {
         if (!D.byId[id]) return;
         const a = document.createElement('a');
@@ -1111,6 +1150,7 @@ function viewRatios(host) {
       sec.appendChild(pad);
       body.appendChild(sec);
     });
+    if (!body.children.length) body.appendChild(el('div', 'empty', 'No ratios have data in the selected years. Choose an earlier comparison window.'));
   };
 
   if (RATIOS_DATA) { draw(RATIOS_DATA); return; }
@@ -1118,7 +1158,7 @@ function viewRatios(host) {
     if (!data) { body.innerHTML = '<div class="empty">Could not load the ratios.</div>'; return; }
     RATIOS_DATA = data;
     draw(data);
-  });
+  }).catch(() => { body.innerHTML = '<div class="empty">Could not load the ratios. Please try again.</div>'; });
 }
 
 /* ===========================================================================
@@ -1131,14 +1171,14 @@ function viewRetired(host) {
     return { a, i, n: rs.length, ret, share: rs.length ? ret / rs.length : 0 };
   }).filter(x => x.n >= 10 && x.share >= 0.75);
 
-  host.appendChild(sectionHead('Chapters the report stopped keeping', dead.length + ' of ' + D.agencies.length, '06'));
+  host.appendChild(sectionHead('Sections with mostly retired indicators', dead.length + ' of ' + D.agencies.length, '06'));
   const p1 = el('div', 'pad');
   const note = el('p', 'note');
   note.style.maxWidth = '84ch';
   note.innerHTML = 'The report carries citywide initiatives alongside agencies, and initiatives end. ' +
-    'Listed here is every section where at least three quarters of the indicators on file are marked ' +
-    'retired — in most cases after reporting right up to the last complete year, which means the ' +
-    'numbers stopped being collected rather than the trend running out.';
+    'Listed here are sections with at least ten indicators on file, of which at least three quarters are marked ' +
+    'retired. Retirement in this dataset does not establish that the city stopped collecting the information; ' +
+    'a measure may be replaced or published elsewhere.';
   p1.appendChild(note);
   const tbl = el('table', 'league');
   tbl.innerHTML = '<thead><tr><th>Initiative or agency</th><th class="n">Retired / on file</th><th class="n">Last figure filed</th></tr></thead>';
@@ -1199,7 +1239,9 @@ function loadAgencyFile(kind, code) {
   return cache[kind][key];
 }
 
+let drawerOpener = null;
 function openIndicator(id) {
+  if (!$('#drawer').classList.contains('open')) drawerOpener = document.activeElement;
   const rec = D.byId[id];
   if (!rec) return;
   const a = D.agencies[rec.a];
@@ -1215,6 +1257,7 @@ function openIndicator(id) {
       ' It is shown exactly as the city published it, and it distorts every average and change that runs through it.';
     body.appendChild(w);
   }
+  if (rec.definitionNote) body.appendChild(el('p', 'warn', rec.definitionNote + ' Changes across this break are not scored.'));
 
   if (rec.d >= 0) {
     body.appendChild(Object.assign(el('h4'), { textContent: 'What the city says it is counting' }));
@@ -1223,26 +1266,32 @@ function openIndicator(id) {
 
   body.appendChild(Object.assign(el('h4'), { textContent: 'Full fiscal years, ' + D.years[0] + ' to ' + D.latest }));
   body.appendChild(lineChart(rec));
-  if (D.pdfYear && rec.v[D.yi[D.pdfYear]] != null) {
+  if (D.pdfYear && rec.pdf && rec.pdf.valueSource !== 'open-data' && rec.v[D.yi[D.pdfYear]] != null) {
     const pr = el('p', 'prov');
     const pg = rec.pdf && rec.pdf.p;
     pr.innerHTML = `Fiscal ${D.pdfYear} (the open circle) is read from the printed report` +
       (rec.pdf && rec.pdf.raw ? `, where it is printed as <b>${esc(rec.pdf.raw)}</b>` : '') +
       (pg ? ` on <a href="${esc(D.pdfPageBase + pg)}" target="_blank" rel="noopener" style="color:inherit">page ${pg}</a>` : '') +
-      `. Every earlier year comes from the open data table.`;
+      `. Open circles mark figures from this report, including its historical columns where available. Other figures come from Open Data.`;
     body.appendChild(pr);
-    if (rec.pdf && rec.pdf.restated) {
+    if (rec.pdf.original) {
       const w = el('div', 'warn');
-      const yrs = [2022, 2023, 2024, 2025];
-      const was = yrs.map(y => fmtVal(rec.v[D.yi[y]], rec.mt, rec)).join('  ');
-      w.innerHTML = '<b>Restated.</b> The printed report gives this series a different history from ' +
-        'the one the open data holds. Fiscal 2022 to 2025 read ' +
-        `<span style="font-family:var(--mono)">${esc(rec.pdf.restated.join('  '))}</span> in the report ` +
-        `and <span style="font-family:var(--mono)">${esc(was)}</span> in the data. The chart plots the ` +
-        'open data for those years and the report for fiscal ' + D.pdfYear + '.';
+      w.appendChild(el('b', '', 'Updated publication history. '));
+      w.appendChild(document.createTextNode('The chart and comparisons use the printed report for the years it covers. Earlier Open Data values that differ are retained below. Differences may be revisions or published rounding.'));
+      const table = el('table', 'vtable');
+      table.innerHTML = '<thead><tr><th>Fiscal year</th><th>Open Data</th><th>Printed report used here</th></tr></thead><tbody>' +
+        Object.entries(rec.pdf.original).map(([y,v]) => '<tr><td>' + esc(y) + '</td><td>' + esc(fmtFiled(v,rec.mt,rec)) + '</td><td>' + esc(fmtFiled(rec.v[D.yi[+y]],rec.mt,rec)) + '</td></tr>').join('') + '</tbody>';
+      w.appendChild(table);
+      if (rec.pdf.reviewNote) w.appendChild(el('p', '', rec.pdf.reviewNote));
       body.appendChild(w);
     }
+    if (rec.pdf.directionBefore !== rec.dir) {
+      body.appendChild(el('p', 'warn', 'The direction in the FY2026 report differs from the earlier Open Data metadata. FY2026 scoring and target assessments use the report’s direction.'));
+    }
+  } else if (D.pdfYear && rec.v[D.yi[D.pdfYear]] == null) {
+    body.appendChild(el('p', 'prov', 'No verified FY' + D.pdfYear + ' figure was extracted for this indicator. It may still appear in the report; check the agency chapter.'));
   }
+
   const st = rec.st;
   const cap = el('p', 'chartcap');
   if (st) {
@@ -1262,7 +1311,7 @@ function openIndicator(id) {
         ? `Across the whole run it has moved ${esc(fmtPct(st.cagr, 1))} a year, and a straight line through every published year explains ${st.r2 != null ? (st.r2 * 100).toFixed(0) + ' per cent' : 'an unknown share'} of the movement.`
         : '');
   } else {
-    cap.textContent = 'Too few published years to compare.';
+    cap.textContent = 'Too few comparable published years to calculate a trend.';
   }
   body.appendChild(cap);
 
@@ -1274,9 +1323,9 @@ function openIndicator(id) {
     '<tbody><tr><td>Value</td>' + yrs.map(y => {
       const v = rec.v[D.yi[y]];
       const flagged = rec.sus && rec.sus[String(y)];
-      return `<td class="${flagged ? 'flagged' : ''}" ${flagged ? 'title="' + esc(flagged) + '"' : ''}>${esc(fmtVal(v, rec.mt, rec))}</td>`;
+      return `<td class="${flagged ? 'flagged' : ''}" ${flagged ? 'title="' + esc(flagged) + '"' : ''}>${esc(fmtFiled(v, rec.mt, rec))}</td>`;
     }).join('') + '</tr></tbody>' +
-    (rec.vr ? '<tbody><tr><td>As filed</td>' + yrs.map(y =>
+    (rec.vr ? '<tbody><tr><td>Original Open Data encoding</td>' + yrs.map(y =>
       `<td>${rec.vr[D.yi[y]] == null ? '—' : rec.vr[D.yi[y]]}</td>`).join('') + '</tr></tbody>' : '');
   body.appendChild(vt);
 
@@ -1295,7 +1344,7 @@ function openIndicator(id) {
     c.innerHTML = 'Each line is one fiscal year running July to June, showing the figure as reported year to date. ' +
       (rec.ad ? 'This indicator accumulates, so each line climbs through its year and the gap between lines is the gap in pace. '
         : 'This indicator is an average or a rate, so each month restates the year so far rather than adding to it. ') +
-      (partial ? `Fiscal ${D.partialFy} is still running: the open data carries it only through ${monthName(lastMonth(partial))} ${monthYear(lastMonth(partial), D.partialFy)}.` : '');
+      (partial ? `The open data for fiscal ${D.partialFy} is incomplete: it carries figures only through ${monthName(lastMonth(partial))} ${monthYear(lastMonth(partial), D.partialFy)}.` : '');
     paceHost.appendChild(c);
   });
 
@@ -1308,9 +1357,9 @@ function openIndicator(id) {
       if (!kids || !kids.length) return;
       const li = lastIndex(rec.v);
       const items = kids.map(k => {
-        const ki = lastIndex(k.v);
+        const ki = D.yi[state.toYear];
         const label = (k.n.split(/\s+[-–—]\s+/).pop() || k.n).trim();
-        return { label, v: ki == null ? null : k.v[ki], id: k.id, year: ki == null ? null : D.years[ki] };
+        return { label, v: ki == null ? null : k.v[ki], id: k.id, year: state.toYear };
       }).filter(x => x.v != null);
       if (items.length < 2) return;
       items.sort((p, q) => q.v - p.v);
@@ -1318,7 +1367,7 @@ function openIndicator(id) {
       geoHost.appendChild(Object.assign(el('h4'), { textContent: 'Broken out by ' + type.toLowerCase() }));
       geoHost.appendChild(barChart(items.slice(0, 40), { fmt: v => fmtVal(v, rec.mt, rec), labelW: 200 }));
       const c = el('p', 'chartcap');
-      c.textContent = `${items.length} ${type.toLowerCase()} series, latest published figure for each. ` +
+      c.textContent = `${items.length} ${type.toLowerCase()} series with a fiscal ${state.toYear} figure; areas missing that year are excluded. ` +
         (items.length > 40 ? 'Showing the 40 highest. ' : '') +
         'The city files these as separate indicators hanging off this one.';
       geoHost.appendChild(c);
@@ -1340,8 +1389,8 @@ function openIndicator(id) {
     ['Accumulates through the year', rec.ad ? 'Yes' : 'No'],
     ['Flagged critical by the city', rec.cr ? 'Yes' : 'No'],
     ['Retired', rec.rt ? 'Yes' : 'No'],
-    ['Target, fiscal ' + (D.pdfYear || ''), rec.tgt && rec.tgt.t26 != null ? fmtVal(rec.tgt.t26, rec.mt, rec) : 'none printed'],
-    ['Target, fiscal ' + ((D.pdfYear || 0) + 1), rec.tgt && rec.tgt.t27 != null ? fmtVal(rec.tgt.t27, rec.mt, rec) : 'none printed'],
+    ['Target, fiscal ' + (D.pdfYear || ''), targetText(rec, 't26')],
+    ['Target, fiscal ' + ((D.pdfYear || 0) + 1), targetText(rec, 't27')],
     ['Indicator id', rec.id],
   ];
   rows.forEach(([k, v]) => {
@@ -1362,10 +1411,12 @@ function openIndicator(id) {
   tipHide();
   const dr = $('#drawer');
   dr.classList.add('open');
+  $('.sheet').inert = true;
   document.body.style.overflow = 'hidden';
   $('.panel', dr).scrollTop = 0;
   $('.xbtn', dr).focus();
-  if (location.hash !== '#i/' + rec.id) history.pushState(null, '', '#i/' + rec.id);
+  const indicatorHash = '#i/' + rec.id + comparisonQuery();
+  if (location.hash !== indicatorHash) history.pushState(null, '', indicatorHash);
 }
 function lastMonth(p) { const order = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]; let m = null; order.forEach(x => { if (p[x] != null) m = x; }); return m; }
 function monthName(m) { return ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m] || ''; }
@@ -1374,7 +1425,9 @@ function monthYear(m, fy) { return m >= 7 ? fy - 1 : fy; }
 function closeDrawer() {
   $('#drawer').classList.remove('open');
   document.body.style.overflow = '';
-  if (location.hash.indexOf('#i/') === 0) history.pushState(null, '', '#' + state.view);
+  $('.sheet').inert = false;
+  if (drawerOpener && drawerOpener.isConnected) drawerOpener.focus();
+  if (location.hash.indexOf('#i/') === 0) history.pushState(null, '', viewHash());
 }
 
 /* ===========================================================================
@@ -1447,9 +1500,9 @@ function yearBar() {
 }
 function refresh(rebuildBar) {
   if (state.fromYear === state.toYear) {
-    state.fromYear = D.years[Math.max(0, D.yi[state.toYear] - 1)];
+    state.fromYear = D.years[D.yi[state.toYear] > 0 ? D.yi[state.toYear] - 1 : 1];
   }
-  if (rebuildBar) {
+  {
     const old = $('.yearbar');
     if (old) old.replaceWith(yearBar());
   }
@@ -1466,35 +1519,66 @@ const VIEWS = { board: viewBoard, agencies: viewAgencies, search: viewSearch, ou
 
 function go(v) {
   state.view = v;
-  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $$('#tabs button').forEach(b => { b.classList.toggle('on', b.dataset.v === v); b.setAttribute('aria-selected', String(b.dataset.v === v)); });
   const host = $('#view');
   host.innerHTML = '';
   VIEWS[v](host);
   syncHash();
   window.scrollTo({ top: Math.min(window.scrollY, $('#tabs').offsetTop), behavior: 'auto' });
 }
-function syncHash() {
-  if (location.hash.indexOf('#i/') === 0) return;
+function comparisonQuery() {
+  const p = new URLSearchParams({from: state.fromYear, to: state.toYear, flat: state.flat});
+  Object.entries(state.filters).forEach(([key,value]) => p.set(key,value));
+  p.set('low', state.hideLowBase ? '1' : '0');
+  p.set('boardCritical', state.criticalOnly ? '1' : '0');
+  return '?' + p.toString();
+}
+function viewHash() {
   let h = '#' + state.view;
   if (state.view === 'agencies' && state.agency != null) h += '/' + D.agencies[state.agency].c;
   if (state.view === 'search' && state.q) h += '/' + encodeURIComponent(state.q);
   if (state.view === 'outliers') h += '/' + state.measure + '/' + state.extreme;
+  return h + comparisonQuery();
+}
+function syncHash() {
+  if (location.hash.indexOf('#i/') === 0) return;
+  const h = viewHash();
   if (location.hash !== h) history.replaceState(null, '', h);
 }
 function fromHash() {
-  const h = decodeURIComponent(location.hash.replace(/^#/, ''));
-  if (!h) return go('board');
-  const parts = h.split('/');
+  const raw = location.hash.replace(/^#/, ''), split = raw.indexOf('?');
+  const path = split < 0 ? raw : raw.slice(0,split);
+  const params = new URLSearchParams(split < 0 ? '' : raw.slice(split + 1));
+  let parts;
+  try { parts = path.split('/').map(decodeURIComponent); }
+  catch (e) { parts = ['board']; }
+  for (const [key, prop] of [['from','fromYear'], ['to','toYear']]) {
+    if (params.has(key) && D.years.includes(+params.get(key))) state[prop] = +params.get(key);
+  }
+  if (params.has('flat') && [0,.01,.02,.05,.1].includes(+params.get('flat'))) state.flat = +params.get('flat');
+  if (state.fromYear === state.toYear) state.fromYear = D.years[D.yi[state.toYear] > 0 ? D.yi[state.toYear]-1 : 1];
+  const filterOptions = {
+    agency: ['', ...D.agencies.map((_,i) => String(i))],
+    dir: ['', '1', '-1', '0'], mt: ['', ...D.mt.map((_,i) => String(i))],
+    live: ['', 'live', 'retired'], critical: ['', '1'],
+  };
+  Object.entries(filterOptions).forEach(([key,options]) => {
+    if (params.has(key) && options.includes(params.get(key))) state.filters[key] = params.get(key);
+  });
+  if (params.has('low')) state.hideLowBase = params.get('low') !== '0';
+  if (params.has('boardCritical')) state.criticalOnly = params.get('boardCritical') === '1';
+  const bar = $('.yearbar'); if (bar) bar.replaceWith(yearBar());
+  countBand(); drawMast();
   if (parts[0] === 'i' && parts[1]) { go(state.view); openIndicator(parts[1]); return; }
   if (!VIEWS[parts[0]]) return go('board');
   if (parts[0] === 'agencies' && parts[1]) {
     const i = D.agencies.findIndex(a => a.c === parts[1]);
     if (i >= 0) state.agency = i;
   }
-  if (parts[0] === 'search' && parts[1]) state.q = parts[1];
+  if (parts[0] === 'search') state.q = parts[1] || '';
   if (parts[0] === 'outliers') {
     if (parts[1] && MEASURES.some(m => m.k === parts[1])) state.measure = parts[1];
-    if (parts[2]) state.extreme = parts[2];
+    if (['best','worst'].includes(parts[2])) state.extreme = parts[2];
   }
   go(parts[0]);
 }
@@ -1541,8 +1625,8 @@ function boot(raw) {
   countBand();
 
   $('#footnote').innerHTML =
-    `Built ${new Date().toISOString().slice(0, 10)} from dataset <a href="${esc(D.datasetUrl)}" target="_blank" rel="noopener">rbed-zzin</a> ` +
-    `(${(768409).toLocaleString()} rows), the MMR agency resources tables, and the published agency chapters. ` +
+    `Built ${esc((D.builtAt || 'unknown').slice(0, 10))} from dataset <a href="${esc(D.datasetUrl)}" target="_blank" rel="noopener">rbed-zzin</a> ` +
+    `(${(D.sourceRows || 0).toLocaleString()} rows), the MMR agency resources tables, and the published agency chapters. ` +
     `<a href="methodology.html">Method, checks and known limits</a> &nbsp;·&nbsp; ` +
     `<a href="https://www.nyc.gov/site/operations/reports/mmr.page" target="_blank" rel="noopener">The report itself</a>`;
 
@@ -1552,16 +1636,20 @@ function boot(raw) {
   $$('#tabs button').forEach(b => b.addEventListener('click', () => go(b.dataset.v)));
   $('#drawer').addEventListener('click', e => { if (e.target.closest('[data-close]')) closeDrawer(); });
   window.addEventListener('hashchange', () => {
-    const h = location.hash;
-    if (h.indexOf('#i/') === 0) { openIndicator(h.slice(3)); return; }
     if ($('#drawer').classList.contains('open')) {
       $('#drawer').classList.remove('open');
       document.body.style.overflow = '';
-      if (!h || h === '#' + state.view) return;   // the drawer's own close
+      $('.sheet').inert = false;
     }
     fromHash();
   });
   document.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && $('#drawer').classList.contains('open')) {
+      const focusable = $$('#drawer button, #drawer a[href], #drawer select, #drawer [tabindex="0"]').filter(x => x.getClientRects().length);
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
     if (e.key === 'Escape' && $('#drawer').classList.contains('open')) { closeDrawer(); return; }
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && !$('#drawer').classList.contains('open')) {
       e.preventDefault();

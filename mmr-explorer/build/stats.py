@@ -120,6 +120,8 @@ def series_stats(vals, years, direction, is_pct):
     # Consecutive years moving the same way, ending at the latest reading.
     st = 0
     for i in range(len(vs) - 1, 0, -1):
+        if ys[i] != ys[i - 1] + 1:
+            break
         step = vs[i] - vs[i - 1]
         if step == 0:
             break
@@ -137,7 +139,7 @@ def series_stats(vals, years, direction, is_pct):
     floor = max(1.0, 0.05 * max(abs(v) for v in vs))
     steps = [abs(_rel(vs[i - 1], vs[i]))
              for i in range(1, len(vs))
-             if abs(vs[i - 1]) >= floor and _rel(vs[i - 1], vs[i]) is not None]
+             if ys[i] == ys[i - 1] + 1 and abs(vs[i - 1]) >= floor and _rel(vs[i - 1], vs[i]) is not None]
     if steps:
         out["br"] = round(max(steps), 4)
 
@@ -153,7 +155,7 @@ def series_stats(vals, years, direction, is_pct):
     #       readings instead of the two at the ends. When cagr and tr disagree,
     #       the endpoints are doing the work.
     yrs_between = last_y - first_y
-    if yrs_between > 0 and first > 0 and last > 0:
+    if yrs_between > 0 and all(v > 0 for v in vs):
         out["cagr"] = round((last / first) ** (1.0 / yrs_between) - 1, 6)
     if len(vs) >= 4:
         mx = statistics.fmean(ys)

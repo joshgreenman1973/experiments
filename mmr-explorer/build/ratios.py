@@ -4,9 +4,9 @@
 Every one of these is two figures the Mayor's Management Report already
 prints, divided. None of them is mined automatically: a machine looking for
 pairs whose ratio stays under 1 will happily propose sewer miles over
-satisfaction surveys returned. Each pair here was chosen because the two
-indicators genuinely share a denominator universe, and each was checked
-against the city's own description of both before it was included.
+satisfaction surveys returned. Each pair is curated and carries a definition caveat. Some are true shares;
+others compare separate flows or total agency resources with one output.
+Matching fiscal labels alone does not establish a common cohort or cost scope.
 
 Each entry carries the question it answers and, just as important, the thing
 it cannot be read as. The site shows both components beside the ratio so the
@@ -51,18 +51,18 @@ RATIOS = [
     },
     {
         "id": "dhs-sub-single", "agency": "DHS",
-        "title": "Single-adult exits that needed a housing subsidy, per 100 exits",
+        "title": "Single-adult exits to subsidized housing, per 100 exits",
         "num": {"ind": ["10950"]}, "den": {"ind": ["1832"]}, "scale": 100, "unit": "per 100",
         "question": "Every exit from shelter to permanent housing is filed as either subsidised or "
                     "unsubsidised. The split is printed; the share is not. It says how much of the "
-                    "city's rehousing now depends on a voucher.",
+                    "city's recorded exits are to subsidized housing.",
         "caveat": "A subsidised exit is not a worse outcome than an unsubsidised one. This measures "
                   "what the exits rest on, not how good they are. Numerator and denominator are the "
                   "same flow over the same fiscal year, so the share is exact.",
     },
     {
         "id": "dhs-sub-fam", "agency": "DHS",
-        "title": "Family exits that needed a housing subsidy, per 100 exits",
+        "title": "Family exits to subsidized housing, per 100 exits",
         "num": {"ind": ["10948"]}, "den": {"ind": ["10947"]}, "scale": 100, "unit": "per 100",
         "question": "The same split for families with children.",
         "caveat": "A subsidised exit is not a worse outcome than an unsubsidised one. Same flow, same "
@@ -112,8 +112,7 @@ RATIOS = [
         "id": "doc-ot", "agency": "DOC",
         "title": "Overtime as a share of Correction Department spending",
         "num": {"res": "ot"}, "den": {"res": "exp"}, "scale": 100, "unit": "per 100 dollars",
-        "question": "Both figures sit in the agency resources table, one row apart. The share is the "
-                    "number that says how much of a jail system runs on overtime.",
+        "question": "Both figures sit in the agency resources table, one row apart. The share shows how much of total agency spending went to overtime.",
         "caveat": "Overtime paid and total expenditures, both for the same fiscal year, both as "
                   "published in the report's own resources table. It is a share of all agency "
                   "spending, not of the payroll, so the payroll share is higher still.",
@@ -182,13 +181,13 @@ RATIOS = [
         "id": "ccrb-sub", "agency": "CCRB",
         "title": "Complaints against officers substantiated, per 100 cases closed",
         "num": {"ind": ["15057"]}, "den": {"ind": ["9166"]}, "scale": 100, "unit": "per 100",
-        "question": "The Civilian Complaint Review Board publishes how many cases it closes and, "
-                    "separately, how many it closes as substantiated. The substantiation rate that "
-                    "follows is the number everyone argues about, and it is not printed.",
-        "caveat": "Both are closures in the same fiscal year, but the board counts complaints and "
-                  "cases in slightly different units: the nine published closure categories sum to "
-                  "within about one and a half per cent of the total cases closed, not exactly to it. "
-                  "Read this as close to the substantiation rate rather than as it.",
+        "question": "How many substantiated complaints are recorded for every 100 case closures, "
+                    "including closures without a full investigation?",
+        "caveat": "This is not CCRB's substantiation rate, which uses fully investigated complaints "
+                  "as its denominator. Total closures include withdrawn complaints and cases that "
+                  "could not be investigated. The published complaint categories also do not exactly "
+                  "sum to cases closed, so this is a ratio of two published counts, not an exact share.",
+        "sourceUrl": "https://www.nyc.gov/assets/ccrb/downloads/pdf/policy_pdf/issue_based/Protest-Data-Snapshot-March-2024.pdf",
     },
     {
         "id": "nypd-arrests", "agency": "NYPD",
@@ -198,9 +197,8 @@ RATIOS = [
         "caveat": "Not a clearance rate and not a solve rate. Both counts cover the same fiscal year "
                   "but not the same crimes: an arrest made this year may be for a crime reported in an "
                   "earlier one, a single crime can produce several arrests or none, and an arrest is "
-                  "not a conviction. One further wrinkle: the printed report restated the major felony "
-                  "count for fiscal 2022 to 2025 by about a fifth of a per cent, so the years to 2025 "
-                  "use the open data figures and fiscal 2026 uses the report's.",
+                  "not a conviction. The years covered by the printed report use its revised history; "
+                  "earlier years come from Open Data.",
     },
     {
         "id": "nycha-homeless", "agency": "NYCHA",
@@ -215,45 +213,40 @@ RATIOS = [
         "id": "tlc-pass", "agency": "TLC",
         "title": "Medallion taxi inspections passed, per 100 conducted",
         "num": {"ind": ["3112"]}, "den": {"ind": ["3111"]}, "scale": 100, "unit": "per 100",
-        "question": "Taxi and Limousine prints inspections conducted and inspections passed. The pass "
-                    "rate is the number that says what condition the fleet is in.",
-        "caveat": "Same inspections, same fiscal year, so the rate is exact. A failed inspection is "
-                  "usually re-presented after repair, so this is a first-pass rate rather than the "
-                  "share of cabs that end up roadworthy.",
+        "question": "Taxi and Limousine prints inspections conducted and inspections passed. Their ratio "
+                    "shows the share of inspection events passed, including retests.",
+        "caveat": "Both counts include initial inspections and retests. This is the share of inspection "
+                  "events passed, not a first-pass rate or the share of unique taxis that are roadworthy. "
+                  "The MMR separately publishes the initial-inspection failure rate.",
     },
     # ---- what the city gets for it ---------------------------------------
     {
         "id": "bpl-circ", "agency": "BPL",
         "title": "Items borrowed per active Brooklyn library card",
         "num": {"ind": ["2291"]}, "den": {"ind": ["10287"]}, "scale": 1, "unit": "items a year",
-        "question": "Circulation and active cards are both printed, both in thousands. How much the "
-                    "average active borrower actually borrows is not.",
-        "caveat": "Read the level, not the trend. Both figures cover the same fiscal year, but the "
-                  "active-card count moves in a way no borrowing pattern explains -- Brooklyn reports "
-                  "846,000 active cards in fiscal 2021 and 494,000 in fiscal 2022 -- which means the "
-                  "definition has been changed more than once. Comparing the three library systems "
-                  "against each other in the same year is sound; reading the line as a change in how "
-                  "much people borrow is not. An active card is also a card, not a person, and "
-                  "circulation includes renewals and e-book loans.",
+        "question": "Circulation and active cards are both printed, both in thousands. Their ratio describes annual circulation relative to the non-expired card count.",
+        "caveat": "Circulation per non-expired card is not borrowing per person. Card expiration and "
+                  "renewal rules, renewals of loans, and digital lending can affect the ratio. Large "
+                  "changes in card counts alone do not establish that a definition changed. Cross-system "
+                  "comparisons require checking that card and circulation definitions are consistent.",
     },
     {
         "id": "nypl-circ", "agency": "NYPL",
         "title": "Items borrowed per active New York Public Library card",
         "num": {"ind": ["3062"]}, "den": {"ind": ["10291"]}, "scale": 1, "unit": "items a year",
         "question": "The same sum for the system covering Manhattan, the Bronx and Staten Island.",
-        "caveat": "Read the level, not the trend: the active-card count is redefined more than once "
-                  "across this run, which is why the line moves more than borrowing does. The New "
-                  "York Public Library reports 522,000 active cards in fiscal 2021 and 1,327,000 in "
-                  "fiscal 2024. Comparing the three systems in the same year is sound.",
+        "caveat": "This divides circulation by non-expired cards, not people. Changes in expiration, "
+                  "renewal or lending rules may change the ratio. Treat trends and comparisons with "
+                  "other library systems cautiously until those definitions are checked.",
     },
     {
         "id": "qpl-circ", "agency": "QPL",
         "title": "Items borrowed per active Queens library card",
         "num": {"ind": ["3259"]}, "den": {"ind": ["10295"]}, "scale": 1, "unit": "items a year",
-        "question": "And for Queens, which lets the three systems be read against one another.",
-        "caveat": "Read the level, not the trend, for the same reason as the other two systems: the "
-                  "active-card count is redefined more than once across this run. Comparing Queens, "
-                  "Brooklyn and the New York Public Library in the same year is the sound use of it.",
+        "question": "The same calculation for Queens; the caveat below applies to comparisons across systems.",
+        "caveat": "This divides circulation by non-expired cards, not people. Changes in expiration, "
+                  "renewal or lending rules may change the ratio. Treat trends and comparisons with "
+                  "other library systems cautiously until those definitions are checked.",
     },
     {
         "id": "dot-potholes", "agency": "DOT",
@@ -298,12 +291,17 @@ def main():
         # Both sides have to be measured over the same kind of period, or the
         # ratio compares a fiscal year against a calendar one and means nothing.
         periods = set()
+        unknown_period = False
         for part in (spec["num"], spec["den"]):
+            if "res" in part:
+                periods.add("Fiscal Year")
             for i in part.get("ind", []):
                 r = byid.get(i)
                 if r and r["rp"] >= 0:
                     periods.add(site["rp"][r["rp"]])
-        if len(periods) > 1:
+                else:
+                    unknown_period = True
+        if unknown_period or len(periods) != 1:
             failures.append(f'{spec["id"]}: components use different reporting periods {sorted(periods)}')
             continue
 
@@ -318,9 +316,9 @@ def main():
             continue
         # A share of a universe cannot sit far outside that universe. Where it
         # legitimately can -- closures against a backlog -- the entry says so.
-        if spec["scale"] == 100 and not spec.get("allow_over"):
+        if spec["id"] in {"dhs-sub-single", "dhs-sub-fam", "doc-ot", "nypd-ot", "fdny-ot", "nycha-homeless", "tlc-pass"}:
             worst = max(p["v"] for p in pts)
-            if worst > 150:
+            if worst > 100 + 1e-6 or min(p["v"] for p in pts) < 0:
                 failures.append(f'{spec["id"]}: reaches {worst:.0f} per 100, which cannot be a share '
                                 f'-- check the indicator ids')
                 continue
@@ -332,11 +330,17 @@ def main():
 
         def label(part):
             if "res" in part:
-                return "Agency expenditures, as reported in the report's own resources table"
-            return " plus ".join(byid[i]["n"] for i in part["ind"])
+                if part["res"] == "pers":
+                    return "Personnel (full-time and FTE)"
+                name = "Agency expenditures" if part["res"] == "exp" else "Overtime paid"
+                return name + (" ($)" if part.get("mult") == 1_000_000 else " ($ millions)")
+            text = " plus ".join(byid[i]["n"] for i in part["ind"])
+            return text + (f" × {part['mult']:,}" if part.get("mult", 1) != 1 else "")
 
         out.append({
             "id": spec["id"], "agency": spec["agency"], "title": spec["title"],
+            "sourceUrl": spec.get("sourceUrl"),
+            "resourceComponents": [p["res"] for p in (spec["num"], spec["den"]) if "res" in p],
             "unit": spec["unit"], "money": spec.get("money", False),
             "question": spec["question"], "caveat": spec["caveat"],
             "numLabel": label(spec["num"]), "denLabel": label(spec["den"]),

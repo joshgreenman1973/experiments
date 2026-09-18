@@ -23,7 +23,7 @@ Rules that took reading the data to work out, and that the site depends on:
   build/pdf2026.py and merged here, flagged so the site can say which years
   came from where.
 """
-import json, os, re, sys, math
+import json, os, re, sys, math, datetime as dt
 from collections import defaultdict, Counter
 
 import stats as ST
@@ -159,18 +159,23 @@ def resources():
     """agency -> fiscal year -> {exp, rev, ot, cap, hsc in $ millions; pers headcount}"""
     out = defaultdict(lambda: defaultdict(dict))
     names = {}
-    # The full-year table carries closed fiscal years; the preliminary table
-    # carries the year still running. Full-year wins on any overlap.
-    for table in ("resources_pmmr", "resources"):
+    # MMR current-year actuals are provisional. The next PMMR publishes final
+    # prior-year actuals, so that later vintage wins. Never use current-year plans.
+    for table in ("resources", "resources_pmmr"):
         for r in rows(table):
             a, fy = r.get("agency"), r.get("reporting_fiscal_year")
             if not a or not fy:
                 continue
             fy = int(fy)
+            report_fy = fy
+            if table == "resources_pmmr":
+                fy -= 1
+            a = {"311": "3-1-1", "H + H": "NYCHH"}.get(a, a)
             if r.get("agency_name"):
                 names.setdefault(a, r["agency_name"])
             lab = _reslabel(r.get("resource_indicators"))
-            v = num(r.get("current_fy_projected_actual"))
+            field = "previous_fy_actual" if table == "resources_pmmr" else "current_fy_projected_actual"
+            v = num(r.get(field))
             if v is None:
                 continue
             scale = 1.0
@@ -182,19 +187,32 @@ def resources():
                 lab_base = lab
             if lab_base in ("personnel", "personnel (total ft and fte)"):
                 out[a][fy]["pers"] = v
+                key = "pers"
             elif lab_base == "personnel (uniformed)":
                 out[a][fy]["_unif"] = v
+                key = "unif"
             elif lab_base == "personnel (civilian)":
                 out[a][fy]["_civ"] = v
+                key = "civ"
             else:
+                key = None
                 for key, want in RES_KEYS:
                     if lab_base == want:
                         out[a][fy][key] = round(v * scale, 3)
                         break
+                else:
+                    key = None
+            if key:
+                out[a][fy].setdefault("_sources", {})[key] = {
+                    "dataset": "nvzu-6t9y" if table == "resources_pmmr" else "4qmi-txnk",
+                    "reportFy": report_fy, "field": field,
+                    "status": "final prior-year actual" if table == "resources_pmmr" else "provisional actual",
+                }
     for a in out:
         for fy, d in out[a].items():
-            if "pers" not in d and ("_unif" in d or "_civ" in d):
-                d["pers"] = d.get("_unif", 0) + d.get("_civ", 0)
+            if "pers" not in d and "_unif" in d and "_civ" in d:
+                d["pers"] = d["_unif"] + d["_civ"]
+                d["_sources"]["pers"] = d["_sources"]["unif"]
             if "_unif" in d:
                 d["unif"] = d.pop("_unif")
             if "_civ" in d:
@@ -211,6 +229,7 @@ def main():
 
     meta = {}            # id -> latest metadata row
     meta_fy = {}         # id -> fiscal year that metadata came from
+    direction_rows = defaultdict(dict)
     annual = defaultdict(dict)    # id -> {fy: raw value}
     ytd = defaultdict(dict)       # id -> {fy: {month: raw value}}
     agency_name = {}
@@ -229,9 +248,11 @@ def main():
         fy = int(fy)
         month = int(vd[5:7])
 
-        if iid not in meta or fy >= meta_fy.get(iid, 0):
+        if iid not in meta or (fy, vd) >= meta_fy.get(iid, (0, "")):
             meta[iid] = r
-            meta_fy[iid] = fy
+            meta_fy[iid] = (fy, vd)
+        if vd >= direction_rows[iid].get(fy, ("", 0))[0]:
+            direction_rows[iid][fy] = (vd, {"Up": 1, "Down": -1}.get(r.get("desireddirection"), 0))
         if r.get("agency") and r.get("agency_name"):
             agency_name.setdefault(r["agency"], r["agency_name"])
 
@@ -310,6 +331,7 @@ def main():
             "s": S_svc(m.get("service")),
             "src": S_src(m.get("source")),
             "dir": DIR.get(m.get("desireddirection"), 0),
+            "dirs": {str(y): value[1] for y, value in direction_rows[iid].items()},
             "mt": MT.index(m["measurement_type"]) if m.get("measurement_type") in MT else -1,
             "fq": FREQ.index(m["frequency"]) if m.get("frequency") in FREQ else -1,
             "rp": RP.index(m["reporting_period"]) if m.get("reporting_period") in RP else -1,
@@ -337,6 +359,13 @@ def main():
         ind.append(rec)
         by_id[iid] = rec
 
+    # The report explicitly changes this denominator in FY2026 (PDF p.321).
+    # Keep every value visible, but do not score a crossing as a service change.
+    for iid in ("2285", "3056", "3072", "3253"):
+        if iid in by_id:
+            by_id[iid]["breaks"] = [2026]
+            by_id[iid]["definitionNote"] = "FY2026 includes branches closed for long-term renovations in the six-day opening measure. Earlier years use a different denominator. See the report's changes on PDF page 321."
+
     # ---- fiscal 2026, read out of the printed report ----------------------
     pdf_path = os.path.join(OUT, "fy2026.json")
     pdf = json.load(open(pdf_path)) if os.path.exists(pdf_path) else None
@@ -354,13 +383,32 @@ def main():
             d = pdf["ind"].get(rec["id"])
             if not d:
                 continue
-            if "v" in d:
+            from_pdf = rec["v"][pi] is None
+            if "v" in d and from_pdf:
                 rec["v"][pi] = d["v"]
                 placed += 1
             if "t26" in d or "t27" in d:
                 rec["tgt"] = {k: d[k] for k in ("t26", "t27") if k in d}
                 tgt += 1
-            rec["pdf"] = {"p": d["p"], "raw": d.get("raw")}
+            rec["pdf"] = {"p": d["p"], "raw": d.get("raw"), "valueSource": "pdf" if from_pdf else "open-data"}
+            rec["pdf"]["directionBefore"] = rec["dir"]
+            if pfy > od_complete:
+                rec["dir"] = d.get("direction", rec["dir"])
+                rec["dirs"][str(pfy)] = rec["dir"]
+                original = {}
+                rec["pdf"]["historyYears"] = [int(y) for y, v in d.get("history", {}).items() if v is not None]
+                for y, value in d.get("history", {}).items():
+                    if int(y) in years and value is not None:
+                        j = years.index(int(y))
+                        if rec["v"][j] != value:
+                            original[y] = rec["v"][j]
+                            rec["v"][j] = value
+                if original:
+                    rec["pdf"]["original"] = original
+            if d.get("directionalTargets"):
+                rec["targetDirections"] = d["directionalTargets"]
+            if d.get("reviewNote"):
+                rec["pdf"]["reviewNote"] = d["reviewNote"]
             if "restated" in d:
                 # The printed report revised this series' earlier years. Both
                 # versions ship so a reader can see exactly what changed.
@@ -374,15 +422,21 @@ def main():
             rec["sus"] = sus or None
             if not rec["sus"]:
                 rec.pop("sus", None)
-        latest_complete = pfy
+        latest_complete = max(od_complete, pfy)
         pdf_meta = pdf["source"]
         print(f"  fiscal {pfy} from the printed report: {placed:,} figures, {tgt:,} with targets")
 
 
     nvals = sum(1 for r in ind if any(v is not None for v in r["v"]))
+    for rec in ind:
+        segment = max(rec.get("breaks", [0]))
+        clean = [None if str(y) in rec.get("sus", {}) or y < segment else v for y, v in zip(YEARS, rec["v"])]
+        rec["st"] = ST.series_stats(clean, YEARS, rec["dir"], rec["mt"] == 1)
     print(f"  {len(ind):,} indicator records, {nvals:,} with a full-year figure")
 
     payload = {
+        "builtAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "sourceRows": seen,
         "agencies": [{"c": a, "n": agency_name[a], "mmr": CHAPTER.get(a, "")}
                      for a in agencies],
         "svc": S_svc.vals, "goal": S_goal.vals, "desc": S_desc.vals, "src": S_src.vals,

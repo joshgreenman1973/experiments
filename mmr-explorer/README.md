@@ -1,61 +1,54 @@
 # Report card
 
-Every indicator in New York City's Mayor's Management Report, fiscal 2016 through fiscal 2026,
-searchable and charted — plus a dozen different ways of asking which ones are outliers.
+A searchable explorer of New York City's Mayor's Management Report, FY2016–2026. It includes a direction-aware scoreboard, agency pages, indicator search, outlier measures, curated ratios, and retired indicators. Static HTML, CSS and JavaScript; no frontend framework.
 
-The Mayor's Management Report is required by the City Charter. It is the city's own account of how
-its agencies performed, published each September as a stack of agency chapters in PDF and,
-separately, as a 768,409-row table on the open data portal. This reads the whole table at once.
+## Sources and interpretation
 
-- **Scoreboard** — how many indicators moved the way the city says it wants them to, citywide and
-  agency by agency, against a baseline year you choose.
-- **Agencies** — each agency's indicators in the report's own hierarchy of service and goal, with
-  what it spent and how many people it employed over the same years.
-- **All indicators** — search across names, the city's own description of each indicator, agency,
-  service and goal.
-- **Outliers** — rank by one-year change, sustained trend, a line fitted through every year,
-  distance from an indicator's own normal, best or worst reading on record, volatility, streaks,
-  the biggest one-year step it ever took, or the handful of published figures that cannot be right.
-- **Ratios** — eight figures the report has the numbers for and never divides: the cost of a jail
-  bed, the share of building complaints an inspector goes out to, how many people leave the shelter
-  system for a home against how many arrive. Hand-built and hand-checked, each with its caveat.
-- **Retired** — what the city has stopped counting, including five whole initiative chapters.
+- [Agency performance indicators](https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin): June year-to-date rows supply annual slots. Reporting periods can be fiscal, calendar or school year.
+- [FY2026 MMR](https://www.nyc.gov/assets/operations/downloads/pdf/mmr2026/2026_mmr.pdf): matched annual values, printed historical values, desired directions, and numeric or directional targets.
+- [MMR resources](https://data.cityofnewyork.us/resource/4qmi-txnk.json) and [PMMR resources](https://data.cityofnewyork.us/resource/nvzu-6t9y.json): final prior-year PMMR actuals supersede provisional MMR actuals. Plans are not treated as actuals.
 
-Fiscal 2026 is read out of the printed 544-page report, because the open data portal still stops in
-March 2026. Every row is located by matching its own 2022–25 history against the dataset rather than
-by name, which also surfaced 46 series the report has quietly restated. The report's target columns,
-which the open data has never published, come along with it.
+Historical PDF values are used alongside FY2026 to avoid mixing publication vintages within the printed five-year span. Differing original Open Data values are retained in each record's `pdf.original` and displayed in the drawer. When a completed annual Open Data value becomes available, it takes priority over the PDF fallback. Source precedence is explicit; future upstream changes still need review.
 
-Every indicator links out to its raw rows on the open data portal and to the agency's published
-chapter, so any figure here can be checked against the source in two clicks.
+Matching is primarily numerical, with name-based disambiguation and a constrained restatement pass. Five larger DOB revisions have a reviewed mapping, checked against both old and revised histories from PDF page 375. No match means “not extracted,” not “absent from the report.” PDF page links use the PDF index rather than printed numbering.
 
-## Building the data
+The [method page](methodology.html) explains scoring and limitations. [AUDIT.md](AUDIT.md) records fixes, evidence, and proposed next features, including a review of the ratios. The original prompt history was context, not an executable specification.
 
-No dependencies beyond Python 3.
+## Build
 
-```
-python3 build/fetch.py        # ~4 min, writes build/raw/ (~700 MB, gitignored)
-python3 build/pdf2026.py      # fetches and parses the printed fiscal 2026 report
-PYTHONPATH=build python3 build/transform.py
+Requires Python 3 and `pypdf`; Node.js is used for frontend regression assertions. Generated JSON is committed; raw downloads under `build/raw/` are ignored.
+
+```sh
+python3 -m pip install pypdf
+python3 build/fetch.py
+python3 build/transform.py
+python3 build/pdf2026.py             # use --refresh to download the PDF again
+python3 build/transform.py
 python3 build/ratios.py
+python3 -m unittest discover -s tests -v
+node tests/test_app.cjs
 ```
 
-`fetch.py` pages three tables off the NYC Open Data portal and fails loudly if a page comes back
-short. `transform.py` writes `data/indicators.json` plus the per-agency files the page loads on
-demand. `stats.py` holds the outlier measures, each one commented with why it exists and what it
-cannot tell you. Nothing is cached between runs and nothing is hand-edited: rerun it after the city
-posts a new year and the new year appears.
+Run from this directory. The first transformation supplies the matching index (including on a clean bootstrap). If a generated PDF overlay exists, it may be used provisionally at that step; the second transformation uses the refreshed overlay. PDF matching restores original Open Data history before matching again, so rerunning the pipeline does not progressively match against its own revisions.
 
-## What it will not tell you
+`fetch.py` downloads to temporary files and replaces a snapshot only when its row count matches the count obtained before download. `pdf2026.py` caches the PDF unless refreshed and caches extracted text by PDF checksum. `transform.py` records build time and source row count. It selects metadata using fiscal year and observation date, and retains desired direction by year.
 
-The full list is on the [method page](methodology.html). The short version: fiscal 2026 rests on a
-machine reading a PDF, so every figure for that year is shown exactly as printed and links to its
-page. The history starts at fiscal 2016. Agency spending and headcount stop at fiscal 2025 because
-those tables have not been refreshed. About three quarters of indicators have no published target.
+## Validation and rules
 
-## Sources
+- Equal values stay unchanged even with a zero threshold.
+- Missing or flagged values, zero percentage baselines and documented definition breaks are not scored.
+- Flagged observations are displayed but excluded from derived statistics.
+- Streaks and biggest annual steps require consecutive years. Percentage-point rankings compare percentage units only.
+- Ratio components require known matching period types and consecutive overlapping years. True shares are bounded by 0–100%; flow comparisons are not.
+- Final resource actuals use the PMMR's `previous_fy_actual` and the previous fiscal year, not its current-year budget plans.
+- Numeric targets, directional targets and extraction gaps remain distinct.
 
-- [Mayor's Management Report — Agency Performance Indicators](https://data.cityofnewyork.us/City-Government/Mayor-s-Management-Report-Agency-Performance-Indica/rbed-zzin) (`rbed-zzin`)
-- [MMR Agency Resources](https://data.cityofnewyork.us/resource/4qmi-txnk) (`4qmi-txnk`) and [Preliminary MMR Agency Resources](https://data.cityofnewyork.us/resource/nvzu-6t9y) (`nvzu-6t9y`)
-- [Mayor's Office of Operations](https://www.nyc.gov/site/operations/reports/mmr.page) — the published chapters
-- [The city's own Dynamic MMR](https://dmmr.nyc.gov/) — not scraped; its robots file asks not to be crawled
+The tests cover real regressions and representative published records. They are not a certification of every PDF row's identity, every source definition, or every publication's accuracy. Numerical equality alone cannot establish semantic comparability.
+
+## Local preview
+
+```sh
+python3 -m http.server 8765
+```
+
+Then open `http://localhost:8765/`. Comparison years, threshold and filters are encoded in the URL for reproducible links. Indicator drawers support keyboard focus containment and restoration.
