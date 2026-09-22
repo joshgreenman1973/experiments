@@ -15,7 +15,8 @@ const svgEl = (t, attrs) => { const n = document.createElementNS(SVGNS, t); for 
 /* --- state ------------------------------------------------------------- */
 const D = { loaded: false };
 const state = {
-  view: 'board',
+  view: 'topics',
+  compare: [],
   flat: 0.01,          // |relative change| under this reads as no material change
   criticalOnly: false,
   fromYear: null,      // comparison baseline, set anywhere on the site
@@ -127,7 +128,7 @@ function lineChart(rec, opts) {
   opts = opts || {};
   const years = opts.years || D.years, vals = rec.v, mt = rec.mt;
   const W = 680, H = opts.h || 250, L = 62, R = 16, T = 18, B = 34;
-  const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': (rec.n || 'Published values') + ', report years ' + years[0] + ' to ' + years[years.length-1] });
   const pts = [];
   vals.forEach((v, i) => { if (v != null) pts.push([i, v]); });
   if (!pts.length) { svg.appendChild(svgEl('text', { class: 'tick', x: L, y: H / 2 })).textContent = 'No full-year figures published'; return svg; }
@@ -159,7 +160,10 @@ function lineChart(rec, opts) {
     if (run.length > 1) svg.appendChild(svgEl('path', { class: 'line', d: run.map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ') }));
     run = [];
   };
-  vals.forEach((v, i) => { if (v == null) flush(); else run.push([i, v]); });
+  vals.forEach((v, i) => {
+    if ((rec.breaks || []).includes(years[i])) flush();
+    if (v == null) flush(); else run.push([i, v]);
+  });
   flush();
 
   const flagged = rec.sus || {};
@@ -172,11 +176,17 @@ function lineChart(rec, opts) {
       cx: X(p[0]).toFixed(1), cy: Y(p[1]).toFixed(1), r: isFlag ? 5 : 3.9
     }));
   });
+  (rec.breaks || []).filter(y => years.includes(y)).forEach(y => {
+    const x = X(years.indexOf(y));
+    svg.appendChild(svgEl('line', {class:'definition-break',x1:x,x2:x,y1:T,y2:H-B}));
+    const label = svgEl('text',{class:'tick',x:x-5,y:T+10,'text-anchor':'end'});
+    label.textContent='Definition changed'; svg.appendChild(label);
+  });
   // the target the agency set itself, where the report prints one
   // Explicitly null, not false: `false != null` is true in JavaScript, which
   // once put a phantom "target 0" line on every chart drawn with plain:true.
   const tgt = (!opts.plain && rec.tgt && rec.tgt.t26 != null) ? rec.tgt.t26 : null;
-  if (tgt != null && D.pdfYear && tgt >= lo && tgt <= hi) {
+  if (tgt != null && years.includes(D.pdfYear) && tgt >= lo && tgt <= hi) {
     const xi = years.indexOf(D.pdfYear);
     svg.appendChild(svgEl('line', { class: 'tgt', x1: (X(xi) - 12).toFixed(1), x2: (X(xi) + 12).toFixed(1), y1: Y(tgt).toFixed(1), y2: Y(tgt).toFixed(1) }));
     const tl = svgEl('text', { class: 'tgtlbl', x: (X(xi) - 16).toFixed(1), y: (Y(tgt) + 3.5).toFixed(1), 'text-anchor': 'end' });
@@ -842,7 +852,7 @@ function viewSearch(host) {
 
 function searchRecords() {
   const f = state.filters;
-  const terms = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = normalizeSearch(state.q).split(/\s+/).filter(Boolean);
   let recs = D.ind;
   if (f.agency !== '') recs = recs.filter(r => String(r.a) === f.agency);
   if (f.live === 'live') recs = recs.filter(r => !r.rt);
@@ -850,14 +860,17 @@ function searchRecords() {
   if (f.dir !== '') recs = recs.filter(r => String(directionFor(r, state.toYear)) === f.dir);
   if (f.mt !== '') recs = recs.filter(r => String(r.mt) === f.mt);
   if (f.critical === '1') recs = recs.filter(r => r.cr);
-  if (terms.length) recs = recs.filter(r => terms.every(t => r._h.indexOf(t) >= 0));
+  if (terms.length) recs = recs.filter(r => terms.every(t => r._search.indexOf(t) >= 0));
   if (terms.length) {
-    const first = terms[0];
-    recs = recs.slice().sort((p, q) => {
-      const a = p.n.toLowerCase().indexOf(first), b = q.n.toLowerCase().indexOf(first);
-      const ra = a < 0 ? 999 : a, rb = b < 0 ? 999 : b;
-      return ra - rb || (q.cr - p.cr) || p.n.localeCompare(q.n);
-    });
+    const phrase = terms.join(' ');
+    const rank = rec => {
+      const name = normalizeSearch(rec.n);
+      if (name.includes(phrase)) return 0;
+      if (terms.every(t => name.includes(t))) return 1;
+      const description = rec.d >= 0 ? normalizeSearch(D.desc[rec.d]) : '';
+      return description.includes(phrase) ? 2 : 3;
+    };
+    recs = recs.slice().sort((p,q) => rank(p)-rank(q) || (q.cr-p.cr) || p.n.localeCompare(q.n));
   } else {
     recs = recs.slice().sort((p, q) => (q.cr - p.cr) || p.n.localeCompare(q.n));
   }
@@ -1136,7 +1149,7 @@ function viewRatios(host) {
       r.numIds.concat(r.denIds).forEach(id => {
         if (!D.byId[id]) return;
         const a = document.createElement('a');
-        a.href = '#i/' + id;
+        a.href = '#i/' + id + comparisonQuery();
         a.dataset.tip = id;
         a.textContent = D.byId[id].n.length > 46 ? D.byId[id].n.slice(0, 45) + '\u2026' : D.byId[id].n;
         links.appendChild(a);
@@ -1246,6 +1259,7 @@ function openIndicator(id) {
   const rec = D.byId[id];
   if (!rec) return;
   const a = D.agencies[rec.a];
+  $('#drawer').dataset.indicator = rec.id;
   const body = $('#dbody');
   $('#dlbl').textContent = [a.n, rec.cr ? 'Critical indicator' : null, rec.rt ? 'Retired' : null].filter(Boolean).join('  ·  ');
   $('#dtitle').textContent = rec.n;
@@ -1260,10 +1274,11 @@ function openIndicator(id) {
   }
   if (rec.definitionNote) body.appendChild(el('p', 'warn', rec.definitionNote + ' Changes across this break are not scored.'));
 
-  if (rec.d >= 0) {
-    body.appendChild(Object.assign(el('h4'), { textContent: 'What the city says it is counting' }));
-    const p = el('p'); p.textContent = D.desc[rec.d]; body.appendChild(p);
-  }
+  const compareActions=el('div');
+  compareActions.appendChild(compareButton(rec.id));
+  compareActions.appendChild(actionButton('Open comparison',()=>{closeDrawer();go('compare');}));
+  body.appendChild(compareActions);
+  body.appendChild(readingBox(rec));
 
   body.appendChild(Object.assign(el('h4'), { textContent: 'Full fiscal years, ' + D.years[0] + ' to ' + D.latest }));
   body.appendChild(lineChart(rec));
@@ -1315,6 +1330,9 @@ function openIndicator(id) {
     cap.textContent = 'Too few comparable published years to calculate a trend.';
   }
   body.appendChild(cap);
+
+  body.appendChild(sourceContext(rec));
+  body.appendChild(relatedIndicators(rec));
 
   // the numbers themselves
   body.appendChild(Object.assign(el('h4'), { textContent: 'The figures as filed' }));
@@ -1429,6 +1447,7 @@ function closeDrawer() {
   $('.sheet').inert = false;
   if (drawerOpener && drawerOpener.isConnected) drawerOpener.focus();
   if (location.hash.indexOf('#i/') === 0) history.pushState(null, '', viewHash());
+  if (state.view === 'compare') go('compare');
 }
 
 /* ===========================================================================
@@ -1516,12 +1535,14 @@ function refresh(rebuildBar) {
 /* ===========================================================================
    Routing and boot
    ======================================================================== */
-const VIEWS = { board: viewBoard, agencies: viewAgencies, search: viewSearch, outliers: viewOutliers, ratios: viewRatios, retired: viewRetired };
+const VIEWS = { topics: viewTopics, compare: viewCompare, board: viewBoard, agencies: viewAgencies, search: viewSearch, outliers: viewOutliers, ratios: viewRatios, retired: viewRetired };
 
 function go(v) {
   state.view = v;
+  document.body.dataset.view = v;
+  drawCompareTray();
   const comparisonBar = $('.yearbar');
-  if (comparisonBar) comparisonBar.hidden = v === 'ratios';
+  if (comparisonBar) comparisonBar.hidden = v === 'ratios' || v === 'topics';
   $$('#tabs button').forEach(b => { b.classList.toggle('on', b.dataset.v === v); b.setAttribute('aria-selected', String(b.dataset.v === v)); });
   const host = $('#view');
   host.innerHTML = '';
@@ -1534,6 +1555,7 @@ function comparisonQuery() {
   Object.entries(state.filters).forEach(([key,value]) => p.set(key,value));
   p.set('low', state.hideLowBase ? '1' : '0');
   p.set('boardCritical', state.criticalOnly ? '1' : '0');
+  p.set('compare',state.compare.join(','));
   return '?' + p.toString();
 }
 function viewHash() {
@@ -1570,10 +1592,11 @@ function fromHash() {
   });
   if (params.has('low')) state.hideLowBase = params.get('low') !== '0';
   if (params.has('boardCritical')) state.criticalOnly = params.get('boardCritical') === '1';
+  if (params.has('compare')) state.compare = validComparison(params.get('compare').split(','));
   const bar = $('.yearbar'); if (bar) bar.replaceWith(yearBar());
   countBand(); drawMast();
   if (parts[0] === 'i' && parts[1]) { go(state.view); openIndicator(parts[1]); return; }
-  if (!VIEWS[parts[0]]) return go('board');
+  if (!VIEWS[parts[0]]) return go('topics');
   if (parts[0] === 'agencies' && parts[1]) {
     const i = D.agencies.findIndex(a => a.c === parts[1]);
     if (i >= 0) state.agency = i;
@@ -1607,6 +1630,7 @@ function countBand() {
 
 function boot(raw) {
   Object.assign(D, raw);
+  D.guide = D.guide || {topics:[],sourceNotes:[]};
   D.yi = {}; D.years.forEach((y, i) => D.yi[y] = i);
   D.byId = {}; D.byAgency = D.agencies.map(() => []);
   D.ind.forEach(r => {
@@ -1617,6 +1641,7 @@ function boot(raw) {
       r.d >= 0 ? D.desc[r.d] : '', r.g >= 0 ? D.goal[r.g] : '',
       r.s >= 0 ? D.svc[r.s] : '', r.src >= 0 ? D.src[r.src] : ''
     ].join(' ').toLowerCase();
+    r._search = normalizeSearch(r._h);
   });
   D.live = D.ind.filter(r => !r.rt);
   state.toYear = D.latest;
@@ -1677,10 +1702,9 @@ function boot(raw) {
   btn.addEventListener('click', () => set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 })();
 
-fetch('data/indicators.json')
-  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-  .then(boot)
+Promise.all(['data/indicators.json','data/guide.json'].map(url => fetch(url).then(r => {if (!r.ok) throw new Error(url + ': HTTP ' + r.status); return r.json();})))
+  .then(([raw,guide]) => boot({...raw,guide}))
   .catch(err => {
     $('#view').innerHTML = '<div class="empty">Could not load the data (' + esc(err.message) +
-      '). This page needs <code>data/indicators.json</code> alongside it.</div>';
+      '). Reload the page or check that the indicator and topic-guide data are available.</div>';
   });

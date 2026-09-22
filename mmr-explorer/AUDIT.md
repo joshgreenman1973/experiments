@@ -89,3 +89,12 @@ Evidence for the displayed spans:
 - Library ratios are dropped because the historical comparability issue remains unresolved. The other removed comparisons either do not describe a subset of a common total or have a material scope mismatch. They are not retained merely with stronger caveats.
 
 Build checks require all five reviewed years, matching period types, shares in range, no flagged values or known definition breaks, and component reconciliation where a complement is available. The curation is intentionally conservative; these checks still cannot guarantee that the source has disclosed every change.
+
+
+## Implemented reader-navigation features
+
+Added six topics and twelve curated questions; topic-led search with reviewed synonyms; comparison sets of up to four indicators; related measures; reading boxes separating change from target achievement; attributed chapter explanations with page links; chart markers for known definition breaks; and CSV exports with definitions, periods, sources, original values and flags. Existing deep links remain supported. Comparison selections are shareable through URL state, and the topic view is the default for new visits.
+
+Curated relationships are stored in `data/guide.json`. Definitions were checked for all selected indicators. Chapter commentary was checked against the supplied PDF, including DHS page 265 and DOT page 358. It is identified as the agency's explanation, not an independently established causal conclusion. Other indicators use explicitly labeled same-goal suggestions and source links, without fabricated summaries.
+
+Charts align years while keeping separate vertical scales. Different reporting periods generate a warning. Definitions and missing coverage remain visible. The comparisons do not reinstate any removed ratio or manufacture one from unrelated quantities. The new tests cover curated IDs, synonyms, selection validation, target judgments, revision/source exports and CSV escaping; browser checks cover reader journeys, link restoration, selection changes and mobile layout.
