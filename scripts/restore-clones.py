@@ -23,11 +23,22 @@ import json, os, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DO_CLONE = "--clone" in sys.argv
 
-inv_path = os.path.join(ROOT, "machine", "repos.json")
-if not os.path.exists(inv_path):
-    sys.exit("machine/repos.json not found — run scripts/sync-audit.py on the "
-             "old machine and commit the result before migrating.")
-inv = json.load(open(inv_path))
+# Two copies of the inventory: the one committed here, and the one the weekly
+# snapshot pushes to the private claude-config repo (~/.claude/machine-kit).
+# Either can lag the other, so merge them and restore everything either knows.
+inv_paths = [os.path.join(ROOT, "machine", "repos.json"),
+             os.path.expanduser("~/.claude/machine-kit/repos.json")]
+invs = [json.load(open(p)) for p in inv_paths if os.path.exists(p)]
+if not invs:
+    sys.exit("No repos.json found in machine/ or ~/.claude/machine-kit/ — run "
+             "scripts/sync-audit.py on the old machine before migrating.")
+inv = max(invs, key=lambda i: len(i.get("nested", [])))
+seen = {r["relPath"] for r in inv["nested"]}
+for other in invs:
+    for r in other.get("nested", []):
+        if r["relPath"] not in seen:
+            inv["nested"].append(r)
+            seen.add(r["relPath"])
 
 missing = [r for r in inv["nested"]
            if not os.path.isdir(os.path.join(ROOT, r["relPath"]))]
@@ -57,7 +68,7 @@ if inv.get("no_remote"):
 
 if inv.get("external"):
     print("\nOUTSIDE ~/Experiments (this script does not restore these — "
-          "see MIGRATION.md):")
+          "see ~/.claude/NEW-MAC.md):")
     for e in inv["external"]:
         state = e["remote"] or ("in git, no remote" if e["in_git"] else "NOT in git")
         print(f"  {e['path']}  ({state})")

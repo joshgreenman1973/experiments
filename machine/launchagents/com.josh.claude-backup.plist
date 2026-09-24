@@ -2,6 +2,8 @@
 <!-- Weekly backup of ~/.claude (Claude Code memory, settings, skills,
      scheduled tasks) to the private repo joshgreenman1973/claude-config.
      What gets committed is controlled by the whitelist ~/.claude/.gitignore.
+     First writes this Mac's machine snapshot (see ~/.claude/NEW-MAC.md),
+     then pulls before pushing so two Macs sharing the repo both converge.
      Runs Monday 9:15am, after the 9:00 sync audit. Install:
        launchctl load -w ~/Library/LaunchAgents/com.josh.claude-backup.plist -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -13,7 +15,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd ~/.claude &amp;&amp; git add -A &amp;&amp; (git diff --cached --quiet || git commit -m "Weekly auto-backup") &amp;&amp; git push origin main</string>
+    <string>cd ~/.claude &amp;&amp; /usr/bin/python3 machine-kit/snapshot.py; git add -A &amp;&amp; (git diff --cached --quiet || git commit -m "Weekly auto-backup") &amp;&amp; git pull --rebase origin main &amp;&amp; git push origin main</string>
   </array>
   <key>StartCalendarInterval</key>
   <dict>
