@@ -4,23 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Methodology: The lots nobody fixes</title>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../house-style/house.css">
 <style>
-:root{--ink3:#7a4b2a}
-.doc{max-width:78ch;padding:18px 26px 50px;font-size:var(--t-body);line-height:1.6}
-.doc h2{font-family:var(--display);font-weight:700;font-size:1.3rem;margin:30px 0 8px;letter-spacing:-.015em}
-.doc h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:20px 0 6px}
+:root{--accent:var(--vermilion)}
+.doc{max-width:78ch;padding:18px clamp(16px,4vw,48px) 50px;font-size:var(--t-body);line-height:1.6}
+.doc h2{margin:30px 0 8px}
+.doc h3{font-size:1.12rem;margin:20px 0 6px}
 .doc p,.doc li{margin:0 0 10px}
-.doc code{font-family:ui-monospace,Menlo,monospace;font-size:.86em;background:var(--paper2);padding:1px 4px}
+.doc code,.head code{font-family:inherit;font-size:.94em;font-weight:600;color:var(--fg);background:var(--bg2);padding:1px 5px}
+table.h td:first-child{min-width:9em}
 table.h{margin:8px 0 16px}
-table.h td{vertical-align:top;font-size:.9rem}
+table.h td{vertical-align:top;font-size:.94rem}
+@media(max-width:560px){table.h{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
 <div class="sheet">
   <div class="strip"><span>Methodology</span><span><a href="index.html">&larr; Back to the map</a></span></div>
-  <div class="head" style="padding-right:26px">
+  <div class="head">
     <h1>How this was built</h1>
     <p class="sub">What counts as a signal, how records were tied to a tax lot, what the scores mean and what was left out. Every number on the map is produced by <code>scripts/build_data.py</code> from files pulled by <code>scripts/fetch_raw.py</code>; <code>scripts/verify.py</code> re-queries the sources and checks the totals.</p>
   </div>
@@ -65,7 +67,7 @@ table.h td{vertical-align:top;font-size:.9rem}
 <li><b>Neighbors.</b> 311 complaints of type Maintenance or Facility with descriptors about the ground itself: outdoor structure, garbage or litter, grass or weeds, graffiti or vandalism, unsecured facility, rodent sighting, broken glass, syringes. Hours-of-operation, indoor and recreation-center descriptors are excluded. Most of these complaints name no park, and 311 geocodes them to the nearest street address, usually across the street from the park (the median complaint sits 12 metres outside the nearest boundary). Each is placed, in order: inside a property boundary; else by the park name 311 recorded, when it matches one property in the borough; else to the nearest property within 30 metres; else dropped. Of <span id="pk-311"></span> complaints, <span id="pk-in"></span> fell inside a boundary, <span id="pk-nm"></span> were placed by name, <span id="pk-nr"></span> by proximity and <span id="pk-dr"></span> were dropped. A property counts as flagged at three or more complaints, since one call about a large park is not a signal.</li>
 <li><b>Health inspectors.</b> Initial rodent inspections failed for rat activity whose coordinate falls inside the boundary (<span id="pk-rat"></span> in the window). One is enough.</li>
 </ul>
-<p>Encampment and homeless-assistance complaints in parks are excluded for the same reason as elsewhere. Park size confounds complaint counts, so the parks tab ranks by the share of inspections failed rather than by volume. Parks properties are drawn as dashed outlines at every zoom; the fill darkens with the score.</p>
+<p>Encampment and homeless-assistance complaints in parks are excluded for the same reason as elsewhere. Park size confounds complaint counts, so the parks tab ranks by the share of inspections failed rather than by volume. Parks properties are drawn as dashed outlines at every zoom; the fill colour follows the score.</p>
 
 <h2>Ownership</h2>
 <p>Owner type comes from PLUTO. The field is blank for most privately held lots, C for city agencies, X for mixed city and private, O for other public authorities and M for mixed public. Blank is read as private. Owner names are as the Department of Finance records them and can lag a sale. The ownership tab reports the split among all vacant lots, among those with any signal, among those flagged by two or more agencies, and among those the sanitation department cleaned between 2004 and 2020.</p>
@@ -97,7 +99,7 @@ table.h td{vertical-align:top;font-size:.9rem}
 <p>Delete <code>build/raw/</code>, run <code>scripts/fetch_raw.py</code>, then <code>scripts/build_data.py</code>, then <code>scripts/verify.py</code>. Update the window constants at the top of both scripts first. The fetch takes a few minutes and fails loudly if any source returns nothing.</p>
 
 <h2>AI caution</h2>
-<p>The concept, the choice of sources and the layout are the author's, a human. The code, the data pulls and the file handling were done by Anthropic's Claude Code under close direction. Quality control done on this project: every source count was re-queried directly against the NYC Open Data API and compared with the built files (<code>scripts/verify.py</code>); the join keys were spot-checked by hand against the city's property records; the sanitation history join was checked by reading raw inspector notes and addresses for sampled lots and by measuring how many matches were exact versus approximate. The risks of using AI remain, and red flags in what you see here are welcome.</p>
+<p>The concept, the choice of sources and the layout are the author's, a human. The code, the data pulls and the file handling were done by Anthropic's Claude Code under close direction. Quality control done on this project: every source count was re-queried directly against the New York City Open Data API and compared with the built files (<code>scripts/verify.py</code>); the join keys were spot-checked by hand against the city's property records; the sanitation history join was checked by reading raw inspector notes and addresses for sampled lots and by measuring how many matches were exact versus approximate. The risks of using AI remain, and red flags in what you see here are welcome.</p>
 
   </div>
 </div>
