@@ -1,68 +1,56 @@
-# NYC Price Watch — Monthly Refresh Status
+# NYC Price Watch - Monthly Refresh Status
 
-**Run date:** 2026-08-25 (last Tuesday of August 2026)
-**Month covered:** August 2026 refresh (CPI reference period: July 2026; gas/ConEd reference period: August 2026)
-**Quarter:** Q3 — NOT a quarterly month; wages (QCEW, ECI) and family dinner skipped.
+**Run date:** 2026-09-29 (last Tuesday of September 2026)
+**Frame:** NM 28 -> 29; new month index 28 = Sep 2026
+**Reference periods:** gas Sep 2026 (idx 28); CPI and BEC ingredient index Aug 2026 (idx 27, plotted at reference period per METHODOLOGY 5.1)
+**Quarter:** September is a quarterly month (see the quarterly notes below)
 
 ---
 
-## Data Updated This Run
+## Data updated this run
 
 | Series | Prior value | New value | Change | Source |
 |--------|-------------|-----------|--------|--------|
-| Gas (NYC metro) | $4.241 (Jul 28) | $4.190 (Aug 25) | −$0.051 | AAA Manhattan proxy |
-| ConEd electric (300 kWh) | $127.00 | $127.00 | held | Summer rate continues |
-| CPI food at home (Jul 2026) | +4.0% (Jun) | +3.3% | −0.7 pp | BLS Aug 12 release |
-| CPI restaurants (Jul 2026) | +3.2% (Jun) | +3.6% | +0.4 pp | BLS Aug 12 release |
-| CPI all items (Jul 2026) | +4.1% (Jun) | +4.6% | +0.5 pp | BLS Aug 12 release |
-| CPI energy (Jul 2026) | +16.2% (Jun) | +15.7% | −0.5 pp | BLS Aug 12 release |
-| CPI shelter (Jul 2026) | +4.3% (Jun) | +4.8% | +0.5 pp | BLS Aug 12 release |
-| BEC ingredient index (Jul 2026) | $2.00 (Jun) | $1.99 | −$0.01 | BLS APU series |
-| Broadway weekly (ref only) | $127.68 (Jul 26) | $113.35 (Aug 23) | −$14.33 | Broadway League |
+| Gas (NYC, AAA Manhattan) | $4.190 (Aug 25) | $4.576 (Sep 29) | +$0.386 (+9.2%) | AAA NY page dated 9/29/26 |
+| CPI food at home | +3.3% (Jul) | +3.1% (Aug) | -0.2 pp | BLS CUURS12ASAF11 |
+| CPI restaurants | +3.6% (Jul) | +3.6% (Aug) | 0.0 pp | BLS CUURS12ASEFV |
+| CPI all items | +4.6% (Jul) | +4.3% (Aug) | -0.3 pp | BLS CUURS12ASA0 |
+| CPI energy | +15.7% (Jul) | +15.4% (Aug) | -0.3 pp | BLS CUURS12ASA0E |
+| CPI shelter | +4.8% (Jul) | +4.4% (Aug) | -0.4 pp | BLS CUURS12ASAH1 |
+| BEC ingredient index | $1.99 (Jul) | $2.01 (Aug) | +$0.02 | BLS APU (bacon $6.605, eggs $2.272, cheddar $5.983, bread $1.823, coffee $9.299) |
+| Broadway weekly (not plotted) | $113.35 (Aug 23) | $115.18 (Sep 27) | +$1.83 | Broadway League |
 
----
+CPI and APU values were read from the data.bls.gov series pages because the BLS API returned its daily-quota error. The July figures on those same pages reproduce last month's stored values exactly, which confirms the source matches.
 
-## Series Held (Not Updated)
+## Held (not updated)
 
 | Series | Last value | Reason |
 |--------|-----------|--------|
-| Rent (citywide, Manhattan, Brooklyn, Queens, Bronx) | Apr 2026 values | StreetEasy returned 403 for 2nd consecutive month |
-| Case-Shiller NY (NYXRSA) | +3.8% (Apr 2026) | FRED NYXRSA returned 403 |
-| ConEd gas (100 therms) | $253 (Jun 2026) | Rate-class mismatch flagged (see note below) |
-| Subway fare | $3.00 | No rate change |
-| All tolls | prior values | No confirmed change |
-| Citi Bike | prior value | No confirmed change |
-| Water | prior value | No confirmed change |
-| Taxi | prior value | No confirmed change |
-| Wages (AHE, AWE) | Jun 2026 values | Not a quarterly month; wages updated monthly but held this run |
-| Case-Shiller | Apr 2026 | FRED 403 |
+| Rents (citywide, Manhattan, Brooklyn, Queens, Bronx) | Apr 2026 | fetch failed: StreetEasy 403 (third straight month). Web search surfaced conflicting, unverifiable figures and non-StreetEasy (Real Deal/Corcoran) numbers; none were used |
+| Case-Shiller NY | +3.8% (Apr 2026) | fetch failed: FRED/ALFRED gave empty replies, S&P blocked. A web-fetch summary of FRED returned internally inconsistent values, so it was rejected |
+| ConEd electric (300 kWh) | $127 (Jun 2026) | fetch failed: tariff page 404. No new point plotted |
+| ConEd gas (100 therms) | $253 (Jun 2026) | fetch failed: tariff page 404. The rate-class question from August is still open |
+| Subway $3.00, Verrazzano $7.46, Citi Bike $239, water $13.85/ccf | unchanged | No official change found |
+| Taxi 3-mi | $18.25 | No official change. Note: the run prompt still lists $15.75, but the card was corrected to $18.25 on Jul 27 (state congestion surcharge); it was left as is |
+| CES hourly/weekly earnings and the BLS spotlight | Jun 2026 | Not refreshed: the pipeline is API-only and the API quota was exhausted |
 
----
+## ConEd seasonal note
 
-## Fetch Failures
+There is no seasonal crossing this run: September sits inside the summer supply season (Jun 1 - Sep 30). **The October run will cross back into winter rates.** Any October move in the electric bill will be seasonal, not a rate case.
 
-- **StreetEasy** (all 5 rent series): HTTP 403 — second consecutive month. Web search returned conflicting figures ($3,950 vs $4,200 citywide) from unverified press coverage; per hard rules, all rent series held at April 2026 values.
-- **FRED NYXRSA** (Case-Shiller NY): HTTP 403. Cannot substitute 20-city composite — must be NY-specific. Held at +3.8% (April 2026).
-- **ConEd electric tariff page**: HTTP 404 (URL structure appears to have changed). Summer rate season (Jun 1–Sep 30) continues unchanged; $127 carried forward with seasonal note.
+## Quarterly items
 
----
+- **Family dinner:** not touched. It is on the field-survey do-not-touch list, and the sister-project page showed no headline figure a text fetch could read.
+- **Wages (QCEW, ECI):** the page has no `wage_qcew` or `wage_eci` card. The income side is now the two CES cards (`wage_ahe`, `wage_awe`), and they were held this run (see above). Those wage cards are the income side of the page; pay and prices are shown side by side, never subtracted.
 
-## Data Quality Notes
+## Fetch failures
 
-**ConEd gas rate-class mismatch (flagged, not updated):**
-The tariff retrieval agent computed a bill of ~$270–290 for 100 therms under SC3 (large commercial), versus the prior $253 value which appears to reflect SC1 (small general service) rates. Since the "same spec each month" rule applies and the rate class cannot be definitively confirmed from this run, ConEd gas is held at $253 (June 2026). Action required: verify which rate class was used for the original ConEd gas baseline and document in METHODOLOGY.md before the next update.
+- BLS API: daily request threshold reached (used data.bls.gov pages instead)
+- StreetEasy: 403
+- FRED / ALFRED (NYXRSA): empty reply; S&P Global: security block
+- Con Edison rates page: 404
+- bls.gov regional release page and AAA via curl: 403 (AAA succeeded via web fetch)
 
-**AAA gas — no unified NYC metro composite:**
-AAA does not publish a single "NYC metro" composite price. Manhattan ($4.1898/gal) was used as the closest available proxy for NYC proper, consistent with the historical pattern of the series tracking above NY state average ($4.174/gal). This proxy choice is noted in the card's work rows.
+## Takeaway
 
-**ConEd electric — seasonal note:**
-The $127 rate is a summer-season rate (June 1–September 30, 2026). YoY comparisons crossing this seasonal boundary reflect a tariff-season change as well as any underlying cost movement; interpret with caution.
-
-**Broadway weekly — reference only:**
-$113.35 (week ending Aug 23, 2026) recorded in `broadway_weekly` in readings.json only. Not plotted. The 2025–26 season is still in progress; the season series remains at the 2024–25 average ($129.12) until the current season closes.
-
----
-
-## One-Sentence Takeaway
-
-NYC inflation edged up in July 2026 (+4.6% headline vs +4.1% in June), with shelter and restaurant prices firming while groceries and energy continued to cool; rent data remains unavailable for a second month due to StreetEasy blocking.
+Metro inflation cooled to 4.3% in August as shelter and energy eased, but pump prices jumped more than 9% in September to about $4.58, and rents and home prices remain dark for a third month because StreetEasy and FRED are blocking automated retrieval.
