@@ -33,7 +33,8 @@ from datetime import datetime, timezone, date
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 OUT = os.path.join(ROOT, 'data', 'mta', 'official.json')
 SODA = 'https://data.ny.gov/resource/{}.json'
-START = '2025-10'          # months of context shown on the chart
+START = '2025-10'          # months of context on the tracker-vs-MTA chart
+SEASON_START = '2019-01'   # months of context on the season chart
 EXPRESS = re.compile(r'^(BM|BXM|QM|SIM|X)\d', re.I)
 
 
@@ -110,9 +111,12 @@ LAST = latest[0]['m'][:7]
 MONTHS = months_between(START, LAST)
 print('MTA speeds published through', LAST)
 
-# ── MTA: headline speed (mileage weighted) ──
-head = {r['month'][:7]: float(r['mi']) / float(r['hrs']) for r in soda('cudb-vcni',
-        f"SELECT month, sum(total_mileage) AS mi, sum(total_operating_time) AS hrs WHERE month >= '{START}-01T00:00:00' GROUP BY month")}
+# ── MTA: headline speed (mileage weighted), back far enough to judge a record ──
+full = {r['month'][:7]: float(r['mi']) / float(r['hrs']) for r in soda('cudb-vcni',
+        f"SELECT month, sum(total_mileage) AS mi, sum(total_operating_time) AS hrs WHERE month >= '{SEASON_START}-01T00:00:00' GROUP BY month")}
+if len(full) < 60:
+    die(f'cudb-vcni returned only {len(full)} months of history')
+head = {m: v for m, v in full.items() if m >= START}
 
 # ── MTA: method-matched speed + route speeds, 6am-midnight ──
 mta_matched, mta_route = {}, {}
@@ -257,6 +261,47 @@ if ratios:
                   'text': f'Over the last {len(ratios)} months, the passenger-counter figure ran anywhere from {round(min(ratios) * 100)}% to {round(max(ratios) * 100)}% of the MTA\'s daily bus ridership count.',
                   'detail': 'So a month-to-month change in riders depends on which count you use. Say which one.'})
 
+# ── the season panel: is a record month a record, or just August? ──
+season_months = sorted(full)
+lv = full[LAST]
+earlier = [m for m in season_months if m < LAST and full[m] >= lv]
+# How far back you have to go to find a month this fast.
+highest_since = earlier[-1] if earlier else None
+aug_sep = []
+for y in range(int(SEASON_START[:4]), int(LAST[:4]) + 1):
+    a, sp = full.get(f'{y}-08'), full.get(f'{y}-09')
+    if a and sp:
+        aug_sep.append({'year': y, 'aug': round(a, 2), 'sep': round(sp, 2), 'delta': round(sp - a, 2)})
+# Each August against its own year's average, so "fast month" is separated from
+# "fast year". Years with fewer than 12 published months are skipped.
+aug_vs_year = []
+for y in range(int(SEASON_START[:4]), int(LAST[:4]) + 1):
+    yr = [v for m, v in full.items() if m.startswith(str(y))]
+    if f'{y}-08' in full and len(yr) >= 6:
+        aug_vs_year.append({'year': y, 'aug': round(full[f'{y}-08'], 2),
+                            'yearMean': round(st.mean(yr), 2), 'months': len(yr),
+                            'delta': round(full[f'{y}-08'] - st.mean(yr), 2)})
+# Ours, in change terms only: our level runs high, but an August-to-September
+# move is comparable with the MTA's August-to-September moves.
+ours_aug_sep = None
+aug_m, sep_m = f'{LAST[:4]}-08', f'{LAST[:4]}-09'
+if ours_usable(aug_m) and ours_month.get(sep_m):
+    sm = ours_month[sep_m]
+    partial = sm['days'] < calendar.monthrange(*map(int, sep_m.split('-')))[1]
+    if sm.get('avgSpeedHourNorm') is not None and sm['coveragePct'] >= 50:
+        ours_aug_sep = {'aug': ours_month[aug_m]['avgSpeedHourNorm'], 'sep': sm['avgSpeedHourNorm'],
+                        'delta': round(sm['avgSpeedHourNorm'] - ours_month[aug_m]['avgSpeedHourNorm'], 2),
+                        'sepDays': sm['days'], 'partial': partial, 'sepEnd': sm['endDate']}
+
+season = {
+    'monthly': [{'month': m, 'mph': round(full[m], 2)} for m in season_months],
+    'latest': {'month': LAST, 'mph': round(lv, 2), 'highestSince': highest_since,
+               'monthsSince': (season_months.index(LAST) - season_months.index(highest_since)) if highest_since else None},
+    'augSep': aug_sep,
+    'augVsYear': aug_vs_year,
+    'oursAugSep': ours_aug_sep,
+}
+
 series_months = [m for m in MONTHS if m in mta_matched]
 out = {
     'fetchedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
@@ -271,6 +316,7 @@ out = {
         'mta': [round(mta_matched[m], 2) for m in series_months],
         'notes': [None if ours_usable(m) or m not in ours_month else 'Tracker left out: too little of the month captured.' for m in series_months],
     },
+    'season': season,
     'metrics': metrics,
     'flags': flags,
     'numbers': {

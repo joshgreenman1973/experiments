@@ -56,7 +56,9 @@
 
   function frame(host, h) {
     host.innerHTML = '';
-    const w = host.clientWidth;
+    // A chart inside a section that is still hidden measures 0 wide; fall back
+    // to a sane width so nothing is drawn with negative geometry.
+    const w = Math.max(320, host.clientWidth || 640);
     const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h }, host);
     return { svg, w, h };
   }
@@ -111,7 +113,7 @@
     const P = D.periods;
     for (const [p, label] of [[P.baseline, 'first weeks'], [P.recent, 'recent weeks']]) {
       const bx0 = x(dt(p.start).getTime()), bx1 = x(dt(p.end).getTime() + 86400000);
-      el('rect', { class: 'band', x: bx0, y: m.t, width: bx1 - bx0, height: h - m.t - m.b }, svg);
+      el('rect', { class: 'band', x: bx0, y: m.t, width: Math.max(0, bx1 - bx0), height: Math.max(0, h - m.t - m.b) }, svg);
       if (cfg.first) txt(svg, bx0 + 4, m.t - 6, label, { class: 'band-label' });
     }
 
@@ -184,7 +186,7 @@
 
     // buses in service, as quiet bars on their own scale
     const maxB = Math.max(...R.map(r => r.buses));
-    const bw = Math.max(4, (x(1) - x(0)) * 0.62);
+    const bw = Math.max(4, Math.abs(x(1) - x(0)) * 0.62);
     const barTop = m.t + (h - m.t - m.b) * 0.45;
     for (let i = 0; i < R.length; i++) {
       const bh = (R[i].buses / maxB) * (h - m.b - barTop);
@@ -355,6 +357,96 @@
     });
   }
 
+  // ── records and seasons (MTA's own long series) ──
+  function seasonBlock() {
+    const S = D.official?.season;
+    if (!S || !S.monthly?.length) return;
+    document.getElementById('season-block').hidden = false;
+    const L = S.latest, av = S.augVsYear?.[S.augVsYear.length - 1];
+    const sinceTxt = L.highestSince
+      ? `the fastest month in ${L.monthsSince} months, since ${apMonth(L.highestSince)}`
+      : 'the fastest month in this series';
+    document.getElementById('season-copy').innerHTML =
+      `The MTA reported ${f2(L.mph)} mph for ${apMonth(L.month)}, ${sinceTxt}. `
+      + (av ? `But August is always the quick month: it has run ${f2(av.delta)} mph above its own year's average, and in ${apMonth(L.month).split(' ')[1]} the year so far averages ${f2(av.yearMean)} mph. ` : '')
+      + 'A record set in August is worth checking against the September that follows it.';
+    const ours = S.oursAugSep;
+    document.getElementById('augsep-note').innerHTML = ours
+      ? `The tracker's own August-to-September change is ${ours.delta > 0 ? '+' : ''}${f1(ours.delta)} mph (${f1(ours.aug)} to ${f1(ours.sep)}), through ${apDate(ours.sepEnd)}${ours.partial ? ', with September still running' : ''}. The MTA will not publish its September figure for about six weeks.`
+      : '';
+    renders.push(seasonChart, augSepChart);
+    seasonChart(); augSepChart();
+    bindZero(document.getElementById('season-block'));
+  }
+  const f2 = n => n == null ? '–' : n.toFixed(2);
+
+  function seasonChart() {
+    const host = document.getElementById('chart-season');
+    if (!host) return;
+    const S = D.official.season, M = S.monthly;
+    const { svg, w, h } = frame(host, +host.dataset.h);
+    const m = { t: 34, r: 60, b: 28, l: 38 };
+    const x = lin(0, M.length - 1, m.l + 6, w - m.r);
+    const yd = yDomain(M.map(p => p.mph), zero.season, 0.1);
+    const y = lin(yd.lo, yd.hi, h - m.b, m.t);
+    txt(svg, 0, 14, 'Speed, month by month', { class: 'ctitle' });
+    txt(svg, 0, 30, "miles per hour, the MTA's published figure", { class: 'csub' });
+    const g = el('g', { class: 'grid' }, svg);
+    for (const v of yd.ticks) { if (v < yd.lo || v > yd.hi) continue; el('line', { x1: m.l, x2: w - m.r, y1: y(v), y2: y(v), class: v === 0 ? 'zero-line' : null }, g); txt(svg, m.l - 8, y(v) + 4, String(v), { 'text-anchor': 'end' }); }
+    M.forEach((p, i) => { if (p.month.endsWith('-01')) { el('line', { x1: x(i), x2: x(i), y1: m.t, y2: h - m.b, stroke: 'rgba(255,255,255,0.05)' }, svg); txt(svg, x(i) + 3, h - 8, p.month.slice(0, 4)); } });
+    // the latest month's level, carried back across the chart
+    const L = S.latest;
+    el('line', { x1: m.l, x2: w - m.r, y1: y(L.mph), y2: y(L.mph), stroke: COL.mta, 'stroke-dasharray': '3 4', opacity: 0.5 }, svg);
+    el('path', { d: M.map((p, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(p.mph).toFixed(1)).join(''), fill: 'none', stroke: COL.mta, 'stroke-width': 1.8, 'stroke-linejoin': 'round' }, svg);
+    M.forEach((p, i) => { if (p.month.endsWith('-08')) el('circle', { cx: x(i), cy: y(p.mph), r: 3.4, fill: COL.mta }, svg); });
+    const li = M.length - 1;
+    el('circle', { cx: x(li), cy: y(M[li].mph), r: 4.5, fill: COL.mta, stroke: COL.ink, 'stroke-width': 1.5 }, svg);
+    txt(svg, x(li) - 8, y(M[li].mph) - 12, `${AP[+L.month.slice(5) - 1]} ${L.month.slice(0, 4)}: ${f2(L.mph)}`, { class: 'rlabel', 'text-anchor': 'end' });
+    const firstAug = M.findIndex(p => p.month.endsWith('-08'));
+    if (firstAug > -1) txt(svg, x(firstAug) + 8, y(M[firstAug].mph) - 10, 'Augusts', { class: 'rlabel' });
+    hoverLayer(svg, m, w, h, (px, py, e) => {
+      const i = Math.max(0, Math.min(M.length - 1, Math.round(x.inv(px))));
+      showTip(e, `<div class="t-h">${apMonth(M[i].month)}</div>` + row('MTA speed', f2(M[i].mph) + ' mph')
+        + (M[i].month.endsWith('-08') ? '<div class="t-n">August</div>' : ''));
+      return { x: x(i) };
+    });
+  }
+
+  function augSepChart() {
+    const host = document.getElementById('chart-augsep');
+    if (!host) return;
+    const S = D.official.season;
+    const bars = S.augSep.map(r => ({ label: String(r.year), v: r.delta, col: COL.mta, r }));
+    if (S.oursAugSep) bars.push({ label: String(S.latest.month.slice(0, 4)), v: S.oursAugSep.delta, col: COL.ours, ours: true });
+    const { svg, w, h } = frame(host, +host.dataset.h);
+    const m = { t: 34, r: 16, b: 38, l: 42 };
+    const lo = Math.min(-0.45, ...bars.map(b => b.v)) * 1.15, hi = Math.max(0.15, ...bars.map(b => b.v)) * 1.15;
+    const y = lin(lo, hi, h - m.b, m.t);
+    const step = (w - m.l - m.r) / bars.length;
+    txt(svg, 0, 14, 'August to September, every year', { class: 'ctitle' });
+    txt(svg, 0, 30, 'change in mph', { class: 'csub' });
+    const g = el('g', { class: 'grid' }, svg);
+    for (const v of niceTicks(lo, hi, 4).ticks) { if (v < lo || v > hi) continue; el('line', { x1: m.l, x2: w - m.r, y1: y(v), y2: y(v), class: Math.abs(v) < 1e-9 ? 'zero-line' : null }, g); txt(svg, m.l - 8, y(v) + 4, v > 0 ? '+' + v : String(v), { 'text-anchor': 'end' }); }
+    bars.forEach((b, i) => {
+      const cx = m.l + step * (i + 0.5), bw = Math.max(4, Math.min(46, step * 0.56));
+      const y0 = y(0), y1 = y(b.v);
+      el('rect', { x: cx - bw / 2, y: Math.min(y0, y1), width: bw, height: Math.abs(y1 - y0), fill: b.col, 'fill-opacity': b.ours ? 0.9 : 0.6 }, svg);
+      txt(svg, cx, h - 20, b.label, { 'text-anchor': 'middle' });
+      if (b.ours) txt(svg, cx, h - 7, 'ours', { 'text-anchor': 'middle', fill: COL.ours });
+      txt(svg, cx, y1 + (b.v < 0 ? 13 : -6), (b.v > 0 ? '+' : '') + f1(b.v), { 'text-anchor': 'middle', fill: b.col, class: 'dlabel' });
+    });
+    hoverLayer(svg, m, w, h, (px, py, e) => {
+      const i = Math.max(0, Math.min(bars.length - 1, Math.floor((px - m.l) / step)));
+      const b = bars[i];
+      showTip(e, `<div class="t-h">${b.label}${b.ours ? ', our estimate' : ''}</div>`
+        + row('August', f1(b.ours ? S.oursAugSep.aug : b.r.aug) + ' mph')
+        + row('September', f1(b.ours ? S.oursAugSep.sep : b.r.sep) + ' mph')
+        + row('Change', (b.v > 0 ? '+' : '') + f1(b.v) + ' mph')
+        + (b.ours ? '<div class="t-n">The tracker reads higher than the MTA; compare the change, not the level.</div>' : ''));
+      return { x: m.l + step * (i + 0.5), noGuide: true };
+    });
+  }
+
   // ── MTA comparison (present once data/mta/official.json exists) ──
   function officialBlock() {
     const O = D.official;
@@ -475,7 +567,7 @@
       document.getElementById('learned').innerHTML = `<li>The findings file did not load (${e.message}). Try again shortly.</li>`;
       return;
     }
-    copy(); chips(); slowestList(); officialBlock();
+    copy(); chips(); slowestList(); seasonBlock(); officialBlock();
     bindZero(document);
     renderAll();
     let t; new ResizeObserver(() => { clearTimeout(t); t = setTimeout(renderAll, 120); }).observe(document.querySelector('.page'));
