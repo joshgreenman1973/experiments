@@ -161,8 +161,10 @@ if not wa or not abst:
 
 # ── MTA: fare-based daily ridership, weekday average per month ──
 daily = soda('sayj-mze2', f"SELECT date, count WHERE mode = 'Bus' AND date >= '2024-10-01T00:00:00' ORDER BY date LIMIT 50000")
+# the MTA publishes a day's row before the count lands, and SODA omits null fields
+daily = [r for r in daily if r.get('count') not in (None, '')]
 if len(daily) < 300:
-    die(f'sayj-mze2 returned only {len(daily)} days')
+    die(f'sayj-mze2 returned only {len(daily)} counted days')
 wd_sum, days_seen = defaultdict(float), defaultdict(set)
 for r in daily:
     d = datetime.strptime(r['date'][:10], '%Y-%m-%d').date()
