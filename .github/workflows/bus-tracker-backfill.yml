@@ -1,0 +1,159 @@
+name: Bus Tracker Backfill
+
+# Reprocess daily files from the raw snapshots on bus-data, in parallel.
+# Use it whenever process.js changes (the daily files carry methodVersion, and
+# rollup.js refuses to publish a series that mixes versions), or to fill days
+# the daily job missed. With publish on, the regenerated daily files and every
+# summary built from them are committed to main in one commit.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'First date (YYYY-MM-DD); blank = earliest day on bus-data'
+        required: false
+        default: ''
+      end:
+        description: 'Last date (YYYY-MM-DD); blank = yesterday, Eastern'
+        required: false
+        default: ''
+      code_ref:
+        description: 'Branch or commit whose processor code to run'
+        required: false
+        default: 'main'
+      publish:
+        description: 'Commit the results to main (off = artifact only)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      chunks: ${{ steps.list.outputs.chunks }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: .github
+      - name: List snapshot days on bus-data
+        id: list
+        env:
+          START: ${{ github.event.inputs.start }}
+          END: ${{ github.event.inputs.end }}
+        run: |
+          git fetch --filter=blob:none --no-tags --depth=1 origin bus-data
+          END=${END:-$(TZ=America/New_York date -d yesterday +%F)}
+          git ls-tree --name-only origin/bus-data nyc-bus-tracker/data/snapshots/ \
+            | sed -E 's#.*/##; s#\.jsonl$##' | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort -u \
+            | awk -v s="${START:-0000-00-00}" -v e="$END" '$0>=s && $0<=e' > dates.txt
+          echo "$(wc -l < dates.txt) days: $(head -1 dates.txt) .. $(tail -1 dates.txt)"
+          test -s dates.txt
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          dates = open('dates.txt').read().split()
+          size = 6
+          chunks = [{'id': i // size, 'dates': ' '.join(dates[i:i + size])} for i in range(0, len(dates), size)]
+          print('chunks=' + json.dumps(chunks))
+          PY
+
+  process:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.chunks) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.code_ref }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: cd nyc-bus-tracker/collector && npm ci
+      - name: Reprocess ${{ matrix.chunk.dates }}
+        run: |
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git fetch --filter=blob:none --no-tags --depth=1 origin bus-data
+          mkdir -p out
+          for D in ${{ matrix.chunk.dates }}; do
+            rm -rf nyc-bus-tracker/data/snapshots && mkdir -p nyc-bus-tracker/data/snapshots
+            git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${D}/" 2>/dev/null || true
+            git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${D}.jsonl" 2>/dev/null || true
+            git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
+            node nyc-bus-tracker/collector/process.js "$D"
+            cp "nyc-bus-tracker/data/daily/${D}.json" out/
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daily-${{ matrix.chunk.id }}
+          path: out/*.json
+          retention-days: 14
+
+  collect:
+    needs: process
+    if: ${{ always() && needs.process.result != 'cancelled' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: daily-*
+          merge-multiple: true
+          path: daily
+      - run: ls daily | wc -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dailies-all
+          path: daily/*.json
+          retention-days: 14
+
+  publish:
+    needs: collect
+    if: ${{ github.event.inputs.publish == 'true' && needs.process.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: dailies-all
+          path: fresh
+      - name: Swap in the reprocessed daily files
+        run: |
+          D=nyc-bus-tracker/data/daily
+          cp fresh/*.json "$D/"
+          # A daily file whose day is no longer on bus-data cannot be rebuilt
+          # with the current method; drop it rather than mix methods.
+          for f in "$D"/*.json; do
+            v=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('methodVersion',1))" "$f")
+            [ "$v" = "2" ] || { echo "removing old-method $f"; git rm -q "$f"; }
+          done
+      - run: cd nyc-bus-tracker/collector && npm ci
+      - name: Rebuild summaries, route files, events and downloads
+        run: bash nyc-bus-tracker/scripts/rebuild.sh
+      - name: Commit and push
+        run: |
+          git config user.name "Bus Tracker Bot"
+          git config user.email "bus-bot@users.noreply.github.com"
+          git add -A nyc-bus-tracker/data/
+          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
+          git diff --staged --quiet && { echo "nothing changed"; exit 0; }
+          git commit -q -m "Bus tracker: reprocess daily files (${{ github.event.inputs.start || 'all' }} to ${{ github.event.inputs.end || 'yesterday' }})"
+          for i in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase -X theirs origin main || true
+            bash nyc-bus-tracker/scripts/rebuild.sh && git add -A nyc-bus-tracker/data/ && git commit -q --amend --no-edit || true
+          done
+          exit 1
