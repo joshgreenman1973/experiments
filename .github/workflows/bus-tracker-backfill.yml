@@ -76,7 +76,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: cd nyc-bus-tracker/collector && npm ci
       - name: Reprocess ${{ matrix.chunk.dates }}
         run: |
           git config remote.origin.promisor true
@@ -140,9 +139,13 @@ jobs:
             v=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('methodVersion',1))" "$f")
             [ "$v" = "2" ] || { echo "removing old-method $f"; git rm -q "$f"; }
           done
-      - run: cd nyc-bus-tracker/collector && npm ci
       - name: Rebuild summaries, route files, events and downloads
         run: bash nyc-bus-tracker/scripts/rebuild.sh
+      - name: Rebuild the MTA comparison and findings
+        run: |
+          python3 nyc-bus-tracker/scripts/fetch_mta_official.py
+          node nyc-bus-tracker/scripts/build_findings.js
+          node nyc-bus-tracker/scripts/export_csv.mjs
       - name: Commit and push
         run: |
           git config user.name "Bus Tracker Bot"
@@ -154,6 +157,6 @@ jobs:
           for i in 1 2 3; do
             git push origin HEAD:main && exit 0
             git pull --rebase -X theirs origin main || true
-            bash nyc-bus-tracker/scripts/rebuild.sh && git add -A nyc-bus-tracker/data/ && git commit -q --amend --no-edit || true
+            (bash nyc-bus-tracker/scripts/rebuild.sh && git add -A nyc-bus-tracker/data/ && git commit -q --amend --no-edit) || true
           done
           exit 1

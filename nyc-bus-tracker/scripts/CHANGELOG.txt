@@ -1,0 +1,51 @@
+NYC BUS TRACKER: METHOD AND COLLECTION CHANGELOG
+Every change to how data is collected or computed, newest first. Dates are
+when the change took effect. The daily files carry methodVersion; rollups
+refuse to mix versions.
+
+2026-10-06  Method version 2. Every day since 2026-04-22 reprocessed from the
+            raw snapshots on the bus-data branch:
+            - Hours are Eastern clock hours (they had been UTC, which would have
+              shifted every hour label when daylight saving ended).
+            - Weekdays and weekends are averaged separately and blended 5:2.
+              Previously each hour pooled whatever days were caught; in thin
+              spring weeks the 7 and 8 a.m. hours were weekend-only.
+            - System figures count each local, limited and SBS route once.
+              Previously the hourly speed pooled every bus reading, so busy
+              routes weighed more, and express routes, shuttles and layovers
+              were included.
+            - Elapsed time comes from each bus's GPS timestamp; readings where
+              the position did not refresh, and layover readings, are dropped.
+            - New headline measure, speed with stops (distance over time,
+              stopped time included). Moving speed kept for comparison.
+            - Comparability: every hour must be caught on 3+ weekdays and 1+
+              weekend day (was: 50% of day-hours caught overall); up to two
+              missed hours per day type are filled from the usual shape of the
+              day and listed.
+            - Major holidays and weekdays with sharply reduced service are left
+              out of weekday figures.
+            - Route, borough and geography figures are hour-balanced too.
+            - Temporary shuttles identified from the MTA timetable (GTFS) and
+              left out; Q06-Q09 joined to ridership data that spells them Q6-Q9.
+            - Bunching, gap, wait and reliability fields removed from all files.
+            - ISO week labels fixed for years starting on a Friday.
+            - Daily files for 2026-03-19 (one test snapshot) not carried over.
+2026-10-06  Collection: one self-renewing collector replaces 34 scheduled runs
+            a day; bursts at :09 and :39 past each hour, 6 a.m.-10:59 p.m.
+            Eastern. Snapshot format v2 adds trip id, scheduled departure,
+            progress rate, distance to next stop and the passenger-counter
+            estimate. Collection health is published and the daily job fails
+            when a day has under 12 of 17 hours.
+2026-10-06  Ridership: paid fare taps and the counter-to-tap ratio added; Queens
+            bus network redesign dates marked on affected routes.
+2026-10-01  GitHub's scheduler began starting only 3 to 5 collection runs a day
+            (Oct. 1-6 caught 3 to 5 hours a day).
+2026-09-16  Bunching, wait and big-gap figures retired from the pages after an
+            audit. Borough speeds exclude express routes.
+2026-07-13  Collector timeouts fixed (each run had been downloading the whole
+            snapshot archive).
+2026-06-30  Collector timeouts fixed; most of June 2026 was caught only in the
+            evening.
+2026-05-26  Collection moves to two bursts an hour, at :09 and :39.
+2026-04-25  Snapshot pairing window cut from 75 to 10 minutes.
+2026-04-22  Automatic hourly collection begins.

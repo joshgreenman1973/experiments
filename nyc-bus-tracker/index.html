@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>All Through the Town &mdash; NYC Bus Performance Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="description" content="All Through the Town: real-time animated map of every New York City bus, with observed speeds and weekly trends." />
+  <meta name="description" content="All Through the Town: every New York City bus on a live map, with weekly speed trends by route since April 2026." />
 
   <!-- Preconnect to speed up API and tile fetches -->
   <link rel="preconnect" href="https://bustime.mta.info" crossorigin />
@@ -21,14 +21,14 @@
   <!-- Google Fonts loaded here instead of @import in CSS (avoids render-blocking chain) -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,300&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="style.css?v=20260916" />
+  <link rel="stylesheet" href="style.css?v=20261006e" />
 </head>
 <body>
 
   <!-- Loading overlay -->
   <div id="loading-overlay" class="loading-overlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text" id="loading-text">Loading bus data&hellip;</div>
+    <div class="loading-text" id="loading-text">Loading&hellip;</div>
   </div>
 
   <!-- Map -->
@@ -47,6 +47,8 @@
       <div class="subtitle">Every New York City bus, live, with observed speeds by route. Click any route to spotlight it on the map.</div>
       <a class="companion-link" href="ridership.html">Companion: The People on the Bus &mdash; who boards where, hour by hour &rarr;</a>
       <a class="companion-link findings-link" href="findings.html">Charts: Round and Round &mdash; what the tracker has learned so far, updated weekly &rarr;</a>
+      <a class="companion-link route-hub-link" href="route.html">Every route&rsquo;s speed history, week by week &rarr;</a>
+      <a class="companion-link compare-link" href="compare.html">Compare any two periods, any routes &rarr;</a>
     </div>
 
     <!-- System-wide stats -->
@@ -57,10 +59,10 @@
         <div class="detail" id="stat-routes-count">&mdash; routes</div>
       </div>
       <div class="stat-card">
-        <div class="label">Avg Speed</div>
+        <div class="label">Speed right now</div>
         <div class="value" id="stat-speed"><span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
-        <div class="detail" id="speed-detail">miles per hour, observed</div>
-        <div class="speed-hint" id="speed-hint">calculating&hellip;</div>
+        <div class="detail" id="speed-detail">mph, local routes, with stops</div>
+        <div class="speed-hint" id="speed-hint">measuring&hellip; (about a minute)</div>
       </div>
     </div>
 
@@ -106,21 +108,28 @@
         <details class="methodology">
           <summary><strong>Methodology and comparison to MTA official metrics</strong></summary>
 
-          <p>Positions come from the MTA BusTime API. Speeds here are <strong>our own estimates</strong>, not official MTA figures.</p>
+          <p>Positions come from the Metropolitan Transportation Authority&rsquo;s BusTime feed. Speeds here are <strong>our own estimates</strong>, not official MTA figures.</p>
 
-          <h4>Speed</h4>
-          <p><strong>Live map:</strong> each time the page polls the feed, every bus seen in the previous poll gets a speed: distance traveled divided by elapsed time. Distance is measured along the route's shape where the shape has loaded, and straight-line otherwise. Readings of 60 mph or more are discarded as GPS errors. Each route's speed is the average of its buses, and the system figure is the plain average of routes, so every route counts equally.</p>
-          <p><strong>Weekly figures:</strong> a scheduled job records the whole fleet in short bursts twice an hour, from about 6 a.m. to midnight. For each bus seen in two snapshots no more than 10 minutes apart, it divides straight-line distance by elapsed time, dropping readings under 0.5 mph (parked or laying over) and over 60 mph. Each hour of the day gets equal weight, so weeks compare fairly even when collection missed some hours. A week counts only if all seven days are present and at least half the hours were captured.</p>
-          <p><strong>Checked against the MTA:</strong> for every month both cover, the tracker's weekly method has been compared with the MTA's published hourly route speeds (data.ny.gov <code>r6db-kkzj</code>). Ranked from slowest to fastest, the routes come out in nearly the same order (rank correlation 0.99). On local routes the tracker reads about 9% faster than the MTA, most likely because it drops time buses spend stopped, which the MTA counts. Staten Island express routes read slower, for reasons not yet known. The full comparison, refreshed weekly, is on <a href="findings.html">Round and Round</a>.</p>
+          <h4>Speed with stops</h4>
+          <p>Every speed on this site is distance over time with time stopped at stops and lights included, because that is what a rider experiences. A bus seen in two snapshots a half-minute or so apart gives one reading: the straight-line distance between its two GPS positions over the time between its two GPS timestamps. Readings from a bus on layover at the end of the line, readings where the bus&rsquo;s position did not refresh, and readings of 60 mph or more are dropped. For each route and hour, speed is total distance over total time. Until October 2026 the site showed moving speed only, leaving out time stopped; that figure ran about 9% faster than the MTA&rsquo;s and is still published for comparison.</p>
+
+          <h4>Right now</h4>
+          <p>The live figure pools the last three minutes of readings for each route and averages local, limited and Select Bus Service routes, each counting once. &ldquo;Typical&rdquo; is the same hour and day type in the latest comparable week.</p>
+
+          <h4>Week by week</h4>
+          <p>A collector records the whole fleet in short bursts at 9 and 39 minutes past every hour from 6 a.m. to 11 p.m. Eastern. Weekly figures count each local, limited and Select Bus Service route once and give every hour equal weight, with weekdays and weekends kept apart. A week is comparable only when all seven days are in and every hour of the day was caught on at least three weekdays and one weekend day. Up to two hours a week may be missed for each day type; a missed hour is assumed to have moved like the rest of that week&rsquo;s day relative to its usual level, which leaves a fully caught week&rsquo;s figure exactly as it is. Express routes and temporary shuttles are left out of the index. Major holidays, and weekdays when far fewer routes ran than usual, are left out of the weekday figures.</p>
+
+          <h4>Checked against the MTA</h4>
+          <p>Built the same way, the tracker&rsquo;s figures line up with the MTA&rsquo;s published hourly route speeds (data.ny.gov <code>r6db-kkzj</code>) route by route. The comparison, refreshed weekly, is on <a href="findings.html">Round and Round</a>.</p>
 
           <h4>What this page no longer shows</h4>
-          <p>Earlier versions showed bunching, big gaps and an estimated rider wait. An audit in September 2026 found those numbers could not be defended. The bunching count flagged a Limited bus passing a local on the same route, and buses parked together at the end of the line. The wait and gap estimates lined buses up on a north-south or east-west axis rather than along the route (wrong in 45% of cases tested), measured straight lines between them, and skipped routes with fewer than three buses running. They have been removed while a replacement wait measure is built.</p>
+          <p>Earlier versions showed bunching, big gaps and an estimated rider wait. An audit in September 2026 found those numbers could not be defended, and they have been removed while a replacement wait measure is built.</p>
 
           <h4>General caveats</h4>
           <ul>
             <li>Positions are GPS readings relayed by the MTA; the feed occasionally drops a bus or reports a stale position.</li>
-            <li>The tracker has no schedule data, so it cannot say whether buses are on time.</li>
-            <li>Routes are grouped into boroughs by the letters in their names. Express routes (BM, BxM, QM, SIM, X) are kept out of the borough averages.</li>
+            <li>Routes are grouped into boroughs by the letters in their names. Express routes (BM, BxM, QM, SIM, X) form their own group.</li>
+            <li>The full method and every change to it are in the data dictionary and changelog under Download the data.</li>
           </ul>
         </details>
 
@@ -148,78 +157,53 @@
     </button>
     <div class="tray-body" id="tray-body" role="region" aria-label="Weekly performance trends">
       <div class="tray-body-inner">
+        <div class="tray-health" id="tray-health"></div>
+
         <div class="tray-section">
           <div class="tray-section-header">
-            <div class="tray-section-title">This week vs. last week</div>
+            <div class="tray-section-title">The latest comparable week</div>
             <div class="tray-section-sub" id="tray-current-period">&mdash;</div>
           </div>
-          <div class="tray-cards" id="tray-cards">
-            <div class="tray-empty" id="tray-empty">
-              <div class="tray-empty-title">No full weeks yet.</div>
-              <div class="tray-empty-body" id="tray-empty-body">
-                Automatic collection started mid-week on Apr&nbsp;22, 2026, so the
-                current ISO week will never have seven full days of data. The first
-                complete Monday&ndash;Sunday week is <strong>Apr&nbsp;27 &ndash; May&nbsp;3</strong>,
-                which rolls up the morning of <strong>Mon, May&nbsp;4, 2026</strong>.
-                Partial weeks appear in the table below with an asterisk.
-              </div>
-            </div>
+          <div class="tray-cards" id="tray-cards"><div class="tray-empty">Loading&hellip;</div></div>
+          <div class="tray-table-note">
+            Speeds are local, limited and Select Bus Service routes, each counting once, with time stopped included and every hour from 6 a.m. to 11 p.m. counting equally. Weekday figures use the latest week whose weekdays were fully caught; when one or two hours were missed, each is assumed to have moved like the rest of that week&rsquo;s day (the notes in the table below list them). Each figure is set against the average of the four comparable weeks before it. A move smaller than that series&rsquo; usual week-to-week wobble is labeled &ldquo;no real change.&rdquo; The faint line is every comparable week since collection began; the bold line is its straight-line trend.
           </div>
         </div>
 
         <div class="tray-section">
           <div class="tray-section-header">
             <div class="tray-section-title">Speed over time, by borough</div>
-            <div class="tray-section-sub">Each borough's average speed plus its two busiest routes, week by week &mdash; the baseline for measuring whether buses get faster or slower (and for a pre/post free-bus comparison). Borough speeds are the plain average of that borough's local, limited and Select Bus Service routes for the week; express routes are left out. Only full weeks with adequate coverage (&ge;50% of operating hours sampled) are shown, so thinly-collected weeks don't distort the trend &mdash; the same &ldquo;comparable&rdquo; bar used in the table below.</div>
+            <div class="tray-section-sub">Weekday speed with stops for each borough&rsquo;s local, limited and Select Bus Service routes, plus its two busiest routes. Comparable weeks only. Click a route for its full history.</div>
           </div>
-          <div class="boro-trends" id="tray-boro-trends">
-            <div class="boro-trends-empty" id="tray-boro-empty">Borough and route trends appear once at least two full weeks are collected.</div>
-          </div>
+          <div class="boro-trends" id="tray-boro-trends"></div>
           <div class="tray-table-note">
-            The two watch routes per borough are its busiest by average buses on the road &mdash;
-            Manhattan M15+ &amp; M4, the Bronx BX12+ &amp; BX36, Brooklyn B6 &amp; B41, Queens Q44+ &amp; Q58,
-            Staten Island S79+ &amp; S53 (&ldquo;+&rdquo; marks a Select Bus Service route). The list is fixed so
-            the series stays comparable over time. Each chart plots that route's weekly speed as a faint
-            line with a bold straight <strong>trend line</strong> (a least-squares fit) laid over it; the figure is the
-            net change that trend implies across every full week collected &mdash; green if speeding up, red if
-            slowing down. Full per-route history for all ~300 routes lives in <code>data/summary/weekly-routes.json</code>.
+            Watch routes, fixed so the series stays comparable: Manhattan M15+ and M4, the Bronx BX12+ and BX36, Brooklyn B6 and B41, Queens Q44+ and Q58, Staten Island S79+ and S53 (&ldquo;+&rdquo; marks Select Bus Service). The figure under each is the net change its trend line implies across the comparable weeks shown. Every other route is on <a href="route.html">its own page</a>.
           </div>
         </div>
 
         <div class="tray-section">
           <div class="tray-section-header">
             <div class="tray-section-title">People carried, by route</div>
-            <div class="tray-section-sub">How many riders each route actually moves &mdash; average weekday boardings from the passenger counters on the buses (MTA stop-level ridership data, published monthly about a month behind). Alongside speed, this is the other leg of the pre/post free-bus comparison: if buses go free, this is where it shows first. Explore the stop-by-stop version on <a href="ridership.html">The People on the Bus</a>.</div>
+            <div class="tray-section-sub">Average weekday boardings from the passenger counters on the buses (MTA stop-level ridership, published monthly about a month behind), beside paid fare taps (OMNY and MetroCard). Explore stop by stop on <a href="ridership.html">The People on the Bus</a>.</div>
           </div>
-          <div class="ridership-trends" id="tray-ridership">
-            <div class="boro-trends-empty" id="tray-ridership-empty">Ridership data has not loaded.</div>
-          </div>
-          <div class="tray-table-note" id="tray-ridership-note">
-            Figures are boardings recorded by Automatic Passenger Counters, summed per route per month
-            and divided by that month's calendar weekdays (holidays counted as weekdays) &mdash; the MTA
-            treats these as estimates. Only complete calendar months are shown: the MTA series opens on
-            Sept 30, 2024, and that one-day month is dropped rather than divided by a full month's
-            weekdays. Trend lines therefore span October 2024 onward. The
-            watch routes match the speed section above; the table ranks all routes by riders in the
-            latest month. Full per-route monthly history lives in <code>data/ridership/routes-monthly.json</code>,
-            refreshed automatically when the MTA publishes a new month.
+          <div class="ridership-trends" id="tray-ridership"><div class="boro-trends-empty">Loading&hellip;</div></div>
+          <div class="tray-table-note">
+            Counters and fare taps are both partial counts. Taps miss riders who don&rsquo;t pay: the MTA estimated that 49.6% of local bus riders skipped the fare in the second quarter of 2026 (data.ny.gov <code>uv5h-dfhp</code>). Counters miss riders too: not every bus carries a working one, and the MTA publishes their totals as estimates. Yet systemwide the counters ran only 6% to 13% above taps from June to August 2026, and below taps on more than half of routes in August, so neither is a full count. The ratio between them also drifts by route: on the M15+ it fell from 1.26 counter boardings per tap in July 2025 to 0.99 in July 2026, so a route&rsquo;s counter trend can move for reasons that have nothing to do with riders. If buses go fare-free, taps stop and the counters are the only route-level count left, which is why the ratio is tracked here now. Each change compares the latest three months two ways: with the same three months a year earlier, which is fair to the season, and with the twelve months before, which shows the recent run. &ldquo;Route changed&rdquo; marks a route redrawn by the Queens bus network redesign (June 29 and Aug. 31, 2025) inside that window.
           </div>
         </div>
 
         <div class="tray-section">
           <div class="tray-section-header">
             <div class="tray-section-title">Geography cuts</div>
-            <div class="tray-section-sub">Two ways of slicing the same weekly speed data by where routes run. <strong>Bus priority corridors</strong>: routes whose shape spends at least 30% of its length within about 60 meters of a marked bus lane or busway (NYC DOT bus lane data), against routes with little or none (&le;10%). Route and lane geometry are both densified to 15-meter spacing first, so this is a share of length rather than of raw map vertices. Routes between 10% and 30% appear in neither tile. Proximity is not proof a route uses a lane &mdash; a lane on a cross street it merely crosses can register. <strong>Congestion zone</strong>: routes the MTA lists as operating in or crossing the Central Business District, against everything else. Each figure is the simple mean of member routes' weekly average speeds &mdash; directional, not hour-normalized. Compare each group with <em>its own past</em>, not group against group: bus lanes are installed where congestion is worst and congestion-zone routes run the densest streets, so a raw cross-group gap says more about geography than about the lanes.</div>
+            <div class="tray-section-sub"><strong>Bus priority corridors</strong>: routes whose shape runs at least 30% of its length within about 60 meters of a marked bus lane or busway (New York City Department of Transportation bus lane data), against routes with little or none (10% or less). <strong>Congestion zone</strong>: routes the MTA lists as operating in or crossing the Central Business District, against the rest. Each figure is the plain mean of member routes&rsquo; weekday speed with stops. Compare each group with its own past: bus lanes go where traffic is worst, so a gap between groups says more about geography than about the lanes.</div>
           </div>
-          <div class="boro-trend" id="tray-geo-cuts">
-            <div class="boro-trends-empty" id="tray-geo-empty">Geography cuts appear once route classes and weekly data are loaded.</div>
-          </div>
+          <div class="boro-trend" id="tray-geo-cuts"></div>
         </div>
 
         <div class="tray-section">
           <div class="tray-section-header">
             <div class="tray-section-title">Week by week</div>
-            <div class="tray-section-sub">Every row shows the underlying sample size and date range &mdash; nothing is hidden.</div>
+            <div class="tray-section-sub">Every week since collection began. Grey rows are not comparable; the note says why.</div>
           </div>
           <div class="tray-table-wrap">
             <table class="tray-table" id="tray-table">
@@ -227,63 +211,70 @@
                 <tr>
                   <th>ISO week</th>
                   <th>Dates</th>
-                  <th class="num" title="Days of data captured (out of 7)">Days</th>
-                  <th class="num" title="Operating-hour coverage: share of 6am-11pm ET clock-hours actually captured. Low coverage means compare with caution.">Cov %</th>
-                  <th class="num" title="Time-of-day normalized avg speed (mph): equal weight per hour of day, so weeks are comparable regardless of which hours got sampled. This is the number to compare across weeks.">Speed &dagger;</th>
-                  <th class="num" title="Average active buses across snapshots (raw).">Buses</th>
-                  <th class="num" title="Routes with at least one observation this week.">Routes</th>
+                  <th class="num" title="Share of the week's operating hours (6 a.m. to 11 p.m., Eastern) the collector caught">Hours caught</th>
+                  <th class="num" title="Seven days, and every weekday and weekend hour caught often enough">Comparable</th>
+                  <th class="num" title="Weekday speed with stops, mph">Weekday</th>
+                  <th class="num" title="Weekdays 7 to 10 a.m., speed with stops">7&ndash;10 a.m.</th>
+                  <th class="num" title="Weekdays 4 to 7 p.m., speed with stops">4&ndash;7 p.m.</th>
+                  <th class="num" title="Share of weekday bus time spent under 0.5 mph">Stopped</th>
+                  <th class="num" title="Weekend speed with stops, mph">Weekend</th>
+                  <th class="num" title="Weekday moving speed, the site's measure before October 2026">Moving only</th>
+                  <th class="num" title="Average weekday buses in service, every hour equal">Buses</th>
+                  <th class="num" title="Average weekday trips scheduled to be under way (from the MTA's published schedule; available from Sept. 6, 2026)">Scheduled</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
-              <tbody id="tray-table-body">
-                <tr class="tray-table-empty"><td colspan="7">No weekly rows yet.</td></tr>
-              </tbody>
+              <tbody id="tray-table-body"><tr class="tray-table-empty"><td colspan="13">Loading&hellip;</td></tr></tbody>
             </table>
-          </div>
-          <div class="tray-table-note">
-            &dagger; <strong>Time-of-day normalized</strong> &mdash; each metric gives every hour of the day equal weight, so a week isn't skewed by which hours collection happened to capture. <strong>Use the &dagger; columns for week-over-week and pre/post comparisons.</strong> Raw snapshot-weighted figures and per-route detail remain in <code>data/summary/*.json</code>. Weeks below 50% coverage or under 7 days are flagged and shouldn't be compared head-to-head with full weeks.
           </div>
         </div>
 
         <div class="tray-section">
           <div class="tray-section-header">
+            <div class="tray-section-title">What else happened</div>
+            <div class="tray-section-sub">Holidays and service cuts, collection gaps, rain and snow at the Central Park weather station, and changes to how the tracker works, over the last ten weeks. The same markers appear on the charts.</div>
+          </div>
+          <div id="tray-events"></div>
+        </div>
+
+        <div class="tray-section">
+          <div class="tray-section-header">
             <div class="tray-section-title">Download the data</div>
-            <div class="tray-section-sub">Every series behind this page, as flat CSVs (regenerated automatically with each data refresh) or the raw JSON. Free to use with attribution; see the methodology for how each figure is computed.</div>
+            <div class="tray-section-sub">Every series behind this page as flat CSVs, regenerated with each data refresh. Free to use with attribution. Read the data dictionary first.</div>
           </div>
           <div class="dl-grid">
-            <a class="dl-btn" href="data/downloads/weekly-system.csv" download>Weekly system metrics <span>speed and buses in service &mdash; per week</span></a>
-            <a class="dl-btn" href="data/downloads/weekly-borough.csv" download>Weekly by borough <span>speed &mdash; per borough per week</span></a>
-            <a class="dl-btn" href="data/downloads/weekly-routes.csv" download>Weekly by route <span>every route's speed, week by week</span></a>
-            <a class="dl-btn" href="data/downloads/route-ridership-monthly.csv" download>Riders by route, monthly <span>people carried per route since Sept 2024</span></a>
+            <a class="dl-btn" href="data/downloads/daily-system.csv" download>Daily, whole system <span>one row per day, with hours caught and holiday flags</span></a>
+            <a class="dl-btn" href="data/downloads/weekly-system.csv" download>Weekly, whole system <span>weekday, weekend, rush hours, buses vs. schedule</span></a>
+            <a class="dl-btn" href="data/downloads/monthly-system.csv" download>Monthly, whole system <span>same columns by calendar month</span></a>
+            <a class="dl-btn" href="data/downloads/weekly-borough.csv" download>Weekly by borough <span>weekday and weekend speed per group</span></a>
+            <a class="dl-btn" href="data/downloads/weekly-routes.csv" download>Weekly by route <span>every route, every week, with comparability flags</span></a>
+            <a class="dl-btn" href="data/downloads/monthly-routes.csv" download>Monthly by route <span>every route, every month</span></a>
+            <a class="dl-btn" href="data/downloads/route-ridership-monthly.csv" download>Riders by route, monthly <span>counters and fare taps since October 2024</span></a>
+            <a class="dl-btn" href="data/downloads/mta-comparison.csv" download>Tracker vs. MTA <span>monthly, built the same way</span></a>
+            <a class="dl-btn" href="data/downloads/events.csv" download>Events <span>holidays, gaps, weather, method changes</span></a>
             <a class="dl-btn" href="data/downloads/stops-hourly-june2026.csv" download>Stop-level boardings <span>13,351 stops &times; hour of day, June 2026</span></a>
-            <a class="dl-btn" href="data/downloads/route-classes.csv" download>Route geography classes <span>bus-lane share + congestion-zone relation</span></a>
+            <a class="dl-btn" href="data/downloads/route-classes.csv" download>Route geography classes <span>bus-lane share and congestion-zone relation</span></a>
             <a class="dl-btn" href="data/downloads/DATA-DICTIONARY.txt" download>Data dictionary <span>every column defined, and what not to do with it</span></a>
+            <a class="dl-btn" href="data/downloads/CHANGELOG.txt" download>Method changelog <span>every change to collection or computation, dated</span></a>
           </div>
           <div class="tray-table-note">
-            <strong>Read the data dictionary first.</strong> Two different kinds of data live in these files: speeds are <em>our own</em> estimates from GPS positions and are not official MTA metrics, while the ridership figures are the MTA's own passenger-counter data. The dictionary spells out which columns are safe to compare across weeks and which are not.
-            Raw JSON with more fields: <code>data/summary/weekly.json</code>, <code>weekly-routes.json</code>, <code>latest.json</code>,
-            <code>data/ridership/routes-monthly.json</code>, <code>stops.json</code>, <code>data/summary/route-classes.json</code> &mdash;
-            all in the <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-tracker" target="_blank" rel="noopener">repo</a>.
+            Speeds are <em>our own</em> estimates from GPS positions, not official MTA metrics; ridership is the MTA&rsquo;s own counter and fare data. Raw JSON with more fields lives in <code>data/summary/</code>, <code>data/route-history/</code> and <code>data/daily/</code> in the
+            <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-tracker" target="_blank" rel="noopener">repo</a>; raw snapshots are on its <code>bus-data</code> branch.
           </div>
         </div>
 
         <details class="tray-math" id="tray-coverage">
           <summary><strong>Data collection &mdash; how it runs and what to be skeptical of</strong></summary>
           <div class="tray-math-body">
-            <p id="tray-coverage-stats">Loading collection stats&hellip;</p>
-
-            <p><strong>How collection runs.</strong> A GitHub Actions job starts at 9 and 39 minutes past each hour, from about 6&nbsp;a.m. to midnight Eastern. Each run polls the MTA BusTime API about a dozen times over six minutes, recording every bus in service. GitHub sometimes delays or skips scheduled runs, so which hours get captured varies; the coverage column in the table shows how much of each week was caught. Nothing is interpolated.</p>
-
-            <p><strong>How speed is computed</strong> (<code>collector/process.js</code>, nightly). For each bus seen in two snapshots no more than 10 minutes apart: straight-line distance divided by elapsed time, keeping readings from 0.5 to 60&nbsp;mph. Each route's speed is the mean of its buses' readings, and the system figure is the plain mean of routes. Weekly and monthly figures (<code>collector/rollup.js</code>) give each hour of the day equal weight, so a week that caught more fast early-morning hours doesn't look faster than it was.</p>
-
+            <p><strong>How collection runs.</strong> One long-running GitHub Actions job polls the MTA BusTime feed about a dozen times over six minutes at 9 and 39 minutes past every hour, 6 a.m. to 11 p.m. Eastern, and saves every bus in service. Before its six-hour time limit it starts its own successor. Until October 2026 each burst was a separately scheduled run, and GitHub skipped many of them; from Oct. 1 to Oct. 6, 2026, only three to five bursts a day were caught. The bar strip at the top of this tray shows the last three weeks, and the daily processor fails loudly when a day comes in under 12 of 17 hours. Nothing is interpolated.</p>
+            <p><strong>How speed is computed</strong> (<code>collector/process.js</code> and <code>collector/rollup.js</code>, method version 2). See the methodology note in the sidebar and the data dictionary. Every day since April 22, 2026, was reprocessed from the raw snapshots when the method changed, so the whole series is computed one way.</p>
             <p><strong>Known limits.</strong></p>
             <ul>
-              <li>On local routes the weekly speed reads about 9% faster than the MTA's published figure, most likely because readings under 0.5&nbsp;mph (buses stopped at stops and lights) are dropped. Routes rank in nearly the same order as the MTA's. See <a href="findings.html">Round and Round</a> for the monthly comparison.</li>
-              <li>Borough averages leave out express routes (BM, BxM, QM, SIM, X). Routes are assigned to a borough by the letters in their names.</li>
-              <li>Weeks with fewer than seven days or under 50% of hours captured are marked with an asterisk and should not be compared with full weeks.</li>
-              <li>The data files still carry bunching, gap and wait fields from the original pipeline. An audit found them unreliable, and they are no longer shown or exported to CSV.</li>
+              <li>Straight-line distance over half a minute slightly undercounts a bus turning a corner.</li>
+              <li>Collection caught only some hours of most days before late June 2026, so few spring weeks are comparable.</li>
+              <li>Staten Island express routes read slower than the MTA&rsquo;s figures, for reasons not yet known. Express routes are kept out of the index.</li>
+              <li>Scheduled trips come from the MTA&rsquo;s published timetable (GTFS) and exist from Sept. 6, 2026. Across September 2026 the tracker saw 96% to 98% as many buses on the road as trips scheduled to be under way; a trip not run, or a bus whose GPS isn&rsquo;t reporting, pulls that down.</li>
             </ul>
-
-            <p><strong>Where the data lives.</strong> Raw snapshots: the <code>bus-data</code> branch of the repo, one file per hour. Daily roll-ups: <code>data/daily/</code>. Weekly and monthly: <code>data/summary/</code>. The math is in <code>collector/process.js</code> and <code>collector/rollup.js</code>.</p>
             <p class="byline" style="font-size:.78rem;opacity:.75;margin-top:.9rem">Built by Josh Greenman.</p>
           </div>
         </details>
@@ -291,6 +282,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260916"></script>
+  <script src="app.js?v=20261006e"></script>
+  <script src="tray.js?v=20261006e"></script>
 </body>
 </html>

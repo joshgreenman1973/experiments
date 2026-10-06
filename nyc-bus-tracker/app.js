@@ -16,10 +16,6 @@ const CONFIG = {
     || '5ecc401b-fc5b-4048-91bc-df104885f171',
   // Refresh interval in ms (30s minimum per API rules)
   refreshInterval: 30000,
-  // Bunching threshold: two buses on same route/direction within this many meters
-  bunchingDistanceMeters: 250,
-  // Gap threshold: minutes without a bus on a route/direction
-  gapThresholdMinutes: 20,
   // Map tile source
   tileUrl: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 };
@@ -28,24 +24,21 @@ const CONFIG = {
 let map;
 let currentSnapshot = null;
 let previousSnapshot = null; // for speed calculation
-let snapshots = []; // for timeline replay
 let isLive = true;
-let isPlaying = false;
-let playSpeed = 1;
-let playTimer = null;
 let routeShapes = null;
 let routeShapeIndex = null; // routeId → GeoJSON feature (built once on shape load)
 let selectedRoute = null;
 let sortMode = 'name'; // 'name', 'buses', 'speed'
 let boroFilter = 'all'; // 'all', 'M', 'B', 'Bx', 'Q', 'S', 'top25', 'nearby'
 let userLocation = null; // {lat, lon} from geolocation
-let busSpeedCache = {}; // busId → speed in mph
 
-// Rolling-average smoothing (dampens poll-to-poll jitter)
-const speedSmooth = createRollingAvg(3);
-const waitSmooth = createRollingAvg(3);
-const gap30Smooth = createRollingAvg(3);
-const gap20Smooth = createRollingAvg(3);
+// Live speed, built the way the weekly figures are: per route, distance over
+// time across recent polls with stopped time included (layovers left out);
+// the headline is the plain mean of local, limited and SBS routes.
+const LIVE_WINDOW_MS = 180000;       // pool the last three minutes of readings
+const routeReadings = new Map();     // route -> [{ t, dist, dt }]
+let routeNames = {};                 // routeId -> { long, kind } from route-table.json
+const EXPRESS_RE = /^(BM|BXM|QM|SIM|X)\d/i;
 
 let busPositionCache = {}; // busId → {lat, lon, ts, route, dir} — persists across polls
 
@@ -54,17 +47,10 @@ let busPositionCache = {}; // busId → {lat, lon, ts, route, dir} — persists 
 const dom = {};
 function cacheDomElements() {
   const ids = [
-    'stat-buses', 'stat-routes-count', 'stat-speed', 'stat-bunching',
-    'stat-gaps', 'stat-wait', 'speed-hint', 'speed-detail',
-    'wait-alerts', 'live-badge', 'status-text', 'loading-overlay',
-    'loading-text', 'route-list', 'route-search', 'sort-btn',
-    'borough-filter', 'route-list-header',
-    'tray', 'tray-handle', 'tray-body', 'tray-summary', 'tray-hint',
-    'tray-current-period', 'tray-cards', 'tray-empty', 'tray-table-body',
-    'tray-coverage-stats', 'tray-boro-trends', 'tray-boro-empty',
-    'tray-ridership', 'tray-ridership-empty',
-    'tray-boro-card', 'tray-boro-card-empty', 'tray-geo-cuts', 'tray-geo-empty',
-    'ai-caution-btn', 'ai-caution-pop',
+    'stat-buses', 'stat-routes-count', 'stat-speed', 'speed-hint', 'speed-detail',
+    'live-badge', 'status-text', 'loading-overlay', 'loading-text',
+    'route-list', 'route-search', 'sort-btn', 'borough-filter', 'route-list-header',
+    'tray', 'tray-handle', 'tray-hint', 'ai-caution-btn', 'ai-caution-pop',
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -110,7 +96,8 @@ async function init() {
     window.history.replaceState({}, '', url);
   }
 
-  updateLoadingText('Initializing map\u2026');
+  updateLoadingText('Waiting for the MTA feed (it can take 20 seconds)\u2026');
+  loadRouteNames();
 
   // Start API fetch NOW — don't wait for map tiles to load
   const apiDataPromise = prefetchLiveData();
@@ -128,7 +115,12 @@ async function init() {
 
   map.addControl(new maplibregl.NavigationControl(), 'bottom-left');
 
-  map.on('load', async () => {
+  // Start once the style is in. Waiting for the full 'load' event meant one
+  // stalled map tile could hold the whole page on its loading screen.
+  let started = false;
+  const onReady = async () => {
+    if (started) return;
+    started = true;
     // Generate directional pointer icon for buses
     createBusPointerIcon();
 
@@ -153,9 +145,9 @@ async function init() {
     hideLoading();
     dom['live-badge'].style.display = 'flex';
 
-    // Load route shapes and historical trends in background
+    // Route shapes load in the background; the weekly tray (tray.js) loads on
+    // its own and does not wait for the map.
     loadRouteShapes();
-    loadTrends();
 
     // Set title animation endpoint based on actual container width, then start
     const lane = document.querySelector('.title-lane');
@@ -174,7 +166,10 @@ async function init() {
 
     // Set up bus click handler
     setupBusClickHandler();
-  });
+  };
+  map.on('load', onReady);
+  map.on('style.load', () => setTimeout(onReady, 1500));
+  setTimeout(() => { if (map.isStyleLoaded()) onReady(); }, 10000);
 
   // Wire up UI
   setupControls();
@@ -303,7 +298,7 @@ function processLiveData(vehicleActivity, isCached = false) {
         id, route: cached.route, dir: cached.dir,
         lat: cached.lat, lon: cached.lon, bearing: cached.bearing || 0,
         dest: '', nextStop: '', distFromStop: '', stopsAway: null, phase: '', ts: '',
-        routeFull: '', bunched: 0,
+        routeFull: '', stale: true,
       });
     }
   }
@@ -314,16 +309,16 @@ function processLiveData(vehicleActivity, isCached = false) {
     vehicles: mergedVehicles,
   };
 
-  if (previousSnapshot) {
-    computeSpeeds(previousSnapshot, snapshot);
+  // Speeds compare this poll with the one just before it. Cached replays
+  // (sessionStorage) carry no GPS times and are never used for speed.
+  if (currentSnapshot && !isCached && !currentSnapshot.cached) {
+    computeSpeeds(currentSnapshot, snapshot);
   }
+  snapshot.cached = isCached;
   previousSnapshot = currentSnapshot;
   currentSnapshot = snapshot;
-  snapshots.push(snapshot);
-  if (snapshots.length > 200) snapshots.shift();
 
   computeMetrics(snapshot);
-  updateTimeline();
 
   dom['status-text'].textContent =
     `Updated ${formatTime(new Date(snapshot.ts))}`;
@@ -360,9 +355,10 @@ function parseVehicles(activities) {
       bearing: j.Bearing != null ? Math.round(j.Bearing) : 0,
       dest: j.DestinationName?.[0] || j.DestinationName || '',
       nextStop: j.MonitoredCall?.StopPointRef?.replace(/^MTA_/, '') || '',
-      distFromStop: j.MonitoredCall?.Extensions?.Distances?.PresentableDistance || '',
-      stopsAway: j.MonitoredCall?.Extensions?.Distances?.StopsFromCall ?? null,
-      phase: j.ProgressStatus?.[0] || j.ProgressStatus || '',
+      distFromStop: j.MonitoredCall?.ArrivalProximityText || '',
+      stopsAway: j.MonitoredCall?.NumberOfStopsAway ?? null,
+      pax: j.MonitoredCall?.Extensions?.Capacities?.EstimatedPassengerCount ?? null,
+      phase: [].concat(j.ProgressStatus || []).join(','),
       ts: a.RecordedAtTime || '',
     };
   }).filter(Boolean);
@@ -437,7 +433,7 @@ function renderBuses(snapshot) {
     distFromStop: v.distFromStop,
     stopsAway: v.stopsAway,
     phase: v.phase,
-    bunched: v.bunched || 0,
+    pax: v.pax ?? null,
   });
 
   // Build tween targets: each bus glides from where it's currently drawn
@@ -472,7 +468,7 @@ function renderBuses(snapshot) {
   } else {
     map.addSource('buses', { type: 'geojson', data: geojson });
 
-    // Bus glow — soft halo per route color, red for bunched
+    // Bus glow — soft halo per route color
     map.addLayer({
       id: 'bus-glow',
       type: 'circle',
@@ -482,21 +478,13 @@ function renderBuses(snapshot) {
           'interpolate', ['linear'], ['zoom'],
           9, 5, 13, 12, 16, 18,
         ],
-        'circle-color': [
-          'case',
-          ['==', ['get', 'bunched'], 1], 'rgba(210, 35, 42, 0.25)',
-          ['get', 'color'],
-        ],
-        'circle-opacity': [
-          'case',
-          ['==', ['get', 'bunched'], 1], 1,
-          0.15,
-        ],
+        'circle-color': ['get', 'color'],
+        'circle-opacity': 0.15,
         'circle-blur': 1,
       },
     });
 
-    // Bus dots — colored by route, red override for bunched
+    // Bus dots — colored by route
     map.addLayer({
       id: 'bus-dots',
       type: 'circle',
@@ -506,22 +494,10 @@ function renderBuses(snapshot) {
           'interpolate', ['linear'], ['zoom'],
           9, 2.5, 13, 5, 16, 8,
         ],
-        'circle-color': [
-          'case',
-          ['==', ['get', 'bunched'], 1], '#d2232a',
-          ['get', 'color'],
-        ],
+        'circle-color': ['get', 'color'],
         'circle-opacity': 0.9,
-        'circle-stroke-width': [
-          'case',
-          ['==', ['get', 'bunched'], 1], 1.5,
-          0.5,
-        ],
-        'circle-stroke-color': [
-          'case',
-          ['==', ['get', 'bunched'], 1], '#ff6666',
-          'rgba(255,255,255,0.15)',
-        ],
+        'circle-stroke-width': 0.5,
+        'circle-stroke-color': 'rgba(255,255,255,0.15)',
       },
     });
 
@@ -545,11 +521,7 @@ function renderBuses(snapshot) {
         'icon-offset': [0, -12],
       },
       paint: {
-        'icon-color': [
-          'case',
-          ['==', ['get', 'bunched'], 1], '#ff6666',
-          ['get', 'color'],
-        ],
+        'icon-color': ['get', 'color'],
         'icon-opacity': 0.9,
       },
     });
@@ -622,301 +594,96 @@ function clearRouteHighlight() {
   map.setPaintProperty('route-lines', 'line-width', 2);
   map.setPaintProperty('bus-dots', 'circle-opacity', 0.9);
   if (map.getLayer('bus-glow')) {
-    map.setPaintProperty('bus-glow', 'circle-opacity', [
-      'case',
-      ['==', ['get', 'bunched'], 1], 1,
-      0.15,
-    ]);
+    map.setPaintProperty('bus-glow', 'circle-opacity', 0.15);
   }
 }
 
 // ═══ SPEED CALCULATION ═══
 function computeSpeeds(prevSnap, currSnap) {
-  const prevMap = new Map();
-  for (const v of prevSnap.vehicles) {
-    prevMap.set(v.id, v);
-  }
-
-  const prevTime = new Date(prevSnap.ts).getTime();
-  const currTime = new Date(currSnap.ts).getTime();
-  const dtHours = (currTime - prevTime) / 3600000; // time diff in hours
-
-  if (dtHours <= 0 || dtHours > 0.5) return; // skip if bad interval or >30 min gap
-
+  const prevMap = new Map(prevSnap.vehicles.map(v => [v.id, v]));
+  const now = Date.now();
   for (const v of currSnap.vehicles) {
-    const prev = prevMap.get(v.id);
-    if (!prev) continue;
-    // Skip if bus changed routes between snapshots
-    if (prev.route !== v.route) continue;
-
-    // Prefer route-distance (along the polyline) over straight-line haversine.
-    // Route-distance is consistent with MTA methodology, which measures speed
-    // along actual route geometry rather than as-the-crow-flies.
-    const distMeters = measureDistance(prev.lat, prev.lon, v.lat, v.lon, v.route);
-    const speed = (distMeters / 1609.34) / dtHours;
-
-    // Filter out unrealistic speeds (GPS glitches, layovers)
-    if (speed >= 0 && speed < 60) {
-      busSpeedCache[v.id] = round1(speed);
-    }
+    if (v.stale) continue;
+    const p = prevMap.get(v.id);
+    if (!p || p.stale || p.route !== v.route) continue;
+    if (String(v.phase).includes('layover') || String(p.phase).includes('layover')) continue;
+    const t1 = Date.parse(p.ts), t2 = Date.parse(v.ts);
+    if (!Number.isFinite(t1) || !Number.isFinite(t2)) continue;
+    const dt = (t2 - t1) / 1000;
+    if (dt < 5 || dt > 600) continue;            // GPS did not refresh, or too long a gap
+    const dist = haversine(p.lat, p.lon, v.lat, v.lon);
+    const mph = (dist / dt) * 2.2369363;
+    if (mph >= 60) continue;                      // GPS error
+    if (!routeReadings.has(v.route)) routeReadings.set(v.route, []);
+    routeReadings.get(v.route).push({ t: now, dist, dt });
+  }
+  for (const [route, list] of routeReadings) {
+    const kept = list.filter(r => now - r.t <= LIVE_WINDOW_MS);
+    if (kept.length) routeReadings.set(route, kept); else routeReadings.delete(route);
   }
 }
+
+const isLocalRoute = r => !EXPRESS_RE.test(r) && (!Object.keys(routeNames).length || routeNames[r]);
 
 // ═══ METRICS ═══
 function computeMetrics(snapshot) {
   const { vehicles } = snapshot;
-  const routeGroups = groupByRouteDir(vehicles);
   const routeMetrics = {};
-  let totalBunching = 0;
-  const bunchedIds = new Set();
-
-  for (const [key, buses] of routeGroups) {
-    const [route, dirStr] = key.split('_');
-    const dir = parseInt(dirStr, 10);
-
-    if (!routeMetrics[route]) {
-      routeMetrics[route] = { buses: 0, bunching: 0, gaps: 0, dest: '', speeds: [], gapMinutes: [], dirGaps: {} };
-    }
-    const rm = routeMetrics[route];
-    rm.buses += buses.length;
-    if (buses.length > 0 && !rm.dest) rm.dest = buses[0].dest;
-
-    // Collect speeds for this route
-    for (const b of buses) {
-      const spd = busSpeedCache[b.id];
-      if (spd != null && spd > 0) rm.speeds.push(spd);
-    }
-
-    // Bunching and gap/wait estimates were retired in September 2026 after an
-    // audit found them indefensible (250 m proximity flagged Limited-passing-
-    // local and buses parked at terminals; gaps sorted buses on a lat/lon axis
-    // and skipped routes with < 3 buses). detectBunching/estimateGaps are kept
-    // below for reference but no longer called; a replacement wait measure is
-    // being built.
-  }
-
-  // Apply bunching flags to snapshot vehicles
   for (const v of vehicles) {
-    v.bunched = bunchedIds.has(v.id) ? 1 : 0;
+    const rm = (routeMetrics[v.route] ||= { buses: 0, dest: '' });
+    rm.buses++;
+    if (!rm.dest) rm.dest = routeNames[v.route]?.long || v.dest || '';
   }
-  totalBunching = countBunchPairs(routeMetrics);
-
-
-  // Compute system-wide averages
-  // Compute per-route averages, then system-wide as mean of route averages
-  // (each route weighted equally, consistent with MTA route-level reporting)
-  const routeAvgSpeeds = [];
-  const allGaps = [];
-  for (const rm of Object.values(routeMetrics)) {
-    if (rm.speeds.length > 0) {
-      rm.avgSpeed = round1(avg(rm.speeds));
-      routeAvgSpeeds.push(rm.avgSpeed);
-    } else {
-      rm.avgSpeed = null;
-    }
-    allGaps.push(...rm.gapMinutes);
+  // Route speed with stops = total distance / total time over the window;
+  // needs two minutes of bus-time so one bus at a light doesn't set it.
+  const localSpeeds = [];
+  for (const [route, rm] of Object.entries(routeMetrics)) {
+    const list = routeReadings.get(route) || [];
+    const dist = list.reduce((s, r) => s + r.dist, 0), dt = list.reduce((s, r) => s + r.dt, 0);
+    rm.avgSpeed = dt >= 120 ? round1((dist / dt) * 2.2369363) : null;
+    if (rm.avgSpeed != null && isLocalRoute(route)) localSpeeds.push(rm.avgSpeed);
   }
+  const systemAvgSpeed = localSpeeds.length >= 50 ? round1(avg(localSpeeds)) : null;
 
-  const systemAvgSpeed = routeAvgSpeeds.length > 0 ? speedSmooth.push(round1(avg(routeAvgSpeeds))) : speedSmooth.current();
-
-  // ── Update DOM ──
   updateSystemStats(vehicles, routeMetrics, systemAvgSpeed);
   renderBuses(snapshot);
   renderRouteList(routeMetrics);
 }
 
-/** Group vehicles by "route_dir" key */
-function groupByRouteDir(vehicles) {
-  const groups = new Map();
-  for (const v of vehicles) {
-    const key = `${v.route}_${v.dir}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(v);
-  }
-  return groups;
-}
-
-/** Detect bunching within a direction group */
-function detectBunching(buses, rm, bunchedIds) {
-  for (let i = 0; i < buses.length; i++) {
-    for (let j = i + 1; j < buses.length; j++) {
-      const dist = haversine(
-        buses[i].lat, buses[i].lon,
-        buses[j].lat, buses[j].lon
-      );
-      if (dist < CONFIG.bunchingDistanceMeters) {
-        rm.bunching++;
-        bunchedIds.add(buses[i].id);
-        bunchedIds.add(buses[j].id);
-      }
-    }
-  }
-}
-
-/** Count total bunched pairs across all routes */
-function countBunchPairs(routeMetrics) {
-  let total = 0;
-  for (const rm of Object.values(routeMetrics)) total += rm.bunching;
-  return total;
-}
-
-/** Estimate time gaps between consecutive buses on a route/direction */
-function estimateGaps(buses, route, dir, rm) {
-  if (buses.length <= 1) {
-    rm.gaps++;
-    return;
-  }
-  if (buses.length < 3) return; // fewer than 3 gives unreliable spacing
-
-  // Sort buses by position along route
-  const isEastWest = Math.abs(buses[0].lon - buses[1].lon) > Math.abs(buses[0].lat - buses[1].lat);
-  const sorted = [...buses].sort((a, b) =>
-    isEastWest ? a.lon - b.lon : a.lat - b.lat
-  );
-
-  // Default speed assumption if no observed speed: 8 mph
-  const routeSpeed = rm.speeds.length > 0 ? avg(rm.speeds) : 8;
-  const speedMps = (routeSpeed * 1609.34) / 3600;
-
-  let maxGapThisDir = 0;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const dist = measureDistance(
-      sorted[i].lat, sorted[i].lon,
-      sorted[i + 1].lat, sorted[i + 1].lon,
-      route
-    );
-    const gapMin = speedMps > 0 ? (dist / speedMps) / 60 : 0;
-    // Cap at 60 min — anything higher is likely a route terminus gap, not a real wait
-    const rounded = Math.min(60, Math.round(gapMin));
-    rm.gapMinutes.push(rounded);
-    maxGapThisDir = Math.max(maxGapThisDir, rounded);
-  }
-  rm.dirGaps[dir] = maxGapThisDir;
-}
-
-/** Identify routes with 20+ and 30+ minute waits */
-function identifyLongWaits(routeMetrics) {
-  const longWaits20 = [];
-  const longWaits30 = [];
-
-  for (const [route, rm] of Object.entries(routeMetrics)) {
-    rm.maxGap = rm.gapMinutes.length > 0 ? Math.max(...rm.gapMinutes) : null;
-
-    if (rm.maxGap != null && rm.maxGap >= 20) {
-      const dirs = rm.dirGaps;
-      const dir0bad = (dirs[0] || 0) >= 20;
-      const dir1bad = (dirs[1] || 0) >= 20;
-      const dirLabel = (dir0bad && dir1bad) ? '\u2194' : '\u2192';
-      const entry = { route, gap: rm.maxGap, bothDirs: dir0bad && dir1bad, dirLabel };
-      if (rm.maxGap >= 30) longWaits30.push(entry);
-      else longWaits20.push(entry);
-    }
-    if (rm.gaps > 0) { /* gapRoutes++ if needed later */ }
-  }
-
-  longWaits30.sort((a, b) => b.gap - a.gap);
-  longWaits20.sort((a, b) => b.gap - a.gap);
-  return { longWaits20, longWaits30 };
-}
-
-/** Update the system-wide stat cards in the DOM */
 function updateSystemStats(vehicles, routeMetrics, systemAvgSpeed) {
   dom['stat-buses'].textContent = vehicles.length.toLocaleString();
   dom['stat-routes-count'].textContent = `${Object.keys(routeMetrics).length} routes`;
-
   const speedEl = dom['stat-speed'];
-  if (systemAvgSpeed != null) {
-    speedEl.textContent = systemAvgSpeed.toFixed(1);
-    speedEl.className = `value ${systemAvgSpeed < 6 ? 'bad' : systemAvgSpeed < 8 ? 'warn' : 'accent'}`;
-    const hint = dom['speed-hint'];
-    if (hint) hint.style.display = 'none';
-  } else {
+  const hint = dom['speed-hint'];
+  if (systemAvgSpeed == null) {
     speedEl.textContent = '\u2014';
-  }
-}
-
-// ═══ LONG WAIT ALERTS ═══
-function renderWaitAlerts(waits20, waits30) {
-  const container = dom['wait-alerts'];
-
-  if (waits30.length === 0 && waits20.length === 0) {
-    container.style.display = 'none';
+    if (hint) { hint.style.display = ''; hint.textContent = 'measuring\u2026 (about a minute)'; }
     return;
   }
-
-  container.style.display = 'block';
-
-  let html = '';
-
-  if (waits30.length > 0) {
-    html += `<div class="wait-row" data-tier="30">
-      <span class="wait-count">${waits30.length}</span>
-      <span class="wait-label">route${waits30.length !== 1 ? 's' : ''} with 30+ min waits</span>
-      <span class="wait-toggle" id="toggle-30">\u25B6</span>
-    </div>
-    <div class="wait-detail" id="detail-30" style="display:none">
-      ${waits30.map(w => {
-        const color = routeColor(w.route);
-        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-dir">${w.dirLabel}</span><span class="wait-min">${w.gap}m</span></span>`;
-      }).join('')}
-    </div>`;
+  speedEl.textContent = systemAvgSpeed.toFixed(1);
+  speedEl.className = 'value accent';
+  if (hint) hint.style.display = 'none';
+  // Typical for this hour: the latest comparable week's figure for the same
+  // day type and Eastern hour, from tray.js.
+  const T = window.BusTypical;
+  const detail = dom['speed-detail'];
+  if (!detail) return;
+  const now = new Date();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', hourCycle: 'h23' })
+    .formatToParts(now).map(x => [x.type, x.value]));
+  const hour = Number(parts.hour);
+  const weekend = parts.weekday === 'Sat' || parts.weekday === 'Sun';
+  const cell = T?.hourly?.[weekend ? 'we' : 'wd']?.[hour];
+  if (cell?.all != null) {
+    const label = hour === 12 ? 'noon' : `${((hour + 11) % 12) + 1}\u00a0${hour < 12 ? 'a.m.' : 'p.m.'}`;
+    const d = systemAvgSpeed - cell.all;
+    const word = Math.abs(d) < 0.3 ? 'about typical' : d > 0 ? `${d.toFixed(1)} faster than typical` : `${Math.abs(d).toFixed(1)} slower than typical`;
+    detail.innerHTML = `mph, local routes, with stops. Typical ${weekend ? 'weekend' : 'weekday'} ${label}: <strong>${cell.all.toFixed(1)}</strong> (${word})`;
+  } else {
+    detail.textContent = 'mph, local routes, with stops';
   }
-
-  if (waits20.length > 0) {
-    html += `<div class="wait-row" data-tier="20">
-      <span class="wait-count">${waits20.length}</span>
-      <span class="wait-label">route${waits20.length !== 1 ? 's' : ''} with 20\u201330 min waits</span>
-      <span class="wait-toggle" id="toggle-20">\u25B6</span>
-    </div>
-    <div class="wait-detail" id="detail-20" style="display:none">
-      ${waits20.map(w => {
-        const color = routeColor(w.route);
-        return `<span class="wait-chip" style="background:${color};color:#fff" data-route="${w.route}">${w.route} <span class="wait-dir">${w.dirLabel}</span><span class="wait-min">${w.gap}m</span></span>`;
-      }).join('')}
-    </div>`;
-  }
-
-  container.innerHTML = html;
-
-  // Store for highlight access
-  container._waits = { 30: waits30, 20: waits20 };
-
-  // Click row → toggle detail AND highlight all those routes on map
-  container.querySelectorAll('.wait-row').forEach(row => {
-    row.addEventListener('click', () => {
-      const tier = row.dataset.tier;
-      const detail = document.getElementById(`detail-${tier}`);
-      const toggle = document.getElementById(`toggle-${tier}`);
-      const waits = container._waits[tier] || [];
-      const routes = waits.map(w => w.route);
-
-      if (detail.style.display === 'none') {
-        detail.style.display = 'flex';
-        toggle.textContent = '\u25BC';
-        // Highlight all long-wait routes on the map
-        highlightRoutes(routes);
-        selectedRoute = null; // clear single selection
-      } else {
-        detail.style.display = 'none';
-        toggle.textContent = '\u25B6';
-        clearRouteHighlight();
-      }
-    });
-  });
-
-  // Chip click → highlight single route
-  container.querySelectorAll('.wait-chip').forEach(chip => {
-    chip.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const route = chip.dataset.route;
-      selectedRoute = route;
-      highlightRoute(route);
-      zoomToRoute(route);
-    });
-  });
 }
 
-// ═══ ROUTE LIST ═══
 function renderRouteList(metrics) {
   const list = dom['route-list'];
   const filter = dom['route-search'].value.toLowerCase();
@@ -981,11 +748,12 @@ function renderRouteList(metrics) {
     const color = routeColor(r.route);
     const isSelected = selectedRoute === r.route;
     const spdStr = r.avgSpeed != null ? r.avgSpeed.toFixed(1) : '\u2014';
-    const spdClass = r.avgSpeed != null ? (r.avgSpeed < 6 ? 'bad' : r.avgSpeed < 8 ? 'warn' : '') : '';
+    // Thresholds for speed with stops (local routes typically run 6 to 8 mph).
+    const spdClass = r.avgSpeed != null ? (r.avgSpeed < 5 ? 'bad' : r.avgSpeed < 6.5 ? 'warn' : '') : '';
     return `
       <div class="route-row${isSelected ? ' selected' : ''}" data-route="${r.route}">
         <div><span class="route-badge" style="background:${color}">${r.route}</span></div>
-        <div class="route-dest" title="${r.dest}">${r.dest}</div>
+        <div class="route-dest" title="${r.dest}"><span class="rd-name">${r.dest}</span><a class="route-hist" href="route.html?r=${encodeURIComponent(r.route)}" title="Speed history for the ${r.route}">history&nbsp;&rarr;</a></div>
         <div class="route-metric">${r.buses}</div>
         <div class="route-metric ${spdClass}">${spdStr}</div>
       </div>
@@ -994,7 +762,8 @@ function renderRouteList(metrics) {
 
   // Click handlers
   list.querySelectorAll('.route-row').forEach(row => {
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
       const route = row.dataset.route;
       if (selectedRoute === route) {
         selectedRoute = null;
@@ -1030,9 +799,10 @@ function setupBusClickHandler() {
       <h3>${props.route}</h3>
       <p>\u2192 <span class="val">${props.dest}</span></p>
       <p>Next stop: <span class="val">${props.distFromStop}</span></p>
-      ${props.stopsAway != null ? `<p>Stops away: <span class="val">${props.stopsAway}</span></p>` : ''}
-      <p style="color:rgba(255,255,255,0.28);font-size:11px;margin-top:6px">Bus #${props.id}</p>
-      ${props.bunched == 1 ? '<div class="bunched-tag">\u26A0 Bunched</div>' : ''}
+      ${props.pax != null && props.pax !== 'null' ? `<p>About <span class="val">${props.pax}</span> aboard (passenger-counter estimate)</p>` : ''}
+      ${String(props.phase).includes('layover') ? '<p>On layover</p>' : ''}
+      <p style="color:rgba(255,255,255,0.28);font-size:11px;margin-top:6px">Bus ${String(props.id).replace(/^MTA\w*\s*\w*_/, '#')}</p>
+      <p><a href="route.html?r=${encodeURIComponent(props.route)}" style="color:var(--vc-chartreuse)">${props.route} speed history &rarr;</a></p>
     `;
 
     new maplibregl.Popup({ offset: 12, closeButton: true })
@@ -1135,11 +905,6 @@ function updateSortHighlight() {
   });
 }
 
-// Timeline playback removed; keep no-ops so any legacy call sites remain safe.
-function startPlayback() {}
-function showSnapshot() {}
-function updateTimeline() {}
-
 // ═══ UTILITIES ═══
 
 /** Haversine great-circle distance in meters */
@@ -1153,95 +918,6 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/**
- * Measure distance between two GPS points, preferring along-route distance.
- * Falls back to haversine when route shape is unavailable.
- */
-function measureDistance(lat1, lon1, lat2, lon2, routeId) {
-  const rd = routeDistance(lat1, lon1, lat2, lon2, routeId);
-  return rd != null ? rd : haversine(lat1, lon1, lat2, lon2);
-}
-
-/**
- * Snap a GPS point to the nearest segment on a polyline.
- * Returns { idx: segment index, frac: fractional position along segment }.
- */
-function snapToPolyline(lat, lon, coords) {
-  let bestDist = Infinity;
-  let bestIdx = 0;
-  let bestFrac = 0;
-
-  for (let i = 0; i < coords.length - 1; i++) {
-    const ax = coords[i][0], ay = coords[i][1];
-    const bx = coords[i + 1][0], by = coords[i + 1][1];
-    const dx = bx - ax, dy = by - ay;
-    const lenSq = dx * dx + dy * dy;
-    let t = lenSq > 0 ? ((lon - ax) * dx + (lat - ay) * dy) / lenSq : 0;
-    t = Math.max(0, Math.min(1, t));
-    const px = ax + t * dx, py = ay + t * dy;
-    const d = (lon - px) ** 2 + (lat - py) ** 2;
-    if (d < bestDist) {
-      bestDist = d;
-      bestIdx = i;
-      bestFrac = t;
-    }
-  }
-  return { idx: bestIdx, frac: bestFrac };
-}
-
-/**
- * Compute distance along a route shape between two GPS points.
- * Snaps each point to the nearest segment on the route polyline,
- * then sums the along-route distance between the two snap locations.
- * Returns distance in meters, or null if route shape is unavailable.
- */
-function routeDistance(lat1, lon1, lat2, lon2, routeId) {
-  if (!routeShapeIndex) return null;
-  const feature = routeShapeIndex.get(routeId);
-  if (!feature || feature.geometry.type !== 'LineString') return null;
-
-  const coords = feature.geometry.coordinates; // [lon, lat] pairs
-  if (coords.length < 2) return null;
-
-  const snap1 = snapToPolyline(lat1, lon1, coords);
-  const snap2 = snapToPolyline(lat2, lon2, coords);
-
-  // Ensure we measure from the earlier point along the line to the later
-  let startSnap = snap1, endSnap = snap2;
-  if (snap1.idx > snap2.idx || (snap1.idx === snap2.idx && snap1.frac > snap2.frac)) {
-    startSnap = snap2;
-    endSnap = snap1;
-  }
-
-  // Sum haversine distances along the polyline from startSnap to endSnap
-  let dist = 0;
-
-  // Partial first segment: from snap point to end of segment
-  const s0 = coords[startSnap.idx], s1 = coords[startSnap.idx + 1];
-  const startLon = s0[0] + startSnap.frac * (s1[0] - s0[0]);
-  const startLat = s0[1] + startSnap.frac * (s1[1] - s0[1]);
-  if (startSnap.idx === endSnap.idx) {
-    // Both on same segment
-    const eLon = s0[0] + endSnap.frac * (s1[0] - s0[0]);
-    const eLat = s0[1] + endSnap.frac * (s1[1] - s0[1]);
-    return haversine(startLat, startLon, eLat, eLon);
-  }
-  dist += haversine(startLat, startLon, s1[1], s1[0]);
-
-  // Full intermediate segments
-  for (let i = startSnap.idx + 1; i < endSnap.idx; i++) {
-    dist += haversine(coords[i][1], coords[i][0], coords[i + 1][1], coords[i + 1][0]);
-  }
-
-  // Partial last segment: from start of segment to snap point
-  const e0 = coords[endSnap.idx], e1 = coords[endSnap.idx + 1];
-  const endLon = e0[0] + endSnap.frac * (e1[0] - e0[0]);
-  const endLat = e0[1] + endSnap.frac * (e1[1] - e0[1]);
-  dist += haversine(e0[1], e0[0], endLat, endLon);
-
-  return dist;
-}
-
 /** Round to 1 decimal place */
 function round1(n) {
   return Math.round(n * 10) / 10;
@@ -1252,38 +928,9 @@ function avg(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
-/**
- * Simple rolling average with a fixed window size.
- * push(value) adds a value and returns the current smoothed average.
- * current() returns the latest average without adding a new value.
- */
-function createRollingAvg(windowSize) {
-  const buffer = [];
-  function compute() {
-    return buffer.length > 0 ? buffer.reduce((a, b) => a + b, 0) / buffer.length : null;
-  }
-  return {
-    push(value) {
-      buffer.push(value);
-      if (buffer.length > windowSize) buffer.shift();
-      return compute();
-    },
-    current() {
-      return compute();
-    },
-  };
-}
-
 function formatTime(d) {
   return d.toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit',
-    timeZone: 'America/New_York',
-  });
-}
-
-function formatDate(d) {
-  return d.toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
     timeZone: 'America/New_York',
   });
 }
@@ -1325,579 +972,12 @@ function hideLoading() {
   setTimeout(() => overlay.style.display = 'none', 500);
 }
 
-// ═══ HISTORICAL TRENDS (tray) ═══
-async function loadTrends() {
-  // Fetch both the rolled-up summary (latest.json) and the full weekly series
-  // (weekly.json). We show whatever is available; missing files are tolerated.
-  const [latestRes, weeklyRes, routesRes, ridershipRes, classesRes] = await Promise.all([
-    fetch('data/summary/latest.json').catch(() => null),
-    fetch('data/summary/weekly.json').catch(() => null),
-    fetch('data/summary/weekly-routes.json').catch(() => null),
-    fetch('data/ridership/routes-monthly.json').catch(() => null),
-    fetch('data/summary/route-classes.json').catch(() => null),
-  ]);
-
-  let latest = null;
-  let weekly = [];
-  let weeklyRoutes = {};
-  let ridership = null;
-  let routeClasses = null;
-  if (latestRes?.ok) { try { latest = await latestRes.json(); } catch {} }
-  if (weeklyRes?.ok) { try { weekly = await weeklyRes.json(); } catch {} }
-  if (routesRes?.ok) { try { weeklyRoutes = await routesRes.json(); } catch {} }
-  if (ridershipRes?.ok) { try { ridership = await ridershipRes.json(); } catch {} }
-  if (classesRes?.ok) { try { routeClasses = await classesRes.json(); } catch {} }
-
-  renderTrends(latest, weekly);
-  renderBoroughTrends(latest, weeklyRoutes);
-  renderRidershipTrends(ridership);
-  renderGeoCuts(latest, weeklyRoutes, routeClasses);
-}
-
-// Curated watch list: the two busiest routes in each borough (by average buses
-// on the road), used as a stable baseline for tracking speed over time. Keys
-// are the borough codes used in the daily/weekly roll-ups; route strings match
-// the shortnames in weekly-routes.json ("+" marks a Select Bus Service route).
-// Kept fixed (not recomputed each week) so the time series stays comparable.
-const WATCH_ROUTES = {
-  M:  { name: 'Manhattan',     routes: ['M15+', 'M4'] },
-  Bx: { name: 'The Bronx',     routes: ['BX12+', 'BX36'] },
-  B:  { name: 'Brooklyn',      routes: ['B6', 'B41'] },
-  Q:  { name: 'Queens',        routes: ['Q44+', 'Q58'] },
-  S:  { name: 'Staten Island', routes: ['S79+', 'S53'] },
-};
-
-// A week only enters the trends if it has a full 7 days AND at least this share
-// of operating hours sampled. Thin, sparsely-collected weeks (some June weeks
-// dipped to ~9% coverage) would otherwise drag the line around on very little
-// data. This is the same "comparable" bar the week-by-week table uses.
-const TREND_COVERAGE_MIN = 50;
-
-/** Build the "Speed over time, by borough" section: for each borough, its
- *  aggregate weekly speed plus its two busiest routes, each as a mini trend
- *  (latest value, net trend over the window, and a line + trend-line chart).
- *  Uses only full, adequately-covered weeks so thin weeks don't distort it. */
-function renderBoroughTrends(latest, weeklyRoutes) {
-  const host = dom['tray-boro-trends'];
-  if (!host) return;
-
-  // Full weekly history, gated on coverage (each row carries a per-borough slice).
-  const fullWeeks = (latest?.weeklyHistory || [])
-    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
-  const emptyEl = dom['tray-boro-empty'];
-
-  // Need at least two full weeks to show a change; otherwise keep the note.
-  if (fullWeeks.length < 1) {
-    if (emptyEl) emptyEl.style.display = '';
-    host.querySelectorAll('.boro-trend').forEach(n => n.remove());
-    return;
-  }
-  if (emptyEl) emptyEl.style.display = 'none';
-
-  // Borough speed = plain mean of the borough's local, limited and SBS route
-  // speeds for the week. Rebuilt from route-level rows because the roll-up's
-  // byBorough groups by first letter, which lumps SIM/BM/QM express routes in
-  // with their borough (SIM routes alone pulled Staten Island up by ~1.5 mph).
-  const EXPRESS_RE = /^(BM|BXM|QM|SIM|X)\d/i;
-  const boroOf = r => { const u = r.toUpperCase(); if (EXPRESS_RE.test(u)) return null; if (u.startsWith('BX')) return 'Bx'; for (const c of ['B', 'Q', 'M', 'S']) if (u.startsWith(c)) return c; return null; };
-  const boroSpeedSeries = code => fullWeeks.map(w => {
-    const v = [];
-    for (const [route, hist] of Object.entries(weeklyRoutes || {})) {
-      if (boroOf(route) !== code) continue;
-      const row = hist.find(h => h.period === w.period);
-      if (row && row.daysSeen >= 4 && row.avgSpeed != null) v.push(row.avgSpeed);
-    }
-    return v.length ? round1(avg(v)) : null;
-  });
-
-  // Speed series for one route, aligned to the same weeks as fullWeeks so the
-  // sparkline lines up. weeklyRoutes[route] is a chronological array of periods.
-  const routePeriods = new Set(fullWeeks.map(w => w.period));
-  const routeSpeedSeries = route => {
-    const hist = weeklyRoutes?.[route] || [];
-    const byPeriod = {};
-    for (const row of hist) {
-      if (row.daysSeen >= 7 && routePeriods.has(row.period)) {
-        byPeriod[row.period] = row.avgSpeed ?? null;
-      }
-    }
-    return fullWeeks.map(w => byPeriod[w.period] ?? null);
-  };
-
-  const blocks = [];
-  for (const [code, meta] of Object.entries(WATCH_ROUTES)) {
-    const tiles = [];
-    tiles.push(miniTrend(meta.name, 'borough avg', boroSpeedSeries(code)));
-    for (const route of meta.routes) {
-      tiles.push(miniTrend(route, 'route', routeSpeedSeries(route)));
-    }
-    blocks.push(`<div class="boro-trend">${tiles.join('')}</div>`);
-  }
-
-  // Remove any prior render, then insert fresh blocks (keep empty note in DOM).
-  host.querySelectorAll('.boro-trend').forEach(n => n.remove());
-  host.insertAdjacentHTML('beforeend', blocks.join(''));
-}
-
-/** Borough report card: speed, wait, bunching per 100 buses — latest full week
- *  + a trend spark for each, per borough. Same coverage gate as the speed
- *  section. Data: latest.json weeklyHistory[].byBorough. */
-function renderBoroughCard(latest) {
-  const host = dom['tray-boro-card'];
-  if (!host) return;
-  const emptyEl = dom['tray-boro-card-empty'];
-  const fullWeeks = (latest?.weeklyHistory || [])
-    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
-  if (!fullWeeks.length) { if (emptyEl) emptyEl.style.display = ''; return; }
-  if (emptyEl) emptyEl.style.display = 'none';
-
-  const series = (code, fn) => fullWeeks.map(w => {
-    const b = w.byBorough?.[code];
-    return b ? fn(b) : null;
-  });
-  const bunch100 = b => (b.avgBuses > 0 && b.bunchPairsPerSnap != null)
-    ? Math.round(100 * b.bunchPairsPerSnap / b.avgBuses * 10) / 10 : null;
-
-  const metricCell = (s, unit, higherIsBetter) => {
-    const valid = s.filter(v => v != null);
-    const latestVal = valid.length ? valid[valid.length - 1] : null;
-    return `<td class="num boro-card-cell">
-      <span class="bc-val">${latestVal != null ? latestVal.toFixed(1) : '—'}<i>${unit}</i></span>
-      ${sparkTrend(s, higherIsBetter)}
-    </td>`;
-  };
-
-  const rows = Object.entries(WATCH_ROUTES).map(([code, meta]) => `
-    <tr>
-      <td class="bc-boro">${meta.name}</td>
-      ${metricCell(series(code, b => b.avgSpeed), 'mph', true)}
-      ${metricCell(series(code, b => b.avgWait), 'min', false)}
-      ${metricCell(series(code, bunch100), '/100', false)}
-    </tr>`).join('');
-
-  host.innerHTML = `
-    <table class="tray-table boro-card">
-      <thead><tr><th>Borough</th><th class="num">Speed</th><th class="num">Rider wait</th><th class="num">Bunched pairs per 100 buses</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  host.appendChild(emptyEl);
-  if (emptyEl) emptyEl.style.display = 'none';
-}
-
-/** Geography cuts: mean weekly speed for route groups — bus-priority corridors
- *  vs routes with little/no bus lane, and CBD-touching vs not. Groups come from
- *  data/summary/route-classes.json; speeds from weekly-routes.json. */
-function renderGeoCuts(latest, weeklyRoutes, routeClasses) {
-  const host = dom['tray-geo-cuts'];
-  if (!host) return;
-  const emptyEl = dom['tray-geo-empty'];
-  const classes = routeClasses?.routes;
-  const fullWeeks = (latest?.weeklyHistory || [])
-    .filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
-  if (!classes || !fullWeeks.length || !weeklyRoutes) {
-    if (emptyEl) emptyEl.style.display = '';
-    return;
-  }
-  if (emptyEl) emptyEl.style.display = 'none';
-
-  const periods = fullWeeks.map(w => w.period);
-  // mean of member routes' weekly avgSpeed for each period
-  const groupSeries = (memberFn) => {
-    const members = Object.keys(classes).filter(r => memberFn(classes[r]));
-    return periods.map(p => {
-      let sum = 0, n = 0;
-      for (const r of members) {
-        const row = (weeklyRoutes[r] || []).find(x => x.period === p && x.daysSeen >= 7);
-        if (row?.avgSpeed != null) { sum += row.avgSpeed; n++; }
-      }
-      return n >= 10 ? Math.round(sum / n * 10) / 10 : null; // need a real sample
-    });
-  };
-
-  const nOf = (memberFn) => Object.keys(classes).filter(r => memberFn(classes[r])).length;
-  const groups = [
-    { label: 'Priority corridors', sub: `≥30% on bus lanes · ${nOf(c => c.busLaneShare >= 0.3)} routes`,
-      s: groupSeries(c => c.busLaneShare >= 0.3) },
-    { label: 'Little or no bus lane', sub: `≤10% on bus lanes · ${nOf(c => c.busLaneShare <= 0.1)} routes`,
-      s: groupSeries(c => c.busLaneShare <= 0.1) },
-    { label: 'Congestion zone routes', sub: `in or crossing the CBD · ${nOf(c => c.cbd !== 'Outside CBD')} routes`,
-      s: groupSeries(c => c.cbd !== 'Outside CBD') },
-    { label: 'Rest of the city', sub: `never enter the CBD · ${nOf(c => c.cbd === 'Outside CBD')} routes`,
-      s: groupSeries(c => c.cbd === 'Outside CBD') },
-  ];
-
-  host.querySelectorAll('.mini-trend').forEach(n => n.remove());
-  host.insertAdjacentHTML('beforeend', groups.map(g => {
-    const valid = g.s.filter(v => v != null);
-    const latestVal = valid.length ? valid[valid.length - 1] : null;
-    return `<div class="mini-trend mini-boro">
-      <div class="mini-label">${g.label}</div>
-      <div class="mini-value">${latestVal != null ? latestVal.toFixed(1) : '—'}<span class="mini-unit">mph</span></div>
-      <div class="trend-change flat">${g.sub}</div>
-      ${sparkTrend(g.s, true)}
-    </div>`;
-  }).join(''));
-}
-
-/** "27,848" under 100k, "114k" under 1M, "1.38M" above. Riders, not mph. */
-function fmtRiders(n) {
-  if (n == null) return '—';
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 100000) return Math.round(n / 1000) + 'k';
-  return Math.round(n).toLocaleString('en-US');
-}
-
-/** "People carried, by route" tray section: systemwide + watch-route tiles on
- *  the monthly APC ridership series, plus a leaderboard of the top routes in
- *  the latest month with month-over-month change. Data arrives monthly (with a
- *  ~1 month publication lag), unlike the weekly speed metrics above it. */
-function renderRidershipTrends(data) {
-  const host = dom['tray-ridership'];
-  if (!host) return;
-  const emptyEl = dom['tray-ridership-empty'];
-  if (!data?.months?.length || !data.routes) {
-    if (emptyEl) emptyEl.style.display = '';
-    return;
-  }
-  if (emptyEl) emptyEl.style.display = 'none';
-
-  const months = data.months;
-  const li = months.length - 1;
-  const monthName = (ym) => {
-    const [y, m] = ym.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-  };
-
-  const tile = (label, kind, series) => {
-    const latestVal = series[li];
-    const t = linTrend(series);
-    let changeHtml = '';
-    if (t && series[li - 1] > 0 && latestVal != null) {
-      const momPct = 100 * (latestVal - series[li - 1]) / series[li - 1];
-      const arrow = momPct > 0.05 ? '▲' : momPct < -0.05 ? '▼' : '—';
-      const cls = momPct > 0.05 ? 'up' : momPct < -0.05 ? 'down' : 'flat';
-      changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(momPct).toFixed(1)}% vs prior month</div>`;
-    }
-    return `<div class="mini-trend mini-${kind}">
-      <div class="mini-label">${label}</div>
-      <div class="mini-value">${fmtRiders(latestVal)}<span class="mini-unit">riders/wkday</span></div>
-      ${changeHtml}
-      ${sparkTrend(series, true)}
-    </div>`;
-  };
-
-  // Row 1: the system, then the same watch routes as the speed section.
-  const tiles = [tile('All NYC buses', 'boro', data.system.wdAvg)];
-  for (const meta of Object.values(WATCH_ROUTES)) {
-    for (const route of meta.routes) {
-      const rec = data.routes[route];
-      if (rec) tiles.push(tile(route, 'route', rec.wdAvg));
-    }
-  }
-
-  // Leaderboard: top 12 routes by latest-month average weekday riders.
-  const ranked = Object.entries(data.routes)
-    .map(([route, rec]) => ({ route, now: rec.wdAvg[li], prev: rec.wdAvg[li - 1] }))
-    .filter((r) => r.now > 0)
-    .sort((a, b) => b.now - a.now)
-    .slice(0, 12);
-  const rows = ranked.map((r, i) => {
-    const mom = r.prev > 0 ? 100 * (r.now - r.prev) / r.prev : null;
-    const momHtml = mom == null ? '—'
-      : `<span class="${mom > 0.05 ? 'rid-up' : mom < -0.05 ? 'rid-down' : ''}">${mom > 0 ? '+' : ''}${mom.toFixed(1)}%</span>`;
-    return `<tr>
-      <td class="num">${i + 1}</td>
-      <td class="rid-route">${r.route}</td>
-      <td class="num">${fmtRiders(r.now)}</td>
-      <td class="num">${momHtml}</td>
-    </tr>`;
-  }).join('');
-
-  host.innerHTML = `
-    <div class="boro-trend rid-tiles">${tiles.join('')}</div>
-    <div class="rid-board">
-      <div class="rid-board-title">Busiest routes, ${monthName(months[li])} — avg weekday riders</div>
-      <table class="tray-table rid-table">
-        <thead><tr><th class="num">#</th><th>Route</th><th class="num">Riders/wkday</th><th class="num">vs prior mo.</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  host.appendChild(emptyEl); // keep the empty-note node in the DOM for reuse
-  if (emptyEl) emptyEl.style.display = 'none';
-}
-
-/** Least-squares linear fit over a series (oldest→newest, nulls skipped).
- *  x is the position in the series so gaps count as elapsed time. Returns the
- *  slope/intercept plus the net change the trend line implies across the span
- *  (fitted last minus fitted first) — a stable "faster or slower over time"
- *  figure that doesn't swing with a single noisy week. Null if <2 points. */
-function linTrend(series) {
-  const pts = series.map((v, i) => ({ i, v })).filter(p => p.v != null);
-  if (pts.length < 2) return null;
-  const m = pts.length;
-  const sx = pts.reduce((s, p) => s + p.i, 0);
-  const sy = pts.reduce((s, p) => s + p.v, 0);
-  const sxx = pts.reduce((s, p) => s + p.i * p.i, 0);
-  const sxy = pts.reduce((s, p) => s + p.i * p.v, 0);
-  const denom = m * sxx - sx * sx;
-  const slope = denom !== 0 ? (m * sxy - sx * sy) / denom : 0;
-  const intercept = (sy - slope * sx) / m;
-  const firstI = pts[0].i;
-  const lastI = pts[pts.length - 1].i;
-  return {
-    pts, slope, intercept, firstI, lastI,
-    weeks: pts.length,
-    netOverWindow: slope * (lastI - firstI),
-    fit: i => intercept + slope * i,
-  };
-}
-
-/** A calm alternative to jumpy bars: the weekly values as a faint line, with a
- *  bold straight trend line (the least-squares fit) laid over them and the
- *  latest point marked. The trend line is what carries the "up or down over
- *  time" read; the faint line keeps the real data visible. `higherIsBetter`
- *  colors the trend green/red by whether the slope is good news. */
-function sparkTrend(series, higherIsBetter = true) {
-  const t = linTrend(series);
-  if (!t) return '';
-  const W = 100, H = 26, pad = 3, n = series.length;
-  const xOf = i => n > 1 ? (i / (n - 1)) * (W - 2 * pad) + pad : W / 2;
-  const ys = [...t.pts.map(p => p.v), t.fit(t.firstI), t.fit(t.lastI)];
-  const min = Math.min(...ys), max = Math.max(...ys), range = max - min || 1;
-  const yOf = v => (H - pad) - ((v - min) / range) * (H - 2 * pad);
-
-  const actual = t.pts
-    .map((p, k) => `${k ? 'L' : 'M'}${xOf(p.i).toFixed(1)} ${yOf(p.v).toFixed(1)}`)
-    .join(' ');
-  const good = t.slope === 0 ? null : (t.slope > 0) === higherIsBetter;
-  const trendColor = good === null ? 'var(--text-tertiary)'
-    : good ? 'var(--vc-goodest-green)' : 'var(--vc-baddest-red)';
-  const last = t.pts[t.pts.length - 1];
-
-  return `<svg class="spark-trend" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <path d="${actual}" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-    <line x1="${xOf(t.firstI).toFixed(1)}" y1="${yOf(t.fit(t.firstI)).toFixed(1)}" x2="${xOf(t.lastI).toFixed(1)}" y2="${yOf(t.fit(t.lastI)).toFixed(1)}" stroke="${trendColor}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-    <circle cx="${xOf(last.i).toFixed(1)}" cy="${yOf(last.v).toFixed(1)}" r="1.9" fill="rgba(255,255,255,0.6)"/>
-  </svg>`;
-}
-
-/** One compact speed tile: label, latest full-week mph, the net trend across
- *  every full week tracked (not the noisy week-over-week delta), and a line +
- *  trend-line chart. `series` is speeds (mph) or nulls, oldest first, aligned
- *  across a borough's tiles so the weeks match up. */
-function miniTrend(label, kind, series) {
-  const valid = series.filter(v => v != null);
-  const latestVal = valid.length ? valid[valid.length - 1] : null;
-
-  // Headline figure = the trend across the whole tracked window (higher speed
-  // is better), so it reflects direction over time rather than last week's wobble.
-  const t = linTrend(series);
-  let changeHtml = '';
-  if (t) {
-    const net = round1(t.netOverWindow);
-    if (net !== 0) {
-      const arrow = net > 0 ? '▲' : '▼';
-      const cls = net > 0 ? 'up' : 'down';
-      changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(net).toFixed(1)} over ${t.weeks} wks</div>`;
-    } else {
-      changeHtml = `<div class="trend-change flat">— flat over ${t.weeks} wks</div>`;
-    }
-  }
-
-  const sparkHtml = sparkTrend(series, true);
-
-  const valueHtml = latestVal != null
-    ? `${latestVal}<span class="mini-unit">mph</span>`
-    : '<span class="mini-nodata">no full week</span>';
-
-  return `<div class="mini-trend mini-${kind === 'borough avg' ? 'boro' : 'route'}">
-    <div class="mini-label">${label}</div>
-    <div class="mini-value">${valueHtml}</div>
-    ${changeHtml}
-    ${sparkHtml}
-  </div>`;
-}
-
-/** Render the bottom tray: collapsed headline + expanded cards + weekly table. */
-function renderTrends(data, weeklyAll) {
-  const summaryEl = dom['tray-summary'];
-  const periodEl = dom['tray-current-period'];
-  const cardsEl = dom['tray-cards'];
-  const emptyEl = dom['tray-empty'];
-  const tbody = dom['tray-table-body'];
-
-  // ── Current and prior full week from latest.json ──
-  // The latest two FULL, adequately covered weeks. latest.json's thisWeek is
-  // the week in progress most days, which left this section empty.
-  const fullHist = (data?.weeklyHistory || []).filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN);
-  const thisWeek = fullHist[fullHist.length - 1] || null;
-  const lastWeek = fullHist[fullHist.length - 2] || null;
-
-  // Collapsed-row summary text — lead with the time-of-day-normalized figures
-  // (the comparable ones), falling back to raw for any legacy pre-norm row.
-  if (summaryEl) {
-    const twSpeed = thisWeek?.avgSpeedHourNorm ?? thisWeek?.avgSpeed;
-    if (twSpeed != null) {
-      const bits = [
-        `${twSpeed} mph`,
-        thisWeek.coveragePct != null ? `${thisWeek.coveragePct}% coverage` : null,
-      ].filter(Boolean);
-      summaryEl.textContent = `Week of ${thisWeek.startDate}: ${bits.join(' · ')}`;
-    } else if (weeklyAll && weeklyAll.length > 0) {
-      const partial = weeklyAll[weeklyAll.length - 1];
-      summaryEl.textContent = `In progress: ${partial.period} (${partial.days}/7 days collected)`;
-    } else {
-      summaryEl.textContent = 'Collecting data \u2014 first full week rolls up Mon, May 4';
-    }
-  }
-  if (periodEl) {
-    periodEl.textContent = thisWeek
-      ? `ISO week ${thisWeek.period} · ${thisWeek.startDate} to ${thisWeek.endDate} · ${thisWeek.totalSnapshots?.toLocaleString?.() ?? thisWeek.totalSnapshots} snapshots across ${thisWeek.days} days`
-      : 'Waiting for the first complete ISO week (Monday through Sunday).';
-  }
-
-  // ── Expanded cards ──
-  if (cardsEl) {
-    const cards = [];
-    const pushIfPresent = (label, unit, field, direction) => {
-      if (thisWeek?.[field] == null) return;
-      const change = lastWeek?.[field] != null
-        ? round1(thisWeek[field] - lastWeek[field]) : null;
-      cards.push(trendCard(
-        label,
-        thisWeek[field],
-        unit,
-        change,
-        direction,
-        `Week of ${thisWeek.startDate}`,
-        fullWeeksField(data?.weeklyHistory, field),
-      ));
-    };
-    // Cards use the time-of-day-normalized metrics (comparable week-over-week).
-    pushIfPresent('Avg speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
-    pushIfPresent('Active buses', '', 'avgActiveBuses', 'higher is better');
-
-    // Monthly roll-ups, only when we have a full calendar month of data
-    const thisMonth = data?.thisMonth?.days >= 28 && data.thisMonth.coveragePct >= TREND_COVERAGE_MIN ? data.thisMonth : null;
-    const lastMonth = data?.lastMonth?.days >= 28 && data.lastMonth.coveragePct >= TREND_COVERAGE_MIN ? data.lastMonth : null;
-    const pushMonth = (label, unit, field, direction) => {
-      if (thisMonth?.[field] == null) return;
-      const change = lastMonth?.[field] != null
-        ? round1(thisMonth[field] - lastMonth[field]) : null;
-      cards.push(trendCard(
-        label,
-        thisMonth[field],
-        unit,
-        change,
-        direction,
-        thisMonth.period,
-        fullMonthsField(data?.monthlyHistory, field),
-      ));
-    };
-    pushMonth('Monthly speed', 'mph', 'avgSpeedHourNorm', 'higher is better');
-
-    if (cards.length > 0) {
-      if (emptyEl) emptyEl.style.display = 'none';
-      // Replace cards but keep the empty placeholder in DOM for re-use
-      cardsEl.innerHTML = cards.join('');
-    } else if (emptyEl) {
-      // Keep empty state visible, but clear any stale cards
-      const existing = cardsEl.querySelectorAll('.trend-card');
-      existing.forEach(n => n.remove());
-      emptyEl.style.display = 'flex';
-      cardsEl.appendChild(emptyEl); // ensure it's the rendered child
-    }
-  }
-
-  // ── Collection coverage stats (transparency drawer) ──
-  const covEl = dom['tray-coverage-stats'];
-  if (covEl) {
-    const cur = data?.current;
-    if (cur?.date) {
-      const bits = [
-        `Latest daily roll-up: <strong>${cur.date}</strong>`,
-        cur.snapshotCount != null ? `${cur.snapshotCount.toLocaleString()} snapshots` : null,
-        cur.totalRoutes != null ? `${cur.totalRoutes} routes seen` : null,
-        cur.activeBusesPeak != null ? `peak ${cur.activeBusesPeak.toLocaleString()} buses` : null,
-      ].filter(Boolean);
-      const totalSnaps = (weeklyAll || []).reduce((s, w) => s + (w.totalSnapshots || 0), 0);
-      const totalDays = (weeklyAll || []).reduce((s, w) => s + (w.days || 0), 0);
-      covEl.innerHTML = bits.join(' &middot; ')
-        + (totalSnaps > 0
-            ? `. Lifetime so far: <strong>${totalSnaps.toLocaleString()}</strong> snapshots across <strong>${totalDays}</strong> day${totalDays !== 1 ? 's' : ''}.`
-            : '.');
-    } else {
-      covEl.textContent = 'No daily roll-up yet — first one lands ~1 AM ET the morning after the first full collection day.';
-    }
-  }
-
-  // ── Week-by-week table ──
-  if (tbody) {
-    const rows = Array.isArray(weeklyAll) ? [...weeklyAll] : [];
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr class="tray-table-empty"><td colspan="7">No weekly rows yet. The first row appears the morning after the first Monday\u2013Sunday window completes.</td></tr>';
-    } else {
-      rows.reverse(); // newest first
-      const currentPeriod = thisWeek?.period;
-      const cell = v => v == null ? '\u2014' : (typeof v === 'number' ? v.toLocaleString() : v);
-      tbody.innerHTML = rows.map(w => {
-        const isPartial = w.days < 7;
-        // A week is "not comparable" if it's partial or thin on coverage; mark
-        // it so it isn't read head-to-head with full weeks.
-        const lowCoverage = w.coveragePct != null && w.coveragePct < 50;
-        const notComparable = isPartial || lowCoverage;
-        const rowCls = w.period === currentPeriod ? 'current' : (notComparable ? 'partial' : '');
-        const daysCell = isPartial ? `${w.days}/7 *` : `${w.days}`;
-        // Prefer the time-of-day-normalized figures (fall back to raw only if a
-        // legacy row predates normalization).
-        const spd = w.avgSpeedHourNorm ?? w.avgSpeed;
-        const covCell = w.coveragePct != null
-          ? `${w.coveragePct}%${lowCoverage ? ' *' : ''}` : '\u2014';
-        return `<tr class="${rowCls}">
-          <td>${w.period}</td>
-          <td>${w.startDate} &ndash; ${w.endDate}</td>
-          <td class="num">${daysCell}</td>
-          <td class="num">${covCell}</td>
-          <td class="num">${cell(spd)}</td>
-          <td class="num">${cell(w.avgActiveBuses)}</td>
-          <td class="num">${cell(w.avgRoutes)}</td>
-        </tr>`;
-      }).join('');
-    }
-  }
-}
-
-/** Filter history arrays to only include full periods */
-function fullWeeksField(history, field) {
-  return history?.filter(w => w.days >= 7 && w.coveragePct >= TREND_COVERAGE_MIN).map(w => w[field]) || [];
-}
-function fullMonthsField(history, field) {
-  return history?.filter(m => m.days >= 28 && m.coveragePct >= TREND_COVERAGE_MIN).map(m => m[field]) || [];
-}
-
-function trendCard(label, value, unit, change, direction, period, sparkData) {
-  // Determine change direction and formatting
-  let changeHtml = '';
-  if (change != null && change !== 0) {
-    const isGood = direction === 'higher is better' ? change > 0 : change < 0;
-    const arrow = change > 0 ? '\u25B2' : '\u25BC';
-    const cls = isGood ? 'up' : 'down';
-    changeHtml = `<div class="trend-change ${cls}">${arrow} ${Math.abs(change).toFixed(1)} vs prior</div>`;
-  } else if (change === 0) {
-    changeHtml = `<div class="trend-change flat">\u2014 no change</div>`;
-  }
-
-  // Line + fitted trend line (calmer than week-to-week bars). Color the trend
-  // by whether its slope is good news for this metric.
-  const sparkHtml = sparkTrend(sparkData, direction === 'higher is better');
-
-  return `<div class="trend-card">
-    <div class="trend-label">${label}</div>
-    <div class="trend-value">${value}<span style="font-size:10px;font-weight:500;color:var(--text-tertiary);margin-left:3px">${unit}</span></div>
-    ${changeHtml}
-    <div class="trend-period">${period || ''}</div>
-    ${sparkHtml}
-  </div>`;
+// ═══ ROUTE NAMES ═══
+async function loadRouteNames() {
+  try {
+    const res = await fetch('data/routes/route-table.json');
+    if (res.ok) routeNames = (await res.json()).routes || {};
+  } catch { /* names are a nicety; the feed's destination signs stand in */ }
 }
 
 // ═══ BUS DIRECTION ARROW ICON (SDF) ═══

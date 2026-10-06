@@ -12,6 +12,11 @@
   const BORO_NAME = { M: 'Manhattan', B: 'Brooklyn', Q: 'Queens', Bx: 'Bronx', S: 'Staten Island', X: 'Express' };
 
   const zero = {};      // chart key -> bool
+  const EV_COL = { holiday: '#9b9fbc', gap: '#d2232a', weather: '#4fb3e8', method: '#dde44c', network: '#ff7c53' };
+  const evNear = (a, b) => {
+    const hits = (D.events || []).filter(e => e.kind !== 'weather' ? (e.date <= b && (e.end || e.date) >= a) : (e.date >= a && e.date <= b));
+    return hits.length ? `<div class="t-n">${hits.map(e => e.label).join('; ')}</div>` : '';
+  };
   const renders = [];   // functions to re-run on resize
   let D = null;
 
@@ -102,7 +107,8 @@
     const x = lin(t0, t1, m.l, w - m.r);
     const mid = s => (dt(s.start).getTime() + dt(s.end).getTime()) / 2;
     // Scale to the usable weeks; unreliable weeks outside that range are left off.
-    const yd = yDomain(S.filter(s => s.comparable).map(s => s[key]), zero.weekly, 0.12, cfg.minSpan);
+    const ok = s => (cfg.ok ? s[cfg.ok] : s.comparable);
+    const yd = yDomain(S.filter(ok).map(s => s[key]), zero.weekly, 0.12, cfg.minSpan);
     const y = lin(yd.lo, yd.hi, h - m.b, m.t);
 
     txt(svg, 0, 14, cfg.title, { class: 'ctitle' });
@@ -135,7 +141,7 @@
     // line through usable weeks; break where a week is missing
     let dpath = '', prev = null;
     for (const s of S) {
-      if (!s.comparable || s[key] == null) { prev = null; continue; }
+      if (!ok(s) || s[key] == null) { prev = null; continue; }
       const px = x(mid(s)), py = y(s[key]);
       dpath += (prev && dt(s.start) - dt(prev.start) <= 8 * 86400000 ? 'L' : 'M') + px.toFixed(1) + ',' + py.toFixed(1);
       prev = s;
@@ -143,11 +149,18 @@
     el('path', { d: dpath, fill: 'none', stroke: COL.ours, 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, svg);
     for (const s of S) {
       if (s[key] == null) continue;
-      const c = s.comparable;
+      const c = ok(s);
       if (!c && (s[key] < yd.lo || s[key] > yd.hi)) continue;
       el('circle', { cx: x(mid(s)), cy: y(s[key]), r: c ? 3 : 3.5, fill: c ? COL.ours : 'none', stroke: c ? 'none' : COL.ink2, 'stroke-width': 1.3 }, svg);
     }
-    const lastC = [...S].reverse().find(s => s.comparable && s[key] != null);
+    if (cfg.last) {
+      for (const e of D.events || []) {
+        const a = x(dt(e.date).getTime()), b = e.end ? x(dt(e.end).getTime() + 86400000) : a + 3;
+        if (a < m.l - 2 || a > w - m.r) continue;
+        el('rect', { x: a, y: h - m.b - 7, width: Math.max(3, b - a), height: 4, fill: EV_COL[e.kind] || COL.ink3, opacity: 0.9 }, svg);
+      }
+    }
+    const lastC = [...S].reverse().find(s => ok(s) && s[key] != null);
     if (lastC) txt(svg, x(mid(lastC)) + 9, y(lastC[key]) + 4, cfg.fmt(lastC[key], true), { class: 'dlabel', fill: COL.ours });
 
     hoverLayer(svg, m, w, h, (px, py, e) => {
@@ -157,9 +170,10 @@
       if (!best) return null;
       showTip(e, `<div class="t-h">${apDate(best.start)} to ${apDate(best.end)}</div>`
         + row(cfg.title, cfg.fmt(best[key], true))
-        + row('Buses in service', num(best.buses))
-        + row('Hours captured', best.coverage + '%')
-        + (best.comparable ? '' : '<div class="t-n">Too little of the day captured to compare.</div>'));
+        + (key !== 'buses' ? row('Buses on the road', num(best.buses)) : (best.sched ? row('Trips scheduled', num(best.sched)) : ''))
+        + row('Hours caught', best.coverage + '%')
+        + (ok(best) ? '' : '<div class="t-n">Not comparable: some hours of the day were not caught often enough.</div>')
+        + evNear(best.start, best.end));
       return { x: x(mid(best)) };
     });
   }
@@ -332,7 +346,7 @@
     const m = { t: 34, r: 60, b: 28, l: 48 };
     const S = D.ridership.series;
     const x = lin(0, S.length - 1, m.l + 6, w - m.r);
-    const yd = yDomain([...S.map(s => s.riders), ...S.map(s => s.priorYear)], zero.riders, 0.08);
+    const yd = yDomain([...S.map(s => s.riders), ...S.map(s => s.taps)], zero.riders, 0.08);
     const y = lin(yd.lo, yd.hi, h - m.b, m.t);
     txt(svg, 0, 14, 'Average weekday boardings', { class: 'ctitle' });
     txt(svg, 0, 30, 'millions', { class: 'csub' });
@@ -341,7 +355,7 @@
     S.forEach((s, i) => { const mo = +s.month.slice(5); if (mo === 1 || i === 0) txt(svg, x(i), h - 8, (mo === 1 ? '' : AP_SHORT[mo - 1] + ' ') + s.month.slice(0, 4), { 'text-anchor': 'start' }); else if (mo % 3 === 1) txt(svg, x(i), h - 8, AP_SHORT[mo - 1], { 'text-anchor': 'middle' }); });
 
     const seg = (get) => { let d = '', on = false; S.forEach((s, i) => { const v = get(s); if (v == null) { on = false; return; } d += (on ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); on = true; }); return d; };
-    el('path', { d: seg(s => s.priorYear), fill: 'none', stroke: COL.ink3, 'stroke-width': 1.5, 'stroke-dasharray': '4 4' }, svg);
+    el('path', { d: seg(s => s.taps), fill: 'none', stroke: COL.ink3, 'stroke-width': 1.5, 'stroke-dasharray': '4 4' }, svg);
     el('path', { d: seg(s => s.riders), fill: 'none', stroke: COL.rose, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, svg);
     S.forEach((s, i) => el('circle', { cx: x(i), cy: y(s.riders), r: 2.5, fill: COL.rose }, svg));
     const L = S[S.length - 1];
@@ -350,9 +364,8 @@
     hoverLayer(svg, m, w, h, (px, py, e) => {
       const i = Math.max(0, Math.min(S.length - 1, Math.round(x.inv(px))));
       const s = S[i];
-      const diff = s.priorYear ? Math.round((s.riders / s.priorYear - 1) * 1000) / 10 : null;
-      showTip(e, `<div class="t-h">${apMonth(s.month)}</div>` + row('Weekday average', num(s.riders))
-        + (s.priorYear ? row('Same month a year earlier', num(s.priorYear)) + row('Change', (diff > 0 ? '+' : '') + diff + '%') : ''));
+      showTip(e, `<div class="t-h">${apMonth(s.month)}</div>` + row('Passenger counters', num(s.riders))
+        + (s.taps ? row('Paid fare taps', num(s.taps)) + row('Counters per tap', (s.riders / s.taps).toFixed(2)) : row('Paid fare taps', 'not available')));
       return { x: x(i) };
     });
   }
@@ -468,6 +481,10 @@
     if (O.flags?.length) {
       main.insertAdjacentHTML('beforeend', `<ul class="flags">${O.flags.map(f => `<li><b>${f.head}</b>${f.text}${f.detail ? `<span>${f.detail}</span>` : ''}</li>`).join('')}</ul>`);
     }
+    if (O.nowcast?.text || O.nowcastLog?.length) {
+      const scored = (O.nowcastLog || []).filter(f => f.actual != null);
+      main.insertAdjacentHTML('beforeend', `<div class="nowcast"><b>Ahead of the MTA.</b> ${O.nowcast?.text || ''}${scored.length ? ` <span>Forecasts on record: ${scored.map(f => `${apMonth(f.month)} ${f2(f.value)} forecast, ${f2(f.actual)} actual`).join('; ')}.</span>` : ''}</div>`);
+    }
     if (O.sources?.length) {
       main.insertAdjacentHTML('beforeend', `<p class="note" style="margin-top:24px;color:var(--ink-3);font-size:12.5px">MTA sources: ${O.sources.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${s.name}</a> (through ${s.through})`).join('; ')}. Pulled ${apDate(O.fetchedAt.slice(0, 10), true)}.</p>`);
     }
@@ -509,12 +526,12 @@
     document.getElementById('dek').textContent =
       `What ${T.weeksElapsed} weeks of watching every New York City bus has shown so far: how fast they move, how many are on the road and how many people ride.`;
     document.getElementById('edition').innerHTML =
-      `Updated every Monday. This edition runs through <b>${apDate(A.end, true)}</b>, with ${T.comparableWeeks} usable weeks out of ${T.weeksElapsed} and ${num(T.snapshots)} snapshots of the fleet since ${apDate(T.firstDate)}.`;
+      `Updated every Monday. This edition runs through <b>${apDate(A.end, true)}</b>, with ${T.comparableWeeks} comparable weeks out of ${T.weeksElapsed} and ${num(T.snapshots)} snapshots of the fleet since ${apDate(T.firstDate)}.`;
     document.getElementById('learned').innerHTML = D.learned.map(l => `<li><b>${l.head}</b>${l.text}</li>`).join('');
     document.getElementById('day-recent-label').textContent = `Recent weeks, ${apDate(P.recent.start)} to ${apDate(P.recent.end)}`;
     document.getElementById('day-base-label').textContent = `First weeks, ${apDate(P.baseline.start)} to ${apDate(P.baseline.end)}`;
     document.getElementById('riders-copy').textContent =
-      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, counted by the MTA's on-board passenger counters. The dashed line is the same month a year earlier.`;
+      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, counted by the MTA's on-board passenger counters, beside paid fare taps (dashed). Both are partial counts: taps miss riders who don't pay, and not every bus carries a working counter.`;
   }
 
   // ── controls ──
@@ -551,8 +568,10 @@
   }
 
   function renderAll() {
-    weeklyChart(document.getElementById('chart-speed'), 'speed', { title: 'Speed', sub: 'miles per hour', fmt: (v, u) => f1(v) + (u ? ' mph' : ''), first: true, minSpan: 2 });
-    weeklyChart(document.getElementById('chart-buses'), 'buses', { title: 'Buses in service', sub: 'average at any moment', fmt: (v) => num(Math.round(v)), last: true, minSpan: 600 });
+    weeklyChart(document.getElementById('chart-speed'), 'speed', { ok: 'wdOk', title: 'Weekday speed', sub: 'mph, stops included', fmt: (v, u) => f1(v) + (u ? ' mph' : ''), first: true, minSpan: 1.5 });
+    weeklyChart(document.getElementById('chart-weekend'), 'weekend', { ok: 'weOk', title: 'Weekend speed', sub: 'mph, stops included', fmt: (v, u) => f1(v) + (u ? ' mph' : ''), minSpan: 1.5 });
+    weeklyChart(document.getElementById('chart-stop'), 'stop', { ok: 'wdOk', title: 'Time stopped', sub: 'share of weekday bus time under 0.5 mph', fmt: (v, u) => (100 * v).toFixed(u ? 1 : 0) + '%', minSpan: 0.04 });
+    weeklyChart(document.getElementById('chart-buses'), 'buses', { ok: 'wdOk', title: 'Buses on the road', sub: 'weekday average, every hour equal', fmt: (v) => num(Math.round(v)), last: true, minSpan: 600 });
     dayChart(); boroChart(); routesChart(); ridersChart();
     for (const r of renders) r();
   }

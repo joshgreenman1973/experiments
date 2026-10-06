@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Before and After &mdash; compare NYC bus speeds across any two periods</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Pick a set of New York City bus routes, two stretches of weeks and a time of day, and see how speed, time stopped or buses on the road changed, against a comparison group if you want one." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="findings.css?v=5" />
+  <link rel="stylesheet" href="route.css?v=1" />
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <nav class="crumbs">
+      <a href="index.html">&larr; All Through the Town <span>live map</span></a>
+      <a href="findings.html">Round and Round <span>weekly charts</span></a>
+      <a href="route.html">Route by Route <span>every route&rsquo;s history</span></a>
+    </nav>
+    <h1 class="title">Before and <span>After</span></h1>
+    <p class="dek">Pick routes, two stretches of weeks and a time of day. The tracker compares them, and, if you name a comparison group, nets out what happened to every other bus over the same weeks.</p>
+    <p class="edition" id="edition"></p>
+  </header>
+
+  <section class="block">
+    <div class="side">
+      <h2>The question</h2>
+      <p>Only comparable weeks count: the collector caught every hour often enough, and the route ran on enough days. Each route is compared with itself, using only routes present in both periods, so a route that starts or stops running doesn&rsquo;t move the average.</p>
+      <p class="note">The link at the bottom of the result reproduces it exactly.</p>
+    </div>
+    <div class="main">
+      <form class="cmp-form" id="form">
+        <fieldset>
+          <legend>Routes</legend>
+          <select id="group"></select>
+          <textarea id="custom" placeholder="Custom list, e.g. M15+, M101, M102, M103" hidden></textarea>
+        </fieldset>
+        <fieldset>
+          <legend>Compare with (optional)</legend>
+          <select id="control"></select>
+          <textarea id="custom2" placeholder="Custom comparison list" hidden></textarea>
+        </fieldset>
+        <fieldset>
+          <legend>Days and hours</legend>
+          <select id="daytype"><option value="wd">Weekdays</option><option value="we">Weekends</option></select>
+          <select id="band">
+            <option value="all">All day, 6 a.m.&ndash;11 p.m.</option>
+            <option value="am">Morning rush, 7&ndash;10 a.m.</option>
+            <option value="mid">Midday, 10 a.m.&ndash;4 p.m.</option>
+            <option value="pm">Evening rush, 4&ndash;7 p.m.</option>
+            <option value="eve">Evening, 7&ndash;11 p.m.</option>
+          </select>
+        </fieldset>
+        <fieldset>
+          <legend>Measure</legend>
+          <select id="metric">
+            <option value="all">Speed with stops (mph)</option>
+            <option value="mov">Moving speed (mph)</option>
+            <option value="stop">Time stopped (share)</option>
+            <option value="buses">Buses on the road</option>
+            <option value="pax">Passengers per bus (counter estimate)</option>
+          </select>
+        </fieldset>
+        <fieldset>
+          <legend>Period A (before)</legend>
+          <select id="a0"></select><select id="a1"></select>
+        </fieldset>
+        <fieldset>
+          <legend>Period B (after)</legend>
+          <select id="b0"></select><select id="b1"></select>
+        </fieldset>
+        <fieldset>
+          <legend>&nbsp;</legend>
+          <button class="run" type="submit">Compare</button>
+        </fieldset>
+      </form>
+      <div class="cmp-result" id="result"></div>
+      <div class="chart" id="chart" data-h="260" style="margin-top:26px"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Reading the result</h2>
+    </div>
+    <div class="main">
+      <div class="method-body">
+        <p><strong>Change</strong> is the average of each route&rsquo;s own change from period A to period B. A route&rsquo;s value in a period is the mean of its comparable weeks there.</p>
+        <p><strong>Against the comparison group</strong> subtracts the comparison group&rsquo;s change over the same weeks. If every bus in the city sped up 0.2 mph because school let out, the chosen routes&rsquo; own 0.3 mph gain shrinks to 0.1 against the rest. This is the usual way to read a before-and-after on routes that got a treatment (a bus lane, free fares) when others did not.</p>
+        <p><strong>The range</strong> is a 95% interval from how much routes differ from one another. It does not capture everything: events that hit both periods unevenly, a change in how the MTA reports positions, or a holiday week can all move a result. The event marks on the chart show the ones the tracker knows about.</p>
+        <p>Speeds are the tracker&rsquo;s own estimates from GPS positions, not official MTA figures. The method is in the data dictionary on the <a href="index.html">main page</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="caution-wrap">
+      <button class="ai-caution-btn" id="ai-caution-btn" type="button">AI caution</button>
+      <div class="ai-caution-pop" id="ai-caution-pop" hidden>
+        <p>Built with AI assistance (Claude). Speeds are estimates made from GPS positions, not official MTA numbers. Automated pipelines can contain errors &mdash; check the method and the source data before republishing any number.</p>
+      </div>
+    </div>
+  </footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script src="charts.js?v=2"></script>
+<script src="compare.js?v=3"></script>
+</body>
+</html>

@@ -1,12 +1,23 @@
 name: Bus Tracker Weekly Findings
 
-# Rebuilds findings.html's data ("Round and Round") once a week. Monday 10:30
-# UTC is after the daily processor (05:00 UTC) has rolled up Sunday, so the
-# ISO week just ended is complete.
+# Rebuilds findings.html's data ("Round and Round") and the MTA comparison.
+# Runs whenever the daily processor finishes, so it can never race ahead of the
+# day's data (on Oct. 5, 2026, a fixed-time run beat the processor and
+# published the wrong week). build_findings.js freezes at the last complete
+# ISO week, so the page itself only changes once a week; the MTA comparison
+# and the forecast refresh whenever the MTA publishes. The Monday cron is a
+# backstop.
 on:
+  workflow_run:
+    workflows: ['Process Daily Summary']
+    types: [completed]
   schedule:
-    - cron: '30 10 * * 1'
+    - cron: '30 15 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: bus-tracker-findings
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -18,12 +29,13 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 1
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       # Pulls the MTA's own published bus metrics for the comparison section.
       # Fails loud on empty or implausible responses. If it fails, the charts
@@ -37,12 +49,16 @@ jobs:
         if: always()
         run: node nyc-bus-tracker/scripts/build_findings.js
 
+      - name: Regenerate download CSVs
+        if: always()
+        run: node nyc-bus-tracker/scripts/export_csv.mjs
+
       - name: Commit if changed
         if: always()
         run: |
           git config user.name "bus-tracker-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add nyc-bus-tracker/data/findings/ nyc-bus-tracker/data/mta/
+          git add nyc-bus-tracker/data/findings/ nyc-bus-tracker/data/mta/ nyc-bus-tracker/data/downloads/
           if git diff --cached --quiet; then
             echo "Findings unchanged."
             exit 0
@@ -50,6 +66,6 @@ jobs:
           git commit -m "Bus tracker: weekly findings ($(date -u '+%Y-%m-%d'))"
           for i in 1 2 3; do
             git push origin main && exit 0
-            git pull --rebase origin main
+            git pull --rebase -X theirs origin main
           done
           exit 1

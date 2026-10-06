@@ -246,6 +246,14 @@ def main():
             log(f'next burst at {slot:%a %H:%M} ET')
             sleep_until(slot)
             ok = collect_and_push()
+            if slot.hour == FIRST_HOUR and slot.minute == SLOT_MINUTES[0]:
+                # Yesterday is complete: start the daily processor now rather
+                # than waiting on GitHub's cron.
+                try:
+                    api('POST', '/actions/workflows/bus-tracker-process-daily.yml/dispatches', {'ref': 'main'})
+                    log('daily processor dispatched')
+                except Exception as e:
+                    print(f'::warning::could not dispatch the daily processor: {e}', flush=True)
             failures = 0 if ok else failures + 1
             if failures >= 3:
                 print('::error::three bursts in a row collected nothing', flush=True)

@@ -1,108 +1,107 @@
 name: Process Daily Summary
 
+# Turns raw snapshots on bus-data into data/daily/ and rebuilds every summary,
+# route file, event list and download (scripts/rebuild.sh), then commits to main.
+#
+# Triggers: the collector loop dispatches this right after the first burst of
+# each day (6:09 a.m. Eastern), so it doesn't wait on GitHub's cron, which ran
+# 5 to 7 hours late in October 2026. The cron below is a backstop. Each run
+# processes yesterday plus any day in the last two weeks that has snapshots but
+# no current daily file, so a missed run heals itself.
+#
+# Ends red (after committing) when collection was thin on any of the last three
+# days, so a collapse like Oct. 1-6, 2026, can't pass unnoticed again.
 on:
-  # Run daily at 5:00 AM UTC (midnight ET during EDT, 12am EST)
   schedule:
-    - cron: '0 5 * * *'
-
-  # Manual trigger with optional date override
+    - cron: '17 11 * * *'
   workflow_dispatch:
     inputs:
       date:
-        description: 'Date to process (YYYY-MM-DD), defaults to yesterday'
+        description: 'Process only this date (YYYY-MM-DD); blank = yesterday plus any missing days'
         required: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: bus-tracker-process-daily
+  cancel-in-progress: false
+
 jobs:
   process:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 60
     steps:
-      # Snapshots live on the `bus-data` branch (isolated from main so collection
-      # never collides with PR pushes). Daily summaries land on `main` because
-      # GitHub Pages serves from there. Strategy: check out main as the base,
-      # then pull just data/snapshots/ from bus-data into the working tree.
       - name: Checkout main
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Pull the processed day's snapshots from bus-data
-        run: |
-          # Figure out which date we're processing (yesterday ET, or a manual
-          # override), then pull ONLY that day's folder — not the whole multi-GB
-          # archive. Checking out the entire snapshot tree grows monotonically
-          # slower as the archive grows; we only ever read one day here.
-          DATE="${{ github.event.inputs.date }}"
-          if [ -z "$DATE" ]; then
-            DATE=$(TZ='America/New_York' date -d 'yesterday' '+%Y-%m-%d' 2>/dev/null || TZ='America/New_York' date -v-1d '+%Y-%m-%d')
-          fi
-          echo "PROCESS_DATE=$DATE" >> "$GITHUB_ENV"
-          echo "Processing date: $DATE"
-
-          # BLOBLESS fetch — download only commit + trees, not the ~5.8 GB of
-          # historical blobs. The one day we process is lazily fetched by the
-          # checkout below. Keeps this job fast as the archive grows.
-          git config remote.origin.promisor true
-          git config remote.origin.partialclonefilter blob:none
-          git fetch --filter=blob:none --no-tags origin bus-data --depth=1
-          rm -rf nyc-bus-tracker/data/snapshots
-          mkdir -p nyc-bus-tracker/data/snapshots
-          # Current format: one folder of per-hour files for the date.
-          git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${DATE}/" 2>/dev/null \
-            && echo "Pulled ${DATE}/ folder." || echo "No ${DATE}/ folder on bus-data."
-          # Legacy fallback: a single flat file, for dates before hourly chunking.
-          git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${DATE}.jsonl" 2>/dev/null \
-            && echo "Pulled legacy ${DATE}.jsonl." || true
-          # `git checkout <ref> -- <path>` stages what it pulls; unstage so
-          # snapshots are never committed to main (they live on bus-data).
-          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
-          echo "Snapshot files now in working tree:"
-          ls -R nyc-bus-tracker/data/snapshots/ | head -20
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      - name: Install dependencies
-        run: cd nyc-bus-tracker/collector && npm ci
-
-      - name: Process the day's snapshots
+      - name: Work out which days to process
+        env:
+          ONLY: ${{ github.event.inputs.date }}
         run: |
-          echo "Processing $PROCESS_DATE"
-          node nyc-bus-tracker/collector/process.js "$PROCESS_DATE"
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+          git fetch --filter=blob:none --no-tags --depth=1 origin bus-data
+          if [ -n "$ONLY" ]; then echo "$ONLY" > days.txt; else
+            python3 - <<'PY' > days.txt
+          import json, os, subprocess
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          today = datetime.now(ZoneInfo('America/New_York')).date()
+          on_branch = set(subprocess.run(['git', 'ls-tree', '--name-only', 'origin/bus-data', 'nyc-bus-tracker/data/snapshots/'],
+                                         capture_output=True, text=True).stdout.replace('nyc-bus-tracker/data/snapshots/', '').replace('.jsonl', '').split())
+          for k in range(14, 0, -1):
+              d = (today - timedelta(days=k)).isoformat()
+              f = f'nyc-bus-tracker/data/daily/{d}.json'
+              current = os.path.exists(f) and json.load(open(f)).get('methodVersion') == 2
+              if d in on_branch and (k == 1 or not current):
+                  print(d)
+          PY
+          fi
+          echo "Days to process:"; cat days.txt
 
-      - name: Generate weekly/monthly rollups
-        run: node nyc-bus-tracker/collector/rollup.js
+      - name: Process
+        run: |
+          for D in $(cat days.txt); do
+            rm -rf nyc-bus-tracker/data/snapshots && mkdir -p nyc-bus-tracker/data/snapshots
+            git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${D}/" 2>/dev/null || true
+            git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${D}.jsonl" 2>/dev/null || true
+            git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
+            node nyc-bus-tracker/collector/process.js "$D"
+          done
+          rm -rf nyc-bus-tracker/data/snapshots
 
-      - name: Regenerate download CSVs
-        run: node nyc-bus-tracker/scripts/export_csv.js
+      - name: Rebuild summaries, route files, events and downloads
+        run: bash nyc-bus-tracker/scripts/rebuild.sh
 
-      - name: Commit summaries to main
+      - name: Commit to main
         run: |
           git config user.name "Bus Tracker Bot"
           git config user.email "bus-bot@users.noreply.github.com"
-          # Only stage the rollup outputs. Snapshots stay on bus-data — defensively
-          # unstage them in case anything above re-staged the path.
-          git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/ nyc-bus-tracker/data/downloads/
-          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
+          git add -A nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/ nyc-bus-tracker/data/route-history/ \
+                     nyc-bus-tracker/data/events/ nyc-bus-tracker/data/downloads/
+          git diff --staged --quiet && { echo "No changes"; exit 0; }
+          git commit -q -m "Daily summary: $(paste -sd' ' days.txt)"
+          for i in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git pull --rebase -X theirs origin main
+          done
+          exit 1
 
-          if git diff --staged --quiet; then
-            echo "No new summaries to commit"
-            exit 0
-          fi
-
-          DATE=$(TZ='America/New_York' date '+%Y-%m-%d')
-          git commit -m "Daily summary: ${DATE}"
-
-          # Daily processor runs at 1am ET when main is usually quiet, but
-          # retry once on rejection just in case a PR landed mid-processing.
-          if ! git push origin main; then
-            echo "Push rejected, rebasing and retrying..."
-            git pull --rebase --autostash origin main
-            git add nyc-bus-tracker/data/daily/ nyc-bus-tracker/data/summary/ nyc-bus-tracker/data/downloads/
-            git push origin main
-          fi
+      - name: Collection health
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          h = json.load(open('nyc-bus-tracker/data/summary/health.json'))
+          print(h['message'])
+          if h['alert']:
+              print(f"::error::{h['message']} Check the Collect Bus Data workflow.")
+              sys.exit(1)
+          PY

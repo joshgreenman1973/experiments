@@ -1,547 +1,224 @@
 #!/usr/bin/env node
 /**
- * NYC Bus Tracker — Daily Processor
- * Reads a day's JSONL snapshots and computes:
- * - Per-route average speed (route-weighted, consistent with MTA methodology)
- * - Bunching events (buses within 250m on same route/direction)
- * - Gap events (long intervals without buses)
- * - Route reliability scores
- * - System-wide summary stats for historical tracking
+ * NYC Bus Tracker — daily processor, method version 2 (October 2026).
  *
- * Usage: node process.js [YYYY-MM-DD]
- * Defaults to yesterday if no date provided.
+ * Reads one ET day of raw snapshots (data/snapshots/YYYY-MM-DD/HH.jsonl, from
+ * the bus-data branch) and writes data/daily/YYYY-MM-DD.json: per route, per
+ * Eastern clock hour, the raw sums every later figure is built from. Nothing
+ * here is averaged across routes or hours; rollup.js does that, so the
+ * weighting rules live in one place.
+ *
+ * A "reading" is one bus seen in two consecutive snapshots of the same burst
+ * (no more than 10 minutes apart) on the same route:
+ *   - elapsed time comes from the bus's own GPS timestamp (RecordedAtTime),
+ *     falling back to the snapshot clock only when a timestamp is missing;
+ *     a bus whose GPS timestamp did not advance is skipped (no new position);
+ *   - distance is the straight line between the two positions (snapshots are
+ *     about 30 to 45 seconds apart, so the chord is close to the path);
+ *   - readings where either position is flagged "layover" are skipped;
+ *   - readings of 60 mph or more are GPS errors and are skipped.
+ * From the readings, per route and hour:
+ *   moving speed      mean of readings at 0.5 mph or more (method v1's figure)
+ *   speed with stops  total distance / total time, stopped time included
+ *   stopped share     share of reading time spent under 0.5 mph
+ *
+ * Usage: node process.js [YYYY-MM-DD]   (defaults to yesterday, Eastern)
+ * Exits 1 when the day has no snapshots.
  */
-
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { routeKind, routeGroup, holidayOf, weekdayOf, etParts } from './routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SNAPSHOTS_DIR = join(__dirname, '..', 'data', 'snapshots');
-const DAILY_DIR = join(__dirname, '..', 'data', 'daily');
+const ROOT = join(__dirname, '..');
+const SNAPSHOTS_DIR = join(ROOT, 'data', 'snapshots');
+const DAILY_DIR = join(ROOT, 'data', 'daily');
+const SCHEDULE_FILE = join(ROOT, 'data', 'gtfs', 'scheduled-service.json');
 
-const BUNCHING_DISTANCE_M = 250;
-const DEFAULT_SPEED_MPH = 8; // assumption when a route has no observed speed yet
-const GAP_CAP_MIN = 60; // cap individual gaps to avoid terminus skew (matches live app)
-const BIG_GAP_20 = 20;
-const BIG_GAP_30 = 30;
-
-/** Borough bucket from MTA route shortname. Mirrors live-app prefix matching. */
-function boroughOf(route) {
-  if (!route) return 'unknown';
-  const r = route.toUpperCase();
-  if (r.startsWith('BX')) return 'Bx';
-  if (r.startsWith('B')) return 'B';
-  if (r.startsWith('S')) return 'S';
-  if (r.startsWith('Q')) return 'Q';
-  if (r.startsWith('M')) return 'M';
-  if (r.startsWith('X')) return 'X'; // express
-  return 'other';
-}
-
-function percentile(arr, p) {
-  if (arr.length === 0) return null;
-  const sorted = [...arr].sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
-  return sorted[idx];
-}
-
-function isWeekendDate(dateStr) {
-  // dateStr is "YYYY-MM-DD" — interpret as ET local date for the weekday lookup.
-  // ISO-week math handled separately; here we just need Sat/Sun detection.
-  const d = new Date(dateStr + 'T12:00:00Z');
-  const day = d.getUTCDay();
-  return day === 0 || day === 6;
-}
+export const METHOD_VERSION = 2;
+const PAIR_MAX_GAP_S = 600;
+const MIN_DT_S = 5;
+const MOVING_MPH = 0.5;
+const MAX_MPH = 60;
+const MPS_TO_MPH = 2.2369363;
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function round1(n) {
-  return Math.round(n * 10) / 10;
+const isLayover = v => {
+  const p = v.phase;
+  if (!p) return false;
+  return Array.isArray(p) ? p.includes('layover') : String(p).includes('layover');
+};
+
+function yesterdayET() {
+  return etParts(Date.now() - 86400000).date;
 }
 
-function avg(arr) {
-  return arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-}
-
-function getDate(offsetDays = -1) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
-
-function parseJsonlBuffer(text) {
-  return text.trim().split('\n').map(line => {
-    try { return JSON.parse(line); }
-    catch { return null; }
-  }).filter(Boolean);
-}
-
-/** Load all snapshots for a given date, sorted by timestamp.
- *  Supports both layouts:
- *   - legacy: data/snapshots/YYYY-MM-DD.jsonl  (single file)
- *   - hourly: data/snapshots/YYYY-MM-DD/HH.jsonl  (one file per hour ET)
- *  If both exist (unlikely but possible during migration), they're merged. */
 function loadSnapshots(date) {
   const flat = join(SNAPSHOTS_DIR, `${date}.jsonl`);
-  const dir  = join(SNAPSHOTS_DIR, date);
-  const all = [];
-
-  if (existsSync(flat) && statSync(flat).isFile()) {
-    all.push(...parseJsonlBuffer(readFileSync(flat, 'utf-8')));
-  }
+  const dir = join(SNAPSHOTS_DIR, date);
+  const lines = [];
+  if (existsSync(flat) && statSync(flat).isFile()) lines.push(...readFileSync(flat, 'utf8').split('\n'));
   if (existsSync(dir) && statSync(dir).isDirectory()) {
-    const files = readdirSync(dir)
-      .filter(f => f.endsWith('.jsonl'))
-      .sort(); // 00.jsonl..23.jsonl naturally chronological
-    for (const f of files) {
-      all.push(...parseJsonlBuffer(readFileSync(join(dir, f), 'utf-8')));
+    for (const f of readdirSync(dir).filter(f => f.endsWith('.jsonl')).sort()) {
+      lines.push(...readFileSync(join(dir, f), 'utf8').split('\n'));
     }
   }
+  const snaps = [];
+  const seen = new Set();
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let s;
+    try { s = JSON.parse(line); } catch { continue; }
+    if (!s?.ts || !Array.isArray(s.vehicles) || seen.has(s.ts)) continue;
+    seen.add(s.ts);
+    snaps.push(s);
+  }
+  snaps.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+  return snaps;
+}
 
-  if (all.length === 0) {
-    console.error(`No data file for ${date} (looked at ${flat} and ${dir}/)`);
+function loadSchedule(date) {
+  if (!existsSync(SCHEDULE_FILE)) return null;
+  try {
+    const s = JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8'));
+    const pid = s.dates?.[date];
+    return pid != null && s.patterns?.[pid] ? { pattern: pid, routes: s.patterns[pid] } : null;
+  } catch { return null; }
+}
+
+// Per route-hour accumulator layout (kept as a flat array in the output):
+const F = {
+  nMov: 0,       // readings at or above 0.5 mph
+  sumMov: 1,     // sum of those readings' mph
+  dist: 2,       // meters, all readings
+  time: 3,       // seconds, all readings
+  stopTime: 4,   // seconds spent under 0.5 mph
+  inSvc: 5,      // sum over snapshots of buses in service (not on layover)
+  layover: 6,    // sum over snapshots of buses on layover
+  nPax: 7,       // in-service buses reporting a passenger count
+  sumPax: 8,     // sum of those counts
+  trips: 9,      // distinct trip ids seen in service (snapshot format v2 only)
+};
+const NF = 10;
+
+export function processDay(date) {
+  const snaps = loadSnapshots(date);
+  if (!snaps.length) {
+    console.error(`No snapshots for ${date}`);
     process.exit(1);
   }
 
-  // Defensive: sort by timestamp in case files arrived out of order
-  all.sort((a, b) => new Date(a.ts) - new Date(b.ts));
-  return all;
-}
-
-/**
- * Compute per-bus speeds between two consecutive snapshots.
- * Returns Map of routeId -> [speed1, speed2, ...] in mph.
- */
-function computeSpeedsBetween(prevSnap, currSnap) {
-  const prevMap = new Map();
-  for (const v of prevSnap.vehicles) {
-    prevMap.set(v.id, v);
-  }
-
-  const prevTime = new Date(prevSnap.ts).getTime();
-  const currTime = new Date(currSnap.ts).getTime();
-  const dtHours = (currTime - prevTime) / 3600000;
-
-  // The collector samples every 30 seconds (in dense bursts inside an hourly
-  // workflow, see .github/workflows/bus-tracker-collect.yml). Tight pair window
-  // discards consecutive snapshots that crossed an hour boundary or otherwise
-  // drifted, keeping speed estimates clean. Anything > 10 minutes apart almost
-  // certainly straddles a workflow gap and should not contribute to speed math.
-  if (dtHours <= 0 || dtHours > 0.17) return new Map();
-
-  const routeSpeeds = new Map();
-
-  for (const v of currSnap.vehicles) {
-    const prev = prevMap.get(v.id);
-    if (!prev) continue;
-    if (prev.route !== v.route) continue;
-
-    const distMeters = haversine(prev.lat, prev.lon, v.lat, v.lon);
-    const speed = (distMeters / 1609.34) / dtHours;
-
-    // Filter unrealistic speeds (GPS glitches, layovers)
-    if (speed >= 0.5 && speed < 60) {
-      if (!routeSpeeds.has(v.route)) routeSpeeds.set(v.route, []);
-      routeSpeeds.get(v.route).push(speed);
-    }
-  }
-
-  return routeSpeeds;
-}
-
-function processDay(date) {
-  const snapshots = loadSnapshots(date);
-  console.log(`Processing ${date}: ${snapshots.length} snapshots`);
-
-  const routeStats = {};
-  let totalBunchingEvents = 0;
-  const totalGapRoutes = new Set();
-
-  // Per-route speed accumulators across all snapshot pairs
-  const routeSpeedAccum = {}; // route -> [all speeds across the day]
-
-  // Process consecutive snapshot pairs for speed
-  for (let s = 1; s < snapshots.length; s++) {
-    const speedsByRoute = computeSpeedsBetween(snapshots[s - 1], snapshots[s]);
-    for (const [route, speeds] of speedsByRoute) {
-      if (!routeSpeedAccum[route]) routeSpeedAccum[route] = [];
-      routeSpeedAccum[route].push(...speeds);
-    }
-  }
-
-  // First pass route average speed (used as the "assumed speed" for gap-time
-  // estimation in the second pass). Falls back to DEFAULT_SPEED_MPH per route.
-  const routeAvgSpeedHint = {};
-  for (const [route, speeds] of Object.entries(routeSpeedAccum)) {
-    if (speeds.length > 0) routeAvgSpeedHint[route] = avg(speeds);
-  }
-
-  // Hourly system-level accumulators (24 buckets)
-  const hourly = {
-    snapshots: new Array(24).fill(0),
-    busesSum: new Array(24).fill(0),    // bus-count totals → divide by snapshot count later
-    bunchPairs: new Array(24).fill(0),
-    bigGap20: new Array(24).fill(0),
-    bigGap30: new Array(24).fill(0),
-    gapSumMin: new Array(24).fill(0),   // sum of gap minutes across all routes/dirs
-    gapCount: new Array(24).fill(0),    // number of gap measurements
-    gapSumSqMin: new Array(24).fill(0), // sum of gap² (for queuing-formula wait)
+  const hours = {};            // ET hour -> { snaps, buses, layover }
+  const routes = {};           // route -> { h: { hour: Float64Array(NF) }, tripSets }
+  const formats = new Set();
+  const cell = (route, hour) => {
+    const r = (routes[route] ||= { h: {}, trips: {} });
+    return (r.h[hour] ||= new Array(NF).fill(0));
   };
+  let readings = 0, skippedStale = 0, skippedLayover = 0, skippedFast = 0;
 
-  // Per-snapshot active-bus counts (for daily mean/peak/min)
-  const activeBusCounts = [];
+  let prev = null, prevMap = null, prevTs = 0;
+  for (const s of snaps) {
+    formats.add(s.v || 1);
+    const ts = Date.parse(s.ts);
+    const { hour } = etParts(ts);
+    const hs = (hours[hour] ||= { snaps: 0, buses: 0, layover: 0 });
+    hs.snaps++;
 
-  // Per-borough accumulators
-  const boroughStats = {}; // boro -> { snapshots, busesSum, bunchPairs, gapSumMin, gapCount, gapSumSqMin, routes:Set, speeds:[] }
-  function ensureBoro(b) {
-    if (!boroughStats[b]) boroughStats[b] = {
-      snapshots: 0, busesSum: 0, bunchPairs: 0,
-      gapSumMin: 0, gapCount: 0, gapSumSqMin: 0,
-      routes: new Set(), speeds: [],
-    };
-    return boroughStats[b];
-  }
-
-  // Process each snapshot for bunching, gaps, wait, hourly, borough
-  for (const snap of snapshots) {
-    const ts = new Date(snap.ts);
-    const hour = ts.getHours();
-    hourly.snapshots[hour]++;
-    activeBusCounts.push(snap.vehicles.length);
-    hourly.busesSum[hour] += snap.vehicles.length;
-
-    // Group vehicles by route + direction
-    const groups = {};
-    for (const v of snap.vehicles) {
-      const key = `${v.route}_${v.dir}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(v);
+    const map = new Map();
+    for (const v of s.vehicles) {
+      if (!v || !v.id || v.lat == null || v.lon == null) continue;
+      map.set(v.id, v);
+      const c = cell(v.route, hour);
+      if (isLayover(v)) { c[F.layover]++; hs.layover++; continue; }
+      c[F.inSvc]++;
+      hs.buses++;
+      if (v.pax != null) { c[F.nPax]++; c[F.sumPax] += v.pax; }
+      if (v.trip) ((routes[v.route].trips[hour] ||= new Set())).add(v.trip);
     }
 
-    // Track which routes had any 20/30+ min gap in THIS snapshot (for big-gap counts)
-    const routesWithBigGap20 = new Set();
-    const routesWithBigGap30 = new Set();
-
-    for (const [key, buses] of Object.entries(groups)) {
-      const [route, dir] = key.split('_');
-      const boro = boroughOf(route);
-      const bs = ensureBoro(boro);
-      bs.snapshots++;
-      bs.busesSum += buses.length;
-      bs.routes.add(route);
-
-      if (!routeStats[route]) {
-        routeStats[route] = {
-          route,
-          borough: boro,
-          totalBuses: 0,
-          snapshotCount: 0,
-          bunchingEvents: 0,
-          bunchingByHour: new Array(24).fill(0),
-          gapSnapshots: 0,
-          maxBusCount: 0,
-          minBusCount: Infinity,
-          gapMinutes: [],     // every gap measurement (capped) for this route
-          maxGapObserved: 0,  // peak inter-bus gap seen all day
-          bigGap20Count: 0,   // snapshots where this route had ≥20-min gap
-          bigGap30Count: 0,
-        };
-      }
-
-      const rs = routeStats[route];
-      rs.totalBuses += buses.length;
-      rs.snapshotCount++;
-      rs.maxBusCount = Math.max(rs.maxBusCount, buses.length);
-      rs.minBusCount = Math.min(rs.minBusCount, buses.length);
-
-      // Bunching detection
-      for (let i = 0; i < buses.length; i++) {
-        for (let j = i + 1; j < buses.length; j++) {
-          const dist = haversine(
-            buses[i].lat, buses[i].lon,
-            buses[j].lat, buses[j].lon
-          );
-          if (dist < BUNCHING_DISTANCE_M) {
-            rs.bunchingEvents++;
-            rs.bunchingByHour[hour]++;
-            totalBunchingEvents++;
-            hourly.bunchPairs[hour]++;
-            bs.bunchPairs++;
-          }
+    if (prev && (ts - prevTs) / 1000 <= PAIR_MAX_GAP_S && ts > prevTs) {
+      for (const [id, v] of map) {
+        const p = prevMap.get(id);
+        if (!p || p.route !== v.route) continue;
+        if (isLayover(v) || isLayover(p)) { skippedLayover++; continue; }
+        let dt;
+        const t1 = Date.parse(p.timestamp || ''), t2 = Date.parse(v.timestamp || '');
+        if (Number.isFinite(t1) && Number.isFinite(t2)) {
+          dt = (t2 - t1) / 1000;
+          if (dt < MIN_DT_S) { skippedStale++; continue; }   // GPS did not refresh
+        } else {
+          dt = (ts - prevTs) / 1000;
         }
-      }
-
-      // Single-bus snapshot = service gap (legacy field)
-      if (buses.length <= 1) {
-        rs.gapSnapshots++;
-        totalGapRoutes.add(route);
-      }
-
-      // ── Inter-bus gap minutes (queuing-formula wait input) ──
-      // Mirrors live app's estimateGaps: order along dominant axis, divide
-      // straight-line distance by route's observed speed (haversine-based;
-      // we don't have route shapes server-side, so this is a known underestimate
-      // for winding routes, see methodology). Skip when too few buses to spread.
-      if (buses.length >= 3) {
-        const isEastWest =
-          Math.abs(buses[0].lon - buses[1].lon) >
-          Math.abs(buses[0].lat - buses[1].lat);
-        const sorted = [...buses].sort((a, b) =>
-          isEastWest ? a.lon - b.lon : a.lat - b.lat,
-        );
-        const speedMph = routeAvgSpeedHint[route] || DEFAULT_SPEED_MPH;
-        const speedMps = (speedMph * 1609.34) / 3600;
-        let maxGapHere = 0;
-        for (let i = 0; i < sorted.length - 1; i++) {
-          const dist = haversine(
-            sorted[i].lat, sorted[i].lon,
-            sorted[i + 1].lat, sorted[i + 1].lon,
-          );
-          const gapMin = speedMps > 0
-            ? Math.min(GAP_CAP_MIN, Math.round((dist / speedMps) / 60))
-            : 0;
-          rs.gapMinutes.push(gapMin);
-          maxGapHere = Math.max(maxGapHere, gapMin);
-          rs.maxGapObserved = Math.max(rs.maxGapObserved, gapMin);
-
-          hourly.gapSumMin[hour] += gapMin;
-          hourly.gapCount[hour]++;
-          hourly.gapSumSqMin[hour] += gapMin * gapMin;
-
-          bs.gapSumMin += gapMin;
-          bs.gapCount++;
-          bs.gapSumSqMin += gapMin * gapMin;
-        }
-        // 20+ is inclusive of 30+ (matches live page's "routes with 20+ min waits")
-        if (maxGapHere >= BIG_GAP_20) {
-          routesWithBigGap20.add(route);
-          rs.bigGap20Count++;
-        }
-        if (maxGapHere >= BIG_GAP_30) {
-          routesWithBigGap30.add(route);
-          rs.bigGap30Count++;
-        }
+        if (dt > PAIR_MAX_GAP_S) continue;
+        const d = haversine(p.lat, p.lon, v.lat, v.lon);
+        const mph = (d / dt) * MPS_TO_MPH;
+        if (mph >= MAX_MPH) { skippedFast++; continue; }
+        const c = cell(v.route, hour);
+        c[F.dist] += d;
+        c[F.time] += dt;
+        if (mph >= MOVING_MPH) { c[F.nMov]++; c[F.sumMov] += mph; }
+        else c[F.stopTime] += dt;
+        readings++;
       }
     }
-
-    hourly.bigGap20[hour] += routesWithBigGap20.size;
-    hourly.bigGap30[hour] += routesWithBigGap30.size;
+    prev = s; prevMap = map; prevTs = ts;
   }
 
-  // Borough route avg speeds (mean of per-route means within each borough)
-  for (const [route, hint] of Object.entries(routeAvgSpeedHint)) {
-    const b = boroughOf(route);
-    if (boroughStats[b]) boroughStats[b].speeds.push(hint);
-  }
-
-  // ── Per-route summaries (now include wait/gap stats) ──
-  const routeSummaries = Object.values(routeStats).map(rs => {
-    const avgBuses = rs.snapshotCount > 0 ? rs.totalBuses / rs.snapshotCount : 0;
-    const gapPct = rs.snapshotCount > 0 ? (rs.gapSnapshots / rs.snapshotCount) * 100 : 0;
-    const reliability = rs.snapshotCount > 0
-      ? ((rs.snapshotCount - rs.gapSnapshots) / rs.snapshotCount) * 100
-      : 0;
-
-    const speeds = routeSpeedAccum[rs.route];
-    const routeAvgSpeed = speeds && speeds.length > 0 ? round1(avg(speeds)) : null;
-
-    // Wait time: queuing-formula on this route's gap distribution
-    let avgWait = null;
-    let medianGap = null;
-    let p90Gap = null;
-    if (rs.gapMinutes.length > 0) {
-      const meanGap = avg(rs.gapMinutes);
-      const meanGapSq = rs.gapMinutes.reduce((a, b) => a + b * b, 0) / rs.gapMinutes.length;
-      avgWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
-      medianGap = percentile(rs.gapMinutes, 50);
-      p90Gap = percentile(rs.gapMinutes, 90);
+  const schedule = loadSchedule(date);
+  const out = {};
+  for (const [route, r] of Object.entries(routes)) {
+    const h = {};
+    for (const [hour, c] of Object.entries(r.h)) {
+      c[F.trips] = r.trips[hour] ? r.trips[hour].size : 0;
+      h[hour] = c.map((x, i) => (i === F.sumMov || i === F.dist || i === F.time || i === F.stopTime) ? Math.round(x * 10) / 10 : x);
     }
-
-    return {
-      route: rs.route,
-      borough: rs.borough,
-      avgSpeed: routeAvgSpeed,
-      avgWait,
-      medianGap,
-      p90Gap,
-      maxGap: rs.maxGapObserved || null,
-      avgBuses: round1(avgBuses),
-      maxBuses: rs.maxBusCount,
-      minBuses: rs.minBusCount === Infinity ? 0 : rs.minBusCount,
-      bunchingEvents: rs.bunchingEvents,
-      bunchingByHour: rs.bunchingByHour,
-      gapSnapshots: rs.gapSnapshots,
-      gapPct: round1(gapPct),
-      reliability: round1(reliability),
-      bigGap20Count: rs.bigGap20Count,
-      bigGap30Count: rs.bigGap30Count,
-      snapshotCount: rs.snapshotCount,
-    };
-  });
-
-  // Sort by reliability ascending (worst first)
-  routeSummaries.sort((a, b) => a.reliability - b.reliability);
-
-  // System-wide avg speed: unweighted mean of per-route averages
-  const routeAvgSpeeds = routeSummaries
-    .filter(r => r.avgSpeed != null)
-    .map(r => r.avgSpeed);
-  const systemAvgSpeed = routeAvgSpeeds.length > 0 ? round1(avg(routeAvgSpeeds)) : null;
-
-  // System-wide wait time: queuing formula across ALL gap observations system-wide
-  let systemAvgWait = null;
-  let totalGapSum = 0;
-  let totalGapSumSq = 0;
-  let totalGapCount = 0;
-  for (let h = 0; h < 24; h++) {
-    totalGapSum += hourly.gapSumMin[h];
-    totalGapSumSq += hourly.gapSumSqMin[h];
-    totalGapCount += hourly.gapCount[h];
-  }
-  if (totalGapCount > 0) {
-    const meanGap = totalGapSum / totalGapCount;
-    const meanGapSq = totalGapSumSq / totalGapCount;
-    systemAvgWait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
-  }
-
-  // Big-gap counts: average number of routes per snapshot exceeding the threshold
-  const totalSnapshots = snapshots.length;
-  let bigGap20Sum = 0, bigGap30Sum = 0;
-  for (let h = 0; h < 24; h++) {
-    bigGap20Sum += hourly.bigGap20[h];
-    bigGap30Sum += hourly.bigGap30[h];
-  }
-  const bigGap20PerSnap = totalSnapshots > 0 ? round1(bigGap20Sum / totalSnapshots) : null;
-  const bigGap30PerSnap = totalSnapshots > 0 ? round1(bigGap30Sum / totalSnapshots) : null;
-
-  // Active bus counts across the day
-  const activeBusesAvg = activeBusCounts.length > 0 ? round1(avg(activeBusCounts)) : null;
-  const activeBusesPeak = activeBusCounts.length > 0 ? Math.max(...activeBusCounts) : null;
-  const activeBusesMin = activeBusCounts.length > 0 ? Math.min(...activeBusCounts) : null;
-
-  // Bunching per snapshot (legacy field, unchanged)
-  const bunchingRate = totalSnapshots > 0 && routeSummaries.length > 0
-    ? round1(totalBunchingEvents / totalSnapshots)
-    : null;
-
-  // Hourly system-level rollups (sparse: only hours with at least one snapshot)
-  const hourlySystem = {};
-  for (let h = 0; h < 24; h++) {
-    if (hourly.snapshots[h] === 0) continue;
-    const meanGap = hourly.gapCount[h] > 0 ? hourly.gapSumMin[h] / hourly.gapCount[h] : 0;
-    const meanGapSq = hourly.gapCount[h] > 0 ? hourly.gapSumSqMin[h] / hourly.gapCount[h] : 0;
-    const wait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
-    hourlySystem[h] = {
-      snapshots: hourly.snapshots[h],
-      avgBuses: round1(hourly.busesSum[h] / hourly.snapshots[h]),
-      bunchPairsPerSnap: round1(hourly.bunchPairs[h] / hourly.snapshots[h]),
-      bigGap20PerSnap: round1(hourly.bigGap20[h] / hourly.snapshots[h]),
-      bigGap30PerSnap: round1(hourly.bigGap30[h] / hourly.snapshots[h]),
-      avgWait: wait,
-    };
-  }
-  // Per-hour speed (mean of per-route speeds within hour) is non-trivial to bucket
-  // because speed is computed across snapshot pairs; we approximate by reusing the
-  // pair-level speed sample's source hour. Captured in a separate pass:
-  const hourlySpeedAccum = new Array(24).fill(0).map(() => []);
-  for (let s = 1; s < snapshots.length; s++) {
-    const speedsByRoute = computeSpeedsBetween(snapshots[s - 1], snapshots[s]);
-    const h = new Date(snapshots[s].ts).getHours();
-    for (const [, speeds] of speedsByRoute) {
-      hourlySpeedAccum[h].push(...speeds);
+    let sched = null;
+    if (schedule) {
+      const key = Object.keys(schedule.routes).find(k => k.toUpperCase() === route.toUpperCase());
+      sched = key ? schedule.routes[key] : null;
     }
-  }
-  for (let h = 0; h < 24; h++) {
-    if (hourlySystem[h] && hourlySpeedAccum[h].length > 0) {
-      hourlySystem[h].avgSpeed = round1(avg(hourlySpeedAccum[h]));
-    } else if (hourlySystem[h]) {
-      hourlySystem[h].avgSpeed = null;
-    }
+    out[route || '(blank)'] = { kind: routeKind(route), group: routeGroup(route), h, sched };
   }
 
-  // Per-borough rollups
-  const byBorough = {};
-  for (const [boro, bs] of Object.entries(boroughStats)) {
-    if (bs.snapshots === 0) continue;
-    const meanGap = bs.gapCount > 0 ? bs.gapSumMin / bs.gapCount : 0;
-    const meanGapSq = bs.gapCount > 0 ? bs.gapSumSqMin / bs.gapCount : 0;
-    const wait = meanGap > 0 ? round1(meanGapSq / (2 * meanGap)) : null;
-    byBorough[boro] = {
-      snapshots: bs.snapshots,
-      routes: bs.routes.size,
-      avgBuses: round1(bs.busesSum / bs.snapshots),
-      avgSpeed: bs.speeds.length > 0 ? round1(avg(bs.speeds)) : null,
-      bunchPairsPerSnap: round1(bs.bunchPairs / bs.snapshots),
-      avgWait: wait,
-    };
-  }
-
-  const dailySummary = {
+  const holiday = holidayOf(date);
+  return {
+    methodVersion: METHOD_VERSION,
+    generatedAt: new Date().toISOString(),
     date,
-    weekday: new Date(date + 'T12:00:00Z').getUTCDay(), // 0=Sun..6=Sat
-    isWeekend: isWeekendDate(date),
-    snapshotCount: totalSnapshots,
-    totalRoutes: routeSummaries.length,
-
-    // ── Headline system metrics ──
-    systemAvgSpeed,
-    systemAvgWait,
-    bunchingRate,
-    totalBunchingEvents,
-    bigGap20PerSnap,
-    bigGap30PerSnap,
-    activeBusesAvg,
-    activeBusesPeak,
-    activeBusesMin,
-    routesWithGaps: totalGapRoutes.size,
-    systemReliability: routeSummaries.length > 0
-      ? round1(avg(routeSummaries.map(r => r.reliability)))
-      : 0,
-
-    // ── Slices ──
-    hourly: hourlySystem,    // 0..23 → { snapshots, avgSpeed, avgBuses, bunchPairsPerSnap, avgWait, bigGap20PerSnap, bigGap30PerSnap }
-    byBorough,               // 'M'|'B'|'Bx'|'Q'|'S'|'X' → { avgSpeed, avgBuses, avgWait, bunchPairsPerSnap, snapshots, routes }
-
-    // ── Per-route detail (full) ──
-    worstRoutes: routeSummaries.slice(0, 20),
-    bestRoutes: routeSummaries.slice(-10).reverse(),
-    routes: routeSummaries,
+    weekday: weekdayOf(date),
+    holiday,
+    snapshotFormats: [...formats].sort(),
+    snapshots: snaps.length,
+    firstSnapshot: snaps[0].ts,
+    lastSnapshot: snaps[snaps.length - 1].ts,
+    readings,
+    skipped: { staleGps: skippedStale, layover: skippedLayover, over60mph: skippedFast },
+    schedulePattern: schedule ? schedule.pattern : null,
+    fields: Object.keys(F),
+    hours,
+    routes: out,
   };
-
-  return dailySummary;
 }
 
 function main() {
-  const date = process.argv[2] || getDate(-1);
-  const summary = processDay(date);
-
+  const date = process.argv[2] || yesterdayET();
+  const day = processDay(date);
   mkdirSync(DAILY_DIR, { recursive: true });
-  const outFile = join(DAILY_DIR, `${date}.json`);
-  writeFileSync(outFile, JSON.stringify(summary, null, 2));
-  console.log(`\nDaily summary written to ${outFile}`);
-  console.log(`  Snapshots: ${summary.snapshotCount}`);
-  console.log(`  Routes: ${summary.totalRoutes}`);
-  console.log(`  System avg speed: ${summary.systemAvgSpeed ?? 'N/A'} mph`);
-  console.log(`  System reliability: ${summary.systemReliability}%`);
-  console.log(`  Bunching rate: ${summary.bunchingRate ?? 'N/A'} per snapshot`);
-  console.log(`  Total bunching events: ${summary.totalBunchingEvents}`);
-  console.log(`  Routes with gaps: ${summary.routesWithGaps}`);
-
-  if (summary.worstRoutes.length > 0) {
-    console.log('\n  Worst routes by reliability:');
-    for (const r of summary.worstRoutes.slice(0, 5)) {
-      console.log(`    ${r.route}: ${r.reliability}% reliable, avg ${r.avgSpeed ?? 'N/A'} mph, ${r.bunchingEvents} bunching events`);
-    }
-  }
+  const file = join(DAILY_DIR, `${date}.json`);
+  writeFileSync(file, JSON.stringify(day));
+  const winHours = Object.keys(day.hours).map(Number).filter(h => h >= 6 && h <= 22 && day.hours[h].snaps >= 6);
+  console.log(`${date}: ${day.snapshots} snapshots, ${winHours.length}/17 window hours, ${day.readings} readings, ` +
+    `${Object.keys(day.routes).length} routes; skipped ${JSON.stringify(day.skipped)} -> ${file}`);
 }
 
-main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
