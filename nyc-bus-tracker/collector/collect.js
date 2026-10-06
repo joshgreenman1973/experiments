@@ -2,10 +2,17 @@
 /**
  * NYC Bus Tracker — Data Collector
  * Fetches all active bus positions from the MTA SIRI VehicleMonitoring API
- * and appends a compact snapshot to the daily JSONL file.
+ * and appends one compact snapshot to the current hour's JSONL file
+ * (data/snapshots/YYYY-MM-DD/HH.jsonl, ET date and hour).
+ *
+ * Snapshot format v2 (October 2026). Each vehicle keeps the v1 keys that
+ * process.js has always read (id, route, dir, lat, lon, bearing, phase,
+ * timestamp) and adds trip, rate, dep, stopsAway, distFromStop, pax and
+ * cap. trip and dep allow buses run to be matched against the schedule; pax is the on-board counter's live passenger estimate where the
+ * bus has one.
  */
 
-import { writeFileSync, appendFileSync, existsSync, mkdirSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,7 +20,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data', 'snapshots');
 
 const API_KEY = process.env.MTA_API_KEY;
-const API_URL = 'https://bustime.mta.info/api/siri/vehicle-monitoring.json';
+// The version lives in the path. Passing version=2 as a query parameter as
+// well makes the endpoint answer with an XML error page.
+const API_URL = 'https://bustime.mta.info/api/siri/vehicle-monitoring-v2.json';
 
 if (!API_KEY) {
   console.error('MTA_API_KEY environment variable is required.');
@@ -21,94 +30,67 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+const num = v => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
+
 async function fetchAllVehicles() {
-  const url = `${API_URL}?key=${API_KEY}&version=2`;
-  console.log('Fetching all vehicle positions...');
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`API returned ${res.status}: ${res.statusText}`);
-  }
-
+  const res = await fetch(`${API_URL}?key=${API_KEY}`, { signal: AbortSignal.timeout(60000) });
+  if (!res.ok) throw new Error(`API returned ${res.status}: ${res.statusText}`);
   const data = await res.json();
   const delivery = data?.Siri?.ServiceDelivery?.VehicleMonitoringDelivery;
-
-  if (!delivery || !delivery.length) {
-    throw new Error('No VehicleMonitoringDelivery in response');
-  }
+  if (!delivery || !delivery.length) throw new Error('No VehicleMonitoringDelivery in response');
 
   const activities = delivery[0]?.VehicleActivity || [];
   console.log(`Received ${activities.length} vehicle records`);
 
   return activities.map(a => {
     const j = a.MonitoredVehicleJourney;
-    if (!j) return null;
-
-    const routeRef = j.LineRef || '';
-    // Strip "MTA NYCT_" or "MTABC_" prefix for cleaner route names
-    const route = routeRef.replace(/^MTA\s*NYCT_/, '').replace(/^MTABC_/, '');
-
+    if (!j || !j.VehicleLocation) return null;
+    const route = (j.LineRef || '').replace(/^MTA\s*NYCT_/, '').replace(/^MTABC_/, '');
+    const call = j.MonitoredCall || {};
+    const caps = call.Extensions?.Capacities || {};
+    const phase = j.ProgressStatus;
     return {
       id: j.VehicleRef || '',
       route,
-      routeFull: routeRef,
-      dir: j.DirectionRef || 0,
-      lat: j.VehicleLocation?.Latitude,
-      lon: j.VehicleLocation?.Longitude,
+      dir: j.DirectionRef ?? '',
+      lat: j.VehicleLocation.Latitude,
+      lon: j.VehicleLocation.Longitude,
       bearing: j.Bearing != null ? Math.round(j.Bearing) : null,
-      dest: j.DestinationName || '',
-      nextStop: j.MonitoredCall?.StopPointRef?.replace(/^MTA_/, '') || '',
-      distFromStop: j.MonitoredCall?.Extensions?.Distances?.PresentableDistance || '',
-      stopsAway: j.MonitoredCall?.Extensions?.Distances?.StopsFromCall || null,
-      phase: j.ProgressStatus || '',
-      timestamp: a.RecordedAtTime || ''
+      phase: Array.isArray(phase) ? phase.join(',') : (phase || ''),
+      rate: j.ProgressRate || '',
+      trip: j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || '',
+      dep: j.OriginAimedDepartureTime || '',
+      nextStop: (call.StopPointRef || '').replace(/^MTA_/, ''),
+      stopsAway: num(call.NumberOfStopsAway),
+      distFromStop: num(call.DistanceFromStop),
+      pax: num(caps.EstimatedPassengerCount),
+      cap: num(caps.EstimatedPassengerCapacity),
+      timestamp: a.RecordedAtTime || '',
     };
   }).filter(Boolean);
 }
 
-function todayStr() {
-  const now = new Date();
-  // Use ET (UTC-5 or UTC-4 depending on DST)
-  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  return et.toISOString().slice(0, 10);
-}
-
 async function main() {
   const vehicles = await fetchAllVehicles();
-
   if (vehicles.length === 0) {
     console.log('No vehicles returned (service may be offline). Skipping.');
     return;
   }
 
-  const snapshot = {
-    ts: new Date().toISOString(),
-    count: vehicles.length,
-    vehicles
-  };
-
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  // Hourly chunking — data/snapshots/YYYY-MM-DD/HH.jsonl in ET. Caps each file
-  // at ~5 MB no matter how dense the sampling, so we never approach GitHub's
-  // 100 MiB blob ceiling. process.js still reads legacy {date}.jsonl files too.
   const now = new Date();
+  const snapshot = { v: 2, ts: now.toISOString(), count: vehicles.length, vehicles };
+
+  // One file per ET hour keeps each blob far below GitHub's 100 MiB ceiling.
   const dateET = now.toLocaleString('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
   });
   const hourET = now.toLocaleString('en-GB', {
-    timeZone: 'America/New_York',
-    hour: '2-digit', hour12: false,
+    timeZone: 'America/New_York', hour: '2-digit', hour12: false,
   }).padStart(2, '0').slice(0, 2);
 
   const dayDir = join(DATA_DIR, dateET);
   if (!existsSync(dayDir)) mkdirSync(dayDir, { recursive: true });
-
-  const filepath = join(dayDir, `${hourET}.jsonl`);
-  appendFileSync(filepath, JSON.stringify(snapshot) + '\n');
+  appendFileSync(join(dayDir, `${hourET}.jsonl`), JSON.stringify(snapshot) + '\n');
   console.log(`Appended ${vehicles.length} vehicles to ${dateET}/${hourET}.jsonl`);
 }
 

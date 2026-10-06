@@ -1,227 +1,107 @@
 name: Collect Bus Data
 
-# Inside each run we call collect.js 18 times with 30-second pauses → dense
-# 30-second samples. Public repos get unlimited Actions minutes, so cost is $0.
+# ONE long-lived collector instead of 34 short cron runs a day.
 #
-# RELIABILITY: GitHub frequently drops scheduled runs at the top of the hour
-# (xx:00 is the most congested slot cluster-wide). Earlier we were capturing
-# only ~half the operating hours, which skewed the weekly averages. Two fixes:
-#   1. Fire TWICE an hour (:09 and :39) so a dropped run still leaves one shot.
-#   2. Use off-peak minute offsets (not :00) — far less likely to be throttled.
-# Result: most operating hours now get at least one burst, and many get two
-# (better within-hour temporal spread too). The operating-hours gate below
-# still limits actual collection to 6am-11pm ET.
+# Until October 2026 this workflow fired at :09 and :39 every hour and each run
+# collected a six-minute burst. GitHub's scheduler drops and delays cron runs,
+# and from Oct. 1 it started only 3 to 5 of the 34 runs a day, so most hours
+# went uncollected while every run that did start showed green.
+#
+# Now each run executes collector/loop.py, which stays up for about 5.5 hours,
+# collects a burst at :09 and :39 past every hour from 6 a.m. to 10:59 p.m.
+# Eastern, pushes each burst to bus-data, and then starts its own successor
+# through workflow_dispatch (dispatch events are not subject to cron delays).
+# The hourly cron below is only a backstop: when a collector is already live,
+# the backstop run exits in seconds. Public repo, so Actions minutes are free.
 on:
   schedule:
-    - cron: '9,39 10-23 * * *'  # ~6am-7pm ET (EDT) / ~5am-6pm ET (EST)
-    - cron: '9,39 0-4 * * *'    # late evening ET
-
+    - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
-      duration_minutes:
-        description: 'How many minutes of dense collection (default 6, max 50)'
+      predecessor:
+        description: 'Run id of the collector run that started this one (set automatically)'
         required: false
-        default: '6'
+        default: ''
+      once:
+        description: 'Collect one burst now and exit, without starting a successor (for testing)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # 2026-06-30: every run was being killed at the 20-min wall. Cold-start
-    # checkout + npm install was eating ~11 min on busy runners, leaving the
-    # sampling loop no margin. Three changes together:
-    #   - Cache npm so install is ~5–10s instead of minutes (setup-node cache).
-    #   - Bump timeout to 25 min for extra headroom.
-    #   - Halve default sampling burst (12 iters × 30s = ~6 min) — since we now
-    #     fire twice an hour, total samples per hour go UP (24 vs the old 18),
-    #     not down, with comfortable margin.
-    timeout-minutes: 25
+    timeout-minutes: 350
 
     steps:
-      - name: Operating-hours gate (6am-11pm ET)
-        id: gate
+      # Single writer. Exit before checkout if an older collector run is live.
+      # The run that dispatched this one is exempt; wait for it to wind down.
+      - name: Yield to a collector that is already running
+        id: guard
+        if: ${{ github.event.inputs.once != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ME: ${{ github.run_id }}
+          PRED: ${{ github.event.inputs.predecessor }}
         run: |
-          HOUR_ET=$(TZ='America/New_York' date +%H)
-          if [ "$HOUR_ET" -lt 6 ] || [ "$HOUR_ET" -ge 23 ]; then
-            echo "Outside operating hours (${HOUR_ET}:00 ET). Skipping."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "Within operating hours (${HOUR_ET}:00 ET). Proceeding."
-            echo "skip=false" >> $GITHUB_OUTPUT
+          others() {
+            gh api "repos/$REPO/actions/workflows/bus-tracker-collect.yml/runs?status=in_progress&per_page=50" \
+              --jq "[.workflow_runs[].id | select(. != $ME) | tostring] | join(\" \")"
+          }
+          if [ -n "$PRED" ]; then
+            for i in $(seq 1 20); do
+              case " $(others) " in *" $PRED "*) sleep 15 ;; *) break ;; esac
+            done
           fi
+          for id in $(others); do
+            if [ "$id" != "${PRED:-0}" ] && [ "$id" -lt "$ME" ]; then
+              echo "Collector run $id is already live; this run yields."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      # CODE lives on main (collect.js, package.json). DATA lives on bus-data
-      # (so PR merges to main never collide with the bot's pushes). Strategy:
-      # check out main as the working tree, then overlay snapshots from
-      # bus-data into the data dir. Run the collector. Push only the snapshot
-      # tree back to bus-data. main is read-only from the workflow's POV.
-      - name: Checkout main (for collector code)
-        if: steps.gate.outputs.skip != 'true'
+      - name: Checkout main (collector code)
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Pull TODAY's snapshots from bus-data
-        if: steps.gate.outputs.skip != 'true'
-        run: |
-          # We only ever append to today's per-hour files, so we only need
-          # today's folder in the working tree — NOT the whole archive. The old
-          # `git checkout origin/bus-data -- data/snapshots/` materialized the
-          # entire multi-GB snapshot tree (~16 min, 649 files) and was blowing
-          # the 25-min timeout on ~60% of runs (the data was then never pushed).
-          # BLOBLESS fetch: download only the commit + directory trees, NOT the
-          # ~5.8 GB of historical snapshot blobs. That download — not the
-          # working-tree write — is what took ~16 min. With blob:none we only pay
-          # for the tree objects (tiny); today's blobs are lazily fetched on
-          # demand by the checkout below, and the commit we build references old
-          # blobs by OID without needing their content. Configure origin as a
-          # promisor so the lazy fetch works.
-          git config remote.origin.promisor true
-          git config remote.origin.partialclonefilter blob:none
-          git fetch --filter=blob:none --no-tags origin bus-data --depth=1
-          DATE_ET=$(TZ='America/New_York' date '+%Y-%m-%d')
-          rm -rf nyc-bus-tracker/data/snapshots
-          mkdir -p "nyc-bus-tracker/data/snapshots/${DATE_ET}"
-          # Materialize just today's folder so a later run in the same hour
-          # appends to (not overwrites) what earlier runs already collected.
-          if git checkout origin/bus-data -- "nyc-bus-tracker/data/snapshots/${DATE_ET}/" 2>/dev/null; then
-            echo "Pulled today's folder (${DATE_ET})."
-          else
-            echo "No ${DATE_ET} folder on bus-data yet — first collection of the day."
-          fi
-          # `git checkout <ref> -- <path>` stages what it pulls; unstage so the
-          # main working tree is clean (we build the bus-data commit via plumbing).
-          git reset -q -- nyc-bus-tracker/data/snapshots/ 2>/dev/null || true
-
       - name: Set up Node.js
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          # Cache npm so `npm ci` is near-instant on subsequent runs (was eating
-          # several minutes per run before, which kept blowing the timeout).
           cache: 'npm'
           cache-dependency-path: nyc-bus-tracker/collector/package-lock.json
 
       - name: Install dependencies
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.guard.outputs.skip != 'true'
         run: cd nyc-bus-tracker/collector && npm ci
 
-      - name: Collect bus data (dense sampling — 30 sec interval)
-        if: steps.gate.outputs.skip != 'true'
+      - name: Prepare the bus-data remote (blobless)
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          # Blobless: commits and trees only. The multi-GB snapshot history is
+          # never downloaded; the loop pulls just the current day's files.
+          git config remote.origin.promisor true
+          git config remote.origin.partialclonefilter blob:none
+
+      - name: Collect
+        if: steps.guard.outputs.skip != 'true'
         env:
           MTA_API_KEY: ${{ secrets.MTA_BUSTIME_API_KEY }}
-          DURATION_MIN: ${{ github.event.inputs.duration_minutes || '6' }}
-        run: |
-          # Cap duration to 50 minutes so we always finish before the next hourly cron.
-          DUR_MIN=${DURATION_MIN:-6}
-          if [ "$DUR_MIN" -gt 50 ]; then DUR_MIN=50; fi
-          # 30-second cadence -> 2 calls/minute. Iterations = duration * 2.
-          ITERATIONS=$(( DUR_MIN * 2 ))
-          echo "Running ${ITERATIONS} collections at 30-second intervals (~${DUR_MIN} min)"
-
-          # We don't `set -e` because a single API blip shouldn't kill the run.
-          OK=0
-          FAIL=0
-          for i in $(seq 1 $ITERATIONS); do
-            if node nyc-bus-tracker/collector/collect.js; then
-              OK=$((OK+1))
-            else
-              FAIL=$((FAIL+1))
-              echo "::warning::collect.js failed on iteration ${i}"
-            fi
-            # Sleep on every iteration except the last
-            if [ "$i" -lt "$ITERATIONS" ]; then
-              sleep 30
-            fi
-          done
-          echo "Collection complete: ${OK} succeeded, ${FAIL} failed."
-          # Fail the run only if everything failed (partial loss is acceptable)
-          if [ "$OK" -eq 0 ]; then exit 1; fi
-
-      - name: Push TODAY's snapshots to bus-data (Git Data API)
-        if: steps.gate.outputs.skip != 'true'
-        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          ONCE: ${{ github.event.inputs.once }}
         run: |
-          set -euo pipefail
-          DATE_ET=$(TZ='America/New_York' date '+%Y-%m-%d')
-          export SNAP="nyc-bus-tracker/data/snapshots/${DATE_ET}"
-          export STAMP="$(TZ='America/New_York' date '+%Y-%m-%d %H:%M') ET"
-          if [ ! -d "$SNAP" ] || [ -z "$(ls -A "$SNAP" 2>/dev/null)" ]; then
-            echo "Nothing collected this run — nothing to push."; exit 0
+          if [ "$ONCE" = "true" ]; then
+            python3 nyc-bus-tracker/collector/loop.py --once
+          else
+            python3 nyc-bus-tracker/collector/loop.py
           fi
-
-          # Build the bus-data commit SERVER-SIDE via the GitHub Git Data API.
-          # Rationale: with a blobless clone, `git push` kept lazily re-fetching
-          # the ~5.8 GB history to build delta bases (9+ min, unbounded growth).
-          # The API creates the new tree from bus-data's existing tree (base_tree)
-          # plus only today's changed files — nothing is ever downloaded, so the
-          # cost is flat regardless of how large the archive grows. We upload only
-          # the hour files whose content differs from what's already on bus-data
-          # (detected by comparing local git-hash to the tree's blob OID — trees
-          # are present locally from the blobless fetch, no blob content needed).
-          python3 - <<'PY'
-          import base64, glob, json, os, subprocess, sys, time, urllib.request, urllib.error
-
-          REPO, TOKEN, SNAP, STAMP = (os.environ[k] for k in ("REPO","GH_TOKEN","SNAP","STAMP"))
-          API = f"https://api.github.com/repos/{REPO}"
-
-          def api(method, path, body=None):
-              data = json.dumps(body).encode() if body is not None else None
-              req = urllib.request.Request(API+path, data=data, method=method)
-              req.add_header("Authorization", f"Bearer {TOKEN}")
-              req.add_header("Accept", "application/vnd.github+json")
-              if data: req.add_header("Content-Type", "application/json")
-              with urllib.request.urlopen(req) as r:
-                  return json.load(r)
-
-          def git(*a):
-              return subprocess.run(["git", *a], capture_output=True, text=True)
-
-          files = sorted(glob.glob(os.path.join(SNAP, "*.jsonl")))
-          if not files:
-              print("No files to push."); sys.exit(0)
-
-          def attempt():
-              tip = api("GET", "/git/ref/heads/bus-data")["object"]["sha"]
-              base_tree = api("GET", f"/git/commits/{tip}")["tree"]["sha"]
-              entries = []
-              for f in files:
-                  local_oid = git("hash-object", f).stdout.strip()
-                  r = git("rev-parse", f"origin/bus-data:{f}")
-                  remote_oid = r.stdout.strip() if r.returncode == 0 else None
-                  if local_oid == remote_oid:
-                      continue  # unchanged hour file — skip
-                  with open(f, "rb") as fh:
-                      content = base64.b64encode(fh.read()).decode()
-                  sha = api("POST", "/git/blobs", {"content": content, "encoding": "base64"})["sha"]
-                  entries.append({"path": f, "mode": "100644", "type": "blob", "sha": sha})
-                  print(f"  uploaded {f} ({local_oid[:10]})")
-              if not entries:
-                  print("No changed files vs bus-data."); return True
-              new_tree = api("POST", "/git/trees", {"base_tree": base_tree, "tree": entries})["sha"]
-              commit = api("POST", "/git/commits",
-                           {"message": f"Bus data: {STAMP}", "tree": new_tree, "parents": [tip]})["sha"]
-              try:
-                  api("PATCH", "/git/refs/heads/bus-data", {"sha": commit, "force": False})
-              except urllib.error.HTTPError as e:
-                  if e.code in (422, 409):  # tip moved (overlapping run) — retry
-                      print("  ref moved; retrying"); return False
-                  raise
-              print(f"bus-data -> {commit} ({len(entries)} file(s))")
-              return True
-
-          for i in range(4):
-              # Refresh our view of the remote tip so unchanged-file detection and
-              # the parent pointer are current if an overlapping run just pushed.
-              git("fetch", "--filter=blob:none", "--no-tags", "origin", "bus-data", "--depth=1")
-              if attempt():
-                  break
-              time.sleep(2)
-          else:
-              print("Failed to update bus-data after retries", file=sys.stderr); sys.exit(1)
-          PY
