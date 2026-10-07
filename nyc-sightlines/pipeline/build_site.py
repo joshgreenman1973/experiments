@@ -112,8 +112,7 @@ html = tpl.replace("/*__DATA__*/{}", json.dumps(data, separators=(",", ":")))
 open(f"{SITE}/artifact.html", "w").write(html)
 # The Pages build draws a standard street map underneath (CARTO's dark map, from OpenStreetMap data). The artifact
 # can't load outside images, so artifact.html leaves this out and the page draws its own streets.
-BASEMAP = {"base": "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-           "labels": "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", "maxZoom": 19}
+BASEMAP = None   # CARTO now requires an API key (its tiles come back watermarked), so no street map for now
 DESC = ("Which of 16 New York landmarks, and the rising and setting sun, you can see at street level "
         "from every street, sidewalk and park in the five boroughs.")
 title, rest = (html.split("\n", 1) if html.startswith("<title>") else ("", html))
