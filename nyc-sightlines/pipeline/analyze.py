@@ -1,6 +1,6 @@
 """Summarise the viewsheds: coverage by landmark, borough and neighbourhood, best spots, longest views.
 
-Usage: python analyze.py GRID_DIR VS_DIR NTA_GEOJSON OUT_JSON
+Usage: python analyze.py GRID_DIR VS_DIR NTA_GEOJSON OUT_JSON [DATA_DIR]
 All shares are of 'public ground' (streets, sidewalks, parks, plazas) unless noted.
 """
 import sys, json, os, numpy as np, geopandas as gpd
@@ -9,6 +9,20 @@ from pyproj import Transformer
 import grid
 
 G, VS, NTA, OUT = sys.argv[1:5]
+DATA = sys.argv[5] if len(sys.argv) > 5 else None
+NAMED = None
+if DATA:
+    NAMED = gpd.read_parquet(f"{DATA}/overture/base_land_use.parquet", columns=["names", "class", "geometry"])
+    NAMED["name"] = NAMED.names.apply(lambda n: n["primary"] if n is not None else None)
+    NAMED = NAMED[NAMED.name.notna() & NAMED.geometry.geom_type.isin(["Polygon", "MultiPolygon"])]
+    NAMED = NAMED.assign(area=NAMED.to_crs(grid.CRS).area)
+def named_place(lon, lat):
+    if NAMED is None:
+        return None
+    from shapely.geometry import Point
+    p = Point(lon, lat)
+    h = NAMED.iloc[list(NAMED.sindex.query(p, predicate="within"))]
+    return None if h.empty else h.sort_values("area").name.iloc[0]
 here = os.path.dirname(os.path.abspath(__file__))
 LMS = json.load(open(os.path.join(here, "landmarks.json")))
 META = json.load(open(f"{VS}/meta.json"))
@@ -57,8 +71,9 @@ for lm in LMS:
         lon, lat = to_ll.transform(xs[k], ys[k])
         sel_cells = np.flatnonzero(invb == np.flatnonzero(good)[k])
         ni = int(np.bincount(n_pub[sel_cells]).argmax())
-        far = {"km": round(float(d[k]) / 1000, 1), "lat": round(lat, 6), "lon": round(lon, 6),
-               "nta": nta.NTAName[ni - 1] if ni else None, "boro": BORO.get(int(b_pub[sel_cells[0]]))}
+        far = {"km": round(float(d[k]) / 1000, 2), "lat": round(lat, 6), "lon": round(lon, 6),
+               "nta": nta.NTAName[ni - 1] if ni else None, "boro": BORO.get(int(b_pub[sel_cells[0]])),
+               "place": named_place(lon, lat)}
     res["landmarks"].append({
         "id": lm["id"], "name": lm["name"],
         "pct": round(100 * vis.mean(), 2),
@@ -68,14 +83,38 @@ for lm in LMS:
     })
     print(lm["id"], res["landmarks"][-1]["pct"], far, flush=True)
 
+# Where can the Statue of Liberty be seen from? Distance to water (from a 15 m water mask) and named places.
+from scipy.ndimage import distance_transform_edt
+cls = np.load(f"{G}/cls.npy", mmap_mode="r")
+F15 = 5
+wat = np.asarray(cls[: grid.H // F15 * F15, : grid.W // F15 * F15]).reshape(grid.H // F15, F15, grid.W // F15, F15)
+wat = (wat == 0).mean(axis=(1, 3)) >= 0.5
+dwat = distance_transform_edt(~wat) * grid.RES * F15
+lv = codes["liberty"] > 0
+lr, lc = rows[lv], cols[lv]
+dw = dwat[np.minimum(lr // F15, dwat.shape[0] - 1), np.minimum(lc // F15, dwat.shape[1] - 1)]
+lib = {"within_100m_water": round(100 * float((dw <= 100).mean()), 1), "within_200m_water": round(100 * float((dw <= 200).mean()), 1),
+       "all_public_within_200m_water": round(100 * float((dwat[np.minimum(rows // F15, dwat.shape[0] - 1), np.minimum(cols // F15, dwat.shape[1] - 1)] <= 200).mean()), 1)}
+if NAMED is not None:
+    from shapely.geometry import Point
+    xs, ys = grid.to_xy(lr + 0.5, lc + 0.5)
+    pts = gpd.GeoSeries(gpd.points_from_xy(xs, ys), crs=grid.CRS).to_crs(4326)
+    big = NAMED[NAMED["class"].isin(["park", "cemetery", "nature_reserve", "golf_course", "recreation_ground"])]
+    j = gpd.sjoin(gpd.GeoDataFrame(geometry=pts), big[["name", "geometry", "area"]], predicate="within", how="left")
+    j = j.sort_values("area").groupby(level=0).first()
+    top = (j.name.value_counts() / len(pts) * 100).round(1).head(5)
+    lib["places"] = [{"name": n, "pct": float(v)} for n, v in top.items()]
+res["liberty_where"] = lib
+print("liberty where", lib, flush=True)
+
 res["count_hist"] = np.bincount(count, minlength=len(LMS) + 1).tolist()
-res["mean_count"] = round(float(count.mean()), 2)
+res["mean_count"] = round(float(count.mean()), 3)
 res["pct_zero"] = round(100 * float((count == 0).mean()), 1)
 res["boroughs"] = []
 for b, name in BORO.items():
     m = b_pub == b
-    res["boroughs"].append({"name": name, "km2": round(m.sum() * 9 / 1e6, 1), "mean": round(float(count[m].mean()), 2),
-                            "pct_zero": round(100 * float((count[m] == 0).mean()), 1),
+    res["boroughs"].append({"name": name, "km2": round(m.sum() * 9 / 1e6, 1), "mean": round(float(count[m].mean()), 3),
+                            "pct_zero": round(100 * float((count[m] == 0).mean()), 2),
                             "pct_3plus": round(100 * float((count[m] >= 3).mean()), 1),
                             "max": int(count[m].max())})
 
@@ -86,8 +125,8 @@ for i, r in nta.iterrows():
     if m.sum() < 2000:
         continue
     cm = count[m]
-    ntas.append({"name": r.NTAName, "boro": r.BoroName, "special": r.NTAName.startswith(SPECIAL), "mean": round(float(cm.mean()), 2),
-                 "pct_zero": round(100 * float((cm == 0).mean()), 1),
+    ntas.append({"name": r.NTAName, "boro": r.BoroName, "special": r.NTAName.startswith(SPECIAL), "mean": round(float(cm.mean()), 3),
+                 "pct_zero": round(100 * float((cm == 0).mean()), 2),
                  "pct_esb": round(100 * float((codes["esb"][m] > 0).mean()), 1),
                  "top": sorted(((round(100 * float((codes[l['id']][m] > 0).mean()), 1), l["id"]) for l in LMS), reverse=True)[:3]})
 res["ntas"] = sorted(ntas, key=lambda d: -d["mean"])

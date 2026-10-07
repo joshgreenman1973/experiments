@@ -1,6 +1,6 @@
 """Assemble the static site: inline data into the page template and write the terrain grid.
 
-Usage: python build_site.py GRID_DIR VS_DIR FINDINGS_JSON NTA_GEOJSON SITE_DIR DATA_DIR
+Usage: python build_site.py GRID_DIR VS_DIR FINDINGS_JSON NTA_GEOJSON SITE_DIR DATA_DIR [SUN_DIR]
 (tiles are written into SITE_DIR/tiles by export_tiles.py)
 """
 import sys, os, json, gzip, numpy as np, geopandas as gpd
@@ -8,6 +8,7 @@ from pyproj import Transformer
 import grid
 
 G, VS, FIND, NTA, SITE, DATA = sys.argv[1:7]
+SUN = sys.argv[7] if len(sys.argv) > 7 else None
 here = os.path.dirname(os.path.abspath(__file__))
 LMS = json.load(open(os.path.join(here, "landmarks.json")))
 META = json.load(open(f"{VS}/meta.json"))
@@ -25,7 +26,7 @@ for lm in LMS:
         wx, wy = world(p["x"], p["y"])
         pts.append({"x": wx, "y": wy, "base": round(p["base"], 1), "H": [round(h, 1) for h in p["H"]]})
     s = stats[lm["id"]]
-    lms.append({k: lm[k] for k in ["id", "name", "short", "borough", "year", "kind", "top", "levels"]} |
+    lms.append({k: lm[k] for k in ["id", "name", "short", "borough", "year", "kind", "top", "levels", "height_ft", "height_note"]} | {"year_note": lm.get("year_note", "")} |
                {"pts": pts, "pct": s["pct"], "pct_most": s["pct_most"], "by_boro": s["by_boro"], "farthest": s["farthest"]})
 
 # neighbourhood polygons, simplified, in world metres
@@ -83,7 +84,7 @@ tile_index = json.load(open(f"{SITE}/tiles/index.json"))
 data = {"grid": {"res": grid.RES, "w": grid.W, "h": grid.H, "x0": grid.X0, "y1": grid.Y1,
                  "dem": {"cell": grid.RES * f, "w": ww, "h": hh}},
         "tiles": tile_index, "landmarks": lms, "ntas": polys, "parks": parks,
-        "findings": {k: F[k] for k in ["public_km2", "mean_count", "pct_zero", "count_hist", "boroughs", "best_spots", "best_by_boro"]} |
+        "findings": {k: F[k] for k in ["public_km2", "mean_count", "pct_zero", "count_hist", "boroughs", "best_spots", "best_by_boro", "liberty_where"] if k in F} |
                     {"ntas": [{k: d[k] for k in ["name", "boro", "mean", "pct_zero", "pct_esb"]} for d in F["ntas"]]},
         "tour": json.load(open(os.path.join(here, "tour.json"))) if os.path.exists(os.path.join(here, "tour.json")) else []}
 def lab(lat, lon, **kw):
@@ -98,6 +99,9 @@ data["labels"] = {
               lab(40.545, -73.88, name="Atlantic Ocean", rot=0, min=0.02), lab(40.6435, -74.105, name="Kill Van Kull", rot=-8, min=0.06),
               lab(40.565, -74.236, name="Arthur Kill", rot=-68, min=0.05), lab(40.818, -73.932, name="Harlem River", rot=-68, min=0.08),
               lab(40.768, -73.858, name="Flushing Bay", rot=0, min=0.06), lab(40.80, -73.82, name="East River", rot=0, min=0.05)]}
+data["sun"] = json.load(open(f"{SUN}/sun_states.json")) if SUN else []
+if SUN and os.path.exists(f"{SUN}/sun_stats.json"):
+    data["findings"]["sun"] = json.load(open(f"{SUN}/sun_stats.json"))
 for t in data["tour"]:
     x, y = to_utm.transform(t["lon"], t["lat"])
     t["x"], t["y"] = world(x, y)

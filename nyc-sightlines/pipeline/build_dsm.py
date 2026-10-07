@@ -41,12 +41,18 @@ piers = inf[(inf["class"] == "pier") & inf.geometry.geom_type.isin(["Polygon", "
 rasterize(((g, 9) for g in piers.geometry), out=boro, transform=T)
 nybb = gpd.read_file(f"{SRC}/nycgeo/NYC_geography/nybb_20a/nybb.shp").to_crs(grid.CRS)
 city = rasterize(((g, int(c)) for g, c in zip(nybb.geometry, nybb.BoroCode)), out_shape=shape, transform=T, dtype=np.uint8)
-# Piers and slivers within 250 m of the city's shoreline join the nearest borough.
+# Piers and slivers within 250 m of the city's shoreline join the nearest borough, but never land that
+# lies in a neighbouring county (Nassau, Westchester, New Jersey) across a land border.
 from scipy.ndimage import distance_transform_edt
+da = gpd.read_parquet(f"{SRC}/overture/divisions_division_area.parquet")
+da["name"] = da.names.apply(lambda n: n["primary"])
+nyc_counties = {"New York County", "Bronx County", "Kings County", "Queens County", "Richmond County"}
+others = da[(da.subtype == "county") & (da.is_land == True) & ~da.name.isin(nyc_counties)].to_crs(grid.CRS)
+outside = rasterize(((g, 1) for g in others.geometry), out_shape=shape, transform=T, dtype=np.uint8).astype(bool)
 dist, (ir, ic) = distance_transform_edt(city == 0, return_indices=True)
-m = (boro == 9) & (city == 0) & (dist * grid.RES <= 250)
+m = (boro == 9) & (city == 0) & (dist * grid.RES <= 250) & ~outside
 boro[m] = city[ir[m], ic[m]]
-del dist, ir, ic, m
+del dist, ir, ic, m, outside
 boro[city > 0] = city[city > 0]
 del city
 log("boroughs", np.bincount(boro.ravel(), minlength=10))
@@ -114,6 +120,20 @@ cls[boro > 0] = 1                          # open land
 cls[(boro > 0) & (green == 1)] = 3         # parks, cemeteries, etc.
 cls[isb] = 2                               # building (anywhere, incl. piers)
 log("classes", np.bincount(cls.ravel(), minlength=4))
+
+# Elevated public decks: the terrain model puts people at street level, but these walkways
+# sit well above it. The Brooklyn Heights Promenade is about 62 ft above datum (the city's
+# Scenic View District sets its view line at 66 ft, "approximately four feet above" the walk);
+# the High Line runs about 30 ft over the street.
+lu_named = gpd.read_parquet(f"{SRC}/overture/base_land_use.parquet", columns=["names", "class", "geometry"])
+lu_named["name"] = lu_named.names.apply(lambda n: n["primary"] if n is not None else None)
+for name, cls_name, mode, h in [("Brooklyn Heights Promenade", "pedestrian", "abs", 18.9), ("The High Line", "park", "rel", 9.0)]:
+    g = lu_named[(lu_named.name == name) & (lu_named["class"] == cls_name)].to_crs(grid.CRS)
+    m = rasterize(((x, 1) for x in g.geometry), out_shape=shape, transform=T, dtype=np.uint8).astype(bool) & ~isb
+    deck = np.full(int(m.sum()), h, np.float32) if mode == "abs" else ground[m] + h
+    ground[m] = np.maximum(ground[m], deck)
+    dsm[m] = np.maximum(dsm[m], ground[m])
+    log("deck", name, int(m.sum()), "cells")
 
 np.save(f"{OUT}/ground.npy", ground)
 np.save(f"{OUT}/dsm.npy", dsm)
