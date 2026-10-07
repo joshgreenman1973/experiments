@@ -110,9 +110,13 @@ html = tpl.replace("/*__DATA__*/{}", json.dumps(data, separators=(",", ":")))
 # artifact.html: the page body alone, for the claude.ai artifact (its host adds the document skeleton).
 # index.html: the complete document, served by GitHub Pages and used for local testing.
 open(f"{SITE}/artifact.html", "w").write(html)
-# The Pages build draws a standard street map underneath (CARTO's dark map, from OpenStreetMap data). The artifact
-# can't load outside images, so artifact.html leaves this out and the page draws its own streets.
-BASEMAP = None   # CARTO now requires an API key (its tiles come back watermarked), so no street map for now
+# The Pages build draws a standard street map underneath. The artifact can't load outside images, so artifact.html
+# leaves this out and the page draws its own streets.
+# OpenStreetMap's standard tiles: free, no key, attribution required, light use only (tile usage policy). They are
+# light-coloured, so the page darkens them; labels are baked in, so there is no separate label layer. (CARTO's dark
+# tiles, tried first, now need an API key and come back watermarked without one.)
+BASEMAP = {"base": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "labels": None, "maxZoom": 19, "retina": False,
+           "dark": True, "attribution": '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'}
 DESC = ("Which of 16 New York landmarks, and the rising and setting sun, you can see at street level "
         "from every street, sidewalk and park in the five boroughs.")
 title, rest = (html.split("\n", 1) if html.startswith("<title>") else ("", html))

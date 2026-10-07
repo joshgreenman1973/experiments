@@ -175,7 +175,7 @@ h1 span { color: var(--lamp); }
   <div id="stage" tabindex="0" aria-label="Map of New York City. Drag to pan, scroll or pinch to zoom, click to stand somewhere." role="application">
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
-    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Show whole city">⤢</button><button id="zmap" hidden aria-pressed="true" aria-label="Street map underneath" title="Show or hide the street map underneath">Map</button><div id="attrib" hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></div></div>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Show whole city">⤢</button><button id="zmap" hidden aria-pressed="true" aria-label="Street map underneath" title="Show or hide the street map underneath">Map</button><div id="attrib" hidden></div></div>
     <div id="toast" style="opacity:0"></div>
   </div>
 
@@ -346,7 +346,7 @@ vec4 texel(ivec2 t, float fine){
       uint q = lmv(v, uSel);
       if (q > 0u) { float a = q == 1u ? 0.42 : (q == 2u ? 0.72 : 1.0); lc = uCol[uSel] * a; la = 0.92; }
     }
-    if (la > 0.0) r = uOver == 1 ? vec4(lc * la, la) : vec4(mix(c, lc, la), 1.0);
+    if (la > 0.0) { if (uOver == 1) { la *= 0.88; r = vec4(lc * la, la); } else r = vec4(mix(c, lc, la), 1.0); }   // over a street map, let its labels show a little
   }
   return r;   // see-through colours are premultiplied, so the four-texel blend below has no dark fringes
 }
@@ -388,9 +388,10 @@ function makeTex(n, ifmt, fmt, data) {
 
 
 // ---------- standard street map underneath (GitHub Pages build only) ----------
-// CARTO's dark map, drawn from OpenStreetMap, in Web Mercator tiles warped into this map's UTM frame: its streets,
-// buildings and water go under the data and its labels over it. The claude.ai artifact can't load outside images, so
-// there the page draws its own streets; the same happens here if the tiles fail to load.
+// Raster street-map tiles (OpenStreetMap's standard map, darkened here to sit under the glow), in Web Mercator,
+// warped into this map's UTM frame. A source with a separate label layer can draw its labels over the data. The
+// claude.ai artifact can't load outside images, so there the page draws its own streets; the same happens here if
+// the tiles fail to load. Config (from the page build): {base, labels?, maxZoom, retina?, dark?, attribution}.
 const BASEMAP = window.SL_BASEMAP || null;
 let baseOn = false, baseDead = false, baseOk = 0, baseFail = 0, baseProg = null, baseVAO = null;
 const bloc = {}, baseCache = new Map();
@@ -415,19 +416,28 @@ function initBase(sh) {
 in vec2 aW; in vec2 aUV; uniform vec3 uCam; uniform vec2 uView; out vec2 vUV;
 void main(){ vec2 p = (aW - uCam.xy) * uCam.z / (uView * 0.5); gl_Position = vec4(p.x, -p.y, 0.0, 1.0); vUV = aUV; }`;
   const fs = `#version 300 es
-precision mediump float; in vec2 vUV; uniform sampler2D uImg; out vec4 o;
-void main(){ o = texture(uImg, vUV); }`;
+precision mediump float; in vec2 vUV; uniform sampler2D uImg; uniform int uDark; out vec4 o;
+void main(){
+  vec4 t = texture(uImg, vUV); vec3 c = t.rgb;
+  if (uDark == 1) {   // flip lightness but keep hue (light land goes dark, black labels go light), mute and dim
+    float y = dot(c, vec3(0.299, 0.587, 0.114));
+    c = clamp(vec3(1.0 - y) + (c - y) * 0.55, 0.0, 1.0) * 0.78 + 0.02;
+  }
+  o = vec4(c, t.a);
+}`;
   baseProg = gl.createProgram(); gl.attachShader(baseProg, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(baseProg, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(baseProg);
-  for (const n of ["uCam", "uView", "uImg"]) bloc[n] = gl.getUniformLocation(baseProg, n);
+  for (const n of ["uCam", "uView", "uImg", "uDark"]) bloc[n] = gl.getUniformLocation(baseProg, n);
   bloc.aW = gl.getAttribLocation(baseProg, "aW"); bloc.aUV = gl.getAttribLocation(baseProg, "aUV");
   baseVAO = gl.createVertexArray(); gl.bindVertexArray(baseVAO);
   gl.enableVertexAttribArray(bloc.aW); gl.enableVertexAttribArray(bloc.aUV);
   gl.bindVertexArray(null);
 }
-const baseRetina = () => view.dpr > 1.4;
+const baseRetina = () => !!BASEMAP.retina && view.dpr > 1.4;
 function baseZoom() {   // the tile zoom whose pixels best match the screen's
-  const lat = toLatLon(cam.x, cam.y)[0], px = baseRetina() ? 512 : 256;
-  const z = Math.log2(40075016.686 * Math.cos(lat * Math.PI / 180) * cam.s * view.dpr / px);
+  // a source without high-density tiles is matched to CSS pixels (slightly soft on high-density screens, but a
+  // quarter of the tile requests)
+  const lat = toLatLon(cam.x, cam.y)[0], px = baseRetina() ? 512 : 256, dpr = BASEMAP.retina ? view.dpr : 1;
+  const z = Math.log2(40075016.686 * Math.cos(lat * Math.PI / 180) * cam.s * dpr / px);
   return Math.max(0, Math.min(BASEMAP.maxZoom || 19, Math.round(z)));
 }
 function baseTilesFor(z) {
@@ -475,10 +485,11 @@ function evictBase() {
   for (const [k, e] of old) { if (e.tex) gl.deleteTexture(e.tex); if (e.buf) gl.deleteBuffer(e.buf); baseCache.delete(k); }
 }
 function drawBase(layer) {
+  if (!BASEMAP[layer]) return;
   const zt = baseZoom(), now = performance.now();
   gl.useProgram(baseProg); gl.bindVertexArray(baseVAO);
   gl.uniform3f(bloc.uCam, cam.x, cam.y, cam.s * view.dpr); gl.uniform2f(bloc.uView, glc.width, glc.height);
-  gl.activeTexture(gl.TEXTURE0); gl.uniform1i(bloc.uImg, 0);
+  gl.activeTexture(gl.TEXTURE0); gl.uniform1i(bloc.uImg, 0); gl.uniform1i(bloc.uDark, BASEMAP.dark ? 1 : 0);
   const one = e => {
     e.used = now; gl.bindTexture(gl.TEXTURE_2D, e.tex); gl.bindBuffer(gl.ARRAY_BUFFER, e.buf);
     gl.vertexAttribPointer(bloc.aW, 2, gl.FLOAT, false, 16, 0); gl.vertexAttribPointer(bloc.aUV, 2, gl.FLOAT, false, 16, 8);
@@ -495,13 +506,13 @@ function baseUnavailable() {
 }
 function syncBase() {
   const b = $("zmap"); if (b) { b.hidden = !BASEMAP; b.setAttribute("aria-pressed", String(baseOn)); }
-  const a = $("attrib"); if (a) a.hidden = !baseOn;
+  const a = $("attrib"); if (a) { a.hidden = !baseOn; if (BASEMAP) a.innerHTML = BASEMAP.attribution; }
   const r = $("readmap"); if (r) r.innerHTML = readMapText();
   requestDraw();
 }
 function readMapText() {
   const under = baseOn
-    ? "Underneath is a standard street map (© OpenStreetMap contributors, © CARTO). The Map button switches it off to show the model's own picture of the city: grey streets that see none of the 16, dark buildings, green parks and blue water."
+    ? "Underneath is OpenStreetMap's standard street map, darkened to sit under the colors (© OpenStreetMap contributors). The Map button switches it off to show the model's own picture of the city: grey streets that see none of the 16, dark buildings, green parks and blue water."
     : "Zoom in and it becomes a street map: grey streets see none of the 16, buildings are the dark blocks, parks are green and water is blue, with street names.";
   return `Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. ${under} Each square of color is 3 metres (10 feet) across. Large woods block views; street trees aren't modeled, so read this as a winter view.`;
 }
