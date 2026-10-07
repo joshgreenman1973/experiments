@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where New York lives</title>
+<meta name="description" content="New York City's population density at every census from 1910 to 2020, drawn as a landscape that rises where more people live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+:root{--accent:var(--sun)}
+.stage{display:grid;grid-template-columns:minmax(270px,340px) minmax(0,1fr);gap:22px 44px;padding:22px clamp(16px,4vw,48px) 24px;align-items:start}
+.panel{position:sticky;top:12px}
+.clock{font-family:var(--display);font-variation-settings:'wdth' 78;font-weight:700;font-size:4.4rem;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin:0}
+.census{margin:12px 0 0;font-size:var(--t-body);line-height:1.45}
+.census b{font-weight:700}
+.note{margin:6px 0 0;font-size:var(--t-small);color:var(--fg2)}
+.scrub{margin:18px 0 0;touch-action:none;cursor:pointer;display:block;width:100%;height:118px;outline:none}
+.scrub:focus-visible{outline:2px solid var(--sun);outline-offset:4px}
+.scrub text{font-family:var(--sans);font-size:12.5px;fill:var(--fg2)}
+.scrub .lab{fill:var(--fg)}
+.ctl{display:flex;gap:8px;margin-top:10px;align-items:center}
+.btn{font-size:var(--t-small);font-weight:600;padding:8px 13px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;border-radius:0}
+.btn:hover{border-color:var(--fg)}
+.legend-ramp{margin-top:22px}
+.legend-ramp canvas{width:100%;height:12px;display:block}
+.legend-ramp .ticks{position:relative;height:18px;font-size:12.5px;color:var(--fg2);font-variant-numeric:tabular-nums}
+.legend-ramp .ticks span{position:absolute;top:3px;transform:translateX(-50%);white-space:nowrap}
+.legend-ramp .ticks span:first-child{transform:none}
+.legend-ramp p{margin:6px 0 0;font-size:var(--t-small);color:var(--fg2)}
+.spot{margin-top:22px;border-top:1.5px solid var(--fg);padding-top:10px}
+.spot h4{margin:0;font-size:15px}
+.spot .where{font-size:var(--t-small);color:var(--fg2);margin:0}
+.spot svg{display:block;width:100%;height:84px;margin-top:8px}
+.spot svg text{font-family:var(--sans);font-size:12px;fill:var(--fg2)}
+.spot p.read{margin:6px 0 0;font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+.densest{margin-top:16px;font-size:15px;line-height:1.45}
+.densest i{display:inline-block;width:11px;height:11px;border:1.5px solid var(--fg);margin-right:7px;vertical-align:-1px}
+.mapwrap{position:relative;width:100%;margin:0 auto;background:var(--bg)}
+.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.mapwrap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.mapwrap svg text{font-family:var(--sans);font-size:var(--lab,13px);font-weight:600;fill:var(--fg);paint-order:stroke;stroke:var(--bg);stroke-width:3.2px;stroke-linejoin:round}
+.mapwrap .fail{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--fg2)}
+.foot{padding:10px clamp(16px,4vw,48px) 40px;max-width:880px}
+.foot p{font-size:15px;color:var(--fg2);max-width:70ch}
+.foot h2{margin-top:18px}
+@media(max-width:860px){
+  .stage{grid-template-columns:1fr}
+  .panel{position:static;order:2}
+  .clock{font-size:3.4rem}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="strip">
+    <span>U.S. Census Bureau tract counts, via IPUMS NHGIS</span>
+    <span>Every census, 1910&ndash;2020</span>
+  </div>
+
+  <div class="head">
+    <h1>Where New York lives</h1>
+    <p class="finding">In 1910, 49 percent of New Yorkers lived in Manhattan; by 2020, 19 percent did.</p>
+    <p class="lede">The Census Bureau has counted New York City tract by tract since 1910: <b>4.8 million people</b> that year, <b>8.8 million</b> in 2020. This map spreads each tract&rsquo;s count over its land, smooths it and raises the ground where more people live, so the higher and brighter the ground, the more people per square mile. In 1910 the most crowded square mile, on the Lower East Side, held about <b>380,000 people</b>. In 2020 the most crowded, on the Upper East Side, held about <b>140,000</b>.</p>
+    <p class="src">Data: <a href="https://www.nhgis.org/">IPUMS NHGIS</a>, University of Minnesota &middot; <a href="methodology.html">How it was made</a></p>
+  </div>
+
+  <div class="stage">
+    <div class="panel">
+      <p class="clock" id="year" aria-live="off">1910</p>
+      <p class="census" id="census">&nbsp;</p>
+      <p class="note">Between census years the map blends the counts on either side.</p>
+      <svg class="scrub" id="scrub" tabindex="0" role="slider" aria-label="Census year" aria-valuemin="1910" aria-valuemax="2020" aria-valuenow="1910"></svg>
+      <div class="ctl">
+        <button class="btn" id="play" type="button">Pause</button>
+        <button class="btn" id="prev" type="button" aria-label="Previous census">&larr;</button>
+        <button class="btn" id="next" type="button" aria-label="Next census">&rarr;</button>
+      </div>
+      <div class="legend-ramp">
+        <canvas id="ramp" width="340" height="12"></canvas>
+        <div class="ticks" id="rampticks"></div>
+        <p>People per square mile, averaged over about a quarter mile around each point</p>
+      </div>
+      <p class="densest" id="densest"></p>
+      <div class="spot" id="spot">
+        <h4 id="spot-name">&nbsp;</h4>
+        <p class="where" id="spot-where">Click or tap the map to follow any spot through all 12 censuses.</p>
+        <svg id="spot-chart" aria-hidden="true"></svg>
+        <p class="read" id="spot-read"></p>
+      </div>
+    </div>
+    <div class="mapwrap" id="mapwrap">
+      <canvas id="gl" aria-label="Animated map of New York City population density by census, 1910 to 2020" role="img"></canvas>
+      <svg id="overlay" aria-hidden="true"></svg>
+    </div>
+  </div>
+
+  <div class="foot">
+    <h2>How it was made</h2>
+    <p>Each census&rsquo;s tract counts come from IPUMS NHGIS at the University of Minnesota, with tract boundaries drawn for that census. Each tract&rsquo;s people are spread evenly over the land inside it, on a grid of squares a twentieth of a mile on a side, using today&rsquo;s shoreline from the Department of City Planning. The grid is then smoothed over about a quarter mile. In every census the tract counts add up to within 0.6 percent of the official city total. New York kept its 1930 tracts in 1940, so the 1940 counts are drawn on 1930 boundaries. The &ldquo;most crowded square mile&rdquo; is the square-mile window on the grid holding the most people before smoothing; since people are spread evenly within each tract, it is an estimate. <a href="methodology.html">Full methodology, sources and checks</a>.</p>
+    <p>The idea comes from an animated density map of France, &ldquo;L&agrave; o&ugrave; vit la France,&rdquo; shared by Yan Holtz of the R Graph Gallery.</p>
+    <p class="caution">And please read this AI caution. The idea and the choice of sources are the author&rsquo;s (a human). The code and the data processing were done by Anthropic&rsquo;s Claude Code under close direction. Quality control on this project: the tract counts for every census were summed and checked against the official city total; borough totals for 1970 through 2010 were checked against the Department of City Planning&rsquo;s community-district counts and land within 0.8 percent; the 1940 tract codes were matched to 1930 boundaries and each tract&rsquo;s 1940 count was compared with its 1930 count to catch mismatches. The risks of using AI remain, and red flags are welcome.</p>
+  </div>
+</div>
+
+<script>
+(async function(){
+const $ = id => document.getElementById(id);
+const css = getComputedStyle(document.documentElement);
+const tok = n => css.getPropertyValue('--' + n).trim();
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------- data
+const V = '?v=20261007b';
+const meta = await (await fetch('assets/meta.json' + V)).json();
+const W = meta.W, H = meta.H, N = meta.years.length, DMAX = meta.dmax;
+const YEARS = meta.years.map(y => y.year);
+
+async function gunzip(url){
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + ' ' + r.status);
+  const s = r.body.pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+const [raw, ntaRaw, landImg] = await Promise.all([
+  gunzip('assets/grids.bin.gz' + V),
+  gunzip('assets/nta.bin.gz' + V),
+  new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = 'assets/land.png' + V; })
+]);
+// Each census: a plane of high bytes then low bytes of row-wise deltas of
+// q = round(sqrt(density / dmax) * 65535). Rebuild normalised density n = density / dmax.
+const P = W * H;
+const grids = [];
+const all = new Float32Array(P * N);
+for (let k = 0; k < N; k++){
+  const hi = raw.subarray(2 * P * k, 2 * P * k + P), lo = raw.subarray(2 * P * k + P, 2 * P * (k + 1));
+  const g = all.subarray(P * k, P * (k + 1));
+  for (let r = 0; r < H; r++){
+    let q = 0;
+    for (let c = 0; c < W; c++){
+      const i = r * W + c;
+      q = (q + ((hi[i] << 8) | lo[i])) & 0xFFFF;
+      const s = q / 65535;
+      g[i] = s * s;
+    }
+  }
+  grids.push(g);
+}
+const nta = new Uint16Array(ntaRaw.buffer, ntaRaw.byteOffset, P);
+
+// ---------------------------------------------------------------- colour ramp
+// Stops in people per square mile. Colour position is logarithmic.
+const K = 2000, SMAX = Math.log(1 + 500000 / K);
+const sOf = d => Math.log(1 + d / K) / SMAX;
+const STOPS = [
+  [0, '#262a26'], [5000, mixHex(tok('cyan'), tok('bg'), .80)], [15000, mixHex(tok('cyan'), tok('bg'), .58)],
+  [30000, mixHex(tok('cyan'), tok('bg'), .30)], [50000, tok('cyan')], [90000, tok('orange')],
+  [150000, tok('sun')], [300000, '#fff3c9'], [500000, '#ffffff']
+];
+function hex2rgb(h){ h = h.replace('#',''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0,2,4].map(i => parseInt(h.substr(i,2),16)); }
+function mixHex(a, b, t){ const A = hex2rgb(a), B = hex2rgb(b); return '#' + A.map((v,i) => Math.round(v + (B[i]-v)*t).toString(16).padStart(2,'0')).join(''); }
+// OKLab interpolation keeps the in-between colours from going muddy
+const lin = v => { v /= 255; return v <= .04045 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+const unlin = v => 255 * (v <= .0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1/2.4) - .055);
+function toLab([r,g,b]){ r = lin(r); g = lin(g); b = lin(b);
+  const l = Math.cbrt(.4122214708*r + .5363325363*g + .0514459929*b), m = Math.cbrt(.2119034982*r + .6806995451*g + .1073969566*b), s = Math.cbrt(.0883024619*r + .2817188376*g + .6299787005*b);
+  return [.2104542553*l + .7936177850*m - .0040720468*s, 1.9779984951*l - 2.4285922050*m + .4505937099*s, .0259040371*l + .7827717662*m - .8086757660*s]; }
+function fromLab([L,a,b]){ const l = (L + .3963377774*a + .2158037573*b) ** 3, m = (L - .1055613458*a - .0638541728*b) ** 3, s = (L - .0894841775*a - 1.2914855480*b) ** 3;
+  return [4.0767416621*l - 3.3077115913*m + .2309699292*s, -1.2684380046*l + 2.6097574011*m - .3413193965*s, -.0041960863*l - .7034186147*m + 1.7076147010*s].map(v => Math.max(0, Math.min(255, Math.round(unlin(v))))); }
+const LUTN = 512, lut = new Uint8Array(LUTN * 4);
+const stopS = STOPS.map(([d, c]) => [sOf(d), toLab(hex2rgb(c))]);
+for (let i = 0; i < LUTN; i++){
+  const s = i / (LUTN - 1);
+  let j = 0; while (j < stopS.length - 2 && s > stopS[j + 1][0]) j++;
+  const [s0, c0] = stopS[j], [s1, c1] = stopS[j + 1];
+  const t = Math.max(0, Math.min(1, (s - s0) / (s1 - s0)));
+  const rgb = fromLab(c0.map((v, k) => v + (c1[k] - v) * t));
+  lut.set([...rgb, 255], i * 4);
+}
+const rampColor = d => { const i = Math.round(Math.min(1, sOf(d)) * (LUTN - 1)) * 4; return `rgb(${lut[i]},${lut[i+1]},${lut[i+2]})`; };
+
+// legend
+(function(){
+  const cv = $('ramp'), cx = cv.getContext('2d');
+  const id = cx.createImageData(cv.width, 1);
+  for (let x = 0; x < cv.width; x++){ const i = Math.round(x / (cv.width - 1) * (LUTN - 1)) * 4; id.data.set([lut[i], lut[i+1], lut[i+2], 255], x * 4); }
+  for (let y = 0; y < cv.height; y++) cx.putImageData(id, 0, y);
+  $('rampticks').innerHTML = [[0,'0'],[10000,'10,000'],[50000,'50,000'],[200000,'200,000']]
+    .map(([d, t]) => `<span style="left:${(sOf(d) * 100).toFixed(2)}%">${t}</span>`).join('');
+})();
+
+// ---------------------------------------------------------------- WebGL
+const canvas = $('gl');
+const gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: false });
+if (!gl){
+  $('mapwrap').insertAdjacentHTML('beforeend', '<div class="fail">This map needs WebGL 2, which this browser does not offer.</div>');
+  return;
+}
+const VS = `#version 300 es
+const vec2 P[3] = vec2[3](vec2(-1.,-1.), vec2(3.,-1.), vec2(-1.,3.));
+out vec2 vUV;
+void main(){ vec2 p = P[gl_VertexID]; vUV = vec2((p.x + 1.) * .5, 1. - (p.y + 1.) * .5); gl_Position = vec4(p, 0., 1.); }`;
+const FS = `#version 300 es
+precision highp float;
+precision highp sampler2DArray;
+uniform sampler2DArray uH;
+uniform sampler2D uLand, uRamp;
+uniform float uA, uB, uT, uExag, uGamma, uDmax, uK, uSmax;
+uniform vec2 uTexel;
+uniform vec3 uL;
+uniform vec3 uWater;
+in vec2 vUV;
+out vec4 o;
+float dens(vec2 uv){ return mix(texture(uH, vec3(uv, uA)).r, texture(uH, vec3(uv, uB)).r, uT); }
+float hgt(vec2 uv){ return uExag * pow(max(dens(uv), 0.), uGamma); }
+void main(){
+  vec2 uv = vUV;
+  float n = max(dens(uv), 0.);
+  float h = uExag * pow(n, uGamma);
+  float hl = hgt(uv - vec2(1.5 * uTexel.x, 0.)), hr = hgt(uv + vec2(1.5 * uTexel.x, 0.));
+  float hu = hgt(uv - vec2(0., 1.5 * uTexel.y)), hd = hgt(uv + vec2(0., 1.5 * uTexel.y));
+  vec3 nrm = normalize(vec3(hl - hr, hu - hd, 3.));
+  float diff = max(dot(nrm, uL), 0.);
+  // soft cast shadows: march toward the light across the height field
+  vec2 dir = normalize(uL.xy);
+  float tanE = uL.z / length(uL.xy);
+  float sh = 1., t = 1.;
+  for (int i = 0; i < 30; i++){
+    float rayH = h + t * tanE;
+    if (rayH > uExag) break;
+    float hp = hgt(uv + dir * t * uTexel);
+    sh = min(sh, clamp(1. - (hp - rayH) * .45, 0., 1.));
+    t = t * 1.16 + .55;
+  }
+  float d = n * uDmax;
+  float s = log(1. + d / uK) / uSmax;
+  vec3 col = texture(uRamp, vec2(clamp(s, 0., 1.), .5)).rgb;
+  float light = .40 + 1.0 * diff * (.45 + .55 * sh);
+  col = col * light;
+  float land = smoothstep(.3, .7, texture(uLand, uv).r);
+  o = vec4(mix(uWater, col, land), 1.);
+}`;
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const U = {}; ['uH','uLand','uRamp','uA','uB','uT','uExag','uGamma','uDmax','uK','uSmax','uTexel','uL','uWater'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+gl.bindVertexArray(gl.createVertexArray());
+gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+
+const tH = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tH);
+gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.R16F, W, H, N, 0, gl.RED, gl.FLOAT, all);
+for (const [p, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D_ARRAY, p, v);
+const tL = gl.createTexture(); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tL);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, gl.RED, gl.UNSIGNED_BYTE, landImg);
+gl.generateMipmap(gl.TEXTURE_2D);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+const tR = gl.createTexture(); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, tR);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, LUTN, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lut);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+gl.uniform1i(U.uH, 0); gl.uniform1i(U.uLand, 1); gl.uniform1i(U.uRamp, 2);
+gl.uniform1f(U.uDmax, DMAX); gl.uniform1f(U.uK, K); gl.uniform1f(U.uSmax, SMAX);
+gl.uniform2f(U.uTexel, 1 / W, 1 / H);
+gl.uniform1f(U.uExag, 95); gl.uniform1f(U.uGamma, .85);
+(function(){ const az = 315 * Math.PI / 180, el = 40 * Math.PI / 180;
+  // light from the northwest; x runs east, y runs south on the grid
+  gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); })();
+const bg = hex2rgb(tok('bg')).map(v => v / 255);
+gl.uniform3f(U.uWater, ...bg);
+
+// ---------------------------------------------------------------- layout
+const wrap = $('mapwrap'), overlay = $('overlay');
+let cssW = 0, cssH = 0, dprScale = Math.min(window.devicePixelRatio || 1, 2);
+function layout(){
+  const avail = wrap.parentElement.getBoundingClientRect();
+  const panelW = window.innerWidth > 860 ? $('spot').parentElement.getBoundingClientRect().width + 44 : 0;
+  const maxW = wrap.getBoundingClientRect().width || (avail.width - panelW);
+  const maxH = window.innerWidth > 860 ? window.innerHeight - 30 : Infinity;
+  const w = Math.min(maxW, maxH * W / H);
+  wrap.style.width = w + 'px'; wrap.style.height = (w * H / W) + 'px';
+  cssW = w; cssH = w * H / W;
+  canvas.width = Math.round(cssW * dprScale); canvas.height = Math.round(cssH * dprScale);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  overlay.setAttribute('viewBox', `0 0 ${cssW} ${cssH}`);
+  drawScrub(); drawOverlayStatic(); dirty = true;
+}
+function resetWidth(){ wrap.style.width = ''; layout(); }
+
+// ---------------------------------------------------------------- state
+let pos = 0, playing = !reduceMotion, dirty = true, last = performance.now(), phase = 0;
+const HOLD = 900, MOVE = 1500, END_HOLD = 2600;
+function setPos(p){ pos = Math.max(0, Math.min(N - 1, p)); dirty = true; }
+
+// ---------------------------------------------------------------- scrubber
+const scrub = $('scrub');
+const SC = { l: 4, r: 8, t: 10, b: 24 };
+function sx(p){ const w = scrub.getBoundingClientRect().width; return SC.l + p / (N - 1) * (w - SC.l - SC.r); }
+function drawScrub(){
+  const w = scrub.getBoundingClientRect().width, h = 118;
+  scrub.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const ymax = 9e6, y = v => SC.t + (1 - v / ymax) * (h - SC.t - SC.b);
+  const tot = meta.years.map((e, i) => [sx(i), y(e.official)]);
+  const man = meta.years.map((e, i) => [sx(i), y(e.boroughs.Manhattan / e.population * e.official)]);
+  const area = pts => `M${pts[0][0]},${y(0)} ` + pts.map(p => `L${p[0]},${p[1]}`).join(' ') + ` L${pts[pts.length-1][0]},${y(0)} Z`;
+  let s = `<path d="${area(tot)}" fill="${tok('fg')}" fill-opacity=".14"/>`;
+  s += `<path d="${area(man)}" fill="${tok('fg')}" fill-opacity=".36"/>`;
+  s += `<path d="M${tot.map(p => p.join(',')).join(' L')}" fill="none" stroke="${tok('fg')}" stroke-width="1.5"/>`;
+  s += `<line x1="${SC.l}" x2="${w - SC.r}" y1="${y(0)}" y2="${y(0)}" stroke="${tok('line')}"/>`;
+  YEARS.forEach((yr, i) => {
+    s += `<line x1="${sx(i)}" x2="${sx(i)}" y1="${y(0)}" y2="${y(0) + 4}" stroke="${tok('fg2')}"/>`;
+    if (i % 3 === 0 || i === N - 1) s += `<text x="${sx(i)}" y="${h - 6}" text-anchor="${i === 0 ? 'start' : i === N - 1 ? 'end' : 'middle'}">${yr}</text>`;
+  });
+  s += `<text class="lab" x="${sx(N - 1) - 4}" y="${tot[N-1][1] + 15}" text-anchor="end">All five boroughs</text>`;
+  s += `<text class="lab" x="${sx(N - 1) - 2}" y="${(man[N-1][1] + y(0)) / 2 + 4}" text-anchor="end">Manhattan</text>`;
+  s += `<line id="ph" x1="0" x2="0" y1="${SC.t - 4}" y2="${y(0)}" stroke="${tok('sun')}" stroke-width="2"/>`;
+  scrub.innerHTML = s;
+  movePlayhead();
+}
+function movePlayhead(){ const ph = $('ph'); if (!ph) return; const x = sx(pos); ph.setAttribute('x1', x); ph.setAttribute('x2', x); }
+function posFromEvent(e){ const r = scrub.getBoundingClientRect(); return (e.clientX - r.left - SC.l) / (r.width - SC.l - SC.r) * (N - 1); }
+let dragging = false;
+scrub.addEventListener('pointerdown', e => { dragging = true; scrub.setPointerCapture(e.pointerId); setPlaying(false); setPos(posFromEvent(e)); });
+scrub.addEventListener('pointermove', e => { if (dragging) setPos(posFromEvent(e)); });
+scrub.addEventListener('pointerup', () => { dragging = false; });
+scrub.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp'){ setPlaying(false); setPos(Math.floor(pos + 1e-6) + 1); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown'){ setPlaying(false); setPos(Math.ceil(pos - 1e-6) - 1); e.preventDefault(); }
+  else if (e.key === ' '){ setPlaying(!playing); e.preventDefault(); }
+});
+$('prev').onclick = () => { setPlaying(false); setPos(Math.ceil(pos - 1e-6) - 1); };
+$('next').onclick = () => { setPlaying(false); setPos(Math.floor(pos + 1e-6) + 1); };
+function setPlaying(p){
+  if (p && pos >= N - 1 - 1e-6) setPos(0);
+  playing = p; $('play').textContent = p ? 'Pause' : 'Play';
+  phase = p ? (pos % 1) * MOVE + HOLD : 0; last = performance.now();
+}
+$('play').onclick = () => setPlaying(!playing);
+$('play').textContent = playing ? 'Pause' : 'Play';
+
+// ---------------------------------------------------------------- overlay
+const toX = c => c / W * cssW, toY = r => r / H * cssH;
+const MAIN = new Set(['Lower East Side','Harlem','Upper East Side','Grand Concourse','Williamsburg','Brownsville','Flushing','Jamaica','St. George','Coney Island']);
+let staticSvg = '';
+function drawOverlayStatic(){
+  const small = cssW < 520;
+  overlay.style.setProperty('--lab', small ? '11.5px' : '13px');
+  staticSvg = meta.places.filter(p => !small || MAIN.has(p.name)).map(p => {
+    const x = toX(p.col), y = toY(p.row), r = p.side === 'r';
+    return `<circle cx="${x}" cy="${y}" r="2.2" fill="${tok('fg')}" stroke="${tok('bg')}" stroke-width="1"/>` +
+      `<text x="${x + (r ? 6 : -6)}" y="${y + 4.5}" text-anchor="${r ? 'start' : 'end'}">${p.name}</text>`;
+  }).join('');
+}
+function drawOverlay(){
+  const k = Math.round(pos), e = meta.years[k].densestSqMi;
+  const near = 1 - Math.min(1, Math.abs(pos - k) / .5);
+  const side = 20 / W * cssW;
+  let s = `<rect x="${toX(e.col) - side/2}" y="${toY(e.row) - side/2}" width="${side}" height="${side}" fill="none" stroke="${tok('fg')}" stroke-width="1.6" opacity="${(.35 + .65 * near).toFixed(2)}"/>`;
+  s += staticSvg;
+  if (pin) s += `<circle cx="${toX(pin.c + .5)}" cy="${toY(pin.r + .5)}" r="6" fill="none" stroke="${tok('sun')}" stroke-width="2"/><circle cx="${toX(pin.c + .5)}" cy="${toY(pin.r + .5)}" r="1.6" fill="${tok('sun')}"/>`;
+  overlay.innerHTML = s;
+}
+
+// ---------------------------------------------------------------- text readouts
+const ntaName = i => i ? meta.ntas[i - 1] : null;
+function cleanNta(n){ return n.replace(/\s*\((North|South|East|West|Central)\)/, ' ($1)').replace(/-/g, ', '); }
+function updateText(){
+  const yr = Math.round(1910 + 10 * pos);
+  $('year').textContent = yr;
+  scrub.setAttribute('aria-valuenow', yr);
+  const k = Math.round(pos), e = meta.years[k];
+  const share = Math.round(100 * e.boroughs.Manhattan / e.population);
+  $('census').innerHTML = `Census of ${e.year}: <b>${fmt(e.official)}</b> New Yorkers, ${share} percent of them in Manhattan.`;
+  const d = e.densestSqMi, cell = Math.floor(d.row) * W + Math.floor(d.col), nm = ntaName(nta[cell]);
+  $('densest').innerHTML = `<i></i>Most crowded square mile in ${e.year}: about <b>${fmt(Math.round(d.people / 1000) * 1000)}</b> people, centered in ${nm ? cleanNta(nm.name) : 'Manhattan'}.`;
+}
+
+// ---------------------------------------------------------------- spot
+let pin = null, hover = null;
+function cellAt(e){
+  const r = canvas.getBoundingClientRect();
+  const c = Math.floor((e.clientX - r.left) / r.width * W), rr = Math.floor((e.clientY - r.top) / r.height * H);
+  if (c < 0 || rr < 0 || c >= W || rr >= H) return null;
+  return { c, r: rr };
+}
+const roundD = d => d < 1000 ? 'under 1,000' : 'about ' + fmt(Math.round(d / 1000) * 1000);
+function series(p){ const i = p.r * W + p.c; return grids.map(g => g[i] * DMAX); }
+function drawSpot(p){
+  const chart = $('spot-chart');
+  if (!p){ return; }
+  const i = p.r * W + p.c, nm = ntaName(nta[i]);
+  const vals = series(p);
+  if (!nm && Math.max(...vals) < 1){ $('spot-name').textContent = 'Outside the city'; $('spot-where').textContent = 'Pick a spot in the five boroughs.'; chart.innerHTML = ''; $('spot-read').textContent = ''; return; }
+  $('spot-name').textContent = nm ? cleanNta(nm.name) : 'Near the shore';
+  $('spot-where').textContent = nm ? nm.boro + (nm.type !== '0' ? ' · mostly parkland, cemetery or airport today' : '') : '';
+  const w = chart.getBoundingClientRect().width, h = 84, l = 2, r = 2, t = 8, b = 18;
+  const vmax = Math.max(1000, ...vals);
+  const x = j => l + j / (N - 1) * (w - l - r), y = v => t + (1 - v / vmax) * (h - t - b);
+  const pts = vals.map((v, j) => `${x(j)},${y(v)}`).join(' L');
+  let s = `<line x1="${l}" x2="${w - r}" y1="${y(0)}" y2="${y(0)}" stroke="${tok('line')}"/>`;
+  s += `<path d="M${pts}" fill="none" stroke="${tok('fg')}" stroke-width="1.5"/>`;
+  vals.forEach((v, j) => { s += `<circle cx="${x(j)}" cy="${y(v)}" r="2.6" fill="${rampColor(v)}"/>`; });
+  s += `<text x="${l}" y="${h - 3}">1910</text><text x="${w - r}" y="${h - 3}" text-anchor="end">2020</text>`;
+  s += `<line id="spot-ph" x1="${x(pos)}" x2="${x(pos)}" y1="${t - 4}" y2="${y(0)}" stroke="${tok('sun')}" stroke-width="1.5"/>`;
+  chart.innerHTML = s;
+  const pk = vals.indexOf(Math.max(...vals));
+  let txt = `People per square mile around this spot: ${roundD(vals[0])} in 1910`;
+  if (pk !== 0 && pk !== N - 1) txt += `, a peak of ${roundD(vals[pk])} in ${YEARS[pk]}`;
+  txt += ` and ${roundD(vals[N - 1])} in 2020.`;
+  $('spot-read').textContent = txt;
+}
+function moveSpotHead(){ const ph = $('spot-ph'); if (!ph) return; const w = $('spot-chart').getBoundingClientRect().width; const x = 2 + pos / (N - 1) * (w - 4); ph.setAttribute('x1', x); ph.setAttribute('x2', x); }
+canvas.addEventListener('click', e => { const p = cellAt(e); if (!p) return; pin = p; drawSpot(pin); dirty = true; });
+canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; const p = cellAt(e); if (!p) return; hover = p; drawSpot(hover); });
+canvas.addEventListener('pointerleave', () => { hover = null; drawSpot(pin); });
+// start pinned on the Lower East Side
+(function(){ const les = meta.places.find(p => p.name === 'Lower East Side'); pin = { c: Math.floor(les.col), r: Math.floor(les.row) }; })();
+
+// ---------------------------------------------------------------- loop
+let frames = 0, slowFrames = 0;
+function frame(now){
+  const dt = Math.min(100, now - last); last = now;
+  if (playing && !dragging){
+    phase += dt;
+    const k = Math.floor(pos + 1e-6);
+    const hold = k >= N - 1 ? END_HOLD : HOLD;
+    if (k >= N - 1){ if (phase > hold){ setPos(0); phase = 0; } }
+    else if (phase > hold){
+      const t = Math.min(1, (phase - hold) / MOVE);
+      const ease = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      setPos(k + ease);
+      if (t >= 1){ setPos(k + 1); phase = 0; }
+    }
+  }
+  if (dirty){
+    const a = Math.min(N - 1, Math.floor(pos)), b = Math.min(N - 1, a + 1);
+    gl.uniform1f(U.uA, a); gl.uniform1f(U.uB, b); gl.uniform1f(U.uT, pos - a);
+    const t0 = performance.now();
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    updateText(); drawOverlay(); movePlayhead(); moveSpotHead();
+    dirty = false;
+    // drop the canvas resolution once if the GPU cannot keep up
+    if (playing && ++frames > 30 && dt > 34 && ++slowFrames > 20 && dprScale > 1){ dprScale = 1; layout(); }
+  }
+  if (visible) requestAnimationFrame(frame); else looping = false;
+}
+let visible = true, looping = false;
+function kick(){ if (!looping){ looping = true; last = performance.now(); requestAnimationFrame(frame); } }
+new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) kick(); }).observe(wrap);
+addEventListener('resize', () => { resetWidth(); drawSpot(hover || pin); });
+layout(); drawSpot(pin); kick();
+if (location.hash === '#debug') window._wnl = { set: (n, v) => { gl.uniform1f(U[n], v); dirty = true; kick(); }, light: (az, el) => { az *= Math.PI / 180; el *= Math.PI / 180; gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); dirty = true; kick(); }, go: p => { setPlaying(false); setPos(p); kick(); } };
+})().catch(err => {
+  console.error(err);
+  const w = document.getElementById('mapwrap');
+  if (w) w.insertAdjacentHTML('beforeend', '<div class="fail">The map could not load. ' + String(err.message || err).replace(/</g, '&lt;') + '</div>');
+});
+</script>
+</body>
+</html>
