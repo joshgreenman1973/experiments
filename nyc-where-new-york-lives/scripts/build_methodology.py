@@ -71,7 +71,7 @@ code{{font-size:14px}}
   <div class="doc">
 
 <h2>What the map shows</h2>
-<p>For each decennial census from 1910 to 2020, the number of people living per square mile around every point in New York City, averaged over roughly an eighth of a mile. The ground is raised and colored by that density. The colors follow the legend exactly, and thin dark contour lines mark 25,000, 50,000, 100,000, 200,000 and 400,000 people per square mile. The height also rises with density, compressed slightly at the top (height is proportional to density to the 0.85 power) so the 1910 Lower East Side does not hide everything else. Light comes from the northwest and casts shadows to the southeast.</p>
+<p>For each decennial census from 1910 to 2020, the number of people living per square mile around every point in New York City, averaged over roughly an eighth of a mile. The ground is raised and colored by that density. The colors follow the legend exactly, and thin dark contour lines mark 25,000, 50,000, 100,000, 200,000 and 400,000 people per square mile. The height also rises with density, compressed slightly at the top (height is proportional to density to the 0.85 power) so the 1910 Lower East Side does not hide everything else. Light comes from the northwest and casts shadows to the southeast. The map can be tipped and turned to see the heights from the side; the vertical scale is exaggerated for reading, not drawn to any real distance.</p>
 <p>Between census years the map blends the two neighboring censuses in a straight line. The year counter moves through those in-between years, but only the census years are data.</p>
 
 <h2>Sources</h2>

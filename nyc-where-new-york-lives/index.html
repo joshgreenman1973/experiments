@@ -39,9 +39,13 @@
 .densest{margin-top:16px;font-size:15px;line-height:1.45}
 .densest i{display:inline-block;width:11px;height:11px;border:1.5px solid var(--fg);margin-right:7px;vertical-align:-1px}
 .mapwrap{position:relative;width:100%;margin:0 auto;background:var(--bg)}
-.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:pan-y}
 .mapwrap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .mapwrap svg text{font-family:var(--sans);font-size:var(--lab,13px);font-weight:600;fill:var(--fg);paint-order:stroke;stroke:var(--bg);stroke-width:3.2px;stroke-linejoin:round}
+.mapctl{position:absolute;left:0;top:0;display:flex;align-items:center;gap:10px;font-size:var(--t-small);color:var(--fg2);pointer-events:none}
+.mapctl .btn{pointer-events:auto;background:var(--bg)}
+.mapctl span{background:rgba(17,19,17,.7);padding:2px 4px}
+@media(max-width:560px){.mapctl span{display:none}}
 .mapwrap .fail{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:var(--fg2)}
 .foot{padding:10px clamp(16px,4vw,48px) 40px;max-width:880px}
 .foot p{font-size:15px;color:var(--fg2);max-width:70ch}
@@ -96,6 +100,7 @@
     <div class="mapwrap" id="mapwrap">
       <canvas id="gl" aria-label="Animated map of New York City population density by census, 1910 to 2020" role="img"></canvas>
       <svg id="overlay" aria-hidden="true"></svg>
+      <div class="mapctl"><button class="btn" id="tilt" type="button">Tilt the map</button><span>or drag it to tip and turn</span></div>
     </div>
   </div>
 
@@ -116,7 +121,7 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------------------------------------------------------------- data
-const V = '?v=20261007c';
+const V = '?v=20261007d';
 const meta = await (await fetch('assets/meta.json' + V)).json();
 const W = meta.W, H = meta.H, N = meta.years.length, DMAX = meta.dmax;
 const YEARS = meta.years.map(y => y.year);
@@ -202,9 +207,22 @@ if (!gl){
   return;
 }
 const VS = `#version 300 es
-const vec2 P[3] = vec2[3](vec2(-1.,-1.), vec2(3.,-1.), vec2(-1.,3.));
+precision highp float;
+precision highp sampler2DArray;
+uniform sampler2DArray uH;
+uniform float uA, uB, uT, uExag, uGamma;
+uniform mat4 uMVP;
+uniform vec2 uGrid;
 out vec2 vUV;
-void main(){ vec2 p = P[gl_VertexID]; vUV = vec2((p.x + 1.) * .5, 1. - (p.y + 1.) * .5); gl_Position = vec4(p, 0., 1.); }`;
+void main(){
+  // one vertex per grid cell; the index buffer supplies the cell number
+  float id = float(gl_VertexID);
+  float i = mod(id, uGrid.x), j = floor(id / uGrid.x);
+  vec2 uv = (vec2(i, j) + .5) / uGrid;
+  float n = mix(textureLod(uH, vec3(uv, uA), 0.).r, textureLod(uH, vec3(uv, uB), 0.).r, uT);
+  vUV = uv;
+  gl_Position = uMVP * vec4(i + .5 - uGrid.x * .5, uGrid.y * .5 - (j + .5), uExag * pow(max(n, 0.), uGamma), 1.);
+}`;
 const FS = `#version 300 es
 precision highp float;
 precision highp sampler2DArray;
@@ -255,7 +273,7 @@ const prog = gl.createProgram();
 gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
 if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
 gl.useProgram(prog);
-const U = {}; ['uH','uLand','uRamp','uA','uB','uT','uExag','uGamma','uDmax','uK','uSmax','uTexel','uL','uWater','uIso'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+const U = {}; ['uH','uLand','uRamp','uA','uB','uT','uExag','uGamma','uDmax','uK','uSmax','uTexel','uL','uWater','uIso','uMVP','uGrid'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
 gl.bindVertexArray(gl.createVertexArray());
 gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
@@ -276,12 +294,88 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texPara
 gl.uniform1i(U.uH, 0); gl.uniform1i(U.uLand, 1); gl.uniform1i(U.uRamp, 2);
 gl.uniform1f(U.uDmax, DMAX); gl.uniform1f(U.uK, K); gl.uniform1f(U.uSmax, SMAX);
 gl.uniform2f(U.uTexel, 1 / W, 1 / H);
-gl.uniform1f(U.uExag, 95); gl.uniform1f(U.uGamma, .85); gl.uniform1f(U.uIso, .8);
+const EXAG = 95, GAMMA = .85;
+gl.uniform1f(U.uExag, EXAG); gl.uniform1f(U.uGamma, GAMMA); gl.uniform1f(U.uIso, .8);
+gl.uniform2f(U.uGrid, W, H);
+// triangle strips, one per grid row; WebGL 2 always treats 0xFFFFFFFF as a strip restart
+(function(){
+  const idx = new Uint32Array((H - 1) * (2 * W + 1));
+  let q = 0;
+  for (let j = 0; j < H - 1; j++){ for (let i = 0; i < W; i++){ idx[q++] = j * W + i; idx[q++] = (j + 1) * W + i; } idx[q++] = 0xFFFFFFFF; }
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+})();
+const NIDX = (H - 1) * (2 * W + 1);
+gl.enable(gl.DEPTH_TEST);
 (function(){ const az = 315 * Math.PI / 180, el = 40 * Math.PI / 180;
   // light from the northwest; x runs east, y runs south on the grid
   gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); })();
 const bg = hex2rgb(tok('bg')).map(v => v / 255);
 gl.uniform3f(U.uWater, ...bg);
+gl.clearColor(bg[0], bg[1], bg[2], 1);
+
+// ---------------------------------------------------------------- camera
+// World units are grid cells; x runs east, y north, z up. Flat view looks straight down.
+const FOV = 26 * Math.PI / 180, TANH = Math.tan(FOV / 2), ASP = W / H, D0 = (H / 2) / TANH;
+const cam = { tilt: 0, az: 0 };
+let camAnim = null;
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = a => { const l = Math.hypot(...a); return [a[0] / l, a[1] / l, a[2] / l]; };
+let C = null;
+function camera(){
+  const th = cam.tilt * Math.PI / 180, ph = cam.az * Math.PI / 180;
+  const D = D0 * (1 - .14 * Math.sin(th));
+  // when tipped, aim a little toward the viewer so the near shore stays in frame
+  const tg = [Math.sin(ph) * .09 * H * Math.sin(th), -Math.cos(ph) * .09 * H * Math.sin(th), 0];
+  const eye = [tg[0] + D * Math.sin(th) * Math.sin(ph), tg[1] - D * Math.sin(th) * Math.cos(ph), D * Math.cos(th)];
+  const up = [-Math.sin(ph), Math.cos(ph), 0];
+  const f = norm(sub(tg, eye)), r = norm(cross(f, up)), u = cross(r, f);
+  const near = D * .05, far = D * 3, k = 1 / TANH;
+  const view = [r[0], u[0], -f[0], 0, r[1], u[1], -f[1], 0, r[2], u[2], -f[2], 0, -dot3(r, eye), -dot3(u, eye), dot3(f, eye), 1];
+  const proj = [k / ASP, 0, 0, 0, 0, k, 0, 0, 0, 0, (far + near) / (near - far), -1, 0, 0, 2 * far * near / (near - far), 0];
+  const m = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let rr = 0; rr < 4; rr++){ let v = 0; for (let x = 0; x < 4; x++) v += proj[x * 4 + rr] * view[c * 4 + x]; m[c * 4 + rr] = v; }
+  C = { eye, f, r, u, near, mvp: m };
+  return C;
+}
+// height of the ground at a grid position, matching the shader
+function hAt(c, r){
+  const ci = Math.max(0, Math.min(W - 1, Math.floor(c))), ri = Math.max(0, Math.min(H - 1, Math.floor(r)));
+  const i = ri * W + ci, a = Math.min(N - 1, Math.floor(pos)), b = Math.min(N - 1, a + 1), t = pos - a;
+  const n = grids[a][i] * (1 - t) + grids[b][i] * t;
+  return EXAG * Math.pow(Math.max(n, 0), GAMMA);
+}
+function project(c, r, lift){
+  const p = [c - W / 2, H / 2 - r, hAt(c, r) + (lift || 0)];
+  const v = sub(p, C.eye), zc = dot3(v, C.f);
+  if (zc < C.near) return null;
+  return [(.5 + dot3(v, C.r) / (zc * TANH * ASP) * .5) * cssW, (.5 - dot3(v, C.u) / (zc * TANH) * .5) * cssH];
+}
+// which grid cell is under a screen point: march the view ray down onto the ground
+function pick(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const nx = (clientX - rect.left) / rect.width * 2 - 1, ny = 1 - (clientY - rect.top) / rect.height * 2;
+  const d = norm([0, 1, 2].map(k => C.f[k] + C.r[k] * nx * TANH * ASP + C.u[k] * ny * TANH));
+  if (d[2] >= 0) return null;
+  const t0 = Math.max(0, (C.eye[2] - EXAG * 1.05) / -d[2]), t1 = C.eye[2] / -d[2];
+  for (let t = t0; t <= t1 + .5; t += .5){
+    const x = C.eye[0] + d[0] * t, y = C.eye[1] + d[1] * t, z = C.eye[2] + d[2] * t;
+    const c = x + W / 2, r = H / 2 - y, inside = c >= 0 && r >= 0 && c < W && r < H;
+    if (z <= (inside ? hAt(c, r) : 0)) return inside ? { c: Math.floor(c), r: Math.floor(r) } : null;
+  }
+  return null;
+}
+function camChanged(){
+  dirty = true;
+  const tilted = cam.tilt > .5 || Math.abs(cam.az) > .5;
+  $('tilt').textContent = tilted ? 'Flatten the map' : 'Tilt the map';
+  canvas.style.touchAction = cam.tilt > .5 ? 'none' : 'pan-y';
+  kick();
+}
+function animateCam(tilt, az){ camAnim = { t0: performance.now(), from: { ...cam }, to: { tilt, az } }; kick(); }
+$('tilt').onclick = () => (cam.tilt > .5 || Math.abs(cam.az) > .5) ? animateCam(0, 0) : animateCam(56, -16);
 
 // ---------------------------------------------------------------- layout
 const wrap = $('mapwrap'), overlay = $('overlay');
@@ -353,25 +447,31 @@ $('play').onclick = () => setPlaying(!playing);
 $('play').textContent = playing ? 'Pause' : 'Play';
 
 // ---------------------------------------------------------------- overlay
-const toX = c => c / W * cssW, toY = r => r / H * cssH;
 const MAIN = new Set(['Lower East Side','Harlem','Upper East Side','Grand Concourse','Williamsburg','Brownsville','Flushing','Jamaica','St. George','Coney Island']);
-let staticSvg = '';
+let labelPlaces = [];
 function drawOverlayStatic(){
   const small = cssW < 520;
   overlay.style.setProperty('--lab', small ? '11.5px' : '13px');
-  staticSvg = meta.places.filter(p => !small || MAIN.has(p.name)).map(p => {
-    const x = toX(p.col), y = toY(p.row), r = p.side === 'r';
-    return `<circle cx="${x}" cy="${y}" r="2.2" fill="${tok('fg')}" stroke="${tok('bg')}" stroke-width="1"/>` +
-      `<text x="${x + (r ? 6 : -6)}" y="${y + 4.5}" text-anchor="${r ? 'start' : 'end'}">${p.name}</text>`;
-  }).join('');
+  labelPlaces = meta.places.filter(p => !small || MAIN.has(p.name)).sort((a, b) => MAIN.has(b.name) - MAIN.has(a.name));
 }
 function drawOverlay(){
   const k = Math.round(pos), e = meta.years[k].densestSqMi;
   const near = 1 - Math.min(1, Math.abs(pos - k) / .5);
-  const side = 20 / W * cssW;
-  let s = `<rect x="${toX(e.col) - side/2}" y="${toY(e.row) - side/2}" width="${side}" height="${side}" fill="none" stroke="${tok('fg')}" stroke-width="1.6" opacity="${(.35 + .65 * near).toFixed(2)}"/>`;
-  s += staticSvg;
-  if (pin) s += `<circle cx="${toX(pin.c + .5)}" cy="${toY(pin.r + .5)}" r="6" fill="none" stroke="${tok('sun')}" stroke-width="2"/><circle cx="${toX(pin.c + .5)}" cy="${toY(pin.r + .5)}" r="1.6" fill="${tok('sun')}"/>`;
+  let s = '';
+  const top = Math.max(...[[-10, -10], [10, -10], [10, 10], [-10, 10], [0, 0]].map(([dc, dr]) => hAt(e.col + dc, e.row + dr)));
+  const sq = [[-10, -10], [10, -10], [10, 10], [-10, 10]].map(([dc, dr]) => project(e.col + dc, e.row + dr, top - hAt(e.col + dc, e.row + dr) + .5));
+  if (sq.every(Boolean)) s += `<polygon points="${sq.map(q => q.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${tok('fg')}" stroke-width="1.6" stroke-linejoin="round" opacity="${(.35 + .65 * near).toFixed(2)}"/>`;
+  const placed = [], fs = cssW < 520 ? 6.4 : 7.2;
+  for (const p of labelPlaces){
+    const q = project(p.col, p.row, 1); if (!q) continue;
+    const [x, y] = q, r = p.side === 'r', w = p.name.length * fs + 8;
+    const box = [r ? x - 3 : x - w, y - 9, r ? x + w : x + 3, y + 9];
+    if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+    placed.push(box);
+    s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="${tok('fg')}" stroke="${tok('bg')}" stroke-width="1"/>` +
+      `<text x="${(x + (r ? 6 : -6)).toFixed(1)}" y="${(y + 4.5).toFixed(1)}" text-anchor="${r ? 'start' : 'end'}">${p.name}</text>`;
+  }
+  if (pin){ const q = project(pin.c + .5, pin.r + .5, 1); if (q) s += `<circle cx="${q[0]}" cy="${q[1]}" r="6" fill="none" stroke="${tok('sun')}" stroke-width="2"/><circle cx="${q[0]}" cy="${q[1]}" r="1.6" fill="${tok('sun')}"/>`; }
   overlay.innerHTML = s;
 }
 
@@ -391,12 +491,6 @@ function updateText(){
 
 // ---------------------------------------------------------------- spot
 let pin = null, hover = null;
-function cellAt(e){
-  const r = canvas.getBoundingClientRect();
-  const c = Math.floor((e.clientX - r.left) / r.width * W), rr = Math.floor((e.clientY - r.top) / r.height * H);
-  if (c < 0 || rr < 0 || c >= W || rr >= H) return null;
-  return { c, r: rr };
-}
 const roundD = d => d < 1000 ? 'under 1,000' : 'about ' + fmt(Math.round(d / 1000) * 1000);
 function series(p){ const i = p.r * W + p.c; return grids.map(g => g[i] * DMAX); }
 function drawSpot(p){
@@ -424,9 +518,34 @@ function drawSpot(p){
   $('spot-read').textContent = txt;
 }
 function moveSpotHead(){ const ph = $('spot-ph'); if (!ph) return; const w = $('spot-chart').getBoundingClientRect().width; const x = 2 + pos / (N - 1) * (w - 4); ph.setAttribute('x1', x); ph.setAttribute('x2', x); }
-canvas.addEventListener('click', e => { const p = cellAt(e); if (!p) return; pin = p; drawSpot(pin); dirty = true; });
-canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; const p = cellAt(e); if (!p) return; hover = p; drawSpot(hover); });
-canvas.addEventListener('pointerleave', () => { hover = null; drawSpot(pin); });
+let drag = null;
+canvas.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, tilt: cam.tilt, az: cam.az, moved: false };
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  camAnim = null;
+});
+canvas.addEventListener('pointermove', e => {
+  if (drag){
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) > 5) drag.moved = true;
+    if (drag.moved){
+      // drag up to tip the map away, sideways to turn it
+      cam.tilt = Math.max(0, Math.min(70, drag.tilt - dy * .35));
+      cam.az = drag.az - dx * .35;
+      canvas.style.cursor = 'grabbing';
+      camChanged();
+    }
+    return;
+  }
+  if (e.pointerType !== 'mouse') return;
+  const p = pick(e.clientX, e.clientY); if (!p) return; hover = p; drawSpot(hover);
+});
+canvas.addEventListener('pointerup', e => {
+  if (drag && !drag.moved){ const p = pick(e.clientX, e.clientY); if (p){ pin = p; drawSpot(pin); dirty = true; } }
+  drag = null; canvas.style.cursor = '';
+});
+canvas.addEventListener('pointercancel', () => { drag = null; canvas.style.cursor = ''; });
+canvas.addEventListener('pointerleave', () => { if (!drag){ hover = null; drawSpot(pin); } });
 // start pinned on the Lower East Side
 (function(){ const les = meta.places.find(p => p.name === 'Lower East Side'); pin = { c: Math.floor(les.col), r: Math.floor(les.row) }; })();
 
@@ -446,11 +565,19 @@ function frame(now){
       if (t >= 1){ setPos(k + 1); phase = 0; }
     }
   }
+  if (camAnim){
+    const t = Math.min(1, (now - camAnim.t0) / 750), e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    cam.tilt = camAnim.from.tilt + (camAnim.to.tilt - camAnim.from.tilt) * e;
+    cam.az = camAnim.from.az + (camAnim.to.az - camAnim.from.az) * e;
+    if (t >= 1) camAnim = null;
+    camChanged();
+  }
   if (dirty){
     const a = Math.min(N - 1, Math.floor(pos)), b = Math.min(N - 1, a + 1);
     gl.uniform1f(U.uA, a); gl.uniform1f(U.uB, b); gl.uniform1f(U.uT, pos - a);
-    const t0 = performance.now();
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.uniformMatrix4fv(U.uMVP, false, camera().mvp);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLE_STRIP, NIDX, gl.UNSIGNED_INT, 0);
     updateText(); drawOverlay(); movePlayhead(); moveSpotHead();
     dirty = false;
     // drop the canvas resolution once if the GPU cannot keep up
@@ -462,8 +589,8 @@ let visible = true, looping = false;
 function kick(){ if (!looping){ looping = true; last = performance.now(); requestAnimationFrame(frame); } }
 new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible) kick(); }).observe(wrap);
 addEventListener('resize', () => { resetWidth(); drawSpot(hover || pin); });
-layout(); drawSpot(pin); kick();
-if (location.hash === '#debug') window._wnl = { set: (n, v) => { gl.uniform1f(U[n], v); dirty = true; kick(); }, light: (az, el) => { az *= Math.PI / 180; el *= Math.PI / 180; gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); dirty = true; kick(); }, go: p => { setPlaying(false); setPos(p); kick(); } };
+camera(); layout(); drawSpot(pin); camChanged();
+if (location.hash === '#debug') window._wnl = { set: (n, v) => { gl.uniform1f(U[n], v); dirty = true; kick(); }, light: (az, el) => { az *= Math.PI / 180; el *= Math.PI / 180; gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); dirty = true; kick(); }, go: p => { setPlaying(false); setPos(p); kick(); }, cam: (t, a) => { cam.tilt = t; cam.az = a; camChanged(); } };
 })().catch(err => {
   console.error(err);
   const w = document.getElementById('mapwrap');
