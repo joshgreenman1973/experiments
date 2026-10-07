@@ -1,0 +1,1323 @@
+<title>New York Sightlines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Josefin+Sans:wght@300;400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<style>
+/* Layout: a night survey plate. The city fills the screen as the instrument's field of view;
+   panels are dark glass with theodolite-style readouts (bearings, distances, elevation angles). */
+:root {
+  --night: #070a10;
+  --glass: rgba(10, 14, 22, 0.88);
+  --glass-solid: #0c111a;
+  --rule: #222a38;
+  --ink: #ece6d8;
+  --dim: #939bab;
+  --faint: #5d6576;
+  --lamp: #ffc94a;
+  --lamp-soft: rgba(255, 201, 74, 0.14);
+  --focus: #ffe39a;
+  --display: "Josefin Sans", "Futura", "Century Gothic", "Avenir Next", sans-serif;
+  --body: "Newsreader", "Iowan Old Style", "Georgia", serif;
+  --mono: "DM Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --s-1: 0.75rem; --s0: 0.875rem; --s1: 1rem; --s2: 1.25rem; --s3: 1.75rem; --s4: 2.75rem;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--night); color: var(--ink); font-family: var(--body); font-size: var(--s1); overflow: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+#stage { position: fixed; inset: 0; touch-action: none; cursor: crosshair; }
+#stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#stage.dragging { cursor: grabbing; }
+
+.panel { position: absolute; background: var(--glass); border: 1px solid var(--rule); border-radius: 3px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 2; }
+
+/* Masthead */
+#mast { left: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 300px; padding: 18px 18px 14px; }
+.kicker { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+h1 { font-family: var(--display); font-weight: 300; font-size: 2.3rem; letter-spacing: 0.12em; line-height: 1; margin: 6px 0 10px; text-transform: uppercase; }
+h1 span { color: var(--lamp); }
+.deck { font-size: 0.95rem; line-height: 1.4; color: var(--ink); margin: 0 0 12px; text-wrap: pretty; }
+.legend { display: grid; gap: 6px; }
+.legend-title { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.ramp { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; }
+.ramp i { height: 9px; display: block; }
+.ramp-labels { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; text-align: center; font-family: var(--mono); font-size: 0.6875rem; color: var(--dim); }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 0.6875rem; color: var(--dim); }
+.swatches span { display: inline-flex; align-items: center; gap: 5px; }
+.swatches i { width: 12px; height: 9px; display: inline-block; }
+.search { display: grid; gap: 5px; margin-top: 14px; }
+.search input { width: 100%; box-sizing: border-box; background: #0a0f17; border: 1px solid var(--rule); color: var(--ink); font-family: var(--body); font-size: 0.95rem; padding: 7px 9px; border-radius: 2px; }
+.search input::placeholder { color: var(--faint); }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--rule); border-radius: 2px; margin-bottom: 12px; }
+.tabs button { background: none; border: 0; padding: 7px 4px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); cursor: pointer; }
+.tabs button + button { border-left: 1px solid var(--rule); }
+.tabs button[aria-selected="true"] { background: rgba(255, 201, 74, 0.12); color: var(--ink); }
+.suncontrols { display: grid; gap: 8px; margin-bottom: 12px; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; }
+.months button { background: #0a0f17; border: 1px solid var(--rule); color: var(--dim); font-family: var(--mono); font-size: 0.68rem; padding: 5px 0; cursor: pointer; border-radius: 2px; }
+.months button[aria-pressed="true"] { color: var(--night); background: var(--sun, var(--lamp)); border-color: transparent; }
+.henge { justify-self: start; background: none; border: 1px solid var(--rule); color: var(--ink); font-family: var(--mono); font-size: 0.72rem; padding: 5px 9px; cursor: pointer; border-radius: 2px; }
+.henge[aria-pressed="true"] { background: var(--sun, var(--lamp)); color: var(--night); border-color: transparent; }
+.mast-links { display: flex; gap: 14px; margin-top: 12px; font-family: var(--mono); font-size: 0.75rem; }
+.linkish { background: none; border: 0; padding: 0; color: var(--lamp); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 201, 74, 0.4); }
+
+/* Landmark list */
+#lms { left: 16px; top: calc(16px + env(safe-area-inset-top, 0px) + var(--mast-h, 300px) + 10px); width: 300px; bottom: 16px; display: flex; flex-direction: column; }
+.lms-head { display: grid; gap: 2px; padding: 12px 14px 8px; border-bottom: 1px solid var(--rule); }
+.lms-head h2 { font-family: var(--display); font-weight: 600; font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase; margin: 0; }
+.lms-head span { font-family: var(--mono); font-size: 0.6875rem; color: var(--faint); }
+#lmlist { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; flex: 1; min-height: 0; }
+#lmlist button { width: 100%; display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center; padding: 6px 14px; background: none; border: 0; cursor: pointer; text-align: left; }
+#lmlist button:hover { background: rgba(255, 255, 255, 0.04); }
+#lmlist button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.07); }
+#lmlist .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; background: currentColor; }
+#lmlist .nm { font-family: var(--body); font-size: 0.95rem; line-height: 1.2; min-width: 0; }
+#lmlist .nm small { display: block; font-family: var(--mono); font-size: 0.6875rem; color: var(--faint); letter-spacing: 0.02em; }
+#lmlist .pc { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+#lmlist .vis-here { color: var(--ink); }
+#lmlist .all .dot { background: conic-gradient(#ffc94a, #f07a55, #e8505f, #ff7ec0, #a98bff, #6e9bff, #5cc8ff, #45ddb0, #c8dc5a, #ffc94a); box-shadow: none; }
+
+/* Viewer: panorama from the chosen spot */
+#viewer { left: 332px; right: 352px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding: 12px 14px 10px; min-width: 0; }
+.vhead { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; }
+.place { font-family: var(--display); font-size: 1.05rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 400; min-width: 0; }
+.place b { color: var(--lamp); font-weight: 600; }
+.vmeta { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); font-variant-numeric: tabular-nums; display: flex; gap: 14px; flex-wrap: wrap; }
+#pano { width: 100%; height: 170px; display: block; margin-top: 6px; cursor: default; }
+.vfoot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 0.6875rem; color: var(--faint); }
+.vfoot a { color: var(--lamp); }
+.pinstate { color: var(--dim); }
+
+/* Findings */
+#find { right: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 320px; bottom: 16px; display: flex; flex-direction: column; }
+#find .scroll { overflow-y: auto; padding: 14px 16px 18px; flex: 1; min-height: 0; }
+#find h2 { font-family: var(--display); font-weight: 600; font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase; margin: 0 0 10px; }
+.big { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; margin-bottom: 14px; }
+.big b { font-family: var(--display); font-weight: 300; font-size: var(--s3); color: var(--lamp); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.big span { font-size: 0.9rem; line-height: 1.35; color: var(--ink); }
+#find p { font-size: 0.92rem; line-height: 1.45; margin: 0 0 12px; text-wrap: pretty; }
+#find h3 { font-family: var(--mono); font-weight: 500; font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 18px 0 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.bars { display: grid; gap: 6px; }
+.bar { display: grid; grid-template-columns: 96px 1fr 36px; gap: 8px; align-items: center; font-family: var(--mono); font-size: 0.75rem; }
+.bar .track { height: 8px; background: #161c27; position: relative; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--lamp); }
+.bar .v { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: r; }
+.rank li { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 0.88rem; line-height: 1.3; }
+.rank li span:last-child { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.rank li small { color: var(--faint); font-family: var(--mono); font-size: 0.6875rem; }
+.tour { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tour button { width: 100%; text-align: left; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--rule); padding: 9px 10px; cursor: pointer; display: grid; gap: 3px; border-radius: 2px; }
+.tour button:hover { border-color: #3a4558; background: rgba(255, 255, 255, 0.05); }
+.tour b { font-family: var(--display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.tour span { font-size: 0.86rem; line-height: 1.35; color: var(--dim); }
+.tour em { font-style: normal; font-family: var(--mono); font-size: 0.6875rem; color: var(--lamp); }
+.method { font-size: 0.85rem; color: var(--dim); }
+.method p { font-size: 0.85rem !important; }
+
+#about { position: fixed; inset: 0; z-index: 10; background: rgba(4, 6, 10, 0.7); display: grid; place-items: center; padding: 16px; }
+#about .card { max-width: 640px; max-height: 86vh; overflow-y: auto; background: var(--glass-solid); border: 1px solid var(--rule); padding: 22px 24px; border-radius: 3px; }
+#about h2 { font-family: var(--display); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.9rem; margin: 0 0 12px; }
+#about p, #about li { font-size: 0.95rem; line-height: 1.5; }
+#about ul { padding-left: 18px; }
+#about table.lmtable { border-collapse: collapse; width: 100%; font-size: 0.85rem; margin: 6px 0 12px; }
+#about .lmtable th, #about .lmtable td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+#about .lmtable th { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+#about .lmtable td:nth-child(3), #about .lmtable td:nth-child(4), #about .lmtable td:nth-child(5) { font-family: var(--mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#about .close { float: right; background: none; border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer; font-family: var(--mono); font-size: 0.75rem; }
+
+#toast { position: absolute; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 3; font-family: var(--mono); font-size: 0.75rem; color: var(--dim); background: var(--glass); border: 1px solid var(--rule); padding: 6px 12px; border-radius: 2px; pointer-events: none; transition: opacity .3s; }
+#nogl { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; z-index: 20; background: var(--night); }
+.zoom { position: absolute; right: 352px; top: calc(16px + env(safe-area-inset-top, 0px)); z-index: 2; display: grid; gap: 4px; }
+.zoom button { width: 32px; height: 32px; background: var(--glass); border: 1px solid var(--rule); cursor: pointer; font-family: var(--mono); font-size: 1rem; border-radius: 2px; }
+
+@media (max-width: 1180px) {
+  #find { display: none; }
+  #viewer { right: 16px; }
+  .zoom { right: 16px; }
+  #findtoggle { display: inline; }
+  body.show-find #find { display: flex; z-index: 6; }
+}
+@media (min-width: 1181px) { #findtoggle { display: none; } }
+
+/* Phones and small tablets: the page becomes a column; the map keeps the top of the screen. */
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  #stage { position: relative; height: 58svh; inset: auto; }
+  .panel, #mast, #viewer, #lms, #find { position: relative; left: auto; right: auto; top: auto; bottom: auto; width: auto; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--glass-solid); }
+  #app { display: flex; flex-direction: column; }
+  #mast { order: 0; margin: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px; padding: 12px 14px; }
+  h1 { font-size: 1.9rem; }
+  .deck { font-size: 0.9rem; }
+  #stage { order: 1; }
+  .zoom { position: absolute; right: 12px; top: 12px; }
+  #viewer { order: 2; margin: 8px 12px 0; }
+  #pano { height: 150px; }
+  #lms { order: 3; margin: 8px 12px 0; max-height: none; }
+  #lmlist { overflow: visible; }
+  #find { order: 4; display: flex; margin: 8px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  #find .scroll { overflow: visible; }
+  #findtoggle { display: none !important; }
+  #toast { top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="app">
+  <div id="stage" tabindex="0" aria-label="Map of New York City. Drag to pan, scroll or pinch to zoom, click to stand somewhere." role="application">
+    <canvas id="gl"></canvas>
+    <canvas id="ov"></canvas>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Show whole city">⤢</button></div>
+    <div id="toast" style="opacity:0"></div>
+  </div>
+
+  <header id="mast" class="panel">
+    <div class="kicker">Five boroughs · 16 landmarks · street level</div>
+    <h1>Sight<span>lines</span></h1>
+    <p class="deck">Every street, sidewalk and park in New York City, lit by how many of its landmarks you could see standing there at street level. From a window or a rooftop it is a different city; this map is only about the view from the ground.</p>
+    <div class="tabs" role="tablist" aria-label="What to map">
+      <button role="tab" id="tab-lm" aria-selected="true" data-mode="lm">Landmarks</button>
+      <button role="tab" id="tab-rise" aria-selected="false" data-mode="rise">Sunrise</button>
+      <button role="tab" id="tab-set" aria-selected="false" data-mode="set">Sunset</button>
+    </div>
+    <div class="suncontrols" id="suncontrols" hidden>
+      <div class="months" id="months" role="group" aria-label="Time of year"></div>
+      <button class="henge" id="henge" aria-pressed="false">Manhattanhenge</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <form class="search" id="searchform" role="search"><label for="q" class="legend-title">Go to a neighborhood or park</label><input id="q" list="places" placeholder="e.g. Astoria, Prospect Park" autocomplete="off"><datalist id="places"></datalist></form>
+    <div class="mast-links"><button class="linkish" id="aboutbtn">How this was made</button><button class="linkish" id="findtoggle">Findings</button></div>
+  </header>
+
+  <section id="viewer" class="panel" aria-live="polite">
+    <div class="vhead">
+      <div class="place" id="place">Pick a spot on the map</div>
+      <div class="vmeta" id="vmeta"></div>
+    </div>
+    <canvas id="pano" aria-label="Panorama of landmarks visible from the chosen spot"></canvas>
+    <div class="vfoot"><span id="vnote">Hover over the map to look around · click to stand still</span><span id="svlink"></span></div>
+  </section>
+
+  <nav id="lms" class="panel" aria-label="Landmarks">
+    <div class="lms-head"><h2>Landmarks</h2><span>Share of the city's streets and parks that can see each one. Click to map it. <button class="linkish" id="why16btn" style="font-size:inherit">Why these 16?</button></span></div>
+    <ul id="lmlist"></ul>
+  </nav>
+
+  <aside id="find" class="panel" aria-label="Findings">
+    <div class="scroll" id="findscroll"></div>
+  </aside>
+</div>
+
+<div id="about" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="abouth">
+    <button class="close" id="aboutclose">Close</button>
+    <h2 id="abouth">How this was made</h2>
+    <div id="abouttext"></div>
+  </div>
+</div>
+<div id="nogl" hidden><p>This map needs WebGL 2, which this browser doesn't offer. Try a current version of Chrome, Safari, Firefox or Edge.</p></div>
+
+<script type="application/json" id="sl-data">/*__DATA__*/{}</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("sl-data").textContent);
+const LM = D.landmarks, NL = LM.length;
+const COLORS = {
+  esb: "#ffc94a", wtc: "#5cc8ff", chrysler: "#e8e4da", liberty: "#45ddb0", bkbridge: "#f07a55",
+  verrazzano: "#a98bff", gwb: "#6e9bff", hellgate: "#e8505f", woolworth: "#c9a27e", citigroup: "#c8dc5a",
+  park432: "#ff7ec0", wsb: "#e8a04e", bktower: "#d57bff", courtsq: "#36c2c9", unisphere: "#6bd66b", parachute: "#ff9a8a"
+};
+const RAMP = ["#4a2f12", "#7a4d16", "#a86a1c", "#d08b27", "#eaae3c", "#f6cd68", "#fbe39f", "#fff4d6"];
+const LEVEL_WORDS = ["", "just the top", "the upper part", "most of it"];
+const M_PER_MI = 1609.344;
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+LM.forEach((l, i) => { l.i = i; l.color = COLORS[l.id]; });
+const byId = Object.fromEntries(LM.map(l => [l.id, l]));
+const fmtMi = m => { const mi = m / M_PER_MI; return mi < 0.1 ? Math.round(m * 3.28084) + " ft" : (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + " mi"; };
+// a share that is not exactly 100 (or 0) never displays as 100 (or 0)
+const shareNoRound = v => { const r = Math.round(v); return (r === 100 && v < 100) ? (Math.floor(v * 10) / 10).toFixed(1) : (r === 0 && v > 0) ? (Math.ceil(v * 10) / 10).toFixed(1) : String(r); };
+const pct = v => (v >= 10 ? Math.round(v) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + "%";
+const $ = id => document.getElementById(id);
+const TOUCH = matchMedia("(hover: none)").matches;
+
+// ---------- coordinates ----------
+// World space: metres east of the grid's west edge (x) and south of its north edge (y), UTM 18N.
+function utmInv(E, N) {
+  const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  const x = E - 500000, M = N / k0;
+  const mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256));
+  const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  const p = mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * e1 ** 4 / 32) * Math.sin(4 * mu)
+    + (151 * e1 ** 3 / 96) * Math.sin(6 * mu) + (1097 * e1 ** 4 / 512) * Math.sin(8 * mu);
+  const sp = Math.sin(p), cp = Math.cos(p), tp = Math.tan(p);
+  const N1 = a / Math.sqrt(1 - e2 * sp * sp), T1 = tp * tp, C1 = ep2 * cp * cp, R1 = a * (1 - e2) / Math.pow(1 - e2 * sp * sp, 1.5), Dd = x / (N1 * k0);
+  const lat = p - (N1 * tp / R1) * (Dd * Dd / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Dd ** 4 / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Dd ** 6 / 720);
+  const lon = (Dd - (1 + 2 * T1 + C1) * Dd ** 3 / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Dd ** 5 / 120) / cp;
+  return [lat * 180 / Math.PI, -75 + lon * 180 / Math.PI];
+}
+const toLatLon = (wx, wy) => utmInv(wx + D.grid.x0, D.grid.y1 - wy);
+const GRID_CONV = 0.66; // degrees from UTM grid north to true north around New York
+function bearing(x0, y0, x1, y1) { let b = Math.atan2(x1 - x0, -(y1 - y0)) * 180 / Math.PI + GRID_CONV; return (b + 360) % 360; }
+const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const compass = b => COMPASS[Math.round(b / 22.5) % 16];
+
+// ---------- terrain (48 m) for elevation angles ----------
+let DEM = null;
+// Tiles ship as base64 text (the host serves text, not raw binary).
+async function fetchBytes(url) {
+  const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status);
+  const b64 = (await r.text()).trim(), bin = atob(b64), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return gunzip(u);
+}
+async function gunzip(buf) {
+  if (typeof DecompressionStream !== "undefined") {
+    const s = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  }
+  if (!window.pako) await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+  return window.pako.ungzip(new Uint8Array(buf));
+}
+async function loadDem() {
+  let u; try { u = await fetchBytes("tiles/dem.txt"); } catch (e) { console.warn(e); return; }
+  DEM = new Int16Array(u.buffer, u.byteOffset, u.byteLength / 2);
+  scheduleObserver();
+}
+function groundAt(wx, wy) {
+  if (!DEM) return 5;
+  const g = D.grid.dem; const c = Math.floor(wx / g.cell), r = Math.floor(wy / g.cell);
+  if (c < 0 || r < 0 || c >= g.w || r >= g.h) return 0;
+  return DEM[r * g.w + c] / 10;
+}
+
+// ---------- WebGL map ----------
+const stage = $("stage"), glc = $("gl"), ovc = $("ov"), ov = ovc.getContext("2d");
+const gl = glc.getContext("webgl2", { antialias: false, premultipliedAlpha: false });
+if (!gl) $("nogl").hidden = false;
+const T = D.tiles.tile;
+const VS_SRC = `#version 300 es
+in vec2 aPos; uniform vec4 uTile; uniform vec3 uCam; uniform vec2 uView; out vec2 vUV;
+void main(){ vec2 w = uTile.xy + aPos * uTile.z; vec2 p = (w - uCam.xy) * uCam.z / (uView * 0.5);
+  gl_Position = vec4(p.x, -p.y, 0.0, 1.0); vUV = aPos; }`;
+const FS_SRC = `#version 300 es
+precision highp float; precision highp int; precision highp usampler2D;
+uniform usampler2D uBase; uniform usampler2D uVis; uniform usampler2D uSun; uniform int uHasVis; uniform int uMode; uniform int uSel;
+uniform int uSunK; uniform int uSunE; uniform vec3 uSunCol[3]; uniform float uSunScale; uniform vec2 uSunOff;
+uniform vec3 uCol[16]; uniform vec3 uRamp[8]; uniform float uCoarse; uniform float uTexels; uniform float uPx;
+in vec2 vUV; out vec4 o;
+uint lmv(uvec4 v, int i){ uint b = i < 4 ? v.r : (i < 8 ? v.g : (i < 12 ? v.b : v.a)); return (b >> uint(2 * (i - (i / 4) * 4))) & 3u; }
+// Colour of one texel. Zoomed out, buildings are shaded by height to give the city texture; zoomed in ("fine"),
+// it becomes a street map: grey streets, flat dark buildings, green parks, blue water.
+vec3 texel(ivec2 t, float fine){
+  t = clamp(t, ivec2(0), ivec2(int(uTexels) - 1));
+  uint b = texelFetch(uBase, t, 0).r; uint k = b & 7u;
+  vec3 c, f;
+  if (k == 0u) { c = vec3(0.027, 0.043, 0.075); f = vec3(0.050, 0.088, 0.150); }
+  else if (k == 1u) { bool pub = (b & 8u) != 0u; c = pub ? vec3(0.125, 0.137, 0.165) : vec3(0.095, 0.103, 0.125); f = pub ? vec3(0.245, 0.252, 0.272) : vec3(0.092, 0.097, 0.112); }
+  else if (k == 2u) { c = vec3(0.075, 0.125, 0.098); f = vec3(0.090, 0.165, 0.115); }
+  else if (k == 3u) { float h = float(b >> 3) / 31.0; c = mix(vec3(0.047, 0.055, 0.072), vec3(0.20, 0.215, 0.26), pow(h, 1.4)); f = vec3(0.060, 0.064, 0.078) + 0.03 * h; }
+  else if (k == 4u) { c = vec3(0.062, 0.068, 0.082); f = vec3(0.090, 0.095, 0.108); }
+  else { float h = float(b >> 3) / 31.0; c = mix(vec3(0.040, 0.044, 0.055), vec3(0.11, 0.115, 0.135), h); f = vec3(0.048, 0.052, 0.062); }
+  c = mix(c, f, fine);
+  bool lit = uHasVis == 1 && (k == 1u || k == 2u || (uCoarse > 0.5 && k == 3u));
+  if (lit) {
+    uvec4 v = texelFetch(uVis, t, 0);
+    if (uMode == 2) {
+      uvec4 sv = texelFetch(uSun, ivec2(min((vec2(t) + 0.5) * uSunScale + uSunOff, vec2(uTexels - 1.0))), 0);
+      uint by = uSunK < 2 ? sv.r : (uSunK < 4 ? sv.g : (uSunK < 6 ? sv.b : sv.a));
+      uint q = (by >> uint(4 * (uSunK - (uSunK / 2) * 2) + 2 * uSunE)) & 3u;
+      if (q > 0u) c = mix(c, uSunCol[int(q) - 1], 0.93);
+    } else if (uMode == 0) {
+      int n = 0;
+      for (int i = 0; i < 16; i++) { if (lmv(v, i) > 0u) n++; }
+      if (n > 0) c = mix(c, uRamp[min(n, 8) - 1], 0.94);
+    } else {
+      uint q = lmv(v, uSel);
+      if (q > 0u) { float a = q == 1u ? 0.42 : (q == 2u ? 0.72 : 1.0); c = mix(c, uCol[uSel] * a, 0.92); }
+    }
+  }
+  return c;
+}
+void main(){
+  float fine = uCoarse > 0.5 ? 0.0 : smoothstep(0.9, 2.4, uPx);
+  vec2 p = vUV * uTexels;
+  if (uPx < 2.0) { o = vec4(texel(ivec2(min(p, vec2(uTexels - 1.0))), fine), 1.0); return; }
+  // zoomed in: blend the four nearest texels over about one screen pixel, so cell edges are smooth, not jagged
+  vec2 q = p - 0.5; ivec2 i0 = ivec2(floor(q)); vec2 w = clamp((fract(q) - 0.5) * uPx / 1.2 + 0.5, 0.0, 1.0);
+  vec3 a = mix(texel(i0, fine), texel(i0 + ivec2(1, 0), fine), w.x);
+  vec3 b2 = mix(texel(i0 + ivec2(0, 1), fine), texel(i0 + ivec2(1, 1), fine), w.x);
+  o = vec4(mix(a, b2, w.y), 1.0);
+}`;
+let prog, loc = {}, zeroTex;
+function initGL() {
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS_SRC)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS_SRC)); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  for (const n of ["uTile", "uCam", "uView", "uBase", "uVis", "uSun", "uHasVis", "uMode", "uSel", "uCol", "uRamp", "uCoarse", "uTexels", "uSunK", "uSunE", "uSunCol", "uSunScale", "uSunOff", "uPx"]) loc[n] = gl.getUniformLocation(prog, n);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
+  const a = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform1i(loc.uBase, 0); gl.uniform1i(loc.uVis, 1); gl.uniform1i(loc.uSun, 2);
+  gl.uniform3fv(loc.uCol, new Float32Array(LM.flatMap(l => hex(l.color))));
+  gl.uniform3fv(loc.uRamp, new Float32Array(RAMP.flatMap(hex)));
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  zeroTex = makeTex(1, gl.RGBA8UI, gl.RGBA_INTEGER, new Uint8Array(4));
+}
+function makeTex(n, ifmt, fmt, data) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, n, n, 0, fmt, gl.UNSIGNED_BYTE, data);
+  return t;
+}
+
+// ---------- tiles ----------
+const LEVELS = {}; for (const L of D.tiles.levels) { L.have = new Map(L.tiles.map(t => [t[0] + "," + t[1], t])); LEVELS[L.z] = L; }
+const cache = new Map(); const pending = new Map(); let cacheBytes = 0;
+const BUDGET = (navigator.deviceMemory && navigator.deviceMemory <= 4) || matchMedia("(max-width: 760px)").matches ? 110e6 : 260e6;
+const key = (z, tx, ty) => z + "/" + tx + "/" + ty;
+function cellOf(z) { return D.grid.res * 2 ** (3 - z); }
+async function fetchTile(z, tx, ty) {
+  const k = key(z, tx, ty); if (cache.has(k) || pending.has(k)) return;
+  const meta = LEVELS[z].have.get(tx + "," + ty); if (!meta) return;
+  const p = (async () => {
+    const u = await fetchBytes(`tiles/z${z}_${tx}_${ty}.txt`);
+    const n = T * T; const base = u.subarray(0, n);
+    let vis = null, visTex = null;
+    const interleave = o => { const a = new Uint8Array(n * 4); for (let q = 0; q < 4; q++) { const pl = u.subarray((o + q) * n, (o + q + 1) * n); for (let i = 0, j = q; i < n; i++, j += 4) a[j] = pl[i]; } return a; };
+    if (meta[2]) {
+      vis = interleave(1); visTex = makeTex(T, gl.RGBA8UI, gl.RGBA_INTEGER, vis);
+    }
+    const baseTex = makeTex(T, gl.R8UI, gl.RED_INTEGER, base);
+    const bytes = n * (meta[2] ? 5 : 1) * 2;
+    cache.set(k, { z, tx, ty, base: new Uint8Array(base), vis, baseTex, visTex, bytes, used: performance.now() });
+    cacheBytes += bytes; evict(); requestDraw();
+    if (obs && !obs.exact) scheduleObserver();
+  })().catch(e => console.warn(e)).finally(() => { pending.delete(k); pump(); });
+  pending.set(k, p);
+}
+// Sun tiles: levels 0-2 only (6 m at best), fetched only in sunrise / sunset mode.
+for (const L of D.tiles.levels) L.sunHave = new Set((L.sun || []).map(t => t[0] + "," + t[1]));
+const sunCache = new Map();
+async function fetchSun(z, tx, ty) {
+  const k = "s" + key(z, tx, ty); if (sunCache.has(k) || pending.has(k)) return;
+  if (!LEVELS[z].sunHave.has(tx + "," + ty)) return;
+  const p = (async () => {
+    const u = await fetchBytes(`tiles/s${z}_${tx}_${ty}.txt`);
+    const n = T * T, a = new Uint8Array(n * 4);
+    for (let q = 0; q < 4; q++) { const pl = u.subarray(q * n, (q + 1) * n); for (let i = 0, j = q; i < n; i++, j += 4) a[j] = pl[i]; }
+    sunCache.set(k, { z, tx, ty, sun: a, tex: makeTex(T, gl.RGBA8UI, gl.RGBA_INTEGER, a), used: performance.now() });
+    while (sunCache.size > 24) { const old = [...sunCache.entries()].sort((x, y) => x[1].used - y[1].used)[0]; gl.deleteTexture(old[1].tex); sunCache.delete(old[0]); }
+    requestDraw(); if (obs) scheduleObserver();
+  })().catch(e => console.warn(e)).finally(() => { pending.delete(k); pump(); });
+  pending.set(k, p);
+}
+function sunFor(z, tx, ty) {   // the finest loaded sun tile covering a map tile, with texel scale and offset
+  for (let zs = Math.min(z, 2); zs >= 0; zs--) {
+    const d = z - zs, stx = tx >> d, sty = ty >> d, t = sunCache.get("s" + key(zs, stx, sty));
+    if (t) { const sc = 1 / (1 << d); return { t, sc, ox: (tx - (stx << d)) * T * sc, oy: (ty - (sty << d)) * T * sc }; }
+  }
+  return null;
+}
+const queue = [];
+function pump() {
+  while (pending.size < 6 && queue.length) { const [z, tx, ty, kind] = queue.shift(); (kind === "s" ? fetchSun : fetchTile)(z, tx, ty); }
+}
+function evict() {
+  if (cacheBytes <= BUDGET) return;
+  const items = [...cache.entries()].filter(([, t]) => t.z > 0).sort((a, b) => a[1].used - b[1].used);
+  for (const [k, t] of items) {
+    if (cacheBytes <= BUDGET * 0.8) break;
+    if (performance.now() - t.used < 1500) continue;
+    gl.deleteTexture(t.baseTex); if (t.visTex) gl.deleteTexture(t.visTex);
+    cache.delete(k); cacheBytes -= t.bytes;
+  }
+}
+function wantedLevel() {
+  const dpr = view.dpr; // device px per texel at each level
+  for (let z = 3; z >= 0; z--) if (cellOf(z) * cam.s * dpr >= 0.7) return z;
+  return 0;
+}
+function viewBounds(pad = 0) {
+  const hw = view.w / 2 / cam.s, hh = view.h / 2 / cam.s;
+  return [cam.x - hw - pad, cam.y - hh - pad, cam.x + hw + pad, cam.y + hh + pad];
+}
+function tilesFor(z, b) {
+  const size = T * cellOf(z), L = LEVELS[z], out = [];
+  const x0 = Math.max(0, Math.floor(b[0] / size)), y0 = Math.max(0, Math.floor(b[1] / size));
+  const x1 = Math.min(L.n - 1, Math.floor(b[2] / size)), y1 = Math.min(L.n - 1, Math.floor(b[3] / size));
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (L.have.has(tx + "," + ty)) out.push([z, tx, ty]);
+  return out;
+}
+function requestTiles() {
+  const z = wantedLevel(), b = viewBounds();
+  queue.length = 0;
+  const want = [];
+  for (let zz = 0; zz <= z; zz++) for (const t of tilesFor(zz, b)) if (!cache.has(key(...t))) want.push(t);
+  const cx = cam.x, cy = cam.y;
+  if (mode === 2) for (let zz = 0; zz <= Math.min(z, 2); zz++) for (const t of tilesFor(zz, b)) if (LEVELS[zz].sunHave.has(t[1] + "," + t[2]) && !sunCache.has("s" + key(...t))) want.push([...t, "s"]);
+  want.sort((a, c) => (a[0] - c[0]) * 1e9 + (dist(a) - dist(c)));
+  function dist(t) { const s = T * cellOf(t[0]); return Math.hypot((t[1] + .5) * s - cx, (t[2] + .5) * s - cy); }
+  queue.push(...want); pump();
+}
+
+// ---------- camera ----------
+const view = { w: 1, h: 1, dpr: 1 };
+const cam = { x: D.grid.w * D.grid.res / 2, y: D.grid.h * D.grid.res / 2, s: 0.02 };
+let mode = 0, sel = 0; // mode 0: count of landmarks, 1: one landmark, 2: sunrise or sunset
+const SUN = D.sun;           // 8 dates; each has sunrise and sunset times, bearings and three altitude levels
+let sunK = 0, sunE = 1;      // which date, and 0 = sunrise, 1 = sunset
+let lastLmMode = 0;
+const SUN_COLS = [["#4b3f86", "#c4639a", "#ffd27a"], ["#7a2438", "#d9583a", "#ffb35e"]];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const stateForMonth = m => SUN.findIndex(st => st.months.includes(m));
+const EV = ["sunrise", "sunset"];
+let selMonth = new Date().getMonth() + 1;   // month picked on the sun tabs
+function clock(hhmm) { let [h, m] = hhmm.split(":").map(Number); const ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")} ${ap}`; }
+// minutes between sunrise/sunset and the moment the sun is at a level's altitude (computed from exact times, then rounded)
+const levelMins = (ev, i) => ev.levels[i].mins;
+let drawQueued = false;
+function requestDraw() { if (!drawQueued) { drawQueued = true; requestAnimationFrame(draw); } }
+function resize() {
+  const r = stage.getBoundingClientRect();
+  view.w = Math.max(1, r.width); view.h = Math.max(1, r.height); view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  for (const c of [glc, ovc]) { c.width = Math.round(view.w * view.dpr); c.height = Math.round(view.h * view.dpr); }
+  const m = $("mast"); document.documentElement.style.setProperty("--mast-h", m.getBoundingClientRect().height + "px");
+  sizePano(); requestDraw();
+}
+function fitCity(animate) {
+  // frame the five boroughs inside whatever part of the screen the panels leave free
+  const free = freeRect();
+  const W = D.grid.w * D.grid.res, H = D.grid.h * D.grid.res;
+  const s = Math.min(free.w / (W * 0.97), free.h / (H * 0.92));
+  const cxs = free.x + free.w / 2, cys = free.y + free.h / 2;
+  const target = { s, x: W * 0.505 - (cxs - view.w / 2) / s, y: H * 0.5 - (cys - view.h / 2) / s };
+  animate ? flyTo(target) : Object.assign(cam, target);
+}
+function freeRect() {
+  if (matchMedia("(max-width: 760px)").matches) return { x: 0, y: 0, w: view.w, h: view.h };
+  const left = $("lms").getBoundingClientRect().right + 8;
+  const fr = $("find").getBoundingClientRect(); const right = fr.width ? fr.left - 8 : view.w - 8;
+  const bottom = $("viewer").getBoundingClientRect().top - 8;
+  return { x: left, y: 8, w: Math.max(200, right - left), h: Math.max(200, bottom - 8) };
+}
+const w2s = (x, y) => [(x - cam.x) * cam.s + view.w / 2, (y - cam.y) * cam.s + view.h / 2];
+const s2w = (x, y) => [(x - view.w / 2) / cam.s + cam.x, (y - view.h / 2) / cam.s + cam.y];
+const MIN_S = 0.008, MAX_S = 6;
+function zoomAt(f, sx, sy) {
+  const [wx, wy] = s2w(sx, sy);
+  cam.s = Math.min(MAX_S, Math.max(MIN_S, cam.s * f));
+  cam.x = wx - (sx - view.w / 2) / cam.s; cam.y = wy - (sy - view.h / 2) / cam.s;
+  requestDraw();
+}
+let flight = null;
+function flyTo(t, ms = 1300) {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { Object.assign(cam, t); requestDraw(); return; }
+  const a = { ...cam }, t0 = performance.now();
+  // zoom out a little mid-flight when the hop is long
+  const hop = Math.hypot(t.x - a.x, t.y - a.y) * Math.min(a.s, t.s) / Math.max(view.w, 300);
+  const dip = Math.min(1.6, Math.max(0, Math.log2(1 + hop)));
+  flight = now => {
+    let k = Math.min(1, (now - t0) / ms); const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+    const ls = Math.log(a.s) * (1 - e) + Math.log(t.s) * e - dip * Math.sin(Math.PI * e) * 0.7;
+    cam.s = Math.exp(ls); cam.x = a.x + (t.x - a.x) * e; cam.y = a.y + (t.y - a.y) * e;
+    if (k >= 1) flight = null;
+    requestDraw();
+  };
+  requestDraw();
+}
+
+// ---------- drawing ----------
+function draw(now) {
+  drawQueued = false;
+  if (flight) flight(now || performance.now());
+  if (gl) {
+    gl.viewport(0, 0, glc.width, glc.height);
+    gl.clearColor(0.027, 0.043, 0.075, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(prog);
+    gl.uniform3f(loc.uCam, cam.x, cam.y, cam.s * view.dpr);
+    gl.uniform2f(loc.uView, glc.width, glc.height);
+    gl.uniform1i(loc.uMode, mode); gl.uniform1i(loc.uSel, sel);
+    gl.uniform1i(loc.uSunK, sunK); gl.uniform1i(loc.uSunE, sunE);
+    gl.uniform3fv(loc.uSunCol, new Float32Array(SUN_COLS[sunE].flatMap(hex)));
+    gl.uniform1f(loc.uTexels, T);
+    const zw = wantedLevel(), b = viewBounds(), t = performance.now();
+    for (let z = 0; z <= zw; z++) {
+      gl.uniform1f(loc.uCoarse, z < 3 ? 1 : 0);
+      gl.uniform1f(loc.uPx, cellOf(z) * cam.s * view.dpr);
+      const size = T * cellOf(z);
+      for (const [zz, tx, ty] of tilesFor(z, b)) {
+        const tile = cache.get(key(zz, tx, ty)); if (!tile) continue;
+        tile.used = t;
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tile.baseTex);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tile.visTex || zeroTex);
+        const sf = mode === 2 ? sunFor(zz, tx, ty) : null;
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, sf ? sf.t.tex : zeroTex);
+        gl.uniform1f(loc.uSunScale, sf ? sf.sc : 1); gl.uniform2f(loc.uSunOff, sf ? sf.ox : 0, sf ? sf.oy : 0);
+        if (sf) sf.t.used = t;
+        gl.uniform1i(loc.uHasVis, tile.visTex ? 1 : 0);
+        gl.uniform4f(loc.uTile, tx * size, ty * size, size, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+    }
+  }
+  drawOverlay(now || performance.now());
+  requestTiles();
+  if (flight || beamAnim) requestDraw();
+}
+
+// ---------- street, park and neighbourhood names ----------
+// Loaded after the first tiles; drawn on the overlay with a dark halo, placed in priority order without overlaps.
+let NAMES = null;
+const STREET_MIN_S = [0.22, 0.28, 0.36, 0.5, 0.75, 0.9];   // zoom (px per metre) at which each road class gets names
+async function loadNames() {
+  try {
+    const d = JSON.parse(new TextDecoder().decode(await fetchBytes("tiles/labels.txt")));
+    const st = d.streets, B = 1000, buckets = new Map();
+    for (let i = 0; i < st.x.length; i++) {
+      const k = Math.floor(st.x[i] / B) + "," + Math.floor(st.y[i] / B);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(i);
+    }
+    NAMES = { st, buckets, B, widths: new Float32Array(st.names.length).fill(-1), hoods: d.hoods.sort((a, b) => a[3] - b[3]) };
+    requestDraw();
+  } catch (e) { console.warn(e); }
+}
+const PARKS_BY_AREA = D.parks.slice().sort((a, b) => b.a - a.a);
+function haloText(c, text, x, y) { c.strokeText(text, x, y); c.fillText(text, x, y); }
+function drawNames(c) {
+  const boxes = [], hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+  for (const l of LM) {   // keep names clear of the landmark markers and their tags
+    const p = l.pts.length > 1 ? { x: (l.pts[0].x + l.pts[1].x) / 2, y: (l.pts[0].y + l.pts[1].y) / 2 } : l.pts[0];
+    const [x, y] = w2s(p.x, p.y); boxes.push([x - 8, y - 18, x + 8 + l.short.length * 7, y + 8]);
+  }
+  const fr = freeRect(), onScreen = (x, y) => x > fr.x + 20 && y > fr.y + 10 && x < fr.x + fr.w - 20 && y < fr.y + fr.h - 10;   // the part of the map not under a panel
+  c.lineJoin = "round"; c.lineWidth = 3; c.strokeStyle = "rgba(7,10,16,0.82)"; c.textAlign = "center"; c.textBaseline = "middle";
+  // neighbourhoods (NYC Planning's areas until the names file arrives)
+  if (cam.s >= 0.06 && cam.s < 2.5) {
+    c.font = `500 11px ${getVar("--mono")}`; c.fillStyle = "rgba(236,230,216,0.62)";
+    const list = NAMES ? NAMES.hoods.map(h => ({ t: h[0], x: h[1], y: h[2] }))
+      : NTAS.slice().sort((a, b) => b.a - a.a).filter(n => cam.s >= 0.14 || n.a >= 2.5).map(n => ({ t: n.n.length > 26 ? n.n.split("-")[0] : n.n, x: n.c[0], y: n.c[1] }));
+    for (const h of list) {
+      const [x, y] = w2s(h.x, h.y); if (!onScreen(x, y)) continue;
+      const t = h.t.toUpperCase(), w = c.measureText(t).width, b = [x - w / 2 - 6, y - 9, x + w / 2 + 6, y + 9];
+      if (hit(b)) continue; boxes.push(b); haloText(c, t, x, y);
+    }
+  }
+  // parks, when big enough on screen to hold their name
+  if (cam.s >= 0.1) {
+    c.font = `italic 400 13px ${getVar("--body")}`; c.fillStyle = "rgba(150,212,160,0.9)";
+    for (const p of PARKS_BY_AREA) {
+      const span = Math.sqrt(p.a * 1e4) * cam.s; if (span < 60) break;
+      const [x, y] = w2s(p.c[0], p.c[1]); if (!onScreen(x, y)) continue;
+      const w = c.measureText(p.n).width; if (w > span * 1.4) continue;
+      const b = [x - w / 2 - 4, y - 9, x + w / 2 + 4, y + 9]; if (hit(b)) continue; boxes.push(b); haloText(c, p.n, x, y);
+    }
+  }
+  // streets, along their direction; major roads first, and only where the street is long enough for its name
+  if (NAMES && cam.s >= STREET_MIN_S[0]) {
+    const { st, buckets, B, widths } = NAMES, vb = viewBounds(80), cand = [];
+    for (let by = Math.floor(vb[1] / B); by <= Math.floor(vb[3] / B); by++)
+      for (let bx = Math.floor(vb[0] / B); bx <= Math.floor(vb[2] / B); bx++) {
+        const a = buckets.get(bx + "," + by); if (a) for (const i of a) if (cam.s >= STREET_MIN_S[st.c[i]]) cand.push(i);
+      }
+    cand.sort((a, b) => st.c[a] - st.c[b] || st.r[b] - st.r[a]);
+    c.font = `400 12px ${getVar("--body")}`; c.fillStyle = "rgba(226,222,212,0.86)";
+    let drawn = 0; const placed = new Map();   // the same name no closer than 260 px to itself
+    for (const i of cand) {
+      const ni = st.n[i], name = st.names[ni];
+      let w = widths[ni]; if (w < 0) w = widths[ni] = c.measureText(name).width;
+      if (st.r[i] * cam.s < w + 14) continue;
+      const [x, y] = w2s(st.x[i], st.y[i]); if (!onScreen(x, y)) continue;
+      const th = st.a[i] * Math.PI / 180, cs = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
+      const hw = (w * cs + 13 * sn) / 2 + 2, hh = (w * sn + 13 * cs) / 2 + 2, b = [x - hw, y - hh, x + hw, y + hh];
+      const prev = placed.get(ni); if (prev && prev.some(([px, py]) => Math.hypot(px - x, py - y) < 260)) continue;
+      if (hit(b)) continue; boxes.push(b); placed.set(ni, (prev || []).concat([[x, y]]));
+      c.save(); c.translate(x, y); c.rotate(th); haloText(c, name, 0, 0); c.restore();
+      if (++drawn > 400) break;
+    }
+  }
+}
+// labels and sightlines
+const NTAS = D.ntas;
+const BORO_LABELS = D.labels.boroughs, WATER_LABELS = D.labels.water;
+function drawOverlay(now) {
+  const c = ov, dpr = view.dpr;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, view.w, view.h);
+  // water and borough names
+  c.textAlign = "center"; c.textBaseline = "middle";
+  if (cam.s < 0.09) {
+    c.font = `300 ${Math.round(Math.min(22, Math.max(13, cam.s * 600)))}px ${getVar("--display")}`;
+    c.fillStyle = "rgba(236,230,216,0.55)";
+    for (const L of BORO_LABELS) { const [x, y] = w2s(L.x, L.y); spaced(c, L.name.toUpperCase(), x, y, 0.32); }
+  }
+  c.font = `italic 400 ${cam.s < 0.05 ? 12 : 14}px ${getVar("--body")}`; c.fillStyle = "rgba(120,150,190,0.55)";
+  for (const L of WATER_LABELS) {
+    if (cam.s < L.min || cam.s > 0.6) continue;
+    const [x, y] = w2s(L.x, L.y); c.save(); c.translate(x, y); c.rotate(L.rot * Math.PI / 180); c.fillText(L.name, 0, 0); c.restore();
+  }
+  drawNames(c);
+  // landmark markers
+  for (const l of LM) {
+    const on = mode === 0 || l.i === sel;
+    for (const p of l.pts) {
+      const [x, y] = w2s(p.x, p.y); if (x < -40 || y < -40 || x > view.w + 40 || y > view.h + 40) continue;
+      c.beginPath(); c.arc(x, y, on ? 4 : 2.5, 0, Math.PI * 2);
+      c.fillStyle = on ? l.color : "rgba(200,200,200,0.35)"; c.shadowColor = l.color; c.shadowBlur = on ? 10 : 0; c.fill(); c.shadowBlur = 0;
+      c.strokeStyle = "rgba(7,10,16,0.9)"; c.lineWidth = 1; c.stroke();
+    }
+    if ((cam.s > 0.05 && on) || (mode === 1 && l.i === sel)) {
+      const p = l.pts.length > 1 ? { x: (l.pts[0].x + l.pts[1].x) / 2, y: (l.pts[0].y + l.pts[1].y) / 2 } : l.pts[0];
+      const [x, y] = w2s(p.x, p.y);
+      c.font = `500 10.5px ${getVar("--mono")}`; c.textAlign = "left"; c.fillStyle = on ? l.color : "rgba(200,200,200,0.5)";
+      c.fillText(l.short.toUpperCase(), x + 8, y - 8); c.textAlign = "center";
+    }
+  }
+  drawSightlines(c, now);
+}
+const _vars = {}; function getVar(n) { return _vars[n] || (_vars[n] = getComputedStyle(document.documentElement).getPropertyValue(n).trim()); }
+function spaced(c, text, x, y, em) {
+  const sz = parseFloat(c.font.match(/(\d+)px/)[1]); const sp = sz * em;
+  const w = [...text].reduce((a, ch) => a + c.measureText(ch).width + sp, -sp);
+  let cx = x - w / 2; c.textAlign = "left";
+  for (const ch of text) { c.fillText(ch, cx, y); cx += c.measureText(ch).width + sp; }
+  c.textAlign = "center";
+}
+
+// ---------- reading what a spot can see ----------
+function sample(wx, wy) {
+  const out = { z: -1, k: 0, codes: new Array(NL).fill(0), sun: null, pub: false };
+  for (let z = 3; z >= 0; z--) {
+    const cell = cellOf(z), size = T * cell;
+    const tx = Math.floor(wx / size), ty = Math.floor(wy / size);
+    const t = cache.get(key(z, tx, ty)); if (!t) continue;
+    const ix = Math.floor((wx - tx * size) / cell), iy = Math.floor((wy - ty * size) / cell);
+    if (ix < 0 || iy < 0 || ix >= T || iy >= T) continue;
+    const i = iy * T + ix, b = t.base[i];
+    out.z = z; out.k = b & 7; out.pub = (b & 8) && (out.k === 1 || out.k === 2);
+    if (t.vis && (out.k === 1 || out.k === 2 || z < 3)) for (let l = 0; l < NL; l++) out.codes[l] = (t.vis[i * 4 + (l >> 2)] >> (2 * (l & 3))) & 3;
+    if (out.k === 1 || out.k === 2 || z < 3) for (let zs = 2; zs >= 0; zs--) {
+      const sc = cellOf(zs), ssz = T * sc, stx = Math.floor(wx / ssz), sty = Math.floor(wy / ssz), st = sunCache.get("s" + key(zs, stx, sty));
+      if (!st) continue;
+      const si = Math.floor((wy - sty * ssz) / sc) * T + Math.floor((wx - stx * ssz) / sc);
+      out.sun = SUN.map((_, k) => [0, 1].map(e => (st.sun[si * 4 + (k >> 1)] >> (4 * (k & 1) + 2 * e)) & 3));
+      out.sunZ = zs; break;
+    }
+    return out;
+  }
+  return out;
+}
+// When the spot sits on a rooftop, look at the nearest open ground instead (a person can't stand inside a building).
+function snapOpen(wx, wy) {
+  const s0 = sample(wx, wy);
+  if (s0.z !== 3 || s0.k === 1 || s0.k === 2) return [wx, wy, s0];
+  for (let r = 3; r <= 45; r += 3) for (let a = 0; a < 16; a++) {
+    const x = wx + Math.cos(a * Math.PI / 8) * r, y = wy + Math.sin(a * Math.PI / 8) * r; const s = sample(x, y);
+    if (s.z === 3 && (s.k === 1 || s.k === 2)) return [x, y, s];
+  }
+  return [wx, wy, s0];
+}
+function bboxOf(rings) { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const r of rings) for (let i = 0; i < r.length; i += 2) { a = Math.min(a, r[i]); c = Math.max(c, r[i]); b = Math.min(b, r[i + 1]); d = Math.max(d, r[i + 1]); } return [a, b, c, d]; }
+for (const p of D.parks) p.bb = bboxOf(p.r);
+for (const n of D.ntas) n.bb = bboxOf(n.r);
+const inBox = (o, x, y) => x >= o.bb[0] && x <= o.bb[2] && y >= o.bb[1] && y <= o.bb[3];
+function inRings(rings, wx, wy) {
+  for (const ring of rings) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+      const xi = ring[i], yi = ring[i + 1], xj = ring[j], yj = ring[j + 1];
+      if ((yi > wy) !== (yj > wy) && wx < (xj - xi) * (wy - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return true;
+  }
+  return false;
+}
+// A named park wins over the census neighbourhood; the neighbourhood is the fallback.
+function placeName(wx, wy) {
+  for (const p of D.parks) if (inBox(p, wx, wy) && inRings(p.r, wx, wy)) return { n: p.n, b: p.b, park: true };
+  for (const n of NTAS) if (inBox(n, wx, wy) && inRings(n.r, wx, wy)) return n;
+  return null;
+}
+
+// ---------- observer ----------
+let obs = null, pinned = false, hoverTimer = 0, beamAnim = null, hilite = -1, exactTimer = 0;
+function setObserver(wx, wy, pin) {
+  const [x, y, s] = snapOpen(wx, wy);
+  const g = groundAt(x, y);
+  obs = { x, y, s, g, exact: s.z === 3, place: placeName(x, y) };
+  if (pin !== undefined) pinned = pin;
+  clearTimeout(exactTimer);
+  if (!obs.exact) { // fetch the full-detail tile under this spot once the pointer settles
+    const size = T * cellOf(3), tx = Math.floor(x / size), ty = Math.floor(y / size);
+    exactTimer = setTimeout(() => fetchTile(3, tx, ty), pinned ? 0 : 450);
+  }
+  if (mode === 2) { const ssz = T * cellOf(2); fetchSun(2, Math.floor(x / ssz), Math.floor(y / ssz)); }
+  computeView(); renderPanel(); requestDraw();
+}
+function scheduleObserver() { if (obs) setObserver(obs.x, obs.y); }
+const R_EFF = 6371000 / (1 - 0.13);
+function computeView() {
+  const o = obs; const eye = o.g + 1.6;
+  o.items = LM.map(l => {
+    let best = null;
+    for (const p of l.pts) { const d = Math.hypot(p.x - o.x, p.y - o.y); if (!best || d < best.d) best = { p, d }; }
+    const q = o.s.codes[l.i];
+    const drop = best.d * best.d / (2 * R_EFF);
+    const ang = h => Math.atan2(h - eye - drop, Math.max(best.d, 1)) * 180 / Math.PI;
+    const topAbs = best.p.base + l.top;
+    return {
+      l, q, d: best.d, brg: bearing(o.x, o.y, best.p.x, best.p.y),
+      towers: l.pts.map(p => ({ p, brg: bearing(o.x, o.y, p.x, p.y), d: Math.hypot(p.x - o.x, p.y - o.y) })),
+      top: ang(topAbs), lvl: best.p.H.map(ang), base: ang(best.p.base),
+    };
+  });
+  o.n = o.items.filter(it => it.q > 0).length;
+  if (pinned && !matchMedia("(prefers-reduced-motion: reduce)").matches) beamAnim = performance.now();
+}
+function drawSunBeam(c, ox, oy) {
+  const ev = curEv(), q = obs.s.sun ? obs.s.sun[sunK][sunE] : 0;
+  const L = ev.levels[q ? q - 1 : 0];               // levels run 6, 2.5, 1.2 degrees: the lowest band this spot catches (or 6 if none)
+  const b = (L.az - GRID_CONV) * Math.PI / 180, dx = Math.sin(b), dy = -Math.cos(b);
+  const len = Math.hypot(view.w, view.h);
+  const x1 = ox + dx * len, y1 = oy + dy * len, col = SUN_COLS[sunE][Math.max(0, q - 1)];
+  const g = c.createLinearGradient(ox, oy, ox + dx * 400, oy + dy * 400);
+  g.addColorStop(0, q ? SUN_COLS[sunE][2] : "rgba(147,155,171,0.7)"); g.addColorStop(1, q ? col + "00" : "rgba(147,155,171,0)");
+  c.strokeStyle = g; c.lineWidth = q ? 2 + q : 1.2; c.setLineDash(q ? [] : [4, 5]);
+  c.shadowColor = SUN_COLS[sunE][2]; c.shadowBlur = q ? 12 : 0;
+  c.beginPath(); c.moveTo(ox, oy); c.lineTo(x1, y1); c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
+}
+function drawSightlines(c, now) {
+  if (!obs) return;
+  const [ox, oy] = w2s(obs.x, obs.y);
+  if (mode === 2) {
+    drawSunBeam(c, ox, oy);
+    c.beginPath(); c.arc(ox, oy, pinned ? 7 : 5.5, 0, Math.PI * 2); c.fillStyle = "rgba(7,10,16,0.85)"; c.fill();
+    c.lineWidth = 2; c.strokeStyle = "#fff4d6"; c.stroke();
+    if (pinned) { c.beginPath(); c.arc(ox, oy, 2.2, 0, Math.PI * 2); c.fillStyle = "#fff4d6"; c.fill(); }
+    return;
+  }
+  const k = beamAnim ? Math.min(1, (now - beamAnim) / 700) : 1; if (k >= 1) beamAnim = null;
+  const ease = 1 - (1 - k) ** 3;
+  c.lineCap = "round";
+  for (const it of obs.items) {
+    if (!it.q) continue;
+    if (mode === 1 && it.l.i !== sel && hilite !== it.l.i) continue;
+    const t = it.towers.reduce((a, b) => (a.d < b.d ? a : b));
+    let [x, y] = w2s(t.p.x, t.p.y);
+    x = ox + (x - ox) * ease; y = oy + (y - oy) * ease;
+    const g = c.createLinearGradient(ox, oy, x, y);
+    const col = it.l.color; const strong = hilite === it.l.i;
+    g.addColorStop(0, col + "ff"); g.addColorStop(1, col + (strong ? "cc" : "33"));
+    c.strokeStyle = g; c.lineWidth = strong ? 3 : 0.9 + it.q * 0.55;
+    c.shadowColor = col; c.shadowBlur = strong ? 14 : 6;
+    c.beginPath(); c.moveTo(ox, oy); c.lineTo(x, y); c.stroke();
+  }
+  c.shadowBlur = 0;
+  // the observer
+  c.beginPath(); c.arc(ox, oy, pinned ? 7 : 5.5, 0, Math.PI * 2);
+  c.fillStyle = "rgba(7,10,16,0.85)"; c.fill();
+  c.lineWidth = 2; c.strokeStyle = "#fff4d6"; c.stroke();
+  if (pinned) { c.beginPath(); c.arc(ox, oy, 2.2, 0, Math.PI * 2); c.fillStyle = "#fff4d6"; c.fill(); }
+}
+
+// ---------- panel: place, readouts, panorama ----------
+const pano = $("pano"), pc = pano.getContext("2d");
+let panoW = 600, panoH = 170, panoHits = [];
+function sizePano() {
+  const r = pano.getBoundingClientRect(); panoW = Math.max(200, r.width); panoH = Math.max(100, r.height);
+  pano.width = Math.round(panoW * view.dpr); pano.height = Math.round(panoH * view.dpr);
+  if (obs) renderPanel();
+}
+function renderPanel() {
+  const o = obs; if (!o) return;
+  const name = o.place ? (o.place.park ? o.place.n : o.place.n.replace(/-/g, " / ")) : (o.s.k === 0 ? "On the water" : o.s.k >= 4 ? "Outside the city" : "Unnamed ground");
+  const boro = o.place ? o.place.b : "";
+  if (mode === 2 && !o.s.sun && (o.s.k === 1 || o.s.k === 2)) {
+    $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <span style="color:var(--dim)">loading the sun's path…</span>`;
+  } else if (mode === 2) {
+    const q = o.s.sun ? o.s.sun[sunK][sunE] : 0, { ev, label } = sunInfo();
+    const mm = i => levelMins(ev, i);
+    const what = sunE ? [`buildings hide the sun for its last ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunset`, `you'd catch the sun within ~${mm(1)} min of sunset`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunset`]
+                      : [`buildings hide the sun for its first ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunrise`, `you'd catch the sun within ~${mm(1)} min of sunrise`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunrise`];
+    $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <b style="color:${SUN_COLS[sunE][2]}">${what[q]}</b>`;
+  } else
+  $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — sees <b>${o.n}</b> of ${NL}`;
+  const [lat, lon] = toLatLon(o.x, o.y);
+  $("vmeta").innerHTML = `<span>${lat.toFixed(5)}°N ${Math.abs(lon).toFixed(5)}°W</span><span>ground ${Math.round(o.g * 3.28084)} ft · eyes 5′3″ up</span>` +
+    (o.exact ? "" : `<span style="color:var(--lamp)">loading street detail…</span>`);
+  const onWater = o.s.k === 0, onRoof = o.s.k === 3 || o.s.k === 5, outside = o.s.k === 4 || o.s.k === 5;
+  $("vnote").textContent = outside ? "Outside the five boroughs: no viewshed computed here." : onWater ? "On the water: views are computed for land only." :
+    onRoof ? "Inside a building footprint: pick a street or park." :
+      (TOUCH ? "Tap the map to stand somewhere else" : pinned ? "Standing here · click elsewhere to move · Esc to follow the cursor" : "Hover to look around · click to stand still");
+  updateListHere();
+  drawPano();
+  streetView();
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch])); }
+function streetView() {
+  const o = obs; const el = $("svlink");
+  if (!o || !(o.s.k === 1 || o.s.k === 2)) { el.textContent = ""; return; }
+  if (mode === 2 && hilite < 0) {
+    const ev = curEv(), [lat, lon] = toLatLon(o.x, o.y);
+    el.innerHTML = `<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat.toFixed(6)},${lon.toFixed(6)}&heading=${Math.round(ev.official_az)}&pitch=2" target="_blank" rel="noopener">Check it in Street View, facing the ${sunE ? "sunset" : "sunrise"} ↗</a>`;
+    return;
+  }
+  const target = hilite >= 0 ? o.items[hilite] : (mode === 1 ? o.items[sel] : o.items.filter(i => i.q).sort((a, b) => b.top - a.top)[0]);
+  if (!target) { el.textContent = ""; return; }
+  const [lat, lon] = toLatLon(o.x, o.y);
+  const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat.toFixed(6)},${lon.toFixed(6)}&heading=${Math.round(target.brg)}&pitch=${Math.min(30, Math.max(0, Math.round(target.top / 2)))}`;
+  el.innerHTML = `<a href="${url}" target="_blank" rel="noopener">Check it in Street View, facing the ${esc(target.l.short)} ↗</a>`;
+}
+
+// Silhouettes, drawn in units of the landmark's own height (0 = ground, 1 = top), centred on x = 0.
+const SHAPES = {
+  esb: [[-.16, 0], [-.16, .07], [-.115, .07], [-.115, .6], [-.09, .6], [-.09, .68], [-.065, .68], [-.065, .76], [-.04, .76], [-.04, .83], [-.02, .83], [-.02, .9], [-.007, .9], [-.002, 1]],
+  wtc: [[-.11, 0], [-.11, .07], [-.105, .07], [-.055, .76], [-.05, .77], [-.008, .77], [-.003, 1]],
+  chrysler: [[-.11, 0], [-.11, .55], [-.085, .55], [-.085, .66], [-.07, .66], [-.07, .71], [-.055, .74], [-.05, .76], [-.04, .79], [-.033, .81], [-.024, .84], [-.016, .86], [-.006, .88], [-.002, 1]],
+  woolworth: [[-.2, 0], [-.2, .5], [-.12, .5], [-.12, .72], [-.1, .72], [-.1, .8], [-.08, .8], [-.08, .86], [-.05, .9], [-.02, .96], [-.006, 1]],
+  citigroup: [[-.1, 0], [-.1, .02], [-.07, .02], [-.07, .06], [-.1, .06], [-.1, .82]],
+  park432: [[-.035, 0], [-.035, 1]],
+  wsb: [[-.13, 0], [-.13, .66], [-.11, .66], [-.11, .74], [-.085, .74], [-.085, .84], [-.06, .84], [-.06, .87], [-.056, .9], [-.045, .93], [-.03, .955], [-.012, .97], [-.006, 1]],
+  bktower: [[-.07, 0], [-.07, .1], [-.062, .1], [-.05, .86], [-.03, .93], [-.004, 1]],
+  courtsq: [[-.11, 0], [-.11, .9], [-.06, .96], [0, 1]],
+};
+function shapePath(c, id, x, yb, h, partW) {
+  const pts = SHAPES[id];
+  c.beginPath();
+  if (id === "citigroup") { // the 45-degree crown
+    c.moveTo(x - .1 * h, yb); c.lineTo(x - .1 * h, yb - .82 * h); c.lineTo(x + .1 * h, yb - 1 * h); c.lineTo(x + .1 * h, yb - .06 * h);
+    c.lineTo(x + .07 * h, yb - .06 * h); c.lineTo(x + .07 * h, yb - .02 * h); c.lineTo(x + .1 * h, yb - .02 * h); c.lineTo(x + .1 * h, yb); c.closePath(); return;
+  }
+  if (pts) {
+    c.moveTo(x + pts[0][0] * h, yb - pts[0][1] * h);
+    for (const [u, v] of pts) c.lineTo(x + u * h, yb - v * h);
+    for (let i = pts.length - 1; i >= 0; i--) c.lineTo(x - pts[i][0] * h, yb - pts[i][1] * h);
+    c.closePath(); return;
+  }
+  if (id === "liberty") {
+    const P = [[-.26, 0], [-.26, .07], [-.15, .1], [-.11, .14], [-.11, .45], [-.08, .5], [-.05, .52], [-.045, .7], [-.035, .82], [-.022, .86], [-.03, .9], [-.012, .935], [0, .93], [.02, .9], [.03, .86], [.055, .88], [.06, .97], [.075, 1], [.085, .97], [.08, .85], [.045, .8], [.05, .52], [.08, .5], [.11, .45], [.11, .14], [.15, .1], [.26, .07], [.26, 0]];
+    c.moveTo(x + P[0][0] * h, yb - P[0][1] * h); for (const [u, v] of P) c.lineTo(x + u * h, yb - v * h); c.closePath(); return;
+  }
+  if (id === "unisphere") {
+    c.moveTo(x - .2 * h, yb); c.lineTo(x - .03 * h, yb - .3 * h); c.lineTo(x + .03 * h, yb - .3 * h); c.lineTo(x + .2 * h, yb); c.closePath();
+    c.moveTo(x + .43 * h, yb - .58 * h); c.arc(x, yb - .58 * h, .42 * h, 0, Math.PI * 2); return;
+  }
+  if (id === "parachute") {
+    c.moveTo(x - .12 * h, yb); c.lineTo(x - .035 * h, yb - .8 * h); c.lineTo(x - .3 * h, yb - .82 * h); c.lineTo(x - .02 * h, yb - .9 * h); c.lineTo(x - .006 * h, yb - 1 * h);
+    c.lineTo(x + .006 * h, yb - 1 * h); c.lineTo(x + .02 * h, yb - .9 * h); c.lineTo(x + .3 * h, yb - .82 * h); c.lineTo(x + .035 * h, yb - .8 * h); c.lineTo(x + .12 * h, yb); c.closePath(); return;
+  }
+  if (id === "bkbridge") { // granite tower with two pointed arches
+    c.moveTo(x - .24 * h, yb); c.lineTo(x - .24 * h, yb - .9 * h); c.lineTo(x - .2 * h, yb - 1 * h); c.lineTo(x + .2 * h, yb - 1 * h); c.lineTo(x + .24 * h, yb - .9 * h); c.lineTo(x + .24 * h, yb); c.closePath();
+    for (const s of [-1, 1]) { const ax = x + s * .1 * h; c.moveTo(ax - .06 * h, yb - .52 * h); c.lineTo(ax - .06 * h, yb - .74 * h); c.quadraticCurveTo(ax - .06 * h, yb - .84 * h, ax, yb - .86 * h); c.quadraticCurveTo(ax + .06 * h, yb - .84 * h, ax + .06 * h, yb - .74 * h); c.lineTo(ax + .06 * h, yb - .52 * h); c.closePath(); }
+    return;
+  }
+  if (id === "verrazzano" || id === "gwb") {
+    const w = id === "gwb" ? .14 : .1, leg = id === "gwb" ? .035 : .025;
+    for (const s of [-1, 1]) { c.moveTo(x + s * w * h, yb); c.lineTo(x + s * (w - leg) * h, yb); c.lineTo(x + s * (w * .82 - leg) * h, yb - h); c.lineTo(x + s * w * .82 * h, yb - h); c.closePath(); }
+    for (const v of id === "gwb" ? [.36, .64, .97] : [.42, .7, .97]) { c.moveTo(x - w * h, yb - (v - .025) * h); c.rect(x - (w - leg * .5) * h * (1 - v * .18), yb - v * h, 2 * (w - leg * .5) * h * (1 - v * .18), .03 * h); }
+    return;
+  }
+  if (id === "hellgate") {
+    c.moveTo(x - 1.6 * h, yb); c.lineTo(x - 1.6 * h, yb - .8 * h); c.lineTo(x - 1.45 * h, yb - .8 * h); c.lineTo(x - 1.45 * h, yb - .44 * h);
+    c.quadraticCurveTo(x, yb - 1.55 * h, x + 1.45 * h, yb - .44 * h); c.lineTo(x + 1.45 * h, yb - .8 * h); c.lineTo(x + 1.6 * h, yb - .8 * h); c.lineTo(x + 1.6 * h, yb);
+    c.lineTo(x + 1.45 * h, yb); c.lineTo(x + 1.45 * h, yb - .36 * h); c.quadraticCurveTo(x, yb - 1.3 * h, x - 1.45 * h, yb - .36 * h); c.lineTo(x - 1.45 * h, yb); c.closePath(); return;
+  }
+  c.rect(x - .05 * h, yb - h, .1 * h, h);
+}
+function drawPano() {
+  const c = pc, W = panoW, H = panoH, dpr = view.dpr;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  panoHits = [];
+  const o = obs; if (!o || !o.items) return;
+  const groundY = H - 30, room = groundY - 30;
+  // horizontal: fit every landmark's bearing in view, centred on the middle of the arc they span
+  const sunEv = mode === 2 ? curEv() : null;
+  const brgs = o.items.flatMap(it => it.towers.map(t => t.brg)).concat(sunEv ? sunEv.levels.map(L => L.az).concat([sunEv.official_az]) : []).sort((a, b) => a - b);
+  let gap = 0, gi = 0;
+  for (let i = 0; i < brgs.length; i++) { const nx = i + 1 < brgs.length ? brgs[i + 1] : brgs[0] + 360; if (nx - brgs[i] > gap) { gap = nx - brgs[i]; gi = i; } }
+  const start = brgs[(gi + 1) % brgs.length], span = 360 - gap;
+  const fov = Math.min(360, Math.max(60, span * 1.15 + 14));
+  const centre = (start + span / 2) % 360;
+  const bx = b => { const d = ((b - centre + 540) % 360) - 180; return W / 2 + d / fov * (W - 40); };
+  // vertical: compress angular heights so far-off towers stay legible (true order is kept)
+  // anything taller than ~9 degrees fills the strip (and is cropped, the way a near tower overfills a photo)
+  const maxTop = Math.min(9, Math.max(0.5, ...o.items.map(it => it.top)));
+  const f = th => room * Math.pow(Math.max(0, th) / maxTop, 0.55);
+  const sky = c.createLinearGradient(0, 0, 0, groundY);
+  sky.addColorStop(0, "rgba(14,20,34,0)"); sky.addColorStop(1, "rgba(52,64,96,0.32)");
+  c.fillStyle = sky; c.fillRect(0, 0, W, groundY);
+  c.font = `500 10px ${getVar("--mono")}`; c.textAlign = "center"; c.textBaseline = "alphabetic";
+  for (let b = 0; b < 360; b += 15) {
+    const x = bx(b); if (x < 2 || x > W - 2) continue;
+    const major = b % 45 === 0;
+    c.fillStyle = major ? "rgba(236,230,216,0.55)" : "rgba(147,155,171,0.3)";
+    c.fillRect(Math.round(x), groundY + 3, 1, major ? 6 : 3);
+    if (major) c.fillText(COMPASS[b / 22.5], x, H - 6);
+  }
+  const items = o.items.slice().sort((a, b) => b.d - a.d); // far to near
+  const placed = [], labels = [];
+  for (const it of items) {
+    const l = it.l, vis = it.q > 0;
+    const hDraw = Math.max(vis ? 16 : 12, f(it.top));
+    const xs = l.kind === "bridge" ? it.towers.map(t => bx(t.brg)) : [bx(it.brg)];
+    const hidFrac = vis ? (l.levels[it.q - 1] / l.top) : 1;  // share of the height hidden behind nearer things
+    const yOcc = groundY - hDraw * hidFrac;
+    const strong = hilite === l.i || (mode === 1 && sel === l.i);
+    const rule = l.id === "bkbridge" ? "evenodd" : "nonzero";
+    for (const x of xs) {
+      if (x < -80 || x > W + 80) continue;
+      // the whole outline, faint: where it stands even when it's hidden
+      shapePath(c, l.id, x, groundY, hDraw);
+      c.fillStyle = vis ? "rgba(147,155,171,0.07)" : "rgba(147,155,171,0.04)"; c.fill(rule);
+      c.setLineDash([2, 3]); c.lineWidth = 1; c.strokeStyle = strong ? "rgba(236,230,216,0.6)" : "rgba(147,155,171,0.28)"; c.stroke(); c.setLineDash([]);
+      if (!vis) continue;
+      // the visible part, lit
+      c.save(); c.beginPath(); c.rect(x - hDraw * 2, 0, hDraw * 4, yOcc); c.clip();
+      shapePath(c, l.id, x, groundY, hDraw);
+      const g = c.createLinearGradient(0, groundY - hDraw, 0, yOcc + 1);
+      g.addColorStop(0, l.color); g.addColorStop(1, shade(l.color, 0.55));
+      c.fillStyle = g; c.shadowColor = l.color; c.shadowBlur = strong ? 16 : 7;
+      c.globalAlpha = hDraw > room * 0.8 && !strong ? 0.5 : 1;   // a tower that overfills the strip shouldn't hide the skyline behind it
+      c.fill(rule); c.shadowBlur = 0; c.globalAlpha = 1;
+      if (strong) { c.lineWidth = 1.2; c.strokeStyle = "#fff4d6"; c.stroke(); }
+      c.restore();
+      if (hidFrac < 0.98) { c.fillStyle = shade(l.color, 0.9); c.fillRect(x - hDraw * 0.12, yOcc, hDraw * 0.24, 1); }
+    }
+    if (l.kind === "bridge" && vis && xs.length === 2 && Math.abs(xs[0] - xs[1]) > 4 && Math.abs(xs[0] - xs[1]) < W / 2) {
+      const yT = groundY - hDraw * 0.96, yD = groundY - hDraw * (l.id === "bkbridge" ? 0.47 : 0.33);
+      c.save(); c.beginPath(); c.rect(0, 0, W, Math.max(yOcc, yT + 2)); c.clip();
+      c.strokeStyle = shade(l.color, 0.85); c.lineWidth = 1;
+      c.beginPath(); c.moveTo(xs[0], yT); c.quadraticCurveTo((xs[0] + xs[1]) / 2, yD + 4, xs[1], yT); c.stroke();
+      c.restore();
+    }
+    const x = xs.reduce((a, b) => a + b, 0) / xs.length;
+    panoHits.push({ x0: Math.min(...xs) - Math.max(9, hDraw * 0.25), x1: Math.max(...xs) + Math.max(9, hDraw * 0.25), i: l.i, vis });
+    if (vis && x >= 0 && x <= W) labels.push({ l, x, top: groundY - hDraw, d: it.d });
+  }
+  if (sunEv) {
+    // the sun's last (or first) half hour: three positions on its path, lit where this spot can see them
+    const q = o.s.sun ? o.s.sun[sunK][sunE] : 0, col = SUN_COLS[sunE];
+    const pts = sunEv.levels.map((L, j) => ({ x: bx(L.az), y: groundY - f(L.alt), vis: q === j + 1 }));
+    c.fillStyle = "rgba(255,210,140,0.35)";
+    for (const P of sunEv.path) { c.beginPath(); c.arc(bx(P.az), groundY - f(P.alt), 1.3, 0, Math.PI * 2); c.fill(); }
+    const hz = { x: bx(sunEv.official_az), y: groundY };
+    c.setLineDash([2, 4]); c.strokeStyle = "rgba(255,210,140,0.45)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(pts[0].x, pts[0].y); for (const p of pts.slice(1)) c.lineTo(p.x, p.y); c.lineTo(hz.x, hz.y); c.stroke(); c.setLineDash([]);
+    pts.forEach((p, j) => {
+      c.beginPath(); c.arc(p.x, p.y, j === 2 ? 7 : 4.5, 0, Math.PI * 2);
+      if (p.vis) { c.fillStyle = col[2]; c.shadowColor = col[2]; c.shadowBlur = 16; c.fill(); c.shadowBlur = 0; }
+      else { c.strokeStyle = "rgba(147,155,171,0.6)"; c.setLineDash([2, 2]); c.stroke(); c.setLineDash([]); }
+    });
+    const lowest = q ? pts[q - 1] : pts[0];
+    c.font = `500 10px ${getVar("--mono")}`; c.textAlign = "center"; c.lineJoin = "round";
+    const txt = `${sunE ? "Sunset" : "Sunrise"} ${clock(sunEv.official)} · ${Math.round(sunEv.official_az)}°`;
+    c.strokeStyle = "rgba(8,11,17,0.9)"; c.lineWidth = 3; c.strokeText(txt, lowest.x, lowest.y - 12);
+    c.fillStyle = q ? col[2] : "rgba(147,155,171,0.9)"; c.fillText(txt, lowest.x, lowest.y - 12);
+    placed.push([lowest.x - 70, lowest.y - 24, lowest.x + 70, lowest.y - 8]);
+  }
+  const note = `${Math.round(fov)}° of horizon · heights exaggerated · dashed: hidden`;
+  c.font = `400 9.5px ${getVar("--mono")}`;
+  placed.push([0, 0, c.measureText(note).width + 8, 14]);
+  // labels go on top of every silhouette, nearest landmark first, nudged up when they'd collide
+  c.font = `500 10px ${getVar("--mono")}`; c.textAlign = "center"; c.lineJoin = "round";
+  for (const lb of labels.sort((a, b) => a.d - b.d)) {
+    const text = `${lb.l.short} · ${fmtMi(lb.d)}`;
+    const w = c.measureText(text).width + 6;
+    const cx = Math.min(W - w / 2, Math.max(w / 2, lb.x));
+    let y = Math.max(11, lb.top - 6);
+    const hits = yy => placed.some(p => cx - w / 2 < p[2] && cx + w / 2 > p[0] && yy - 9 < p[3] && yy + 2 > p[1]);
+    for (let tries = 0; tries < 8 && hits(y); tries++) y -= 12;
+    if (y < 11 || hits(y)) continue;
+    placed.push([cx - w / 2, y - 9, cx + w / 2, y + 2]);
+    c.strokeStyle = "rgba(8,11,17,0.9)"; c.lineWidth = 3; c.strokeText(text, cx, y);
+    c.fillStyle = lb.l.color; c.fillText(text, cx, y);
+  }
+  c.fillStyle = "rgba(236,230,216,0.3)"; c.fillRect(0, groundY, W, 1);
+  c.font = `400 9.5px ${getVar("--mono")}`; c.fillStyle = "rgba(147,155,171,0.65)"; c.textAlign = "left";
+  c.fillText(note, 2, 11);
+}
+function shade(h, k) { const [r, g, b] = hex(h); return `rgb(${Math.round(r * 255 * k)},${Math.round(g * 255 * k)},${Math.round(b * 255 * k)})`; }
+pano.addEventListener("pointermove", e => {
+  const r = pano.getBoundingClientRect(), x = e.clientX - r.left;
+  const hit = panoHits.filter(h => x >= h.x0 && x <= h.x1).pop();
+  const v = hit ? hit.i : -1;
+  if (v !== hilite) { hilite = v; drawPano(); streetView(); requestDraw(); }
+});
+pano.addEventListener("pointerleave", () => { if (hilite !== -1) { hilite = -1; drawPano(); streetView(); requestDraw(); } });
+
+// ---------- landmark list ----------
+function buildList() {
+  const ul = $("lmlist");
+  const all = document.createElement("li");
+  all.innerHTML = `<button class="all" data-i="-1" aria-pressed="true"><span class="dot"></span><span class="nm">All landmarks<small>How many can be seen</small></span><span class="pc">${pct(100 - D.findings.pct_zero)}</span></button>`;
+  ul.appendChild(all);
+  LM.slice().sort((a, b) => b.pct - a.pct).forEach(l => {
+    const li = document.createElement("li");
+    li.innerHTML = `<button data-i="${l.i}" aria-pressed="false"><span class="dot" style="color:${l.color}"></span><span class="nm">${esc(l.name)}<small>${l.year} · ${l.height_ft.toLocaleString()} ft</small></span><span class="pc">${pct(l.pct)}</span></button>`;
+    ul.appendChild(li);
+  });
+  ul.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const i = +b.dataset.i;
+    if (i < 0 || (mode === 1 && sel === i)) { mode = 0; } else { mode = 1; sel = i; }
+    syncSun();
+  });
+}
+function updateListHere() {
+  if (!obs) return;
+  $("lmlist").querySelectorAll("button").forEach(b => {
+    const i = +b.dataset.i; if (i < 0) return;
+    b.querySelector(".nm").classList.toggle("vis-here", obs.items[i].q > 0);
+    b.title = obs.items[i].q > 0 ? `Visible from here: ${LEVEL_WORDS[obs.items[i].q]}, ${fmtMi(obs.items[i].d)} away` : "Not visible from here";
+  });
+}
+// a map serves two dates mirrored around a solstice; the clock times are those of the month picked
+function curEv() { const st = SUN[sunK]; return st.alt && selMonth === st.alt.month ? st.alt[EV[sunE]] : st[EV[sunE]]; }
+const fmtDay = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function sunInfo() {
+  const st = SUN[sunK], ev = curEv();
+  if (st.key === "henge") return { st, ev, label: sunE ? "Manhattanhenge, " + st.set_label : "Manhattanhenge sunrise, " + st.rise_label };
+  const other = st.alt ? (ev === st.alt[EV[sunE]] ? st[EV[sunE]] : st.alt[EV[sunE]]) : null;
+  return { st, ev, label: other ? `${fmtDay(ev.date)} (same map as ${fmtDay(other.date)})` : st.label };
+}
+function renderLegend() {
+  const el = $("legend");
+  document.documentElement.style.setProperty("--sun", SUN_COLS[sunE][2]);
+  if (mode === 2) {
+    const { ev, label } = sunInfo(), c = SUN_COLS[sunE];
+    const m2 = levelMins(ev, 1), m5 = levelMins(ev, 0), m1 = levelMins(ev, 2);
+    const words = sunE ? [`Within ~${m5} min of sunset`, `Within ~${m2} min`, `Within ~${m1} min: low on the horizon`] : [`Within ~${m5} min of sunrise`, `Within ~${m2} min`, `Within ~${m1} min: low on the horizon`];
+    el.innerHTML = `<div class="legend-title">${sunE ? "Sunset" : "Sunrise"} from the street · ${esc(label)} · ${clock(ev.official)} · bearing ${Math.round(ev.official_az)}°</div>
+      <div class="swatches" style="display:grid;gap:4px">${[2, 1, 0].map(i => `<span><i style="background:${c[i]}"></i>${words[i]}</span>`).join("")}</div>`;
+    document.documentElement.style.setProperty("--mast-h", $("mast").getBoundingClientRect().height + "px");
+    return;
+  }
+  if (mode === 0) {
+    el.innerHTML = `<div class="legend-title">Landmarks visible from the street at each spot</div><div class="ramp"><i style="background:#3a3c42" title="Street or park with none of the 16 in view"></i>${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</div><div class="ramp-labels"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8+</span></div>`;
+  } else {
+    const l = LM[sel], [r, g, b] = hex(l.color), sw = a => `rgb(${r * a * 255 | 0},${g * a * 255 | 0},${b * a * 255 | 0})`;
+    el.innerHTML = `<div class="legend-title">Where you can see the ${esc(l.name)} from the street</div><div class="swatches"><span><i style="background:${sw(.42)}"></i>Just the top</span><span><i style="background:${sw(.72)}"></i>Upper part</span><span><i style="background:${sw(1)}"></i>Most of it</span></div>`;
+  }
+  document.documentElement.style.setProperty("--mast-h", $("mast").getBoundingClientRect().height + "px");
+}
+
+// ---------- sunrise / sunset controls ----------
+function buildSun() {
+  $("months").innerHTML = MONTHS.map((m, i) => `<button data-m="${i + 1}" aria-label="${m}" aria-pressed="false">${m[0]}</button>`).join("");
+  $("months").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; selMonth = +b.dataset.m; sunK = stateForMonth(selMonth); syncSun(); });
+  $("henge").onclick = () => { const h = SUN.findIndex(st => st.key === "henge"); if (sunK === h) sunK = stateForMonth(selMonth); else sunK = h; syncSun(); };
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  sunK = stateForMonth(selMonth);
+}
+function setMode(m) {
+  if (m === "lm") { if (mode === 2) mode = lastLmMode; }
+  else { if (mode !== 2) lastLmMode = mode; mode = 2; sunE = m === "set" ? 1 : 0; }
+  syncSun();
+}
+function syncSun() {
+  const sunMode = mode === 2;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === (sunMode ? (sunE ? "set" : "rise") : "lm"))));
+  $("suncontrols").hidden = !sunMode;
+  const henge = SUN[sunK].key === "henge";
+  $("months").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(!henge && +b.dataset.m === selMonth)));
+  $("henge").setAttribute("aria-pressed", String(henge));
+  $("lmlist").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(!sunMode && (mode === 0 ? x.dataset.i === "-1" : +x.dataset.i === sel))));
+  renderLegend(); if (obs) { if (sunMode) setObserver(obs.x, obs.y); else renderPanel(); } requestDraw();
+}
+
+// ---------- findings ----------
+const NO_THE = new Set(["wtc", "park432", "courtsq", "bktower"]);
+const the = l => (NO_THE.has(l.id) ? "" : "the ") + l.name;
+const The = l => { const t = the(l); return t[0].toUpperCase() + t.slice(1); };
+const shortNta = n => (n || "").split("-")[0].replace("park/cemetery/etc", "a park");
+// where a farthest view is: the neighbourhood, or the named park when the "neighbourhood" is parkland
+const farPlace = f => f.label || (/^park-cemetery-etc/.test(f.nta || "") ? (f.place || "a park") : (shortNta(f.nta) || f.boro));
+function sunFinding(rows) {
+  const by = k => rows.find(r => r.key === k);
+  const regular = rows.filter(r => r.key !== "henge");
+  const lo = Math.min(...regular.map(r => r.sunset.horizon)), hi = Math.max(...regular.map(r => r.sunset.horizon));
+  const mlo = Math.min(...regular.map(r => r.sunset.by_boro.Manhattan)), mhi = Math.max(...regular.map(r => r.sunset.by_boro.Manhattan));
+  const h = by("henge");
+  return `<p>Sunsets are scarcer than skylines. Depending on the time of year, only ${Math.round(lo)} to ${Math.round(hi)} percent of the city's streets and parks catch the setting sun low on the horizon. In Manhattan it is ${Math.round(mlo)} to ${Math.round(mhi)} percent, highest in winter${h ? `, except on Manhattanhenge evening, when the cross streets line up with the sun and the share rises to about ${Math.round(h.sunset.by_boro.Manhattan)} percent (9 to 10 with a finer check of the sun's path)` : ""}.</p>`;
+}
+function buildFindings() {
+  const F = D.findings, el = $("findscroll");
+  const any = 100 - F.pct_zero;
+  const hist = F.count_hist, tot = hist.reduce((a, b) => a + b, 0);
+  const five = hist.slice(5).reduce((a, b) => a + b, 0) / tot * 100;
+  const boros = F.boroughs.slice().sort((a, b) => b.mean - a.mean);
+  const real = F.ntas.filter(n => !/^(park-cemetery-etc|Airport|Rikers Island)/.test(n.name));
+  const ntaTop = real.slice(0, 6), ntaBottom = real.slice().sort((a, b) => b.pct_zero - a.pct_zero || a.mean - b.mean).slice(0, 6);
+  const rank = LM.slice().sort((a, b) => b.pct - a.pct);
+  const esb = byId.esb, liberty = byId.liberty, farE = esb.farthest;
+  const esbRank = rank.indexOf(esb) + 1;
+  const ahead = rank.slice(0, esbRank - 1);
+  const man = F.boroughs.find(b => b.name === "Manhattan");
+  el.innerHTML = `
+    <h2>What the city can see</h2>
+    <div class="big"><b>${Math.round(any)}%</b><span>of New York's streets, sidewalks and parks have a clear line of sight, at eye level, to at least one of these 16 landmarks.</span></div>
+    <div class="big"><b>${Math.round(five)}%</b><span>can see five or more at once.</span></div>
+    <p>${ahead.length ? `The Empire State Building no longer has the skyline to itself. ${ahead.map(The).join(" and ")}, built in the last dozen years, ${ahead.length > 1 ? "are each" : "is"} visible from ${ahead.every(l => l.pct - esb.pct < 1.5) ? "about as much of the city" : "more of the city"} (${ahead.map(l => l.pct.toFixed(1) + "%").join(" and ")} of streets and parks, against ${esb.pct.toFixed(1)}%).` : `The Empire State Building reaches the most of the city: ${pct(esb.pct)} of its public ground.`}
+    ${farE ? `The Empire State Building can still be seen from ${fmtMi(farE.km * 1000)} away, in ${esc(farPlace(farE))}, ${esc(farE.boro)}.` : ""}</p>
+    ${F.sun ? sunFinding(F.sun) : ""}
+    <p>${The(liberty)} is harder to find than its fame suggests: only ${pct(liberty.pct)} of public ground has a view of it.${F.liberty_where ? ` About half of those spots (${Math.round(F.liberty_where.within_200m_water)}%) are within 200 metres of the water, against ${Math.round(F.liberty_where.all_public_within_200m_water)}% of public ground overall. The biggest single shares are in ${F.liberty_where.places.slice(0, 2).map(p => `${esc(p.name)} (${Math.round(p.pct)}%)`).join(" and ")}.` : ""}</p>
+    <h3>Landmarks in view, by borough (average)</h3>
+    <div class="bars">${boros.map(b => `<div class="bar"><span>${esc(b.name)}</span><span class="track"><span class="fill" style="width:${b.mean / boros[0].mean * 100}%"></span></span><span class="v">${b.mean.toFixed(1)}</span></div>`).join("")}</div>
+    <p style="margin-top:10px">Manhattan builds the skyline but mostly can't see it: ${Math.round(man.pct_zero)}% of its streets and parks see none of the 16. The best views belong to the waterfronts and ridges of Brooklyn and Queens.</p>
+    <h3>Tour: places to stand</h3>
+    <ul class="tour" id="tour">${D.tour.map((t, i) => `<li><button data-i="${i}"><b>${esc(t.title)}</b><span>${esc(t.text)}</span><em>${esc(t.tag || "")}</em></button></li>`).join("")}</ul>
+    <h3>Neighborhoods with the most in view</h3>
+    <ol class="rank">${ntaTop.map(n => `<li><span>${esc(n.name.replace(/-/g, " / "))} <small>${esc(n.boro)}</small></span><span>${n.mean.toFixed(1)}</span></li>`).join("")}</ol>
+    <h3>Neighborhoods that see the least</h3>
+    <ol class="rank">${ntaBottom.map(n => `<li><span>${esc(n.name.replace(/-/g, " / "))} <small>${esc(n.boro)}</small></span><span>${shareNoRound(n.pct_zero)}% see none</span></li>`).join("")}</ol>
+    <h3>Longest sightlines</h3>
+    <ol class="rank">${LM.filter(l => l.farthest).sort((a, b) => b.farthest.km - a.farthest.km).slice(0, 6).map(l => `<li><span>${esc(l.name)} <small>from ${esc(farPlace(l.farthest))}</small></span><span>${fmtMi(l.farthest.km * 1000)}</span></li>`).join("")}</ol>
+    <p style="color:var(--dim);font-size:12px;margin-top:6px">Each is the farthest spot from which at least a few squares of public ground see the landmark, confirmed with the exact calculation. All are edge cases: the line of sight clears whatever lies between by a metre or two, within the model's margin of error.</p>
+    <h3>Reading the map</h3>
+    <div class="method"><p>Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. Zoom in and it becomes a street map: grey streets see none of the 16, buildings are the dark blocks, parks are green and water is blue, with street names. Each square of color is 3 metres (10 feet) across. Large woods block views; street trees aren't modeled, so read this as a winter view.</p></div>`;
+  $("tour").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    goTour(D.tour[+b.dataset.i]);
+    if (document.body.classList.contains("show-find")) document.body.classList.remove("show-find");
+  });
+}
+const PLACES = new Map();
+function buildSearch() {
+  const add = (label, x, y, z) => { if (!PLACES.has(label)) PLACES.set(label, { x, y, z }); };
+  for (const n of NTAS) if (!/^(park-cemetery-etc|Airport)/.test(n.n)) add(`${n.n.replace(/-/g, " / ")} (${n.b})`, n.c[0], n.c[1], 0.32);
+  for (const p of D.parks.slice().sort((a, b) => b.a - a.a)) if (p.a >= 2) add(`${p.n} (${p.b})`, p.c[0], p.c[1], p.a > 100 ? 0.25 : 0.6);
+  $("places").innerHTML = [...PLACES.keys()].sort().map(k => `<option value="${esc(k)}"></option>`).join("");
+  const go = () => {
+    const v = $("q").value.trim(); if (!v) return;
+    let hit = PLACES.get(v);
+    if (!hit) { const lv = v.toLowerCase(); const k = [...PLACES.keys()].find(k => k.toLowerCase().startsWith(lv)) || [...PLACES.keys()].find(k => k.toLowerCase().includes(lv)); if (k) { hit = PLACES.get(k); $("q").value = k; } }
+    if (!hit) { toast("No match. Try a neighborhood or park name."); return; }
+    goTour({ x: hit.x, y: hit.y, zoom: hit.z, keepMode: true });
+    $("q").blur();
+  };
+  $("searchform").addEventListener("submit", e => { e.preventDefault(); go(); });
+  $("q").addEventListener("change", go);
+}
+let toastTimer = 0;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.style.opacity = 1; clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.style.opacity = 0), 2600); }
+function goTour(t) {
+  if (!t.keepMode) {
+    if (t.sun) { lastLmMode = 0; mode = 2; sunE = t.sun.e === "set" ? 1 : 0; sunK = SUN.findIndex(st => st.key === t.sun.k); const st = SUN[sunK]; if (st.months.length) selMonth = st.months[0]; }
+    else if (t.lm) { mode = 1; sel = byId[t.lm].i; } else mode = 0;
+  }
+  syncSun();
+  const free = freeRect(); const s = t.zoom || 0.5;
+  flyTo({ s, x: t.x - (free.x + free.w / 2 - view.w / 2) / s, y: t.y - (free.y + free.h / 2 - view.h / 2) / s });
+  pinned = true; setObserver(t.x, t.y, true);
+  if (matchMedia("(max-width: 760px)").matches) stage.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function buildAbout() {
+  const F = D.findings;
+  $("abouttext").innerHTML = `
+    <p>For each of 16 landmarks, lines of sight were traced from three heights on the structure (just below its top, about two-thirds of the way up, and about a third to halfway up) to every 3-by-3-metre square of New York City. They run across a 3D model of the terrain and of 1.96 million buildings: the city's 1.1 million plus those in nearby New Jersey, Westchester and Nassau that can stand in the way. A square counts as having a view when a person standing there, eyes 1.6 metres (5 feet 3 inches) up, could see that point with nothing in the way. Lines of sight work both ways, so tracing from the landmark gives the same answer as tracing from the street. The three heights are what let the panorama show whether you'd see just a spire or most of a tower.</p>
+    <ul>
+      <li><b>Street level only.</b> Every result is for someone standing on the ground, or on the Brooklyn Heights Promenade and High Line decks, which are modeled at their real height. From a window, a roof, a bridge walkway or an elevated train you would see far more, and none of that is in this map. That is also why buildings show as dark blocks: nobody is standing on them here.</li>
+      <li><b>Buildings:</b> footprints and heights from Overture Maps. Inside the city, 99 percent come from OpenStreetMap, whose New York buildings carry heights from the city's own data; under 1 percent are Microsoft footprints with machine-learned heights; about 1 percent have no height and are set at 3.3 metres a floor where the floor count is known, otherwise 8 metres. Towers mapped in parts, like the Empire State Building's setbacks, keep their shape. Buildings outside the city, including Jersey City's towers between Staten Island and Manhattan, rely more on machine-learned heights.</li>
+      <li><b>Terrain:</b> the U.S. Geological Survey's 10-metre elevation model.</li>
+      <li><b>Woods:</b> mapped forest of a hectare (2.5 acres) or more is modeled as an 18-metre canopy, because even bare woods block a view. Street trees and small plantings are not.</li>
+      <li><b>Earth curvature and air:</b> included, with standard atmospheric refraction. Over the 21 miles from Tottenville to Midtown, it hides roughly the bottom 200 feet of a tower from someone standing at the water's edge.</li>
+      <li><b>Public ground</b> (${Math.round(F.public_km2)} km²) means streets and sidewalks (building line to building line), parks, plazas and beaches. The percentages refer to it. Left out: service roads and paths inside fenced industrial sites, rail yards, airports and power plants, and places closed to the public or open only by appointment or on tours: Rikers Island, Hart Island and most of Freshkills Park. The map still lights up those places, and yards and lots, but they don't count.</li>
+      <li><b>Boroughs and neighborhoods:</b> NYC Planning's shoreline-clipped boundaries and 2010 Neighborhood Tabulation Areas. Piers that connect only to Brooklyn or Queens are counted there, although the legal line puts some of them in Manhattan.</li>
+    </ul>
+    <h2 style="margin-top:18px">Sunrise and sunset</h2>
+    <p>For each date, the sun's position is computed for Midtown (the difference across the city is a small fraction of a degree) at 13 moments on its path near the horizon, from 0.3 to 6 degrees up, closely spaced near the horizon where a street canyon may catch it for only a minute or two. From every square of public ground, the model checks whether buildings, terrain or woods block the sun at each of those moments. The brightest color means you'd catch the sun when it is 1.2 degrees up or lower, within about 9 to 10 minutes of sunset or sunrise depending on the season; the middle, 2.5 degrees or lower (16 to 19 minutes); the dimmest, 6 degrees or lower (35 to 43 minutes). The legend gives the minutes for the date shown. "Catch" means at some moment in that window, not the whole time; a street that lines up with the sun may see it for only a minute or two. A glimpse shorter than about a minute can fall between the 13 moments checked, so the brightest color undercounts a little in street canyons: on Manhattanhenge evening a finer check puts Manhattan's share at 9 to 10 percent rather than 8. Times are Eastern, for 2026, rounded to the minute.</p>
+    <p>The sun's path nearly repeats around the solstices (to within about a degree), so one map serves two dates (late May looks like late July), though a street that lines up exactly with the sun can differ between the two. The clock times differ, partly because of daylight saving time; the legend and panorama show the times for the month you pick. Manhattanhenge, when the setting sun lines up with the cross streets (true bearing 299 degrees, measured from the street map), is mapped for May 29, 2026, the evening the American Museum of Natural History lists as the full-sun date; the July dates (11 and 12) are close mirrors. The legend gives that evening's sunset bearing as 300 degrees; the sun crosses the street axis about six minutes earlier, less than a degree up. The sunrise version is mapped for Nov. 29. The same street-level rule applies: from a high floor the sun rises earlier and sets later.</p>
+    <h2 id="why16" style="margin-top:18px">Which 16 landmarks, and why</h2>
+    <p>I picked these by judgment, not by a formula or a survey, and the choice shapes every number on this page. The aim was the structures New Yorkers most readily recognize on the skyline from the street: the classic icons, the newest supertalls that now dominate it, and the big bridges. I also wanted something in or at the edge of as many boroughs as possible. The cap of 16 is technical: the map stores two bits per landmark in a 32-bit pixel.</p>
+    <div style="overflow-x:auto"><table class="lmtable"><thead><tr><th>Landmark</th><th>Borough</th><th>Opened</th><th>Height</th><th>Points traced (ft above its base)</th></tr></thead><tbody>${LM.map(l => `<tr><td>${esc(l.name)}</td><td>${esc(l.borough)}</td><td>${l.year}${l.year_note ? `<br><small>${esc(l.year_note)}</small>` : ""}</td><td>${l.height_ft.toLocaleString()} ft<br><small>${esc(l.height_note)}</small></td><td>${l.levels.map(h => Math.round(h * 3.28084).toLocaleString()).join(" · ")}</td></tr>`).join("")}</tbody></table></div>
+    <p>The first of the three points is what "can see it" means in the percentages, and the choice matters. For the Empire State Building it is a point on the antenna about 30 ft above the 1,250-ft roof (1,280 ft), not the antenna tip (1,454 ft). For One World Trade Center it is just above the roof (1,394 ft), not the spire tip. For bridges it is the top of either tower; for the Hell Gate Bridge, the crown of the arch. A higher point would be visible from more places.</p>
+    <p><b>Left out, and what that does:</b> Central Park Tower (the tallest roof in the city), One Vanderbilt, Steinway Tower and the Hudson Yards towers. Including them would raise the share of the city that sees some skyscraper, mostly in places that already see 432 Park or the Empire State Building. Also left out: the Manhattan, Williamsburg, Queensboro, Throgs Neck, Whitestone and Bayonne bridges; the Wonder Wheel; Yankee Stadium and other landmarks too low to be seen beyond their own blocks. Ten of the 16 stand in Manhattan or reach it (six towers and the statue, plus the Brooklyn, George Washington and Hell Gate bridges), and none stands in the Bronx; the Hell Gate Bridge's approach viaduct does reach Port Morris, but its arch, the point traced here, spans from Queens to Wards Island. So the borough comparison partly reflects this selection: the low scores of Staten Island and the Bronx mean they see little of this list, not that they have no views.</p>
+    <p><b>What it leaves out:</b> street trees, which in summer block many of these views on leafy blocks; bridges, elevated trains and highways as obstacles; billboards, water towers and rooftop equipment; and buildings finished after their data was last updated. Machine-learned heights can be off by a floor or two.</p>
+    <p><b>Checking the method:</b> for nine of the landmarks, 4,000 squares each were rechecked with an exact point-to-point calculation: half drawn at random from squares the fast method says can see the landmark's top, half from squares it says can't. Of the first half, 0.9 to 1.4 percent failed the exact check; of the second, no more than 0.2 percent passed it. The two kinds of error partly cancel; on balance the percentages on this page may run high by up to about 1.5 percent of their value (a reported 16 percent could be 15.8). The landmark counts in the tour were re-traced with the exact method. Every spot on the map links to Google Street View facing the landmark, so you can check a view yourself.</p>
+    <p style="color:var(--dim)">Data: Overture Maps Foundation; © OpenStreetMap contributors; Microsoft; U.S. Geological Survey; NYC Department of City Planning. Built October 2026. Code, method and the full fact-check: <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-sightlines" target="_blank" rel="noopener">github.com/joshgreenman1973/experiments</a>.</p>`;
+}
+// ---------- input ----------
+const pointers = new Map(); let dragStart = null, moved = false, pinchD = 0;
+stage.addEventListener("pointerdown", e => {
+  if (e.target.closest(".zoom")) return;
+  stage.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) { dragStart = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y }; moved = false; }
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinchD = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  flight = null;
+});
+stage.addEventListener("pointermove", e => {
+  const r = stage.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top;
+  if (pointers.has(e.pointerId)) {
+    pointers.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (pinchD > 0) zoomAt(d / pinchD, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top);
+      pinchD = d; moved = true; return;
+    }
+    if (dragStart) {
+      const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      if (Math.hypot(dx, dy) > 4) { moved = true; stage.classList.add("dragging"); }
+      if (moved) { cam.x = dragStart.cx - dx / cam.s; cam.y = dragStart.cy - dy / cam.s; requestDraw(); }
+    }
+    return;
+  }
+  if (e.pointerType === "mouse" && !pinned) {
+    cancelAnimationFrame(hoverTimer);
+    hoverTimer = requestAnimationFrame(() => { const [wx, wy] = s2w(sx, sy); setObserver(wx, wy); });
+  }
+});
+function endPointer(e) {
+  const r = stage.getBoundingClientRect();
+  if (pointers.has(e.pointerId) && pointers.size === 1 && !moved && e.type === "pointerup") {
+    const [wx, wy] = s2w(e.clientX - r.left, e.clientY - r.top); setObserver(wx, wy, true);
+  }
+  pointers.delete(e.pointerId); if (pointers.size < 2) pinchD = 0;
+  if (!pointers.size) { dragStart = null; stage.classList.remove("dragging"); }
+}
+stage.addEventListener("pointerup", endPointer); stage.addEventListener("pointercancel", endPointer);
+stage.addEventListener("wheel", e => {
+  e.preventDefault(); flight = null;
+  const r = stage.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0018)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input, textarea")) return;
+  const pan = 120 / cam.s;
+  if (e.key === "+" || e.key === "=") { zoomAt(1.5, view.w / 2, view.h / 2); return; }
+  if (e.key === "-" || e.key === "_") { zoomAt(1 / 1.5, view.w / 2, view.h / 2); return; }
+  if (document.activeElement === stage || document.activeElement === document.body) {
+    const d = { ArrowLeft: [-pan, 0], ArrowRight: [pan, 0], ArrowUp: [0, -pan], ArrowDown: [0, pan] }[e.key];
+    if (d) { cam.x += d[0]; cam.y += d[1]; requestDraw(); e.preventDefault(); return; }
+  }
+  if (e.key === "Escape") { if (!$("about").hidden) { $("about").hidden = true; return; } pinned = false; renderPanel(); requestDraw(); }
+});
+$("zin").onclick = () => zoomAt(1.6, view.w / 2, view.h / 2);
+$("zout").onclick = () => zoomAt(1 / 1.6, view.w / 2, view.h / 2);
+$("zfit").onclick = () => fitCity(true);
+$("aboutbtn").onclick = () => { $("about").hidden = false; $("aboutclose").focus(); };
+$("why16btn").onclick = () => { $("about").hidden = false; $("why16").scrollIntoView({ block: "start" }); $("aboutclose").focus({ preventScroll: true }); };
+$("aboutclose").onclick = () => { $("about").hidden = true; };
+$("about").addEventListener("click", e => { if (e.target.id === "about") $("about").hidden = true; });
+$("findtoggle").onclick = () => document.body.classList.toggle("show-find");
+addEventListener("resize", () => { resize(); });
+
+// ---------- start ----------
+function start() {
+  buildList(); buildSun(); renderLegend(); buildFindings(); buildAbout(); buildSearch();
+  resize();
+  if (gl) { try { initGL(); } catch (err) { console.error(err); $("nogl").hidden = false; } }
+  fitCity(false);
+  // open on a spot with a famous view so the panel isn't empty
+  const first = D.tour.find(t => t.start) || D.tour[0];
+  if (first) { pinned = true; setObserver(first.x, first.y, true); }
+  loadDem();
+  loadNames();
+  requestDraw();
+}
+start();
+</script>
