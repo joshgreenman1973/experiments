@@ -17,7 +17,7 @@ import sys, os, json, datetime as dt
 import numpy as np, numba as nb
 from zoneinfo import ZoneInfo
 from astral import Observer
-from astral.sun import elevation, azimuth, sunrise as astral_sunrise, sunset as astral_sunset
+from astral.sun import elevation, azimuth
 import grid
 
 NY = ZoneInfo("America/New_York")
@@ -30,11 +30,12 @@ def level_of(alt):
 GRID_BEARING = 299.0        # Manhattan cross streets, true bearing (measured from the street centrelines)
 
 
-def crossing(day, alt, rising):
-    """Local time on `day` when the sun's apparent centre passes `alt` degrees, by bisection."""
+def crossing(day, alt, rising, apparent=True):
+    """Local time on `day` when the sun's centre passes `alt` degrees (apparent, with refraction, unless
+    apparent=False), by bisection."""
     lo = dt.datetime(day.year, day.month, day.day, 3 if rising else 12, tzinfo=NY)
     hi = lo + dt.timedelta(hours=9)
-    f = lambda t: elevation(OBS, t, with_refraction=True) - alt
+    f = lambda t: elevation(OBS, t, with_refraction=apparent) - alt
     flo = f(lo)
     for _ in range(40):
         mid = lo + (hi - lo) / 2
@@ -45,18 +46,25 @@ def crossing(day, alt, rising):
     return lo + (hi - lo) / 2
 
 
+def hhmm(t):
+    """Clock time rounded (not cut) to the minute."""
+    return (t + dt.timedelta(seconds=30)).strftime("%H:%M")
+
+
 def event(day, rising):
     out = {"date": day.isoformat(), "levels": [], "path": []}
+    # Official sunrise / sunset: the standard definition, the sun's geometric centre 0.833 degrees below the
+    # horizon (which allows for refraction and the sun's radius). Found directly by bisection: astral's own
+    # sunrise/sunset functions run about 15 seconds off.
+    t0 = crossing(day, -0.833, rising, apparent=False)
     for a in LEVEL_ALT:
         t = crossing(day, a, rising)
-        out["levels"].append({"alt": a, "time": t.strftime("%H:%M"), "az": round(azimuth(OBS, t), 2)})
+        out["levels"].append({"alt": a, "time": hhmm(t), "az": round(azimuth(OBS, t), 2),
+                              "mins": round(abs((t - t0).total_seconds()) / 60)})
     for a in PATH:
         t = crossing(day, a, rising)
         out["path"].append({"alt": a, "time": t.strftime("%H:%M:%S"), "az": round(azimuth(OBS, t), 3)})
-    # Official sunrise / sunset: the standard definition (geometric centre 0.833 degrees below the horizon,
-    # which already allows for refraction and the sun's radius), as astral computes it.
-    t0 = (astral_sunrise if rising else astral_sunset)(OBS, day, tzinfo=NY)
-    out["official"] = t0.strftime("%H:%M")
+    out["official"] = hhmm(t0)
     out["official_az"] = round(azimuth(OBS, t0), 2)
     return out
 
@@ -94,7 +102,7 @@ def states():
     # Labels use the published dates (American Museum of Natural History, as reported for 2026); the layer
     # itself is computed for the evening (or morning) the sun lines up best with the measured grid bearing.
     S.append({"key": "henge", "label": "Manhattanhenge", "months": [], "rise": hr, "set": hs,
-              "rise_label": "Nov 29–30 · mid-January (map: Nov 29)", "set_label": "May 28–29 · Jul 11–12 (map: May 29)",
+              "rise_label": "Nov 29–30 · Jan 11–12 (map: Nov 29)", "set_label": "May 28–29 · Jul 11–12 (map: May 29)",
               "computed_for": {"sunrise": hr.isoformat(), "sunset": hs.isoformat(), "sunrise_july_twin": hr2.isoformat(), "sunset_july_twin": hs2.isoformat()}})
     for s in S:
         s["sunrise"] = event(s.pop("rise"), True)

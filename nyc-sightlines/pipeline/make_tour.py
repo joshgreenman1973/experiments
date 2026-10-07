@@ -125,9 +125,8 @@ for s in json.load(open(STOPS)):
             raise SystemExit(f"no cell meets the sun level for {s['title']}")
         j = okc[np.argmin(dist0[okc])]
         st = STATES[s["sun"]["k"]]; ev = st["sunrise" if s["sun"]["e"] == "rise" else "sunset"]
-        f = lambda tt: int(tt[:2]) * 60 + int(tt[3:5])
         lvj = int(lv[j])
-        vals["sun_mins"] = str(abs(f(ev["official"]) - f(ev["levels"][lvj - 1]["time"])))
+        vals["sun_mins"] = str(ev["levels"][lvj - 1]["mins"])
         vals["sun_share"] = f"{100 * (lv >= s['sun'].get('min', 3)).mean():.0f}%"
         seen = []
     else:

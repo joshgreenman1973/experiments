@@ -54,4 +54,28 @@ All headline numbers were reproduced. These were not:
 
 ## Sun checker
 
-Pending: the results will be added here.
+The sun checker computed solar positions with NREL's SPA algorithm (pvlib), cross-checked against its own NOAA/Meeus code. It also traced the horizon itself from 2,800 stratified squares and 96,000 random square-dates.
+
+**Verified:**
+- **The layers.** 97.5% of squares agree with its rebuild. 133 of the 135 disagreements in the stratified sample go away if either map is shifted by one 3 m square.
+- **Every share in the sunset finding.** They match the arrays exactly and hold up under the checker's own sampling.
+- **The Manhattan grid bearing.** 299.0° (length-weighted, 3,319 street segments).
+- **The Manhattanhenge dates.** AMNH lists May 29 as the full-sun evening.
+- **Daylight saving time handling.**
+- **The three sun tour captions.** On 42nd Street the sun sets over the Weehawken Palisades. The Promenade sees it at the equinox from all 554 of its squares. Rockaway's winter sunrise has a clear ocean horizon.
+- **The "small fraction of a degree" claim.** Using one sun position for the whole city changes 0.6% of squares.
+
+No moderate or major errors. Minor ones, all now fixed:
+
+| Claim | Finding | Resolution |
+|---|---|---|
+| Official sunrise/sunset times | ⚠️ 16 of 26 were a minute early. Times were cut to the minute rather than rounded, and the library's sunrise/sunset function runs about 15 s off | Times now found directly (sun's centre 0.833° below the horizon) and rounded. All 26 match the checker |
+| Legend minutes ("within ~N min") | ⚠️ 22 of 78 off by one, because they were subtracted from cut clock times | Computed from exact times, then rounded. All match the checker |
+| Three bearings (June 21 sunrise and sunset, July 23 sunset) | ⚠️ Rounded the wrong way (by ≤0.52°) | Fixed by the corrected times |
+| Manhattanhenge share "rises to 8 percent" | ⚠️ Right for the map, but brief glimpses between the 13 sampled moments are missed. A continuous check gives 9–10% | Page now says "about 8 percent (9 to 10 with a finer check)" and explains the sampling limit |
+| Sunrise alignment "mid-January" | ⚠️ Jan. 11–12 | Corrected |
+| Paired dates "repeat" | ⚠️ Sunset azimuths differ by up to 0.85°, so 3–4% of squares change level on the second date | Reworded: the path "nearly repeats (to within about a degree)" |
+| Promenade in June, "about 20 minutes or more" | ⚠️ Understated: 41% of the walk loses the sun 40+ minutes before sunset | "20 to 40 minutes or more" |
+| Manhattanhenge bearing 300° in the legend vs. 299° in the text | ⚠️ Could confuse | Note added: the sun crosses the street axis about six minutes before sunset |
+
+Not changed: the 13-moment sampling itself. Sampling more finely below 1.2° would recover the brief canyon glimpses, mainly on the Manhattanhenge maps. That would mean recomputing the sun layers; for now the page discloses the limit.

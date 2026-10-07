@@ -478,7 +478,8 @@ const stateForMonth = m => SUN.findIndex(st => st.months.includes(m));
 const EV = ["sunrise", "sunset"];
 let selMonth = new Date().getMonth() + 1;   // month picked on the sun tabs
 function clock(hhmm) { let [h, m] = hhmm.split(":").map(Number); const ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")} ${ap}`; }
-function minsBetween(a, b) { const f = x => { const [h, m] = x.split(":").map(Number); return h * 60 + m; }; return Math.abs(f(a) - f(b)); }
+// minutes between sunrise/sunset and the moment the sun is at a level's altitude (computed from exact times, then rounded)
+const levelMins = (ev, i) => ev.levels[i].mins;
 let drawQueued = false;
 function requestDraw() { if (!drawQueued) { drawQueued = true; requestAnimationFrame(draw); } }
 function resize() {
@@ -840,7 +841,7 @@ function renderPanel() {
     $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <span style="color:var(--dim)">loading the sun's path…</span>`;
   } else if (mode === 2) {
     const q = o.s.sun ? o.s.sun[sunK][sunE] : 0, { ev, label } = sunInfo();
-    const mm = i => minsBetween(ev.official, ev.levels[i].time);
+    const mm = i => levelMins(ev, i);
     const what = sunE ? [`buildings hide the sun for its last ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunset`, `you'd catch the sun within ~${mm(1)} min of sunset`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunset`]
                       : [`buildings hide the sun for its first ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunrise`, `you'd catch the sun within ~${mm(1)} min of sunrise`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunrise`];
     $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <b style="color:${SUN_COLS[sunE][2]}">${what[q]}</b>`;
@@ -1089,8 +1090,7 @@ function renderLegend() {
   document.documentElement.style.setProperty("--sun", SUN_COLS[sunE][2]);
   if (mode === 2) {
     const { ev, label } = sunInfo(), c = SUN_COLS[sunE];
-    const m2 = minsBetween(ev.official, ev.levels[1].time), m5 = minsBetween(ev.official, ev.levels[0].time);
-    const m1 = minsBetween(ev.official, ev.levels[2].time);
+    const m2 = levelMins(ev, 1), m5 = levelMins(ev, 0), m1 = levelMins(ev, 2);
     const words = sunE ? [`Within ~${m5} min of sunset`, `Within ~${m2} min`, `Within ~${m1} min: low on the horizon`] : [`Within ~${m5} min of sunrise`, `Within ~${m2} min`, `Within ~${m1} min: low on the horizon`];
     el.innerHTML = `<div class="legend-title">${sunE ? "Sunset" : "Sunrise"} from the street · ${esc(label)} · ${clock(ev.official)} · bearing ${Math.round(ev.official_az)}°</div>
       <div class="swatches" style="display:grid;gap:4px">${[2, 1, 0].map(i => `<span><i style="background:${c[i]}"></i>${words[i]}</span>`).join("")}</div>`;
@@ -1143,7 +1143,7 @@ function sunFinding(rows) {
   const lo = Math.min(...regular.map(r => r.sunset.horizon)), hi = Math.max(...regular.map(r => r.sunset.horizon));
   const mlo = Math.min(...regular.map(r => r.sunset.by_boro.Manhattan)), mhi = Math.max(...regular.map(r => r.sunset.by_boro.Manhattan));
   const h = by("henge");
-  return `<p>Sunsets are scarcer than skylines. Depending on the time of year, only ${Math.round(lo)} to ${Math.round(hi)} percent of the city's streets and parks catch the setting sun low on the horizon. In Manhattan it is ${Math.round(mlo)} to ${Math.round(mhi)} percent, highest in winter${h ? `, except on Manhattanhenge evening, when the cross streets line up with the sun and the share rises to ${Math.round(h.sunset.by_boro.Manhattan)} percent` : ""}.</p>`;
+  return `<p>Sunsets are scarcer than skylines. Depending on the time of year, only ${Math.round(lo)} to ${Math.round(hi)} percent of the city's streets and parks catch the setting sun low on the horizon. In Manhattan it is ${Math.round(mlo)} to ${Math.round(mhi)} percent, highest in winter${h ? `, except on Manhattanhenge evening, when the cross streets line up with the sun and the share rises to about ${Math.round(h.sunset.by_boro.Manhattan)} percent (9 to 10 with a finer check of the sun's path)` : ""}.</p>`;
 }
 function buildFindings() {
   const F = D.findings, el = $("findscroll");
@@ -1230,8 +1230,8 @@ function buildAbout() {
       <li><b>Boroughs and neighborhoods:</b> NYC Planning's shoreline-clipped boundaries and 2010 Neighborhood Tabulation Areas. Piers that connect only to Brooklyn or Queens are counted there, although the legal line puts some of them in Manhattan.</li>
     </ul>
     <h2 style="margin-top:18px">Sunrise and sunset</h2>
-    <p>For each date, the sun's position is computed for Midtown (the difference across the city is a small fraction of a degree) at 13 moments on its path near the horizon, from 0.3 to 6 degrees up, closely spaced near the horizon where a street canyon may catch it for only a minute or two. From every square of public ground, the model checks whether buildings, terrain or woods block the sun at each of those moments. The brightest color means you'd catch the sun when it is 1.2 degrees up or lower, within about 8 to 10 minutes of sunset or sunrise depending on the season; the middle, 2.5 degrees or lower (16 to 19 minutes); the dimmest, 6 degrees or lower (35 to 43 minutes). The legend gives the minutes for the date shown. "Catch" means at some moment in that window, not the whole time; a street that lines up with the sun may see it for only a minute or two. Times are Eastern, for 2026.</p>
-    <p>The sun's path repeats around the solstices, so one map serves two dates (late May looks like late July). The clock times differ, partly because of daylight saving time; the legend and panorama show the times for the month you pick. Manhattanhenge, when the setting sun lines up with the cross streets (true bearing 299 degrees, measured from the street map), is mapped for May 29, 2026, the evening the American Museum of Natural History lists as the full-sun date; the July dates (11 and 12) mirror it. The sunrise version is mapped for Nov. 29. The same street-level rule applies: from a high floor the sun rises earlier and sets later.</p>
+    <p>For each date, the sun's position is computed for Midtown (the difference across the city is a small fraction of a degree) at 13 moments on its path near the horizon, from 0.3 to 6 degrees up, closely spaced near the horizon where a street canyon may catch it for only a minute or two. From every square of public ground, the model checks whether buildings, terrain or woods block the sun at each of those moments. The brightest color means you'd catch the sun when it is 1.2 degrees up or lower, within about 9 to 10 minutes of sunset or sunrise depending on the season; the middle, 2.5 degrees or lower (16 to 19 minutes); the dimmest, 6 degrees or lower (35 to 43 minutes). The legend gives the minutes for the date shown. "Catch" means at some moment in that window, not the whole time; a street that lines up with the sun may see it for only a minute or two. A glimpse shorter than about a minute can fall between the 13 moments checked, so the brightest color undercounts a little in street canyons: on Manhattanhenge evening a finer check puts Manhattan's share at 9 to 10 percent rather than 8. Times are Eastern, for 2026, rounded to the minute.</p>
+    <p>The sun's path nearly repeats around the solstices (to within about a degree), so one map serves two dates (late May looks like late July), though a street that lines up exactly with the sun can differ between the two. The clock times differ, partly because of daylight saving time; the legend and panorama show the times for the month you pick. Manhattanhenge, when the setting sun lines up with the cross streets (true bearing 299 degrees, measured from the street map), is mapped for May 29, 2026, the evening the American Museum of Natural History lists as the full-sun date; the July dates (11 and 12) are close mirrors. The legend gives that evening's sunset bearing as 300 degrees; the sun crosses the street axis about six minutes earlier, less than a degree up. The sunrise version is mapped for Nov. 29. The same street-level rule applies: from a high floor the sun rises earlier and sets later.</p>
     <h2 id="why16" style="margin-top:18px">Which 16 landmarks, and why</h2>
     <p>I picked these by judgment, not by a formula or a survey, and the choice shapes every number on this page. The aim was the structures New Yorkers most readily recognize on the skyline from the street: the classic icons, the newest supertalls that now dominate it, and the big bridges. I also wanted something in or at the edge of as many boroughs as possible. The cap of 16 is technical: the map stores two bits per landmark in a 32-bit pixel.</p>
     <div style="overflow-x:auto"><table class="lmtable"><thead><tr><th>Landmark</th><th>Borough</th><th>Opened</th><th>Height</th><th>Points traced (ft above its base)</th></tr></thead><tbody>${LM.map(l => `<tr><td>${esc(l.name)}</td><td>${esc(l.borough)}</td><td>${l.year}${l.year_note ? `<br><small>${esc(l.year_note)}</small>` : ""}</td><td>${l.height_ft.toLocaleString()} ft<br><small>${esc(l.height_note)}</small></td><td>${l.levels.map(h => Math.round(h * 3.28084).toLocaleString()).join(" · ")}</td></tr>`).join("")}</tbody></table></div>
