@@ -43,7 +43,7 @@ CRS = "EPSG:32618"                 # UTM 18N, metres
 MILE = 1609.344
 CELL = MILE / 20                   # 1/20 mile, so 20x20 cells = 1 square mile
 SQMI_PER_CELL = (CELL / MILE) ** 2
-SIGMA = float(sys.argv[1]) if len(sys.argv) > 1 else 4.5   # smoothing, in cells
+SIGMA = float(sys.argv[1]) if len(sys.argv) > 1 else 2.5   # smoothing, in cells
 YEARS = [1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]
 NYC_COUNTIES = {"New York", "Kings", "Queens", "Bronx", "Richmond"}
 OFFICIAL = {1910: 4766883, 1920: 5620048, 1930: 6930446, 1940: 7454995, 1950: 7891957,

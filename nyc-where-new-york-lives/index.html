@@ -83,7 +83,7 @@
       <div class="legend-ramp">
         <canvas id="ramp" width="340" height="12"></canvas>
         <div class="ticks" id="rampticks"></div>
-        <p>People per square mile, averaged over about a quarter mile around each point</p>
+        <p>People per square mile, averaged over about an eighth of a mile around each point. Thin dark lines mark 25,000, 50,000, 100,000 and 200,000.</p>
       </div>
       <p class="densest" id="densest"></p>
       <div class="spot" id="spot">
@@ -101,7 +101,7 @@
 
   <div class="foot">
     <h2>How it was made</h2>
-    <p>Each census&rsquo;s tract counts come from IPUMS NHGIS at the University of Minnesota, with tract boundaries drawn for that census. Each tract&rsquo;s people are spread evenly over the land inside it, on a grid of squares a twentieth of a mile on a side, using today&rsquo;s shoreline from the Department of City Planning. The grid is then smoothed over about a quarter mile. In every census the tract counts add up to within 0.6 percent of the official city total. New York kept its 1930 tracts in 1940, so the 1940 counts are drawn on 1930 boundaries. The &ldquo;most crowded square mile&rdquo; is the square-mile window on the grid holding the most people before smoothing; since people are spread evenly within each tract, it is an estimate. <a href="methodology.html">Full methodology, sources and checks</a>.</p>
+    <p>Each census&rsquo;s tract counts come from IPUMS NHGIS at the University of Minnesota, with tract boundaries drawn for that census. Each tract&rsquo;s people are spread evenly over the land inside it, on a grid of squares a twentieth of a mile on a side, using today&rsquo;s shoreline from the Department of City Planning. The grid is then smoothed over about an eighth of a mile. In every census the tract counts add up to within 0.6 percent of the official city total. New York kept its 1930 tracts in 1940, so the 1940 counts are drawn on 1930 boundaries. The &ldquo;most crowded square mile&rdquo; is the square-mile window on the grid holding the most people before smoothing; since people are spread evenly within each tract, it is an estimate. <a href="methodology.html">Full methodology, sources and checks</a>.</p>
     <p>The idea comes from an animated density map of France, &ldquo;L&agrave; o&ugrave; vit la France,&rdquo; shared by Yan Holtz of the R Graph Gallery.</p>
     <p class="caution">And please read this AI caution. The idea and the choice of sources are the author&rsquo;s (a human). The code and the data processing were done by Anthropic&rsquo;s Claude Code under close direction. Quality control on this project: the tract counts for every census were summed and checked against the official city total; borough totals for 1970 through 2010 were checked against the Department of City Planning&rsquo;s community-district counts and land within 0.8 percent; the 1940 tract codes were matched to 1930 boundaries and each tract&rsquo;s 1940 count was compared with its 1930 count to catch mismatches. The risks of using AI remain, and red flags are welcome.</p>
   </div>
@@ -116,7 +116,7 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------------------------------------------------------------- data
-const V = '?v=20261007b';
+const V = '?v=20261007c';
 const meta = await (await fetch('assets/meta.json' + V)).json();
 const W = meta.W, H = meta.H, N = meta.years.length, DMAX = meta.dmax;
 const YEARS = meta.years.map(y => y.year);
@@ -158,9 +158,9 @@ const nta = new Uint16Array(ntaRaw.buffer, ntaRaw.byteOffset, P);
 const K = 2000, SMAX = Math.log(1 + 500000 / K);
 const sOf = d => Math.log(1 + d / K) / SMAX;
 const STOPS = [
-  [0, '#262a26'], [5000, mixHex(tok('cyan'), tok('bg'), .80)], [15000, mixHex(tok('cyan'), tok('bg'), .58)],
-  [30000, mixHex(tok('cyan'), tok('bg'), .30)], [50000, tok('cyan')], [90000, tok('orange')],
-  [150000, tok('sun')], [300000, '#fff3c9'], [500000, '#ffffff']
+  [0, '#1e221e'], [5000, mixHex(tok('cyan'), tok('bg'), .86)], [15000, mixHex(tok('cyan'), tok('bg'), .66)],
+  [30000, mixHex(tok('cyan'), tok('bg'), .36)], [50000, tok('cyan')], [80000, tok('orange')],
+  [130000, tok('sun')], [250000, '#fff3c9'], [500000, '#ffffff']
 ];
 function hex2rgb(h){ h = h.replace('#',''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); return [0,2,4].map(i => parseInt(h.substr(i,2),16)); }
 function mixHex(a, b, t){ const A = hex2rgb(a), B = hex2rgb(b); return '#' + A.map((v,i) => Math.round(v + (B[i]-v)*t).toString(16).padStart(2,'0')).join(''); }
@@ -210,7 +210,7 @@ precision highp float;
 precision highp sampler2DArray;
 uniform sampler2DArray uH;
 uniform sampler2D uLand, uRamp;
-uniform float uA, uB, uT, uExag, uGamma, uDmax, uK, uSmax;
+uniform float uA, uB, uT, uExag, uGamma, uDmax, uK, uSmax, uIso;
 uniform vec2 uTexel;
 uniform vec3 uL;
 uniform vec3 uWater;
@@ -222,9 +222,9 @@ void main(){
   vec2 uv = vUV;
   float n = max(dens(uv), 0.);
   float h = uExag * pow(n, uGamma);
-  float hl = hgt(uv - vec2(1.5 * uTexel.x, 0.)), hr = hgt(uv + vec2(1.5 * uTexel.x, 0.));
-  float hu = hgt(uv - vec2(0., 1.5 * uTexel.y)), hd = hgt(uv + vec2(0., 1.5 * uTexel.y));
-  vec3 nrm = normalize(vec3(hl - hr, hu - hd, 3.));
+  float hl = hgt(uv - vec2(uTexel.x, 0.)), hr = hgt(uv + vec2(uTexel.x, 0.));
+  float hu = hgt(uv - vec2(0., uTexel.y)), hd = hgt(uv + vec2(0., uTexel.y));
+  vec3 nrm = normalize(vec3(hl - hr, hu - hd, 2.));
   float diff = max(dot(nrm, uL), 0.);
   // soft cast shadows: march toward the light across the height field
   vec2 dir = normalize(uL.xy);
@@ -240,8 +240,13 @@ void main(){
   float d = n * uDmax;
   float s = log(1. + d / uK) / uSmax;
   vec3 col = texture(uRamp, vec2(clamp(s, 0., 1.), .5)).rgb;
-  float light = .40 + 1.0 * diff * (.45 + .55 * sh);
+  float light = .30 + 1.1 * diff * (.35 + .65 * sh);
   col = col * light;
+  // contour lines at 25,000, 50,000, 100,000, 200,000 and 400,000 people per square mile
+  float lv = log2(max(d, 1.) / 25000.);
+  float fw = max(fwidth(lv), 1e-4);
+  float iso = lv > -.25 ? 1. - smoothstep(.0, 1.1 * fw, abs(fract(lv + .5) - .5)) : 0.;
+  col = mix(col, uWater, iso * uIso);
   float land = smoothstep(.3, .7, texture(uLand, uv).r);
   o = vec4(mix(uWater, col, land), 1.);
 }`;
@@ -250,7 +255,7 @@ const prog = gl.createProgram();
 gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
 if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
 gl.useProgram(prog);
-const U = {}; ['uH','uLand','uRamp','uA','uB','uT','uExag','uGamma','uDmax','uK','uSmax','uTexel','uL','uWater'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+const U = {}; ['uH','uLand','uRamp','uA','uB','uT','uExag','uGamma','uDmax','uK','uSmax','uTexel','uL','uWater','uIso'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
 gl.bindVertexArray(gl.createVertexArray());
 gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
@@ -271,7 +276,7 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texPara
 gl.uniform1i(U.uH, 0); gl.uniform1i(U.uLand, 1); gl.uniform1i(U.uRamp, 2);
 gl.uniform1f(U.uDmax, DMAX); gl.uniform1f(U.uK, K); gl.uniform1f(U.uSmax, SMAX);
 gl.uniform2f(U.uTexel, 1 / W, 1 / H);
-gl.uniform1f(U.uExag, 95); gl.uniform1f(U.uGamma, .85);
+gl.uniform1f(U.uExag, 95); gl.uniform1f(U.uGamma, .85); gl.uniform1f(U.uIso, .8);
 (function(){ const az = 315 * Math.PI / 180, el = 40 * Math.PI / 180;
   // light from the northwest; x runs east, y runs south on the grid
   gl.uniform3f(U.uL, Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); })();
@@ -298,7 +303,7 @@ function resetWidth(){ wrap.style.width = ''; layout(); }
 
 // ---------------------------------------------------------------- state
 let pos = 0, playing = !reduceMotion, dirty = true, last = performance.now(), phase = 0;
-const HOLD = 900, MOVE = 1500, END_HOLD = 2600;
+const HOLD = 1400, MOVE = 1000, END_HOLD = 3000;
 function setPos(p){ pos = Math.max(0, Math.min(N - 1, p)); dirty = true; }
 
 // ---------------------------------------------------------------- scrubber

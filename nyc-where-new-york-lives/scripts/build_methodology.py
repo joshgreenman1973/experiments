@@ -71,7 +71,7 @@ code{{font-size:14px}}
   <div class="doc">
 
 <h2>What the map shows</h2>
-<p>For each decennial census from 1910 to 2020, the number of people living per square mile around every point in New York City, averaged over roughly a quarter mile. The ground is raised and colored by that density. The colors follow the legend exactly. The height also rises with density, compressed slightly at the top (height is proportional to density to the 0.85 power) so the 1910 Lower East Side does not hide everything else. Light comes from the northwest and casts shadows to the southeast.</p>
+<p>For each decennial census from 1910 to 2020, the number of people living per square mile around every point in New York City, averaged over roughly an eighth of a mile. The ground is raised and colored by that density. The colors follow the legend exactly, and thin dark contour lines mark 25,000, 50,000, 100,000, 200,000 and 400,000 people per square mile. The height also rises with density, compressed slightly at the top (height is proportional to density to the 0.85 power) so the 1910 Lower East Side does not hide everything else. Light comes from the northwest and casts shadows to the southeast.</p>
 <p>Between census years the map blends the two neighboring censuses in a straight line. The year counter moves through those in-between years, but only the census years are data.</p>
 
 <h2>Sources</h2>
@@ -113,7 +113,7 @@ code{{font-size:14px}}
 <ul>
 <li>Early tracts in Queens, Staten Island and the outer Bronx were large and thinly settled, so in the first decades those areas look like smooth plains. The map cannot show where within a big tract people lived.</li>
 <li>The shoreline is today&rsquo;s. Land made later, like Battery Park City, shows as land in 1910 but has no people until a tract there does. Parks, cemeteries and airports show as low ground in years when the tracts covering them were drawn separately, which is most of them.</li>
-<li>Tract boundaries change from census to census. Smoothing over about a quarter mile hides most of that, but small shifts between frames can come from redrawn tracts rather than people moving.</li>
+<li>Tract boundaries change from census to census. Smoothing hides most of that, but small shifts between frames can come from redrawn tracts rather than people moving.</li>
 <li>The 2020 tract counts include the small amount of noise the Census Bureau adds to protect privacy.</li>
 </ul>
 
