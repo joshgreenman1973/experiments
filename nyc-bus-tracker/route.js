@@ -183,7 +183,8 @@
       $('routes').innerHTML = `<thead><tr>${cols.map(([k, l]) => `<th data-k="${k}" class="${['wdAll', 'chg', 'buses', 'nWeeks'].includes(k) ? 'n' : ''}${k === sortKey ? ' sorted' : ''}">${l}${k === sortKey ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
         list.map(r => {
           const quiet = r.chg == null || r.wobble == null || Math.abs(r.chg) < r.wobble;
-          const ch = r.chg == null ? '–' : `<span class="${quiet ? 'flat' : r.chg > 0 ? 'up' : 'down'}">${r.chg > 0 ? '+' : ''}${r.chg.toFixed(1)}</span>`;
+          const c1 = r.chg == null ? null : Math.round(r.chg * 10) / 10;
+          const ch = c1 == null ? '–' : c1 === 0 ? '<span class="flat">0.0</span>' : `<span class="${quiet ? 'flat' : c1 > 0 ? 'up' : 'down'}">${c1 > 0 ? '+' : '−'}${Math.abs(c1).toFixed(1)}</span>`;
           return `<tr><td><a href="route.html?r=${encodeURIComponent(r.id)}">${esc(r.id)}</a></td><td class="nm">${esc(r.long)}</td><td class="n">${f1(r.wdAll)}</td><td class="n">${ch}</td><td class="n">${f1(r.buses)}</td><td class="n">${r.nWeeks ?? '–'}</td></tr>`;
         }).join('')}</tbody>`;
       $('routes').querySelectorAll('th').forEach(th => th.addEventListener('click', () => { const k = th.dataset.k; dir = k === sortKey ? -dir : (['id', 'long'].includes(k) ? 1 : -1); sortKey = k; draw(); }));

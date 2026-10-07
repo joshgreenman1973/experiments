@@ -1,16 +1,14 @@
 name: Bus Tracker Weekly Findings
 
 # Rebuilds findings.html's data ("Round and Round") and the MTA comparison.
-# Runs whenever the daily processor finishes, so it can never race ahead of the
-# day's data (on Oct. 5, 2026, a fixed-time run beat the processor and
-# published the wrong week). build_findings.js freezes at the last complete
+# The daily processor starts this run as its last step, so it can never race
+# ahead of the day's data (on Oct. 5, 2026, a fixed-time run beat the
+# processor and published the wrong week). A workflow_run trigger doesn't fire
+# for processor runs the collector starts with GitHub's own token. build_findings.js freezes at the last complete
 # ISO week, so the page itself only changes once a week; the MTA comparison
 # and the forecast refresh whenever the MTA publishes. The Monday cron is a
 # backstop.
 on:
-  workflow_run:
-    workflows: ['Process Daily Summary']
-    types: [completed]
   schedule:
     - cron: '30 15 * * 1'
   workflow_dispatch:
