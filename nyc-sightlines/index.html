@@ -902,10 +902,10 @@ function placeName(wx, wy) {
 
 // ---------- observer ----------
 let obs = null, pinned = false, hoverTimer = 0, beamAnim = null, hilite = -1, exactTimer = 0;
-function setObserver(wx, wy, pin) {
+function setObserver(wx, wy, pin, lm = null) {
   const [x, y, s] = snapOpen(wx, wy);
   const g = groundAt(x, y);
-  obs = { x, y, s, g, exact: s.z === 3, place: placeName(x, y) };
+  obs = { x, y, s, g, exact: s.z === 3, place: placeName(x, y), lm };
   if (pin !== undefined) pinned = pin;
   clearTimeout(exactTimer);
   if (!obs.exact) { // fetch the full-detail tile under this spot once the pointer settles
@@ -915,7 +915,40 @@ function setObserver(wx, wy, pin) {
   if (mode === 2) { const ssz = T * cellOf(2); fetchSun(2, Math.floor(x / ssz), Math.floor(y / ssz)); }
   computeView(); renderPanel(); requestDraw();
 }
-function scheduleObserver() { if (obs) setObserver(obs.x, obs.y); }
+function scheduleObserver() { if (obs) setObserver(obs.x, obs.y, undefined, obs.lm); }
+// the landmark whose marker (or name tag) is under a screen point, if any
+function landmarkAt(sx, sy, touch) {
+  const r = touch ? 16 : 9; let best = null, bd = 1e9;
+  for (const l of LM) {
+    for (const p of l.pts) {
+      const [x, y] = w2s(p.x, p.y), d = Math.hypot(x - sx, y - sy);
+      if (d <= r && d < bd) { best = l; bd = d; }
+    }
+    if (cam.s > 0.05 && (mode === 0 || l.i === sel)) {   // the tag drawn beside the marker
+      const p = l.pts.length > 1 ? { x: (l.pts[0].x + l.pts[1].x) / 2, y: (l.pts[0].y + l.pts[1].y) / 2 } : l.pts[0];
+      const [x, y] = w2s(p.x, p.y);
+      if (!best && sx >= x + 6 && sx <= x + 10 + l.short.length * 7 && sy >= y - 16 && sy <= y) best = l;
+    }
+  }
+  return best;
+}
+// the most other landmarks seen from open ground within about 120 m of a landmark's base (null if there is none)
+function aroundBase(l) {
+  let best = null;
+  for (const p of l.pts) for (const r of [12, 25, 40, 60, 85, 120]) for (let a = 0; a < 32; a++) {
+    const s = sample(p.x + Math.cos(a * Math.PI / 16) * r, p.y + Math.sin(a * Math.PI / 16) * r);
+    if (!(s.k === 1 || s.k === 2)) continue;
+    const n = s.codes.filter((c, i) => c > 0 && i !== l.i).length;
+    if (best === null || n > best) best = n;
+  }
+  return best;
+}
+// stand at a landmark's foot: name it, and (outside sun mode) map where it can be seen from
+function standAtLandmark(l, pin) {
+  const p = l.pts.length > 1 ? { x: (l.pts[0].x + l.pts[1].x) / 2, y: (l.pts[0].y + l.pts[1].y) / 2 } : l.pts[0];
+  if (pin && mode !== 2 && !(mode === 1 && sel === l.i)) { mode = 1; sel = l.i; syncSun(); }
+  setObserver(p.x, p.y, pin, l);
+}
 const R_EFF = 6371000 / (1 - 0.13);
 function computeView() {
   const o = obs; const eye = o.g + 1.6;
@@ -991,8 +1024,9 @@ function sizePano() {
 }
 function renderPanel() {
   const o = obs; if (!o) return;
-  const name = o.place ? (o.place.park ? o.place.n : o.place.n.replace(/-/g, " / ")) : (o.s.k === 0 ? "On the water" : o.s.k >= 4 ? "Outside the city" : "Unnamed ground");
-  const boro = o.place ? o.place.b : "";
+  let name = o.place ? (o.place.park ? o.place.n : /^park-cemetery-etc/.test(o.place.n) ? "Parks and open land" : o.place.n.replace(/-/g, " / ")) : (o.s.k === 0 ? "On the water" : o.s.k >= 4 ? "Outside the city" : "Unnamed ground");
+  let boro = o.place ? o.place.b : "";
+  if (o.lm) { name = o.lm.name; boro = o.lm.borough; }
   if (mode === 2 && !o.s.sun && (o.s.k === 1 || o.s.k === 2)) {
     $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <span style="color:var(--dim)">loading the sun's path…</span>`;
   } else if (mode === 2) {
@@ -1001,13 +1035,19 @@ function renderPanel() {
     const what = sunE ? [`buildings hide the sun for its last ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunset`, `you'd catch the sun within ~${mm(1)} min of sunset`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunset`]
                       : [`buildings hide the sun for its first ~${mm(0)} minutes`, `you'd catch the sun within ~${mm(0)} min of sunrise`, `you'd catch the sun within ~${mm(1)} min of sunrise`, `you'd see the sun low on the horizon, within ~${mm(2)} min of sunrise`];
     $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — <b style="color:${SUN_COLS[sunE][2]}">${what[q]}</b>`;
+  } else if (o.lm) {
+    const l = o.lm, others = aroundBase(l);
+    $("place").innerHTML = `<span style="color:${l.color}">●</span> ${esc(l.name)} <span style="color:var(--dim)">· ${l.year} · ${l.height_ft.toLocaleString()} ft</span> — seen from <b>${pct(l.pct)}</b> of the city's streets and parks` +
+      (others === null ? "" : `<span style="color:var(--dim)"> · ${others ? `from the ground around its base, up to ${others} of the other ${NL - 1} in view` : `none of the other ${NL - 1} in view from the ground around its base`}</span>`);
   } else
   $("place").innerHTML = `${esc(name)}${boro ? ` <span style="color:var(--dim)">· ${esc(boro)}</span>` : ""} — sees <b>${o.n}</b> of ${NL}`;
   const [lat, lon] = toLatLon(o.x, o.y);
   $("vmeta").innerHTML = `<span>${lat.toFixed(5)}°N ${Math.abs(lon).toFixed(5)}°W</span><span>ground ${Math.round(o.g * 3.28084)} ft · eyes 5′3″ up</span>` +
     (o.exact ? "" : `<span style="color:var(--lamp)">loading street detail…</span>`);
   const onWater = o.s.k === 0, onRoof = o.s.k === 3 || o.s.k === 5, outside = o.s.k === 4 || o.s.k === 5;
-  $("vnote").textContent = outside ? "Outside the five boroughs: no viewshed computed here." : onWater ? "On the water: views are computed for land only." :
+  $("vnote").textContent = o.lm && mode === 1 ? `The map shows where the ${o.lm.name.replace(/^The /, "")} can be seen from. Click elsewhere to stand somewhere else.` :
+    o.lm && !(o.s.k === 1 || o.s.k === 2) ? `No street at the foot of the ${o.lm.name.replace(/^The /, "")} to stand on here; pick a spot nearby.` :
+    outside ? "Outside the five boroughs: no viewshed computed here." : onWater ? "On the water: views are computed for land only." :
     onRoof ? "Inside a building footprint: pick a street or park." :
       (TOUCH ? "Tap the map to stand somewhere else" : pinned ? "Standing here · click elsewhere to move · Esc to follow the cursor" : "Hover to look around · click to stand still");
   updateListHere();
@@ -1422,15 +1462,20 @@ stage.addEventListener("pointermove", e => {
     }
     return;
   }
-  if (e.pointerType === "mouse" && !pinned) {
-    cancelAnimationFrame(hoverTimer);
-    hoverTimer = requestAnimationFrame(() => { const [wx, wy] = s2w(sx, sy); setObserver(wx, wy); });
+  if (e.pointerType === "mouse") {
+    const l = landmarkAt(sx, sy, false);
+    stage.style.cursor = l ? "pointer" : "";
+    if (!pinned) {
+      cancelAnimationFrame(hoverTimer);
+      hoverTimer = requestAnimationFrame(() => { if (l) standAtLandmark(l, undefined); else { const [wx, wy] = s2w(sx, sy); setObserver(wx, wy); } });
+    }
   }
 });
 function endPointer(e) {
   const r = stage.getBoundingClientRect();
   if (pointers.has(e.pointerId) && pointers.size === 1 && !moved && e.type === "pointerup") {
-    const [wx, wy] = s2w(e.clientX - r.left, e.clientY - r.top); setObserver(wx, wy, true);
+    const sx = e.clientX - r.left, sy = e.clientY - r.top, l = landmarkAt(sx, sy, e.pointerType !== "mouse");
+    if (l) standAtLandmark(l, true); else { const [wx, wy] = s2w(sx, sy); setObserver(wx, wy, true); }
   }
   pointers.delete(e.pointerId); if (pointers.size < 2) pinchD = 0;
   if (!pointers.size) { dragStart = null; stage.classList.remove("dragging"); }
