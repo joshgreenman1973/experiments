@@ -158,7 +158,7 @@
       <td class="n">${w.wdN}/${w.weN}</td><td class="n">${f1(w.wd?.all)}</td><td class="n">${f1(w.wd?.mov)}</td><td class="n">${f1(w.wd?.am?.all)}</td>
       <td class="n">${f1(w.wd?.pm?.all)}</td><td class="n">${pct(w.wd?.stop)}</td><td class="n">${f1(w.we?.all)}</td><td class="n">${f1(w.wd?.buses)}</td>
       <td class="n">${f1(w.wd?.sched)}</td><td class="n">${f1(w.wd?.pax)}</td></tr>`).join('');
-    $('weeks').innerHTML = `<thead><tr><th>Week</th><th>Starting</th><th class="n" title="Weekdays / weekend days the route ran">Days</th><th class="n">Weekday</th><th class="n">Moving</th><th class="n">7–10 a.m.</th><th class="n">4–7 p.m.</th><th class="n">Stopped</th><th class="n">Weekend</th><th class="n">Buses</th><th class="n">Scheduled</th><th class="n">Per bus</th></tr></thead><tbody>${rows}</tbody>`;
+    $('weeks').innerHTML = `<thead><tr><th>Week</th><th>Starting</th><th class="n" title="Weekdays / weekend days the route ran">Days</th><th class="n">Weekday</th><th class="n">Moving</th><th class="n">7–10 a.m.</th><th class="n">4–7 p.m.</th><th class="n">Stopped</th><th class="n">Weekend</th><th class="n" title="Average weekday buses in service at any moment, 6 a.m. to 11 p.m., every hour counting equally">Buses on the road</th><th class="n" title="Average weekday trips the MTA timetable has under way at the same hours (from Sept. 6, 2026)">Scheduled</th><th class="n" title="Passengers per bus, from the live counter estimate (from Oct. 6, 2026)">Per bus</th></tr></thead><tbody>${rows}</tbody>`;
   }
 
   // ── every route ───────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@
     seg.innerHTML = ['all', 'M', 'Bx', 'B', 'Q', 'S', 'X'].map(g => `<button data-g="${g}" class="${g === 'all' ? 'on' : ''}">${g === 'all' ? 'All' : GROUP[g]}</button>`).join('');
     seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; group = b.dataset.g; seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw(); });
     const cols = [
-      ['id', 'Route'], ['long', 'Name'], ['wdAll', 'Weekday mph'], ['chg', 'Change'], ['buses', 'Buses'], ['nWeeks', 'Comparable weeks'],
+      ['id', 'Route'], ['long', 'Name'], ['wdAll', 'Weekday mph'], ['chg', 'Change'], ['buses', 'Buses on the road'], ['nWeeks', 'Comparable weeks'],
     ];
     function draw() {
       const list = rows.filter(r => group === 'all' || r.group === group).sort((a, b) => {
@@ -180,7 +180,8 @@
         if (x == null) return 1; if (y == null) return -1;
         return (typeof x === 'string' ? x.localeCompare(y, undefined, { numeric: true }) : x - y) * dir;
       });
-      $('routes').innerHTML = `<thead><tr>${cols.map(([k, l]) => `<th data-k="${k}" class="${['wdAll', 'chg', 'buses', 'nWeeks'].includes(k) ? 'n' : ''}${k === sortKey ? ' sorted' : ''}">${l}${k === sortKey ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
+      const TIP = { buses: 'Average weekday buses in service at any moment, 6 a.m. to 11 p.m., every hour counting equally (layovers left out; hours the route does not run count as zero)', nWeeks: 'Weeks with every weekday hour collected often enough to compare', chg: 'Latest comparable week against the average of the four before it' };
+      $('routes').innerHTML = `<thead><tr>${cols.map(([k, l]) => `<th data-k="${k}" title="${TIP[k] || ''}" class="${['wdAll', 'chg', 'buses', 'nWeeks'].includes(k) ? 'n' : ''}${k === sortKey ? ' sorted' : ''}">${l}${k === sortKey ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
         list.map(r => {
           const quiet = r.chg == null || r.wobble == null || Math.abs(r.chg) < r.wobble;
           const c1 = r.chg == null ? null : Math.round(r.chg * 10) / 10;
