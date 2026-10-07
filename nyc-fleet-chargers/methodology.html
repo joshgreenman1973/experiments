@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the chargers were mapped</title>
+<meta name="description" content="Sources, placement rules and limits for the map of New York City's fleet charging sites.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+:root{--accent:var(--cyan)}
+.doc{padding:10px clamp(16px,4vw,48px) 40px;max-width:78ch}
+.doc h2{margin:30px 0 8px}
+.doc p,.doc li{line-height:1.6}
+.doc li{margin-bottom:6px}
+.wide{padding:0 clamp(16px,4vw,48px) 40px;overflow-x:auto}
+.wide table.h{min-width:820px;font-size:.88rem}
+.wide td{vertical-align:top}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><a href="./">&larr; Back to the map</a><span>Built 2026-10-07</span></div>
+  <div class="head">
+    <h1>How the chargers were mapped</h1>
+    <p class="finding">The city publishes addresses for 1,685 fleet charging stations; 318 of them came without map coordinates, and each of those was placed by a rule written down below.</p>
+  </div>
+  <div class="doc">
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://data.cityofnewyork.us/City-Government/NYC-EV-Fleet-Station-Network/fc53-9hrv">NYC EV Fleet Station Network</a> (dataset fc53-9hrv) on New York City Open Data, published by the Department of Citywide Administrative Services. Last updated May 12, 2026. One row per charging station, with agency, charger type, number of ports, address and, for most rows, latitude and longitude. 1,685 rows, 2,504 ports.</li>
+      <li>The department's <a href="https://www.nyc.gov/assets/dcas/downloads/pdf/fleet/electric-vehicle-public-charging-rules.pdf">public charging rules and list of public chargers</a>, updated Sept. 23, 2026. It names 30 fleet stations open to anyone: 26 fast chargers and 4 solar carports. Ten of them, the fast chargers at the Seuffert Bandshell lot in Forest Park, are not in the May dataset; they are added here from that list and marked as such. Prices shown on the map for these sites come from this document.</li>
+      <li>The department's <a href="https://www.nyc.gov/assets/dcas/downloads/pdf/fleet/electric-vehicle-charging-stations-map.pdf">October 2026 network map</a>, a picture with counts and no addresses. It is used only for the comparison table on the map page.</li>
+    </ul>
+
+    <h2>What counts as public</h2>
+    <p>A site is marked open to the public if any station there is on the Sept. 23 public list, is a Transportation Department curbside charger, is in a Transportation Department municipal parking lot, or is one of the six Brooklyn Army Terminal lamppost chargers the dataset lists as public with an adapter. The dataset's own "public charger" column was used for the last three; it also labels the two City Hall ports "City Hall Charging," which this map does not treat as public. The prices for curbside and municipal-lot chargers are the dataset's "fee for city drivers" column, shown as the listed price. In all, 244 ports at 58 sites are marked public.</p>
+
+    <h2>Grouping stations into sites</h2>
+    <p>Each dot is a site: all stations whose final coordinates agree to five decimal places (about a meter). That turns 1,684 fixed stations into 619 sites. A site is labeled with the address the city itself geocoded there when there is one, and drawn in the color of the kind of charger with the most ports at it. Neighborhood names come from the city's 2020 Neighborhood Tabulation Areas; a site on a beach or pier that falls just outside every area takes the nearest one. Eleven mobile chargers have no address and are not mapped.</p>
+
+    <h2>Placing the stations the city did not geocode</h2>
+    <p>318 rows arrive with no coordinates, including every upstate and Westchester site. Leaving out the 11 mobile units, the other 307 were placed this way, in this order:</p>
+    <ul>
+      <li><b>Mid-block (41 stations).</b> Transportation Department curbside chargers are listed as a street and two cross streets. Each was placed halfway between the two corners, using the city's street centerline file (<a href="https://data.cityofnewyork.us/City-Government/Centerline/inkn-q76z">CSCL, inkn-q76z</a>).</li>
+      <li><b>Street corner (6).</b> Listings that name an intersection, placed at that corner from the same centerline file. Two Sanitation rows listed as "47-01 48th Street" were put at 48th Street and 47th Avenue, following the Queens convention that the first part of a house number names the cross street.</li>
+      <li><b>Geocoded address (80).</b> City addresses run through the city's own address search (<a href="https://geosearch.planninglabs.nyc/">Planning Labs GeoSearch</a>) and accepted only when the house number it returned matched the one asked for (obvious typos, like "350 80 St" for 350 Beach 80th Street, were fixed first and are noted on the row); upstate addresses run through the <a href="https://geocoding.geo.census.gov/">Census Bureau geocoder</a>, and a handful it could not find through OpenStreetMap's Nominatim, again only on a house-level match.</li>
+      <li><b>Named facility or station group (114).</b> When the listing names a place rather than an address (Orchard Beach, Pier 36, the Queens Museum) the station was placed there; when other stations in the same group (same station-name prefix, same ZIP code) already had city coordinates, it was placed with them.</li>
+      <li><b>Approximate (66).</b> Everything that could not be matched at house level: listings like "Hazen St" on Rikers Island, numbers that do not exist on the named street, and a few upstate road addresses. These are placed on the right street or at the right facility, and the map says "Approximate" on each of the 17 sites they fall into. All Rikers Island stations without a usable address share one point, the city's own "Rikers Island" location, which is why that site shows 50 ports.</li>
+    </ul>
+
+    <h2>Checking the city's coordinates</h2>
+    <p>Each of the 1,367 rows that came with coordinates was checked two ways: whether the point falls inside the ZIP code it is listed with, using the city's ZIP code boundaries (<a href="https://data.cityofnewyork.us/Health/Modified-Zip-Code-Tabulation-Areas-MODZCTA-/pri4-ifjk">MODZCTA</a>), and how far it sits from where the city's address search puts the same address. Most mismatches were wrong ZIP codes on correctly placed points, or addresses the search could not read. Two were wrong points, and both were moved (5 stations):</p>
+    <ul>
+      <li>Sanitation's Brooklyn 18 garage, listed at 105-01 Foster Avenue in Canarsie, was plotted at Foster Avenue in Midwood, about 4.7 kilometers west. Moved to 10501 Foster Avenue.</li>
+      <li>One of four Sanitation chargers at 80 Henry Street, ZIP 10002, was plotted at 80 Henry Street in Brooklyn Heights; the other three are in Manhattan. Moved to join them.</li>
+    </ul>
+    <p>One disagreement is left as published. A Transportation Department station listed as 99-2703 Richmond Terrace, ZIP 10303, which would put it in Mariners Harbor, is plotted near the St. George ferry terminal, about 6 kilometers east, and the dataset's own neighborhood code agrees with the point. With no way to tell which is right, the map keeps the city's point. The check can be rerun with <code>build/check_coords.py</code>.</p>
+
+    <h2>Against the October 2026 map</h2>
+    <p>The department's October picture counts 2,632 ports. Its line items add up to 2,662, which is 30 more; 30 is the number of public chargers those lines add on. This map has 2,514 ports including the mobile units. Nearly all of the gap is in ordinary Level 2 plugs (103 fewer), fast chargers (33 fewer) and solar canopies (12 fewer), which points to installations made between May and October that the open dataset does not yet include. The map will catch up when the dataset is updated; rebuilding is one command.</p>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>This is the city's list as published. A listed charger may be broken, removed or behind a gate; the dataset says nothing about status.</li>
+      <li>Most sites are for city vehicles only. Being on this map does not mean a member of the public can use a charger; look for the public marking and the posted rules.</li>
+      <li>Approximate placements are on the right street or at the right facility, not at the exact plug.</li>
+      <li>Agency names are spelled out from the dataset's acronyms. A site used by two agencies shows both; the agency chart splits its ports evenly between them.</li>
+    </ul>
+
+    <h2>Files</h2>
+    <ul>
+      <li><a href="data/chargers.csv">data/chargers.csv</a>: every station, with final coordinates and how each was placed.</li>
+      <li><a href="data/sites.json">data/sites.json</a>: the sites the map draws.</li>
+      <li>The build scripts, in <code>build/</code> in the repository: <code>build_data.py</code> (the placement rules), <code>curbside.py</code> (the block and corner table), <code>lookup.py</code> (the cached geocoder calls) and this page's generator.</li>
+    </ul>
+
+    <h2>Every station not placed by the city's own coordinates</h2>
+    <p>333 rows: the 318 the city did not geocode, the 5 it geocoded wrongly and the 10 Forest Park fast chargers from the September public list.</p>
+  </div>
+  <div class="wide">
+    <table class="h">
+      <tr><th>Station</th><th>Agency</th><th>Listed address</th><th>Placement</th><th>Note</th></tr>
+<tr><td>DEP_SHAFT18-2</td><td>DEP</td><td>1 W Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT18-3</td><td>DEP</td><td>1 W Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEPVALHALLA1_L3</td><td>DEP</td><td>10 Walker Rd</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_HILLVW2A-B</td><td>DEP</td><td>100 Central Park Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>NYPD_75PCT-1</td><td>NYPD</td><td>1000 Sutter Ave</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DOC_RNDC-1</td><td>DOC</td><td>11-11 Hazen Street</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_CROTONLK-2</td><td>DEP</td><td>1120 Croton Dam Road</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_CRTNLK_1_L3</td><td>DEP</td><td>1120 Croton Dam Road</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEPPLSNTVLEALUM-S1</td><td>DEP</td><td>116 Broadway</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_HILLVW1A-B</td><td>DEP</td><td>123 Hillview Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHFT10_1_L3</td><td>DEP</td><td>1286 U.S. 6</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT10-1</td><td>DEP</td><td>1286 US-6</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT10-2</td><td>DEP</td><td>1286 US-6</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_TANNRSVLE-1</td><td>DEP</td><td>130 Allen Lane</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DEP_TNRVLE_1_L3</td><td>DEP</td><td>130 Allen Lane</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DEP_KINGSTONDPS</td><td>DEP</td><td>134 Flatbush Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRANNEX-1</td><td>DEP</td><td>16 Little Hollow Road</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRANNEX-2</td><td>DEP</td><td>16 Little Hollow Road</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_CRFLSP_1_L3</td><td>DEP</td><td>16 Samantha Lane</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DEP_HUDRIVPUMP1</td><td>DEP</td><td>199 River Rd N</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_HUDRIVPUMP2</td><td>DEP</td><td>199 River Rd N</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_6PCT_1_L3</td><td>DEP</td><td>2 Walker Rd</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SH18_1_L3</td><td>DEP</td><td>20 Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT18</td><td>DEP</td><td>20 Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT18-4</td><td>DEP</td><td>20 Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT18-5</td><td>DEP</td><td>20 Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT18-6</td><td>DEP</td><td>20 Westlake Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SHAFT6_1_L3</td><td>DEP</td><td>201 River Road North</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_BEERSTNPCT</td><td>DEP</td><td>21852 NY-10</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DOE_PS59-#1</td><td>DOE</td><td>2195 Bathgate Ave</td><td>Geocoded address</td><td>listed with a Manhattan ZIP code; the address is in the Bronx</td></tr>
+<tr><td>DEP_ASHOKN_1_L3</td><td>DEP</td><td>2398 NY-28A</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DOT_ROSEDALE-1</td><td>DOT</td><td>240- 2 128th Ave</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DOT_ROSEDALE-2</td><td>DOT</td><td>240- 2 128th Ave</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_CRSSRIVER-1</td><td>DEP</td><td>241 Cross River Rd</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_CRSSRIVER-2</td><td>DEP</td><td>241 Cross River Rd</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>FDNY_FORTTOTT#1</td><td>FDNY</td><td>325 Pratt Ave</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DPRROCKAWAY80S1</td><td>DPR</td><td>350 80 St</td><td>Geocoded address</td><td>listed as &quot;80 St&quot;; in Rockaway it is Beach 80th Street</td></tr>
+<tr><td>DPRROCKAWAY80S2</td><td>DPR</td><td>350 80 St</td><td>Geocoded address</td><td>listed as &quot;80 St&quot;; in Rockaway it is Beach 80th Street</td></tr>
+<tr><td>DOT_PTIVRY_1_L3</td><td>DOT</td><td>3551 Richmond Terrace</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_GILBOA_1_L3</td><td>DEP</td><td>370 NY-990V</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_MARVIL_1_L3</td><td>DEP</td><td>41158 NY-28</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DEP_MARGWW#1</td><td>DEP</td><td>41158 New York 28</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DEP_PORTJERVIS</td><td>DEP</td><td>43 N Maple Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_PTJRVS_1_L3</td><td>DEP</td><td>46 North Maple Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_WS465COLU1</td><td>DEP</td><td>465 Columbus Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_WS465COLU2</td><td>DEP</td><td>465 Columbus Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SUTTON_1_L3</td><td>DEP</td><td>465 Columbus Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_SUTTON_2_L3</td><td>DEP</td><td>465 Columbus Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_HILLVW-S2</td><td>DEP</td><td>492 Central Park Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DOE_Q80101</td><td>DOE</td><td>5-1-5-41 44Th Dr</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DOT_MASPTH_1_L3</td><td>DOT</td><td>57-39 58th Pl</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_GRNGRG_1_L3</td><td>DEP</td><td>570 Van Aken Road</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DOTMASPETHQNS-2</td><td>DOT</td><td>58-50 57th R</td><td>Geocoded address</td><td></td></tr>
+<tr><td>DPR_VCP-S3</td><td>DPR</td><td>6477 US-9</td><td>Geocoded address</td><td>US 9 is Broadway</td></tr>
+<tr><td>DEP_ARKVILLE-5</td><td>DEP</td><td>669 Co Rd 38</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_ARKVILLE-2</td><td>DEP</td><td>669 County Road 38</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_ARKVILLE-3</td><td>DEP</td><td>669 County Road 38</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_ARKVILLE-4</td><td>DEP</td><td>669 County Road 38</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_ARKVLE_1_L3</td><td>DEP</td><td>669 County Road 38</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KNGSTN_1_L3</td><td>DEP</td><td>71 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>NYPD107PCT_1_L3</td><td>NYPD</td><td>71-01 Parsons Boulevard</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_GRAHMSVLLE3</td><td>DEP</td><td>7866 NY-42</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRHMS_2_L3</td><td>DEP</td><td>7866 New York 42</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRAHMSVLLE2</td><td>DEP</td><td>7866 Ny-42</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRAHMSVLLE4</td><td>DEP</td><td>7870 New York 42</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_GRAHMSVLLE1</td><td>DEP</td><td>7870 Ny-42</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-4</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-5</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-6</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-7</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-8</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-9</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KNGSTN_2_L3</td><td>DEP</td><td>81 Smith Avenue</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_AVIATN_1_L3</td><td>DEP</td><td>84 Citation Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_AVIATN_2_L3</td><td>DEP</td><td>84 Citation Dr</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DOE90-27SUTPHIN</td><td>DOE</td><td>90-24-90-26 Sutphin Blvd</td><td>Geocoded address</td><td>geocoded by the city (Planning Labs GeoSearch)</td></tr>
+<tr><td>DEP_KINGSTON-1</td><td>DEP</td><td>91 Smith Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-2</td><td>DEP</td><td>91 Smith Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_KINGSTON-3</td><td>DEP</td><td>91 Smith Ave</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DEP_CDIS4_01</td><td>DEP</td><td>911 State Rt. 208</td><td>Geocoded address</td><td>geocoded by the Census Bureau</td></tr>
+<tr><td>DOT Flo 13th St</td><td>DOT</td><td>13th Street: 5th Avenue, 4th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 225th St</td><td>DOT</td><td>225th Street: Merrick Boulevard, 135th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 30th Place</td><td>DOT</td><td>30th Pl between Thomson Ave and 47th Ave</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 33rd St</td><td>DOT</td><td>33rd Street: 31st Avenue, Broadway</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 35th St</td><td>DOT</td><td>35th Street: 30th Avenue, 28th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 38th St</td><td>DOT</td><td>38th Street: 36th Avenue, 35th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 3rd Ave</td><td>DOT</td><td>3rd Avenue: 33rd Street, 34th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 41st Ave</td><td>DOT</td><td>41st Avenue: 81st Street, Baxter Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 43rd St</td><td>DOT</td><td>43rd Street: 5th Avenue, 4th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 72nd St</td><td>DOT</td><td>72nd Street: 37th Avenue, 35th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo 8th St</td><td>DOT</td><td>8th Street: 6th Avenue, 7th Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Bedford Park Blvd</td><td>DOT</td><td>Bedford Park Boulevard: Goulden Avenue, Paul Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Broadway</td><td>DOT</td><td>Broadway: West 242nd Street, West 240th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Brooklyn Ave</td><td>DOT</td><td>Brooklyn Avenue: St. Marks Avenue, Prospect Place</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Clarkson Ave</td><td>DOT</td><td>Clarkson Avenue: 40th Street, Albany Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Court St</td><td>DOT</td><td>Court Street: 1st Place, Carroll Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Dekalb Ave</td><td>DOT</td><td>Dekalb Avenue: East Gun Hill Road, East 212th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo E 67th St</td><td>DOT</td><td>East 67th Street: York Avenue, 1st Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo E 78th St</td><td>DOT</td><td>East 78th Street: Park Avenue, Lexington Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo East End Ave</td><td>DOT</td><td>East End Ave: East 88th Street, East 87th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Elton St</td><td>DOT</td><td>Elton Street: Flatlands Avenue, Locke Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Fort Washington Ave</td><td>DOT</td><td>Fort Washington Avenue: West 164th Street, West 165th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DPR_SROOSEVELT1</td><td>DPR</td><td>Hester St</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DPR_SROOSEVELT2</td><td>DPR</td><td>Hester St</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Lenox Rd</td><td>DOT</td><td>Lenox Road: New York Avenue, East 34th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Leonard St</td><td>DOT</td><td>Leonard St between Lafayette and Centre Streets</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Linden Blvd</td><td>DOT</td><td>Linden Boulevard: East 96th Street, Rockaway Parkway</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Marcus Garvey Blvd</td><td>DOT</td><td>Marcus Garvey Boulevard: Broadway, Park Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Mason Ave</td><td>DOT</td><td>Mason Avenue: Seaview, Delaware Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Meeker Ave</td><td>DOT</td><td>Meeker Avenue: Metropolitan Avenue, Rodney Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Norman Ave</td><td>DOT</td><td>Norman Avenue: Dobbin Street, Guernsey Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo N 4th St</td><td>DOT</td><td>North 4th Street: Bedford Avenue, Berry Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Prospect Park W</td><td>DOT</td><td>Prospect Park West: 5th Street, 6th Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Putnam Pl</td><td>DOT</td><td>Putnam Place: East Gun Hill Rd., Reservoir Oval West</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Queens Blvd</td><td>DOT</td><td>Queens Boulevard: 34th Street, 33rd Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Reade St</td><td>DOT</td><td>Reade St between Elk and Lafayette Streets</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Red Cross Place</td><td>DOT</td><td>Red Cross Pl between Cadman Pl E and Bk Bridge Blvd/Adams St</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo Stuyvesant Ave</td><td>DOT</td><td>Stuyvesant Avenue: Fulton Street, Chauncey Street</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo W 76th St</td><td>DOT</td><td>West 76th Street: Amsterdam Avenue, Columbus Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo W 84th St</td><td>DOT</td><td>West 84th Street: Amsterdam Avenue, Columbus Avenue</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DOT Flo W 93rd St</td><td>DOT</td><td>West 93rd Street: Central Park West, Columbus Ave</td><td>Mid-block</td><td>mid-block, from the city street centerline</td></tr>
+<tr><td>DPRQBLIC#3&amp;4</td><td>DPR</td><td>10Th Street And Queens Plaza South</td><td>Street corner</td><td>at the corner of 10 St and Queens Plz S, from the city street centerline</td></tr>
+<tr><td>DSNY_Q05-2</td><td>DSNY</td><td>47-01 48Th St</td><td>Street corner</td><td>at the corner of 48 St and 47 Ave, from the city street centerline</td></tr>
+<tr><td>DSNY_Q05-1</td><td>DSNY</td><td>47-01 48Th Street</td><td>Street corner</td><td>at the corner of 48 St and 47 Ave, from the city street centerline</td></tr>
+<tr><td>DPR_CANARSIE#1</td><td>DPR</td><td>E 88th St</td><td>Street corner</td><td>at the corner of E 88 St and Seaview Ave, from the city street centerline</td></tr>
+<tr><td>DPRBXPEPNORTH-1</td><td>DPR</td><td>Westchester Av/Burr Av</td><td>Street corner</td><td>at the corner of Westchester Ave and Burr Ave, from the city street centerline</td></tr>
+<tr><td>DPRBXPEPNORTH-2</td><td>DPR</td><td>Westchester Av/Burr Av</td><td>Street corner</td><td>at the corner of Westchester Ave and Burr Ave, from the city street centerline</td></tr>
+<tr><td>DOC_CHAPEL_1_L3</td><td>DOC</td><td>0 Hazen St</td><td>Named facility or station group</td><td>Rikers Island, with the rest of its station group</td></tr>
+<tr><td>DPRWFMARINA#1#2</td><td>DPR</td><td>1 Flushing Bay Promenade</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPR_FPBND_10_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_1_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_2_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_3_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_4_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_5_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_6_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_7_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_8_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DPR_FPBND_9_L3</td><td>DPR</td><td>1-01 Forest Park Dr</td><td>Named facility or station group</td><td>Seuffert Bandshell parking lot, Forest Park</td></tr>
+<tr><td>DEPROCKAWY_1_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DEPROCKAWY_2_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DEPROCKAWY_3_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DEPROCKAWY_4_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DEPROCKAWY_5_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DEPROCKAWY_6_L3</td><td>DEP</td><td>106 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DPRWFMARINA-S3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPRWFMARNA_1_L3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPRWFMARNA_2_L3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPRWFMARNA_3_L3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPRWFMARNA_4_L3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPRWFMARNA_5_L3</td><td>DPR</td><td>109-5 Marina Rd</td><td>Named facility or station group</td><td>World&#x27;s Fair Marina</td></tr>
+<tr><td>DPROLMBRADDICK2</td><td>DPR</td><td>117 Roosevelt Avenue</td><td>Named facility or station group</td><td>Olmsted Center, Flushing Meadows Corona Park</td></tr>
+<tr><td>DPRCITYWIDE#10</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#11</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#12</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#14</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#15</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#7</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#8</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPR_5BORO#9A-B</td><td>DPR</td><td>13 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#6</td><td>DPR</td><td>15 Bronx Shore Rd</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DEP_26WARD_1_L3</td><td>DEP</td><td>165 Schroeders Ave</td><td>Named facility or station group</td><td>26th Ward wastewater plant, with the rest of its station group</td></tr>
+<tr><td>DEP_TALLMAN-1</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-2</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-3</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-4</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-5</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-6</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-7</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-8</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DEP_TALLMAN-9</td><td>DEP</td><td>182 Powells Cove Blvd</td><td>Named facility or station group</td><td>Tallman Island wastewater plant, 127-01 Powells Cove Boulevard</td></tr>
+<tr><td>DPRCUNINGHM6A-B</td><td>DPR</td><td>196-5 Grand Central Parkway N Svc Rd</td><td>Named facility or station group</td><td>Cunningham Park, with the rest of its station group</td></tr>
+<tr><td>DDC_LIC-3</td><td>DDC</td><td>2 31St St</td><td>Named facility or station group</td><td>Design and Construction headquarters in Long Island City, with the rest of its station group</td></tr>
+<tr><td>DPR_ORCDBC_1_L3</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCDBC_2_L3</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-1</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-2</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-3</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-4</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-5</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ORCHDBCHQ-6</td><td>DPR</td><td>2 Orchard Beach Road</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DOEPETRIDES-S1</td><td>DOE</td><td>21 Safety City Blvd</td><td>Named facility or station group</td><td>Michael J. Petrides School campus</td></tr>
+<tr><td>DEPCNY_ISL_2_L3</td><td>DEP</td><td>3002 Knapp St</td><td>Named facility or station group</td><td>Coney Island wastewater plant, with the rest of its station group</td></tr>
+<tr><td>DEP_7WARDSI-S2</td><td>DEP</td><td>4 Central Rd</td><td>Named facility or station group</td><td>Wards Island wastewater plant, with the rest of its station group</td></tr>
+<tr><td>DPR_CHELSEAPARK</td><td>DPR</td><td>437-401-437-407 W 27Th St</td><td>Named facility or station group</td><td>Chelsea Park</td></tr>
+<tr><td>NYPD_TD12-1</td><td>NYPD</td><td>480 Morris Park Ave</td><td>Named facility or station group</td><td>with the rest of its station group at 460 Morris Park Avenue</td></tr>
+<tr><td>NYPD_TD12-2</td><td>NYPD</td><td>480 Morris Park Ave</td><td>Named facility or station group</td><td>with the rest of its station group at 460 Morris Park Avenue</td></tr>
+<tr><td>DEP_ROCKAWAY106</td><td>DEP</td><td>5-36 Beach Channel Dr</td><td>Named facility or station group</td><td>Rockaway wastewater plant, 106-21 Beach Channel Drive</td></tr>
+<tr><td>DSNY_QBSROOF-2</td><td>DSNY</td><td>52 58Th St</td><td>Named facility or station group</td><td>Sanitation complex at 52-07 58th Street; the listed number was incomplete</td></tr>
+<tr><td>DSNY_MN05-1</td><td>DSNY</td><td>52 58th St</td><td>Named facility or station group</td><td>Sanitation complex at 52-07 58th Street; the listed number was incomplete</td></tr>
+<tr><td>BAT Lightpole Charger 1</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>BAT Lightpole Charger 2</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>BAT Lightpole Charger 3</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>BAT Lightpole Charger 4</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>BAT Lightpole Charger 5</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>BAT Lightpole Charger 6</td><td>DCAS</td><td>58th St Brooklyn Army Terminal</td><td>Named facility or station group</td><td>Brooklyn Army Terminal</td></tr>
+<tr><td>DPR-MILLPOND-2</td><td>DPR</td><td>875 Exterior Street</td><td>Named facility or station group</td><td>Mill Pond Park</td></tr>
+<tr><td>DPR-MILLPOND-3</td><td>DPR</td><td>875 Exterior Street</td><td>Named facility or station group</td><td>Mill Pond Park</td></tr>
+<tr><td>DPR-MILLPOND-5</td><td>DPR</td><td>875 Exterior Street</td><td>Named facility or station group</td><td>Mill Pond Park</td></tr>
+<tr><td>NYPD_121PCT#3</td><td>NYPD</td><td>970 Sanders St</td><td>Named facility or station group</td><td>121st Precinct, with the rest of its station group</td></tr>
+<tr><td>DPRNMEADOW#1A-B</td><td>DPR</td><td>97Th St Transverse</td><td>Named facility or station group</td><td>North Meadow, Central Park, with the rest of the Parks chargers there</td></tr>
+<tr><td>DPRNMEADOW#2A-B</td><td>DPR</td><td>97Th St Transverse</td><td>Named facility or station group</td><td>North Meadow, Central Park, with the rest of the Parks chargers there</td></tr>
+<tr><td>DPRQNSMSEUM#1#2</td><td>DPR</td><td>Avenue Of The States</td><td>Named facility or station group</td><td>Queens Museum, Flushing Meadows Corona Park</td></tr>
+<tr><td>DEP_ARKVILLE-1</td><td>DEP</td><td>Co Rd 38</td><td>Named facility or station group</td><td>Environmental Protection, Arkville, with the rest of its station group</td></tr>
+<tr><td>DPRARSENAL#1</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#10</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#11</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#13</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#14</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#15</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#16</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#17</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#2</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#3</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#4</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#5</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#6</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#7</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL#9</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL-12</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL-8</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRARSENAL_1_L3</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPR_ARSENAL18</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPR_ARSENAL19</td><td>DPR</td><td>East Dr</td><td>Named facility or station group</td><td>the Arsenal in Central Park, Parks Department headquarters; listed only as &quot;East Dr&quot;</td></tr>
+<tr><td>DPRMBLOT8-S1</td><td>DPR</td><td>Father Capodanno Blvd</td><td>Named facility or station group</td><td>Midland Beach Lot 8, with the rest of its station group</td></tr>
+<tr><td>DPRMBLOT8-S2</td><td>DPR</td><td>Father Capodanno Blvd</td><td>Named facility or station group</td><td>Midland Beach Lot 8, with the rest of its station group</td></tr>
+<tr><td>DPRMBLOT8-S3</td><td>DPR</td><td>Father Capodanno Blvd</td><td>Named facility or station group</td><td>Midland Beach Lot 8, with the rest of its station group</td></tr>
+<tr><td>DPROAKRIDGE#1#2</td><td>DPR</td><td>Forest Park Dr</td><td>Named facility or station group</td><td>Oak Ridge, Forest Park, with the rest of its station group</td></tr>
+<tr><td>DOC_HAZENLOT-S1</td><td>DOC</td><td>Hazen St</td><td>Named facility or station group</td><td>Rikers Island, with the rest of its station group</td></tr>
+<tr><td>DOC_HAZENLOT-S2</td><td>DOC</td><td>Hazen St</td><td>Named facility or station group</td><td>Rikers Island, with the rest of its station group</td></tr>
+<tr><td>DOC_HAZENLOT-S3</td><td>DOC</td><td>Hazen St</td><td>Named facility or station group</td><td>Rikers Island, with the rest of its station group</td></tr>
+<tr><td>DEP_WARDS ISLAN</td><td>DEP</td><td>Hell Gate Cir</td><td>Named facility or station group</td><td>Wards Island wastewater plant, with the rest of its station group</td></tr>
+<tr><td>DPR_ICAHN4</td><td>DPR</td><td>Hell Gate Cir</td><td>Named facility or station group</td><td>Icahn Stadium on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPR_BAY8TH#1</td><td>DPR</td><td>Independence Ave</td><td>Named facility or station group</td><td>Bay 8th Street Parks yard, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#4</td><td>DPR</td><td>Main Roadway/Opp Park &amp; Recreation</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRCITYWIDE#5</td><td>DPR</td><td>Main Roadway/Opp Park &amp; Recreation</td><td>Named facility or station group</td><td>Parks yard on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPRMILLPOND1&amp;2</td><td>DPR</td><td>Major Deegan Expy</td><td>Named facility or station group</td><td>Mill Pond Park</td></tr>
+<tr><td>DPR_ORCH-BCH-S2</td><td>DPR</td><td>Park Dr</td><td>Named facility or station group</td><td>Orchard Beach</td></tr>
+<tr><td>DPR_ICAHN1</td><td>DPR</td><td>Rivers Edge Rd</td><td>Named facility or station group</td><td>Icahn Stadium on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPR_ICAHN2</td><td>DPR</td><td>Rivers Edge Rd</td><td>Named facility or station group</td><td>Icahn Stadium on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>DPR_ICAHN3</td><td>DPR</td><td>Rivers Edge Rd</td><td>Named facility or station group</td><td>Icahn Stadium on Randalls Island, with the rest of its station group</td></tr>
+<tr><td>NYPDHQ_1PP_3_L3</td><td>NYPD</td><td>Rose St</td><td>Named facility or station group</td><td>Police headquarters, with the rest of its station group</td></tr>
+<tr><td>NYPDHQ_1PP_5_L3</td><td>NYPD</td><td>Rose St</td><td>Named facility or station group</td><td>Police headquarters, with the rest of its station group</td></tr>
+<tr><td>DSNY_MN03-1</td><td>DSNY</td><td>South Street Pier 36</td><td>Named facility or station group</td><td>Pier 36</td></tr>
+<tr><td>DSNY_MN03-2</td><td>DSNY</td><td>South Street Pier 36</td><td>Named facility or station group</td><td>Pier 36</td></tr>
+<tr><td>DSNY_MN03-3</td><td>DSNY</td><td>South Street Pier 36</td><td>Named facility or station group</td><td>Pier 36</td></tr>
+<tr><td>DCAS_QBH_1_L3</td><td>DCAS</td><td>Union Tpke/Queens Blvd</td><td>Named facility or station group</td><td>Queens Borough Hall, with the rest of its station group</td></tr>
+<tr><td>DCAS_QBH_2_L3</td><td>DCAS</td><td>Union Tpke/Queens Blvd</td><td>Named facility or station group</td><td>Queens Borough Hall, with the rest of its station group</td></tr>
+<tr><td>DCAS_QBH_3_L3</td><td>DCAS</td><td>Union Tpke/Queens Blvd</td><td>Named facility or station group</td><td>Queens Borough Hall, with the rest of its station group</td></tr>
+<tr><td>NYPD_CPRKP_1_L3</td><td>NYPD</td><td>W 86 St/Traverse Rd</td><td>Named facility or station group</td><td>Central Park Precinct, 86th Street Transverse</td></tr>
+<tr><td>DOCCIBWESTFAC</td><td>DOC</td><td>West Facility Cib</td><td>Named facility or station group</td><td>West Facility, Rikers Island</td></tr>
+<tr><td>DOC_FMRDCOMPLEX</td><td>DOC</td><td>0 Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_MCD_IT_1</td><td>DOC</td><td>0 Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_PREA-1</td><td>DOC</td><td>1 Construction Way</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_PREA-2</td><td>DOC</td><td>1 Construction Way</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DEP_CROTONLK-1</td><td>DEP</td><td>1020 Croton Dam Road</td><td>Approximate</td><td>Croton Dam Road; the listed number could not be matched</td></tr>
+<tr><td>DOC_FFF-CPT</td><td>DOC</td><td>120 Construction Way</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>FDNY_FTTOTTEN#3</td><td>FDNY</td><td>135 Shore Road</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>DOC_FMRDPLUMB#1</td><td>DOC</td><td>14 Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_DCFLEET</td><td>DOC</td><td>15 Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_VTF_1</td><td>DOC</td><td>15 W 5th St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_IT_WAREHSE</td><td>DOC</td><td>15B West 5th Street East Elmhurst</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DPR_VCP-S1</td><td>DPR</td><td>189 Van Cortlandt Ave W</td><td>Approximate</td><td>Van Cortlandt Park golf course; placed on Van Cortlandt Avenue West</td></tr>
+<tr><td>NYPD111PCT-1</td><td>NYPD</td><td>1964 Northern Blvd</td><td>Approximate</td><td>111th Precinct station house; the listed address could not be matched</td></tr>
+<tr><td>DEP_DNSVLE_1_L3</td><td>DEP</td><td>20 NYC Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DEPDOWNSVILLE_1</td><td>DEP</td><td>20 New York City Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DEPDOWNSVILLE_3</td><td>DEP</td><td>20 New York City Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DEPDOWNSVILLE_4</td><td>DEP</td><td>20 New York City Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DEPDOWNSVILLE_5</td><td>DEP</td><td>20 New York City Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DEP_ASHOKANBNL1</td><td>DEP</td><td>2471 B W S Rd</td><td>Approximate</td><td>Ashokan Reservoir area, Olivebridge; the listed address could not be matched</td></tr>
+<tr><td>DEP_ASHOKANBNL2</td><td>DEP</td><td>2471 B W S Rd</td><td>Approximate</td><td>Ashokan Reservoir area, Olivebridge; the listed address could not be matched</td></tr>
+<tr><td>DSNY_Q06-1</td><td>DSNY</td><td>2720 53Rd Ave</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QENFDCFC-1</td><td>DSNY</td><td>2720 53rd Ave</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QENFDCFC-2</td><td>DSNY</td><td>2720 53rd Ave</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QENFDCFC-3</td><td>DSNY</td><td>2720 53rd Ave</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QW3-DCFC1</td><td>DSNY</td><td>2720 53rd Avenue</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QW3-DCFC2</td><td>DSNY</td><td>2720 53rd Avenue</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DSNY_QW6-DCFC1</td><td>DSNY</td><td>2720 53rd Avenue</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; the listed number (2720) could not be matched</td></tr>
+<tr><td>DOC_DIVISION-1</td><td>DOC</td><td>30 N Perimeter Rd</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DRPSIPEP_FORDPRO-1</td><td>DPR</td><td>300 Altamont st</td><td>Approximate</td><td>on Altamont Street; the house number could not be matched</td></tr>
+<tr><td>DRPSIPEP_FORDPRO-2</td><td>DPR</td><td>300 Altamont st</td><td>Approximate</td><td>on Altamont Street; the house number could not be matched</td></tr>
+<tr><td>FDNY-CFRD#1</td><td>FDNY</td><td>302 Sgt. Charles M. Beer</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>FDNY-CFRD#2</td><td>FDNY</td><td>302 Sgt. Charles M. Beer</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>DEP_WDRC#1</td><td>DEP</td><td>3525 State Highway 10</td><td>Approximate</td><td>on State Highway 10 in Deposit; the house number could not be matched</td></tr>
+<tr><td>NYCHA_LIC2A-B</td><td>NYCHA</td><td>36 49Th Ave</td><td>Approximate</td><td>on 49th Avenue; the listed numbers (36 and 37) could not be matched</td></tr>
+<tr><td>NYCHA_LIC1A-B</td><td>NYCHA</td><td>37 49Th Ave</td><td>Approximate</td><td>on 49th Avenue; the listed numbers (36 and 37) could not be matched</td></tr>
+<tr><td>DEPDOWNSVILLE_2</td><td>DEP</td><td>40 New York City Highway 30A</td><td>Approximate</td><td>Downsville, at the Pepacton Reservoir dam; the listed address could not be matched</td></tr>
+<tr><td>DPR_LRP#1#2</td><td>DPR</td><td>42-12 Queens Plaza S</td><td>Approximate</td><td>on Queens Plaza South; the house number could not be matched</td></tr>
+<tr><td>DOCCMUTRAILER01</td><td>DOC</td><td>50 Construction Way</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DSNY_QW6-DCFC2</td><td>DSNY</td><td>53rd Avenue</td><td>Approximate</td><td>Sanitation complex on 53rd Avenue; no house number listed</td></tr>
+<tr><td>DPR_VCP-S2</td><td>DPR</td><td>5901 Mosholu Ave</td><td>Approximate</td><td>Van Cortlandt Park; placed on Mosholu Avenue, house number not matched</td></tr>
+<tr><td>DPRFTTOTTEN1A-B</td><td>DPR</td><td>638 Bayside St</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>DPRFTTOTTEN2A-B</td><td>DPR</td><td>638 Bayside St</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>DPRFTTOTTEN3A-B</td><td>DPR</td><td>638 Bayside St</td><td>Approximate</td><td>Fort Totten; the listed address could not be matched</td></tr>
+<tr><td>DEP_GRHMS_1_L3</td><td>DEP</td><td>7892 42</td><td>Approximate</td><td>Route 42, Grahamsville; the listed number could not be matched</td></tr>
+<tr><td>NYPD_94PCT-1</td><td>NYPD</td><td>9096 Meserole Ave</td><td>Approximate</td><td>94th Precinct, Meserole Avenue; the listed number could not be matched</td></tr>
+<tr><td>DOCWELLNES_1_L3</td><td>DOC</td><td>Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_FMRD-WH</td><td>DOC</td><td>Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_HAZENDCFC</td><td>DOC</td><td>Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_HAZENLT1A-B</td><td>DOC</td><td>Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_HAZENLT2A-B</td><td>DOC</td><td>Hazen St</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOCCWOD3</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOCTRANSARSEN01</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOCTRANSARSEN02</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_DIVISION-2</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_ENVHEALTH</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_RI-INVDIV-1</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_RI-INVDIV-2</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_RI-INVDIV-S</td><td>DOC</td><td>Hillside Ave</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DPRRIVERSIDE-S1</td><td>DPR</td><td>Hudson River Greenway</td><td>Approximate</td><td>Riverside Park, with the rest of its station group</td></tr>
+<tr><td>DPRFTTOTTEN-S1</td><td>DPR</td><td>Murray Ave</td><td>Approximate</td><td>Fort Totten; listed only as &quot;Murray Ave&quot;</td></tr>
+<tr><td>DPRFTTOTTEN-S2</td><td>DPR</td><td>Murray Ave</td><td>Approximate</td><td>Fort Totten; listed only as &quot;Murray Ave&quot;</td></tr>
+<tr><td>DPRRIVERSIDE-S2</td><td>DPR</td><td>Ny-9A</td><td>Approximate</td><td>Riverside Park, with the rest of its station group</td></tr>
+<tr><td>DOC_ETAYLOR-S</td><td>DOC</td><td>Rikers Is Br Appr</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DOC_SDC-1</td><td>DOC</td><td>SDC OFFICE</td><td>Approximate</td><td>Rikers Island; the listed address does not pin down a spot on the island</td></tr>
+<tr><td>DPRFRKILLS1A-B</td><td>DPR</td><td>Unnamed Road</td><td>Approximate</td><td>Freshkills Park; listed only as &quot;Unnamed Road&quot;</td></tr>
+<tr><td>DPRFRKILLS2A-B</td><td>DPR</td><td>Unnamed Road</td><td>Approximate</td><td>Freshkills Park; listed only as &quot;Unnamed Road&quot;</td></tr>
+<tr><td>DSNY_BK18-1</td><td>DSNY</td><td>105-01 Foster Ave</td><td>Corrected</td><td>the city placed this Canarsie garage at Foster Avenue in Midwood, about 4.7 km west; moved to 10501 Foster Avenue</td></tr>
+<tr><td>DSNY_BK18-2</td><td>DSNY</td><td>105-01 Foster Ave</td><td>Corrected</td><td>the city placed this Canarsie garage at Foster Avenue in Midwood, about 4.7 km west; moved to 10501 Foster Avenue</td></tr>
+<tr><td>DSNY_BK18-DCFC1</td><td>DSNY</td><td>105-01 Foster Ave</td><td>Corrected</td><td>the city placed this Canarsie garage at Foster Avenue in Midwood, about 4.7 km west; moved to 10501 Foster Avenue</td></tr>
+<tr><td>DSNY_BK18-DCFC2</td><td>DSNY</td><td>105-01 Foster Ave</td><td>Corrected</td><td>the city placed this Canarsie garage at Foster Avenue in Midwood, about 4.7 km west; moved to 10501 Foster Avenue</td></tr>
+<tr><td>DSNY_HENRY-3</td><td>DSNY</td><td>80 Henry Street</td><td>Corrected</td><td>the city placed this one charger at 80 Henry Street in Brooklyn Heights; its three siblings and the ZIP code are in Manhattan</td></tr>
+<tr><td>DCAS ROADIE 1</td><td>DCAS</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DCAS ROADIE 2</td><td>DCAS</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DEP ROADIE 1</td><td>DEP</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DOC ROADIE 1</td><td>DOC</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DOC_MOBI_1</td><td>DOC</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DOT ROADIE 1</td><td>DOT</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DPR ROADIE 1</td><td>DPR</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DSNY ROADIE 1</td><td>DSNY</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>DSNY ROADIE 2</td><td>DSNY</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>NYPD ROADIE 1</td><td>NYPD</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+<tr><td>NYPD ROADIE 2</td><td>NYPD</td><td>(none)</td><td>Not mapped</td><td>mobile charger; no fixed location</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

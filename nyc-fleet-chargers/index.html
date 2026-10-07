@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where city vehicles charge</title>
+<meta name="description" content="Every charging site in New York City's own fleet network, mapped and searchable by address, neighborhood, ZIP code, agency and charger type, with the ones open to the public marked.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{--accent:var(--cyan)}
+.mapsec{border-top:1px solid var(--line2);margin-top:22px}
+#map{height:74vh;min-height:520px;background:var(--bg2)}
+.maplibregl-ctrl-group{border-radius:0;box-shadow:none;border:1px solid var(--line);background:var(--bg2)}
+.maplibregl-ctrl-group button{border-radius:0}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
+.maplibregl-ctrl-attrib,.maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(17,19,17,.85);color:var(--fg2)}
+.maplibregl-ctrl-attrib a{color:var(--fg2)}
+.maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-popup-content{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:0;padding:7px 10px;font-family:var(--sans);font-size:14px;box-shadow:none}
+.maplibregl-popup-tip{display:none}
+
+/* search row */
+.searchrow{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:14px clamp(16px,4vw,48px) 10px}
+.searchrow input[type=search]{flex:1 1 340px;font-size:16px;padding:12px 14px}
+.searchrow select{flex:0 1 auto}
+.btn{font-size:var(--t-small);font-weight:600;padding:10px 12px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;border-radius:0}
+.btn:hover{border-color:var(--fg)}
+.typerow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:0 clamp(16px,4vw,48px) 12px;border-bottom:1px solid var(--line2)}
+[hidden]{display:none!important}
+.typerow .chip{display:inline-flex;align-items:center;gap:7px}
+.typerow .chip[data-k][aria-pressed=true]{background:transparent;color:var(--fg);border-color:var(--line)}
+.typerow .chip[data-k][aria-pressed=true]:hover{border-color:var(--fg)}
+.typerow .chip i{width:10px;height:10px;display:inline-block;border-radius:50%}
+.typerow .chip[aria-pressed=false]{opacity:.55}
+.typerow .chip[aria-pressed=false] i{background:transparent!important;border:1.5px solid var(--fg2)}
+.typerow .chip.pub[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.typerow .chip.pub[aria-pressed=false]{opacity:1}
+.typerow .chip.pub i{border:2px solid currentColor;background:transparent}
+.typerow .sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px}
+.typerow #showing{margin-left:auto;font-size:var(--t-small);color:var(--fg2)}
+@media(max-width:760px){.typerow #showing{margin-left:0;width:100%}}
+
+/* side column */
+.side{height:calc(74vh);min-height:520px;overflow:auto;border-top:0}
+@media(max-width:900px){#map{height:58vh;min-height:380px}.side{height:auto;min-height:0;max-height:none}}
+.listhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:11px clamp(16px,2.5vw,24px) 8px;
+  font-size:var(--t-small);color:var(--fg2);border-bottom:1px solid var(--line2);position:sticky;top:0;background:var(--bg);z-index:2}
+.listhead b{color:var(--fg)}
+.listhead button{background:none;border:0;color:var(--fg2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:var(--t-small);padding:0}
+.places{border-bottom:1px solid var(--line2)}
+.place{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line2);color:var(--fg);
+  padding:9px clamp(16px,2.5vw,24px);cursor:pointer;font-family:inherit;font-size:15px}
+.place:last-child{border-bottom:0}
+.place:hover{background:var(--bg2)}
+.place span{color:var(--fg2);font-size:var(--t-small);margin-left:6px}
+.site{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;
+  border:0;border-bottom:1px solid var(--line2);padding:10px clamp(16px,2.5vw,24px);cursor:pointer;font-family:inherit;color:var(--fg)}
+.site:hover{background:var(--bg2)}
+.site .sw{width:10px;height:10px;border-radius:50%;display:block;align-self:center}
+.site .sw.pub{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--fg)}
+.site .nm{font-family:var(--display);font-variation-settings:'wdth' 86;font-weight:600;font-size:1.04rem;line-height:1.2;display:block}
+.site .mt{display:block;font-size:var(--t-small);color:var(--fg2);margin-top:2px}
+.site .n{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.site .n small{display:block;font-family:var(--sans);font-weight:500;font-size:12px;color:var(--fg2)}
+.more{display:block;width:100%;padding:12px;background:none;border:0;color:var(--fg2);cursor:pointer;font-size:var(--t-small);text-decoration:underline}
+.hint{padding:18px clamp(16px,2.5vw,24px);color:var(--fg2);font-size:.95rem;line-height:1.5}
+
+/* one site */
+.dossier{padding:12px clamp(16px,2.5vw,24px) 26px}
+.back{background:none;border:0;color:var(--fg2);cursor:pointer;font-size:var(--t-small);padding:0;margin:0 0 10px;text-decoration:underline;text-underline-offset:2px}
+.dossier h2{font-size:1.35rem;margin:0 0 3px;line-height:1.15}
+.dossier .meta{font-size:var(--t-small);color:var(--fg2);margin:0 0 14px}
+.prow{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line2)}
+.prow:last-of-type{border-bottom:1px solid var(--line2)}
+.prow i{width:10px;height:10px;border-radius:50%;display:block;align-self:center}
+.prow span small{display:block;color:var(--fg2);font-size:var(--t-small)}
+.prow b{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:600;font-variant-numeric:tabular-nums}
+.pubnote{margin:14px 0 0;padding:9px 12px;border-left:3px solid var(--fg);font-size:.95rem;line-height:1.5;background:var(--bg2)}
+.pubnote b{display:block;margin-bottom:2px}
+.fleetnote{margin:14px 0 0;font-size:.95rem;color:var(--fg2);line-height:1.5}
+dl.f{margin:16px 0 0}
+dl.f>div{grid-template-columns:110px 1fr}
+.ids{font-size:var(--t-small);color:var(--fg2);line-height:1.6;word-break:break-word}
+.dirs{display:inline-block;margin-top:14px;font-size:var(--t-small);font-weight:700;border:1px solid var(--fg);padding:8px 12px;text-decoration:none;color:var(--fg)}
+.dirs:hover{background:var(--fg);color:var(--bg)}
+.approx{color:var(--sun)}
+
+/* agency bars */
+.who{padding:30px clamp(16px,4vw,48px) 10px}
+.who .aside{margin-bottom:12px}
+.arow{display:grid;grid-template-columns:minmax(150px,240px) minmax(0,1fr) 92px;gap:12px;align-items:center;padding:5px 0;width:100%;
+  background:none;border:0;color:var(--fg);font-family:inherit;text-align:left;cursor:pointer}
+.arow:hover .an{text-decoration:underline;text-underline-offset:2px}
+.arow .an{font-size:.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .bar{display:flex;height:12px}
+.arow .bar i{display:block;height:100%}
+.arow .av{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;font-size:.95rem}
+.arow .av small{font-family:var(--sans);font-weight:500;color:var(--fg2);font-size:12px;margin-left:4px}
+@media(max-width:600px){.arow{grid-template-columns:1fr 70px}.arow .bar{grid-column:1 / -1;grid-row:2}}
+.recon{padding:8px clamp(16px,4vw,48px) 26px;max-width:880px}
+.recon table.h td,.recon table.h th{padding-right:16px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="strip">
+    <span>New York City Open Data &middot; Department of Citywide Administrative Services</span>
+    <span id="range">Station list of May 12, 2026; public list of Sept. 23, 2026</span>
+  </div>
+
+  <div class="head">
+    <h1>Where city vehicles charge</h1>
+    <p class="finding" id="finding">New York City runs 2,503 charging ports for its own vehicles at 619 sites, and 244 of those ports, at 58 sites, are open to the public.</p>
+    <p class="lede" id="lede">Loading the station list&hellip;</p>
+    <p class="src">Source: <a href="https://data.cityofnewyork.us/City-Government/NYC-EV-Fleet-Station-Network/fc53-9hrv">NYC EV Fleet Station Network</a> on New York City Open Data &middot; <a href="methodology.html">How it was mapped</a> &middot; <a href="data/chargers.csv" download>Download every station (CSV)</a></p>
+  </div>
+
+  <div class="mapsec" id="mapsec">
+    <div class="searchrow">
+      <input id="q" type="search" placeholder="Search an address, neighborhood, ZIP code, agency or station code" autocomplete="off" aria-label="Search chargers">
+      <select id="f-ag" aria-label="Agency"><option value="">Every agency</option></select>
+      <select id="f-bo" aria-label="Borough"><option value="">All boroughs</option><option>Manhattan</option><option>Bronx</option><option>Brooklyn</option><option>Queens</option><option>Staten Island</option><option value="Outside the city">Upstate and Westchester</option></select>
+      <button class="btn" id="nearme" type="button">Near me</button>
+    </div>
+    <div class="typerow" id="types">
+      <button class="chip pub" id="f-pub" aria-pressed="false" type="button"><i></i>Open to the public only</button>
+      <span class="sep"></span>
+      <span id="showing"></span>
+    </div>
+    <div class="cols">
+      <div class="col"><div id="map" role="region" aria-label="Map of charging sites"></div></div>
+      <div class="col side" id="side"></div>
+    </div>
+  </div>
+
+  <div class="who">
+    <h2>Which agencies have them</h2>
+    <p class="aside" id="who-aside">Ports by agency, split by kind of charger. Click an agency to show only its sites on the map.</p>
+    <div id="bars"></div>
+  </div>
+
+  <div class="recon">
+    <h3>This map against the city's October 2026 PDF</h3>
+    <p class="aside">The Department of Citywide Administrative Services publishes a <a href="https://www.nyc.gov/assets/dcas/downloads/pdf/fleet/electric-vehicle-charging-stations-map.pdf">picture of its network as of October 2026</a> with counts but no addresses. The open dataset with the addresses was last updated in May, so this map is short of the October count, mostly in ordinary Level 2 plugs.</p>
+    <table class="h" id="recon"></table>
+  </div>
+
+  <div class="foot">
+    <p class="caution">And please read this AI caution. The idea and the choice of sources are the author's (a human). The code, the data pull and the geocoding were done by Anthropic's Claude Code under close direction. Quality control on this project: every count on this page was recomputed from the city's file; every published coordinate was checked against the city's ZIP code boundaries and re-geocoded through the city's own address search, which turned up two misplaced sites that are now corrected; each of the 307 fixed stations the city published without coordinates was placed by a written rule, and each placement is listed in the methodology. The risks of using AI remain, and red flags are welcome.</p>
+    <p><a href="methodology.html">How each charger was placed, and what this map leaves out &rarr;</a></p>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=n=>Number(n||0).toLocaleString('en-US');
+const WORDS=['zero','one','two','three','four','five','six','seven','eight','nine'];
+const word=n=>n<10?WORDS[n]:nf(n);
+
+// kinds of charger, fastest first; lot2 and lot3 share a colour on the map
+const KINDS=[
+  {k:'dcfc',label:'Fast (DC)',long:'Fast charger (DC)',ink:'vermilion',note:'direct-current fast charger, the quickest kind'},
+  {k:'lot',label:'Municipal parking lot',long:'Municipal parking lot',ink:'lilac',note:'Transportation Department lots open to the public'},
+  {k:'curb',label:'Curbside',long:'Curbside charger',ink:'cyan',note:'Transportation Department curbside plugs, open to the public'},
+  {k:'solar',label:'Solar carport',long:'Solar carport',ink:'sun',note:'off-grid unit with its own panel and battery'},
+  {k:'canopy',label:'Solar canopy',long:'Solar canopy',ink:'mint',note:'solar-roofed charger'},
+  {k:'l2',label:'Level 2',long:'Level 2',ink:'cobalt',note:'standard plug; a full charge takes hours'},
+];
+const SUB={lot2:'lot',lot3:'lot'};
+const SUBLABEL={lot2:'Municipal lot, Level 2',lot3:'Municipal lot, fast'};
+const kindOf=k=>SUB[k]||k;
+let INK={},TK={},S=[],META={},map,sel=null,origin=null,shown=[],limit=60,active=new Set(KINDS.map(x=>x.k));
+
+function tokens(){const st=getComputedStyle(document.documentElement),t=n=>st.getPropertyValue('--'+n).trim();
+  TK={fg:t('fg'),fg2:t('fg2'),bg:t('bg'),bg2:t('bg2'),line:t('line')};KINDS.forEach(x=>INK[x.k]=t(x.ink));}
+
+// the kind a site is drawn in: the one with the most ports, ties to the faster
+function mainKind(s){let best=null,bn=-1;KINDS.forEach(x=>{const n=portsOf(s,x.k);if(n>bn){bn=n;best=x.k;}});return best;}
+function portsOf(s,k){return Object.entries(s.p).filter(([kk])=>kindOf(kk)===k).reduce((a,[,n])=>a+n,0);}
+
+fetch('data/sites.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{S=d.sites;META=d.meta;init();})
+  .catch(e=>{$('#lede').textContent='Could not load the station list: '+e.message;});
+
+function init(){
+  tokens();
+  S.forEach(s=>{
+    s.mk=mainKind(s);
+    s.agn=s.ag.map(a=>META.agencies[a]||a);
+    const kw=Object.keys(s.p).map(k=>{const K=KINDS.find(x=>x.k===kindOf(k));return K.label+' '+K.long+(SUBLABEL[k]?' '+SUBLABEL[k]:'');}).join(' ');
+    s.hay=[s.a,s.z,s.h,s.b,s.agn.join(' '),s.ag.join(' '),s.ids.join(' '),s.note,kw,s.pub.length?'public':'',s.b==='Outside the city'?'upstate westchester':''].join(' ').toLowerCase().replace(/[(),.]/g,' ');
+  });
+  writeOpening();
+  buildControls();
+  buildBars();
+  buildRecon();
+  initMap();
+  render();
+  const m=location.hash.match(/s=(\d+)/);
+  if(m){const s=S.find(x=>x.id===+m[1]);if(s)setTimeout(()=>open(s,true),600);}
+}
+
+function tot(f){return S.reduce((a,s)=>a+f(s),0);}
+function writeOpening(){
+  const ports=tot(s=>s.n),sites=S.length,pubSites=S.filter(s=>s.pub.length).length,pubPorts=tot(s=>s.pp);
+  const k=kk=>tot(s=>portsOf(s,kk)),pk=kk=>tot(s=>s.pk[kk]||0);
+  const out=S.filter(s=>s.b==='Outside the city');
+  const outAg=[...new Set(out.flatMap(s=>s.ag))];
+  $('#finding').textContent=`New York City runs ${nf(ports)} charging ports for its own vehicles at ${nf(sites)} sites, and ${nf(pubPorts)} of those ports, at ${pubSites} sites, are open to the public.`;
+  $('#lede').innerHTML=`This is every charger on the city's fleet list, mapped. Most are ordinary Level 2 plugs, <b>${nf(k('l2'))}</b> of them, where a car sits for hours. <b>${nf(k('dcfc'))}</b> are fast chargers, <b>${nf(k('solar'))}</b> are off-grid solar carports and <b>${nf(k('canopy'))}</b> sit under solar canopies. The public can plug in at <b>${nf(pk('curb'))}</b> Transportation Department curbside ports, <b>${nf(pk('lot'))}</b> in municipal parking lots and <b>${nf(pk('dcas'))}</b> fleet chargers the city has opened to everyone${pk('adapter')?`, plus <b>${pk('adapter')}</b> lamppost chargers that need an adapter`:''}. <b>${out.length}</b> sites${outAg.length===1?`, all run by ${esc(META.agencies[outAg[0]]||outAg[0])},`:''} are outside the city, at the upstate reservoirs and Westchester facilities of the water supply. Eleven mobile chargers have no fixed place and are not mapped.`;
+}
+
+function buildControls(){
+  const tr=$('#types'),sep=tr.querySelector('.sep');
+  KINDS.slice().reverse().forEach(x=>{
+    const b=document.createElement('button');b.className='chip';b.type='button';b.dataset.k=x.k;b.setAttribute('aria-pressed','true');
+    b.innerHTML=`<i style="background:${INK[x.k]}"></i>${esc(x.label)} <span style="color:var(--fg2);font-weight:500">${nf(tot(s=>portsOf(s,x.k)))}</span>`;
+    b.title=x.note;
+    b.onclick=()=>{const on=b.getAttribute('aria-pressed')==='true';
+      // first click on a full set isolates that kind; after that, chips toggle
+      if(active.size===KINDS.length&&on){active=new Set([x.k]);}
+      else if(on){active.delete(x.k);if(!active.size)active=new Set(KINDS.map(y=>y.k));}
+      else active.add(x.k);
+      syncKinds();limit=60;render();};
+    tr.insertBefore(b,sep.nextSibling);
+  });
+  const all=document.createElement('button');all.className='chip';all.type='button';all.id='allk';all.textContent='All kinds';all.hidden=true;
+  all.onclick=()=>{active=new Set(KINDS.map(y=>y.k));syncKinds();limit=60;render();};
+  tr.insertBefore(all,$('#showing'));
+  $('#f-pub').onclick=e=>{const b=e.currentTarget;b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');limit=60;render();};
+  const ag={};S.forEach(s=>s.ag.forEach(a=>ag[a]=(ag[a]||0)+1));
+  const ports={};S.forEach(s=>s.ag.forEach(a=>ports[a]=(ports[a]||0)+s.n/s.ag.length));
+  Object.keys(ag).sort((a,b)=>ports[b]-ports[a]).forEach(a=>{
+    const o=document.createElement('option');o.value=a;o.textContent=`${META.agencies[a]||a} (${ag[a]} site${ag[a]>1?'s':''})`;$('#f-ag').appendChild(o);});
+  $('#f-ag').onchange=()=>{limit=60;render(true);};
+  $('#f-bo').onchange=()=>{limit=60;render(true);};
+  let t=null,t2=null;
+  $('#q').addEventListener('input',()=>{
+    if(origin){origin=null;if(marker){marker.remove();marker=null;}}
+    clearTimeout(t);clearTimeout(t2);t=setTimeout(()=>{limit=60;sel=null;render();},120);t2=setTimeout(suggest,320);});
+  $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'){const p=document.querySelector('.place');if(p&&(!shown.length||/\d/.test($('#q').value)))p.click();}});
+  $('#nearme').onclick=()=>{
+    if(!navigator.geolocation){$('#nearme').textContent='Location unavailable';return;}
+    $('#nearme').textContent='Finding you…';
+    navigator.geolocation.getCurrentPosition(p=>{$('#nearme').textContent='Near me';setOrigin(p.coords.latitude,p.coords.longitude,'your location');},
+      ()=>{$('#nearme').textContent='Location blocked';},{enableHighAccuracy:false,timeout:10000});
+  };
+}
+
+function syncKinds(){
+  document.querySelectorAll('#types [data-k]').forEach(c=>c.setAttribute('aria-pressed',active.has(c.dataset.k)));
+  $('#allk').hidden=active.size===KINDS.length;
+}
+
+// ---------- filtering ----------
+function terms(){return $('#q').value.toLowerCase().replace(/[,.]/g,' ').split(/\s+/).filter(Boolean);}
+function passes(s,useQuery=true){
+  if(!s.ag.length)return false;
+  if(!Object.keys(s.p).some(k=>active.has(kindOf(k))))return false;
+  if($('#f-pub').getAttribute('aria-pressed')==='true'&&!s.pub.length)return false;
+  const ag=$('#f-ag').value;if(ag&&!s.ag.includes(ag))return false;
+  const bo=$('#f-bo').value;if(bo&&s.b!==bo)return false;
+  if(useQuery&&!origin){const tt=terms();if(tt.length&&!tt.every(w=>s.hay.includes(w)))return false;}
+  return true;
+}
+function miles(a,b,c,d){const R=3958.8,r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+
+function render(fit){
+  shown=S.filter(s=>passes(s));
+  if(origin){shown.forEach(s=>s.d=miles(origin.lat,origin.lon,s.lat,s.lon));shown.sort((a,b)=>a.d-b.d);}
+  else shown.sort((a,b)=>b.n-a.n||a.a.localeCompare(b.a));
+  const ports=shown.reduce((a,s)=>a+s.n,0);
+  $('#showing').textContent=`Showing ${nf(shown.length)} of ${nf(S.length)} sites, ${nf(ports)} ports`;
+  if(map&&map.getSource('sites')){
+    map.getSource('sites').setData({type:'FeatureCollection',features:shown.map(feature)});
+    if(fit&&shown.length&&!origin)fitTo(shown);
+  }
+  if(sel&&shown.includes(sel))return;
+  sel=null;listView();
+}
+function fitTo(arr){
+  if(arr.length===1){map.flyTo({center:[arr[0].lon,arr[0].lat],zoom:15});return;}
+  const b=new maplibregl.LngLatBounds();arr.forEach(s=>b.extend([s.lon,s.lat]));
+  map.fitBounds(b,{padding:50,maxZoom:15,duration:700});
+}
+
+// ---------- list ----------
+function listView(){
+  const side=$('#side');const q=$('#q').value.trim();
+  let h='';
+  if(origin){
+    h+=`<div class="listhead"><span>Nearest to <b>${esc(origin.label)}</b></span><button type="button" id="clearo">Clear</button></div>`;
+  }else{
+    h+=`<div class="listhead"><span>${q?'Matching sites':'Sites, most ports first'}</span><span>${nf(shown.length)}</span></div>`;
+  }
+  h+=`<div class="places" id="places"></div>`;
+  if(!shown.length){
+    h+=`<div class="hint">${q?'No charging site matches that. If it is an address, pick it from the suggestions above to see the nearest chargers.':'Nothing matches these filters.'}</div>`;
+  }
+  shown.slice(0,limit).forEach(s=>{h+=row(s);});
+  if(shown.length>limit)h+=`<button class="more" type="button" id="more">Show ${nf(Math.min(100,shown.length-limit))} more</button>`;
+  side.innerHTML=h;side.scrollTop=0;
+  side.querySelectorAll('.site').forEach(b=>b.onclick=()=>open(S[+b.dataset.i],true));
+  const m=$('#more');if(m)m.onclick=()=>{limit+=100;listView();};
+  const c=$('#clearo');if(c)c.onclick=()=>{origin=null;if(marker){marker.remove();marker=null;}$('#q').value='';render(true);};
+  if(lastPlaces&&!origin)drawPlaces(lastPlaces);
+}
+function row(s){
+  const kinds=Object.keys(s.p).map(kindOf).filter((v,i,a)=>a.indexOf(v)===i);
+  const kl=KINDS.filter(x=>kinds.includes(x.k)).map(x=>x.label.toLowerCase()).join(', ');
+  const where=s.b==='Outside the city'?s.h:`${s.h?s.h+', ':''}${s.b}`;
+  const d=origin?`<small>${s.d<0.1?'<0.1':s.d.toFixed(s.d<10?1:0)} mi</small>`:`<small>port${s.n>1?'s':''}</small>`;
+  return `<button class="site" type="button" data-i="${S.indexOf(s)}"><i class="sw${s.pub.length?' pub':''}" style="background:${INK[s.mk]}"></i>`+
+    `<span><span class="nm">${esc(s.a)}</span><span class="mt">${esc(where)} &middot; ${esc(s.agn.join(', '))}${s.pub.length?' &middot; <b style="color:var(--fg)">public</b>':''}</span><span class="mt">${esc(kl)}</span></span>`+
+    `<span class="n">${nf(s.n)}${d}</span></button>`;
+}
+
+// ---------- address lookup (city geocoder) ----------
+let lastPlaces=null,marker=null,reqN=0;
+function suggest(){
+  const q=$('#q').value.trim();
+  if(q.length<4||origin){lastPlaces=null;const p=$('#places');if(p)p.innerHTML='';return;}
+  // only offer addresses when the words look like a place, or when nothing in the list matches
+  if(!/\d/.test(q)&&shown.length>2){lastPlaces=null;const p=$('#places');if(p)p.innerHTML='';return;}
+  const n=++reqN;
+  fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?text='+encodeURIComponent(q)).then(r=>r.json()).then(j=>{
+    if(n!==reqN)return;
+    const tc=t=>t.replace(/, USA$/,'').replace(/[A-Z][A-Z']+/g,w=>w==='NY'?w:w.charAt(0)+w.slice(1).toLowerCase());
+    lastPlaces=(j.features||[]).slice(0,4).map(f=>({label:tc(f.properties.label),lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1]}));
+    drawPlaces(lastPlaces);
+  }).catch(()=>{});
+}
+function drawPlaces(list){
+  const p=$('#places');if(!p)return;
+  if(!list||!list.length){p.innerHTML='';return;}
+  p.innerHTML=list.map((x,i)=>`<button class="place" type="button" data-i="${i}">Nearest chargers to ${esc(x.label)}<span>address</span></button>`).join('');
+  p.querySelectorAll('.place').forEach(b=>b.onclick=()=>{const x=list[+b.dataset.i];setOrigin(x.lat,x.lon,x.label);});
+}
+function setOrigin(lat,lon,label){
+  origin={lat,lon,label};lastPlaces=null;sel=null;
+  if(marker)marker.remove();
+  const el=document.createElement('div');el.style.cssText=`width:16px;height:16px;background:${TK.fg};border:3px solid ${TK.bg};transform:rotate(45deg)`;el.title=label;
+  marker=new maplibregl.Marker({element:el}).setLngLat([lon,lat]).addTo(map);
+  limit=60;render();
+  const near=shown.slice(0,5);const b=new maplibregl.LngLatBounds([lon,lat],[lon,lat]);near.forEach(s=>b.extend([s.lon,s.lat]));
+  map.fitBounds(b,{padding:70,maxZoom:15,duration:800});
+}
+
+// ---------- one site ----------
+const DCAS_RULES='The city charges 35 cents per kilowatt-hour from 8 a.m. to 10 p.m. on weekdays and 30 cents at other times, with a 60-minute limit at fast chargers and four hours at solar carports. Stay past the limit and it is $1 a minute.';
+const DCAS_RULES_UP='Outside the city the price is 40 cents per kilowatt-hour from 8 a.m. to 9 p.m. on weekdays and 35 cents at other times, with a 60-minute limit. Stay past the limit and it is $1 a minute.';
+function open(s,fly){
+  sel=s;
+  if(map&&map.getSource('sel'))map.getSource('sel').setData({type:'FeatureCollection',features:[feature(s)]});
+  if(fly&&map)map.flyTo({center:[s.lon,s.lat],zoom:Math.max(map.getZoom(),15),duration:700});
+  history.replaceState(null,'','#s='+s.id);
+  const where=s.b==='Outside the city'?`${s.h}, N.Y.`:`${s.h?s.h+', ':''}${s.b}${s.z?' '+s.z:''}`;
+  let h=`<div class="dossier"><button class="back" type="button" id="back">&larr; Back to the list</button>`;
+  h+=`<h2>${esc(s.a)}</h2><p class="meta">${esc(where)}${origin&&s.d!=null?` &middot; ${s.d.toFixed(1)} miles from ${esc(origin.label)}`:''}</p>`;
+  Object.entries(s.p).sort((a,b)=>b[1]-a[1]).forEach(([k,n])=>{
+    const K=KINDS.find(x=>x.k===kindOf(k));
+    h+=`<div class="prow"><i style="background:${INK[K.k]}"></i><span>${esc(SUBLABEL[k]||K.long)}<small>${esc(K.note)}</small></span><b>${nf(n)} port${n>1?'s':''}</b></div>`;
+  });
+  if(s.pub.length){
+    let t='';
+    if(s.pub.includes('dcas'))t+=`<p style="margin:0 0 6px">${s.b==='Outside the city'?DCAS_RULES_UP:DCAS_RULES}${s.a.includes('Forest Park')?' The bandshell lot is open 7 a.m. to 9 p.m.':''}</p>`;
+    if(s.pub.includes('curb')||s.pub.includes('lot'))t+=`<p style="margin:0 0 6px">${s.fee.length?'Listed price: '+esc(s.fee.join('; '))+'.':''}</p>`;
+    if(s.pub.includes('adapter'))t+=`<p style="margin:0 0 6px">The city lists these lamppost chargers as public, with an adapter required.</p>`;
+    h+=`<div class="pubnote"><b>Open to the public${s.pp<s.n?`: ${nf(s.pp)} of the ${nf(s.n)} ports`:''}</b>${t}</div>`;
+  }else{
+    h+=`<p class="fleetnote">For city vehicles only.</p>`;
+  }
+  const placed={city:'From the city&rsquo;s own coordinates.',address:'The city gave no coordinates; placed by geocoding the listed address.',
+    block:'The city gave no coordinates; placed mid-block on the street the charger is listed on.',corner:'The city gave no coordinates; placed at the corner named in the listing.',
+    facility:'The city gave no coordinates; placed at the facility named in the listing.',approx:'<span class="approx">Approximate.</span> The city gave no coordinates and the listed address could not be matched exactly.',
+    corrected:'<span class="approx">Corrected.</span> The city&rsquo;s coordinates were wrong.'}[s.how]||'';
+  h+=`<dl class="f"><div><dt>Agency</dt><dd>${esc(s.agn.join(', '))}</dd></div>`;
+  h+=`<div><dt>Location</dt><dd>${placed}${s.note?' '+esc(s.note.charAt(0).toUpperCase()+s.note.slice(1))+'.':''}</dd></div>`;
+  h+=`<div><dt>Stations</dt><dd class="ids">${s.st} listed: ${esc(s.ids.join(', '))}</dd></div>`;
+  if(s.src.some(x=>!x.startsWith('NYC Open Data')))h+=`<div><dt>Source</dt><dd>${esc(s.src.join('; '))}</dd></div>`;
+  h+=`</dl><a class="dirs" href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}" target="_blank" rel="noopener">Directions in Google Maps</a></div>`;
+  $('#side').innerHTML=h;$('#side').scrollTop=0;
+  $('#back').onclick=()=>{sel=null;history.replaceState(null,'',location.pathname);if(map.getSource('sel'))map.getSource('sel').setData({type:'FeatureCollection',features:[]});listView();};
+  if(matchMedia('(max-width:900px)').matches&&!fly)$('#side').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ---------- map ----------
+function feature(s){return {type:'Feature',id:s.id,properties:{i:S.indexOf(s),n:s.n,c:INK[s.mk],pub:s.pub.length?1:0,a:s.a},geometry:{type:'Point',coordinates:[s.lon,s.lat]}};}
+function initMap(){
+  const RASTER={version:8,sources:{carto:{type:'raster',tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png?key=cb1_2r82_1_ae4e70b6166057bc41b89638'],tileSize:256,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}},layers:[{id:'carto',type:'raster',source:'carto'}]};
+  map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',bounds:[[-74.26,40.49],[-73.69,40.92]],fitBoundsOptions:{padding:10},minZoom:6,maxZoom:18,attributionControl:{compact:true}});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  let fellBack=false;
+  map.on('error',e=>{if(e&&e.error)console.error(e.error);if(fellBack||!e||!e.error)return;const m=String(e.error.message||'');if(/style|Failed to fetch|NetworkError/i.test(m)&&!map.isStyleLoaded()){fellBack=true;map.setStyle(RASTER);}});
+  let added=false;
+  map.on('style.load',()=>{
+    if(added)return;added=true;
+    map.addSource('sites',{type:'geojson',data:{type:'FeatureCollection',features:shown.map(feature)}});
+    map.addSource('sel',{type:'geojson',data:{type:'FeatureCollection',features:sel?[feature(sel)]:[]}});
+    // zoom has to sit at the top of a paint expression, so each radius is its own interpolate
+    const rad=add=>['interpolate',['linear'],['zoom'],9,['+',1.6+add,['*',.55,['sqrt',['get','n']]]],12,['+',3+add,['*',1,['sqrt',['get','n']]]],16,['+',6+add,['*',2,['sqrt',['get','n']]]]];
+    const r=rad(0);
+    map.addLayer({id:'sites',type:'circle',source:'sites',layout:{'circle-sort-key':['get','n']},paint:{
+      'circle-color':['get','c'],'circle-radius':r,'circle-opacity':.92,
+      'circle-stroke-color':['case',['==',['get','pub'],1],TK.fg,TK.bg],
+      'circle-stroke-width':['interpolate',['linear'],['zoom'],9,['case',['==',['get','pub'],1],1.2,.3],14,['case',['==',['get','pub'],1],2.4,1]]}});
+    map.addLayer({id:'sel',type:'circle',source:'sel',paint:{'circle-color':'rgba(0,0,0,0)','circle-radius':rad(5),'circle-stroke-color':TK.fg,'circle-stroke-width':2.5}});
+    map.on('click','sites',e=>{const f=e.features.sort((a,b)=>b.properties.n-a.properties.n)[0];open(S[f.properties.i],false);});
+    const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:10});
+    map.on('mousemove','sites',e=>{map.getCanvas().style.cursor='pointer';const p=e.features[0].properties;pop.setLngLat(e.lngLat).setHTML(`<b>${esc(p.a)}</b><br>${nf(p.n)} port${p.n>1?'s':''}${p.pub?' &middot; public':''}`).addTo(map);});
+    map.on('mouseleave','sites',()=>{map.getCanvas().style.cursor='';pop.remove();});
+  });
+}
+
+// ---------- agency bars ----------
+function buildBars(){
+  const by={};
+  S.forEach(s=>{const share=1/s.ag.length;s.ag.forEach(a=>{by[a]=by[a]||{p:{},n:0,sites:0};by[a].sites++;Object.entries(s.p).forEach(([k,n])=>{const kk=kindOf(k);by[a].p[kk]=(by[a].p[kk]||0)+n*share;by[a].n+=n*share;});});});
+  const ags=Object.keys(by).sort((a,b)=>by[b].n-by[a].n);
+  const max=by[ags[0]].n;
+  const multi=S.filter(s=>s.ag.length>1).length;
+  if(multi)$('#who-aside').textContent+=` ${word(multi).replace(/^./,c=>c.toUpperCase())} site${multi>1?'s are':' is'} shared between agencies; their ports are split evenly.`;
+  $('#bars').innerHTML=ags.map(a=>{
+    const d=by[a];
+    const segs=KINDS.slice().reverse().filter(x=>d.p[x.k]).map(x=>`<i style="width:${100*d.p[x.k]/max}%;background:${INK[x.k]}" title="${esc(x.label)}: ${nf(Math.round(d.p[x.k]))}"></i>`).join('');
+    return `<button class="arow" type="button" data-a="${a}"><span class="an">${esc(META.agencies[a]||a)}</span><span class="bar">${segs}</span><span class="av">${nf(Math.round(d.n))}<small>${d.sites} site${d.sites>1?'s':''}</small></span></button>`;
+  }).join('');
+  $('#bars').querySelectorAll('.arow').forEach(b=>b.onclick=()=>{$('#f-ag').value=b.dataset.a;limit=60;render(true);$('#mapsec').scrollIntoView({behavior:'smooth'});});
+}
+
+// ---------- reconciliation table ----------
+function buildRecon(){
+  const k=kk=>tot(s=>portsOf(s,kk));
+  const lot2=tot(s=>s.p.lot2||0),lot3=tot(s=>s.p.lot3||0);
+  const rows=[
+    ['Level 2',1807,k('l2')],['Fast chargers (DC), including 26 public',463,k('dcfc')],['Solar carports, including 4 public',155,k('solar')],
+    ['Solar canopy',18,k('canopy')],['Municipal lots, fast',15,lot3],['Municipal lots, Level 2',75,lot2],['Curbside',118,k('curb')],['Mobile (listed, not mapped)',11,11]];
+  const sum=rows.reduce((a,r)=>a+r[1],0),sumMap=rows.reduce((a,r)=>a+r[2],0);
+  $('#recon').innerHTML=`<tr><th>Kind of charger</th><th class="n">October PDF</th><th class="n">This map</th><th class="n">Difference</th></tr>`+
+    rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${nf(r[1])}</td><td class="n">${nf(r[2])}</td><td class="n">${r[2]-r[1]?nf(r[2]-r[1]).replace('-','\u2212'):'&ndash;'}</td></tr>`).join('')+
+    `<tr><td><b>Total of the lines</b></td><td class="n"><b>${nf(sum)}</b></td><td class="n"><b>${nf(sumMap)}</b></td><td class="n"><b>${nf(sumMap-sum).replace('-','\u2212')}</b></td></tr>`+
+    `<tr><td colspan="4" style="color:var(--fg2);font-size:var(--t-small);border-bottom:0;padding-top:10px">The PDF's headline total, 2,632, is 30 less than its own lines add up to, and 30 is the number of public chargers those lines add on.</td></tr>`;
+}
+</script>
+</body>
+</html>
