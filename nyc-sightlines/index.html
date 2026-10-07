@@ -42,9 +42,9 @@ h1 span { color: var(--lamp); }
 .deck { font-size: 0.95rem; line-height: 1.4; color: var(--ink); margin: 0 0 12px; text-wrap: pretty; }
 .legend { display: grid; gap: 6px; }
 .legend-title { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
-.ramp { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.ramp { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; }
 .ramp i { height: 9px; display: block; }
-.ramp-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.6875rem; color: var(--dim); }
+.ramp-labels { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; text-align: center; font-family: var(--mono); font-size: 0.6875rem; color: var(--dim); }
 .swatches { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--mono); font-size: 0.6875rem; color: var(--dim); }
 .swatches span { display: inline-flex; align-items: center; gap: 5px; }
 .swatches i { width: 12px; height: 9px; display: inline-block; }
@@ -306,24 +306,27 @@ const FS_SRC = `#version 300 es
 precision highp float; precision highp int; precision highp usampler2D;
 uniform usampler2D uBase; uniform usampler2D uVis; uniform usampler2D uSun; uniform int uHasVis; uniform int uMode; uniform int uSel;
 uniform int uSunK; uniform int uSunE; uniform vec3 uSunCol[3]; uniform float uSunScale; uniform vec2 uSunOff;
-uniform vec3 uCol[16]; uniform vec3 uRamp[8]; uniform float uCoarse; uniform float uTexels;
+uniform vec3 uCol[16]; uniform vec3 uRamp[8]; uniform float uCoarse; uniform float uTexels; uniform float uPx;
 in vec2 vUV; out vec4 o;
 uint lmv(uvec4 v, int i){ uint b = i < 4 ? v.r : (i < 8 ? v.g : (i < 12 ? v.b : v.a)); return (b >> uint(2 * (i - (i / 4) * 4))) & 3u; }
-void main(){
-  ivec2 t = ivec2(min(vUV * uTexels, vec2(uTexels - 1.0)));
+// Colour of one texel. Zoomed out, buildings are shaded by height to give the city texture; zoomed in ("fine"),
+// it becomes a street map: grey streets, flat dark buildings, green parks, blue water.
+vec3 texel(ivec2 t, float fine){
+  t = clamp(t, ivec2(0), ivec2(int(uTexels) - 1));
   uint b = texelFetch(uBase, t, 0).r; uint k = b & 7u;
-  vec3 c;
-  if (k == 0u) c = vec3(0.027, 0.043, 0.075);
-  else if (k == 1u) c = (b & 8u) != 0u ? vec3(0.125, 0.137, 0.165) : vec3(0.095, 0.103, 0.125);
-  else if (k == 2u) c = vec3(0.075, 0.125, 0.098);
-  else if (k == 3u) { float h = float(b >> 3) / 31.0; c = mix(vec3(0.047, 0.055, 0.072), vec3(0.20, 0.215, 0.26), pow(h, 1.4)); }
-  else if (k == 4u) c = vec3(0.062, 0.068, 0.082);
-  else { float h = float(b >> 3) / 31.0; c = mix(vec3(0.040, 0.044, 0.055), vec3(0.11, 0.115, 0.135), h); }
+  vec3 c, f;
+  if (k == 0u) { c = vec3(0.027, 0.043, 0.075); f = vec3(0.050, 0.088, 0.150); }
+  else if (k == 1u) { bool pub = (b & 8u) != 0u; c = pub ? vec3(0.125, 0.137, 0.165) : vec3(0.095, 0.103, 0.125); f = pub ? vec3(0.245, 0.252, 0.272) : vec3(0.092, 0.097, 0.112); }
+  else if (k == 2u) { c = vec3(0.075, 0.125, 0.098); f = vec3(0.090, 0.165, 0.115); }
+  else if (k == 3u) { float h = float(b >> 3) / 31.0; c = mix(vec3(0.047, 0.055, 0.072), vec3(0.20, 0.215, 0.26), pow(h, 1.4)); f = vec3(0.060, 0.064, 0.078) + 0.03 * h; }
+  else if (k == 4u) { c = vec3(0.062, 0.068, 0.082); f = vec3(0.090, 0.095, 0.108); }
+  else { float h = float(b >> 3) / 31.0; c = mix(vec3(0.040, 0.044, 0.055), vec3(0.11, 0.115, 0.135), h); f = vec3(0.048, 0.052, 0.062); }
+  c = mix(c, f, fine);
   bool lit = uHasVis == 1 && (k == 1u || k == 2u || (uCoarse > 0.5 && k == 3u));
   if (lit) {
     uvec4 v = texelFetch(uVis, t, 0);
     if (uMode == 2) {
-      uvec4 sv = texelFetch(uSun, ivec2(min(vUV * uTexels * uSunScale + uSunOff, vec2(uTexels - 1.0))), 0);
+      uvec4 sv = texelFetch(uSun, ivec2(min((vec2(t) + 0.5) * uSunScale + uSunOff, vec2(uTexels - 1.0))), 0);
       uint by = uSunK < 2 ? sv.r : (uSunK < 4 ? sv.g : (uSunK < 6 ? sv.b : sv.a));
       uint q = (by >> uint(4 * (uSunK - (uSunK / 2) * 2) + 2 * uSunE)) & 3u;
       if (q > 0u) c = mix(c, uSunCol[int(q) - 1], 0.93);
@@ -336,7 +339,17 @@ void main(){
       if (q > 0u) { float a = q == 1u ? 0.42 : (q == 2u ? 0.72 : 1.0); c = mix(c, uCol[uSel] * a, 0.92); }
     }
   }
-  o = vec4(c, 1.0);
+  return c;
+}
+void main(){
+  float fine = uCoarse > 0.5 ? 0.0 : smoothstep(0.9, 2.4, uPx);
+  vec2 p = vUV * uTexels;
+  if (uPx < 2.0) { o = vec4(texel(ivec2(min(p, vec2(uTexels - 1.0))), fine), 1.0); return; }
+  // zoomed in: blend the four nearest texels over about one screen pixel, so cell edges are smooth, not jagged
+  vec2 q = p - 0.5; ivec2 i0 = ivec2(floor(q)); vec2 w = clamp((fract(q) - 0.5) * uPx / 1.2 + 0.5, 0.0, 1.0);
+  vec3 a = mix(texel(i0, fine), texel(i0 + ivec2(1, 0), fine), w.x);
+  vec3 b2 = mix(texel(i0 + ivec2(0, 1), fine), texel(i0 + ivec2(1, 1), fine), w.x);
+  o = vec4(mix(a, b2, w.y), 1.0);
 }`;
 let prog, loc = {}, zeroTex;
 function initGL() {
@@ -344,7 +357,7 @@ function initGL() {
   prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS_SRC)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS_SRC)); gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
   gl.useProgram(prog);
-  for (const n of ["uTile", "uCam", "uView", "uBase", "uVis", "uSun", "uHasVis", "uMode", "uSel", "uCol", "uRamp", "uCoarse", "uTexels", "uSunK", "uSunE", "uSunCol", "uSunScale", "uSunOff"]) loc[n] = gl.getUniformLocation(prog, n);
+  for (const n of ["uTile", "uCam", "uView", "uBase", "uVis", "uSun", "uHasVis", "uMode", "uSel", "uCol", "uRamp", "uCoarse", "uTexels", "uSunK", "uSunE", "uSunCol", "uSunScale", "uSunOff", "uPx"]) loc[n] = gl.getUniformLocation(prog, n);
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
   const a = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
@@ -535,6 +548,7 @@ function draw(now) {
     const zw = wantedLevel(), b = viewBounds(), t = performance.now();
     for (let z = 0; z <= zw; z++) {
       gl.uniform1f(loc.uCoarse, z < 3 ? 1 : 0);
+      gl.uniform1f(loc.uPx, cellOf(z) * cam.s * view.dpr);
       const size = T * cellOf(z);
       for (const [zz, tx, ty] of tilesFor(z, b)) {
         const tile = cache.get(key(zz, tx, ty)); if (!tile) continue;
@@ -556,6 +570,78 @@ function draw(now) {
   if (flight || beamAnim) requestDraw();
 }
 
+// ---------- street, park and neighbourhood names ----------
+// Loaded after the first tiles; drawn on the overlay with a dark halo, placed in priority order without overlaps.
+let NAMES = null;
+const STREET_MIN_S = [0.22, 0.28, 0.36, 0.5, 0.75, 0.9];   // zoom (px per metre) at which each road class gets names
+async function loadNames() {
+  try {
+    const d = JSON.parse(new TextDecoder().decode(await fetchBytes("tiles/labels.txt")));
+    const st = d.streets, B = 1000, buckets = new Map();
+    for (let i = 0; i < st.x.length; i++) {
+      const k = Math.floor(st.x[i] / B) + "," + Math.floor(st.y[i] / B);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(i);
+    }
+    NAMES = { st, buckets, B, widths: new Float32Array(st.names.length).fill(-1), hoods: d.hoods.sort((a, b) => a[3] - b[3]) };
+    requestDraw();
+  } catch (e) { console.warn(e); }
+}
+const PARKS_BY_AREA = D.parks.slice().sort((a, b) => b.a - a.a);
+function haloText(c, text, x, y) { c.strokeText(text, x, y); c.fillText(text, x, y); }
+function drawNames(c) {
+  const boxes = [], hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+  for (const l of LM) {   // keep names clear of the landmark markers and their tags
+    const p = l.pts.length > 1 ? { x: (l.pts[0].x + l.pts[1].x) / 2, y: (l.pts[0].y + l.pts[1].y) / 2 } : l.pts[0];
+    const [x, y] = w2s(p.x, p.y); boxes.push([x - 8, y - 18, x + 8 + l.short.length * 7, y + 8]);
+  }
+  const fr = freeRect(), onScreen = (x, y) => x > fr.x + 20 && y > fr.y + 10 && x < fr.x + fr.w - 20 && y < fr.y + fr.h - 10;   // the part of the map not under a panel
+  c.lineJoin = "round"; c.lineWidth = 3; c.strokeStyle = "rgba(7,10,16,0.82)"; c.textAlign = "center"; c.textBaseline = "middle";
+  // neighbourhoods (NYC Planning's areas until the names file arrives)
+  if (cam.s >= 0.06 && cam.s < 2.5) {
+    c.font = `500 11px ${getVar("--mono")}`; c.fillStyle = "rgba(236,230,216,0.62)";
+    const list = NAMES ? NAMES.hoods.map(h => ({ t: h[0], x: h[1], y: h[2] }))
+      : NTAS.slice().sort((a, b) => b.a - a.a).filter(n => cam.s >= 0.14 || n.a >= 2.5).map(n => ({ t: n.n.length > 26 ? n.n.split("-")[0] : n.n, x: n.c[0], y: n.c[1] }));
+    for (const h of list) {
+      const [x, y] = w2s(h.x, h.y); if (!onScreen(x, y)) continue;
+      const t = h.t.toUpperCase(), w = c.measureText(t).width, b = [x - w / 2 - 6, y - 9, x + w / 2 + 6, y + 9];
+      if (hit(b)) continue; boxes.push(b); haloText(c, t, x, y);
+    }
+  }
+  // parks, when big enough on screen to hold their name
+  if (cam.s >= 0.1) {
+    c.font = `italic 400 13px ${getVar("--body")}`; c.fillStyle = "rgba(150,212,160,0.9)";
+    for (const p of PARKS_BY_AREA) {
+      const span = Math.sqrt(p.a * 1e4) * cam.s; if (span < 60) break;
+      const [x, y] = w2s(p.c[0], p.c[1]); if (!onScreen(x, y)) continue;
+      const w = c.measureText(p.n).width; if (w > span * 1.4) continue;
+      const b = [x - w / 2 - 4, y - 9, x + w / 2 + 4, y + 9]; if (hit(b)) continue; boxes.push(b); haloText(c, p.n, x, y);
+    }
+  }
+  // streets, along their direction; major roads first, and only where the street is long enough for its name
+  if (NAMES && cam.s >= STREET_MIN_S[0]) {
+    const { st, buckets, B, widths } = NAMES, vb = viewBounds(80), cand = [];
+    for (let by = Math.floor(vb[1] / B); by <= Math.floor(vb[3] / B); by++)
+      for (let bx = Math.floor(vb[0] / B); bx <= Math.floor(vb[2] / B); bx++) {
+        const a = buckets.get(bx + "," + by); if (a) for (const i of a) if (cam.s >= STREET_MIN_S[st.c[i]]) cand.push(i);
+      }
+    cand.sort((a, b) => st.c[a] - st.c[b] || st.r[b] - st.r[a]);
+    c.font = `400 12px ${getVar("--body")}`; c.fillStyle = "rgba(226,222,212,0.86)";
+    let drawn = 0; const placed = new Map();   // the same name no closer than 260 px to itself
+    for (const i of cand) {
+      const ni = st.n[i], name = st.names[ni];
+      let w = widths[ni]; if (w < 0) w = widths[ni] = c.measureText(name).width;
+      if (st.r[i] * cam.s < w + 14) continue;
+      const [x, y] = w2s(st.x[i], st.y[i]); if (!onScreen(x, y)) continue;
+      const th = st.a[i] * Math.PI / 180, cs = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
+      const hw = (w * cs + 13 * sn) / 2 + 2, hh = (w * sn + 13 * cs) / 2 + 2, b = [x - hw, y - hh, x + hw, y + hh];
+      const prev = placed.get(ni); if (prev && prev.some(([px, py]) => Math.hypot(px - x, py - y) < 260)) continue;
+      if (hit(b)) continue; boxes.push(b); placed.set(ni, (prev || []).concat([[x, y]]));
+      c.save(); c.translate(x, y); c.rotate(th); haloText(c, name, 0, 0); c.restore();
+      if (++drawn > 400) break;
+    }
+  }
+}
 // labels and sightlines
 const NTAS = D.ntas;
 const BORO_LABELS = D.labels.boroughs, WATER_LABELS = D.labels.water;
@@ -574,20 +660,7 @@ function drawOverlay(now) {
     if (cam.s < L.min || cam.s > 0.6) continue;
     const [x, y] = w2s(L.x, L.y); c.save(); c.translate(x, y); c.rotate(L.rot * Math.PI / 180); c.fillText(L.name, 0, 0); c.restore();
   }
-  if (cam.s >= 0.07) {
-    c.font = `500 11px ${getVar("--mono")}`; c.fillStyle = "rgba(236,230,216,0.5)";
-    const boxes = [];
-    const ordered = NTAS.slice().sort((a, b) => b.a - a.a);
-    for (const n of ordered) {
-      if (cam.s < 0.14 && n.a < 2.5) continue;
-      const [x, y] = w2s(n.c[0], n.c[1]); if (x < -50 || y < -20 || x > view.w + 50 || y > view.h + 20) continue;
-      const label = n.n.length > 26 ? n.n.split("-")[0] : n.n;
-      const w = c.measureText(label.toUpperCase()).width;
-      const bx = [x - w / 2 - 4, y - 8, x + w / 2 + 4, y + 8];
-      if (boxes.some(o => bx[0] < o[2] && bx[2] > o[0] && bx[1] < o[3] && bx[3] > o[1])) continue;
-      boxes.push(bx); c.fillText(label.toUpperCase(), x, y);
-    }
-  }
+  drawNames(c);
   // landmark markers
   for (const l of LM) {
     const on = mode === 0 || l.i === sel;
@@ -1025,7 +1098,7 @@ function renderLegend() {
     return;
   }
   if (mode === 0) {
-    el.innerHTML = `<div class="legend-title">Landmarks visible from the street at each spot</div><div class="ramp">${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</div><div class="ramp-labels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8+</span></div>`;
+    el.innerHTML = `<div class="legend-title">Landmarks visible from the street at each spot</div><div class="ramp"><i style="background:#3a3c42" title="Street or park with none of the 16 in view"></i>${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</div><div class="ramp-labels"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8+</span></div>`;
   } else {
     const l = LM[sel], [r, g, b] = hex(l.color), sw = a => `rgb(${r * a * 255 | 0},${g * a * 255 | 0},${b * a * 255 | 0})`;
     el.innerHTML = `<div class="legend-title">Where you can see the ${esc(l.name)} from the street</div><div class="swatches"><span><i style="background:${sw(.42)}"></i>Just the top</span><span><i style="background:${sw(.72)}"></i>Upper part</span><span><i style="background:${sw(1)}"></i>Most of it</span></div>`;
@@ -1106,7 +1179,7 @@ function buildFindings() {
     <ol class="rank">${LM.filter(l => l.farthest).sort((a, b) => b.farthest.km - a.farthest.km).slice(0, 6).map(l => `<li><span>${esc(l.name)} <small>from ${esc(farPlace(l.farthest))}</small></span><span>${fmtMi(l.farthest.km * 1000)}</span></li>`).join("")}</ol>
     <p style="color:var(--dim);font-size:12px;margin-top:6px">Each is the farthest spot from which at least a few squares of public ground see the landmark, confirmed with the exact calculation. All are edge cases: the line of sight clears whatever lies between by a metre or two, within the model's margin of error.</p>
     <h3>Reading the map</h3>
-    <div class="method"><p>Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. Buildings are the dark blocks. Large woods block views; street trees aren't modeled, so read this as a winter view.</p></div>`;
+    <div class="method"><p>Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. Zoom in and it becomes a street map: grey streets see none of the 16, buildings are the dark blocks, parks are green and water is blue, with street names. Each square of color is 3 metres (10 feet) across. Large woods block views; street trees aren't modeled, so read this as a winter view.</p></div>`;
   $("tour").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     goTour(D.tour[+b.dataset.i]);
@@ -1243,6 +1316,7 @@ function start() {
   const first = D.tour.find(t => t.start) || D.tour[0];
   if (first) { pinned = true; setObserver(first.x, first.y, true); }
   loadDem();
+  loadNames();
   requestDraw();
 }
 start();

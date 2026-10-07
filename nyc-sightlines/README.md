@@ -23,12 +23,13 @@ How the 16 landmarks were chosen, and what that choice does to the numbers, is s
    - Each cell's horizon toward the sun is computed with an upper-hull sweep, and each cell keeps the lowest altitude at which it sees the sun.
    - `sun_times.py` adds clock times for the second date each map serves.
 7. **Tour** (`pipeline/make_tour.py`, `pipeline/tour_stops.json`). Every number in the tour captions is computed from the data. The best spot at each stop is re-traced with an exact line of sight.
-8. **Tiles and page** (`pipeline/export_tiles.py`, `pipeline/tiles_to_text.py`, `pipeline/build_site.py`, `web/template.html`).
+8. **Names** (`pipeline/map_labels.py`). Street names (merged by name into runs, with label anchors along them) and neighbourhood names from Overture, drawn when you zoom in. Zoomed in, the map switches to a street-map style: grey streets, dark buildings, green parks, blue water.
+9. **Tiles and page** (`pipeline/export_tiles.py`, `pipeline/tiles_to_text.py`, `pipeline/build_site.py`, `web/template.html`).
    - Gzip'd 1024² byte-plane tiles at 3, 6, 12 and 24 m, stored as base64 text. Sun tiles are separate.
    - A WebGL 2 shader decodes the 2-bit-per-landmark visibility on the GPU.
    - The page is self-contained: no map library and no external tiles.
 
-Run order: `build_dsm → fix_boro → fix_outside → public_ground → viewshed → validate → analyze → label_places → sun → sun_times → sun_stats → make_tour → export_tiles → tiles_to_text → build_site`. Each script's docstring gives its arguments. Raw inputs come from Overture's public S3 bucket (release 2026-09-23.1), USGS 3DEP on S3, and the `nycehs/NYC_geography` repository.
+Run order: `build_dsm → fix_boro → fix_outside → public_ground → viewshed → validate → analyze → label_places → sun → sun_times → sun_stats → make_tour → map_labels → export_tiles → tiles_to_text → build_site`. Each script's docstring gives its arguments. Raw inputs come from Overture's public S3 bucket (release 2026-09-23.1), USGS 3DEP on S3, and the `nycehs/NYC_geography` repository.
 
 ## Limits
 
