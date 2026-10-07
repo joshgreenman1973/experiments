@@ -133,6 +133,11 @@ h1 span { color: var(--lamp); }
 #nogl { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; z-index: 20; background: var(--night); }
 .zoom { position: absolute; right: 352px; top: calc(16px + env(safe-area-inset-top, 0px)); z-index: 2; display: grid; gap: 4px; }
 .zoom button { width: 32px; height: 32px; background: var(--glass); border: 1px solid var(--rule); cursor: pointer; font-family: var(--mono); font-size: 1rem; border-radius: 2px; }
+.zoom { justify-items: end; }
+.zoom #zmap { font-size: 0.5625rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.zoom #zmap[aria-pressed="true"] { border-color: var(--lamp); color: var(--lamp); }
+#attrib { font-family: var(--mono); font-size: 0.625rem; color: var(--dim); background: var(--glass); border: 1px solid var(--rule); border-radius: 2px; padding: 2px 6px; white-space: nowrap; }
+#attrib a { color: var(--ink); }
 
 @media (max-width: 1180px) {
   #find { display: none; }
@@ -170,7 +175,7 @@ h1 span { color: var(--lamp); }
   <div id="stage" tabindex="0" aria-label="Map of New York City. Drag to pan, scroll or pinch to zoom, click to stand somewhere." role="application">
     <canvas id="gl"></canvas>
     <canvas id="ov"></canvas>
-    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Show whole city">⤢</button></div>
+    <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button><button id="zfit" aria-label="Show whole city">⤢</button><button id="zmap" hidden aria-pressed="true" aria-label="Street map underneath" title="Show or hide the street map underneath">Map</button><div id="attrib" hidden>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a></div></div>
     <div id="toast" style="opacity:0"></div>
   </div>
 
@@ -295,7 +300,7 @@ function groundAt(wx, wy) {
 
 // ---------- WebGL map ----------
 const stage = $("stage"), glc = $("gl"), ovc = $("ov"), ov = ovc.getContext("2d");
-const gl = glc.getContext("webgl2", { antialias: false, premultipliedAlpha: false });
+const gl = glc.getContext("webgl2", { antialias: false, premultipliedAlpha: false, stencil: true });
 if (!gl) $("nogl").hidden = false;
 const T = D.tiles.tile;
 const VS_SRC = `#version 300 es
@@ -306,12 +311,13 @@ const FS_SRC = `#version 300 es
 precision highp float; precision highp int; precision highp usampler2D;
 uniform usampler2D uBase; uniform usampler2D uVis; uniform usampler2D uSun; uniform int uHasVis; uniform int uMode; uniform int uSel;
 uniform int uSunK; uniform int uSunE; uniform vec3 uSunCol[3]; uniform float uSunScale; uniform vec2 uSunOff;
-uniform vec3 uCol[16]; uniform vec3 uRamp[8]; uniform float uCoarse; uniform float uTexels; uniform float uPx;
+uniform vec3 uCol[16]; uniform vec3 uRamp[8]; uniform float uCoarse; uniform float uTexels; uniform float uPx; uniform int uOver;
 in vec2 vUV; out vec4 o;
 uint lmv(uvec4 v, int i){ uint b = i < 4 ? v.r : (i < 8 ? v.g : (i < 12 ? v.b : v.a)); return (b >> uint(2 * (i - (i / 4) * 4))) & 3u; }
-// Colour of one texel. Zoomed out, buildings are shaded by height to give the city texture; zoomed in ("fine"),
-// it becomes a street map: grey streets, flat dark buildings, green parks, blue water.
-vec3 texel(ivec2 t, float fine){
+// Colour of one texel, premultiplied by its alpha. On its own (uOver 0) the map draws everything: zoomed out,
+// buildings are shaded by height; zoomed in ("fine"), grey streets, flat dark buildings, green parks, blue water.
+// Over the standard street map (uOver 1) only the lit squares are drawn and the rest is see-through.
+vec4 texel(ivec2 t, float fine){
   t = clamp(t, ivec2(0), ivec2(int(uTexels) - 1));
   uint b = texelFetch(uBase, t, 0).r; uint k = b & 7u;
   vec3 c, f;
@@ -322,34 +328,38 @@ vec3 texel(ivec2 t, float fine){
   else if (k == 4u) { c = vec3(0.062, 0.068, 0.082); f = vec3(0.090, 0.095, 0.108); }
   else { float h = float(b >> 3) / 31.0; c = mix(vec3(0.040, 0.044, 0.055), vec3(0.11, 0.115, 0.135), h); f = vec3(0.048, 0.052, 0.062); }
   c = mix(c, f, fine);
+  vec4 r = uOver == 1 ? vec4(0.0) : vec4(c, 1.0);
   bool lit = uHasVis == 1 && (k == 1u || k == 2u || (uCoarse > 0.5 && k == 3u));
   if (lit) {
     uvec4 v = texelFetch(uVis, t, 0);
+    vec3 lc = vec3(0.0); float la = 0.0;
     if (uMode == 2) {
       uvec4 sv = texelFetch(uSun, ivec2(min((vec2(t) + 0.5) * uSunScale + uSunOff, vec2(uTexels - 1.0))), 0);
       uint by = uSunK < 2 ? sv.r : (uSunK < 4 ? sv.g : (uSunK < 6 ? sv.b : sv.a));
       uint q = (by >> uint(4 * (uSunK - (uSunK / 2) * 2) + 2 * uSunE)) & 3u;
-      if (q > 0u) c = mix(c, uSunCol[int(q) - 1], 0.93);
+      if (q > 0u) { lc = uSunCol[int(q) - 1]; la = 0.93; }
     } else if (uMode == 0) {
       int n = 0;
       for (int i = 0; i < 16; i++) { if (lmv(v, i) > 0u) n++; }
-      if (n > 0) c = mix(c, uRamp[min(n, 8) - 1], 0.94);
+      if (n > 0) { lc = uRamp[min(n, 8) - 1]; la = 0.94; }
     } else {
       uint q = lmv(v, uSel);
-      if (q > 0u) { float a = q == 1u ? 0.42 : (q == 2u ? 0.72 : 1.0); c = mix(c, uCol[uSel] * a, 0.92); }
+      if (q > 0u) { float a = q == 1u ? 0.42 : (q == 2u ? 0.72 : 1.0); lc = uCol[uSel] * a; la = 0.92; }
     }
+    if (la > 0.0) r = uOver == 1 ? vec4(lc * la, la) : vec4(mix(c, lc, la), 1.0);
   }
-  return c;
+  return r;   // see-through colours are premultiplied, so the four-texel blend below has no dark fringes
 }
 void main(){
   float fine = uCoarse > 0.5 ? 0.0 : smoothstep(0.9, 2.4, uPx);
-  vec2 p = vUV * uTexels;
-  if (uPx < 2.0) { o = vec4(texel(ivec2(min(p, vec2(uTexels - 1.0))), fine), 1.0); return; }
-  // zoomed in: blend the four nearest texels over about one screen pixel, so cell edges are smooth, not jagged
-  vec2 q = p - 0.5; ivec2 i0 = ivec2(floor(q)); vec2 w = clamp((fract(q) - 0.5) * uPx / 1.2 + 0.5, 0.0, 1.0);
-  vec3 a = mix(texel(i0, fine), texel(i0 + ivec2(1, 0), fine), w.x);
-  vec3 b2 = mix(texel(i0 + ivec2(0, 1), fine), texel(i0 + ivec2(1, 1), fine), w.x);
-  o = vec4(mix(a, b2, w.y), 1.0);
+  vec2 p = vUV * uTexels; vec4 r;
+  if (uPx < 2.0) r = texel(ivec2(min(p, vec2(uTexels - 1.0))), fine);
+  else {
+    // zoomed in: blend the four nearest texels over about one screen pixel, so cell edges are smooth, not jagged
+    vec2 q = p - 0.5; ivec2 i0 = ivec2(floor(q)); vec2 w = clamp((fract(q) - 0.5) * uPx / 1.2 + 0.5, 0.0, 1.0);
+    r = mix(mix(texel(i0, fine), texel(i0 + ivec2(1, 0), fine), w.x), mix(texel(i0 + ivec2(0, 1), fine), texel(i0 + ivec2(1, 1), fine), w.x), w.y);
+  }
+  o = uOver == 1 ? (r.a > 0.0 ? vec4(r.rgb / r.a, r.a) : vec4(0.0)) : r;
 }`;
 let prog, loc = {}, zeroTex;
 function initGL() {
@@ -357,7 +367,7 @@ function initGL() {
   prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS_SRC)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS_SRC)); gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
   gl.useProgram(prog);
-  for (const n of ["uTile", "uCam", "uView", "uBase", "uVis", "uSun", "uHasVis", "uMode", "uSel", "uCol", "uRamp", "uCoarse", "uTexels", "uSunK", "uSunE", "uSunCol", "uSunScale", "uSunOff", "uPx"]) loc[n] = gl.getUniformLocation(prog, n);
+  for (const n of ["uTile", "uCam", "uView", "uBase", "uVis", "uSun", "uHasVis", "uMode", "uSel", "uCol", "uRamp", "uCoarse", "uTexels", "uSunK", "uSunE", "uSunCol", "uSunScale", "uSunOff", "uPx", "uOver"]) loc[n] = gl.getUniformLocation(prog, n);
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
   const a = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
@@ -366,6 +376,7 @@ function initGL() {
   gl.uniform3fv(loc.uRamp, new Float32Array(RAMP.flatMap(hex)));
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   zeroTex = makeTex(1, gl.RGBA8UI, gl.RGBA_INTEGER, new Uint8Array(4));
+  if (BASEMAP) initBase(sh);
 }
 function makeTex(n, ifmt, fmt, data) {
   const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -373,6 +384,126 @@ function makeTex(n, ifmt, fmt, data) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, n, n, 0, fmt, gl.UNSIGNED_BYTE, data);
   return t;
+}
+
+
+// ---------- standard street map underneath (GitHub Pages build only) ----------
+// CARTO's dark map, drawn from OpenStreetMap, in Web Mercator tiles warped into this map's UTM frame: its streets,
+// buildings and water go under the data and its labels over it. The claude.ai artifact can't load outside images, so
+// there the page draws its own streets; the same happens here if the tiles fail to load.
+const BASEMAP = window.SL_BASEMAP || null;
+let baseOn = false, baseDead = false, baseOk = 0, baseFail = 0, baseProg = null, baseVAO = null;
+const bloc = {}, baseCache = new Map();
+if (BASEMAP) { let pref = null; try { pref = localStorage.getItem("sl-basemap"); } catch (e) {} baseOn = pref !== "off"; }
+function utmFwd(lat, lon) {   // WGS84 to UTM zone 18N
+  const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  const ph = lat * Math.PI / 180, A = Math.cos(ph) * (lon + 75) * Math.PI / 180;
+  const sp = Math.sin(ph), N = a / Math.sqrt(1 - e2 * sp * sp), T = Math.tan(ph) ** 2, C = ep2 * Math.cos(ph) ** 2;
+  const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * ph - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * ph)
+    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * ph) - (35 * e2 ** 3 / 3072) * Math.sin(6 * ph));
+  const E = 500000 + k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5 / 120);
+  const No = k0 * (M + N * Math.tan(ph) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6 / 720));
+  return [E, No];
+}
+const ll2w = (lat, lon) => { const [E, N] = utmFwd(lat, lon); return [E - D.grid.x0, D.grid.y1 - N]; };
+const tx2lon = (x, z) => x / 2 ** z * 360 - 180;
+const ty2lat = (y, z) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / 2 ** z))) * 180 / Math.PI;
+const lon2tx = (lon, z) => (lon + 180) / 360 * 2 ** z;
+const lat2ty = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
+function initBase(sh) {
+  const vs = `#version 300 es
+in vec2 aW; in vec2 aUV; uniform vec3 uCam; uniform vec2 uView; out vec2 vUV;
+void main(){ vec2 p = (aW - uCam.xy) * uCam.z / (uView * 0.5); gl_Position = vec4(p.x, -p.y, 0.0, 1.0); vUV = aUV; }`;
+  const fs = `#version 300 es
+precision mediump float; in vec2 vUV; uniform sampler2D uImg; out vec4 o;
+void main(){ o = texture(uImg, vUV); }`;
+  baseProg = gl.createProgram(); gl.attachShader(baseProg, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(baseProg, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(baseProg);
+  for (const n of ["uCam", "uView", "uImg"]) bloc[n] = gl.getUniformLocation(baseProg, n);
+  bloc.aW = gl.getAttribLocation(baseProg, "aW"); bloc.aUV = gl.getAttribLocation(baseProg, "aUV");
+  baseVAO = gl.createVertexArray(); gl.bindVertexArray(baseVAO);
+  gl.enableVertexAttribArray(bloc.aW); gl.enableVertexAttribArray(bloc.aUV);
+  gl.bindVertexArray(null);
+}
+const baseRetina = () => view.dpr > 1.4;
+function baseZoom() {   // the tile zoom whose pixels best match the screen's
+  const lat = toLatLon(cam.x, cam.y)[0], px = baseRetina() ? 512 : 256;
+  const z = Math.log2(40075016.686 * Math.cos(lat * Math.PI / 180) * cam.s * view.dpr / px);
+  return Math.max(0, Math.min(BASEMAP.maxZoom || 19, Math.round(z)));
+}
+function baseTilesFor(z) {
+  const b = viewBounds(30 / cam.s), c = [[b[0], b[1]], [b[2], b[1]], [b[0], b[3]], [b[2], b[3]]].map(([x, y]) => toLatLon(x, y));
+  const lats = c.map(p => p[0]), lons = c.map(p => p[1]), n = 2 ** z, out = [];
+  const x0 = Math.max(0, Math.floor(lon2tx(Math.min(...lons), z))), x1 = Math.min(n - 1, Math.floor(lon2tx(Math.max(...lons), z)));
+  const y0 = Math.max(0, Math.floor(lat2ty(Math.max(...lats), z))), y1 = Math.min(n - 1, Math.floor(lat2ty(Math.min(...lats), z)));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (out.length < 120) out.push([x, y]);
+  return out;
+}
+function tileMesh(z, x, y) {   // a small grid per tile, so the Mercator-to-UTM warp stays exact at low zooms
+  const n = z < 11 ? 8 : z < 14 ? 4 : 2, v = [];
+  const pt = (i, j) => [...ll2w(ty2lat(y + j / n, z), tx2lon(x + i / n, z)), i / n, j / n];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const a = pt(i, j), b = pt(i + 1, j), c = pt(i, j + 1), d = pt(i + 1, j + 1);
+    v.push(...a, ...b, ...c, ...b, ...d, ...c);
+  }
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+  return { buf, count: v.length / 4 };
+}
+function baseURL(layer, z, x, y) {
+  return BASEMAP[layer].replace("{s}", "abcd"[(x + y) % 4]).replace("{z}", z).replace("{x}", x).replace("{y}", y).replace("{r}", baseRetina() ? "@2x" : "");
+}
+function baseTile(layer, z, x, y, load) {
+  const k = layer + "/" + z + "/" + x + "/" + y; let e = baseCache.get(k);
+  if (e || !load) return e;
+  e = { ready: false, used: performance.now() }; baseCache.set(k, e);
+  const img = new Image(); img.crossOrigin = "anonymous"; img.decoding = "async";
+  img.onload = () => {
+    if (baseCache.get(k) !== e) return;
+    e.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, e.tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    Object.assign(e, tileMesh(z, x, y)); e.ready = true; baseOk++;
+    evictBase(); requestDraw();
+  };
+  img.onerror = () => { e.failed = true; baseFail++; if (!baseOk && baseFail >= 6) baseUnavailable(); };
+  img.src = baseURL(layer, z, x, y);
+  return e;
+}
+function evictBase() {
+  if (baseCache.size <= 180) return;
+  const old = [...baseCache.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, 50);
+  for (const [k, e] of old) { if (e.tex) gl.deleteTexture(e.tex); if (e.buf) gl.deleteBuffer(e.buf); baseCache.delete(k); }
+}
+function drawBase(layer) {
+  const zt = baseZoom(), now = performance.now();
+  gl.useProgram(baseProg); gl.bindVertexArray(baseVAO);
+  gl.uniform3f(bloc.uCam, cam.x, cam.y, cam.s * view.dpr); gl.uniform2f(bloc.uView, glc.width, glc.height);
+  gl.activeTexture(gl.TEXTURE0); gl.uniform1i(bloc.uImg, 0);
+  const one = e => {
+    e.used = now; gl.bindTexture(gl.TEXTURE_2D, e.tex); gl.bindBuffer(gl.ARRAY_BUFFER, e.buf);
+    gl.vertexAttribPointer(bloc.aW, 2, gl.FLOAT, false, 16, 0); gl.vertexAttribPointer(bloc.aUV, 2, gl.FLOAT, false, 16, 8);
+    gl.drawArrays(gl.TRIANGLES, 0, e.count);
+  };
+  // while the right zoom loads, coarser tiles already in hand fill in (not for labels, which would double up)
+  if (layer === "base") for (let z = Math.max(0, zt - 4); z < zt; z++) for (const [x, y] of baseTilesFor(z)) { const e = baseTile(layer, z, x, y, false); if (e && e.ready) one(e); }
+  for (const [x, y] of baseTilesFor(zt)) { const e = baseTile(layer, zt, x, y, true); if (e.ready) one(e); }
+  gl.bindVertexArray(null);
+}
+function baseUnavailable() {
+  baseDead = true; baseOn = false; syncBase();
+  toast("The street map couldn't load, so the map shows its own streets instead.");
+}
+function syncBase() {
+  const b = $("zmap"); if (b) { b.hidden = !BASEMAP; b.setAttribute("aria-pressed", String(baseOn)); }
+  const a = $("attrib"); if (a) a.hidden = !baseOn;
+  const r = $("readmap"); if (r) r.innerHTML = readMapText();
+  requestDraw();
+}
+function readMapText() {
+  const under = baseOn
+    ? "Underneath is a standard street map (© OpenStreetMap contributors, © CARTO). The Map button switches it off to show the model's own picture of the city: grey streets that see none of the 16, dark buildings, green parks and blue water."
+    : "Zoom in and it becomes a street map: grey streets see none of the 16, buildings are the dark blocks, parks are green and water is blue, with street names.";
+  return `Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. ${under} Each square of color is 3 metres (10 feet) across. Large woods block views; street trees aren't modeled, so read this as a winter view.`;
 }
 
 // ---------- tiles ----------
@@ -538,8 +669,11 @@ function draw(now) {
   if (flight) flight(now || performance.now());
   if (gl) {
     gl.viewport(0, 0, glc.width, glc.height);
-    gl.clearColor(0.027, 0.043, 0.075, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(prog);
+    gl.clearColor(0.027, 0.043, 0.075, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+    const over = baseOn && baseProg;
+    if (over) drawBase("base");
+    gl.useProgram(prog); gl.bindVertexArray(null);
+    gl.uniform1i(loc.uOver, over ? 1 : 0);
     gl.uniform3f(loc.uCam, cam.x, cam.y, cam.s * view.dpr);
     gl.uniform2f(loc.uView, glc.width, glc.height);
     gl.uniform1i(loc.uMode, mode); gl.uniform1i(loc.uSel, sel);
@@ -547,7 +681,15 @@ function draw(now) {
     gl.uniform3fv(loc.uSunCol, new Float32Array(SUN_COLS[sunE].flatMap(hex)));
     gl.uniform1f(loc.uTexels, T);
     const zw = wantedLevel(), b = viewBounds(), t = performance.now();
-    for (let z = 0; z <= zw; z++) {
+    // Opaque, coarse levels are simply painted over by finer ones. See-through over the street map, the finest
+    // tiles go first and the stencil keeps coarser tiles out of the ground they already cover.
+    const levels = [...Array(zw + 1).keys()];
+    if (over) {
+      levels.reverse();
+      gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.enable(gl.STENCIL_TEST); gl.stencilFunc(gl.EQUAL, 0, 0xff); gl.stencilOp(gl.KEEP, gl.KEEP, gl.INCR);
+    }
+    for (const z of levels) {
       gl.uniform1f(loc.uCoarse, z < 3 ? 1 : 0);
       gl.uniform1f(loc.uPx, cellOf(z) * cam.s * view.dpr);
       const size = T * cellOf(z);
@@ -565,6 +707,7 @@ function draw(now) {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       }
     }
+    if (over) { gl.disable(gl.STENCIL_TEST); drawBase("labels"); gl.disable(gl.BLEND); }
   }
   drawOverlay(now || performance.now());
   requestTiles();
@@ -649,8 +792,9 @@ const BORO_LABELS = D.labels.boroughs, WATER_LABELS = D.labels.water;
 function drawOverlay(now) {
   const c = ov, dpr = view.dpr;
   c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, view.w, view.h);
-  // water and borough names
+  // water and borough names (the street map underneath, when on, brings its own place names)
   c.textAlign = "center"; c.textBaseline = "middle";
+  if (!baseOn) {
   if (cam.s < 0.09) {
     c.font = `300 ${Math.round(Math.min(22, Math.max(13, cam.s * 600)))}px ${getVar("--display")}`;
     c.fillStyle = "rgba(236,230,216,0.55)";
@@ -662,6 +806,7 @@ function drawOverlay(now) {
     const [x, y] = w2s(L.x, L.y); c.save(); c.translate(x, y); c.rotate(L.rot * Math.PI / 180); c.fillText(L.name, 0, 0); c.restore();
   }
   drawNames(c);
+  }
   // landmark markers
   for (const l of LM) {
     const on = mode === 0 || l.i === sel;
@@ -1179,7 +1324,7 @@ function buildFindings() {
     <ol class="rank">${LM.filter(l => l.farthest).sort((a, b) => b.farthest.km - a.farthest.km).slice(0, 6).map(l => `<li><span>${esc(l.name)} <small>from ${esc(farPlace(l.farthest))}</small></span><span>${fmtMi(l.farthest.km * 1000)}</span></li>`).join("")}</ol>
     <p style="color:var(--dim);font-size:12px;margin-top:6px">Each is the farthest spot from which at least a few squares of public ground see the landmark, confirmed with the exact calculation. All are edge cases: the line of sight clears whatever lies between by a metre or two, within the model's margin of error.</p>
     <h3>Reading the map</h3>
-    <div class="method"><p>Brighter means more landmarks in view. Streets that point at a tower light up like beams, and so do waterfronts, ridges and open parks. Zoom in and it becomes a street map: grey streets see none of the 16, buildings are the dark blocks, parks are green and water is blue, with street names. Each square of color is 3 metres (10 feet) across. Large woods block views; street trees aren't modeled, so read this as a winter view.</p></div>`;
+    <div class="method"><p id="readmap">${readMapText()}</p></div>`;
   $("tour").addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     goTour(D.tour[+b.dataset.i]);
@@ -1299,6 +1444,11 @@ addEventListener("keydown", e => {
 $("zin").onclick = () => zoomAt(1.6, view.w / 2, view.h / 2);
 $("zout").onclick = () => zoomAt(1 / 1.6, view.w / 2, view.h / 2);
 $("zfit").onclick = () => fitCity(true);
+$("zmap").onclick = () => {
+  baseOn = !baseOn; if (baseOn) { baseDead = false; baseFail = 0; }
+  try { localStorage.setItem("sl-basemap", baseOn ? "on" : "off"); } catch (e) {}
+  syncBase();
+};
 $("aboutbtn").onclick = () => { $("about").hidden = false; $("aboutclose").focus(); };
 $("why16btn").onclick = () => { $("about").hidden = false; $("why16").scrollIntoView({ block: "start" }); $("aboutclose").focus({ preventScroll: true }); };
 $("aboutclose").onclick = () => { $("about").hidden = true; };
@@ -1317,6 +1467,7 @@ function start() {
   if (first) { pinned = true; setObserver(first.x, first.y, true); }
   loadDem();
   loadNames();
+  syncBase();
   requestDraw();
 }
 start();

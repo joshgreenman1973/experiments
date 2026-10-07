@@ -31,6 +31,7 @@ How the 16 landmarks were chosen, and what that choice does to the numbers, is s
    - A WebGL 2 shader decodes the 2-bit-per-landmark visibility on the GPU.
    - The page is self-contained: no map library and no external tiles.
    - `build_site.py` writes `index.html`, the complete page that GitHub Pages serves, and `artifact.html`, the same page without the document wrapper, for the claude.ai artifact.
+   - On GitHub Pages a standard street map (CARTO's dark map, from OpenStreetMap data) is drawn underneath. Its Web Mercator tiles are warped into the map's UTM frame, the data layer becomes see-through where nothing is lit, and the street map's labels go on top. A Map button switches it off. If the tiles don't load, the page falls back to drawing its own streets. The artifact can't load outside images, so it always draws its own.
 
 Run order: `build_dsm → fix_boro → fix_outside → public_ground → viewshed → validate → analyze → label_places → sun → sun_times → sun_stats → make_tour → map_labels → export_tiles → tiles_to_text → build_site`. Each script's docstring gives its arguments. Raw inputs come from Overture's public S3 bucket (release 2026-09-23.1), USGS 3DEP on S3, and the `nycehs/NYC_geography` repository.
 
