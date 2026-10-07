@@ -107,7 +107,15 @@ for t in data["tour"]:
     t["x"], t["y"] = world(x, y)
 tpl = open(os.path.join(here, "..", "web", "template.html")).read()
 html = tpl.replace("/*__DATA__*/{}", json.dumps(data, separators=(",", ":")))
-open(f"{SITE}/index.html", "w").write(html)
-# local preview only: the published page gets this skeleton from the host
-open(f"{SITE}/preview.html", "w").write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body style="margin:0">' + html + '</body></html>')
+# artifact.html: the page body alone, for the claude.ai artifact (its host adds the document skeleton).
+# index.html: the complete document, served by GitHub Pages and used for local testing.
+open(f"{SITE}/artifact.html", "w").write(html)
+DESC = ("Which of 16 New York landmarks, and the rising and setting sun, you can see at street level "
+        "from every street, sidewalk and park in the five boroughs.")
+title, rest = (html.split("\n", 1) if html.startswith("<title>") else ("", html))
+open(f"{SITE}/index.html", "w").write(
+    f'<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n{title}\n'
+    '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
+    f'<meta name="description" content="{DESC}">\n<meta property="og:title" content="New York Sightlines">\n'
+    f'<meta property="og:description" content="{DESC}">\n</head>\n<body style="margin:0">\n' + rest + '\n</body>\n</html>\n')
 print("index.html", len(html) // 1024, "KB")

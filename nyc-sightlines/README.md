@@ -2,6 +2,8 @@
 
 An interactive map of which of 16 New York City landmarks a person can see from every street, sidewalk and park in the five boroughs, at street level (eyes 1.6 m above the ground). Hover or tap anywhere to see sightlines drawn to each landmark in view, plus a panorama of the horizon from that spot, with distances, bearings and a Street View link facing the landmark. Sunrise and Sunset tabs show where you can watch the sun come up or go down, by month, including Manhattanhenge.
 
+Live: https://joshgreenman1973.github.io/experiments/nyc-sightlines/
+
 How the 16 landmarks were chosen, and what that choice does to the numbers, is spelled out on the page ("Why these 16?"). The fact-check is documented in [FACTCHECK.md](FACTCHECK.md).
 
 ## How it works
@@ -28,6 +30,7 @@ How the 16 landmarks were chosen, and what that choice does to the numbers, is s
    - Gzip'd 1024² byte-plane tiles at 3, 6, 12 and 24 m, stored as base64 text. Sun tiles are separate.
    - A WebGL 2 shader decodes the 2-bit-per-landmark visibility on the GPU.
    - The page is self-contained: no map library and no external tiles.
+   - `build_site.py` writes `index.html`, the complete page that GitHub Pages serves, and `artifact.html`, the same page without the document wrapper, for the claude.ai artifact.
 
 Run order: `build_dsm → fix_boro → fix_outside → public_ground → viewshed → validate → analyze → label_places → sun → sun_times → sun_stats → make_tour → map_labels → export_tiles → tiles_to_text → build_site`. Each script's docstring gives its arguments. Raw inputs come from Overture's public S3 bucket (release 2026-09-23.1), USGS 3DEP on S3, and the `nycehs/NYC_geography` repository.
 
