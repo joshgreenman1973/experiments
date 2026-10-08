@@ -237,10 +237,10 @@ async function daily(client, everything = false) {
   const known = knownLines(all);
   const todo = [...missing(recent, known).values()].slice(0, DAILY_CAP);
   const lines = new Map(known);
-  let dropped = 0, inTok = 0, outTok = 0;
+  let dropped = 0, failed = 0, authError = null, inTok = 0, outTok = 0;
   const queue = [...todo];
   async function worker() {
-    while (queue.length) {
+    while (queue.length && !authError) {
       const n = queue.shift();
       try {
         const msg = await client.messages.create(params(n));
@@ -250,6 +250,9 @@ async function daily(client, everything = false) {
         if (why) { dropped++; console.warn(`  dropped ${n.request_id}: ${why}`); continue; }
         lines.set(n.request_id, line);
       } catch (e) {
+        failed++;
+        // A bad or unfunded key fails every call; stop at the first one.
+        if (e.status === 401 || e.status === 403) authError = e.message;
         console.warn(`  failed ${n.request_id}: ${e.message}`);
       }
     }
@@ -257,8 +260,14 @@ async function daily(client, everything = false) {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   const changed = applyLines(recent, lines);
   const cost = (inTok * 0.10 + outTok * 0.50) / 1e6;
-  console.log(`Plain-English lines: ${todo.length - dropped} written, ${dropped} dropped, `
+  const written = lines.size - known.size;
+  console.log(`Plain-English lines: ${written} written, ${dropped} dropped, ${failed} failed, `
     + `${changed} files updated, ~$${cost.toFixed(4)}`);
+  if (authError) {
+    // Shows on the run page; the digest still publishes without new lines.
+    console.log(`::error title=Plain-English lines skipped::Claude API key rejected (${authError}). `
+      + 'Reset the ANTHROPIC_API_KEY repository secret.');
+  }
 }
 
 async function submitBatch(client) {
