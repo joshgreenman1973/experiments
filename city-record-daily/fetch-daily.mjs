@@ -410,6 +410,19 @@ async function main() {
 
   console.log(`Flagged: ${notable.length} notable, ${watching.length} watching`);
 
+  // Keep plain-English lines (summarize-notices.mjs) when re-fetching a day:
+  // the notices are the same, and re-writing them would cost an API call each.
+  if (existsSync(outPath)) {
+    const prior = new Map();
+    try {
+      const old = JSON.parse(readFileSync(outPath, 'utf8'));
+      for (const n of old.notices || []) if (n.plain) prior.set(n.request_id, n.plain);
+    } catch { /* unreadable old file: lines get rewritten */ }
+    for (const list of [notices, notable, watching]) {
+      for (const n of list) if (!n.plain && prior.has(n.request_id)) n.plain = prior.get(n.request_id);
+    }
+  }
+
   // Write daily JSON
   const dayData = { date, notices, notable, watching };
   if (personnel) dayData.personnel = personnel;
