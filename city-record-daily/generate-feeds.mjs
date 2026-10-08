@@ -93,7 +93,8 @@ function buildRssFeed({ title, description, link, feedUrl, items }) {
     const due = item.due_date ? ` | Due: ${item.due_date.slice(0, 10)}` : '';
     const event = item.event_date ? ` | Hearing: ${item.event_date.slice(0, 10)}` : '';
     const factLine = `${agency} | ${section} | ${item.type_of_notice_description || ''}${amount}${vendor}${due}${event}${reason}`;
-    const desc = item.description ? `${factLine}\n\n${item.description}` : (item.summary ? `${factLine}\n\n${item.summary}` : factLine);
+    const plain = item.plain ? `${factLine}\n\nIn plain English (machine-written): ${item.plain}` : factLine;
+    const desc = item.description ? `${plain}\n\n${item.description}` : (item.summary ? `${plain}\n\n${item.summary}` : plain);
 
     xml += `  <item>
     <title>${escXml(item.short_title || 'Untitled Notice')}</title>

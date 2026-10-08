@@ -28,6 +28,16 @@ jobs:
         working-directory: city-record-daily
         run: node fetch-daily.mjs ${{ github.event.inputs.date }}
 
+      - name: Add plain-English lines
+        working-directory: city-record-daily
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npm ci --no-audit --no-fund --ignore-scripts
+          node summarize-notices.mjs
+          # Feeds were built inside fetch-daily, before the lines existed.
+          node generate-feeds.mjs
+
       - name: Rebuild trends aggregate
         working-directory: city-record-daily
         run: node build-trends.mjs

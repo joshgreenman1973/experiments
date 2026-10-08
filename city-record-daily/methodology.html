@@ -131,6 +131,17 @@
   <h2>Filters and URL state</h2>
   <p>Filter chips reflect in the URL as query parameters: <code>?agency=…&amp;reason=…&amp;type=…&amp;min=…&amp;deadline=…&amp;date=…</code>. Any filtered view is shareable as a direct link.</p>
 
+  <h2 id="plain-english">Plain-English lines</h2>
+  <p>Each notice carries one sentence in plain English, marked "Plain English, machine-written." Anthropic's Claude Haiku 5.5 writes it from the notice's own fields and nothing else: agency, title, vendor, contract amount, selection method, dates and the description (the same 1,200-character excerpt the digest shows). The script is <code>summarize-notices.mjs</code>.</p>
+  <ul>
+    <li>The model is told to use only facts in the notice, make no judgments, leave unexplained codes alone and keep to one sentence of 35 words or fewer.</li>
+    <li>The City Record shortens agency names ("Environmental Protection"). The full name comes from a fixed table in the script, not from the model.</li>
+    <li>Selection methods are put in plain words from a fixed glossary, e.g. "Negotiated Acquisition: negotiated with one or a few vendors instead of open competition." Methods outside the glossary are named as written.</li>
+    <li>A script checks every dollar figure in the sentence against the notice's contract amount and the figures in its text. A sentence with a figure that doesn't match within 5 percent is thrown away and the notice shows no line.</li>
+    <li>Nothing else is checked automatically. Dates, names and descriptions in the line can still be wrong, so the line is a reading aid. The notice itself, linked from every entry, is the record.</li>
+    <li>New notices get their lines in the daily run. The archive back to Jan. 2, 2026, was done in one batch on Oct. 8, 2026.</li>
+  </ul>
+
   <h2>Limitations</h2>
   <ul>
     <li>Dollar amounts come from the <code>contract_amount</code> field or, when missing, from the largest dollar figure parsed out of the notice body. Amounts in the body may include estimates, line items, or unrelated figures.</li>
@@ -140,7 +151,7 @@
   </ul>
 
   <h2>Reproducing the digest</h2>
-  <p>The pipeline is three Node scripts in the repository: <code>fetch-daily.mjs</code> (pulls the day's notices, applies the flagging rules, writes <code>data/YYYY-MM-DD.json</code>), <code>build-trends.mjs</code> (rebuilds the <code>data/trends.json</code> aggregate behind the Trends tab), <code>build-analysis.mjs</code> (rebuilds the <code>data/analysis.json</code> aggregate behind The 2026 file) and <code>generate-feeds.mjs</code> (rebuilds RSS feeds). All run on a daily schedule via GitHub Actions.</p>
+  <p>The pipeline is a set of Node scripts in the repository: <code>fetch-daily.mjs</code> (pulls the day's notices, applies the flagging rules, writes <code>data/YYYY-MM-DD.json</code>), <code>build-trends.mjs</code> (rebuilds the <code>data/trends.json</code> aggregate behind the Trends tab), <code>build-analysis.mjs</code> (rebuilds the <code>data/analysis.json</code> aggregate behind The 2026 file), <code>summarize-notices.mjs</code> (adds the plain-English lines) and <code>generate-feeds.mjs</code> (rebuilds RSS feeds). All run on a daily schedule via GitHub Actions.</p>
 
   <footer>
     <a href="index.html">← Back to City Record Digest</a> · <a href="analysis.html">The 2026 file</a>

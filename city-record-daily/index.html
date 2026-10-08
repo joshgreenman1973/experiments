@@ -351,6 +351,15 @@
       position: relative;
     }
     .card-desc.expanded { max-height: none; }
+    .card-plain { font-size: 14px; color: #1a1a1a; line-height: 1.45; margin-top: 6px; }
+    .plain-tag { font-size: 10.5px; font-weight: 600; color: #999; text-decoration: none; margin-left: 4px; white-space: nowrap; }
+    .plain-tag:hover { color: #5b8db8; text-decoration: underline; }
+    .row-plain { font-size: 12px; color: #666; line-height: 1.4; margin-top: 2px; }
+    .ai-caution { display: inline; }
+    .ai-caution summary { display: inline; cursor: pointer; color: #8a2a2a; font-weight: 600; list-style: none; }
+    .ai-caution summary::-webkit-details-marker { display: none; }
+    .ai-caution[open] .ai-caution-body { display: block; }
+    .ai-caution-body { display: none; margin-top: 8px; max-width: 640px; background: #1f2a44; color: #fff; padding: 10px 12px; border-radius: 4px; font-size: 12px; line-height: 1.5; }
     .card-desc-toggle {
       display: inline-block;
       margin-top: 4px;
@@ -1099,6 +1108,9 @@
     Full City Record: <a href="https://a856-cityrecord.nyc.gov/">a856-cityrecord.nyc.gov</a> ·
     <a href="analysis.html">The 2026 file</a> ·
     <a href="methodology.html">Methodology</a> ·
+    <details class="ai-caution"><summary>And please read this AI caution.</summary>
+      <div class="ai-caution-body">Everything substantive here, from which notices to flag to how the page is laid out, was decided by the author, a human. The coding was done mostly by Anthropic's Claude and Claude Code under close direction, and the one-sentence plain-English line on each notice is written by Claude Haiku. Quality checks actually in place: every dollar figure in a plain-English line is checked by script against the notice, and a line that fails is not shown; every entry links to the official notice and its Open Data row. The risks of AI remain. The notice is the record; if a line misstates it, please flag it.</div>
+    </details> ·
     <span id="footer-updated"></span>
   </footer>
 </div>
@@ -1630,6 +1642,7 @@ async function renderDaily() {
         html += `<li>
           <a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a>
           <span class="li-meta"> — ${agencyHtml(n.agency_name)}${metaParts.length ? ' · ' + escHtml(metaParts.join(' · ')) : ''}</span>
+          ${plainRowHtml(n)}
         </li>`;
       });
       html += '</ul></div>';
@@ -1719,7 +1732,7 @@ function renderNoticesTable(rows) {
     const safeAgency = escHtml(n.agency_name || '').replace(/'/g, "\\'");
     html += `<tr>
       <td><span class="agency-cell" onclick="activeDailyFilters.agency='${safeAgency}';writeUrlFilters();renderDaily();">${escHtml(n.agency_name || '')}</span></td>
-      <td><a href="${RECORD_BASE}${n.request_id}" target="_blank" rel="noopener">${titleHtml(n.short_title || '')}</a> <span style="color:#aaa;font-size:11px;">${escHtml(n.section_name || '')}</span></td>
+      <td><a href="${RECORD_BASE}${n.request_id}" target="_blank" rel="noopener">${titleHtml(n.short_title || '')}</a> <span style="color:#aaa;font-size:11px;">${escHtml(n.section_name || '')}</span>${plainRowHtml(n)}</td>
       <td>${escHtml(n.type_of_notice_description || '')}</td>
       <td class="col-amount">${amt > 0 ? fmtMoney(amt) : '<span style="color:#bbb;">—</span>'}</td>
       <td class="col-deadline ${dlClass}">${dlText || '<span style="color:#bbb;">—</span>'}</td>
@@ -1803,6 +1816,15 @@ function deadlineClass(days) {
   return '';
 }
 
+// One-sentence plain-English line written by Claude Haiku (summarize-notices.mjs).
+function plainCardHtml(item) {
+  if (!item.plain) return '';
+  return `<p class="card-plain">${escHtml(item.plain)} <a class="plain-tag" href="methodology.html#plain-english" title="Written by Claude Haiku from this notice's own fields. The notice itself is the record.">Plain English, machine-written</a></p>`;
+}
+function plainRowHtml(item) {
+  return item.plain ? `<div class="row-plain" title="Plain English, machine-written. See methodology.">${escHtml(item.plain)}</div>` : '';
+}
+
 function renderNoticeCard(item, isWatching) {
   const code = inferFlagCode(item);
   const reasonLabel = item.flag_reason || (code ? REASON_LABELS[code] : '');
@@ -1849,6 +1871,7 @@ function renderNoticeCard(item, isWatching) {
   return `<div class="notice-card ${weightClass}" data-agency="${escHtml(item.agency_name)}" data-type="${escHtml(item.type_of_notice_description)}" data-code="${code || ''}">
     <h3><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h3>
     <div class="notice-meta" aria-label="${escHtml(item.agency_name)}, ${escHtml(item.section_name)}, ${escHtml(item.type_of_notice_description)}">${agencyHtml(item.agency_name)} <span aria-hidden="true">·</span> ${escHtml(item.section_name)} <span aria-hidden="true">·</span> ${escHtml(item.type_of_notice_description)}</div>
+    ${plainCardHtml(item)}
     ${facts.length ? '<div class="fact-row">' + facts.join('') + '</div>' : ''}
     ${descHtml}
     ${reasonHtml}
@@ -1918,6 +1941,7 @@ async function renderWeekly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        ${plainRowHtml(n)}
       </div>`;
     });
   }
@@ -1937,6 +1961,7 @@ async function renderWeekly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${plainRowHtml(item)}
         ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
@@ -2016,6 +2041,7 @@ async function renderMonthly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        ${plainRowHtml(n)}
       </div>`;
     });
   }
@@ -2034,6 +2060,7 @@ async function renderMonthly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''}</div>
+        ${plainRowHtml(item)}
         ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
@@ -2155,6 +2182,7 @@ async function renderYearly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${n.request_id}">${titleHtml(n.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(n.agency_name)} | ${fmtMoney(n.contract_amount)} | ${escHtml(n.type_of_notice_description)} | ${fmtShortDate(n.start_date.slice(0, 10))}${n.selection_method_description ? ' | ' + escHtml(n.selection_method_description) : ''}</div>
+        ${plainRowHtml(n)}
       </div>`;
     });
   }
@@ -2175,6 +2203,7 @@ async function renderYearly() {
       html += `<div class="top-item">
         <h4><a href="${RECORD_BASE}${item.request_id}">${titleHtml(item.short_title)}</a></h4>
         <div class="item-meta">${agencyHtml(item.agency_name)} | ${escHtml(item.section_name)}${item.contract_amount ? ' | ' + fmtMoney(item.contract_amount) : ''} | ${fmtShortDate(item.start_date.slice(0, 10))}</div>
+        ${plainRowHtml(item)}
         ${htmlToText(item.summary) ? '<p style="font-size:14px;margin-top:4px;">' + escHtml(htmlToText(item.summary)) + '</p>' : ''}
       </div>`;
     });
@@ -2593,6 +2622,7 @@ async function loadAllNotices() {
         n.vendor_name,
         n.contract_amount ? fmtMoney(n.contract_amount) : '',
         n.selection_method_description,
+        n.plain,
         notableLookup[n.request_id] || ''
       ].filter(Boolean).join(' ').toLowerCase()
     }))
