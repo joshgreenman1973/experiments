@@ -20,8 +20,11 @@ const INPUT = process.argv[2]; if (!INPUT) { console.error('Usage: pin-verify.js
 const OUTPUT = INPUT.replace(/-input\.json$/, '-verified.json');
 const items = JSON.parse(fs.readFileSync(path.join(dataDir, INPUT), 'utf8'));
 
+// Claude Haiku 5.5: thinking is on by default and counts toward max_tokens, so the cap
+// leaves room for it (effort 'low' keeps it short); replies may open with thinking blocks,
+// so read the text blocks. A refusal returns no text block and parses as a miss.
 function callClaude(prompt, tries = 0) {
-  const body = JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 500, messages: [{ role: 'user', content: prompt }] });
+  const body = JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 4096, output_config: { effort: 'low' }, messages: [{ role: 'user', content: prompt }] });
   return new Promise((resolve, reject) => {
     const req = https.request({ hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01', 'Content-Length': Buffer.byteLength(body) } },
@@ -30,7 +33,7 @@ function callClaude(prompt, tries = 0) {
           if (tries >= 5) return reject(new Error('rate/again ' + res.statusCode));
           return setTimeout(() => callClaude(prompt, tries + 1).then(resolve, reject), 1500 * (tries + 1));
         }
-        try { const p = JSON.parse(d); if (p.error) return reject(new Error(p.error.message)); resolve(p.content?.[0]?.text || ''); } catch (e) { reject(e); }
+        try { const p = JSON.parse(d); if (p.error) return reject(new Error(p.error.message)); resolve((p.content || []).filter(b => b.type === 'text').map(b => b.text).join('')); } catch (e) { reject(e); }
       }); });
     req.on('error', e => { if (tries < 5) return setTimeout(() => callClaude(prompt, tries + 1).then(resolve, reject), 1500 * (tries + 1)); reject(e); });
     req.write(body); req.end();

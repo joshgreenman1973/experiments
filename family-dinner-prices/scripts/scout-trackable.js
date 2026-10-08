@@ -89,13 +89,16 @@ function priceForItem(menuNorm, itemText) {
   return null;
 }
 
+// Claude Haiku 5.5: thinking is on by default and counts toward max_tokens, so the cap
+// leaves room for it (effort 'low' keeps it short); replies may open with thinking blocks,
+// so read the text blocks. A refusal returns no text block and parses as a miss.
 function callClaude(prompt) {
-  const body = JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
+  const body = JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 4096, output_config: { effort: 'low' }, messages: [{ role: 'user', content: prompt }] });
   return new Promise((resolve, reject) => {
     const req = https.request({ hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01', 'Content-Length': Buffer.byteLength(body) },
     }, (res) => { let d = ''; res.on('data', c => d += c); res.on('end', () => {
-      try { const p = JSON.parse(d); if (p.error) return reject(new Error(p.error.message)); resolve(p.content?.[0]?.text || ''); } catch (e) { reject(e); }
+      try { const p = JSON.parse(d); if (p.error) return reject(new Error(p.error.message)); resolve((p.content || []).filter(b => b.type === 'text').map(b => b.text).join('')); } catch (e) { reject(e); }
     }); });
     req.on('error', reject); req.write(body); req.end();
   });
