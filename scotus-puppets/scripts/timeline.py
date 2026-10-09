@@ -71,6 +71,9 @@ for t in turns:
     # Open only for real speech: above both the turn's own quiet level and the whole recording's silence level,
     # and for at least 3 frames (125 ms), so room noise, breaths and paper don't flap the jaw during pauses.
     thr = max(floor + 7.0, GFLOOR + 13.0)
+    # A quiet speaker (far from the mic) never rises far above the room, so the gate may not sit more than 16 dB under
+    # the turn's own loud end, and never within 5 dB of the silence level.
+    thr = max(GFLOOR + 5.0, min(thr, peak - 16.0))
     on = seg > thr
     j = 0
     while j < len(on):
