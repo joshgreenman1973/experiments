@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 ap = argparse.ArgumentParser()
 ap.add_argument('cfg'); ap.add_argument('transcript'); ap.add_argument('audio'); ap.add_argument('tlweb'); ap.add_argument('out')
 ap.add_argument('--outcome', help='JSON with outcome, decided (YYYY-MM-DD), source')
+ap.add_argument('--notes', help='verified decision notes from verify_notes.py')
 ap.add_argument('--credit', default='Made by Josh Greenman with Claude.')
 a = ap.parse_args()
 os.environ['SCOTUS_CASE'] = os.path.abspath(a.cfg)
@@ -102,7 +103,8 @@ page = dict(
     question=cfg.get('question', ''), outcome=outcome.get('outcome') or cfg.get('outcome', ''), outcome_src=outcome.get('source', ''),
     stand_in_note=web.get('stand_in_note', ''), end_puppets=web.get('end_puppets', ''), oyez_url=cfg.get('oyez_url', 'https://www.oyez.org'),
     credit=a.credit, storage_key=web.get('storage_key', 'pos-' + cfg['docket']),
-    bench=BENCH_ORDER, advocates=ADVOCATES, chapters=chapters, cards=cards, tags=tags, mic=mic)
+    bench=BENCH_ORDER, advocates=ADVOCATES, chapters=chapters, cards=cards, tags=tags, mic=mic,
+    notes=json.load(open(a.notes))['notes'] if a.notes else [])
 json.dump(dict(page=page, tl=tl, segments=segments), open(os.path.join(a.out, 'data.json'), 'w'), separators=(',', ':'),
           ensure_ascii=False)
 
