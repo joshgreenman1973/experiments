@@ -24,9 +24,12 @@ rows, total = [], 0
 for c in slate['cases']:
     d = c['docket']
     cfg = json.load(open(os.path.join(root, 'cases', d, 'cfg.json')))
-    data = json.load(open(os.path.join(root, 'cases', d, 'page', 'data.json')))
-    seg = data['segments'][-1]
-    length = seg[1] + seg[2]
+    dp = os.path.join(root, 'cases', d, 'page', 'data.json')
+    if os.path.exists(dp):
+        seg = json.load(open(dp))['segments'][-1]
+        length = seg[1] + seg[2]
+    else:  # page not built yet: the timeline knows the audio length
+        length = json.load(open(os.path.join(root, 'cases', d, 'tl_web.json')))['duration']
     total += length
     o = outcomes.get(d, {})
     m = re.match(r'\s*(\d)-(\d)', o.get('vote', ''))
