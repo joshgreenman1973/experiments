@@ -1,0 +1,296 @@
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* Layout: a screening room. One column, player first; chapters and speaking time side by side below. Single dark look by choice (velvet, marble, brass). */
+:root {
+  --bg: #130c0d;          /* oxblood black */
+  --panel: #1d1314;
+  --panel-2: #26191a;
+  --fg: #efe6d8;          /* marble ivory */
+  --muted: #b6a796;
+  --faint: #7d6f63;
+  --brass: #c9a24a;       /* the courtroom clock's rim */
+  --velvet: #8c1d27;      /* the drapes */
+  --line: #3a2a2a;
+  --focus: #e8c56b;
+  --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.55; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 28px; }
+
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(30px, 5vw, 52px); line-height: 1.08; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.dek { margin: 4px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+
+/* player */
+.player { background: #000; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.screen { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: #000; cursor: pointer; }
+.screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.screen video.standby { visibility: hidden; }
+.bigplay { position: absolute; inset: 0; margin: auto; width: 84px; height: 84px; border-radius: 50%; border: 1px solid var(--brass);
+  background: rgba(19, 12, 13, .72); color: var(--fg); display: grid; place-items: center; cursor: pointer; }
+.bigplay svg { width: 30px; height: 30px; margin-left: 5px; }
+.spinner { position: absolute; right: 16px; top: 14px; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(239, 230, 216, .25); border-top-color: var(--brass); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+.controls { display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: center; gap: 12px; padding: 10px 14px 12px; background: var(--panel); }
+.btn { background: none; border: 1px solid transparent; color: var(--fg); width: 36px; height: 36px; border-radius: 4px; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.btn:hover { border-color: var(--line); }
+.btn svg { width: 20px; height: 20px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.time { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.track { position: relative; height: 28px; display: grid; align-items: center; min-width: 0; }
+.track input { width: 100%; margin: 0; accent-color: var(--velvet); appearance: none; -webkit-appearance: none; background: transparent; height: 28px; cursor: pointer; position: relative; z-index: 2; }
+.track input::-webkit-slider-runnable-track { height: 4px; background: transparent; }
+.track input::-moz-range-track { height: 4px; background: transparent; }
+.track input::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); margin-top: -5px; border: 2px solid var(--velvet); }
+.track input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--fg); border: 2px solid var(--velvet); }
+.rail { position: absolute; left: 0; right: 0; height: 4px; background: var(--line); border-radius: 2px; overflow: visible; }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--velvet); border-radius: 2px; }
+.tick { position: absolute; top: -4px; width: 2px; height: 12px; background: var(--brass); opacity: .85; }
+.nowline { padding: 0 14px 12px; background: var(--panel); color: var(--muted); font-size: 14px; min-height: 1.4em; }
+.nowline b { color: var(--fg); font-weight: 600; }
+
+/* below the player */
+.cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); } .controls { grid-template-columns: auto 1fr auto auto; } .time { grid-column: 1 / -1; order: 5; } }
+h2 { font-family: var(--display); font-weight: 500; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); margin: 0 0 10px; }
+section { min-width: 0; }
+.chapters { list-style: none; margin: 0; padding: 0; display: grid; }
+.chapters button { width: 100%; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; text-align: left; background: none; border: 0;
+  border-top: 1px solid var(--line); color: var(--fg); padding: 11px 4px; cursor: pointer; font: inherit; font-size: 16px; line-height: 1.4; }
+.chapters li:last-child button { border-bottom: 1px solid var(--line); }
+.chapters button:hover { background: var(--panel); }
+.chapters .tc { font-family: var(--mono); font-size: 13px; color: var(--brass); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.chapters .q { font-style: italic; color: var(--muted); }
+.chapters button.current { background: var(--panel-2); }
+
+.mic { display: grid; gap: 2px; }
+.mic button { display: grid; grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) 3.4em; gap: 10px; align-items: center; background: none; border: 0; color: var(--fg);
+  font: inherit; font-size: 15px; padding: 6px 4px; cursor: pointer; text-align: left; border-radius: 3px; }
+.mic button:hover { background: var(--panel); }
+.mic .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mic .bar { height: 10px; background: var(--line); border-radius: 2px; position: relative; }
+.mic .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--fg); opacity: .78; }
+.mic .adv .bar i { background: var(--brass); opacity: 1; }
+.mic .min { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--faint); font-size: 13px; margin: 10px 0 0; }
+
+.about { border-top: 1px solid var(--line); padding-top: 22px; display: grid; gap: 12px; max-width: 70ch; color: var(--muted); font-size: 16px; }
+.about p { margin: 0; }
+.about strong { color: var(--fg); font-weight: 600; }
+.about a { color: var(--brass); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Supreme Court of the United States · No. __DOCKET__ · Argued __ARGUED__</div>
+    <h1>__CASE_NAME__</h1>
+    <p class="dek">__DEK__</p>
+  </header>
+
+  <div class="player" id="player">
+    <div class="screen" id="screen">
+      <video id="va" playsinline preload="metadata" poster="poster.jpg"></video>
+      <video id="vb" class="standby" playsinline preload="auto"></video>
+      <button class="bigplay" id="bigplay" aria-label="Play">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+      </button>
+      <div class="spinner" id="spinner" hidden></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="play" aria-label="Play">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" id="playicon"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+      </button>
+      <div class="track">
+        <div class="rail" id="rail"><div class="fill" id="fill"></div></div>
+        <input type="range" id="scrub" min="0" max="__TOTAL_S__" step="0.1" value="0" aria-label="Position in the argument">
+      </div>
+      <span class="time" id="time">0:00 / __TOTAL__</span>
+      <button class="btn" id="mute" aria-label="Mute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" id="muteicon"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+      </button>
+      <button class="btn" id="full" aria-label="Full screen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="nowline" id="nowline">Press play to start the argument. Space pauses; the arrow keys skip 10 seconds.</div>
+  </div>
+
+  <div class="cols">
+    <section aria-labelledby="ch-h">
+      <h2 id="ch-h">Chapters</h2>
+      <ol class="chapters" id="chapters"></ol>
+    </section>
+    <section aria-labelledby="mic-h">
+      <h2 id="mic-h">Time at the lectern and bench</h2>
+      <div class="mic" id="mic"></div>
+      <p class="note">Minutes of speaking turns in the Oyez transcript. Select a name to jump to that speaker's first words.</p>
+    </section>
+  </div>
+
+  <div class="about">
+    <p><strong>What you are watching.</strong> The audio is the Court's recording of the argument, unedited, via Oyez, whose transcript also marks who is speaking when. The puppets are 3D caricatures built for this video. Each mouth moves with the loudness of the speaker's syllables during that person's turn, and the justices sit in their actual bench order. The likenesses are broad by design. __STAND_IN__</p>
+    __OUTCOME_P__
+    <p><strong>Credits.</strong> Audio and transcript timing from <a href="__OYEZ_URL__" target="_blank" rel="noopener">Oyez</a>, licensed CC BY-NC 4.0. Puppets, courtroom and edit made for Vital City with the scotus-puppets pipeline.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const PARTS = __PARTS__;
+  const OFF = []; let acc = 0; for (const p of PARTS) { OFF.push(acc); acc += p[1]; }
+  const TOTAL = acc;
+
+  const CHAPTERS = __CHAPTERS__;
+  const MIC = __MIC__;
+
+  const $ = id => document.getElementById(id);
+  const screen = $("screen"), bigplay = $("bigplay"), spinner = $("spinner"), scrub = $("scrub"), fill = $("fill");
+  let active = $("va"), standby = $("vb"), cur = 0, playing = false, seeking = false, standbyFor = -1, pendingT = null;
+  scrub.max = TOTAL.toFixed(1);
+
+  const fmt = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+  const partAt = T => { let i = 0; while (i < PARTS.length - 1 && T >= OFF[i + 1]) i++; return i; };
+  const now = () => pendingT !== null ? pendingT : OFF[cur] + (active.currentTime || 0);
+
+  function prepStandby() {
+    const n = cur + 1;
+    if (n >= PARTS.length || standbyFor === n) return;
+    standbyFor = n; standby.src = PARTS[n][0]; standby.preload = "auto"; standby.muted = active.muted;
+    try { standby.load(); } catch (e) {}
+  }
+
+  function setPlaying(p) {
+    playing = p;
+    $("playicon").innerHTML = p ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l12.5-7.5z"/>';
+    $("play").setAttribute("aria-label", p ? "Pause" : "Play");
+    bigplay.hidden = p;
+  }
+
+  function play() { const r = active.play(); if (r && r.catch) r.catch(() => setPlaying(false)); setPlaying(true); }
+  function pause() { active.pause(); setPlaying(false); }
+
+  function seek(T, autoplay) {
+    T = Math.min(Math.max(0, T), TOTAL - 0.2);
+    const i = partAt(T), off = T - OFF[i];
+    const wantPlay = autoplay === undefined ? playing : autoplay;
+    if (i === cur && active.src) { active.currentTime = off; if (wantPlay) play(); update(); return; }
+    if (i === standbyFor) { swapTo(standby, i, off, wantPlay); return; }
+    active.pause(); cur = i; pendingT = T; active.src = PARTS[i][0];
+    const el = active;
+    const go = () => { el.removeEventListener("loadedmetadata", go); el.currentTime = off; pendingT = null; if (wantPlay) play(); update(); };
+    el.addEventListener("loadedmetadata", go);
+    try { el.load(); } catch (e) {}
+    standbyFor = -1; prepStandby(); update();
+  }
+
+  function swapTo(next, i, off, wantPlay) {
+    const old = active;
+    active = next; standby = old; cur = i;
+    active.classList.remove("standby"); standby.classList.add("standby");
+    active.muted = standby.muted;
+    if (off) active.currentTime = off;
+    if (wantPlay) play();
+    standby.pause(); standbyFor = -1;
+    setTimeout(prepStandby, 200);
+    update();
+  }
+
+  function onEnded(e) {
+    if (e.target !== active) return;
+    if (cur + 1 < PARTS.length) swapTo(standby, cur + 1, 0, true);
+    else { setPlaying(false); }
+  }
+
+  let lastSave = 0;
+  function update() {
+    const T = now();
+    if (!seeking) scrub.value = T.toFixed(1);
+    fill.style.width = (100 * T / TOTAL) + "%";
+    $("time").textContent = fmt(T) + " / " + fmt(TOTAL);
+    let ci = 0; CHAPTERS.forEach((c, k) => { if (T >= c[0] - 0.05) ci = k; });
+    document.querySelectorAll("#chapters button").forEach((b, k) => b.classList.toggle("current", k === ci));
+    $("nowline").innerHTML = "<b>" + fmt(CHAPTERS[ci][0]) + "</b> · " + CHAPTERS[ci][1];
+    if (Math.abs(T - lastSave) > 5) { lastSave = T; try { localStorage.setItem("__STORAGE_KEY__", String(T)); } catch (e) {} }
+  }
+
+  for (const v of [$("va"), $("vb")]) {
+    v.addEventListener("ended", onEnded);
+    v.addEventListener("timeupdate", e => { if (e.target === active) { update(); if (active.duration && active.duration - active.currentTime < 30) prepStandby(); } });
+    v.addEventListener("waiting", e => { if (e.target === active) spinner.hidden = false; });
+    v.addEventListener("playing", e => { if (e.target === active) spinner.hidden = true; });
+    v.addEventListener("canplay", e => { if (e.target === active) spinner.hidden = true; });
+    v.addEventListener("pause", e => { if (e.target === active && !active.ended && playing && document.hidden) setPlaying(false); });
+  }
+
+  const toggle = () => playing ? pause() : play();
+  $("play").addEventListener("click", toggle);
+  bigplay.addEventListener("click", e => { e.stopPropagation(); play(); });
+  screen.addEventListener("click", toggle);
+  scrub.addEventListener("input", () => { seeking = true; const T = +scrub.value; fill.style.width = (100 * T / TOTAL) + "%"; $("time").textContent = fmt(T) + " / " + fmt(TOTAL); });
+  scrub.addEventListener("change", () => { seeking = false; seek(+scrub.value); });
+  $("mute").addEventListener("click", () => {
+    const m = !active.muted; active.muted = m; standby.muted = m;
+    $("muteicon").innerHTML = m ? '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>'
+                                : '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>';
+    $("mute").setAttribute("aria-label", m ? "Unmute" : "Mute");
+  });
+  $("full").addEventListener("click", () => {
+    const el = $("player");
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (active.webkitEnterFullscreen) active.webkitEnterFullscreen();
+    } catch (e) {}
+  });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input, textarea")) return;
+    if (e.key === " " || e.key === "k") { e.preventDefault(); toggle(); }
+    else if (e.key === "ArrowRight" || e.key === "l") { e.preventDefault(); seek(now() + 10); }
+    else if (e.key === "ArrowLeft" || e.key === "j") { e.preventDefault(); seek(now() - 10); }
+  });
+
+  // chapter list and ticks
+  const ol = $("chapters"), rail = $("rail");
+  CHAPTERS.forEach(c => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.innerHTML = '<span class="tc">' + fmt(c[0]) + "</span><span>" + c[1] + (c[2] ? '<br><span class="q">' + c[2] + "</span>" : "") + "</span>";
+    b.addEventListener("click", () => { seek(c[0], true); $("player").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    li.appendChild(b); ol.appendChild(li);
+    if (c[0] > 1) { const t = document.createElement("span"); t.className = "tick"; t.style.left = (100 * c[0] / TOTAL) + "%"; rail.appendChild(t); }
+  });
+  const mic = $("mic"), max = Math.max(...MIC.map(m => m[1]));
+  MIC.forEach(m => {
+    const b = document.createElement("button");
+    if (m[3]) b.className = "adv";
+    b.innerHTML = '<span class="who">' + m[0] + '</span><span class="bar"><i style="width:' + (100 * m[1] / max) + '%"></i></span><span class="min">' + m[1].toFixed(1) + "</span>";
+    b.setAttribute("aria-label", m[0] + ", " + m[1].toFixed(1) + " minutes; jump to first words at " + fmt(m[2]));
+    b.addEventListener("click", () => { seek(m[2], true); $("player").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    mic.appendChild(b);
+  });
+
+  // start: a #t1234 link jumps to that second; otherwise resume where this viewer left off
+  let start = 0;
+  const h = (location.hash || "").match(/^#t(\d+)$/);
+  if (h) start = +h[1];
+  else { try { const s = +localStorage.getItem("__STORAGE_KEY__"); if (s > 30 && s < TOTAL - 30) start = s; } catch (e) {} }
+  cur = partAt(start); active.src = PARTS[cur][0];
+  if (start) {
+    pendingT = start;
+    const go = () => { active.removeEventListener("loadedmetadata", go); active.currentTime = start - OFF[cur]; pendingT = null; update();
+      $("nowline").innerHTML += " · Resuming at " + fmt(start) + "."; };
+    active.addEventListener("loadedmetadata", go);
+  }
+  prepStandby(); update();
+})();
+</script>
