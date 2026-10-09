@@ -93,14 +93,17 @@ def mat_hair(name, color, rough=0.42, rand=0.12):
 
 def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_depth=0.16, v_half=0.075,
              tie_w=0.022, collar=True, v_shape='V', pattern=None, shirt_pattern=None, tie_pattern=None,
-             pin=None, lapel=None, fabric=None, placket=None, buttons=None, pockets=None):
+             pin=None, lapel=None, fabric=None, placket=None, buttons=None, pockets=None, felt=1.0, mottle=0.09,
+             sheen=None):
     """Garment with a V (or round 'U') opening showing a shirt (and optional tie), via object-space masks.
 
     The defaults give the black judicial robe. Optional extras, all off by default:
       v_shape 'V' | 'U'
       pattern / shirt_pattern / tie_pattern = dict(kind='dots'|'check'|'stripes'|'diag', hex, s=spacing m, r, strength)
       lapel = hex band along the V edge; pin = dict(hex, x, z, r); placket = hex line down the front;
-      buttons = dict(hex, z0, dz, n, r); pockets = dict(hex, cx, cz, w, h, t); fabric 'knit'|'denim'|'cotton'|'suit'."""
+      buttons = dict(hex, z0, dz, n, r); pockets = dict(hex, cx, cz, w, h, t); fabric 'knit'|'denim'|'cotton'|'suit'.
+    Fabric surface (on for every garment): felt = strength of the 1-2 mm felt/knit fibre bump (0 = off, 1 = default),
+    mottle = +/- brightness of the slight colour mottling, sheen = grazing-angle sheen weight (None = per-fabric default)."""
     m, nt, p = _new_mat(name)
     N, L = nt.nodes, nt.links
     tc = N.new('ShaderNodeTexCoord')
@@ -255,54 +258,68 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
                               math('MULTIPLY', math('SUBTRACT', z, pz), math('SUBTRACT', z, pz))))
         col_out = mixc(math('MULTIPLY', ramp(d, pr * 1.2, pr * 0.85), front), col_out, hex_lin(pin.get('hex', '#d9b550')))
 
-    # ---- fabric: soft folds + fine fibre bump; per-fabric extras
+    # ---- fabric surface: broad soft folds, a fine felt/knit fibre bump (1-2 mm), mottling, grazing-angle sheen
     folds = N.new('ShaderNodeTexWave'); folds.wave_type = 'BANDS'; folds.bands_direction = 'X'
     folds.inputs['Scale'].default_value = 5.0; folds.inputs['Distortion'].default_value = 9.0
     folds.inputs['Detail'].default_value = 1.5
     L.new(tc.outputs['Object'], folds.inputs['Vector'])
-    fib = N.new('ShaderNodeTexNoise'); fib.inputs['Scale'].default_value = 700
+    broad = math('MULTIPLY', folds.outputs['Fac'], 0.6)
+    fib = N.new('ShaderNodeTexNoise'); fib.inputs['Scale'].default_value = 650
+    fib.inputs['Detail'].default_value = 4.0; fib.inputs['Roughness'].default_value = 0.65
     L.new(tc.outputs['Object'], fib.inputs['Vector'])
-    h = math('ADD', math('MULTIPLY', folds.outputs['Fac'], 0.6), fib.outputs['Fac'])
-    bump_s, rough, sheen, spec = 0.3, 0.78, 0.12, 0.12
-    sheen_tint = (0.2, 0.2, 0.22, 1.0)
+    fib2 = N.new('ShaderNodeTexNoise'); fib2.inputs['Scale'].default_value = 170
+    fib2.inputs['Detail'].default_value = 2.0
+    L.new(tc.outputs['Object'], fib2.inputs['Vector'])
+    fine = math('ADD', fib.outputs['Fac'], math('MULTIPLY', fib2.outputs['Fac'], 1.0))
+    rough, spec, sheen_w = 0.78, 0.12, 0.75
     if fabric:
         if fabric == 'knit':
             def rib(a, b):
                 s_ = math('SINE', math('MULTIPLY', a, 2 * _PI / 0.0072))
                 return math('ADD', math('MULTIPLY', s_, 0.5), 0.5)
-            h = math('ADD', h, math('MULTIPLY', planar(rib), 1.1))
-            bump_s, rough, sheen, spec = 0.7, 0.93, 0.5, 0.06
+            fine = math('ADD', fine, math('MULTIPLY', planar(rib), 1.1))
+            rough, spec, sheen_w = 0.93, 0.06, 1.0
+            mottle = max(mottle, 0.13)
         elif fabric == 'denim':
             def twill(a, b):
                 return fract(math('DIVIDE', math('ADD', a, b), 0.0034))
-            h = math('ADD', h, math('MULTIPLY', planar(twill), 0.9))
-            bump_s, rough, sheen, spec = 0.5, 0.82, 0.2, 0.08
+            fine = math('ADD', fine, math('MULTIPLY', planar(twill), 0.9))
+            rough, spec, sheen_w = 0.82, 0.08, 0.7
+            mottle = max(mottle, 0.13)
         elif fabric == 'cotton':
-            bump_s, rough, sheen, spec = 0.22, 0.72, 0.18, 0.1
+            rough, spec, sheen_w = 0.72, 0.1, 0.6
         elif fabric == 'suit':
-            bump_s, rough, sheen, spec = 0.25, 0.68, 0.14, 0.14
-        if fabric in ('knit', 'denim', 'suit'):  # heathered yarn: slow blotchy tint
-            hn = N.new('ShaderNodeTexNoise'); hn.inputs['Scale'].default_value = 140 if fabric != 'suit' else 40
-            hn.inputs['Detail'].default_value = 4.0
-            L.new(tc.outputs['Object'], hn.inputs['Vector'])
-            mr = N.new('ShaderNodeMapRange')
-            mr.inputs['To Min'].default_value = 0.86 if fabric != 'suit' else 0.94
-            mr.inputs['To Max'].default_value = 1.08 if fabric != 'suit' else 1.04
-            L.new(hn.outputs['Fac'], mr.inputs['Value'])
-            gray = N.new('ShaderNodeCombineColor')
-            for k_ in ('Red', 'Green', 'Blue'):
-                L.new(mr.outputs['Result'], gray.inputs[k_])
-            col_out = mixc(1.0, col_out, gray.outputs['Color'], 'MULTIPLY')
-        sc3 = hex_lin(base_hex)
-        sheen_tint = tuple(min(1.0, c * 1.5 + 0.1) for c in sc3[:3]) + (1.0,)
+            rough, spec, sheen_w = 0.68, 0.14, 0.75
+    if sheen is not None:
+        sheen_w = sheen
+    if mottle:  # slight colour mottling (multiplicative, so black stays black)
+        hn = N.new('ShaderNodeTexNoise'); hn.inputs['Scale'].default_value = 24
+        hn.inputs['Detail'].default_value = 4.0
+        L.new(tc.outputs['Object'], hn.inputs['Vector'])
+        mr = N.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.3; mr.inputs['From Max'].default_value = 0.7
+        mr.inputs['To Min'].default_value = 1.0 - mottle; mr.inputs['To Max'].default_value = 1.0 + mottle
+        L.new(hn.outputs['Fac'], mr.inputs['Value'])
+        gray = N.new('ShaderNodeCombineColor')
+        for k_ in ('Red', 'Green', 'Blue'):
+            L.new(mr.outputs['Result'], gray.inputs[k_])
+        col_out = mixc(1.0, col_out, gray.outputs['Color'], 'MULTIPLY')
     L.new(col_out, p.inputs['Base Color'])
-    bp = N.new('ShaderNodeBump'); bp.inputs['Strength'].default_value = bump_s
-    bp.inputs['Distance'].default_value = 0.01
-    L.new(h, bp.inputs['Height']); L.new(bp.outputs['Normal'], p.inputs['Normal'])
+    bp1 = N.new('ShaderNodeBump'); bp1.inputs['Strength'].default_value = 0.3
+    bp1.inputs['Distance'].default_value = 0.01
+    L.new(broad, bp1.inputs['Height'])
+    if felt:
+        bp2 = N.new('ShaderNodeBump'); bp2.inputs['Strength'].default_value = min(1.0, 1.0 * felt)
+        bp2.inputs['Distance'].default_value = 0.0022
+        L.new(fine, bp2.inputs['Height']); L.new(bp1.outputs['Normal'], bp2.inputs['Normal'])
+        L.new(bp2.outputs['Normal'], p.inputs['Normal'])
+    else:
+        L.new(bp1.outputs['Normal'], p.inputs['Normal'])
+    base_lin = hex_lin(base_hex)
     p.inputs['Roughness'].default_value = rough
-    p.inputs['Sheen Weight'].default_value = sheen
-    p.inputs['Sheen Roughness'].default_value = 0.3
-    p.inputs['Sheen Tint'].default_value = sheen_tint
+    p.inputs['Sheen Weight'].default_value = sheen_w
+    p.inputs['Sheen Roughness'].default_value = 0.35
+    p.inputs['Sheen Tint'].default_value = tuple(min(1.0, c * 1.6 + 0.1) for c in base_lin[:3]) + (1.0,)
     p.inputs['Specular IOR Level'].default_value = spec
     return m
 
@@ -800,6 +817,45 @@ def emit_hair(name, C, rad, hs, hm, head, rng, pg=None):
     return out
 
 
+BODY_FUZZ = dict(count=70000, arm=14000, len=0.0025, hex=None)  # defaults of body['fuzz'] (False disables)
+
+
+def mesh_arrays(ob):
+    me = ob.data
+    V = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', V)
+    return V.reshape(-1, 3), [tuple(pl.vertices) for pl in me.polygons]
+
+
+def build_body_fuzz(name, s, b, Vb, Fb, neck_base, arm_objs, root, seed):
+    """Short cloth-coloured fibres on the torso and sleeves so silhouettes read as soft fabric."""
+    fz = b.get('fuzz', True)
+    if not fz:
+        return
+    cfg = dict(BODY_FUZZ, **(fz if isinstance(fz, dict) else {}))
+    rng = np.random.default_rng(seed + 313)
+    m = mat_hair(name + '_clothfuzz', hex_lin(cfg['hex'] or b['robe'], 1.15), rough=0.65, rand=0.1)
+    vh, vd = b.get('v_half', 0.075), b.get('v_depth', 0.16)
+
+    def torso_mask(C):
+        zz = C[:, 2] - neck_base
+        w = np.clip((zz + 0.5) / 0.08, 0, 1)  # upper body only; the lap is hidden
+        in_v = (C[:, 1] < 0) & (np.abs(C[:, 0]) < np.maximum(0.0, (zz + vd)) * (vh / vd) + 0.004) & (zz > -vd - 0.01)
+        return w * (~in_v)
+
+    jobs = [(Vb, Fb, cfg['count'], torso_mask, np.array([0, 0.012, neck_base - 0.3]))]
+    for ob in arm_objs:
+        Va, Fa = mesh_arrays(ob)
+        jobs.append((Va, Fa, cfg['arm'], None, None))
+    for k, (V, F, n, mask, oc) in enumerate(jobs):
+        R, Nn = sample_surface(V, F, int(n), rng, mask, oc)
+        d = Nn + rng.normal(0, 0.55, Nn.shape)
+        d /= np.linalg.norm(d, axis=1, keepdims=True)
+        Lf = cfg['len'] * rng.uniform(0.75, 1.25, len(R))
+        Pz = R[:, None, :] + d[:, None, :] * (np.array([0.0, 0.5, 1.0])[None, :, None] * Lf[:, None, None])
+        curves_obj(f'{name}_clothfuzz{k}', Pz, np.tile(np.array([0.00030, 0.00022, 0.00009]), (len(R), 1)), m,
+                   parent=root)
+
+
 def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, seed=1, hair_scale=1.0):
     """Returns dict(root, jaw, head, hinge_angle_fn). Head centre sits at root + (0,0,body_h)."""
     s = merged(spec)
@@ -967,12 +1023,17 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
             # pushed up: the frames lie on the dome of the head, following its curvature
             zu = float(up)
             off = gl.get('off', 0.03)
-            phi = math.atan2((surf(0.0, zu + 0.01)[0][1] - surf(0.0, zu)[0][1]) / 0.01, 1.0)
+
+            def yfront(u, z):  # smooth front surface of the cranium (ring interpolation, no sculpt)
+                rx_, ry_, cy_ = ring_interp(up_r, z)
+                uu = min(abs(u) / max(rx_, 1e-3), 0.999)
+                return cy_ - ry_ * (1 - uu ** s['n_exp']) ** (1.0 / s['n_exp'])
+            phi = math.atan2((yfront(0.0, zu + 0.01) - yfront(0.0, zu)) / 0.01, 1.0)
 
             def dome(u, v, w=0.0):
                 zz = zu + v * math.cos(phi)
-                yc = surf(u, zz)[0][1]
-                yz = (surf(u, zz + 0.004)[0][1] - surf(u, zz - 0.004)[0][1]) / 0.008
+                yc = yfront(u, zz)
+                yz = (yfront(u, zz + 0.004) - yfront(u, zz - 0.004)) / 0.008
                 n_ = np.array([0.0, -1.0, yz]); n_ /= np.linalg.norm(n_)
                 return np.array([u, yc, zz]) + n_ * (off + w)
             gap = gl.get('gap', 1.0)
@@ -1041,12 +1102,14 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
                         **{k: b[k] for k in ('pattern', 'fabric') if k in b})
     # arms in robe sleeves, forearms resting forward (on the bench / lectern), fleece mitten hands
     rest_z = neck_base + b.get('rest_dz', -0.36)
+    arm_objs = []
     for sx in (-1, 1):
         sh_p = (sx * sh * 0.82, 0.01, neck_base - 0.075)
         el_p = (sx * sh * 1.02, -0.01, neck_base - 0.3)
         wr_p = (sx * b.get('hand_x', 0.13), -b.get('reach', 0.26), rest_z + 0.03)
         mid_p = (sx * sh * 0.96, -0.08, rest_z + 0.025)
-        tube(f'{name}_arm{sx}', [sh_p, el_p, mid_p, wr_p], [0.058, 0.062, 0.058, 0.05], [sleeve_m], parent=root)
+        arm_objs.append(tube(f'{name}_arm{sx}', [sh_p, el_p, mid_p, wr_p], [0.058, 0.062, 0.058, 0.05], [sleeve_m],
+                             parent=root))
         hnd = uv_sphere(f'{name}_hand{sx}', 1.0, [skin], scale=(0.045, 0.062, 0.024), parent=root,
                         loc=(wr_p[0] - sx * 0.01, wr_p[1] - 0.05, rest_z + 0.018))
         hnd.rotation_euler = (0, 0, sx * 0.35)
@@ -1115,6 +1178,7 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
 
     # hair
     build_hair(name, s, Vu, Fu, up_r, head, rng, hair_scale)
+    build_body_fuzz(name, s, b, Vb, Fb, neck_base, arm_objs, root, seed)
     if bd_:
         build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed)
     if s.get('necklace'):
