@@ -36,6 +36,7 @@ centers = ((np.arange(nF) / FPS + LEAD) * SR).astype(int)
 lo = np.clip(centers - win // 2, 0, len(xb)); hi = np.clip(centers + win // 2, 0, len(xb))
 rms = np.sqrt((c[hi] - c[lo]) / np.maximum(hi - lo, 1))
 db = 20 * np.log10(rms + 1e-7)
+GFLOOR = np.percentile(db, 8)  # silence level of the whole recording
 
 # ---------------------------------------------------------------- turns
 turns = []
@@ -67,11 +68,26 @@ for t in turns:
     seg = db[f0:f1]
     floor = np.percentile(seg, 12)
     peak = np.percentile(seg, 97)
-    o = np.clip((seg - floor - 5.0) / max(8.0, peak - floor - 5.0), 0, 1) ** 0.85
+    # Open only for real speech: above both the turn's own quiet level and the whole recording's silence level,
+    # and for at least 3 frames (125 ms), so room noise, breaths and paper don't flap the jaw during pauses.
+    thr = max(floor + 7.0, GFLOOR + 13.0)
+    on = seg > thr
+    j = 0
+    while j < len(on):
+        if on[j]:
+            k = j
+            while k < len(on) and on[k]:
+                k += 1
+            if k - j < 3:
+                on[j:k] = False
+            j = k
+        else:
+            j += 1
+    o = np.clip((seg - thr) / max(8.0, peak - thr), 0, 1) ** 0.85 * on
     sm = np.zeros_like(o)
     prev = 0.0
     for i, v in enumerate(o):  # fast attack, quick-but-not-instant release
-        prev = v if v > prev else max(v, prev * 0.5)
+        prev = v if v > prev else max(v, prev * 0.45)
         sm[i] = prev
     openv[f0:f1] = sm
     mouth[f0:f1] = np.clip(np.floor(sm * 4.6), 0, 4).astype(np.int8)
