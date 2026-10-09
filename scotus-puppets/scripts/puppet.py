@@ -9,6 +9,9 @@ from scipy.spatial import cKDTree
 
 
 # ----------------------------------------------------------------------------- colours / materials
+_PI = math.pi
+
+
 def hex_lin(h, mult=1.0):
     h = h.lstrip('#')
     c = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
@@ -89,8 +92,15 @@ def mat_hair(name, color, rough=0.42, rand=0.12):
 
 
 def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_depth=0.16, v_half=0.075,
-             tie_w=0.022, collar=True):
-    """Black judicial robe with a V opening showing a white shirt (and optional tie), via object-space masks."""
+             tie_w=0.022, collar=True, v_shape='V', pattern=None, shirt_pattern=None, tie_pattern=None,
+             pin=None, lapel=None, fabric=None, placket=None, buttons=None, pockets=None):
+    """Garment with a V (or round 'U') opening showing a shirt (and optional tie), via object-space masks.
+
+    The defaults give the black judicial robe. Optional extras, all off by default:
+      v_shape 'V' | 'U'
+      pattern / shirt_pattern / tie_pattern = dict(kind='dots'|'check'|'stripes'|'diag', hex, s=spacing m, r, strength)
+      lapel = hex band along the V edge; pin = dict(hex, x, z, r); placket = hex line down the front;
+      buttons = dict(hex, z0, dz, n, r); pockets = dict(hex, cx, cz, w, h, t); fabric 'knit'|'denim'|'cotton'|'suit'."""
     m, nt, p = _new_mat(name)
     N, L = nt.nodes, nt.links
     tc = N.new('ShaderNodeTexCoord')
@@ -114,19 +124,93 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
         L.new(src, n.inputs['Value'])
         return n.outputs['Result']
 
+    def mixc(factor, a, b, blend='MIX'):
+        """RGBA mix; a, b are colour tuples or sockets."""
+        mx = N.new('ShaderNodeMix'); mx.data_type = 'RGBA'; mx.blend_type = blend
+        if isinstance(factor, (int, float)):
+            mx.inputs['Factor'].default_value = factor
+        else:
+            L.new(factor, mx.inputs['Factor'])
+        for key, v in (('A', a), ('B', b)):
+            if isinstance(v, tuple):
+                mx.inputs[key].default_value = v
+            else:
+                L.new(v, mx.inputs[key])
+        return mx.outputs['Result']
+
     x, y, z = sep.outputs['X'], sep.outputs['Y'], sep.outputs['Z']
     ax = math('ABSOLUTE', x)
-    # V half-width grows linearly from 0 at z=-v_depth to v_half at z=0 (neck base)
-    vw = math('MULTIPLY', math('ADD', z, v_depth), v_half / v_depth)
+    if v_shape == 'U':
+        # round neckline: half-width = v_half * sqrt(u (2 - u)); u = 0 at the bottom of the scoop, 1 at the neck base
+        u = ramp(z, -v_depth, 0.0)
+        vw = math('MULTIPLY', math('SQRT', math('MULTIPLY', u, math('SUBTRACT', 2.0, u))), v_half)
+    else:
+        # V half-width grows linearly from 0 at z=-v_depth to v_half at z=0 (neck base)
+        vw = math('MULTIPLY', math('ADD', z, v_depth), v_half / v_depth)
     in_v = ramp(math('SUBTRACT', vw, ax), -0.002, 0.002)
     front = ramp(math('MULTIPLY', y, -1.0), 0.01, 0.04)
     shirt = math('MULTIPLY', in_v, front)
-    robe_col = hex_lin(base_hex)
+
+    # ---- optional patterns: projected on the front (x, z) and side (y, z) planes, blended by the surface normal
+    nsep = []
+
+    def planar(fn):
+        if not nsep:
+            s_ = N.new('ShaderNodeSeparateXYZ'); L.new(tc.outputs['Normal'], s_.inputs[0]); nsep.append(s_)
+        mf, ms = fn(x, z), fn(y, z)
+        wf = math('ABSOLUTE', nsep[0].outputs['Y']); ws = math('ABSOLUTE', nsep[0].outputs['X'])
+        num = math('ADD', math('MULTIPLY', mf, wf), math('MULTIPLY', ms, ws))
+        return math('DIVIDE', num, math('ADD', math('ADD', wf, ws), 1e-4))
+
+    def fract(s):
+        return math('FRACT', s)
+
+    def pat_mask(pat):
+        k, sp = pat['kind'], pat['s']
+        if k == 'dots':
+            r = pat.get('r', 0.22)  # radius in cell units
+
+            def fn(a, b):
+                a1, b1 = math('DIVIDE', a, sp), math('DIVIDE', b, sp)
+                off = math('MULTIPLY', math('MODULO', math('FLOOR', b1), 2.0), 0.5)
+                fa = math('SUBTRACT', fract(math('ADD', a1, off)), 0.5)
+                fb = math('SUBTRACT', fract(b1), 0.5)
+                d = math('SQRT', math('ADD', math('MULTIPLY', fa, fa), math('MULTIPLY', fb, fb)))
+                return ramp(d, r * 1.15, r * 0.85)
+            return planar(fn)
+        if k == 'check':
+            def fn(a, b):
+                ma = math('LESS_THAN', fract(math('DIVIDE', a, sp)), 0.5)
+                mb = math('LESS_THAN', fract(math('DIVIDE', b, sp)), 0.5)
+                return math('MULTIPLY', math('ADD', ma, mb), 0.5)
+            return planar(fn)
+        if k == 'stripes':
+            def fn(a, b):
+                return math('LESS_THAN', fract(math('DIVIDE', a, sp)), 0.5)
+            return planar(fn)
+        if k == 'diag':  # tie stripes (front only)
+            return math('LESS_THAN', fract(math('DIVIDE', math('ADD', x, z), sp)), 0.5)
+        raise ValueError(k)
+
+    def patterned(hex_, pat):
+        base = hex_lin(hex_)
+        if not pat:
+            return base
+        return mixc(math('MULTIPLY', pat_mask(pat), float(pat.get('strength', 1.0))), base, hex_lin(pat['hex']))
+
     mix1 = N.new('ShaderNodeMix'); mix1.data_type = 'RGBA'
     L.new(shirt, mix1.inputs['Factor'])
-    mix1.inputs['A'].default_value = robe_col
-    mix1.inputs['B'].default_value = hex_lin(shirt_hex)
+    for key, v in (('A', patterned(base_hex, pattern)), ('B', patterned(shirt_hex, shirt_pattern))):
+        if isinstance(v, tuple):
+            mix1.inputs[key].default_value = v
+        else:
+            L.new(v, mix1.inputs[key])
     col_out = mix1.outputs['Result']
+    if lapel:
+        e = math('SUBTRACT', ax, vw)  # distance outside the V edge
+        lm = math('MULTIPLY', math('MULTIPLY', ramp(e, 0.0, 0.003), ramp(e, 0.027, 0.024)), front)
+        lm = math('MULTIPLY', lm, ramp(z, -v_depth - 0.03, -v_depth + 0.01))
+        col_out = mixc(lm, col_out, hex_lin(lapel))
     if tie_hex:
         # tie narrows into a knot near the collar
         tw = math('ADD', math('MULTIPLY', math('ADD', z, 0.0), -0.04), tie_w * 0.75)
@@ -135,10 +219,43 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
         mix2 = N.new('ShaderNodeMix'); mix2.data_type = 'RGBA'
         L.new(tie_mask, mix2.inputs['Factor'])
         L.new(col_out, mix2.inputs['A'])
-        mix2.inputs['B'].default_value = hex_lin(tie_hex)
+        tcol = patterned(tie_hex, tie_pattern)
+        if isinstance(tcol, tuple):
+            mix2.inputs['B'].default_value = tcol
+        else:
+            L.new(tcol, mix2.inputs['B'])
         col_out = mix2.outputs['Result']
-    L.new(col_out, p.inputs['Base Color'])
-    # fabric: robe gets sheen and big soft fold bump; shirt stays matte
+    outside = math('MULTIPLY', math('SUBTRACT', 1.0, in_v), front)  # garment front, outside the opening
+    if placket:
+        line = ramp(math('SUBTRACT', 0.0026, ax), -0.0007, 0.0007)
+        col_out = mixc(math('MULTIPLY', line, outside), col_out, hex_lin(placket))
+    if buttons:
+        bz0, bdz, bn = buttons.get('z0', -0.2), buttons.get('dz', 0.075), buttons.get('n', 4)
+        br = buttons.get('r', 0.0062)
+        zz = math('DIVIDE', math('SUBTRACT', bz0, z), bdz)  # 0 at the first button, 1 at the next, ...
+        cz = math('MULTIPLY', math('SUBTRACT', fract(math('ADD', zz, 0.5)), 0.5), bdz)
+        d = math('SQRT', math('ADD', math('MULTIPLY', x, x), math('MULTIPLY', cz, cz)))
+        rng_ = math('MULTIPLY', math('LESS_THAN', zz, bn - 0.5), math('GREATER_THAN', zz, -0.5))
+        bm = math('MULTIPLY', math('MULTIPLY', ramp(d, br * 1.25, br * 0.8), rng_), outside)
+        col_out = mixc(bm, col_out, hex_lin(buttons.get('hex', '#e8e4da')))
+    if pockets:
+        cx, cz_, pw, ph, pt = (pockets.get(k, d_) for k, d_ in (('cx', 0.09), ('cz', -0.16), ('w', 0.07),
+                                                                  ('h', 0.08), ('t', 0.0035)))
+        dx = math('ABSOLUTE', math('SUBTRACT', ax, cx))
+        dz = math('ABSOLUTE', math('SUBTRACT', z, cz_))
+
+        def rect(hw, hh):
+            return math('MULTIPLY', ramp(math('SUBTRACT', hw, dx), -0.0007, 0.0007),
+                        ramp(math('SUBTRACT', hh, dz), -0.0007, 0.0007))
+        edge = math('MULTIPLY', rect(pw / 2 + pt, ph / 2 + pt), math('SUBTRACT', 1.0, rect(pw / 2, ph / 2)))
+        col_out = mixc(math('MULTIPLY', edge, outside), col_out, hex_lin(pockets.get('hex', '#35527f')))
+    if pin:
+        px, pz, pr = pin.get('x', 0.085), pin.get('z', -0.095), pin.get('r', 0.0075)
+        d = math('SQRT', math('ADD', math('MULTIPLY', math('SUBTRACT', x, px), math('SUBTRACT', x, px)),
+                              math('MULTIPLY', math('SUBTRACT', z, pz), math('SUBTRACT', z, pz))))
+        col_out = mixc(math('MULTIPLY', ramp(d, pr * 1.2, pr * 0.85), front), col_out, hex_lin(pin.get('hex', '#d9b550')))
+
+    # ---- fabric: soft folds + fine fibre bump; per-fabric extras
     folds = N.new('ShaderNodeTexWave'); folds.wave_type = 'BANDS'; folds.bands_direction = 'X'
     folds.inputs['Scale'].default_value = 5.0; folds.inputs['Distortion'].default_value = 9.0
     folds.inputs['Detail'].default_value = 1.5
@@ -146,14 +263,47 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
     fib = N.new('ShaderNodeTexNoise'); fib.inputs['Scale'].default_value = 700
     L.new(tc.outputs['Object'], fib.inputs['Vector'])
     h = math('ADD', math('MULTIPLY', folds.outputs['Fac'], 0.6), fib.outputs['Fac'])
-    bp = N.new('ShaderNodeBump'); bp.inputs['Strength'].default_value = 0.3
+    bump_s, rough, sheen, spec = 0.3, 0.78, 0.12, 0.12
+    sheen_tint = (0.2, 0.2, 0.22, 1.0)
+    if fabric:
+        if fabric == 'knit':
+            def rib(a, b):
+                s_ = math('SINE', math('MULTIPLY', a, 2 * _PI / 0.0072))
+                return math('ADD', math('MULTIPLY', s_, 0.5), 0.5)
+            h = math('ADD', h, math('MULTIPLY', planar(rib), 1.1))
+            bump_s, rough, sheen, spec = 0.7, 0.93, 0.5, 0.06
+        elif fabric == 'denim':
+            def twill(a, b):
+                return fract(math('DIVIDE', math('ADD', a, b), 0.0034))
+            h = math('ADD', h, math('MULTIPLY', planar(twill), 0.9))
+            bump_s, rough, sheen, spec = 0.5, 0.82, 0.2, 0.08
+        elif fabric == 'cotton':
+            bump_s, rough, sheen, spec = 0.22, 0.72, 0.18, 0.1
+        elif fabric == 'suit':
+            bump_s, rough, sheen, spec = 0.25, 0.68, 0.14, 0.14
+        if fabric in ('knit', 'denim', 'suit'):  # heathered yarn: slow blotchy tint
+            hn = N.new('ShaderNodeTexNoise'); hn.inputs['Scale'].default_value = 140 if fabric != 'suit' else 40
+            hn.inputs['Detail'].default_value = 4.0
+            L.new(tc.outputs['Object'], hn.inputs['Vector'])
+            mr = N.new('ShaderNodeMapRange')
+            mr.inputs['To Min'].default_value = 0.86 if fabric != 'suit' else 0.94
+            mr.inputs['To Max'].default_value = 1.08 if fabric != 'suit' else 1.04
+            L.new(hn.outputs['Fac'], mr.inputs['Value'])
+            gray = N.new('ShaderNodeCombineColor')
+            for k_ in ('Red', 'Green', 'Blue'):
+                L.new(mr.outputs['Result'], gray.inputs[k_])
+            col_out = mixc(1.0, col_out, gray.outputs['Color'], 'MULTIPLY')
+        sc3 = hex_lin(base_hex)
+        sheen_tint = tuple(min(1.0, c * 1.5 + 0.1) for c in sc3[:3]) + (1.0,)
+    L.new(col_out, p.inputs['Base Color'])
+    bp = N.new('ShaderNodeBump'); bp.inputs['Strength'].default_value = bump_s
     bp.inputs['Distance'].default_value = 0.01
     L.new(h, bp.inputs['Height']); L.new(bp.outputs['Normal'], p.inputs['Normal'])
-    p.inputs['Roughness'].default_value = 0.78
-    p.inputs['Sheen Weight'].default_value = 0.12
+    p.inputs['Roughness'].default_value = rough
+    p.inputs['Sheen Weight'].default_value = sheen
     p.inputs['Sheen Roughness'].default_value = 0.3
-    p.inputs['Sheen Tint'].default_value = (0.2, 0.2, 0.22, 1.0)
-    p.inputs['Specular IOR Level'].default_value = 0.12
+    p.inputs['Sheen Tint'].default_value = sheen_tint
+    p.inputs['Specular IOR Level'].default_value = spec
     return m
 
 
@@ -420,6 +570,11 @@ DEFAULT = dict(
     body=dict(robe='#060607', shirt='#ecebe6', tie='#2a2f4a', w=0.2, d=0.13, shoulder=0.195, collar=True),
     neck_r=0.06,
     glasses=None,  # e.g. dict(hex='#2a2a2a', r=1.18, wire=0.0022) to put frames on a puppet
+    # --- optional extras (all off by default; the Supreme Court puppets don't use them)
+    beard=None,      # dict(hex, hex2, frac, chin, density, len, chin_len, cheek_z, mw, beard, mustache, shadow, shadow_hex)
+    lipstick=None,   # dict(hex) colours the lip rim of the mouth
+    iris=None,       # dict(hex, r) coloured iris cap under the pupil
+    necklace=None,   # dict(hex, drop, star)
 )
 
 
@@ -437,6 +592,7 @@ def head_rings(s, part):
     """Ring profiles for the upper head ('upper') or lower jaw ('jaw'); materials 0=skin 1=mouth."""
     lip = s['lip_r']
     zm = s['zm']
+    lipm = 2 if s.get('lipstick') else 0  # material index of the lip rim (2 = lipstick)
     if part == 'upper':
         rings = []
         H, zc = s['H'], s['zc']
@@ -454,7 +610,7 @@ def head_rings(s, part):
         # lip bevel curling under
         for a in np.linspace(0, math.pi / 2, 6)[1:]:
             rings.append((zm + lip - lip * math.sin(a), s['Wm'] - lip + lip * math.cos(a),
-                          s['Dm'] - lip + lip * math.cos(a), s['cy_mouth'], 0))
+                          s['Dm'] - lip + lip * math.cos(a), s['cy_mouth'], lipm))
         # mouth roof
         for f in np.linspace(1, 0, 7)[1:]:
             rings.append((zm, (s['Wm'] - lip) * f, (s['Dm'] - lip) * f, s['cy_mouth'], 1))
@@ -464,7 +620,7 @@ def head_rings(s, part):
         rings.append((zm, (s['Wm'] - lip) * f, (s['Dm'] - lip) * f, s['cy_mouth'], 1))
     for a in np.linspace(0, math.pi / 2, 6)[1:]:
         rings.append((zm - lip + lip * math.cos(a), s['Wm'] - lip + lip * math.sin(a),
-                      s['Dm'] - lip + lip * math.sin(a), s['cy_mouth'], 0))
+                      s['Dm'] - lip + lip * math.sin(a), s['cy_mouth'], lipm))
     zj0, zb = zm - lip, s['zb']
     for a in np.linspace(0, math.pi / 2, 16)[1:]:
         sn, c = math.cos(a), math.sin(a)  # sn: 1 at mouth -> 0 at bottom
@@ -481,6 +637,167 @@ def front_y(rings, x, z, n_exp):
     zz, rx, ry, cy, _ = rings[i]
     u = min(abs(x) / max(rx, 1e-6), 0.999)
     return cy - ry * (1 - u ** n_exp) ** (1.0 / n_exp)
+
+
+def ring_interp(rings, z, n_use=23):
+    """(rx, ry, cy) of the upper-head loft at height z, by linear interpolation of the cranium/cheek rings."""
+    zs = np.array([r[0] for r in rings[:n_use]])[::-1]
+    return tuple(float(np.interp(z, zs, np.array([r[k] for r in rings[:n_use]])[::-1])) for k in (1, 2, 3))
+
+
+def skin_shadow(mat, color, strength, attr='beard'):
+    """Darken a skin material by a per-vertex mesh attribute (beard shadow / stubble under the fur)."""
+    nt = mat.node_tree
+    pb = nt.nodes['Principled BSDF']
+    src_sock = pb.inputs['Base Color'].links[0].from_socket
+    at = nt.nodes.new('ShaderNodeAttribute'); at.attribute_name = attr
+    sc_ = nt.nodes.new('ShaderNodeMath'); sc_.operation = 'MULTIPLY'; sc_.inputs[1].default_value = strength
+    nt.links.new(at.outputs['Fac'], sc_.inputs[0])
+    mx = nt.nodes.new('ShaderNodeMix'); mx.data_type = 'RGBA'
+    nt.links.new(sc_.outputs[0], mx.inputs['Factor'])
+    nt.links.new(src_sock, mx.inputs['A'])
+    mx.inputs['B'].default_value = color
+    nt.links.new(mx.outputs['Result'], pb.inputs['Base Color'])
+
+
+def set_vertex_attr(ob, name, values):
+    me = ob.data
+    if len(values) != len(me.vertices):
+        return
+    a = me.attributes.new(name, 'FLOAT', 'POINT')
+    a.data.foreach_set('value', np.asarray(values, np.float32))
+
+
+def beard_weights(s, bd):
+    """Smooth 0..1 masks (functions of head-frame points) for the jaw beard, upper-head cheek beard and mustache."""
+    zm, lip = s['zm'], s['lip_r']
+    cheek_z = bd.get('cheek_z', zm + 0.045)
+    mw = bd.get('mw', 0.05)
+    mh = bd.get('must_h', 0.027)
+    full = bd.get('beard', True)
+    must = bd.get('mustache', True)
+
+    def jaw(C):
+        x, y, z = C[:, 0], C[:, 1], C[:, 2]
+        if not full:
+            return np.zeros(len(C))
+        return np.clip(((zm - lip - bd.get('lip_gap', 0.003)) - z) / 0.006, 0, 1) * np.clip((0.05 - y) / 0.03, 0, 1)
+
+    def cheek(C):
+        x, y, z = C[:, 0], C[:, 1], C[:, 2]
+        if not full:
+            return np.zeros(len(C))
+        zline = cheek_z + (bd.get('sideburn_z', 0.03) - cheek_z) * np.clip((np.abs(x) - 0.05) / 0.07, 0, 1)
+        return (np.clip((zline - z) / 0.012, 0, 1) * np.clip((z - (zm + lip * 0.6)) / 0.004, 0, 1)
+                * np.clip((0.045 - y) / 0.03, 0, 1))
+
+    def mustache(C):
+        x, y, z = C[:, 0], C[:, 1], C[:, 2]
+        if not must:
+            return np.zeros(len(C))
+        return (np.clip((mw - np.abs(x)) / 0.008, 0, 1) * np.clip((zm + mh - z) / 0.006, 0, 1)
+                * np.clip((z - (zm + lip * 0.5)) / 0.004, 0, 1) * np.clip((0.0 - y) / 0.03, 0, 1))
+    return jaw, cheek, mustache
+
+
+def build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed):
+    """Short fur on the lower face: chin/jaw strands ride the jaw mesh, cheeks and mustache the upper head."""
+    bd = s['beard']
+    rng = np.random.default_rng(seed + 77)
+    zm = s['zm']
+    m1 = mat_hair(name + '_beard', hex_lin(bd.get('hex', '#1c1511')), rough=0.5, rand=0.1)
+    m2 = mat_hair(name + '_beard2', hex_lin(bd['hex2']), rough=0.5, rand=0.1) if bd.get('hex2') else None
+    dens = bd.get('density', 1.0)
+    Lc = bd.get('len', 0.011)
+    Lchin = bd.get('chin_len', Lc * 1.5)
+    w_jaw, w_cheek, w_must = beard_weights(s, bd)
+
+    def gray_p(z):
+        return bd.get('frac', 0.0) + bd.get('chin', 0.0) * np.clip(((zm - 0.025) - z) / 0.07, 0, 1)
+
+    def comb_down(P, n):
+        v = np.stack([np.sign(P[:, 0]) * 0.18 * np.clip(np.abs(P[:, 0]) / 0.08, 0, 1), np.full(len(P), -0.12),
+                      np.full(len(P), -1.0)], 1)
+        return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+    def comb_must(P, n):
+        v = np.stack([np.sign(P[:, 0]) * 0.55, np.full(len(P), -0.35), np.full(len(P), -0.8)], 1)
+        return v / np.linalg.norm(v, axis=1, keepdims=True)
+
+    def emit(tag, R, Nn, comb, lengths, par, off, lift):
+        n = len(R)
+        G = grow(R, Nn, lengths, 4, comb, None, rng, lift=lift, gravity=0.0, stiff=0.55, margin=0.0, jitter=0.22)
+        G = G - off
+        rad = np.tile(np.linspace(bd.get('r0', 0.00085), 0.0003, 4), (n, 1))
+        if m2 is not None:
+            gray = rng.random(n) < gray_p(R[:, 2])
+            parts = ((~gray, m1, ''), (gray, m2, '2'))
+        else:
+            parts = ((np.ones(n, bool), m1, ''),)
+        for sel, mat, suf in parts:
+            if sel.any():
+                curves_obj(f'{name}_{tag}{suf}', G[sel], rad[sel], mat, parent=par)
+
+    center_u = np.array([0, 0, s['zc']])
+    if bd.get('beard', True):
+        okj = np.array(Mj) == 0
+        R, Nn = sample_surface(Vj, Fj, int(40000 * dens), rng, w_jaw, np.array([0, 0, zm - 0.05]), face_ok=okj)
+        z = R[:, 2]
+        chin = np.clip(((zm - 0.03) - z) / 0.05, 0, 1) * np.clip((0.06 - np.abs(R[:, 0])) / 0.04, 0, 1)
+        emit('beardj', R, Nn, comb_down, Lc + (Lchin - Lc) * chin, jaw, hinge, 0.45)
+        oku = np.array(Mu) == 0
+        R, Nn = sample_surface(Vu, Fu, int(30000 * dens), rng, w_cheek, center_u, face_ok=oku)
+        emit('beardc', R, Nn, comb_down, np.full(len(R), Lc * 0.9), head, np.zeros(3), 0.45)
+    if bd.get('mustache', True):
+        oku = np.array(Mu) == 0
+        R, Nn = sample_surface(Vu, Fu, int(bd.get('must_count', 12000) * dens), rng, w_must, center_u, face_ok=oku)
+        emit('must', R, Nn, comb_must, np.full(len(R), bd.get('must_len', Lc * 1.5)) * rng.uniform(0.8, 1.2, len(R)),
+             head, np.zeros(3), 0.4)
+
+
+def build_necklace(name, s, br, neck_base, root):
+    """Thin chain hanging on the chest (with a small star), following the front of the body rings."""
+    nk = s['necklace']
+    zs = np.array([r[0] for r in br[1:-1]])[::-1]
+
+    def front(x, z):
+        rx, ry, cy = (float(np.interp(z, zs, np.array([r[k] for r in br[1:-1]])[::-1])) for k in (1, 2, 3))
+        u = min(abs(x) / max(rx, 1e-6), 0.999)
+        return cy - ry * (1 - u ** 2.25) ** (1 / 2.25)
+    drop = nk.get('drop', 0.1)
+    pts = []
+    for t in np.linspace(-1, 1, 19):
+        x = 0.062 * t
+        z = neck_base + 0.004 - drop * (1 - t * t) ** 1.0
+        pts.append((x, front(x, z) - 0.0035, z))
+    gold = mat_plain(name + '_chain', hex_lin(nk.get('hex', '#d9b550')), rough=0.22, metallic=1.0)
+    tube(name + '_chain', pts, np.full(len(pts), 0.0011), [gold], nseg=8, parent=root, caps=False)
+    if nk.get('star', True):
+        cx, cz = 0.0, neck_base + 0.004 - drop
+        cy = front(0.0, cz) - 0.006
+        V = [(cx, cy, cz)]
+        for k in range(10):
+            a = math.pi / 2 + k * math.pi / 5
+            r = 0.0105 if k % 2 == 0 else 0.0045
+            V.append((cx + r * math.cos(a), cy - 0.0004, cz + r * math.sin(a)))
+        Fs = [(0, 1 + k, 1 + (k + 1) % 10) for k in range(10)]
+        mesh_obj(name + '_star', np.array(V), Fs, [0] * len(Fs), [gold], parent=root)
+
+
+def emit_hair(name, C, rad, hs, hm, head, rng, pg=None):
+    """Hair curves object(s). hs['mix'] = dict(hex2, frac, temple) splits strands into two colours (salt and pepper)."""
+    mix = hs.get('mix')
+    if not mix:
+        return [curves_obj(name + '_hair', C, rad, hm, parent=head)]
+    if pg is None:
+        pg = mix.get('frac', 0.3) + mix.get('temple', 0.0) * np.clip(np.abs(C[:, 0, 0]) / 0.1, 0, 1)
+    gray = rng.random(len(C)) < pg
+    hm2 = mat_hair(name + '_hair2', hex_lin(mix['hex2']), rough=hs.get('rough', 0.42), rand=hs.get('rand', 0.12))
+    out = []
+    for sel, mat, nm in ((~gray, hm, '_hair'), (gray, hm2, '_hair2')):
+        if sel.any():
+            out.append(curves_obj(name + nm, C[sel], rad[sel], mat, parent=head))
+    return out
 
 
 def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, seed=1, hair_scale=1.0):
@@ -503,6 +820,15 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
     eye_m = mat_plain(name + '_eyew', hex_lin('#f1efe8'), rough=0.33, coat=0.3, spec=0.4)
     pup_m = mat_plain(name + '_pupil', (0.004, 0.004, 0.004, 1), rough=0.12, coat=1.0)
     tongue_m = mat_fleece(name + '_tongue', hex_lin('#9c2b35'), sheen=0.5)
+    lip_m = None
+    if s.get('lipstick'):
+        ls = s['lipstick']
+        lip_m = mat_fleece(name + '_lip', hex_lin(ls['hex']), sheen=0.5, rough=0.55)
+        lip_m.node_tree.nodes['Principled BSDF'].inputs['Coat Weight'].default_value = ls.get('gloss', 0.25)
+    bd_ = s.get('beard')
+    if bd_ and bd_.get('shadow', 0.5) > 0:
+        skin_shadow(skin, hex_lin(bd_.get('shadow_hex', bd_.get('hex', '#1c1511'))), bd_.get('shadow', 0.5))
+    skin_mats = [skin, mouth] + ([lip_m] if lip_m else [])
 
     smile, Wm, zm = s['smile'], s['Wm'], s['zm']
 
@@ -535,13 +861,17 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
         x = np.atleast_1d(np.asarray(x, float)); z = np.atleast_1d(np.asarray(z, float))
         y = np.array([front_y(up_r, xi, zi, s['n_exp']) for xi, zi in zip(x, z)])
         return sculpt(np.stack([x, y, z], 1))
-    upper = mesh_obj(name + '_upper', Vu, Fu, Mu, [skin, mouth], parent=head)
+    upper = mesh_obj(name + '_upper', Vu, Fu, Mu, skin_mats, parent=head)
 
     jaw_r = head_rings(s, 'jaw')
     Vj, Fj, Mj = loft(jaw_r, 96, s['n_exp'], zfun)
     Vj = sculpt(Vj)
     hinge = np.array([0.0, s['hinge_y'], zm])
-    jaw = mesh_obj(name + '_jaw', Vj - hinge, Fj, Mj, [skin, mouth], parent=head, location=tuple(hinge))
+    jaw = mesh_obj(name + '_jaw', Vj - hinge, Fj, Mj, skin_mats, parent=head, location=tuple(hinge))
+    if bd_ and bd_.get('shadow', 0.5) > 0:
+        wj_, wc_, wm_ = beard_weights(s, bd_)
+        set_vertex_attr(upper, 'beard', np.maximum(wc_(Vu), wm_(Vu)))
+        set_vertex_attr(jaw, 'beard', wj_(Vj))
 
     # mouth cavity (dark) so an open mouth has depth
     uv_sphere(name + '_cavity', 1.0, [mouth], scale=(s['Wm'] * 0.86, s['Dm'] * 0.84, 0.07), parent=head,
@@ -564,6 +894,15 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
                         loc=tuple(pc))
         pup.rotation_mode = 'QUATERNION'
         pup.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(Vector(gaze))
+        if s.get('iris'):  # coloured iris: a spherical cap on the eyeball under the pupil
+            ir = s['iris']
+            iris_m = mat_plain(name + '_iris', hex_lin(ir['hex']), rough=0.3, coat=0.5, spec=0.4)
+            R_ = s['eye_r'] * 1.004
+            cap = math.asin(min(0.95, ir.get('r', 0.68)))
+            ic = uv_sphere(f'{name}_iris{sx}', R_, [iris_m], segs=64, rings=64, parent=head, loc=tuple(c),
+                           keep=lambda V, R_=R_, cap=cap: V[:, 2] >= R_ * math.cos(cap) - 1e-9)
+            ic.rotation_mode = 'QUATERNION'
+            ic.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(Vector(gaze))
         # upper lid: sphere cap above a tilted plane
         lr = s['eye_r'] * 1.07
         lid, tilt = s['lid'], s['lid_tilt'] * sx
@@ -577,11 +916,19 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
             uv_sphere(f'{name}_llid{sx}', lr * 1.01, [lid_m], segs=48, rings=32, parent=head, loc=tuple(c),
                       keep=lambda V, h=h1: (-V[:, 2]) >= h - 1e-9)
 
-    # optional glasses: rims in front of each eye, bridge over the nose, temples back to the ears
+    # optional glasses: rims in front of each eye, bridge over the nose, temples back to the ears.
+    # keys: hex, metal, r (rim size), wire (thickness), n (rim shape: 2 = ellipse, ~4 = rounded rectangle),
+    #       trans (0..1 frame translucency), up = z of the lens centres to wear them pushed up on top of the head,
+    #       off (gap between the frames and the hair when pushed up)
     gl = s.get('glasses')
     if gl:
         fr_m = mat_plain(name + '_frames', hex_lin(gl.get('hex', '#2b2b2b')), rough=0.25, coat=0.5,
                          metallic=gl.get('metal', 0.0))
+        if gl.get('trans'):
+            pf = fr_m.node_tree.nodes['Principled BSDF']
+            pf.inputs['Transmission Weight'].default_value = gl['trans']
+            pf.inputs['Roughness'].default_value = 0.12
+            pf.inputs['IOR'].default_value = 1.35
         lens_m, ntl, pl = _new_mat(name + '_lens')
         pl.inputs['Transmission Weight'].default_value = 1.0
         pl.inputs['Roughness'].default_value = 0.02
@@ -589,25 +936,66 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
         pl.inputs['Thin Wall'].default_value = True
         rr = s['eye_r'] * gl.get('r', 1.18)
         wire = gl.get('wire', 0.0022)
+        nexp = float(gl.get('n', 2.0))
+        ang = np.linspace(0, 2 * np.pi, 49)
+        if nexp == 2.0:
+            ux, uz = np.cos(ang), np.sin(ang)
+        else:
+            ux = np.sign(np.cos(ang)) * np.abs(np.cos(ang)) ** (2 / nexp)
+            uz = np.sign(np.sin(ang)) * np.abs(np.sin(ang)) ** (2 / nexp)
+        up = gl.get('up')
         cents = []
-        for sx in (-1, 1):
-            c = surf(sx * s['eye_x'], s['eye_z'])[0] + np.array([0, s['eye_r'] * s['eye_sink'], 0])
-            c = c + np.array([0, -s['eye_r'] * 1.08, 0])
-            cents.append(c)
-            ang = np.linspace(0, 2 * np.pi, 49)
-            ring = np.stack([c[0] + rr * np.cos(ang) * 1.08, np.full_like(ang, c[1]), c[2] + rr * np.sin(ang) * 0.86], 1)
-            tube(f'{name}_rim{sx}', ring, np.full(len(ring), wire), [fr_m], nseg=10, parent=head, caps=False)
-            lv = [c + np.array([rr * 1.08 * math.cos(a), 0.0005, rr * 0.86 * math.sin(a)]) for a in ang[:-1]]
-            lv = np.array([c + np.array([0, 0.0005, 0])] + lv)
-            lf = [(0, 1 + j, 1 + (j + 1) % 48) for j in range(48)]
-            mesh_obj(f'{name}_lens{sx}', lv, lf, [0] * len(lf), [lens_m], parent=head)
-            ear_pt = np.array([sx * (s['W'] + 0.004), 0.03, s['eye_z'] - 0.005])
-            t0 = c + np.array([sx * rr * 1.08, 0, rr * 0.2])
-            tube(f'{name}_temple{sx}', [t0, t0 + np.array([sx * 0.006, 0.02, 0]), ear_pt],
-                 [wire, wire, wire], [fr_m], nseg=10, parent=head)
-        a, b = cents[0] + np.array([rr * 1.08, 0, rr * 0.25]), cents[1] + np.array([-rr * 1.08, 0, rr * 0.25])
-        mid = (a + b) / 2 + np.array([0, -0.004, 0.006])
-        tube(f'{name}_bridge', [a, mid, b], [wire, wire, wire], [fr_m], nseg=10, parent=head)
+        if up is None:
+            for sx in (-1, 1):
+                c = surf(sx * s['eye_x'], s['eye_z'])[0] + np.array([0, s['eye_r'] * s['eye_sink'], 0])
+                c = c + np.array([0, -s['eye_r'] * 1.08, 0])
+                cents.append(c)
+                ring = np.stack([c[0] + rr * ux * 1.08, np.full_like(ang, c[1]), c[2] + rr * uz * 0.86], 1)
+                tube(f'{name}_rim{sx}', ring, np.full(len(ring), wire), [fr_m], nseg=10, parent=head, caps=False)
+                lv = [c + np.array([rr * 1.08 * ux[j], 0.0005, rr * 0.86 * uz[j]]) for j in range(48)]
+                lv = np.array([c + np.array([0, 0.0005, 0])] + lv)
+                lf = [(0, 1 + j, 1 + (j + 1) % 48) for j in range(48)]
+                mesh_obj(f'{name}_lens{sx}', lv, lf, [0] * len(lf), [lens_m], parent=head)
+                ear_pt = np.array([sx * (s['W'] + 0.004), 0.03, s['eye_z'] - 0.005])
+                t0 = c + np.array([sx * rr * 1.08, 0, rr * 0.2])
+                tube(f'{name}_temple{sx}', [t0, t0 + np.array([sx * 0.006, 0.02, 0]), ear_pt],
+                     [wire, wire, wire], [fr_m], nseg=10, parent=head)
+            a_, b_ = cents[0] + np.array([rr * 1.08, 0, rr * 0.25]), cents[1] + np.array([-rr * 1.08, 0, rr * 0.25])
+            mid = (a_ + b_) / 2 + np.array([0, -0.004, 0.006])
+            tube(f'{name}_bridge', [a_, mid, b_], [wire, wire, wire], [fr_m], nseg=10, parent=head)
+        else:
+            # pushed up: the frames lie on the dome of the head, following its curvature
+            zu = float(up)
+            off = gl.get('off', 0.03)
+            phi = math.atan2((surf(0.0, zu + 0.01)[0][1] - surf(0.0, zu)[0][1]) / 0.01, 1.0)
+
+            def dome(u, v, w=0.0):
+                zz = zu + v * math.cos(phi)
+                yc = surf(u, zz)[0][1]
+                yz = (surf(u, zz + 0.004)[0][1] - surf(u, zz - 0.004)[0][1]) / 0.008
+                n_ = np.array([0.0, -1.0, yz]); n_ /= np.linalg.norm(n_)
+                return np.array([u, yc, zz]) + n_ * (off + w)
+            gap = gl.get('gap', 1.0)
+            for sx in (-1, 1):
+                u0 = sx * s['eye_x'] * gap
+                ring = np.array([dome(u0 + rr * 1.08 * ux[j], rr * 0.86 * uz[j]) for j in range(49)])
+                tube(f'{name}_rim{sx}', ring, np.full(len(ring), wire), [fr_m], nseg=10, parent=head, caps=False)
+                lv = np.array([dome(u0, 0.0, 0.0005)] + [dome(u0 + rr * 1.08 * ux[j], rr * 0.86 * uz[j], 0.0005)
+                                                        for j in range(48)])
+                lf = [(0, 1 + j, 1 + (j + 1) % 48) for j in range(48)]
+                mesh_obj(f'{name}_lens{sx}', lv, lf, [0] * len(lf), [lens_m], parent=head)
+                # temple arm: from the outer rim edge around the side of the head
+                p0 = dome(u0 + sx * rr * 1.08, rr * 0.2)
+                rx_, ry_, cy_ = ring_interp(up_r, p0[2] - 0.004)
+                psi0 = math.asin(min(0.98, abs(p0[0]) / (rx_ + off)))
+                pts = [p0]
+                for k, psi in enumerate((psi0 + (math.pi / 2 - psi0) * 0.55, math.pi / 2 + 0.1, math.pi / 2 + 0.55)):
+                    pts.append(np.array([sx * (rx_ + off) * math.sin(psi), cy_ - (ry_ + off) * math.cos(psi),
+                                         p0[2] - 0.004 * (k + 1)]))
+                tube(f'{name}_temple{sx}', pts, [wire] * len(pts), [fr_m], nseg=10, parent=head)
+            a_, b_ = dome(-s['eye_x'] * gap + rr * 1.08, rr * 0.25), dome(s['eye_x'] * gap - rr * 1.08, rr * 0.25)
+            mid = dome(0.0, rr * 0.25 + 0.004, 0.003)
+            tube(f'{name}_bridge', [a_, mid, b_], [wire, wire, wire], [fr_m], nseg=10, parent=head)
 
     # nose
     nz = s['nose']
@@ -628,8 +1016,11 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
             e.rotation_euler = (0, 0, -sx * 0.45)
 
     # neck + body
-    body_m = mat_robe(name + '_robe', s['body']['robe'], s['body']['shirt'], s['body'].get('tie'))
     b = s['body']
+    # optional garment extras (patterns, V/U neckline, lapel pin, ...): see mat_robe
+    robe_kw = {k: b[k] for k in ('v_shape', 'v_depth', 'v_half', 'pattern', 'shirt_pattern', 'tie_pattern', 'pin',
+                                 'lapel', 'fabric', 'placket', 'buttons', 'pockets') if k in b}
+    body_m = mat_robe(name + '_robe', b['robe'], b['shirt'], b.get('tie'), **robe_kw)
     nb = 0.0
     zn = -body_h + 0.0  # body rings expressed in root frame; neck base at z = body_h + zb + 0.01
     neck_base = body_h + s['zb'] + 0.035
@@ -646,7 +1037,8 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
     # object-space mask in mat_robe expects z=0 at neck base: shift mesh so origin is at neck base
     body.data.transform(Matrix.Translation((0, 0, -neck_base)))
     body.location = (0, 0, neck_base)
-    sleeve_m = mat_robe(name + '_sleeve', b['robe'], b['shirt'], None, v_half=0.0)
+    sleeve_m = mat_robe(name + '_sleeve', b['robe'], b['shirt'], None, v_half=0.0,
+                        **{k: b[k] for k in ('pattern', 'fabric') if k in b})
     # arms in robe sleeves, forearms resting forward (on the bench / lectern), fleece mitten hands
     rest_z = neck_base + b.get('rest_dz', -0.36)
     for sx in (-1, 1):
@@ -665,7 +1057,12 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
     Vn, Fn, Mn = loft([(nr[0][0], 0, 0, 0.01, 0)] + nr + [(nr[-1][0], 0, 0, 0.01, 0)], 48, 2.0)
     mesh_obj(name + '_neck', Vn, Fn, Mn, [skin], parent=root)
     if b.get('collar', True):
-        col_m = mat_plain(name + '_collar', hex_lin(b['shirt']), rough=0.75, sheen=0.3)
+        chex = b.get('collar_hex', b['shirt'])
+        if 'collar_pattern' in b or 'collar_fabric' in b:
+            col_m = mat_robe(name + '_collar', chex, chex, None, v_half=0.0, pattern=b.get('collar_pattern'),
+                             fabric=b.get('collar_fabric', 'cotton'))
+        else:
+            col_m = mat_plain(name + '_collar', hex_lin(chex), rough=0.75, sheen=0.3)
         cr = []
         for z, rr in ((neck_base - 0.004, 1.32), (neck_base + 0.02, 1.18), (neck_base + 0.036, 1.12)):
             cr.append((z, s['neck_r'] * rr, s['neck_r'] * rr * 0.97, 0.008, 0))
@@ -718,6 +1115,10 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
 
     # hair
     build_hair(name, s, Vu, Fu, up_r, head, rng, hair_scale)
+    if bd_:
+        build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed)
+    if s.get('necklace'):
+        build_necklace(name, s, br, neck_base, root)
 
     objs = [root]
     stack = [root]
@@ -740,12 +1141,15 @@ def build_hair(name, s, Vu, Fu, up_r, head, rng, hair_scale=1.0):
                      ((0, 0.012, s['zb'] - 0.33), (s['body']['shoulder'] * 1.05, s['body']['d'] * 1.08, 0.3))])
     center = np.array([0, 0, zc])
 
-    def hairline(C, front_z, side_z, back_z, side_x_cut=None):
+    def hairline(C, front_z, side_z, back_z, side_x_cut=None, temple=0.0):
         x, y, z = C[:, 0], C[:, 1], C[:, 2]
         ang = np.arctan2(y, x)  # front is ang=-pi/2
         fb = (np.sin(ang) + 1) / 2  # 0 at front, 1 at back
         sideness = np.abs(np.cos(ang))
         zline = (front_z * (1 - fb) + back_z * fb) * (1 - sideness) + side_z * sideness
+        if temple:  # receding temples: raise the hairline at the front corners
+            th = np.arctan2(np.abs(x), -y)
+            zline = zline + temple * np.exp(-((th - 0.95) / 0.4) ** 2)
         m = (z > zline).astype(float)
         if side_x_cut is not None:  # keep ears clear
             m *= ~((np.abs(x) > side_x_cut[0]) & (z < side_x_cut[1]) & (y < 0.07) & (y > -0.03))
@@ -781,8 +1185,109 @@ def build_hair(name, s, Vu, Fu, up_r, head, rng, hair_scale=1.0):
         curves_obj(name + '_hair', C, rad, hm, parent=head)
         return
 
+    if style == 'cut':
+        # short cuts: tousled, neat or swept up and back. keys: length (top), side_len, front_z, side_z, back_z,
+        # temple (receding), part, sweep (0..1 back), up (0..1 lift at the front), side, tousle, clump, lift, jitter
+        L_top = hs.get('length', 0.05)
+        L_side = hs.get('side_len', L_top * 0.55)
+        front_z = hs.get('front_z', H * 0.62)
+        mask = lambda C: hairline(C, front_z, hs.get('side_z', s['eye_z']), hs.get('back_z', zm),
+                                  side_x_cut=(s['Wc'] * 0.8, s['eye_z'] + 0.005), temple=hs.get('temple', 0.0))
+        n_g = 1300
+        groots, gn = sample_surface(Vu, Fu, n_g, rng, mask, center)
+        up, sweep, sidek = hs.get('up', 0.0), hs.get('sweep', 0.5), hs.get('side', 0.4)
+        tous = rng.normal(0, 1, (n_g, 3)) * hs.get('tousle', 0.0)
+
+        def comb(P, n):
+            x, y, z = P[:, 0], P[:, 1], P[:, 2]
+            top = np.clip((z - (s['eye_z'] + 0.015)) / (H - s['eye_z'] - 0.015), 0, 1)
+            fr = np.clip(-y / 0.09, 0, 1)
+            lat = np.tanh((x - part) / 0.012)
+            v = np.stack([lat * sidek * (0.3 + 0.7 * top),
+                          (0.3 + 0.7 * sweep) * (0.35 + 0.65 * top) + 0.2 * (1 - top),
+                          up * fr * top - 0.55 * (1 - top) - 0.05], 1)
+            v = v + tous * (0.4 + 0.6 * top)[:, None]
+            v -= np.einsum('ij,ij->i', v, n)[:, None] * n * hs.get('flat', 0.5)
+            return v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9)
+
+        topf = np.clip((groots[:, 2] - s['eye_z']) / (H - s['eye_z']), 0, 1)
+        frf = np.clip(-groots[:, 1] / 0.09, 0, 1)
+        Lg = L_side + (L_top - L_side) * topf * (0.55 + 0.45 * frf)
+        K = 8
+        G = grow(groots, gn, Lg, K, comb, coll, rng, lift=hs.get('lift', 0.55), gravity=hs.get('gravity', 0.05),
+                 stiff=hs.get('stiff', 0.6), margin=0.002, jitter=hs.get('jitter', 0.18))
+        nc = int(hs.get('count', 70000) * hs['density'] * hair_scale)
+        croots, cn = sample_surface(Vu, Fu, nc, rng, mask, center)
+        C = children_from_guides(G, groots, croots, rng, clump=hs.get('clump', 0.4), spread_noise=0.0012)
+        rad = np.tile(np.linspace(hs.get('r0', 0.00058), 0.00025, K), (nc, 1))
+        emit_hair(name, C, rad, hs, hm, head, rng)
+        return
+
     guard = FaceGuard(s['Wm'] * 0.88, -0.03, s['zb'] - 0.02, s['eye_z'] + 0.012)
     coll_f = Multi(coll, guard)
+
+    if style == 'curls':
+        # long curls / waves: guide strands fall like 'long'; each lock is a bundle of helical strands.
+        # keys: length, volume, spread, locks, per_lock, curl_r, turns, lock_r, part, front_z, mix
+        L = hs.get('length', 0.3)
+        front_z = hs.get('front_z', H * 0.6)
+        mask = lambda C: hairline(C, front_z, hs.get('side_z', s['eye_z'] + 0.01), hs.get('back_z', zm - 0.01))
+        n_g = 1600
+        groots, gn = sample_surface(Vu, Fu, n_g, rng, mask, center)
+
+        def comb(P, n):
+            x, y, z = P[:, 0], P[:, 1], P[:, 2]
+            lat = np.tanh((x - part) / 0.012)
+            top = np.clip((z - s['eye_z']) / (H - s['eye_z']), 0, 1)
+            frontish = np.clip(-y / 0.08, 0, 1)
+            fr = hs.get('fringe', 0.0)
+            back = (1.0 - fr) * frontish * np.clip(top * 2.5, 0, 1)
+            v = np.stack([lat * (0.7 * top + 0.25) * (0.6 + 0.4 * frontish) * (1 - 0.5 * back),
+                          0.3 * top + 1.6 * back + 0.1,
+                          (-0.2 - 1.1 * (1 - top) - fr * frontish * top) * (1 - back) + 0.55 * back], 1)
+            return v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9)
+
+        K = 26
+        Ls = L * (0.7 + 0.3 * np.clip((groots[:, 1] + 0.1) / 0.2, 0, 1))
+        G = grow(groots, gn, Ls, K, comb, coll_f, rng, lift=hs.get('lift', 0.12), gravity=hs.get('gravity', 0.6),
+                 stiff=0.72, margin=hs.get('volume', 0.02), jitter=0.08)
+        sp = hs.get('spread', 0.0)
+        tt = np.linspace(0, 1, K)
+        if sp:  # push the mass outward from the head's axis, more toward the tips: a fuller silhouette
+            xy = G[:, :, :2] - np.array([0.0, 0.0])
+            xy /= np.linalg.norm(xy, axis=2, keepdims=True) + 1e-9
+            G[:, :, :2] += xy * sp * (tt[None, :, None] ** 1.3) * np.clip((-G[:, :, 2] + H) / 0.2, 0.2, 1.0)[..., None]
+            G[:, 1:] = coll_f.push(G[:, 1:].reshape(-1, 3), 0.004).reshape(n_g, K - 1, 3)
+        n_lock, per = hs.get('locks', 650), hs.get('per_lock', 56)
+        lroots, ln = sample_surface(Vu, Fu, n_lock, rng, mask, center)
+        LC = children_from_guides(G, groots, lroots, rng, clump=0.0, spread_noise=0.0)
+        T = np.gradient(LC, axis=1)
+        T /= np.linalg.norm(T, axis=2, keepdims=True) + 1e-9
+        ref = np.array([1.0, 0.3, 0.0]); ref /= np.linalg.norm(ref)
+        N1 = np.cross(T, ref); N1 /= np.linalg.norm(N1, axis=2, keepdims=True) + 1e-9
+        N2 = np.cross(T, N1)
+        amp = hs.get('curl_r', 0.014) * np.clip(tt / 0.18, 0, 1)
+        turns = hs.get('turns', 4.0) * rng.uniform(0.8, 1.25, n_lock)
+        phase = rng.random(n_lock) * 2 * np.pi
+        hand = rng.choice([-1.0, 1.0], n_lock)
+        Phi = 2 * np.pi * turns[:, None] * tt[None, :] * hand[:, None] + phase[:, None]
+        base = LC + amp[None, :, None] * (np.cos(Phi)[..., None] * N1 + np.sin(Phi)[..., None] * N2)
+        lock_of = np.repeat(np.arange(n_lock), per)
+        nc = len(lock_of)
+        dl = rng.random(nc) * 2 * np.pi
+        rho = np.sqrt(rng.random(nc)) * hs.get('lock_r', 0.006)
+        ramp_t = np.clip(tt / 0.12, 0, 1)[None, :, None]
+        C = base[lock_of] + rho[:, None, None] * (np.cos(dl)[:, None, None] * N1[lock_of]
+                                                 + np.sin(dl)[:, None, None] * N2[lock_of]) * ramp_t
+        C += rng.normal(0, 0.0007, C.shape) * ramp_t
+        C[:, 1:] = coll_f.push(C[:, 1:].reshape(-1, 3), 0.003).reshape(nc, K - 1, 3)
+        rad = np.tile(np.linspace(hs.get('r0', 0.00085), 0.00045, K), (nc, 1))
+        pg = None
+        if hs.get('mix'):
+            bias = rng.random(n_lock)[lock_of]
+            pg = np.clip(bias * 2 * hs['mix'].get('frac', 0.5), 0, 1)
+        emit_hair(name, C, rad, hs, hm, head, rng, pg)
+        return
 
     if style in ('bob', 'long'):
         L = hs.get('length', 0.17 if style == 'bob' else 0.30)

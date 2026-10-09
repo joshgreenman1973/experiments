@@ -163,7 +163,7 @@ section { min-width: 0; }
     <div class="screen" id="screen">
       <canvas id="cv" width="1280" height="720" aria-label="Puppet courtroom"></canvas>
       <div class="ov" aria-hidden="true">
-        <div class="bug" id="bug"><b></b><span>PUPPETS ARE CARICATURES · AUDIO IS THE REAL ARGUMENT</span></div>
+        <div class="bug" id="bug"><b></b><span id="bug2">PUPPETS ARE CARICATURES · AUDIO IS THE REAL ARGUMENT</span></div>
         <div class="titlecard" id="titlecard"><div class="k">THE SUPREME COURT OF THE UNITED STATES</div><div class="n"></div><div class="d"></div><div class="x">Performed by puppets. Every word is the actual courtroom audio.</div></div>
         <div class="chapcard" id="chapcard" hidden><div class="a"></div><div class="b"></div></div>
         <div class="tag" id="tag" hidden><div class="a"></div><div class="b"></div></div>
@@ -206,7 +206,7 @@ section { min-width: 0; }
     <section aria-labelledby="mic-h">
       <h2 id="mic-h">Who spoke, and for how long</h2>
       <div class="mic" id="mic"></div>
-      <p class="note">Minutes of speaking turns in the Oyez transcript. Select a name to jump to that speaker's first words.</p>
+      <p class="note" id="micnote">Minutes of speaking turns in the Oyez transcript. Select a name to jump to that speaker's first words.</p>
     </section>
   </div>
 
@@ -235,7 +235,7 @@ section { min-width: 0; }
     return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
   const fmtLen = s => { const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return h ? h + " hr " + m + " min" : m + " min"; };
   const loading = $("loading"), cv = $("cv"), ctx = cv.getContext("2d"), tc = $("titlecard"), ec = $("endcard");
-  const scrub = $("scrub"), fill = $("fill"), rail = $("rail");
+  const scrub = $("scrub"), fill = $("fill"), rail = $("rail"), END_DEFAULT = ec.innerHTML;
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
 
   // ---------------------------------------------------------------- state of the loaded argument
@@ -385,6 +385,10 @@ section { min-width: 0; }
     catch (e) { loading.textContent = "Could not load this argument. Reload the page to try again."; return; }
     if (gen !== loadGen) return;
     P = D.page; TL = D.tl; SEGS = D.segments; LAY = L;
+    // optional page fields (absent on Supreme Court pages, which keep the wording below): setting, noun, kicker, subline, tagline,
+    // bug2, end_sub, end_lines, question_label, about_html, credits_html, mic_note
+    const setting = P.setting || "courtroom", noun = P.noun || "argument";
+    loading.textContent = "Loading the " + setting + "…"; scrub.setAttribute("aria-label", "Position in the " + noun); cv.setAttribute("aria-label", "Puppet " + setting);
     OFF = SEGS.map(s => s[1]); TOTAL = SEGS[SEGS.length - 1][1] + SEGS[SEGS.length - 1][2];
     FPS = TL.fps; NF = TL.nframes; KEYS = TL.keys; KIDX = {}; KEYS.forEach((k, i) => KIDX[k] = i); BENCH = P.bench; ADVS = P.advocates;
     OV = b64(TL.openv); SPK = new Int8Array(NF).fill(-1);
@@ -411,19 +415,27 @@ section { min-width: 0; }
     });
     const urls = [...new Set(Object.values(LAY.vcams).flatMap(v => [v.base, v.atlas]))].filter(u => !IMG[u]);
     let done = 0;
-    await Promise.all(urls.map(u => new Promise(res => { const im = new Image(); im.onload = im.onerror = () => { done++; loading.textContent = "Loading the courtroom… " + Math.round(100 * done / urls.length) + "%"; res(); }; im.src = u; IMG[u] = im; })));
+    await Promise.all(urls.map(u => new Promise(res => { const im = new Image(); im.onload = im.onerror = () => { done++; loading.textContent = "Loading the " + setting + "… " + Math.round(100 * done / urls.length) + "%"; res(); }; im.src = u; IMG[u] = im; })));
     if (gen !== loadGen) return;
 
     // text for this argument
     $("bug").querySelector("b").textContent = P.bug;
-    tc.querySelector(".n").textContent = P.case_name; tc.querySelector(".d").textContent = "Oral argument · " + P.argued + " · No. " + P.docket;
-    ec.querySelector(".n").textContent = P.case_name; ec.querySelector(".d").textContent = "Argued " + P.argued + (P.decided ? " · Decided " + P.decided : "");
-    if (P.end_puppets) $("endpuppets").textContent = P.end_puppets;
+    $("bug2").textContent = P.bug2 || "PUPPETS ARE CARICATURES · AUDIO IS THE REAL ARGUMENT";
+    tc.querySelector(".k").textContent = P.kicker || "THE SUPREME COURT OF THE UNITED STATES";
+    tc.querySelector(".n").textContent = P.case_name; tc.querySelector(".d").textContent = P.subline || ("Oral argument · " + P.argued + " · No. " + P.docket);
+    tc.querySelector(".x").textContent = P.tagline || "Performed by puppets. Every word is the actual courtroom audio.";
+    ec.innerHTML = END_DEFAULT;
+    ec.querySelector(".n").textContent = P.case_name; ec.querySelector(".d").textContent = P.end_sub || P.subline || ("Argued " + P.argued + (P.decided ? " · Decided " + P.decided : ""));
+    if (Array.isArray(P.end_lines)) {
+      ec.querySelectorAll(".k, .v").forEach(e => e.remove());
+      P.end_lines.forEach(([k, v]) => { const a = document.createElement("div"), b = document.createElement("div"); a.className = "k"; a.textContent = k; b.className = "v"; b.textContent = v; ec.append(a, b); });
+    } else if (P.end_puppets) $("endpuppets").textContent = P.end_puppets;
+    $("micnote").textContent = P.mic_note || "Minutes of speaking turns in the Oyez transcript. Select a name to jump to that speaker's first words.";
     const about = [];
-    if (P.question) about.push("<p><strong>The question.</strong> " + esc(P.question) + "</p>");
+    if (P.question) about.push("<p><strong>" + esc(P.question_label || "The question.") + "</strong> " + esc(P.question) + "</p>");
     if (P.outcome) about.push("<p><strong>How it came out.</strong> " + (P.decided ? "Decided " + esc(P.decided) + ". " : "") + esc(P.outcome) + (P.outcome_src ? ' <a href="' + esc(P.outcome_src) + '" target="_blank" rel="noopener">Source</a>.' : "") + "</p>");
-    about.push("<p><strong>What you are watching.</strong> The audio is the Court's own recording of the argument, unedited, via Oyez, whose transcript also marks who is speaking when. The puppets are 3D caricatures; each mouth moves with the loudness of the speaker's syllables during that person's turn, and the justices sit in their actual bench order. " + esc(P.stand_in_note || "") + "</p>");
-    if (!opts.theater) about.push('<p><strong>Credits.</strong> Audio and transcript timing from <a href="' + esc(P.oyez_url) + '" target="_blank" rel="noopener">Oyez</a>, licensed CC BY-NC 4.0. ' + esc(P.credit || "") + "</p>");
+    about.push("<p><strong>What you are watching.</strong> " + (P.about_html || "The audio is the Court's own recording of the argument, unedited, via Oyez, whose transcript also marks who is speaking when. The puppets are 3D caricatures; each mouth moves with the loudness of the speaker's syllables during that person's turn, and the justices sit in their actual bench order.") + " " + esc(P.stand_in_note || "") + "</p>");
+    if (!opts.theater) about.push("<p><strong>Credits.</strong> " + (P.credits_html || ('Audio and transcript timing from <a href="' + esc(P.oyez_url) + '" target="_blank" rel="noopener">Oyez</a>, licensed CC BY-NC 4.0.')) + " " + esc(P.credit || "") + "</p>");
     $("about").innerHTML = about.join("");
     const ol = $("chapters"); ol.innerHTML = ""; rail.querySelectorAll(".tick").forEach(x => x.remove());
     P.chapters.forEach(c => {
@@ -450,7 +462,7 @@ section { min-width: 0; }
     prepStandby();
     ready = true; loading.hidden = true; $("bigplay").disabled = false; lastF = -1; lastSave = start;
     render(true);
-    $("nowline").innerHTML = start ? "Resuming at " + fmt(start) + ". Press play." : "Press play to start the argument. Space pauses; the arrow keys skip 10 seconds.";
+    $("nowline").innerHTML = start ? "Resuming at " + fmt(start) + ". Press play." : "Press play to start the " + noun + ". Space pauses; the arrow keys skip 10 seconds.";
     if (opts.autoplay) play();
   }
 
