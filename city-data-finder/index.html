@@ -1,344 +1,428 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>City Data Finder</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Data Finder</title>
+<meta name="description" content="A weekly web scan for new maps, tools, datasets and analysis about cities, sorted by place and kind.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+  :root{
+    --accent:var(--sun);
+    --r-nyc:var(--sun); --r-ny:var(--orange); --r-us:var(--cobalt); --r-abroad:var(--mint); --r-global:var(--lilac);
+  }
 
-    body {
-      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      color: #1a1a1a;
-      background: #f5f5f5;
-      line-height: 1.55;
-      font-size: 14px;
-    }
+  /* ---------- opening chart: one square per find, one column per scan ---------- */
+  .weeks{display:flex;align-items:stretch;gap:6px;margin-top:6px}
+  .wk{flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;gap:7px;
+    background:none;border:0;padding:0;cursor:pointer;color:var(--fg2);font:inherit;text-align:left}
+  .wk .sq{display:flex;flex-wrap:wrap-reverse;align-content:flex-start;gap:3px;min-height:20px}
+  .wk .sq i{width:var(--s,18px);height:var(--s,18px);display:block;transition:opacity .15s}
+  .wk .lbl{font-size:var(--t-micro);line-height:1.25;border-top:3px solid var(--line);padding-top:5px;white-space:nowrap}
+  .wk .lbl b{display:block;color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+  .wk:hover .lbl{color:var(--fg);border-top-color:var(--fg2)}
+  .wk.on .lbl{color:var(--fg);border-top-color:var(--accent)}
+  .weeks .sq i.dim{opacity:.18 !important}
+  .figcap .key{cursor:pointer;background:none;border:0;color:var(--fg2);padding:0;font:inherit;font-size:var(--t-small)}
+  .figcap .key:hover,.figcap .key[aria-pressed=true]{color:var(--fg)}
+  .figcap .key[aria-pressed=true]{text-decoration:underline;text-underline-offset:3px}
+  @media(max-width:700px){
+    .weeks{gap:3px}
+    .wk .sq{gap:2px}
+    .wk .lbl{font-size:11px;white-space:normal;min-height:calc(3 * 1.25em + 8px)}
+  }
 
-    .container {
-      max-width: 740px;
-      margin: 0 auto;
-      padding: 24px 20px 60px;
-    }
+  /* ---------- browse: filters on the left, finds on the right ---------- */
+  .browse{display:grid;grid-template-columns:290px minmax(0,1fr);border-top:1px solid var(--line);margin-top:22px}
+  .rail{padding:20px clamp(16px,3vw,32px) 30px clamp(16px,4vw,48px);border-right:1px solid var(--line2)}
+  .rail-in{position:sticky;top:16px}
+  .rail h4{margin:20px 0 8px;font-size:var(--t-small);color:var(--fg2);font-weight:600}
+  .rail h4:first-of-type{margin-top:16px}
+  .rail input[type=search]{width:100%}
+  .rail select{width:100%}
+  .opts{display:flex;flex-direction:column;gap:0}
+  .opt{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;
+    background:none;border:0;border-top:1px solid var(--line2);padding:7px 0;color:var(--fg);font-size:15px;text-align:left;cursor:pointer}
+  .opt:last-child{border-bottom:1px solid var(--line2)}
+  .opt .sw{width:12px;height:12px;display:block}
+  .opt .ct{color:var(--fg2);font-variant-numeric:tabular-nums;font-size:var(--t-small)}
+  .opt:hover{background:var(--bg2)}
+  .opt[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+  .opt[aria-pressed=true] .ct{color:var(--bg)}
+  .opt:disabled{color:var(--line);cursor:default;background:none}
+  .opt:disabled .ct{color:var(--line)}
+  .opt.nosw{grid-template-columns:minmax(0,1fr) auto}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .clear{margin-top:18px;background:none;border:0;padding:0;color:var(--fg2);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:var(--t-small)}
+  .clear:hover{color:var(--fg)}
+  @media(max-width:900px){
+    .browse{grid-template-columns:1fr}
+    .rail{border-right:0;border-bottom:1px solid var(--line2);padding-right:clamp(16px,4vw,48px)}
+    .rail-in{position:static}
+    .opts.wrap{flex-direction:row;flex-wrap:wrap;gap:6px}
+    .opts.wrap .opt{width:auto;border:1px solid var(--line);padding:6px 10px;grid-template-columns:12px auto auto;gap:8px;font-size:var(--t-small)}
+    .opts.wrap .opt.nosw{grid-template-columns:auto auto}
+  }
 
-    header {
-      border-bottom: 2px solid #1a1a1a;
-      padding-bottom: 12px;
-      margin-bottom: 8px;
-    }
+  .results{min-width:0;padding:0 clamp(16px,4vw,48px) 40px}
+  .status{padding:20px 0 6px;font-size:15px;color:var(--fg2)}
+  .status b{color:var(--fg)}
+  .grp{margin-top:22px}
+  .grp h3{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+  .grp h3 .sw{width:14px;height:14px;display:block;flex:none}
+  .grp h3 .ct{font-family:var(--sans);font-weight:500;font-size:15px;color:var(--fg2)}
 
-    header h1 {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
+  .find{display:grid;grid-template-columns:12px minmax(0,1fr);gap:14px;padding:13px 0 14px;border-top:1px solid var(--line2);max-width:860px}
+  .grp .find:first-of-type{border-top:1.5px solid var(--fg)}
+  .find .sw{width:12px;height:12px;display:block;margin-top:6px}
+  .find .nm{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:650;font-size:var(--t-rec);line-height:1.22;
+    text-decoration:none;color:var(--fg)}
+  .find .nm:hover{text-decoration:underline;text-decoration-color:var(--fg2)}
+  .find .nm::after{content:" \2197";font-family:var(--sans);font-weight:500;color:var(--fg2);font-size:.85em}
+  .find .desc{margin:5px 0 0;font-size:16px;line-height:1.5;color:var(--fg);max-width:68ch}
+  .find .meta{margin:7px 0 0;font-size:var(--t-small);color:var(--fg2);display:flex;flex-wrap:wrap;gap:2px 0}
+  .find .meta span+span::before{content:"\00b7";padding:0 7px;color:var(--line)}
+  .find .meta .rep{color:var(--orange)}
+  .find .why-btn{background:none;border:0;padding:0;font:inherit;color:var(--fg2);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
+  .find .why-btn:hover{color:var(--fg)}
+  .find .why{margin:8px 0 0;padding-left:12px;border-left:3px solid var(--accent);font-size:15px;color:var(--fg2);max-width:66ch}
+  .find.flash{background:var(--bg2);box-shadow:-14px 0 0 var(--bg2),14px 0 0 var(--bg2)}
 
-    header p {
-      color: #777;
-      font-size: 13px;
-      margin-top: 4px;
-    }
-
-    .date-nav {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0 8px;
-    }
-
-    .date-nav button {
-      font-family: 'Inter', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border: 1px solid #ddd;
-      background: #fff;
-      border-radius: 4px;
-      cursor: pointer;
-      color: #555;
-      transition: border-color 0.15s;
-    }
-
-    .date-nav button:hover { border-color: #999; }
-    .date-nav button:disabled { opacity: 0.3; cursor: default; }
-
-    .date-label {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1a1a1a;
-    }
-
-    .filters {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #e8e8e8;
-    }
-
-    .filter-btn {
-      font-family: 'Inter', sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      padding: 5px 12px;
-      border: 1px solid #ddd;
-      background: #fff;
-      border-radius: 20px;
-      cursor: pointer;
-      color: #888;
-      transition: all 0.15s;
-    }
-
-    .filter-btn:hover { color: #434343; border-color: #bbb; }
-
-    .filter-btn.active {
-      color: #fff;
-      background: #c0392b;
-      border-color: #c0392b;
-    }
-
-    .project-card {
-      background: #fff;
-      border: 1px solid #e8e8e8;
-      border-radius: 6px;
-      padding: 16px 20px;
-      margin-bottom: 10px;
-      transition: border-color 0.15s;
-    }
-
-    .project-card:hover { border-color: #ccc; }
-
-    .project-title {
-      font-size: 15px;
-      font-weight: 600;
-      line-height: 1.35;
-      margin-bottom: 6px;
-    }
-
-    .project-title a {
-      color: #1a1a1a;
-      text-decoration: none;
-    }
-
-    .project-title a:hover { color: #c0392b; }
-
-    .project-meta {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-
-    .tag {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 3px;
-      display: inline-block;
-    }
-
-    .tag-city {
-      background: #e8f4fd;
-      color: #2980b9;
-    }
-
-    .tag-category {
-      background: #fdf2e8;
-      color: #d35400;
-    }
-
-    .tag-source {
-      background: #e8f8e8;
-      color: #27ae60;
-    }
-
-    .project-desc {
-      font-size: 13px;
-      color: #444;
-      margin-bottom: 6px;
-    }
-
-    .project-why {
-      font-size: 12px;
-      color: #888;
-      font-style: italic;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #999;
-      font-size: 14px;
-    }
-
-    .empty-state p { margin-bottom: 8px; }
-
-    .count {
-      font-size: 12px;
-      color: #999;
-      margin-bottom: 16px;
-    }
-
-    @media (max-width: 600px) {
-      .container { padding: 16px 14px 40px; }
-      header h1 { font-size: 18px; }
-      .project-card { padding: 14px 16px; }
-      .filters { gap: 4px; }
-    }
-  </style>
+  .foot p{max-width:70ch;margin:0 0 10px}
+</style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>City Data Finder</h1>
-      <p>Daily scan for interesting new data analysis and mapping projects about cities</p>
-    </header>
+<div class="sheet">
+  <div class="strip"><span>A weekly web scan for new city data projects</span><span id="range"></span></div>
 
-    <div class="date-nav">
-      <button id="prev-btn" onclick="navigate(-1)">&larr; Previous</button>
-      <span class="date-label" id="date-label">Loading...</span>
-      <button id="next-btn" onclick="navigate(1)">Next &rarr;</button>
+  <header class="head">
+    <h1>City Data Finder</h1>
+    <p class="finding" id="finding">Loading the scans&hellip;</p>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="fig" aria-label="Finds by scan">
+    <div class="figcap">
+      <span>Each square is one find, stacked by the scan that turned it up. Pick a week to read its finds.</span>
+      <span id="legend"></span>
     </div>
+    <div class="weeks" id="weeks"></div>
+    <div class="readout" id="readout" aria-live="polite"></div>
+  </section>
 
-    <div class="filters" id="filters"></div>
-    <div class="count" id="count"></div>
-    <div id="projects"></div>
+  <div class="browse">
+    <aside class="rail" aria-label="Filters">
+      <div class="rail-in">
+        <input type="search" id="q" placeholder="Search the finds" aria-label="Search finds">
+        <h4>Scan</h4>
+        <select id="scan" aria-label="Scan"></select>
+        <h4>Place</h4>
+        <div class="opts wrap" id="places"></div>
+        <h4>Kind</h4>
+        <div class="opts wrap" id="kinds"></div>
+        <h4>Group by</h4>
+        <div class="seg" id="groupby"></div>
+        <button class="clear" id="clear" type="button" hidden>Clear filters</button>
+      </div>
+    </aside>
+    <main class="results">
+      <div class="status" id="status"></div>
+      <div id="list"></div>
+    </main>
   </div>
 
-  <script>
-    let manifest = [];
-    let currentIndex = 0;
-    let currentData = null;
-    let activeFilter = 'all';
+  <footer class="foot">
+    <p>Every Friday morning a Claude scheduled task searches the web for city data projects published or announced in the past week (maps, tools, datasets, charts and analysis) and adds 8 to 15 of them here, New York City first. The place and kind labels come from that scan and can be wrong; a handful were corrected by hand in October 2026.</p>
+    <p>Each scan is saved as its own file in <a href="https://github.com/joshgreenman1973/experiments/tree/main/city-data-finder/data">city-data-finder/data</a>.</p>
+  </footer>
+</div>
 
-    async function init() {
-      try {
-        const res = await fetch('data/manifest.json');
-        manifest = await res.json();
-        if (manifest.length === 0) {
-          document.getElementById('date-label').textContent = 'No data yet';
-          document.getElementById('projects').innerHTML =
-            '<div class="empty-state"><p>No scans have run yet.</p><p>Data will appear here after the first daily scan.</p></div>';
-          document.getElementById('prev-btn').disabled = true;
-          document.getElementById('next-btn').disabled = true;
-          return;
-        }
-        await loadDate(0);
-      } catch (e) {
-        document.getElementById('date-label').textContent = 'Error loading data';
-      }
-    }
+<script>
+const PLACES = [
+  ['nyc',    'New York City'],
+  ['ny',     'Rest of New York State'],
+  ['us',     'Rest of the U.S.'],
+  ['abroad', 'Other countries'],
+  ['global', 'Worldwide or no one place'],
+];
+const PLACE_LABEL = Object.fromEntries(PLACES);
+const KINDS = [
+  ['mapping',       'Map',           'Maps'],
+  ['visualization', 'Visualization', 'Visualizations'],
+  ['tool',          'Tool',          'Tools'],
+  ['dataset',       'Dataset',       'Datasets'],
+  ['analysis',      'Analysis',      'Analysis'],
+];
+const KIND_ONE = Object.fromEntries(KINDS.map(k => [k[0], k[1]]));
+const KIND_MANY = Object.fromEntries(KINDS.map(k => [k[0], k[2]]));
+const GROUPS = [['place', 'Place'], ['kind', 'Kind'], ['scan', 'Scan'], ['none', 'None']];
 
-    async function loadDate(index) {
-      if (index < 0 || index >= manifest.length) return;
-      currentIndex = index;
-      const date = manifest[index];
-      document.getElementById('date-label').textContent = formatDate(date);
-      document.getElementById('prev-btn').disabled = index >= manifest.length - 1;
-      document.getElementById('next-btn').disabled = index <= 0;
+const state = { scan: null, place: null, kind: null, q: '', group: 'place' };
+let scans = [];   // newest first: [{date, items}]
+let all = [];     // every find, newest scan first
+let latest = null;
 
-      try {
-        const res = await fetch(`data/${date}.json`);
-        currentData = await res.json();
-        buildFilters();
-        renderProjects();
-      } catch (e) {
-        document.getElementById('projects').innerHTML =
-          '<div class="empty-state"><p>Could not load data for this date.</p></div>';
-      }
-    }
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    function navigate(dir) {
-      loadDate(currentIndex - dir);
-    }
+// AP style dates: Jan. Feb. Aug. Sept. Oct. Nov. Dec. abbreviated; March through July spelled out.
+const AP_MONTHS = ['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'];
+const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function ap(date, full) {
+  const [y, m, d] = date.split('-').map(Number);
+  return (full ? FULL_MONTHS : AP_MONTHS)[m - 1] + ' ' + d;
+}
+function apYear(date) { return ap(date, true) + ', ' + date.slice(0, 4); }
 
-    function formatDate(dateStr) {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    }
+const NUM_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine'];
+const n = x => x < 10 ? NUM_WORDS[x] : String(x);
+const plural = (x, one, many) => n(x) + ' ' + (x === 1 ? one : many);
 
-    function buildFilters() {
-      if (!currentData || !currentData.projects) return;
-      const cities = new Set();
-      const categories = new Set();
-      currentData.projects.forEach(p => {
-        if (p.city) cities.add(p.city);
-        if (p.category) categories.add(p.category);
-      });
+function regionOf(p) {
+  if (p.region && PLACE_LABEL[p.region]) return p.region;
+  if (p.city === 'NYC') return 'nyc';
+  if (p.city === 'Global') return 'global';
+  if (/New York|Ithaca|Hudson Valley|Long Island|Nassau|Westchester|Buffalo|Albany|Rochester/.test(p.city || '')) return 'ny';
+  return 'us';
+}
+function host(u) {
+  try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; }
+}
 
-      const container = document.getElementById('filters');
-      container.innerHTML = '';
+async function init() {
+  let manifest;
+  try {
+    manifest = await (await fetch('data/manifest.json', { cache: 'no-cache' })).json();
+  } catch (e) {
+    $('finding').textContent = 'The scan list did not load. Try reloading the page.';
+    return;
+  }
+  // The weekly task appends dates oldest to newest; sort so the newest scan comes first.
+  manifest = [...new Set(manifest)].sort().reverse();
+  const loaded = await Promise.all(manifest.map(d =>
+    fetch('data/' + d + '.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null)));
 
-      const allBtn = makeFilterBtn('All', 'all');
-      container.appendChild(allBtn);
+  const firstSeen = {};
+  scans = manifest.map((date, i) => ({ date, items: (loaded[i] && loaded[i].projects) || [] }));
+  // Walk oldest to newest so each link remembers the first scan that listed it.
+  [...scans].reverse().forEach(s => {
+    s.items = s.items.map((p, j) => {
+      const item = { ...p, scan: s.date, region: regionOf(p), site: host(p.url), id: s.date + '-' + j };
+      const prior = firstSeen[p.url];
+      if (prior && prior !== s.date) item.repeatOf = prior;
+      if (!prior) firstSeen[p.url] = s.date;
+      return item;
+    });
+  });
+  all = scans.flatMap(s => s.items);
+  latest = scans.find(s => s.items.length) || scans[0];
+  state.scan = latest ? latest.date : 'all';
 
-      cities.forEach(c => container.appendChild(makeFilterBtn(c, 'city:' + c)));
-      categories.forEach(c => container.appendChild(makeFilterBtn(c, 'cat:' + c)));
-    }
+  writeOpening();
+  buildRail();
+  render();
+}
 
-    function makeFilterBtn(label, value) {
-      const btn = document.createElement('button');
-      btn.className = 'filter-btn' + (activeFilter === value ? ' active' : '');
-      btn.textContent = label;
-      btn.onclick = () => {
-        activeFilter = value;
-        buildFilters();
-        renderProjects();
-      };
-      return btn;
-    }
+function writeOpening() {
+  const oldest = scans[scans.length - 1].date;
+  $('range').textContent = apYear(oldest) + ' to ' + apYear(scans[0].date);
 
-    function renderProjects() {
-      const container = document.getElementById('projects');
-      if (!currentData || !currentData.projects || currentData.projects.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No interesting projects found on this date.</p></div>';
-        document.getElementById('count').textContent = '';
-        return;
-      }
+  const li = latest.items;
+  const nycNow = li.filter(p => p.region === 'nyc').length;
+  $('finding').textContent = 'The latest scan, ' + ap(latest.date) + ', turned up ' +
+    plural(li.length, 'project', 'projects') +
+    (nycNow ? ', ' + n(nycNow) + ' of them about New York City.' : ', none of them about New York City.');
 
-      let projects = [...currentData.projects].sort((a, b) => {
-        if (a.source === 'web' && b.source !== 'web') return -1;
-        if (a.source !== 'web' && b.source === 'web') return 1;
-        return 0;
-      });
-      if (activeFilter !== 'all') {
-        if (activeFilter.startsWith('city:')) {
-          projects = projects.filter(p => p.city === activeFilter.slice(5));
-        } else if (activeFilter.startsWith('cat:')) {
-          projects = projects.filter(p => p.category === activeFilter.slice(4));
-        }
-      }
+  const byPlace = {}; all.forEach(p => byPlace[p.region] = (byPlace[p.region] || 0) + 1);
+  const placeBits = PLACES.filter(([k]) => byPlace[k]).map(([k, label], i) => {
+    const c = byPlace[k] + (i === 0 ? (byPlace[k] === 1 ? ' is' : ' are') : '');
+    if (k === 'nyc') return c + ' about New York City';
+    if (k === 'ny') return c + ' about the rest of New York State';
+    if (k === 'us') return c + ' about the rest of the U.S.';
+    if (k === 'abroad') return c + ' about other countries';
+    return c + ' about the whole world or no one place';
+  });
+  const placeText = placeBits.length > 1
+    ? placeBits.slice(0, -1).join(', ') + ' and ' + placeBits[placeBits.length - 1]
+    : placeBits[0];
+  const byKind = {}; all.forEach(p => byKind[p.category] = (byKind[p.category] || 0) + 1);
+  const topKinds = Object.entries(byKind).sort((a, b) => b[1] - a[1]).slice(0, 2)
+    .map(([k, c]) => (KIND_MANY[k] || k).toLowerCase() + ' (' + c + ')');
 
-      document.getElementById('count').textContent =
-        projects.length + ' project' + (projects.length !== 1 ? 's' : '');
+  $('lede').innerHTML = 'The scan has run ' + (scans.length === 1 ? 'once' : n(scans.length) + ' times') +
+    ' since ' + esc(ap(oldest, true)) + ' and logged <b>' + all.length + ' finds</b>. Of those, ' + esc(placeText) + '. ' +
+    'The most common kinds are ' + esc(topKinds.join(' and ')) + '.';
+}
 
-      container.innerHTML = projects.map(p => `
-        <div class="project-card" data-city="${esc(p.city || '')}" data-category="${esc(p.category || '')}">
-          <div class="project-title"><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></div>
-          <div class="project-meta">
-            ${p.city ? `<span class="tag tag-city">${esc(p.city)}</span>` : ''}
-            ${p.category ? `<span class="tag tag-category">${esc(p.category)}</span>` : ''}
-            ${p.source ? `<span class="tag tag-source">${esc(p.source)}</span>` : ''}
-          </div>
-          <div class="project-desc">${esc(p.description || '')}</div>
-          ${p.why_interesting ? `<div class="project-why">${esc(p.why_interesting)}</div>` : ''}
-        </div>
-      `).join('');
-    }
+function buildRail() {
+  const sel = $('scan');
+  sel.innerHTML = '<option value="all">All ' + scans.length + ' scans (' + all.length + ' finds)</option>' +
+    scans.map((s, i) => '<option value="' + s.date + '">' + esc(apYear(s.date)) + (i === 0 ? ', latest' : '') +
+      ' (' + s.items.length + ')</option>').join('');
+  sel.onchange = () => { state.scan = sel.value; render(); };
 
-    function esc(str) {
-      const d = document.createElement('div');
-      d.textContent = str;
-      return d.innerHTML;
-    }
+  let t;
+  $('q').oninput = e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value.trim().toLowerCase(); render(); }, 120); };
 
-    init();
-  </script>
+  $('groupby').innerHTML = GROUPS.map(([k, label]) =>
+    '<button type="button" class="chip" data-g="' + k + '">' + label + '</button>').join('');
+  $('groupby').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.group = b.dataset.g; render(); };
+
+  $('places').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.place = state.place === b.dataset.v ? null : b.dataset.v; render(); };
+  $('kinds').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.kind = state.kind === b.dataset.v ? null : b.dataset.v; render(); };
+  $('clear').onclick = () => { state.place = state.kind = null; state.q = ''; $('q').value = ''; render(); };
+
+  $('legend').innerHTML = PLACES.filter(([k]) => all.some(p => p.region === k)).map(([k, label]) =>
+    '<button type="button" class="key" data-v="' + k + '"><i style="background:var(--r-' + k + ')"></i>' + esc(label) + '</button>').join('');
+  $('legend').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.place = state.place === b.dataset.v ? null : b.dataset.v; render(); };
+
+  const wk = $('weeks');
+  wk.innerHTML = [...scans].reverse().map(s =>
+    '<button type="button" class="wk" data-d="' + s.date + '" aria-label="' + esc(apYear(s.date)) + ': ' + s.items.length + ' finds">' +
+      '<span class="sq">' + sortForChart(s.items).map(p =>
+        '<i data-id="' + p.id + '" style="background:var(--r-' + p.region + ')"></i>').join('') + '</span>' +
+      '<span class="lbl"><b>' + s.items.length + '</b>' + esc(ap(s.date)) + '</span>' +
+    '</button>').join('');
+  wk.onclick = e => {
+    const b = e.target.closest('.wk'); if (!b) return;
+    const sq = e.target.closest('i[data-id]');
+    state.scan = (state.scan === b.dataset.d && !sq) ? 'all' : b.dataset.d;
+    if (sq) { state.place = null; state.kind = null; state.q = ''; $('q').value = ''; }
+    render();
+    if (sq) jumpTo(sq.dataset.id);
+  };
+  wk.onmouseover = e => {
+    const sq = e.target.closest('i[data-id]');
+    if (!sq) return;
+    const p = all.find(x => x.id === sq.dataset.id);
+    $('readout').innerHTML = '<b>' + esc(p.title) + '</b> &nbsp;' + esc(PLACE_LABEL[p.region]) + ', ' + esc((KIND_ONE[p.category] || p.category).toLowerCase()) + ', ' + esc(ap(p.scan));
+  };
+  wk.onmouseleave = () => { $('readout').textContent = ''; };
+  sizeSquares();
+  window.addEventListener('resize', sizeSquares);
+}
+
+// Same order inside every column: New York City at the bottom, then outward.
+function sortForChart(items) {
+  const order = Object.fromEntries(PLACES.map(([k], i) => [k, i]));
+  return [...items].sort((a, b) => order[a.region] - order[b.region]);
+}
+
+function sizeSquares() {
+  const w = $('weeks').clientWidth;
+  const s = w < 420 ? 9 : w < 700 ? 12 : w < 1100 ? 16 : 19;
+  $('weeks').style.setProperty('--s', s + 'px');
+}
+
+function matches(p, skip) {
+  if (skip !== 'scan' && state.scan !== 'all' && p.scan !== state.scan) return false;
+  if (skip !== 'place' && state.place && p.region !== state.place) return false;
+  if (skip !== 'kind' && state.kind && p.category !== state.kind) return false;
+  if (state.q) {
+    const hay = [p.title, p.description, p.why_interesting, p.site, p.city].join(' ').toLowerCase();
+    if (!hay.includes(state.q)) return false;
+  }
+  return true;
+}
+
+function optButtons(defs, key, colorVar) {
+  return defs.map(([k, label]) => {
+    const c = all.filter(p => (key === 'place' ? p.region : p.category) === k && matches(p, key)).length;
+    const on = state[key] === k;
+    return '<button type="button" class="opt' + (colorVar ? '' : ' nosw') + '" data-v="' + k + '" aria-pressed="' + on + '"' + (c || on ? '' : ' disabled') + '>' +
+      (colorVar ? '<i class="sw" style="background:var(--r-' + k + ')"></i>' : '') +
+      '<span>' + esc(label) + '</span><span class="ct">' + c + '</span></button>';
+  }).join('');
+}
+
+function render() {
+  $('scan').value = state.scan;
+  $('places').innerHTML = optButtons(PLACES, 'place', true);
+  $('kinds').innerHTML = optButtons(KINDS.map(k => [k[0], k[2]]), 'kind', false);
+  $('groupby').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.g === state.group));
+  $('legend').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.place));
+  $('clear').hidden = !(state.place || state.kind || state.q);
+
+  const wk = $('weeks');
+  wk.querySelectorAll('.wk').forEach(b => {
+    b.classList.toggle('on', b.dataset.d === state.scan);
+    b.setAttribute('aria-pressed', b.dataset.d === state.scan);
+  });
+  wk.querySelectorAll('i[data-id]').forEach(i => {
+    const p = all.find(x => x.id === i.dataset.id);
+    i.classList.toggle('dim', (state.place || state.kind || state.q) ? !matches(p, 'scan') : false);
+  });
+
+  const items = all.filter(p => matches(p));
+  const scope = state.scan === 'all' ? 'all ' + scans.length + ' scans' : 'the ' + ap(state.scan) + ' scan';
+  const narrowed = [state.place && PLACE_LABEL[state.place], state.kind && KIND_MANY[state.kind].toLowerCase(), state.q && ('"' + state.q + '"')].filter(Boolean);
+  $('status').innerHTML = '<b>' + items.length + (items.length === 1 ? ' find' : ' finds') + '</b> from ' + esc(scope) +
+    (narrowed.length ? ', narrowed to ' + esc(narrowed.join(', ')) : '') + '.' +
+    (state.scan !== 'all' ? ' <button type="button" class="clear" style="margin:0" id="seeall">See all scans</button>' : '');
+  const seeall = $('seeall'); if (seeall) seeall.onclick = () => { state.scan = 'all'; render(); };
+
+  if (!items.length) {
+    $('list').innerHTML = '<p class="empty" style="padding-left:0">Nothing matches. Try clearing a filter.</p>';
+    return;
+  }
+
+  let groups;
+  if (state.group === 'place') {
+    groups = PLACES.map(([k, label]) => ({ key: k, label, sw: 'var(--r-' + k + ')', items: items.filter(p => p.region === k) }));
+  } else if (state.group === 'kind') {
+    groups = KINDS.map(([k, , many]) => ({ key: k, label: many, items: items.filter(p => p.category === k) }));
+  } else if (state.group === 'scan') {
+    groups = scans.map(s => ({ key: s.date, label: apYear(s.date), items: items.filter(p => p.scan === s.date) }));
+  } else {
+    groups = [{ key: 'all', label: '', items }];
+  }
+  groups = groups.filter(g => g.items.length);
+
+  $('list').innerHTML = groups.map(g =>
+    '<section class="grp">' +
+      (g.label ? '<h3>' + (g.sw ? '<i class="sw" style="background:' + g.sw + '"></i>' : '') + esc(g.label) + ' <span class="ct">' + g.items.length + '</span></h3>' : '') +
+      g.items.map(card).join('') +
+    '</section>').join('');
+}
+
+function card(p) {
+  const bits = [];
+  bits.push('<span>' + esc(KIND_ONE[p.category] || p.category) + '</span>');
+  const specific = p.city && p.city !== 'Global' && p.city !== 'NYC';
+  if (specific) bits.push('<span>' + esc(p.city) + '</span>');
+  else if (state.group !== 'place') bits.push('<span>' + esc(PLACE_LABEL[p.region]) + '</span>');
+  if (p.site) bits.push('<span>' + esc(p.site) + '</span>');
+  if (state.scan === 'all' && state.group !== 'scan') bits.push('<span>Found ' + esc(ap(p.scan)) + '</span>');
+  if (p.repeatOf) bits.push('<span class="rep">Same link as a find from ' + esc(ap(p.repeatOf)) + '</span>');
+  if (p.why_interesting) bits.push('<span><button type="button" class="why-btn" aria-expanded="false" onclick="toggleWhy(this)">Why it\'s here</button></span>');
+  return '<article class="find" id="f-' + p.id + '">' +
+    '<i class="sw" style="background:var(--r-' + p.region + ')"></i>' +
+    '<div><a class="nm" href="' + esc(p.url) + '" target="_blank" rel="noopener">' + esc(p.title) + '</a>' +
+    '<p class="desc">' + esc(p.description) + '</p>' +
+    '<p class="meta">' + bits.join('') + '</p>' +
+    (p.why_interesting ? '<p class="why" hidden>' + esc(p.why_interesting) + '</p>' : '') +
+    '</div></article>';
+}
+
+function toggleWhy(btn) {
+  const why = btn.closest('.find').querySelector('.why');
+  const open = why.hidden;
+  why.hidden = !open;
+  btn.setAttribute('aria-expanded', open);
+}
+
+function jumpTo(id) {
+  const el = $('f-' + id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+init();
+</script>
 </body>
 </html>
