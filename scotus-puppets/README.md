@@ -22,6 +22,23 @@ Steps skip files that already exist, so a crashed or edited run resumes cheaply.
 
 In a Claude Code session, the skill at `.claude/skills/scotus-puppets/SKILL.md` walks Claude through the same steps.
 
+## Doing a whole term (browser player, no video)
+
+For a slate of arguments, skip the MP4 entirely. The page draws the puppets live in the viewer's browser from pre-rendered pieces, synced to the audio. A 90-minute argument comes to about 25 MB (mostly audio) instead of about 210 MB of video, and needs no encoding time.
+
+```bash
+./slate.sh slates/ot2025.json /path/to/workroot
+```
+
+- `slates/ot2025.json` lists the dockets with a short name, page title and one-line topic. `slates/ot2025_outcomes.json` holds verified outcomes; each has a source link.
+- `fetch_slate.sh` gets each transcript, Oyez case record and audio file.
+- `slate.py` writes a config per case. Every lawyer becomes a stand-in puppet, since their looks can't be verified from the sandbox: felt in a non-human color, with dress and hair following how the justices addressed them ("Mr." or "Ms."). To give someone a real likeness, add an `advocate_overrides` entry, keyed by Oyez name, to the slate file.
+- Each lawyer renders once, about 3 minutes, and is reused in every case they argue. All lawyers share one lectern background.
+- Per case, `timeline.py ... tl_web.json` writes the compact timeline. `export_web.py` bakes one background JPEG per camera plus one sprite sheet of head poses. `build_page.py` cuts the audio into roughly 10-minute pieces at quiet moments and writes `index.html` and `data.json` from `web/player.html`.
+- Publish each `page/` folder as an Artifact (one publish holds about 45 files and 20 to 40 MB), then build the index with `scripts/build_index.py`.
+
+Player: `web/player.html` draws a `<canvas>` at 24 fps from `audio.currentTime`. Two `<audio>` elements trade places at the cut points, and the clock and lip-sync stay continuous across them. It has chapters, a who-spoke chart with jump links, resume and `#t123` deep links, captions, name tags and section cards. In this sandbox's Chromium the browser frame matched `compose.py`'s frame for the same moment.
+
 ## Doing a different argument
 
 Everything case-specific is in `case.json`:

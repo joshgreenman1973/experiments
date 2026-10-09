@@ -10,7 +10,6 @@ from characters import CHARS, BENCH_ORDER, ADVOCATES, CASE
 ASSETS, TL, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
 F0, F1 = int(sys.argv[4]), int(sys.argv[5])
 ENDCARD = '--endcard' in sys.argv
-W, H = 1280, 720
 FPS = 24
 meta = json.load(open(os.environ.get('META') or os.path.join(ASSETS, 'meta.json')))
 tl = json.load(open(os.path.join(TL, 'timeline.json')))
@@ -46,196 +45,21 @@ def serif(size):
     return ImageFont.truetype(SERIF, size) if SERIF else font('Regular', size)
 
 
-# ------------------------------------------------------------------ image helpers
-def load_rgba(path):
-    im = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-    if im is None:
-        raise FileNotFoundError(path)
-    if im.shape[2] == 3:
-        im = np.dstack([im, np.full(im.shape[:2], 255, np.uint8)])
-    return cv2.cvtColor(im, cv2.COLOR_BGRA2RGBA)
+import layers as L
+from layers import premul, blend, W, H
+L.configure(ASSETS, meta)
 
 
-def premul(im):
-    a = im[..., 3:4].astype(np.float32) / 255.0
-    out = im.astype(np.float32)
-    out[..., :3] *= a
-    return out  # float32 premultiplied RGBA
-
-
-def blend(dst, src_pm, x, y):
-    """dst float32 HxWx3; src_pm float32 premultiplied RGBA placed at integer (x, y)."""
-    h, w = src_pm.shape[:2]
-    x0, y0 = max(0, x), max(0, y)
-    x1, y1 = min(dst.shape[1], x + w), min(dst.shape[0], y + h)
-    if x1 <= x0 or y1 <= y0:
-        return
-    s = src_pm[y0 - y:y1 - y, x0 - x:x1 - x]
-    a = s[..., 3:4] * (1.0 / 255.0)
-    d = dst[y0:y1, x0:x1]
-    d *= (1.0 - a)
-    d += s[..., :3]
-
-
-class Layer:
-    """A premultiplied RGBA sprite placed in virtual-camera coordinates."""
-
-    def __init__(self, img_pm, x, y):
-        self.img, self.x, self.y = img_pm, x, y
-
-
-# ------------------------------------------------------------------ virtual cameras
-class VCam:
-    def __init__(self, name, src, rect, shift_y=0):
-        """rect = (x, y, w, h) in source pixels; output is W x H. shift_y moves the shot down (adds headroom)."""
-        self.name, self.src = name, src
-        self.rect = rect
-        self.shift_y = shift_y
-        self.scale = W / rect[2]
-        self.chars = {}
-        plate = load_rgba(os.path.join(ASSETS, src, 'plate.png'))[..., :3]
-        x, y, w, h = rect
-        crop = plate[y:y + h, x:x + w]
-        self.plate = cv2.resize(crop, (W, H), interpolation=cv2.INTER_AREA if self.scale < 1 else cv2.INTER_CUBIC
-                                ).astype(np.float32)
-        if shift_y:
-            # extend the (blurred, vertical) drapes/columns/chair upward by repeating the top rows
-            top = np.repeat(self.plate[:1], shift_y, axis=0)
-            top = cv2.GaussianBlur(top, (0, 0), 3) if shift_y > 4 else top
-            self.plate = np.vstack([top, self.plate[:H - shift_y]])
-
-    def to_vc(self, px, py):
-        return (px - self.rect[0]) * self.scale, (py - self.rect[1]) * self.scale + self.shift_y
-
-    def add_char(self, n, heads=range(5)):
-        m = meta[self.src][n]
-        cx0, cy0, cx1, cy1 = m['crop']
-        try:
-            body = load_rgba(os.path.join(ASSETS, self.src, f'{n}_body.png'))
-        except FileNotFoundError:
-            return
-        hs = {}
-        for k in heads:
-            p = os.path.join(ASSETS, self.src, f'{n}_head{k}.png')
-            if os.path.exists(p):
-                hs[k] = load_rgba(p)
-        if not hs:
-            return
-        # common trim box across head states, then scale into VC space
-        def place(im, pad=0):
-            al = im[..., 3]
-            ys, xs = np.nonzero(al > 0)
-            if len(xs) == 0:
-                return None
-            return xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
-
-        bb = [place(h) for h in hs.values()]
-        bb = [b for b in bb if b]
-        hx0, hy0 = min(b[0] for b in bb), min(b[1] for b in bb)
-        hx1, hy1 = max(b[2] for b in bb), max(b[3] for b in bb)
-        pad = int(0.12 * max(hx1 - hx0, hy1 - hy0)) + 4
-        s = self.scale
-
-        def scaled(im, x0, y0, x1, y1, pad):
-            sub = im[y0:y1, x0:x1]
-            sub = cv2.copyMakeBorder(sub, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=(0, 0, 0, 0))
-            pm = premul(sub)
-            if abs(s - 1) > 1e-3:
-                pm = cv2.resize(pm, (max(1, round(pm.shape[1] * s)), max(1, round(pm.shape[0] * s))),
-                                interpolation=cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC)
-            vx, vy = self.to_vc(cx0 + x0 - pad, cy0 + y0 - pad)
-            return pm, int(round(vx)), int(round(vy))
-
-        heads_pm = {}
-        for k, im in hs.items():
-            pm, vx, vy = scaled(im, hx0, hy0, hx1, hy1, pad)
-            heads_pm[k] = pm
-        b = place(body)
-        body_pm, bx, by = scaled(body, *b, 2)
-        piv = self.to_vc(*m['pivot'])
-        hc = self.to_vc(*m['head'])
-        unit = math.hypot(hc[0] - piv[0], hc[1] - piv[1]) / 0.13  # px per metre of head
-        # soft drop shadow (static) from body + resting head
-        sil = np.zeros((H, W), np.float32)
-        for pm, x, y in ((body_pm, bx, by), (heads_pm[min(heads_pm)], vx, vy)):
-            h_, w_ = pm.shape[:2]
-            x0, y0 = max(0, x), max(0, y); x1, y1 = min(W, x + w_), min(H, y + h_)
-            if x1 > x0 and y1 > y0:
-                sil[y0:y1, x0:x1] = np.maximum(sil[y0:y1, x0:x1], pm[y0 - y:y1 - y, x0 - x:x1 - x, 3] / 255.0)
-        self.chars[n] = dict(body=Layer(body_pm, bx, by), heads=heads_pm, hx=vx, hy=vy,
-                             pivot=(piv[0] - vx, piv[1] - vy), unit=unit, sil=sil)
-
-    def bake(self, shadow=True, exclude=()):
-        base = self.plate.copy()
-        if shadow:
-            sh = np.zeros((H, W), np.float32)
-            for n, c in self.chars.items():
-                if n in exclude:
-                    continue
-                sig = max(2.0, 0.035 * c['unit'] * 0.35 * 2)
-                off = int(round(0.02 * c['unit'])), int(round(0.012 * c['unit']))
-                s = cv2.GaussianBlur(c['sil'], (0, 0), sig)
-                M = np.float32([[1, 0, off[0]], [0, 1, off[1]]])
-                s = cv2.warpAffine(s, M, (W, H))
-                sh = np.maximum(sh, s)
-            base *= (1 - 0.42 * sh)[..., None]
-        for n, c in self.chars.items():
-            if n in exclude:
-                continue
-            blend(base, c['body'].img, c['body'].x, c['body'].y)
-        self.base = base
-
-    def head(self, dst, n, f, state, motion=1.0):
-        c = self.chars[n]
-        k = KIDX[n]
-        im = c['heads'].get(state, c['heads'][min(c['heads'])])
-        th = math.radians(float(TILT[k, f]) * motion)
-        dx = float(SWAY[k, f]) * 0.35 * c['unit'] * motion
-        dy = -float(BOB[k, f]) * 0.35 * c['unit'] * motion
-        lx, ly = c['pivot']
-        cs, sn = math.cos(th), math.sin(th)
-        # output = R (p - L) + L + D
-        M = np.float32([[cs, -sn, lx - cs * lx + sn * ly + dx], [sn, cs, ly - sn * lx - cs * ly + dy]])
-        out = cv2.warpAffine(im, M, (im.shape[1], im.shape[0]), flags=cv2.INTER_LINEAR,
-                             borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
-        blend(dst, out, c['hx'], c['hy'])
-
-
-def wide_rect(names, margin_frac=0.18):
-    """16:9 rect in wide-source pixels around the given justices' heads."""
-    m = meta['wide']
-    xs = [m[n]['head'][0] for n in names]
-    ys = [m[n]['head'][1] for n in names]
-    x0, x1 = min(xs), max(xs)
-    w = (x1 - x0) * (1 + 2 * margin_frac) + 260
-    h = w * 9 / 16
-    cx, cy = (x0 + x1) / 2, sum(ys) / len(ys) + h * 0.12
-    x, y = int(round(cx - w / 2)), int(round(cy - h / 2))
-    sw, shh = meta['wide']['res']
-    x = min(max(0, x), sw - int(w)); y = min(max(0, y), shh - int(h))
-    return (x, y, int(round(w)), int(round(h)))
+def vhead(v, dst, n, f, state, motion=1.0):
+    k = KIDX[n]
+    c = v.chars[n]
+    v.warp_head(dst, n, state, math.radians(float(TILT[k, f]) * motion),
+                float(SWAY[k, f]) * 0.35 * c['unit'] * motion, -float(BOB[k, f]) * 0.35 * c['unit'] * motion)
 
 
 print('loading assets...', flush=True)
-VC = {}
 ONLY = os.environ.get('ONLY_VCS', '').split(',') if os.environ.get('ONLY_VCS') else None
-for n in BENCH_ORDER + ADVOCATES:
-    if ONLY and n not in ONLY:
-        continue
-    v = VCam(n, n, (0, 0, W, H), shift_y=70 if n in BENCH_ORDER else 0)
-    v.add_char(n)
-    v.bake(shadow=True)
-    VC[n] = v
-sw, shh = meta['wide']['res']
-for name, rect in (('wide', (0, 0, sw, shh)), ('bench_left', wide_rect(BENCH_ORDER[:5])),
-                   ('bench_right', wide_rect(BENCH_ORDER[4:])), ('bench_center', wide_rect(BENCH_ORDER[2:7]))):
-    v = VCam(name, 'wide', rect)
-    for n in BENCH_ORDER:
-        v.add_char(n)
-    for n in ADVOCATES:
-        v.add_char(n, heads=[0])
-    v.bake(shadow=True, exclude=ADVOCATES)
-    VC[name] = v
+VC = L.build_vcams(BENCH_ORDER, ADVOCATES, only=ONLY)
 print('assets loaded', flush=True)
 
 # ------------------------------------------------------------------ overlays
@@ -455,14 +279,14 @@ for f in range(F0, F1):
     if sn in WIDE_FAMILY:
         for n in BENCH_ORDER:
             if n in v.chars:
-                v.head(frame, n, f, int(MOUTH[f]) if spk_key == n else 0, motion=1.0)
+                vhead(v, frame, n, f, int(MOUTH[f]) if spk_key == n else 0, motion=1.0)
         adv = KEYS[ADV[f]]
         if adv in v.chars:
             c = v.chars[adv]
             blend(frame, c['body'].img, c['body'].x, c['body'].y)
-            v.head(frame, adv, f, 0, motion=0.6)
+            vhead(v, frame, adv, f, 0, motion=0.6)
     else:
-        v.head(frame, sn, f, int(MOUTH[f]) if spk_key == sn else 0)
+        vhead(v, frame, sn, f, int(MOUTH[f]) if spk_key == sn else 0)
     # overlays
     overlay(frame, BUG, 22, 18, 1.0 if t > 8.0 else ramp(t, 7.0, 1e9, 1.0))
     if t < 8.0:

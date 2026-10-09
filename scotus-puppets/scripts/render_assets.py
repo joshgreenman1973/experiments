@@ -6,7 +6,7 @@ import bpy
 from mathutils import Vector
 from bpy_extras.object_utils import world_to_camera_view
 import court as C
-from characters import BENCH_ORDER, ADVOCATES
+from characters import BENCH_ORDER, ADVOCATES, CHARS
 
 JAW = [0.015, 0.105, 0.195, 0.285, 0.375]
 OUT = sys.argv[1]
@@ -111,11 +111,34 @@ def job(name):
     return True
 
 
+def objs_bbox(cam, res, objs, margin=16):
+    """Pixel box around the world-space bounds of objs (clamped to the frame)."""
+    xs, ys = [], []
+    for o in objs:
+        if o.type not in ('MESH', 'CURVES'):
+            continue
+        for c in o.bound_box:
+            x, y, _ = proj(cam, res, o.matrix_world @ Vector(c))
+            xs.append(x); ys.append(y)
+    return [max(0, int(min(xs)) - margin), max(0, int(min(ys)) - margin),
+            min(res[0], int(max(xs)) + margin), min(res[1], int(max(ys)) + margin)]
+
+
 def layer_jobs(cam, res, n, others_holdout, below, crop_on, heads):
     """Body layer + head layers for character n seen from camera cam."""
     d = os.path.join(OUT, cam)
     os.makedirs(d, exist_ok=True)
-    crop = char_bbox(cams[cam], res, n, below) if crop_on else [0, 0, res[0], res[1]]
+    if crop_on:
+        crop = char_bbox(cams[cam], res, n, below)
+    elif CHARS.get(n, {}).get('crop_closeup'):
+        # close-up rendered only where the puppet is (jaw fully open, hair included): ~3x fewer pixels to trace
+        cast[n]['jaw'].rotation_euler = (JAW[-1], 0, 0)
+        bpy.context.view_layer.update()
+        crop = objs_bbox(cams[cam], res, cast[n]['objs'])
+        cast[n]['jaw'].rotation_euler = (JAW[0], 0, 0)
+        bpy.context.view_layer.update()
+    else:
+        crop = [0, 0, res[0], res[1]]
     pp = cast[n]
     neck = pp['head'].matrix_world @ Vector((0, 0, pp['spec']['zb'] + 0.02))
     hc = pp['head'].matrix_world.translation

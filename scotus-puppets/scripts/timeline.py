@@ -1,5 +1,7 @@
 # Build the per-frame performance + edit decision list from the Oyez transcript and the argument audio.
-# Usage: python timeline.py TRANSCRIPT.json AUDIO.mp3 OUT.npz OUT.json
+# Usage: python timeline.py TRANSCRIPT.json AUDIO.mp3 OUT.npz OUT.json [WEB.json]
+#   WEB.json: compact timeline for the browser player (turns, mouth envelope, shots, captions, audio cut points).
+#   NO_MOTION=1 skips the per-frame head-motion arrays (only compose.py needs them; the player computes its own).
 import sys, json, subprocess, math, re
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
@@ -11,6 +13,9 @@ SR = 16000
 LEAD = 0.045  # mouth shapes lead the audio slightly (reads as in-sync)
 
 tr_path, audio_path, out_npz, out_json = sys.argv[1:5]
+out_web = sys.argv[5] if len(sys.argv) > 5 else None
+import os
+NO_MOTION = bool(os.environ.get('NO_MOTION'))
 d = json.load(open(tr_path))
 secs = d['transcript']['sections']
 name2key = {v['oyez']: k for k, v in CHARS.items()}
@@ -44,7 +49,12 @@ for si, s in enumerate(secs):
     for t in turns:
         if t['sec'] == si and t['who'] in ADVOCATES:
             tot[t['who']] = tot.get(t['who'], 0) + t['stop'] - t['start']
-    section_adv.append((s['start'], max(tot, key=tot.get)))
+    if tot:
+        section_adv.append((s['start'], max(tot, key=tot.get)))
+adv_turns = [(t['start'], t['who']) for t in turns if t['who'] in ADVOCATES]
+FIRST_ADV = adv_turns[0][1] if adv_turns else ADVOCATES[0]
+if not section_adv:
+    section_adv = [(0.0, FIRST_ADV)]
 
 speaker = np.full(nF, -1, dtype=np.int16)
 mouth = np.zeros(nF, dtype=np.int8)
@@ -83,7 +93,7 @@ def lp(sig, sec):
     return out
 
 
-for k in range(nK):
+for k in ([] if NO_MOTION else range(nK)):
     ph = rng.random(6) * 6.28
     speaking = (speaker == k).astype(np.float32)
     act = lp(speaking, 0.6)
@@ -110,10 +120,12 @@ def half_for(who):
 
 
 def adv_at(tsec):
-    a = section_adv[0][1]
-    for st, k in section_adv:
-        if tsec >= st - 0.01:
-            a = k
+    """the advocate at the lectern: whoever argued most recently (the first to argue, before anyone has)"""
+    a = FIRST_ADV
+    for st, k in adv_turns:
+        if st > tsec + 0.01:
+            break
+        a = k
     return a
 
 
@@ -216,6 +228,28 @@ for t in turns:
             caps.append(dict(start=round(cur, 3), end=round(cur + dd, 3), who=t['who'], label=LABEL.get(t['who'], ''),
                              text=p))
             cur += dd
+
+# ---------------------------------------------------------------- audio cut points for the web player
+# split near every SEG seconds at the quietest moment within +-30 s, so segment hand-offs fall in silence
+SEG = float(os.environ.get('SEG', 600))
+k_sm = int(FPS * 0.6)
+db_sm = np.convolve(db, np.ones(k_sm) / k_sm, mode='same')
+cuts = []
+target = SEG
+while target < dur - SEG * 0.5:
+    lo, hi = int((target - 30) * FPS), int((target + 30) * FPS)
+    cuts.append(round((lo + int(np.argmin(db_sm[lo:hi]))) / FPS, 3))
+    target = cuts[-1] + SEG
+
+if out_web:
+    import base64
+    web = dict(fps=FPS, nframes=nF, duration=round(dur, 3), keys=KEYS, labels=LABEL,
+               turns=[[round(t['start'], 3), round(t['stop'], 3), KIDX[t['who']]] for t in turns if t['who']],
+               openv=base64.b64encode(np.clip(np.round(openv * 255), 0, 255).astype(np.uint8).tobytes()).decode(),
+               shots=[[round(a, 3), round(b, 3), n] for a, b, n in shots],
+               captions=[[c['start'], c['end'], KIDX.get(c['who'], -1), c['text']] for c in caps],
+               sections=[[round(st, 3), k] for st, k in section_adv], cuts=cuts)
+    json.dump(web, open(out_web, 'w'), separators=(',', ':'), ensure_ascii=False)
 
 np.savez_compressed(out_npz, speaker=speaker, mouth=mouth, openv=openv, tilt=tilt, bob=bob, sway=sway,
                     shot=shot_f, adv=adv_f)
