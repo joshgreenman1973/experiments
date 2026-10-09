@@ -57,6 +57,18 @@ def stand_in_spec(name, presentation, felt):
     return spec
 
 
+def stand_in_note(advs):
+    """Advocates listed in the slate's advocate_overrides are modeled on photos; the rest are felt-colored stand-ins."""
+    real = [v['caption_label'].title() for v in advs.values()
+            if v['oyez'] in slate.get('advocate_overrides', {})]
+    if not real:
+        return 'The lawyers are stand-in puppets in felt colors, not likenesses; their names are on screen.'
+    who = real[0] if len(real) == 1 else ', '.join(real[:-1]) + ' and ' + real[-1]
+    if len(real) == len(advs):
+        return f'The lawyers ({who}) are puppet caricatures modeled on photos.'
+    return f"{who} {'is' if len(real) == 1 else 'are'} modeled on photos; the other lawyers are stand-in puppets in felt colors, not likenesses."
+
+
 def key_for(name, taken):
     toks = [t for t in re.sub(r'[^A-Za-z\- ]', ' ', name.replace(', Jr.', '')).split() if len(t) > 1]
     k = toks[-1].lower().replace('-', '_')
@@ -135,6 +147,7 @@ for c in slate['cases']:
         r = registry[k]
         advs[k] = dict(oyez=n, display=r['display'], role=r['cases'][d], caption_label=r['caption_label'], spec=r['spec'])
     o = outcomes.get(d, {})
+    real = [k for k, v in advs.items() if v['oyez'] in slate.get('advocate_overrides', {})]
     cfg = dict(term=slate['term'], docket=d, case_name=c.get('name') or ci['name'], short_name=c['short'],
                argued=dt.strftime('%B ') + str(dt.day) + dt.strftime(', %Y'),
                argued_short=dt.strftime('%b. ').upper().replace('MAY. ', 'MAY ').replace('JUN. ', 'JUNE ').replace('JUL. ', 'JULY ')
@@ -143,8 +156,9 @@ for c in slate['cases']:
                advocates=advs, sections=[], glasses={},
                web=dict(title=c.get('title') or ci['name'],
                         dek=c.get('dek', ''), storage_key='pos-' + d,
-                        stand_in_note='The lawyers are stand-in puppets in felt colors, not likenesses; their names are on screen.',
-                        end_puppets='Procedural 3D caricatures of the justices; the lawyers are stand-ins, not likenesses'))
+                        stand_in_note=stand_in_note(advs),
+                        end_puppets='Procedural 3D caricatures of the justices' + ('' if len(real) == len(advs) else '; the lawyers are stand-ins, not likenesses'
+                                     if not real else '; most of the lawyers are stand-ins, not likenesses')))
     json.dump(cfg, open(os.path.join(root, 'cases', d, 'cfg.json'), 'w'), indent=1, ensure_ascii=False)
     if o and o.get('confidence', 'confirmed') == 'confirmed':
         out = dict(outcome=o['outcome'], decided=o.get('decided'), source=(o.get('sources') or [''])[0])
