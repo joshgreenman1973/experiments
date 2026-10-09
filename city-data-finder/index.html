@@ -86,6 +86,10 @@
   .find .meta{margin:7px 0 0;font-size:var(--t-small);color:var(--fg2);display:flex;flex-wrap:wrap;gap:2px 0}
   .find .meta span+span::before{content:"\00b7";padding:0 7px;color:var(--line)}
   .find .meta .rep{color:var(--orange)}
+  .find .meta .hl{color:var(--sun);font-weight:700}
+  .views{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .views .chip{font-size:15px;padding:9px 13px}
+  .views .chip .ct{font-weight:500;opacity:.75;margin-left:4px}
   .find .why-btn{background:none;border:0;padding:0;font:inherit;color:var(--fg2);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
   .find .why-btn:hover{color:var(--fg)}
   .find .why{margin:8px 0 0;padding-left:12px;border-left:3px solid var(--accent);font-size:15px;color:var(--fg2);max-width:66ch}
@@ -102,6 +106,7 @@
     <h1>City Data Finder</h1>
     <p class="finding" id="finding">Loading the scans&hellip;</p>
     <p class="lede" id="lede"></p>
+    <div class="views" id="views" role="group" aria-label="Quick views"></div>
   </header>
 
   <section class="fig" aria-label="Finds by scan">
@@ -119,6 +124,8 @@
         <input type="search" id="q" placeholder="Search the finds" aria-label="Search finds">
         <h4>Scan</h4>
         <select id="scan" aria-label="Scan"></select>
+        <h4>Show</h4>
+        <div class="seg" id="show"></div>
         <h4>Place</h4>
         <div class="opts wrap" id="places"></div>
         <h4>Kind</h4>
@@ -136,6 +143,7 @@
 
   <footer class="foot">
     <p>Every Friday morning a Claude scheduled task searches the web for city data projects published or announced in the past week (maps, tools, datasets, charts and analysis) and adds 8 to 15 of them here, New York City first. The place and kind labels come from that scan and can be wrong; a handful were corrected by hand in October 2026.</p>
+    <p>Highlights are up to three finds per scan that can be opened and used now, were new or newly updated that week, rest on real data, and either serve New York City reporting or offer a model worth copying. Event notices, projects that have not launched, links to newsletter roundups and repeats are left out. Claude picked the highlights for the scans through Oct. 9, 2026, by those rules, and the weekly task picks them from then on.</p>
     <p>Each scan is saved as its own file in <a href="https://github.com/joshgreenman1973/experiments/tree/main/city-data-finder/data">city-data-finder/data</a>.</p>
   </footer>
 </div>
@@ -160,7 +168,9 @@ const KIND_ONE = Object.fromEntries(KINDS.map(k => [k[0], k[1]]));
 const KIND_MANY = Object.fromEntries(KINDS.map(k => [k[0], k[2]]));
 const GROUPS = [['place', 'Place'], ['kind', 'Kind'], ['scan', 'Scan'], ['none', 'None']];
 
-const state = { scan: null, place: null, kind: null, q: '', group: 'place' };
+const state = { scan: null, picks: false, place: null, kind: null, q: '', group: 'place' };
+// state.scan is 'all', one scan date, or a rolling window ('d30', 'd90') counted back from today.
+const WINDOWS = { d30: 30, d90: 90 };
 let scans = [];   // newest first: [{date, items}]
 let all = [];     // every find, newest scan first
 let latest = null;
@@ -180,6 +190,26 @@ function apYear(date) { return ap(date, true) + ', ' + date.slice(0, 4); }
 const NUM_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine'];
 const n = x => x < 10 ? NUM_WORDS[x] : String(x);
 const plural = (x, one, many) => n(x) + ' ' + (x === 1 ? one : many);
+
+function daysAgo(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function inScope(date, scan = state.scan) {
+  if (scan === 'all') return true;
+  if (WINDOWS[scan]) return date >= daysAgo(WINDOWS[scan]);
+  return date === scan;
+}
+const isOneScan = () => /^\d{4}-/.test(state.scan);
+
+// One-click views. The hash lets a view be bookmarked.
+const VIEWS = [
+  { key: 'latest', hash: '',                    label: 'Latest scan',              scan: () => latest.date, picks: false },
+  { key: 'h30',    hash: '#highlights-30-days', label: 'Highlights, last 30 days', scan: () => 'd30',       picks: true },
+  { key: 'h90',    hash: '#highlights-90-days', label: 'Highlights, last 90 days', scan: () => 'd90',       picks: true },
+  { key: 'all',    hash: '#everything',         label: 'Everything',               scan: () => 'all',       picks: false },
+];
 
 function regionOf(p) {
   if (p.region && PLACE_LABEL[p.region]) return p.region;
@@ -220,10 +250,29 @@ async function init() {
   all = scans.flatMap(s => s.items);
   latest = scans.find(s => s.items.length) || scans[0];
   state.scan = latest ? latest.date : 'all';
+  const fromHash = VIEWS.find(v => v.hash && v.hash === location.hash);
+  if (fromHash) { state.scan = fromHash.scan(); state.picks = fromHash.picks; }
 
   writeOpening();
+  buildViews();
   buildRail();
   render();
+}
+
+function buildViews() {
+  $('views').innerHTML = VIEWS.map(v => {
+    const scan = v.scan();
+    const c = all.filter(p => inScope(p.scan, scan) && (!v.picks || p.pick)).length;
+    return '<button type="button" class="chip" data-v="' + v.key + '">' + esc(v.label) + '<span class="ct">' + c + '</span></button>';
+  }).join('');
+  $('views').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = VIEWS.find(x => x.key === b.dataset.v);
+    state.scan = v.scan(); state.picks = v.picks;
+    state.place = state.kind = null; state.q = ''; $('q').value = '';
+    render();
+    $('status').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 }
 
 function writeOpening() {
@@ -259,10 +308,18 @@ function writeOpening() {
 
 function buildRail() {
   const sel = $('scan');
+  const windowOpt = (key, label) => {
+    const count = scans.filter(s => inScope(s.date, key)).length;
+    return '<option value="' + key + '">' + label + ' (' + count + (count === 1 ? ' scan' : ' scans') + ')</option>';
+  };
   sel.innerHTML = '<option value="all">All ' + scans.length + ' scans (' + all.length + ' finds)</option>' +
+    windowOpt('d30', 'Last 30 days') + windowOpt('d90', 'Last 90 days') +
     scans.map((s, i) => '<option value="' + s.date + '">' + esc(apYear(s.date)) + (i === 0 ? ', latest' : '') +
       ' (' + s.items.length + ')</option>').join('');
   sel.onchange = () => { state.scan = sel.value; render(); };
+
+  $('show').innerHTML = '<button type="button" class="chip" data-p="0">Everything</button><button type="button" class="chip" data-p="1">Highlights</button>';
+  $('show').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.picks = b.dataset.p === '1'; render(); };
 
   let t;
   $('q').oninput = e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value.trim().toLowerCase(); render(); }, 120); };
@@ -273,7 +330,7 @@ function buildRail() {
 
   $('places').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.place = state.place === b.dataset.v ? null : b.dataset.v; render(); };
   $('kinds').onclick = e => { const b = e.target.closest('button'); if (!b) return; state.kind = state.kind === b.dataset.v ? null : b.dataset.v; render(); };
-  $('clear').onclick = () => { state.place = state.kind = null; state.q = ''; $('q').value = ''; render(); };
+  $('clear').onclick = () => { state.place = state.kind = null; state.picks = false; state.q = ''; $('q').value = ''; render(); };
 
   $('legend').innerHTML = PLACES.filter(([k]) => all.some(p => p.region === k)).map(([k, label]) =>
     '<button type="button" class="key" data-v="' + k + '"><i style="background:var(--r-' + k + ')"></i>' + esc(label) + '</button>').join('');
@@ -290,7 +347,7 @@ function buildRail() {
     const b = e.target.closest('.wk'); if (!b) return;
     const sq = e.target.closest('i[data-id]');
     state.scan = (state.scan === b.dataset.d && !sq) ? 'all' : b.dataset.d;
-    if (sq) { state.place = null; state.kind = null; state.q = ''; $('q').value = ''; }
+    if (sq) { state.place = null; state.kind = null; state.picks = false; state.q = ''; $('q').value = ''; }
     render();
     if (sq) jumpTo(sq.dataset.id);
   };
@@ -318,7 +375,8 @@ function sizeSquares() {
 }
 
 function matches(p, skip) {
-  if (skip !== 'scan' && state.scan !== 'all' && p.scan !== state.scan) return false;
+  if (skip !== 'scan' && !inScope(p.scan)) return false;
+  if (skip !== 'picks' && state.picks && !p.pick) return false;
   if (skip !== 'place' && state.place && p.region !== state.place) return false;
   if (skip !== 'kind' && state.kind && p.category !== state.kind) return false;
   if (state.q) {
@@ -344,25 +402,51 @@ function render() {
   $('kinds').innerHTML = optButtons(KINDS.map(k => [k[0], k[2]]), 'kind', false);
   $('groupby').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.g === state.group));
   $('legend').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === state.place));
-  $('clear').hidden = !(state.place || state.kind || state.q);
+  $('clear').hidden = !(state.place || state.kind || state.q || state.picks);
+  $('show').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.p === '1') === state.picks));
+  const plain = !(state.place || state.kind || state.q);
+  const current = plain ? VIEWS.find(v => v.scan() === state.scan && v.picks === state.picks) : null;
+  $('views').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', !!current && current.key === b.dataset.v));
+  const hash = current ? current.hash : '';
+  if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search);
 
   const wk = $('weeks');
   wk.querySelectorAll('.wk').forEach(b => {
-    b.classList.toggle('on', b.dataset.d === state.scan);
-    b.setAttribute('aria-pressed', b.dataset.d === state.scan);
+    const on = state.scan !== 'all' && inScope(b.dataset.d);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on);
   });
   wk.querySelectorAll('i[data-id]').forEach(i => {
     const p = all.find(x => x.id === i.dataset.id);
-    i.classList.toggle('dim', (state.place || state.kind || state.q) ? !matches(p, 'scan') : false);
+    i.classList.toggle('dim', (state.place || state.kind || state.q || state.picks) ? !matches(p, 'scan') : false);
   });
 
   const items = all.filter(p => matches(p));
-  const scope = state.scan === 'all' ? 'all ' + scans.length + ' scans' : 'the ' + ap(state.scan) + ' scan';
+  let scope;
+  if (state.scan === 'all') scope = 'all ' + scans.length + ' scans';
+  else if (WINDOWS[state.scan]) {
+    const ws = scans.filter(s => inScope(s.date));
+    scope = 'the scans of the last ' + WINDOWS[state.scan] + ' days' +
+      (ws.length ? ' (' + (ws.length === 1 ? ap(ws[0].date) : ap(ws[ws.length - 1].date) + ' to ' + ap(ws[0].date)) + ')' : '');
+  }
+  else scope = 'the ' + ap(state.scan) + ' scan';
+  const noun = state.picks ? (items.length === 1 ? ' highlight' : ' highlights') : (items.length === 1 ? ' find' : ' finds');
   const narrowed = [state.place && PLACE_LABEL[state.place], state.kind && KIND_MANY[state.kind].toLowerCase(), state.q && ('"' + state.q + '"')].filter(Boolean);
-  $('status').innerHTML = '<b>' + items.length + (items.length === 1 ? ' find' : ' finds') + '</b> from ' + esc(scope) +
-    (narrowed.length ? ', narrowed to ' + esc(narrowed.join(', ')) : '') + '.' +
-    (state.scan !== 'all' ? ' <button type="button" class="clear" style="margin:0" id="seeall">See all scans</button>' : '');
-  const seeall = $('seeall'); if (seeall) seeall.onclick = () => { state.scan = 'all'; render(); };
+  let more = '';
+  if (state.picks) {
+    const everything = all.filter(p => matches(p, 'picks')).length;
+    more = ' <button type="button" class="clear" style="margin:0" id="seemore">Show all ' + everything + (everything === 1 ? ' find' : ' finds') + '</button>';
+  } else if (state.scan !== 'all') {
+    more = ' <button type="button" class="clear" style="margin:0" id="seemore">See all scans</button>';
+  }
+  $('status').innerHTML = '<b>' + items.length + noun + '</b> from ' + esc(scope) +
+    (narrowed.length ? ', narrowed to ' + esc(narrowed.join(', ')) : '') + '.' + more;
+  const seemore = $('seemore');
+  if (seemore) seemore.onclick = () => { if (state.picks) state.picks = false; else state.scan = 'all'; render(); };
+  if (!items.length && state.scan !== 'all' && !scans.some(s => inScope(s.date))) {
+    $('list').innerHTML = '<p class="empty" style="padding-left:0">No scan ran in this window.</p>';
+    return;
+  }
 
   if (!items.length) {
     $('list').innerHTML = '<p class="empty" style="padding-left:0">Nothing matches. Try clearing a filter.</p>';
@@ -395,7 +479,8 @@ function card(p) {
   if (specific) bits.push('<span>' + esc(p.city) + '</span>');
   else if (state.group !== 'place') bits.push('<span>' + esc(PLACE_LABEL[p.region]) + '</span>');
   if (p.site) bits.push('<span>' + esc(p.site) + '</span>');
-  if (state.scan === 'all' && state.group !== 'scan') bits.push('<span>Found ' + esc(ap(p.scan)) + '</span>');
+  if (!isOneScan() && state.group !== 'scan') bits.push('<span>Found ' + esc(ap(p.scan)) + '</span>');
+  if (p.pick && !state.picks) bits.unshift('<span class="hl">Highlight</span>');
   if (p.repeatOf) bits.push('<span class="rep">Same link as a find from ' + esc(ap(p.repeatOf)) + '</span>');
   if (p.why_interesting) bits.push('<span><button type="button" class="why-btn" aria-expanded="false" onclick="toggleWhy(this)">Why it\'s here</button></span>');
   return '<article class="find" id="f-' + p.id + '">' +
