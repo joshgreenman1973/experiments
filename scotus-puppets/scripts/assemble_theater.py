@@ -41,6 +41,9 @@ for c in slate['cases']:
     for v in lay['vcams'].values():
         v['base'] = store(os.path.join(page, v['base']))
         v['atlas'] = store(os.path.join(page, v['atlas']))
+    for extra in ('gallery', 'mouse'):   # shared atlases (the audience, the mouse): identical in every case, so stored once
+        if lay.get(extra):
+            lay[extra]['atlas'] = store(os.path.join(page, lay[extra]['atlas']))
     # audio: fewer, longer pieces cut at the quiet points the timeline already found
     tl = json.load(open(os.path.join(C, 'tl_web.json')))
     dur = tl['duration']
@@ -69,6 +72,8 @@ for c in slate['cases']:
         segs.append([rel, round(bounds[i], 3), round(sd, 3)])
         total_audio += os.path.getsize(dst)
     data['segments'] = segs
+    data['page'].setdefault('motion', dict(listeners=True, breathe=True, blink=True, drift=True, gallery=True, mouse=True, clock=True))
+    data['page'].setdefault('clock_start', 36000)
     json.dump(data, open(os.path.join(cdir, 'data.json'), 'w'), separators=(',', ':'), ensure_ascii=False)
     json.dump(lay, open(os.path.join(cdir, 'layout.json'), 'w'), separators=(',', ':'))
     thumb = os.path.join(a.work, 'thumbs', f'{d}.jpg')

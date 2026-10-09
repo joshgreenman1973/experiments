@@ -54,14 +54,15 @@ class Layer:
 
 # ------------------------------------------------------------------ virtual cameras
 class VCam:
-    def __init__(self, name, src, rect, shift_y=0):
-        """rect = (x, y, w, h) in source pixels; output is W x H. shift_y moves the shot down (adds headroom)."""
+    def __init__(self, name, src, rect, shift_y=0, plate_path=None):
+        """rect = (x, y, w, h) in source pixels; output is W x H. shift_y moves the shot down (adds headroom).
+        plate_path: use this empty-room plate instead of ASSETS/src/plate.png."""
         self.name, self.src = name, src
         self.rect = rect
         self.shift_y = shift_y
         self.scale = W / rect[2]
         self.chars = {}
-        plate = load_rgba(os.path.join(ASSETS, src, 'plate.png'))[..., :3]
+        plate = load_rgba(plate_path or os.path.join(ASSETS, src, 'plate.png'))[..., :3]
         x, y, w, h = rect
         crop = plate[y:y + h, x:x + w]
         self.plate = cv2.resize(crop, (W, H), interpolation=cv2.INTER_AREA if self.scale < 1 else cv2.INTER_CUBIC
@@ -133,7 +134,8 @@ class VCam:
         self.chars[n] = dict(body=Layer(body_pm, bx, by), heads=heads_pm, hx=vx, hy=vy,
                              pivot=(piv[0] - vx, piv[1] - vy), unit=unit, sil=sil)
 
-    def bake(self, shadow=True, exclude=()):
+    def bake(self, shadow=True, exclude=(), bodies=True):
+        """Plate + soft shadows (+ bodies). bodies=False leaves the bodies out, for pages that draw them as sprites."""
         base = self.plate.copy()
         if shadow:
             sh = np.zeros((H, W), np.float32)
@@ -148,7 +150,7 @@ class VCam:
                 sh = np.maximum(sh, s)
             base *= (1 - 0.42 * sh)[..., None]
         for n, c in self.chars.items():
-            if n in exclude:
+            if n in exclude or not bodies:
                 continue
             blend(base, c['body'].img, c['body'].x, c['body'].y)
         self.base = base
@@ -182,24 +184,31 @@ def wide_rect(names, margin_frac=0.18):
 
 
 
-def build_vcams(bench_order, advocates, only=None, log=print):
-    """All virtual cameras: a close-up per justice/advocate and four views cut from the wide master."""
+def build_vcams(bench_order, advocates, only=None, log=print, bench_shift=70, blink=False, bodies=True, advocate_plate=None):
+    """All virtual cameras: a close-up per justice/advocate and four views cut from the wide master.
+    bench_shift: pixels the bench close-ups are moved down (headroom added by extending the plate upward);
+    the Supreme Court close-ups are framed tight and use 70, the breakfast interview is framed properly and uses 0.
+    blink: also load each puppet's eyes-closed head layer (state 5) where it exists.
+    bodies=False: bake without the bodies (the page draws them as sprites so they can breathe).
+    advocate_plate: shared empty-room plate for the advocate close-ups."""
     VC = {}
+    heads = range(6) if blink else range(5)
     for n in bench_order + advocates:
         if only and n not in only:
             continue
-        v = VCam(n, n, (0, 0, W, H), shift_y=70 if n in bench_order else 0)
-        v.add_char(n)
-        v.bake(shadow=True)
+        v = VCam(n, n, (0, 0, W, H), shift_y=bench_shift if n in bench_order else 0,
+                 plate_path=advocate_plate if n in advocates else None)
+        v.add_char(n, heads=heads)
+        v.bake(shadow=True, bodies=bodies)
         VC[n] = v
     sw, shh = meta['wide']['res']
     for name, rect in (('wide', (0, 0, sw, shh)), ('bench_left', wide_rect(bench_order[:5])),
                        ('bench_right', wide_rect(bench_order[4:])), ('bench_center', wide_rect(bench_order[2:7]))):
         v = VCam(name, 'wide', rect)
         for n in bench_order:
-            v.add_char(n)
+            v.add_char(n, heads=heads)
         for n in advocates:
-            v.add_char(n, heads=[0])
-        v.bake(shadow=True, exclude=advocates)
+            v.add_char(n, heads=[0, 5] if blink else [0])
+        v.bake(shadow=True, exclude=advocates, bodies=bodies)
         VC[name] = v
     return VC

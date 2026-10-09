@@ -150,7 +150,10 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
     else:
         # V half-width grows linearly from 0 at z=-v_depth to v_half at z=0 (neck base)
         vw = math('MULTIPLY', math('ADD', z, v_depth), v_half / v_depth)
-    in_v = ramp(math('SUBTRACT', vw, ax), -0.002, 0.002)
+    if v_half < 0.002:  # no opening at all (avoid a hairline from the mask's soft edge)
+        in_v = math('MULTIPLY', ax, 0.0)
+    else:
+        in_v = ramp(math('SUBTRACT', vw, ax), -0.002, 0.002)
     front = ramp(math('MULTIPLY', y, -1.0), 0.01, 0.04)
     shirt = math('MULTIPLY', in_v, front)
 
@@ -593,6 +596,7 @@ DEFAULT = dict(
     lipstick=None,   # dict(hex) colours the lip rim of the mouth
     iris=None,       # dict(hex, r) coloured iris cap under the pupil
     necklace=None,   # dict(hex, drop, star)
+    earrings=None,   # dict(hex, r): small studs on the ear lobes
 )
 
 
@@ -687,34 +691,51 @@ def set_vertex_attr(ob, name, values):
 
 
 def beard_weights(s, bd):
-    """Smooth 0..1 masks (functions of head-frame points) for the jaw beard, upper-head cheek beard and mustache."""
+    """Smooth 0..1 masks (functions of head-frame points) for the jaw beard, upper-head cheek beard and mustache.
+    The lips stay bare only in the middle of the mouth (|x| < lips_w); beyond that the beard runs unbroken from the
+    cheeks to the jaw and meets the mustache at the mouth corners."""
     zm, lip = s['zm'], s['lip_r']
     cheek_z = bd.get('cheek_z', zm + 0.045)
     mw = bd.get('mw', 0.05)
     mh = bd.get('must_h', 0.027)
     full = bd.get('beard', True)
     must = bd.get('mustache', True)
+    lw = bd.get('lips_w', 0.06)
+    gap = bd.get('lip_gap', 0.003)
+
+    def zl(C):  # height above/below the (smiling) mouth line: the smile curve lifts the corners of the mouth
+        x, z = C[:, 0], C[:, 2]
+        return z - s['smile'] * (x / s['Wm']) ** 2 * np.exp(-((z - zm) / 0.03) ** 2)
+
+    def join(x):  # 0 over the lips, 1 at the mouth corners and beyond
+        t = np.clip((np.abs(x) - lw) / 0.02, 0, 1)
+        return t * t * (3 - 2 * t)
 
     def jaw(C):
         x, y, z = C[:, 0], C[:, 1], C[:, 2]
         if not full:
             return np.zeros(len(C))
-        return np.clip(((zm - lip - bd.get('lip_gap', 0.003)) - z) / 0.006, 0, 1) * np.clip((0.05 - y) / 0.03, 0, 1)
+        top = (zm - lip - gap) + join(x) * (lip + gap - 0.0015)
+        return np.clip((top - zl(C)) / 0.006, 0, 1) * np.clip((0.05 - y) / 0.03, 0, 1)
+
+    def low(x):  # lower bound (z above) of the upper-head beard
+        j = join(x)
+        return (zm + lip * 0.6) * (1 - j) + (zm + 0.0015) * j
 
     def cheek(C):
         x, y, z = C[:, 0], C[:, 1], C[:, 2]
         if not full:
             return np.zeros(len(C))
         zline = cheek_z + (bd.get('sideburn_z', 0.03) - cheek_z) * np.clip((np.abs(x) - 0.05) / 0.07, 0, 1)
-        return (np.clip((zline - z) / 0.012, 0, 1) * np.clip((z - (zm + lip * 0.6)) / 0.004, 0, 1)
+        return (np.clip((zline - zl(C)) / 0.012, 0, 1) * np.clip((zl(C) - low(x)) / 0.004, 0, 1)
                 * np.clip((0.045 - y) / 0.03, 0, 1))
 
     def mustache(C):
         x, y, z = C[:, 0], C[:, 1], C[:, 2]
         if not must:
             return np.zeros(len(C))
-        return (np.clip((mw - np.abs(x)) / 0.008, 0, 1) * np.clip((zm + mh - z) / 0.006, 0, 1)
-                * np.clip((z - (zm + lip * 0.5)) / 0.004, 0, 1) * np.clip((0.0 - y) / 0.03, 0, 1))
+        return (np.clip((mw - np.abs(x)) / 0.008, 0, 1) * np.clip((zm + mh - zl(C)) / 0.006, 0, 1)
+                * np.clip((zl(C) - low(x)) / 0.004, 0, 1) * np.clip((0.0 - y) / 0.03, 0, 1))
     return jaw, cheek, mustache
 
 
@@ -739,7 +760,7 @@ def build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed):
         return v / np.linalg.norm(v, axis=1, keepdims=True)
 
     def comb_must(P, n):
-        v = np.stack([np.sign(P[:, 0]) * 0.55, np.full(len(P), -0.35), np.full(len(P), -0.8)], 1)
+        v = np.stack([np.sign(P[:, 0]) * bd.get('must_out', 0.55), np.full(len(P), -0.35), np.full(len(P), -0.8)], 1)
         return v / np.linalg.norm(v, axis=1, keepdims=True)
 
     def emit(tag, R, Nn, comb, lengths, par, off, lift):
@@ -758,16 +779,16 @@ def build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed):
 
     center_u = np.array([0, 0, s['zc']])
     if bd.get('beard', True):
-        okj = np.array(Mj) == 0
-        R, Nn = sample_surface(Vj, Fj, int(40000 * dens), rng, w_jaw, np.array([0, 0, zm - 0.05]), face_ok=okj)
+        okj = np.array(Mj) != 1
+        R, Nn = sample_surface(Vj, Fj, int(bd.get('jaw_count', 52000) * dens), rng, w_jaw, np.array([0, 0, zm - 0.05]), face_ok=okj)
         z = R[:, 2]
         chin = np.clip(((zm - 0.03) - z) / 0.05, 0, 1) * np.clip((0.06 - np.abs(R[:, 0])) / 0.04, 0, 1)
         emit('beardj', R, Nn, comb_down, Lc + (Lchin - Lc) * chin, jaw, hinge, 0.45)
-        oku = np.array(Mu) == 0
-        R, Nn = sample_surface(Vu, Fu, int(30000 * dens), rng, w_cheek, center_u, face_ok=oku)
+        oku = np.array(Mu) != 1
+        R, Nn = sample_surface(Vu, Fu, int(bd.get('cheek_count', 40000) * dens), rng, w_cheek, center_u, face_ok=oku)
         emit('beardc', R, Nn, comb_down, np.full(len(R), Lc * 0.9), head, np.zeros(3), 0.45)
     if bd.get('mustache', True):
-        oku = np.array(Mu) == 0
+        oku = np.array(Mu) != 1
         R, Nn = sample_surface(Vu, Fu, int(bd.get('must_count', 12000) * dens), rng, w_must, center_u, face_ok=oku)
         emit('must', R, Nn, comb_must, np.full(len(R), bd.get('must_len', Lc * 1.5)) * rng.uniform(0.8, 1.2, len(R)),
              head, np.zeros(3), 0.4)
@@ -1076,12 +1097,17 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
             e = uv_sphere(f'{name}_ear{sx}', 1.0, [skin], scale=(ez['size'] * 0.28, ez['size'] * 0.62,
                                                                   ez['size']), parent=head, loc=(xx, 0.035, zz))
             e.rotation_euler = (0, 0, -sx * 0.45)
+            if s.get('earrings'):  # small studs / drops on the lobes
+                er = s['earrings']
+                em_ = mat_plain(name + '_earring', hex_lin(er.get('hex', '#d9b550')), rough=0.22, metallic=1.0)
+                uv_sphere(f'{name}_earring{sx}', er.get('r', 0.0068), [em_], segs=14, rings=10, parent=head,
+                          loc=(xx + sx * 0.004, 0.03, zz - ez['size'] * 0.88))
 
     # neck + body
     b = s['body']
     # optional garment extras (patterns, V/U neckline, lapel pin, ...): see mat_robe
     robe_kw = {k: b[k] for k in ('v_shape', 'v_depth', 'v_half', 'pattern', 'shirt_pattern', 'tie_pattern', 'pin',
-                                 'lapel', 'fabric', 'placket', 'buttons', 'pockets') if k in b}
+                                 'lapel', 'fabric', 'placket', 'buttons', 'pockets', 'felt', 'mottle', 'sheen') if k in b}
     body_m = mat_robe(name + '_robe', b['robe'], b['shirt'], b.get('tie'), **robe_kw)
     nb = 0.0
     zn = -body_h + 0.0  # body rings expressed in root frame; neck base at z = body_h + zb + 0.01
@@ -1100,7 +1126,7 @@ def build_puppet(name, spec, root_loc=(0, 0, 0), root_rot_z=0.0, body_h=0.55, se
     body.data.transform(Matrix.Translation((0, 0, -neck_base)))
     body.location = (0, 0, neck_base)
     sleeve_m = mat_robe(name + '_sleeve', b['robe'], b['shirt'], None, v_half=0.0,
-                        **{k: b[k] for k in ('pattern', 'fabric') if k in b})
+                        **{k: b[k] for k in ('pattern', 'fabric', 'felt', 'mottle', 'sheen') if k in b})
     # arms in robe sleeves, forearms resting forward (on the bench / lectern), fleece mitten hands
     rest_z = neck_base + b.get('rest_dz', -0.36)
     arm_objs = []

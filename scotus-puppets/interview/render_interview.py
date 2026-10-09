@@ -4,7 +4,7 @@
 # Cameras: 'wide' (2560x1440, all seven people) and one close-up per person (1280x720, named after the person).
 # Usage: python render_interview.py OUTDIR [job-filter-substring ...]
 #   env: S_PLATE (48), S_LAYER (32), WORK (scratch dir for generated textures), THREADS (cycles threads, 0 = all),
-#        META_OUT (meta.json path; default OUTDIR/meta.json), FOOD=0 to leave the food out
+#        META_OUT (meta.json path; default OUTDIR/meta.json), FOOD=0 to leave the food out, RES_SCALE (test passes)
 # Jobs are named like 'wide/plate', 'wide/lawler_body', 'lawler/lawler_head3'; a filter keeps jobs containing it.
 # A filter that matches nothing (e.g. __none__) renders nothing but still writes the complete meta.json (render-free pass).
 import sys, os, json, time, math
@@ -19,8 +19,9 @@ from cast import ORDER
 JAW = B.JAW  # = render_assets.JAW
 OUT = sys.argv[1]
 FILT = sys.argv[2:]
-WIDE_RES = (2560, 1440)
-MCU_RES = (1280, 720)
+RS = float(os.environ.get('RES_SCALE', 1.0))  # < 1 for quick test passes
+WIDE_RES = (int(2560 * RS), int(1440 * RS))
+MCU_RES = (int(1280 * RS), int(720 * RS))
 S_PLATE, S_LAYER = int(os.environ.get('S_PLATE', 48)), int(os.environ.get('S_LAYER', 32))
 WORK = os.environ.get('WORK') or os.path.join(HERE, '..', 'work')
 os.makedirs(WORK, exist_ok=True)
@@ -119,7 +120,10 @@ def render(path, cam, res, samples, transparent, crop=None):
 
 
 meta_path = os.environ.get('META_OUT') or os.path.join(OUT, 'meta.json')
-meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
+try:
+    meta = json.load(open(meta_path))
+except (OSError, ValueError):
+    meta = {}
 
 
 def save_meta():

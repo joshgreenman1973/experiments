@@ -105,6 +105,10 @@ page = dict(
     credit=a.credit, storage_key=web.get('storage_key', 'pos-' + cfg['docket']),
     bench=BENCH_ORDER, advocates=ADVOCATES, chapters=chapters, cards=cards, tags=tags, mic=mic,
     notes=json.load(open(a.notes))['notes'] if a.notes else [])
+# Supreme Court pages turn on the player's optional motion (listeners, breathing, blinks, camera drift, gallery, mouse, live clock);
+# each only does anything where the layout holds its sprites. clock_start: seconds after midnight when the argument began.
+page['motion'] = dict(listeners=True, breathe=True, blink=True, drift=True, gallery=True, mouse=True, clock=True)
+page['clock_start'] = web.get('clock_start', 36000)
 json.dump(dict(page=page, tl=tl, segments=segments), open(os.path.join(a.out, 'data.json'), 'w'), separators=(',', ':'),
           ensure_ascii=False)
 

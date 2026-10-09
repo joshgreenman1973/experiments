@@ -155,7 +155,7 @@ for c in slate['cases']:
                question=ci['question'], oyez_url=f"https://www.oyez.org/cases/{slate['term']}/{d}",
                advocates=advs, sections=[], glasses={},
                web=dict(title=c.get('title') or ci['name'],
-                        dek=c.get('dek', ''), storage_key='pos-' + d,
+                        dek=c.get('dek', ''), storage_key='pos-' + d, clock_start=c.get('clock_start', 36000),
                         stand_in_note=stand_in_note(advs),
                         end_puppets='Procedural 3D caricatures of the justices' + ('' if len(real) == len(advs) else '; the lawyers are stand-ins, not likenesses'
                                      if not real else '; most of the lawyers are stand-ins, not likenesses')))

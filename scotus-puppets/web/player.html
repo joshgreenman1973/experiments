@@ -241,6 +241,8 @@ section { min-width: 0; }
   // ---------------------------------------------------------------- state of the loaded argument
   let P, TL, SEGS = [], OFF = [], TOTAL = 1, FPS = 24, NF = 1, KEYS = [], KIDX = {}, BENCH = [], ADVS = [];
   let OV, SPK, PH, NODS, ACT, OLP, SHOTS = [], ADVTURNS = [], CAPS = [], CARDS = [], TAGS = {}, TAGEV = [], LAY, ready = false, loadGen = 0, curId = null;
+  // optional motion (page.motion = {listeners, breathe, blink, drift, gallery, mouse, clock}); every piece is off unless the page asks
+  let MO = {}, BAMP = 0, EV = [], GLD = [], XPOS = [], LPOSE = [], BR = [], BLK = [], DR = [], WS = [], FID = [], MOUSE = null;
   const IMG = {};
   // ---------------------------------------------------------------- audio state (two elements trade places at cut points)
   let active = $("aa"), standby = $("ab"), cur = 0, playing = false, seeking = false, standbyFor = -1, pendingT = null, ended = false, wantOff = null, primed = false;
@@ -249,33 +251,145 @@ section { min-width: 0; }
   const lastLE = (arr, t, key) => { let lo = 0, hi = arr.length - 1, j = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (key(arr[m]) <= t) { j = m; lo = m + 1; } else hi = m - 1; } return j; };
   const TAU = 2 * Math.PI;
   const mouthAt = f => Math.min(4, Math.floor(OV[f] / 255 * 4.6));
+  const smooth = x => { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
+  const Z3 = [0, 0, 0];
+  // a schedule of poses held for a while and eased between: S.t = ease start times, S.d = ease lengths, S.p = poses, S.p0 = first pose
+  const poseAt = (S, t) => {
+    const j = lastLE(S.t, t, x => x);
+    if (j < 0) return S.p0;
+    const a = j ? S.p[j - 1] : S.p0, b = S.p[j], u = smooth((t - S.t[j]) / S.d[j]);
+    return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+  };
+  const makePoses = (rnd, dur, hold, ease, pose) => {
+    const S = { t: [], d: [], p: [], p0: pose(rnd) };
+    let t = hold[0] * rnd();
+    while (t < dur + 40) { const d = ease[0] + (ease[1] - ease[0]) * rnd(); S.t.push(t); S.d.push(d); S.p.push(pose(rnd)); t += d + hold[0] + (hold[1] - hold[0]) * rnd(); }
+    return S;
+  };
+  // [roll in degrees, bob (up is positive), sway (right is positive)]: a few degrees and a few millimetres, now and then a lean
+  const listenerPose = rnd => {
+    const a = rnd(), b = rnd(), c = rnd(), d = rnd(), e = rnd(), sg = d < .5 ? -1 : 1;
+    return e < .2 ? [sg * (3.5 + 1.5 * a), -(.02 + .02 * b), sg * (.05 + .03 * c)] : [(a * 2 - 1) * 2, (b * 2 - 1) * .012, (c * 2 - 1) * .025];
+  };
+  const watcherPose = rnd => {   // [roll in degrees, dx px, dy px]
+    const a = rnd(), b = rnd(), c = rnd(), d = rnd(), sg = d < .5 ? -1 : 1;
+    return rnd() < .22 ? [sg * (2.2 + a), sg * (2 + 1.5 * b), 1 + c] : [(a * 2 - 1), (b * 2 - 1) * 1.5, (c * 2 - 1) * 1];
+  };
+  const glanceW = (x, h) => x < 0 ? 0 : x < .7 ? smooth(x / .7) : x < h ? 1 : x < h + 2 ? 1 - .65 * smooth((x - h) / 2) : .35;
+  // a listener turns toward whoever has just taken the floor, after a short beat, then settles back part way
+  function glanceVec(k, t) {
+    const j = lastLE(EV, t, e => e[0]);
+    if (j < 0 || XPOS[k] == null) return Z3;
+    const one = (jj, fade) => {
+      if (jj < 0 || EV[jj][1] === k || XPOS[EV[jj][1]] == null) return null;
+      const dx = XPOS[EV[jj][1]] - XPOS[k], dir = Math.sign(dx) * (.5 + .5 * Math.min(1, Math.abs(dx) / 400));
+      const w = glanceW(t - EV[jj][0] - GLD[k][2 * jj], GLD[k][2 * jj + 1]) * fade;
+      return [dir * 2.4 * w, -.006 * Math.abs(dir) * w, dir * .035 * w];
+    };
+    if (t - EV[j][0] >= GLD[k][2 * j]) return one(j, 1) || Z3;
+    return one(j - 1, 1 - smooth((t - EV[j][0]) / GLD[k][2 * j])) || Z3;
+  }
+  function listenerMotion(k, t) {
+    const L = poseAt(LPOSE[k], t), g = glanceVec(k, t), nods = NODS[k], j = lastLE(nods, t, x => x);
+    let bob = L[1] + g[1];
+    if (j >= 0 && t < nods[j] + 1.2) bob -= .02 * Math.sin(Math.PI * (t - nods[j]) / 1.2);
+    return [L[0] + g[0], bob, L[2] + g[2]];
+  }
   function motion(k, f) {
     const t = f / FPS, ph = PH[k], a = ACT[k][f] / 255, ol = OLP[k][f] / 255, sp = SPK[f] === k;
     const idle = .7 * Math.sin(TAU * .07 * t + ph[0]) + .5 * Math.sin(TAU * .13 * t + ph[1]);
     const talk = 1.6 * Math.sin(TAU * .31 * t + ph[2]) + 1.0 * Math.sin(TAU * .67 * t + ph[3]);
+    if (MO.listeners) {   // the speaker moves as before; listeners hold a pose, shift now and then, glance at a new speaker and nod
+      const L = listenerMotion(k, t);
+      return [(1 - a) * L[0] + a * (idle + talk + 3 * (ol - .3)),
+              (1 - a) * L[1] + a * (.012 * Math.sin(TAU * .21 * t + ph[4]) + a * .02 * ol) + (sp ? .06 * OV[f] / 255 : 0),
+              (1 - a) * L[2] + a * (.01 * Math.sin(TAU * .09 * t + ph[5]) + a * .025 * Math.sin(TAU * .27 * t + ph[2]))];
+    }
     let bob = .012 * Math.sin(TAU * .21 * t + ph[4]) + (sp ? .06 * OV[f] / 255 : 0) + a * .02 * ol;
     if (!sp) { const nods = NODS[k], j = lastLE(nods, t, x => x); if (j >= 0 && t < nods[j] + 1.2) bob -= .02 * Math.sin(Math.PI * (t - nods[j]) / 1.2); }
     return [idle + a * talk + a * 3 * (ol - .3), bob, .01 * Math.sin(TAU * .09 * t + ph[5]) + a * .025 * Math.sin(TAU * .27 * t + ph[2])];
   }
-  const shotAt = t => SHOTS[Math.max(0, lastLE(SHOTS, t, s => s[0]))][2];
+  const shotIx = t => Math.max(0, lastLE(SHOTS, t, s => s[0]));
   const advAt = t => { const j = lastLE(ADVTURNS, t, x => x[0]); return KEYS[(ADVTURNS[Math.max(0, j)] || [0, 0, KIDX[ADVS[0]]])[2]]; };
+  const breathS = (k, t) => 1 + BAMP * Math.sin(TAU * t / BR[k].period + BR[k].phase);
+  const blinking = (k, f) => { const b = BLK[k], j = lastLE(b, f, x => x); return j >= 0 && f - b[j] < 3; };
 
+  // bodies are sprites on pages that ship them: drawn from the bottom edge up, so breathing stretches them from the bench
+  function body(vc, n, t) {
+    const c = vc.chars[n]; if (!c || !c.body) return;
+    const b = c.body, xy = c.body_xy, s = BAMP ? breathS(KIDX[n], t) : 1, bottom = xy[1] + b[3];
+    ctx.drawImage(IMG[vc.atlas], b[0], b[1], b[2], b[3], xy[0], bottom - b[3] * s, b[2], b[3] * s);
+  }
   function head(vc, n, f, state, mot) {
     const c = vc.chars[n]; if (!c) return;
-    const r = c.heads[state] || c.heads[0], m = motion(KIDX[n], f);
-    const th = m[0] * mot * Math.PI / 180, dx = m[2] * .35 * c.unit * mot, dy = -m[1] * .35 * c.unit * mot;
+    const k = KIDX[n], st = state === 0 && MO.blink && c.heads[5] && blinking(k, f) ? 5 : state;   // the speaker blinks only with the mouth shut
+    const r = c.heads[st] || c.heads[0], m = motion(k, f);
+    const th = m[0] * mot * Math.PI / 180, dx = m[2] * .35 * c.unit * mot;
+    let dy = -m[1] * .35 * c.unit * mot;
+    if (BAMP && c.body) dy -= (breathS(k, f / FPS) - 1) * (c.body_xy[1] + c.body[3] - (c.hy + c.py));   // the head rides up with the shoulders
     ctx.save(); ctx.translate(c.hx + c.px + dx, c.hy + c.py + dy); ctx.rotate(th);
     ctx.drawImage(IMG[vc.atlas], r[0], r[1], r[2], r[3], -c.px, -c.py, r[2], r[3]); ctx.restore();
   }
+  // camera drift: a slow eased push-in on close-ups; a few pixels of pan at 1.012 on the wide family, so no edge shows
+  function drift(si, t) {
+    const sh = SHOTS[si], dur = sh[1] - sh[0], u = smooth((t - sh[0]) / dur), k = Math.min(1, dur / 12), d = DR[si] || [.5, .5, .5, .5];
+    if (KIDX[sh[2]] !== undefined) {
+      const s = 1 + .015 * k * u, ax = 640 + (d[0] - .5) * 160, ay = 360 + (d[1] - .5) * 90;
+      ctx.translate(ax, ay); ctx.scale(s, s); ctx.translate(-ax, -ay);
+    } else {
+      const off = (d[2] < .5 ? -1 : 1) * (8 + 4 * d[3]) * k * (u - .5);
+      ctx.translate(640 + off, 360); ctx.scale(1.012, 1.012); ctx.translate(-640, -360);
+    }
+  }
+  function clockHands(vc, t) {
+    const [cx, cy, r] = vc.clock, sec = (P.clock_start ?? 36000) + t, hA = TAU * ((sec / 43200) % 1), mA = TAU * ((sec / 3600) % 1);
+    ctx.save(); ctx.lineCap = "round"; ctx.strokeStyle = ctx.fillStyle = "#0f0c0a";
+    for (const [A, len, w] of [[hA, .45, .051], [mA, .645, .027]]) { ctx.lineWidth = w * r; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + len * r * Math.sin(A), cy - len * r * Math.cos(A)); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(cx, cy, .043 * r, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // the audience behind the advocate: rare small fidgets, each person on a slow hold-and-shift schedule
+  function watchers(t) {
+    const G = LAY.gallery, im = IMG[G.atlas];
+    for (let i = 0; i < G.people.length; i++) {
+      const p = G.people[i], r = p.rect, pose = poseAt(WS[i], t), F = FID[i], j = lastLE(F.t, t, x => x), u = j >= 0 ? (t - F.t[j]) / .6 : 2;
+      const roll = pose[0] + (u >= 0 && u < 1 ? F.a[j] * Math.sin(Math.PI * u) : 0);
+      ctx.save(); ctx.translate(p.pivot[0] + pose[1], p.pivot[1] + pose[2]); ctx.rotate(roll * Math.PI / 180);
+      ctx.drawImage(im, r[0], r[1], r[2], r[3], p.xy[0] - p.pivot[0], p.xy[1] - p.pivot[1], r[2], r[3]); ctx.restore();
+    }
+  }
+  // the mouse in the corner of the wide shots: it comes and goes only on a cut
+  const mouseOn = si => { const s = SHOTS[si][0]; return MOUSE.pres.some(([a, b]) => s >= a && s < b); };
+  function drawMouse(vc, t) {
+    const M = LAY.mouse, im = IMG[M.atlas], [x0, y0, sc, sy] = vc.xf, S = MOUSE.segs, j = lastLE(S, t, e => e[0]);
+    const cur = S[Math.max(0, j)], prev = j > 0 ? S[j - 1] : null, a = prev ? Math.min(1, (t - cur[0]) * FPS / 3) : 1;
+    const one = (pose, alpha) => {
+      const q = M.poses[pose] || M.poses.listen; if (!q) return;
+      const ax = (q.anchor[0] - x0) * sc, ay = (q.anchor[1] - y0) * sc + sy, ox = (q.xy[0] - x0) * sc, oy = (q.xy[1] - y0) * sc + sy, r = q.rect;
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(ax, ay); ctx.rotate(.8 * Math.sin(TAU * t / 11 + MOUSE.ph[1]) * Math.PI / 180);
+      ctx.scale(1, 1 + .012 * Math.sin(TAU * t / 3.1 + MOUSE.ph[0]));
+      ctx.drawImage(im, r[0], r[1], r[2], r[3], ox - ax, oy - ay, r[2] * sc, r[3] * sc); ctx.restore();
+    };
+    if (prev && a < 1) one(prev[1], 1);
+    one(cur[1], a);
+  }
   function drawFrame(f, fade) {
     f = Math.max(0, Math.min(NF - 1, f));
-    const t = f / FPS, name = shotAt(t), vc = LAY.vcams[name] || LAY.vcams.wide, spk = SPK[f], ms = mouthAt(f);
+    const t = f / FPS, si = shotIx(t), name = SHOTS[si][2], vc = LAY.vcams[name] || LAY.vcams.wide, spk = SPK[f], ms = mouthAt(f);
+    ctx.save();
+    if (MO.drift) drift(si, t);
     ctx.drawImage(IMG[vc.base], 0, 0);
     if (vc.wide) {
+      if (MO.clock && vc.clock) clockHands(vc, t);
+      if (MO.mouse && vc.mouse && LAY.mouse && MOUSE && mouseOn(si)) drawMouse(vc, t);
+      for (const n of BENCH) body(vc, n, t);
       for (const n of BENCH) head(vc, n, f, spk === KIDX[n] ? ms : 0, 1);
       const adv = advAt(t), c = vc.chars[adv];
-      if (c && c.body) { const b = c.body; ctx.drawImage(IMG[vc.atlas], b[0], b[1], b[2], b[3], c.body_xy[0], c.body_xy[1], b[2], b[3]); head(vc, adv, f, 0, .6); }
-    } else head(vc, name, f, spk === KIDX[name] ? ms : 0, 1);
+      if (c && c.body) { body(vc, adv, t); head(vc, adv, f, 0, .6); }
+    } else {
+      if (MO.gallery && vc.watchers && LAY.gallery) watchers(t);
+      body(vc, name, t); head(vc, name, f, spk === KIDX[name] ? ms : 0, 1);
+    }
+    ctx.restore();
     if (fade && f < 12) { ctx.fillStyle = "rgba(0,0,0," + (1 - f / 12) + ")"; ctx.fillRect(0, 0, 1280, 720); }
   }
 
@@ -374,6 +488,53 @@ section { min-width: 0; }
     render(false); requestAnimationFrame(loop);
   }
 
+  // ---------------------------------------------------------------- motion schedules (all from the seeded generator, after the original draws)
+  function initMotion(rnd) {
+    EV = []; GLD = []; LPOSE = []; BR = []; BLK = []; DR = []; WS = []; FID = []; MOUSE = null;
+    const dur = TL.duration, wide = LAY.vcams.wide;
+    XPOS = KEYS.map(n => { const c = wide && wide.chars[n]; return c ? c.hx + c.px : null; });
+    if (MO.listeners) {
+      for (const [s, e, k] of TL.turns) if (e - s >= 1 && (!EV.length || EV[EV.length - 1][1] !== k)) EV.push([s, k]);   // a new speaker who holds the floor
+      LPOSE = KEYS.map(() => makePoses(rnd, dur, [6, 20], [.8, 1.5], listenerPose));
+      GLD = KEYS.map(() => { const a = new Float32Array(EV.length * 2); for (let i = 0; i < a.length; i += 2) { a[i] = .2 + rnd(); a[i + 1] = 3 + 3 * rnd(); } return a; });
+      // phrase ends in the speaker's audio (the jaw shuts for a beat after 1.5 s of speech): each listener nods at about 15% of them
+      const dips = []; let run = 0, quiet = 0, last = -1;
+      for (let f = 0; f < NF; f++) {
+        const k = SPK[f];
+        if (k !== last) { if (last >= 0 && run >= 36) dips.push([f / FPS, last]); run = 0; quiet = 0; last = k; }
+        if (k < 0) continue;
+        if (OV[f] > 30) { run++; quiet = 0; } else if (++quiet === 7 && run >= 36) { dips.push([(f - 6) / FPS, k]); run = 0; }
+      }
+      const extra = KEYS.map(() => []);
+      for (const [t, k] of dips) for (let q = 0; q < KEYS.length; q++) { const r = rnd(), r2 = rnd(); if (q !== k && r < .15) extra[q].push(t + .15 + .35 * r2); }
+      NODS = NODS.map((n, q) => { const all = Array.from(n).concat(extra[q]).sort((x, y) => x - y), out = []; for (const x of all) if (!out.length || x - out[out.length - 1] > 2.5) out.push(x); return Float32Array.from(out); });
+    }
+    if (BAMP || MO.breathe !== undefined) BR = KEYS.map(() => ({ period: 3.5 + rnd(), phase: rnd() * TAU }));
+    if (MO.blink) BLK = KEYS.map(() => {   // every 2.5-7 s, now and then a double blink; each is 3 frames
+      const out = []; let t = 1 + 4 * rnd();
+      while (t < dur) { out.push(Math.round(t * FPS)); if (rnd() < .12) out.push(Math.round((t + .22 + .18 * rnd()) * FPS)); t += 2.5 + 4.5 * rnd(); }
+      return Int32Array.from(out);
+    });
+    if (MO.drift) DR = SHOTS.map(() => [rnd(), rnd(), rnd(), rnd()]);
+    if (MO.gallery && LAY.gallery) {
+      WS = LAY.gallery.people.map(() => makePoses(rnd, dur, [20, 60], [1.5, 3], watcherPose));
+      FID = LAY.gallery.people.map(() => { const F = { t: [], a: [] }; let t = 10 + 40 * rnd(); while (t < dur) { F.t.push(t); F.a.push((rnd() < .5 ? -1 : 1) * (.5 + .5 * rnd())); t += 25 + 60 * rnd(); } return F; });
+    }
+    if (MO.mouse && LAY.mouse) {
+      const pres = []; let t = 210 + 150 * rnd();   // not there for the first few minutes, then most of the time with spells away
+      while (t < dur) { const stay = 240 + 420 * rnd(), away = 40 + 80 * rnd(); pres.push([t, t + stay]); t += stay + away; }
+      const ev = [];   // [start, end, pose, priority]
+      for (const c of CAPS) if (/\(laughter/i.test(c[3])) ev.push([c[0], c[0] + 2, "laugh", 3]);
+      for (let q = 40 + 100 * rnd(); q < dur; q += 60 + 120 * rnd()) { const l = 2 + 2 * rnd(); ev.push([q, q + l, "look", 2]); }
+      for (let q = 300 + 300 * rnd(); q < dur; q += 480 + 420 * rnd()) ev.push([q, q + 3, "groom", 1]);
+      ev.sort((x, y) => y[3] - x[3] || x[0] - y[0]);
+      const keep = []; for (const e of ev) if (LAY.mouse.poses[e[2]] && !keep.some(k => e[0] < k[1] + .3 && e[1] > k[0] - .3)) keep.push(e);
+      keep.sort((x, y) => x[0] - y[0]);
+      const segs = [[0, "listen"]]; for (const e of keep) { segs.push([e[0], e[2]]); segs.push([e[1], "listen"]); }
+      MOUSE = { pres, segs, ph: [rnd() * TAU, rnd() * TAU] };
+    }
+  }
+
   // ---------------------------------------------------------------- load one argument (page data + images), reset the player
   const jump = T => { seek(T, true); $("player").scrollIntoView({ behavior: "smooth", block: "start" }); };
   async function loadCase(dataUrl, layoutUrl, opts = {}) {
@@ -385,6 +546,7 @@ section { min-width: 0; }
     catch (e) { loading.textContent = "Could not load this argument. Reload the page to try again."; return; }
     if (gen !== loadGen) return;
     P = D.page; TL = D.tl; SEGS = D.segments; LAY = L;
+    MO = P.motion || {}; BAMP = MO.breathe === undefined || MO.breathe === false ? 0 : MO.breathe === true ? .004 : +MO.breathe;
     // optional page fields (absent on Supreme Court pages, which keep the wording below): setting, noun, kicker, subline, tagline,
     // bug2, end_sub, end_lines, question_label, about_html, credits_html, mic_note
     const setting = P.setting || "courtroom", noun = P.noun || "argument";
@@ -405,6 +567,7 @@ section { min-width: 0; }
     }
     SHOTS = TL.shots; ADVTURNS = TL.turns.filter(x => ADVS.includes(KEYS[x[2]]));
     CAPS = TL.captions; CARDS = P.cards; TAGS = P.tags;
+    initMotion(rnd);
     TAGEV = []; { const last = {}; for (const [s, e, n] of SHOTS) if (TAGS[n] && s - (last[n] ?? -1e9) > 150 && e - s > 2) { TAGEV.push([s + .3, Math.min(e, s + 4.6), n]); last[n] = s; } }
     capI = cardI = tagI = noteI = -2; NOTES = P.notes || [];
     const dl = $("dlist"); dl.innerHTML = ""; $("dsec").hidden = !NOTES.length;
@@ -413,7 +576,7 @@ section { min-width: 0; }
       b.innerHTML = '<span class="tc">' + fmt(n[6]) + "</span><span>" + esc(n[7]) + '<br><span class="q">' + esc(n[2].replace(/^./, ch => ch) ) + ": \u201c" + esc(n[3]) + "\u201d</span></span>";
       b.addEventListener("click", () => { prime(); jump(n[6] - 1); }); li.appendChild(b); dl.appendChild(li);
     });
-    const urls = [...new Set(Object.values(LAY.vcams).flatMap(v => [v.base, v.atlas]))].filter(u => !IMG[u]);
+    const urls = [...new Set(Object.values(LAY.vcams).flatMap(v => [v.base, v.atlas]).concat(MO.gallery && LAY.gallery ? [LAY.gallery.atlas] : [], MO.mouse && LAY.mouse ? [LAY.mouse.atlas] : []))].filter(u => !IMG[u]);
     let done = 0;
     await Promise.all(urls.map(u => new Promise(res => { const im = new Image(); im.onload = im.onerror = () => { done++; loading.textContent = "Loading the " + setting + "… " + Math.round(100 * done / urls.length) + "%"; res(); }; im.src = u; IMG[u] = im; })));
     if (gen !== loadGen) return;

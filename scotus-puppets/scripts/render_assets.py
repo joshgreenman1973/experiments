@@ -1,5 +1,11 @@
 # Render plates and per-character body/head layers (with jaw states) for every camera.
 # Usage: python render_assets.py OUTDIR [job-filter-substring ...]
+# Extra passes for the browser player's motion (same OUTDIR; each skips files that exist):
+#   BLINK=1    only the eyes-closed head layer {n}_head5.png per puppet and camera (lids over the eyes, jaw shut), cut with the
+#              crop that the open-eye renders recorded in OUTDIR/meta.json, so it drops in exactly over heads 0..4.
+#   GALLERY=1  the audience behind the advocate: OUTDIR/gallery/plate.png (the lectern background with nobody in the seats),
+#              p00.png.. (one layer per visible person, back to front) and gallery.json. Shared by every case.
+#              GALLERY_CAM=<advocate key> picks the camera (default: the first advocate in the case config).
 import sys, os, json, time, math
 sys.path.insert(0, os.path.dirname(__file__))
 import bpy
@@ -11,6 +17,11 @@ from characters import BENCH_ORDER, ADVOCATES, CHARS
 JAW = [0.015, 0.105, 0.195, 0.285, 0.375]
 OUT = sys.argv[1]
 FILT = sys.argv[2:]
+BLINK = bool(os.environ.get('BLINK'))
+GALLERY = bool(os.environ.get('GALLERY'))
+if BLINK:   # lids that cover the eyes: the cap above the plane then reaches below the pupil
+    for _n in list(CHARS):
+        CHARS[_n] = dict(CHARS[_n], lid=max(CHARS[_n].get('lid', 0.36), 0.8))
 WIDE_RES = (2560, 1440)
 MCU_RES = (1280, 720)
 S_PLATE, S_LAYER = int(os.environ.get('S_PLATE', 96)), int(os.environ.get('S_LAYER', 64))
@@ -188,9 +199,94 @@ def plate(cam, res, hidden):
     save_meta()
 
 
+def run_blink():
+    """eyes-closed head layer for every puppet on every camera (BLINK=1)"""
+    base = [o for o in bpy.data.objects if o.type not in ('LIGHT', 'CAMERA')]
+
+    def one(cam, res, n, others_holdout):
+        p = os.path.join(OUT, cam, f'{n}_head5.png')
+        m = meta.get(cam, {}).get(n)
+        if not job(f'{cam}/{n}_head5') or os.path.exists(p):
+            return
+        if not m:
+            print('no meta for', cam, n, '- render its open-eye layers first', flush=True)
+            return
+        pp = cast[n]
+        reset_vis()
+        hide([o for o in base if o not in set(pp['objs']) and o not in set(set_objs) and o not in others_holdout])
+        holdout(set_objs); holdout(others_holdout); holdout(BODY[n])
+        pp['jaw'].rotation_euler = (JAW[0], 0, 0)
+        render(p, cam, res, S_LAYER, True, m['crop'])
+
+    for n in BENCH_ORDER + ADVOCATES:
+        one('wide', WIDE_RES, n, [])
+    for i, n in enumerate(BENCH_ORDER):
+        nb = []
+        for j in (i - 1, i + 1):
+            if 0 <= j < 9:
+                nb += all_cast_objs[BENCH_ORDER[j]]
+        one(n, MCU_RES, n, nb)
+    for n in ADVOCATES:
+        one(n, MCU_RES, n, [])
+
+
+def run_gallery():
+    """the audience as separate layers over an empty lectern background (GALLERY=1)"""
+    import cv2
+    import numpy as np
+    cam = os.environ.get('GALLERY_CAM') or ADVOCATES[0]
+    d = os.path.join(OUT, 'gallery')
+    os.makedirs(d, exist_ok=True)
+    base = [o for o in bpy.data.objects if o.type not in ('LIGHT', 'CAMERA')]
+    p = os.path.join(d, 'plate.png')
+    if not os.path.exists(p):
+        reset_vis()
+        hide(adv_objs + just_objs + people_objs)
+        for pp in cast.values():
+            pp['jaw'].rotation_euler = (JAW[0], 0, 0)
+        render(p, cam, MCU_RES, S_PLATE, False)
+    cp = cams[cam].matrix_world.translation
+    order = sorted(range(len(G['people'])), key=lambda i: -(G['people'][i]['head'].matrix_world.translation - cp).length)
+    out, k = [], 0
+    for i in order:   # far to near, so nearer people draw over farther ones
+        pp = G['people'][i]
+        h = proj(cams[cam], MCU_RES, pp['head'].matrix_world.translation)
+        if not (0 <= h[0] <= MCU_RES[0] and 0 <= h[1] <= MCU_RES[1]):
+            continue
+        crop = objs_bbox(cams[cam], MCU_RES, pp['objs'], margin=24)
+        lp = os.path.join(d, f'p{k:02d}.png')
+        if not os.path.exists(lp):
+            reset_vis()
+            mine = set(pp['objs'])
+            hide([o for o in base if o not in mine and o not in set(set_objs)])
+            holdout(set_objs)
+            render(lp, cam, MCU_RES, S_LAYER, True, crop)
+        im = cv2.imread(lp, cv2.IMREAD_UNCHANGED)
+        ys, xs = np.nonzero(im[..., 3] > 8) if im is not None and im.shape[2] == 4 else ([], [])
+        if len(xs) < 150:   # hidden behind the pews
+            os.remove(lp)
+            continue
+        # trim to what shows; pivot = bottom centre of the visible part (where the pew hides the person)
+        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        cv2.imwrite(lp, im[y0:y1, x0:x1])
+        out.append(dict(file=f'p{k:02d}.png', crop=[crop[0] + int(x0), crop[1] + int(y0), crop[0] + int(x1), crop[1] + int(y1)],
+                        pivot=[crop[0] + (int(x0) + int(x1)) / 2, crop[1] + int(y1)]))
+        k += 1
+    json.dump(dict(cam=cam, res=list(MCU_RES), plate='plate.png', people=out), open(os.path.join(d, 'gallery.json'), 'w'), indent=1)
+    print(len(out), 'people on', cam, flush=True)
+
+
 all_cast_objs = {n: pp['objs'] for n, pp in cast.items()}
 adv_objs = [o for n in ADVOCATES for o in cast[n]['objs']]
 just_objs = [o for n in BENCH_ORDER for o in cast[n]['objs']]
+if BLINK:
+    run_blink()
+    print('ALL DONE', round(time.time() - t0, 1), flush=True)
+    sys.exit(0)
+if GALLERY:
+    run_gallery()
+    print('ALL DONE', round(time.time() - t0, 1), flush=True)
+    sys.exit(0)
 
 # ---- wide (gallery camera): plate without any puppets
 plate('wide', WIDE_RES, adv_objs + just_objs + people_objs)
