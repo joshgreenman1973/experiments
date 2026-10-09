@@ -165,6 +165,7 @@ def layer_jobs(cam, res, n, heads):
         hide(far_objs)
         hide([o for o in RENDERABLE if o not in own and o not in set_set and o not in set(other_objs)
               and o not in set(far_objs)])
+        hide([o for o in other_objs if 'fuzz' in o.name])  # 2 mm fibres of a holdout cannot matter; saves tracing time
         holdout(set_objs); holdout(other_objs)
         for o in HEAD[n]:
             o.visible_camera = False
@@ -177,6 +178,7 @@ def layer_jobs(cam, res, n, heads):
         hide(far_objs)
         hide([o for o in RENDERABLE if o not in own and o not in set_set and o not in set(other_objs)
               and o not in set(far_objs)])
+        hide([o for o in other_objs if 'fuzz' in o.name])
         holdout(set_objs); holdout(other_objs); holdout(BODY[n])
         set_pose(cam, n, jaw=k)
         render(p, cam, res, S_LAYER, True, crop)

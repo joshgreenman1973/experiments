@@ -22,7 +22,7 @@ FUR = '#6e5c4e'        # gray-brown fleece
 BELLY = '#b9a894'
 EAR_IN = '#ee7f93'
 NOSE = '#e4788c'
-PAW = '#d7aaa3'
+PAW = '#c8958f'
 TAIL = '#d9a29d'
 
 # ----------------------------------------------------------------------------- poses
@@ -37,9 +37,9 @@ POSE = {
                    ears=dict(yaw=10, tilt=2, splay=9), eyes='open', mouth=0.0, arm=CLASP, tail_lift=0.4),
     'look':   dict(view=52, lean=2, head=dict(yaw=-52, pitch=6, roll=7, dz=0.0),
                    ears=dict(yaw=22, tilt=6, splay=12), eyes='open', mouth=0.0, arm=CLASP, tail_lift=0.4),
-    'laugh':  dict(view=24, lean=9, head=dict(yaw=-12, pitch=50, roll=5, dz=0.004),
+    'laugh':  dict(view=20, lean=8, head=dict(yaw=-10, pitch=34, roll=6, dz=0.004),
                    ears=dict(yaw=50, tilt=-14, splay=16), eyes='happy', mouth=1.0, arm=BELLY_ARMS, tail_lift=1.0),
-    'groom':  dict(view=38, lean=-5, head=dict(yaw=-6, pitch=-9, roll=0, dz=-0.003),
+    'groom':  dict(view=24, lean=-5, head=dict(yaw=-4, pitch=-8, roll=0, dz=-0.003),
                    ears=dict(yaw=32, tilt=-4, splay=10), eyes='content', mouth=0.0, arm=WASH, tail_lift=0.2),
 }
 
@@ -157,7 +157,10 @@ def head_surf(y, phi, inset=0.0):
     return p, n
 
 
-def head_mesh(nseg=44, ny=72):
+MOUTH_HOLE = dict(y0=-0.0385, a=0.0150, b=1.05)    # elliptical window in (y, angle-from-up) on the muzzle underside
+
+
+def head_mesh(nseg=64, ny=84, hole=False):
     ys = np.linspace(_HY[0], _HY[-1], ny)
     V = [(0.0, _HY[0] - 0.003, head_zc(_HY[0]))]
     for y in ys[1:-1]:
@@ -167,10 +170,20 @@ def head_mesh(nseg=44, ny=72):
     V.append((0.0, _HY[-1] + 0.004, head_zc(_HY[-1])))
     F = []
     rings = ny - 2
+
+    def cut(i, k):
+        if not hole:
+            return False
+        y = 0.5 * (ys[1 + i] + ys[min(2 + i, ny - 1)])
+        dphi = ((k + 0.5) / nseg * 2 * math.pi) - math.pi
+        return ((y - MOUTH_HOLE['y0']) / MOUTH_HOLE['a']) ** 2 + (dphi / MOUTH_HOLE['b']) ** 2 < 1.0
+
     for k in range(nseg):
         F.append((0, 1 + (k + 1) % nseg, 1 + k))
     for i in range(rings - 1):
         for k in range(nseg):
+            if cut(i, k):
+                continue
             a, b = 1 + i * nseg + k, 1 + i * nseg + (k + 1) % nseg
             F.append((a, b, b + nseg, a + nseg))
     last = 1 + (rings - 1) * nseg
@@ -250,9 +263,6 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
         W = (V + HEAD0 + np.array([0, 0, hd['dz']]) - NECK) @ Rh.T + NECK
         return lean(W)
 
-    def Hdir(n):
-        return Rh @ np.asarray(n, float)
-
     # --- body, haunches, feet, belly bib
     from_rings = [(z, rx, ry, cy, 0) for z, rx, ry, cy in BODY_RINGS]
     V, F, _ = P.loft(from_rings, 44, 2.3)
@@ -260,13 +270,13 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
     for sx in (-1, 1):
         V, F = ellipsoid((sx * 0.041, 0.012, 0.030), (0.022, 0.038, 0.030), nu=32, nv=18)
         part(f'haunch{sx}', V, F, fur, fz=(fz_fur, 0.6))
-        V, F = ellipsoid((sx * 0.033, -0.045, 0.0078), (0.0105, 0.027, 0.0078), Rz(-sx * 0.20), nu=24, nv=14)
+        V, F = ellipsoid((sx * 0.033, -0.043, 0.0072), (0.0098, 0.021, 0.0072), Rz(-sx * 0.20), nu=24, nv=14)
         part(f'foot{sx}', V, F, paw_m)
     V, F = ellipsoid((0, -0.033, 0.054), (0.030, 0.024, 0.040), nu=32, nv=18)
     part('bib', lean(V), F, belly, fz=(fz_belly, 0.9))
 
     # --- head
-    V, F = head_mesh()
+    V, F = head_mesh(hole=p['mouth'] > 0.01)
     V = H(V)
     part('head', V, F, fur, fz=(fz_fur, 1.2))
     pn, _ = head_surf(-0.0625, 0)
@@ -286,12 +296,12 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
         part(f'ear_in{sx}', H(V), F, ear_in, fz=(fz_ear, 0.6))
 
     # eyes: black beads (open) or short arcs (happy ^ or content u)
-    r_eye = 0.0088
+    r_eye = 0.0104
     Hw = unit(unit(np.array(key_loc) - np.array(loc)) + unit(np.array(cam_loc) - np.array(loc)))
     Hl = Rw.T @ Hw     # half-vector in the mouse frame: where a glossy bead shows its highlight
     glints = []
     for sx in (-1, 1):
-        phi = sx * math.radians(54)
+        phi = sx * math.radians(50)
         ys = -0.0335
         ps, ns = head_surf(ys, phi)
         if p['eyes'] == 'open':
@@ -306,25 +316,26 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
             up = p['eyes'] == 'happy'
             pts = []
             for u in np.linspace(-1, 1, 9):
-                q = ps + np.array([u * 0.0105, 0, (0.0045 * (1 - u * u)) * (1 if up else -1)])
+                q = ps + np.array([u * 0.0148, 0, (0.0075 * (1 - u * u)) * (1 if up else -1)])
                 ph = math.atan2(q[0] / HEAD_SX, (q[2] - head_zc(q[1])) / HEAD_SZ)
                 pq, nq = head_surf(q[1], ph)
-                pts.append(pq + nq * 0.0010)
-            V2, F2, Pp = swept(pts, [0.0017, 0.0019, 0.0020, 0.0021, 0.0021, 0.0021, 0.0020, 0.0019, 0.0017], nseg=10, n=24, ends=0.9)
+                pts.append(pq + nq * 0.0026)
+            V2, F2, Pp = swept(pts, [0.0028, 0.0031, 0.0033, 0.0034, 0.0034, 0.0034, 0.0033, 0.0031, 0.0028], nseg=10, n=24, ends=0.9)
             part(f'eye{sx}', H(V2), F2, bead, ref=path_ref(H(Pp)))
 
-    # mouth: dark decal on the underside of the muzzle with tongue and a hanging chin (laugh)
+    # mouth: a window cut in the muzzle underside, a dark cavity behind it and a lower jaw hinged open with a tongue
     if p['mouth'] > 0.01:
-        ym = -0.0375
-        pm, nm = head_surf(ym, math.pi)
-        R = frame_from((0, -1, 0) - nm * np.dot((0, -1, 0), nm), up=nm)
-        R = np.stack([R[:, 0], R[:, 1], nm], 1)     # z = outward normal
-        V, F = ellipsoid(pm + nm * 0.0004, (0.0165, 0.0215, 0.0032), R, nu=32, nv=14)
-        part('mouth', H(V), F, mouth_m)
-        V, F = ellipsoid(pm + nm * 0.0016 + np.array([0, 0.002, 0]), (0.0095, 0.0120, 0.0024), R, nu=24, nv=12)
-        part('tongue', H(V), F, tongue_m)
-        V, F = ellipsoid(pm + nm * -0.0035 + np.array([0, -0.0035, -0.004]), (0.0165, 0.0205, 0.0100), nu=32, nv=16)
-        part('chin', H(V), F, fur, fz=(fz_fur, 0.8))
+        th = math.radians(46.0 * p['mouth'])
+        yc = MOUTH_HOLE['y0']
+        V, F = ellipsoid((0, yc - 0.001, head_zc(yc) - 0.0112), (0.0215, 0.0200, 0.0128), nu=32, nv=16)
+        part('cavity', H(V), F, mouth_m)
+        J = np.array([0.0, -0.003, -0.0305])
+        Rj = Rx(th)
+        for nm, c0, rr, mat, fzz in (('jaw', (0, -0.031, -0.0385), (0.0215, 0.0215, 0.0092), fur, (fz_fur, 0.8)),
+                                     ('tongue', (0, -0.029, -0.0312), (0.0120, 0.0150, 0.0050), tongue_m, None)):
+            cj = J + Rj @ (np.array(c0) - J)
+            V, F = ellipsoid(cj, rr, Rj, nu=32, nv=16)
+            part(nm, H(V), F, mat, fz=fzz)
 
     # whiskers: a fan of fine hair strands at each cheek
     wr, wrad, wn = [], [], 0
