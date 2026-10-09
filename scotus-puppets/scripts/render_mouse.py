@@ -4,12 +4,20 @@
 # Env: S_LAYER samples (as render_assets.py, default 64), FORCE=1 to re-render existing sprites,
 #      MOUSE_XY="x,y" world position on the counsel table, MOUSE_SIZE scale (default mouse.SIZE).
 #
+# mouse.json: {"cam": "wide", "res": [2560, 1440], "anchor": [x, y] (the feet point, wide-render pixels),
+#              "crop": [x, y, w, h] (the one box every sprite is cropped to), "height_px": ear tips to feet,
+#              "poses": {pose: {"file": "wide/mouse_<pose>.png" (relative to OUTDIR), "crop": [x, y, w, h],
+#                               "bbox": [x, y, w, h] of the opaque mouse}}}
+# All coordinates are in the 2560x1440 wide render. Blit a sprite at its crop x,y (scaled with the frame); the mouse
+# stands on `anchor`. Every pose shares the same crop, so swapping poses never shifts the body.
+#
 # Same set, lights, camera, AgX view transform, exposure (0 EV for the wide shot) and samples as render_assets.py.
 # Occlusion: every piece of set geometry is a holdout, exactly as for the puppet layers, EXCEPT the counsel table the
 # mouse sits on. That table is a Cycles shadow catcher, so the sprite carries the real soft contact shadow of the
-# scene's own area lights (and any bounce light), as semi-transparent dark pixels around the feet. Puppets and
-# audience are hidden, as in the plate, and never built: build_world is called with puppet.build_puppet stubbed out
-# (they are invisible in the wide plate, and building them costs ~4 GB and half a minute). FULL_WORLD=1 builds everything.
+# scene's own area lights (and any bounce light), as semi-transparent dark pixels around the feet; the faint tail of
+# the shadow is faded to nothing at the crop edges. Puppets and audience are hidden, as in the plate, and never built:
+# build_world is called with puppet.build_puppet stubbed out (they are invisible in the wide plate, and building them
+# costs ~4 GB and half a minute). FULL_WORLD=1 builds everything.
 # A plate check re-renders the corner without the mouse and compares it with wide/plate.png, so a changed set, light or
 # camera in court.py is reported instead of silently drifting.
 import sys, os, json, time, math
