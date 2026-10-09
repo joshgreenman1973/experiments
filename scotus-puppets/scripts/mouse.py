@@ -18,9 +18,9 @@ import puppet as P
 POSES = ('listen', 'look', 'laugh', 'groom')
 SIZE = 0.86            # overall scale of the design below (design is ~0.23 m with ears; this makes ~0.2 m)
 
-FUR = '#8f7d6d'        # gray-brown fleece
-BELLY = '#cdbfad'
-EAR_IN = '#e79aa4'
+FUR = '#6e5c4e'        # gray-brown fleece
+BELLY = '#b9a894'
+EAR_IN = '#ee7f93'
 NOSE = '#e4788c'
 PAW = '#d7aaa3'
 TAIL = '#d9a29d'
@@ -215,8 +215,8 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
     def M(name, make):
         return bpy.data.materials.get(name) or make()
 
-    fur = M('mouse_fur', lambda: P.mat_fleece('mouse_fur', P.hex_lin(FUR), sheen=1.0, bump=0.55, fiber_scale=520.0, tint_var=0.10))
-    belly = M('mouse_belly', lambda: P.mat_fleece('mouse_belly', P.hex_lin(BELLY), sheen=1.0, bump=0.5, fiber_scale=520.0, tint_var=0.08))
+    fur = M('mouse_fur', lambda: P.mat_fleece('mouse_fur', P.hex_lin(FUR), sheen=0.7, bump=0.55, fiber_scale=520.0, tint_var=0.10))
+    belly = M('mouse_belly', lambda: P.mat_fleece('mouse_belly', P.hex_lin(BELLY), sheen=0.7, bump=0.5, fiber_scale=520.0, tint_var=0.08))
     ear_in = M('mouse_ear_in', lambda: P.mat_fleece('mouse_ear_in', P.hex_lin(EAR_IN), sheen=0.8, bump=0.4, fiber_scale=520.0))
     nose_m = M('mouse_nose', lambda: P.mat_fleece('mouse_nose', P.hex_lin(NOSE), sheen=0.5, rough=0.55, bump=0.3))
     paw_m = M('mouse_paw', lambda: P.mat_fleece('mouse_paw', P.hex_lin(PAW), sheen=0.7, bump=0.4, fiber_scale=520.0))
@@ -225,8 +225,8 @@ def build_mouse(pose, loc, cam_loc, key_loc, size=SIZE, seed=11, fuzz_density=1.
     glint = M('mouse_glint', lambda: mat_emit('mouse_glint'))
     mouth_m = M('mouse_mouth', lambda: P.mat_fleece('mouse_mouth', P.hex_lin('#2b0709'), sheen=0.2))
     tongue_m = M('mouse_tongue', lambda: P.mat_fleece('mouse_tongue', P.hex_lin('#c9505f'), sheen=0.5))
-    fz_fur = M('mouse_fuzz', lambda: P.mat_hair('mouse_fuzz', P.hex_lin(FUR, 1.35), rough=0.65, rand=0.1))
-    fz_belly = M('mouse_fuzz_belly', lambda: P.mat_hair('mouse_fuzz_belly', P.hex_lin(BELLY, 1.2), rough=0.65, rand=0.1))
+    fz_fur = M('mouse_fuzz', lambda: P.mat_hair('mouse_fuzz', P.hex_lin(FUR, 1.05), rough=0.65, rand=0.1))
+    fz_belly = M('mouse_fuzz_belly', lambda: P.mat_hair('mouse_fuzz_belly', P.hex_lin(BELLY, 1.0), rough=0.65, rand=0.1))
     fz_ear = M('mouse_fuzz_ear', lambda: P.mat_hair('mouse_fuzz_ear', P.hex_lin(EAR_IN, 1.2), rough=0.7, rand=0.1))
     whisk = M('mouse_whisker', lambda: P.mat_hair('mouse_whisker', P.hex_lin('#efe6da'), rough=0.3, rand=0.05))
 
