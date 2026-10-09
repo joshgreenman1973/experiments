@@ -161,7 +161,8 @@ def mat_robe(name, base_hex='#060607', shirt_hex='#ecebe6', tie_hex=None, v_dept
         if not nsep:
             s_ = N.new('ShaderNodeSeparateXYZ'); L.new(tc.outputs['Normal'], s_.inputs[0]); nsep.append(s_)
         mf, ms = fn(x, z), fn(y, z)
-        wf = math('ABSOLUTE', nsep[0].outputs['Y']); ws = math('ABSOLUTE', nsep[0].outputs['X'])
+        wf = math('POWER', math('ABSOLUTE', nsep[0].outputs['Y']), 6.0)  # sharp: no leakage between the projections
+        ws = math('POWER', math('ABSOLUTE', nsep[0].outputs['X']), 6.0)
         num = math('ADD', math('MULTIPLY', mf, wf), math('MULTIPLY', ms, ws))
         return math('DIVIDE', num, math('ADD', math('ADD', wf, ws), 1e-4))
 
