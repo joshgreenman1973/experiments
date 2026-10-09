@@ -56,7 +56,7 @@ def scene_setup(samples=64):
     e4 = el.new(0.68); e4.color = (0.80, 0.88, 1.0, 1)
     nt.links.new(sp.outputs['Z'], cr.inputs['Fac'])
     nt.links.new(cr.outputs['Color'], bg.inputs['Color'])
-    bg.inputs['Strength'].default_value = 0.9
+    bg.inputs['Strength'].default_value = 0.5
     return sc
 
 
@@ -670,6 +670,9 @@ def build_room(M, G, work):
     haze = np.array([0.93, 0.90, 0.86])
     palette = [(0.78, 0.69, 0.58), (0.70, 0.74, 0.80), (0.82, 0.62, 0.50), (0.66, 0.70, 0.76), (0.84, 0.80, 0.72),
                (0.60, 0.64, 0.70)]
+    gm = mat_emit('cityground', (0.80, 0.78, 0.74, 1), 0.9)
+    bpy.ops.mesh.primitive_plane_add(size=600, location=(0, wy + 200, -14.5))
+    gp = bpy.context.object; gp.name = 'cityground'; gp.data.materials.append(gm); S.append(gp)
     for k in range(70):
         y = rng.uniform(22, 150)
         x = rng.uniform(-90, 90) * (y / 90 + 0.5)
@@ -679,10 +682,10 @@ def build_room(M, G, work):
         mm, nt, pp = P._new_mat(f'bld{k}')
         nt.nodes.remove(pp)
         tcn = nt.nodes.new('ShaderNodeTexCoord')
-        ck = nt.nodes.new('ShaderNodeTexChecker'); ck.inputs['Scale'].default_value = 1.0 / 3.0 * 3.0
-        mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (0.45, 0.45, 0.45)
+        ck = nt.nodes.new('ShaderNodeTexChecker'); ck.inputs['Scale'].default_value = 1.0
+        mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (1.1, 1.1, 0.6)
         nt.links.new(tcn.outputs['Object'], mp.inputs['Vector']); nt.links.new(mp.outputs['Vector'], ck.inputs['Vector'])
-        ck.inputs['Color1'].default_value = (*col, 1.0); ck.inputs['Color2'].default_value = (*(col * 0.82), 1.0)
+        ck.inputs['Color1'].default_value = (*col, 1.0); ck.inputs['Color2'].default_value = (*(col * 0.9), 1.0)
         em = nt.nodes.new('ShaderNodeEmission'); em.inputs['Strength'].default_value = 0.95
         nt.links.new(ck.outputs['Color'], em.inputs['Color'])
         nt.links.new(em.outputs[0], nt.nodes['Material Output'].inputs['Surface'])
@@ -724,11 +727,11 @@ def add_area(name, loc, target, energy, size, color=(1.0, 0.92, 0.8), size_y=Non
 
 def build_lights():
     L = []
-    L.append(add_area('key', (-2.4, -4.6, 3.4), (0, 0.8, 1.15), 1500, 3.0, (1.0, 0.94, 0.85), size_y=2.0))
-    L.append(add_area('fill', (3.4, -4.2, 2.3), (0, 0.8, 1.1), 650, 3.0, (0.92, 0.95, 1.0), size_y=2.0))
-    L.append(add_area('top', (0, -0.6, 3.5), (0, 0.4, 0.9), 650, 3.0, (1.0, 0.96, 0.9), size_y=3.0))
-    L.append(add_area('wallwash', (0, -3.0, 3.0), (0, WALL_Y, 1.6), 350, 8.0, (1.0, 0.92, 0.8), size_y=1.5))
-    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 3.0; sun.angle = math.radians(4); sun.color = (1.0, 0.86, 0.68)
+    L.append(add_area('key', (-2.4, -4.6, 3.4), (0, 0.8, 1.15), 950, 3.0, (1.0, 0.94, 0.85), size_y=2.0))
+    L.append(add_area('fill', (3.4, -4.2, 2.3), (0, 0.8, 1.1), 330, 3.0, (0.92, 0.95, 1.0), size_y=2.0))
+    L.append(add_area('top', (0, -0.6, 3.5), (0, 0.4, 0.9), 320, 3.0, (1.0, 0.96, 0.9), size_y=3.0))
+    L.append(add_area('wallwash', (0, -3.0, 3.0), (0, WALL_Y, 1.6), 160, 8.0, (1.0, 0.92, 0.8), size_y=1.5))
+    sun = bpy.data.lights.new('sun', 'SUN'); sun.energy = 2.2; sun.angle = math.radians(4); sun.color = (1.0, 0.86, 0.68)
     so = bpy.data.objects.new('sun', sun); bpy.context.collection.objects.link(so)
     d = Vector((0.35, -0.8, -0.38)).normalized()
     so.rotation_euler = d.to_track_quat('-Z', 'Y').to_euler()
@@ -799,7 +802,7 @@ def cameras(cast):
     Returns (cams, head_yaw): head_yaw[(cam, name)] = rotation of that person's head (about its z) for that camera."""
     bpy.context.view_layer.update()
     cams, yaw = {}, {}
-    cams['wide'] = make_camera('cam_wide', (0.0, -5.5, 2.15), (0.0, 0.5, 1.02), 50, focus=6.6, fstop=5.6)
+    cams['wide'] = make_camera('cam_wide', (0.0, -5.5, 2.0), (0.0, 0.5, 1.05), 56, focus=6.6, fstop=5.6)
     wide_loc = cams['wide'].location
     for n in ORDER:
         pp = cast[n]
