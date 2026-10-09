@@ -24,6 +24,7 @@ CHARS = {
         brows=dict(hex='#3a3433', thick=1.3, angle=0.02, arch=0.004),
         hair=dict(style='buzz', hex='#8e8a86', length=0.006, front_z=0.155, side_z=0.04, count=70000, lift=0.15,
                   r0=0.0005, rand=0.35),
+        glasses=dict(hex='#1c1816', metal=0.0, r=1.2, wire=0.0026, n=3.0),  # dark, fairly heavy rectangular frames
         body=dict(tie='#3b1f24')),
     'alito': dict(
         display='Justice Samuel A. Alito, Jr.', oyez='Samuel A. Alito, Jr.',
@@ -114,7 +115,7 @@ for _k, _a in CASE['advocates'].items():
     _spec.update(display=_a['display'], oyez=_a['oyez'], role=_a.get('role', ''))
     CHARS[_k] = _spec
 
-# Glasses: Jackson wears plum frames (set above). Add a pair for anyone else in case.json, e.g.
+# Glasses: Thomas (dark rectangular) and Jackson (plum) wear them (set above). Add a pair for anyone else in case.json, e.g.
 # "glasses": {"thomas": {"hex": "#3a3a3a", "metal": 0.0}}
 for _k, _g in CASE.get('glasses', {}).items():
     CHARS[_k]['glasses'] = _g
