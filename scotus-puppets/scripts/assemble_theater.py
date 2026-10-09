@@ -55,7 +55,7 @@ for c in slate['cases']:
     os.makedirs(cdir, exist_ok=True)
     segs = []
     for i in range(len(bounds) - 1):
-        ext = 'mp3' if a.mp3 else 'm4a'
+        ext = 'mp3' if a.mp3 else 'mp4'  # AAC in an .mp4 container: the artifact host serves .mp4, not .m4a
         rel = f'c/{d}/a{i:02d}.{ext}'
         span = ['-t', str(bounds[i + 1] - bounds[i])] if bounds[i + 1] else []
         codec = ['-c:a', 'libmp3lame', '-b:a', '24k', '-ar', '16000'] if a.mp3 else \
