@@ -129,6 +129,7 @@ section { min-width: 0; }
 .np .k { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
 .np .n { font-family: var(--body); font-weight: 600; font-size: 24px; line-height: 1.25; text-wrap: balance; }
 .np .q { color: var(--muted); font-size: 16px; max-width: 70ch; }
+#gridsec { display: grid; gap: 12px; }
 .gridhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
 .gridhead p { margin: 0; color: var(--faint); font-size: 14px; }
 .grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 18px; }
@@ -484,10 +485,14 @@ section { min-width: 0; }
 
   $("eyebrow").textContent = CAT.eyebrow; $("h1").textContent = CAT.title; $("dek").textContent = CAT.dek;
   $("np").hidden = false; $("gridsec").hidden = false; $("gridnote").textContent = CAT.gridnote || "";
+  // screening room order: player, then the cases to pick from, then details of the argument that is playing
+  $("player").after($("gridsec"));
+  const dh = document.createElement("div"); dh.className = "np"; dh.innerHTML = '<div class="k">About the argument playing</div><div class="n" id="npn2"></div>';
+  $("gridsec").after(dh);
   const grid = $("grid"), cards = {};
   function select(c, opts) {
     curId = c.docket; history.replaceState(null, "", "#" + c.docket);
-    $("npn").textContent = c.name; $("npq").textContent = c.topic + " Argued " + c.argued + ", " + fmtLen(c.length) + ".";
+    $("npn").textContent = c.name; $("npn2").textContent = c.name; $("npq").textContent = c.topic + " Argued " + c.argued + ", " + fmtLen(c.length) + ".";
     Object.entries(cards).forEach(([d, el]) => { el.classList.toggle("on", d === c.docket); el.querySelector(".on-badge").hidden = d !== c.docket; });
     return loadCase(c.data, c.layout, Object.assign({ theater: true }, opts));
   }
