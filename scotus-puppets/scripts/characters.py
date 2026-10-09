@@ -92,6 +92,7 @@ CHARS = {
         ears=dict(show=False),
         brows=dict(hex='#1f1612', thick=1.2, arch=0.008),
         hair=dict(style='locs', hex='#170f0b', length=0.3, locs=190, front_z=0.14, rand=0.15),
+        glasses=dict(hex='#5a3550', metal=0.35, r=1.15, wire=0.0018, n=2.6),  # plum, slightly cat-eye frames
         body=dict(**WOMAN_COLLAR)),
 }
 
@@ -113,7 +114,7 @@ for _k, _a in CASE['advocates'].items():
     _spec.update(display=_a['display'], oyez=_a['oyez'], role=_a.get('role', ''))
     CHARS[_k] = _spec
 
-# Glasses: none of the Rahimi-era nine wears glasses in the official portraits or habitually on the bench.
-# Add a pair in case.json, e.g. "glasses": {"thomas": {"hex": "#3a3a3a", "metal": 0.0}}
+# Glasses: Jackson wears plum frames (set above). Add a pair for anyone else in case.json, e.g.
+# "glasses": {"thomas": {"hex": "#3a3a3a", "metal": 0.0}}
 for _k, _g in CASE.get('glasses', {}).items():
     CHARS[_k]['glasses'] = _g
