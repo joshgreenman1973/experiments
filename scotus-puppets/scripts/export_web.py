@@ -139,17 +139,17 @@ if a.motion and GALLERY:
                              people=[dict(rect=pos[i], xy=pe['crop'][:2], pivot=pe['pivot']) for i, pe in enumerate(GALLERY['people'])])
 MOUSE_JSON = os.path.join(a.assets, 'mouse.json')
 if a.motion and os.path.exists(MOUSE_JSON):
-    # the mouse, in wide-render pixels: poses = {name: {crop: [x0, y0, x1, y1], anchor: [feet x, feet y]}}, sprites wide/mouse_<pose>.png
+    # the mouse, in wide-render pixels (scripts/render_mouse.py): {"anchor": [feet x, feet y], "poses": {pose: {"file": "wide/mouse_<pose>.png",
+    # "crop": [x, y, w, h]}}}; a pose may carry its own "anchor"
     mj = json.load(open(MOUSE_JSON))
-    mj = mj.get('poses', mj)
     sprites, info = [], {}
-    for pose, m in mj.items():
-        pth = os.path.join(a.assets, 'wide', f'mouse_{pose}.png')
-        if not (isinstance(m, dict) and os.path.exists(pth)):
+    for pose, m in (mj.get('poses') or {}).items():
+        pth = os.path.join(a.assets, m.get('file') or f'wide/mouse_{pose}.png')
+        anchor = m.get('anchor') or mj.get('anchor')
+        if not os.path.exists(pth) or not anchor:
             continue
-        crop = m.get('crop') or [m['rect'][0], m['rect'][1], m['rect'][0] + m['rect'][2], m['rect'][1] + m['rect'][3]]
         sprites.append((pose, L.load_rgba(pth)))
-        info[pose] = dict(xy=crop[:2], anchor=m.get('anchor') or m.get('feet'))
+        info[pose] = dict(xy=m['crop'][:2], anchor=anchor)
     if sprites:
         pos, size = save_atlas(sprites, 'img/g_mouse.webp')
         total += size
@@ -157,7 +157,8 @@ if a.motion and os.path.exists(MOUSE_JSON):
         for name, vc in layout['vcams'].items():   # which wide-family cameras can see it
             if name in WIDE_FAMILY:
                 x0, y0, sc, sy = vc['xf']
-                fx, fy = [(info['listen']['anchor'][0] - x0) * sc, (info['listen']['anchor'][1] - y0) * sc + sy] if 'listen' in info else (-1, -1)
+                ref = info.get('listen') or next(iter(info.values()))
+                fx, fy = (ref['anchor'][0] - x0) * sc, (ref['anchor'][1] - y0) * sc + sy
                 vc['mouse'] = bool(0 <= fx <= L.W and 0 <= fy <= L.H)
 json.dump(layout, open(os.path.join(a.out, 'layout.json'), 'w'), separators=(',', ':'))
 print(f'{len(VC)} cameras, {total / 1e6:.1f} MB of images -> {a.out}')

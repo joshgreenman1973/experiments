@@ -39,6 +39,17 @@ For a slate of arguments, skip the MP4 entirely. The page draws the puppets live
 
 Player: `web/player.html` draws a `<canvas>` at 24 fps from `audio.currentTime`. Two `<audio>` elements trade places at the cut points, and the clock and lip-sync stay continuous across them. It has chapters, a who-spoke chart with jump links, resume and `#t123` deep links, captions, name tags and section cards. In this sandbox's Chromium the browser frame matched `compose.py`'s frame for the same moment.
 
+## Motion in the browser player (court pages)
+
+`page.motion` in `data.json` switches on, per page, everything that keeps the puppets from looking frozen: `listeners` (hold-and-shift poses, glances at a new speaker, nods at the ends of phrases), `breathe` (bodies are sprites stretched 0.4% from the bench, heads ride up), `blink`, `drift` (slow push-in on close-ups, a few pixels of pan on the wide shots), `gallery` (the audience behind the lawyer fidgets), `mouse` (an Easter egg in the corner of the wide shot) and `clock` (live hands on the wall clock, from `page.clock_start`, seconds after midnight; slates set it per case, default 36000). `build_page.py` and `assemble_theater.py` turn them all on; a page without `motion` plays exactly as before, and a flag does nothing where the layout lacks its sprites. `export_web.py --motion` makes those layouts. Extra renders, shared by every case (`slate.sh` runs them; `SKIP_MOTION_RENDERS=1` skips):
+
+```bash
+BLINK=1 SCOTUS_CASE=... python scripts/render_assets.py ASSETS      # eyes-closed head per puppet and camera (head5), cut like heads 0..4
+GALLERY=1 ONLY=<advocate> SCOTUS_CASE=... python scripts/render_assets.py ASSETS   # empty lectern background + the audience as layers
+```
+
+The wall clock is rendered without hands (`CLOCK_HANDS=0`); the player draws them. `ONLY=a,b` limits which advocates get built (a slate config lists dozens, ~8 GB).
+
 ## Doing a different argument
 
 Everything case-specific is in `case.json`:

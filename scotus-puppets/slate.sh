@@ -25,11 +25,19 @@ for k in $KEYS; do mkdir -p "$WORK/assets/$k"; [ -e "$WORK/assets/$k/plate.png" 
 SCOTUS_CASE=$WORK/slate_case.json S_LAYER=${S_LAYER:-32} $PY scripts/render_assets.py "$WORK/assets" $(for k in $KEYS; do printf "wide/%s_ %s/%s_ " $k $k $k; done)
 mkdir -p "$WORK/meta_slate"; SCOTUS_CASE=$WORK/slate_case.json $PY scripts/render_assets.py "$WORK/meta_slate" __none__ >/dev/null
 
+# the browser player's motion extras (each pass skips files that exist; SKIP_MOTION_RENDERS=1 leaves them out, and the pages then just don't blink etc.):
+#  - eyes-closed heads (head5) for every justice and lawyer, for blinks; they reuse the crops the open-eye renders recorded in assets/meta.json
+#  - the audience behind the lawyer as separate layers over an empty lectern background (once, shared by every case)
+if [ -z "${SKIP_MOTION_RENDERS:-}" ]; then
+  BLINK=1 SCOTUS_CASE=$WORK/slate_case.json S_LAYER=${S_LAYER:-32} $PY scripts/render_assets.py "$WORK/assets"
+  GALLERY=1 ONLY=${KEYS%% *} SCOTUS_CASE=$WORK/slate_case.json S_LAYER=${S_LAYER:-32} $PY scripts/render_assets.py "$WORK/assets"
+fi
+
 for d in $DOCKETS; do
   C=$WORK/cases/$d; mkdir -p "$C/page"
   [ -s "$C/tl_web.json" ] || NO_MOTION=1 SCOTUS_CASE=$C/cfg.json $PY scripts/timeline.py "$C/transcript.json" "$C/audio.mp3" "$C/tl.npz" "$C/tl.json" "$C/tl_web.json"
   ADVS=$($PY -c "import json;print(','.join(json.load(open('$C/cfg.json'))['advocates']))")
-  SCOTUS_CASE=$C/cfg.json $PY scripts/export_web.py "$WORK/assets" "$WORK/meta_slate/meta.json" "$C/page" --advocates "$ADVS"
+  SCOTUS_CASE=$C/cfg.json $PY scripts/export_web.py "$WORK/assets" "$WORK/meta_slate/meta.json" "$C/page" --advocates "$ADVS" --motion
   $PY scripts/build_page.py "$C/cfg.json" "$C/transcript.json" "$C/audio.mp3" "$C/tl_web.json" "$C/page" \
       $( [ -s "$C/outcome.json" ] && echo --outcome "$C/outcome.json" )
 done
