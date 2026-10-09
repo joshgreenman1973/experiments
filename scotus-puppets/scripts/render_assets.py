@@ -3,6 +3,7 @@
 # Extra passes for the browser player's motion (same OUTDIR; each skips files that exist):
 #   BLINK=1    only the eyes-closed head layer {n}_head5.png per puppet and camera (lids over the eyes, jaw shut), cut with the
 #              crop that the open-eye renders recorded in OUTDIR/meta.json, so it drops in exactly over heads 0..4.
+#   ONLY=a,b   (any mode) build only these advocates; the justices are always built.
 #   GALLERY=1  the audience behind the advocate: OUTDIR/gallery/plate.png (the lectern background with nobody in the seats),
 #              p00.png.. (one layer per visible person, back to front) and gallery.json. Shared by every case.
 #              GALLERY_CAM=<advocate key> picks the camera (default: the first advocate in the case config).
@@ -19,6 +20,9 @@ OUT = sys.argv[1]
 FILT = sys.argv[2:]
 BLINK = bool(os.environ.get('BLINK'))
 GALLERY = bool(os.environ.get('GALLERY'))
+if os.environ.get('ONLY'):   # ONLY=a,b: build just these advocates (a slate config lists dozens; the whole cast needs ~8 GB)
+    _keep = set(os.environ['ONLY'].split(','))
+    ADVOCATES[:] = [n for n in ADVOCATES if n in _keep]
 if BLINK:   # lids that cover the eyes: the cap above the plane then reaches below the pupil
     for _n in list(CHARS):
         CHARS[_n] = dict(CHARS[_n], lid=max(CHARS[_n].get('lid', 0.36), 0.8))
