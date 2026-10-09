@@ -77,15 +77,17 @@ def mat_plain(name, color, rough=0.5, coat=0.0, spec=0.5, sheen=0.0, metallic=0.
     return m
 
 
-def mat_hair(name, color, rough=0.42, rand=0.12):
+def mat_hair(name, color, rough=0.42, rand=0.12, radial=0.55, coat=0.15, ior=None):
     m, nt, p = _new_mat(name)
     N, L = nt.nodes, nt.links
     h = N.new('ShaderNodeBsdfHairPrincipled')
     h.parametrization = 'COLOR'
-    for k, v in (('Color', color), ('Roughness', rough), ('Radial Roughness', 0.55), ('Coat', 0.15),
+    for k, v in (('Color', color), ('Roughness', rough), ('Radial Roughness', radial), ('Coat', coat),
                  ('Random Color', rand), ('Random Roughness', 0.15)):
         if k in h.inputs:
             h.inputs[k].default_value = v
+    if ior is not None:  # low IOR = little specular glint (reads as dark, matte hair)
+        h.inputs['IOR'].default_value = ior
     out = N['Material Output']
     L.new(h.outputs['BSDF'], out.inputs['Surface'])
     return m
@@ -744,7 +746,7 @@ def build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed):
     bd = s['beard']
     rng = np.random.default_rng(seed + 77)
     zm = s['zm']
-    m1 = mat_hair(name + '_beard', hex_lin(bd.get('hex', '#1c1511')), rough=0.5, rand=0.1)
+    m1 = mat_hair(name + '_beard', hex_lin(bd.get('hex', '#1c1511')), rough=0.5, rand=0.1, ior=bd.get('ior'))
     m2 = mat_hair(name + '_beard2', hex_lin(bd['hex2']), rough=0.5, rand=0.1) if bd.get('hex2') else None
     dens = bd.get('density', 1.0)
     Lc = bd.get('len', 0.011)
@@ -831,7 +833,8 @@ def emit_hair(name, C, rad, hs, hm, head, rng, pg=None):
     if pg is None:
         pg = mix.get('frac', 0.3) + mix.get('temple', 0.0) * np.clip(np.abs(C[:, 0, 0]) / 0.1, 0, 1)
     gray = rng.random(len(C)) < pg
-    hm2 = mat_hair(name + '_hair2', hex_lin(mix['hex2']), rough=hs.get('rough', 0.42), rand=hs.get('rand', 0.12))
+    hm2 = mat_hair(name + '_hair2', hex_lin(mix['hex2']), rough=hs.get('rough', 0.42), rand=hs.get('rand', 0.12),
+                   radial=hs.get('radial', 0.55), coat=hs.get('coat', 0.15), ior=hs.get('ior'))
     out = []
     for sel, mat, nm in ((~gray, hm, '_hair'), (gray, hm2, '_hair2')):
         if sel.any():
@@ -1225,7 +1228,8 @@ def build_hair(name, s, Vu, Fu, up_r, head, rng, hair_scale=1.0):
     style = hs['style']
     if style == 'none':
         return
-    hm = mat_hair(name + '_hair', hex_lin(hs['hex']), rough=hs.get('rough', 0.42), rand=hs.get('rand', 0.12))
+    hm = mat_hair(name + '_hair', hex_lin(hs['hex']), rough=hs.get('rough', 0.42), rand=hs.get('rand', 0.12),
+                  radial=hs.get('radial', 0.55), coat=hs.get('coat', 0.15), ior=hs.get('ior'))
     H, zm, zc = s['H'], s['zm'], s['zc']
     coll = Collider([((0, s['cy_top'] * 0.5, zc), (s['Wc'] * 1.0, s['Dc'] * 1.0, (H - zc) * 1.0)),
                      ((0, 0, s['zk']), (s['W'] * 0.98, s['D'] * 0.98, 0.07)),
