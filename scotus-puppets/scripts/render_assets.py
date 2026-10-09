@@ -99,6 +99,13 @@ def render(path, cam, res, samples, transparent, crop=None):
 
 meta_path = os.path.join(OUT, 'meta.json')
 meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
+# where the wall clock sits in the wide shot (centre and radius in pixels), so the player can draw live hands
+_cf = bpy.data.objects.get('clockface')
+if _cf is not None:
+    _c = _cf.matrix_world.translation
+    _p0 = proj(cams['wide'], WIDE_RES, _c)
+    _p1 = proj(cams['wide'], WIDE_RES, _c + Vector((0.42 * 0.98, 0, 0)))
+    meta.setdefault('wide', {})['clock'] = [round(_p0[0], 2), round(_p0[1], 2), round(abs(_p1[0] - _p0[0]), 2)]
 
 
 def save_meta():

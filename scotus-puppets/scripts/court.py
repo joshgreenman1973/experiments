@@ -234,7 +234,7 @@ def build_column(name, x, y, marble, h=9.0, r=0.34):
     return o
 
 
-def clock_face_image(path):
+def clock_face_image(path, hands=True):
     from PIL import Image, ImageDraw, ImageFont
     S = 1024
     im = Image.new('RGB', (S, S), (238, 232, 214))
@@ -253,7 +253,7 @@ def clock_face_image(path):
         a = k / 12 * 2 * math.pi
         x, y = c + 360 * math.sin(a), c - 360 * math.cos(a)
         d.text((x, y), t, fill=(25, 20, 15), font=f, anchor='mm')
-    for frac, ln, wd in ((10 / 12, 230, 26), (0.0, 330, 14)):  # 10:00
+    for frac, ln, wd in (((10 / 12, 230, 26), (0.0, 330, 14)) if hands else ()):  # 10:00
         a = frac * 2 * math.pi
         d.line([(c, c), (c + ln * math.sin(a), c - ln * math.cos(a))], fill=(15, 12, 10), width=wd)
     d.ellipse([c - 22, c - 22, c + 22, c + 22], fill=(15, 12, 10))
@@ -261,10 +261,12 @@ def clock_face_image(path):
 
 
 def build_clock(y, z, gold):
-    path = os.path.join(os.environ.get('WORK') or os.path.join(HERE, '..', 'work'), 'clockface.png')
+    # CLOCK_HANDS=0 renders an empty face: the browser player draws the hands, at the real time of the argument
+    hands = os.environ.get('CLOCK_HANDS', '1') != '0'
+    path = os.path.join(os.environ.get('WORK') or os.path.join(HERE, '..', 'work'), 'clockface.png' if hands else 'clockface_nohands.png')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if not os.path.exists(path):
-        clock_face_image(path)
+        clock_face_image(path, hands)
     m, nt, p = P._new_mat('clockface')
     tex = nt.nodes.new('ShaderNodeTexImage'); tex.image = bpy.data.images.load(path)
     nt.links.new(tex.outputs['Color'], p.inputs['Base Color'])
