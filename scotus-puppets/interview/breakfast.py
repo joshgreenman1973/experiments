@@ -296,7 +296,7 @@ def make_mats():
     M.silver = plain('silver', '#d6d8dc', rough=0.16, metallic=1.0)
     M.iron = mat_noise('iron', '#1b1c1e', '#34353a', scale=30, rough=0.55, bump=0.4, spec=0.3)
     M.iron.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value = 0.8
-    M.mirror = plain('mirror', '#4c463d', rough=0.28, metallic=0.9)   # antiqued, dim warm reflections
+    M.mirror = plain('mirror', '#7a746b', rough=0.09, metallic=1.0)   # antiqued mirror: dim, slightly soft reflections
     M.leather = plain('leather', '#0d0d0f', rough=0.42, coat=0.3)
     M.black = plain('black_plastic', '#17181a', rough=0.35, coat=0.3)
     M.shade = mat_shade('shade')
@@ -616,7 +616,7 @@ def center_items(M, G, rng):
     z0 = TABLE_Z
 
     def at(name, x, y, rot=0.0, s=1.0):
-        g = group(name, (x, y, 0), rot); g.scale = (s, s, s); return g
+        g = group(name, (x, y, z0 * (1 - s)), rot); g.scale = (s, s, s); return g   # scale about the table top, not the floor
 
     # croissant basket (bread basket with a napkin)
     g = at('basket', -0.78, -0.02, 0.4, 1.3)

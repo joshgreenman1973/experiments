@@ -4,6 +4,8 @@
 #   BLINK=1    only the eyes-closed head layer {n}_head5.png per puppet and camera (lids over the eyes, jaw shut), cut with the
 #              crop that the open-eye renders recorded in OUTDIR/meta.json, so it drops in exactly over heads 0..4.
 #   ONLY=a,b   (any mode) build only these advocates; the justices are always built.
+#   KEEP_CROP=a,b  render these puppets' layers into the crop box already in OUTDIR/meta.json instead of the one their
+#              geometry gives now (use after a body change when the head layers are not being re-rendered).
 #   GALLERY=1  the audience behind the advocate: OUTDIR/gallery/plate.png (the lectern background with nobody in the seats),
 #              p00.png.. (one layer per visible person, back to front) and gallery.json. Shared by every case.
 #              GALLERY_CAM=<advocate key> picks the camera (default: the first advocate in the case config).
@@ -20,6 +22,7 @@ OUT = sys.argv[1]
 FILT = sys.argv[2:]
 BLINK = bool(os.environ.get('BLINK'))
 GALLERY = bool(os.environ.get('GALLERY'))
+KEEP_CROP = set(filter(None, os.environ.get('KEEP_CROP', '').split(',')))   # reuse the crop recorded in OUTDIR/meta.json for these puppets
 if os.environ.get('ONLY'):   # ONLY=a,b: build just these advocates (a slate config lists dozens; the whole cast needs ~8 GB)
     _keep = set(os.environ['ONLY'].split(','))
     ADVOCATES[:] = [n for n in ADVOCATES if n in _keep]
@@ -161,6 +164,9 @@ def layer_jobs(cam, res, n, others_holdout, below, crop_on, heads):
         bpy.context.view_layer.update()
     else:
         crop = [0, 0, res[0], res[1]]
+    keep = meta.get(cam, {}).get(n, {}).get('crop')
+    if n in KEEP_CROP and keep:   # head layers already rendered with this crop stay valid: render the body to the same box
+        crop = keep
     pp = cast[n]
     neck = pp['head'].matrix_world @ Vector((0, 0, pp['spec']['zb'] + 0.02))
     hc = pp['head'].matrix_world.translation
