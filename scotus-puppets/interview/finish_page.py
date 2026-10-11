@@ -26,5 +26,9 @@ subs = {'__TITLE__': 'Mike Lawler Breakfast Interview',
 for k, v in subs.items():
     assert k in tpl
     tpl = tpl.replace(k, html.escape(v, quote=False))
+# a single interview page has no catalog of other arguments: skip the optional catalog.json probe (it would log a 404)
+probe = 'try { const r = await fetch("catalog.json"); if (r.ok) CAT = await r.json(); } catch (e) {}'
+if probe in tpl:
+    tpl = tpl.replace(probe, '/* single page: no catalog.json */')
 open(f'{P}/index.html', 'w', encoding='utf-8').write(tpl)
 print('finish_page: wrote', f'{P}/index.html')

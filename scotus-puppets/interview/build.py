@@ -527,7 +527,7 @@ tags = {k: [DISPLAY[k], ROLE[k]] for k in KEYS}
 page = dict(
     case_name=title, docket='', argued='October 8, 2026', decided='',
     bug='THE NEW YORK EDITORIAL BOARD \u00b7 REP. MIKE LAWLER \u00b7 OCT. 8, 2026',
-    question=dek, question_label='The interview.', outcome='', outcome_src='',
+    question=dek, question_label='The interview.', tag_at='center', outcome='', outcome_src='',
     stand_in_note='The puppets are caricatures of the participants, built from photographs.',
     end_puppets='', oyez_url='', credit='Made by Josh Greenman with Claude.', storage_key='pos-lawler-nyeb',
     bench=KEYS, advocates=[], chapters=chapters, cards=[], tags=tags, mic=mic, notes=[],
