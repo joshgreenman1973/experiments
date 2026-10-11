@@ -4,6 +4,8 @@ Turns a complete U.S. Supreme Court oral argument into a puppet video. Muppet-st
 
 First run: *United States v. Rahimi* (No. 22-915, argued Nov. 7, 2023), 92:49. `docs/cast_sheet.jpg` shows the puppets.
 
+**Start with [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md).** It holds what to gather, how to run this on your own computer, the settings that worked, the likeness rules and the lessons from the first runs. The same puppets also animate recorded interviews and roundtables (`interview/`, skill `puppet-interview`).
+
 ## Quick start
 
 ```bash
@@ -71,7 +73,7 @@ The justices' puppets are in `scripts/characters.py`. Run `lineup` and look at t
 
 1. **Sources** (`scripts/fetch.py`). From Claude's cloud sandbox, oyez.org and supremecourt.gov are blocked, so the transcript comes from the [walkerdb/supreme_court_transcripts](https://github.com/walkerdb/supreme_court_transcripts) mirror of the Oyez API (speaker turns with timestamps), and the audio comes from the Oyez S3 link stored in that transcript.
 2. **Puppets** (`scripts/puppet.py`). Each head is a lofted mesh split at the mouth into an upper head and a hinged jaw, with fleece shading, short "fuzz" fibers, ping-pong-ball eyes with lids, and procedurally groomed fur hair (side part, bob, long, buzz, locs). Bodies are robes with a white shirt V and arms resting on the bench.
-3. **Set and cameras** (`scripts/court.py`). The courtroom has an arced mahogany bench, tall leather chairs, red velvet drapes, fluted marble columns, the clock at 10:00, the lectern with its white and red lights, and a gallery of background puppets. Cameras: a wide shot from the gallery, a close-up per justice from the lectern, and a close-up per advocate from the bench.
+3. **Set and cameras** (`scripts/court.py`). The courtroom has an arced mahogany bench, tall leather chairs, red velvet drapes, fluted marble columns, a wall clock (rendered without hands; the browser player draws them at the argument's real time), the lectern with its white and red lights, and a gallery of background puppets. Cameras: a wide shot from the gallery, a close-up per justice from the lectern, and a close-up per advocate from the bench.
 4. **Layers** (`scripts/render_assets.py`, Cycles on CPU). Per camera there is an empty plate, plus per character a body layer and five head layers at different jaw angles. The bench and lectern are rendered as holdouts, so occlusion is exact, and heads can move in 2D on top.
 5. **Performance** (`scripts/timeline.py`). Within each speaker's Oyez turn, the band-passed loudness envelope (35 ms windows, 24 fps, mouth leading the sound by 45 ms) picks one of the five jaw positions. Head tilt, bob and sway follow speech energy, and listeners nod now and then. Edit rules: close-up on whoever talks for more than 2.2 seconds, bench cutaways every 10 to 19 seconds during long answers, an advocate reaction shot inside long questions.
 6. **Compositing** (`scripts/compose.py`, `scripts/assemble.sh`). OpenCV composites the layers with drop shadows, captions with speaker labels, name tags, chapter cards, a title card and an end card. Four processes encode chunks in parallel, which are then joined and muxed with the original audio.
@@ -89,7 +91,7 @@ The justices' puppets are in `scripts/characters.py`. Run `lineup` and look at t
 - Justice close-ups were framed with little headroom. The compositor shifts them down 70 px and extends the blurred background upward, which costs nothing and avoids a re-render.
 - Fair-skinned puppets wash out under the lectern key light, so advocate cameras render at −0.35 EV.
 - The sandbox's Chromium can't decode H.264. To test the web player there, transcode a few pieces to WebM.
-- None of the 2022–present justices wears glasses in the official portraits, so none have them by default.
+- Thomas and Jackson wear glasses (set in `scripts/characters.py`). An earlier version assumed none of the justices did; check photos, not memory.
 
 ## Credits
 
