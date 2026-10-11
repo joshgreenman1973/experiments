@@ -11,7 +11,8 @@ const [pageDir, outDir, portArg] = process.argv.slice(2);
 const PORT = +(portArg || 8765);
 fs.mkdirSync(outDir, { recursive: true });
 
-const TYPES = { '.html': 'text/html', '.json': 'application/json', '.jpg': 'image/jpeg', '.webp': 'image/webp',
+// like the artifact host, serve text as UTF-8 (the page is a fragment; the host adds the document skeleton)
+const TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8', '.jpg': 'image/jpeg', '.webp': 'image/webp',
   '.mp3': 'audio/mpeg', '.png': 'image/png', '.js': 'text/javascript' };
 // small static server with Range support (audio seeking needs it)
 const server = http.createServer((req, res) => {
@@ -41,7 +42,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const errors = [], failedReqs = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  page.on('requestfailed', r => failedReqs.push(r.url() + ' ' + (r.failure() || {}).errorText));
+  // a media request cancelled by a seek (net::ERR_ABORTED) is normal; anything else is a failure
+  page.on('requestfailed', r => { const t = (r.failure() || {}).errorText || ''; if (!/ERR_ABORTED/.test(t)) failedReqs.push(r.url() + ' ' + t); });
   page.on('response', r => { if (r.status() >= 400 && !/favicon/.test(r.url())) failedReqs.push(r.status() + ' ' + r.url()); });
 
   await page.goto(`http://localhost:${PORT}/index.html`);
