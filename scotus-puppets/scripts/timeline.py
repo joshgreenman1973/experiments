@@ -26,14 +26,20 @@ KIDX = {k: i for i, k in enumerate(KEYS)}
 raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', audio_path, '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'],
                      capture_output=True, check=True).stdout
 x = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+del raw
 dur = len(x) / SR
 sos = butter(4, [180, 3400], btype='band', fs=SR, output='sos')
 xb = sosfiltfilt(sos, x)
+del x   # a two-hour argument is ~1 GB per float64 copy: free what is no longer needed so this fits next to a render
 nF = int(math.floor(dur * FPS))
 win = int(0.035 * SR)
-c = np.cumsum(np.r_[0, xb ** 2])
+nS = len(xb)
+c = np.empty(nS + 1)
+c[0] = 0.0
+np.cumsum(xb ** 2, out=c[1:])
+del xb
 centers = ((np.arange(nF) / FPS + LEAD) * SR).astype(int)
-lo = np.clip(centers - win // 2, 0, len(xb)); hi = np.clip(centers + win // 2, 0, len(xb))
+lo = np.clip(centers - win // 2, 0, nS); hi = np.clip(centers + win // 2, 0, nS)
 rms = np.sqrt((c[hi] - c[lo]) / np.maximum(hi - lo, 1))
 db = 20 * np.log10(rms + 1e-7)
 GFLOOR = np.percentile(db, 8)  # silence level of the whole recording
