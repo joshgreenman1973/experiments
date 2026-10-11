@@ -243,7 +243,7 @@ section { min-width: 0; }
   let P, TL, SEGS = [], OFF = [], TOTAL = 1, FPS = 24, NF = 1, KEYS = [], KIDX = {}, BENCH = [], ADVS = [];
   let OV, SPK, PH, NODS, ACT, OLP, SHOTS = [], ADVTURNS = [], CAPS = [], CARDS = [], TAGS = {}, TAGEV = [], LAY, ready = false, loadGen = 0, curId = null;
   // optional motion (page.motion = {listeners, breathe, blink, drift, gallery, mouse, clock}); every piece is off unless the page asks
-  let MO = {}, BAMP = 0, EV = [], GLD = [], XPOS = [], LPOSE = [], BR = [], BLK = [], DR = [], WS = [], FID = [], MOUSE = null;
+  let SYL = false, MO = {}, BAMP = 0, EV = [], GLD = [], XPOS = [], LPOSE = [], BR = [], BLK = [], DR = [], WS = [], FID = [], MOUSE = null;
   const IMG = {};
   // ---------------------------------------------------------------- audio state (two elements trade places at cut points)
   let active = $("aa"), standby = $("ab"), cur = 0, playing = false, seeking = false, standbyFor = -1, pendingT = null, ended = false, wantOff = null, primed = false;
@@ -303,10 +303,10 @@ section { min-width: 0; }
     if (MO.listeners) {   // the speaker moves as before; listeners hold a pose, shift now and then, glance at a new speaker and nod
       const L = listenerMotion(k, t);
       return [(1 - a) * L[0] + a * (idle + talk + 3 * (ol - .3)),
-              (1 - a) * L[1] + a * (.012 * Math.sin(TAU * .21 * t + ph[4]) + a * .02 * ol) + (sp ? .06 * OV[f] / 255 : 0),
+              (1 - a) * L[1] + a * (.012 * Math.sin(TAU * .21 * t + ph[4]) + a * .02 * ol) + (sp ? .06 * (SYL ? Math.min(1, 1.25 * ol) : OV[f] / 255) : 0),
               (1 - a) * L[2] + a * (.01 * Math.sin(TAU * .09 * t + ph[5]) + a * .025 * Math.sin(TAU * .27 * t + ph[2]))];
     }
-    let bob = .012 * Math.sin(TAU * .21 * t + ph[4]) + (sp ? .06 * OV[f] / 255 : 0) + a * .02 * ol;
+    let bob = .012 * Math.sin(TAU * .21 * t + ph[4]) + (sp ? .06 * (SYL ? Math.min(1, 1.25 * ol) : OV[f] / 255) : 0) + a * .02 * ol;
     if (!sp) { const nods = NODS[k], j = lastLE(nods, t, x => x); if (j >= 0 && t < nods[j] + 1.2) bob -= .02 * Math.sin(Math.PI * (t - nods[j]) / 1.2); }
     return [idle + a * talk + a * 3 * (ol - .3), bob, .01 * Math.sin(TAU * .09 * t + ph[5]) + a * .025 * Math.sin(TAU * .27 * t + ph[2])];
   }
@@ -547,6 +547,7 @@ section { min-width: 0; }
     catch (e) { loading.textContent = "Could not load this argument. Reload the page to try again."; return; }
     if (gen !== loadGen) return;
     P = D.page; TL = D.tl; SEGS = D.segments; LAY = L;
+    SYL = TL.mouth === "syllable";   // jaw pulses once per syllable: the head's talking bob follows the smoothed opening, not each pulse
     MO = P.motion || {}; BAMP = MO.breathe === undefined || MO.breathe === false ? 0 : MO.breathe === true ? .004 : +MO.breathe;
     // optional page fields (absent on Supreme Court pages, which keep the wording below): setting, noun, kicker, subline, tagline,
     // bug2, end_sub, end_lines, question_label, about_html, credits_html, mic_note

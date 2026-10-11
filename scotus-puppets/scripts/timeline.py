@@ -4,8 +4,8 @@
 #   NO_MOTION=1 skips the per-frame head-motion arrays (only compose.py needs them; the player computes its own).
 import sys, json, subprocess, math, re
 import numpy as np
-from scipy.signal import butter, sosfiltfilt
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
+import mouth
 from characters import CHARS, BENCH_ORDER, ADVOCATES, CASE
 
 FPS = 24
@@ -28,21 +28,11 @@ raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', audio_path, '-ac', '1', '-a
 x = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
 del raw
 dur = len(x) / SR
-sos = butter(4, [180, 3400], btype='band', fs=SR, output='sos')
-xb = sosfiltfilt(sos, x)
-del x   # a two-hour argument is ~1 GB per float64 copy: free what is no longer needed so this fits next to a render
 nF = int(math.floor(dur * FPS))
-win = int(0.035 * SR)
-nS = len(xb)
-c = np.empty(nS + 1)
-c[0] = 0.0
-np.cumsum(xb ** 2, out=c[1:])
-del xb
-centers = ((np.arange(nF) / FPS + LEAD) * SR).astype(int)
-lo = np.clip(centers - win // 2, 0, nS); hi = np.clip(centers + win // 2, 0, nS)
-rms = np.sqrt((c[hi] - c[lo]) / np.maximum(hi - lo, 1))
-db = 20 * np.log10(rms + 1e-7)
-GFLOOR = np.percentile(db, 8)  # silence level of the whole recording
+c = mouth.band_energy(x, SR)
+del x   # a two-hour argument is ~1 GB per float64 copy: free what is no longer needed so this fits next to a render
+db, fine = mouth.envelopes(c, SR, FPS, LEAD)
+del c
 
 # ---------------------------------------------------------------- turns
 turns = []
@@ -64,42 +54,13 @@ if not section_adv:
     section_adv = [(0.0, FIRST_ADV)]
 
 speaker = np.full(nF, -1, dtype=np.int16)
-mouth = np.zeros(nF, dtype=np.int8)
-openv = np.zeros(nF, dtype=np.float32)
 for t in turns:
     f0, f1 = int(t['start'] * FPS), min(nF, int(math.ceil(t['stop'] * FPS)))
-    if t['who'] is None or f1 <= f0:
-        continue
-    speaker[f0:f1] = KIDX[t['who']]
-    seg = db[f0:f1]
-    floor = np.percentile(seg, 12)
-    peak = np.percentile(seg, 97)
-    # Open only for real speech: above both the turn's own quiet level and the whole recording's silence level,
-    # and for at least 3 frames (125 ms), so room noise, breaths and paper don't flap the jaw during pauses.
-    thr = max(floor + 7.0, GFLOOR + 13.0)
-    # A quiet speaker (far from the mic) never rises far above the room, so the gate may not sit more than 16 dB under
-    # the turn's own loud end, and never within 5 dB of the silence level.
-    thr = max(GFLOOR + 5.0, min(thr, peak - 16.0))
-    on = seg > thr
-    j = 0
-    while j < len(on):
-        if on[j]:
-            k = j
-            while k < len(on) and on[k]:
-                k += 1
-            if k - j < 3:
-                on[j:k] = False
-            j = k
-        else:
-            j += 1
-    o = np.clip((seg - thr) / max(8.0, peak - thr), 0, 1) ** 0.85 * on
-    sm = np.zeros_like(o)
-    prev = 0.0
-    for i, v in enumerate(o):  # fast attack, quick-but-not-instant release
-        prev = v if v > prev else max(v, prev * 0.45)
-        sm[i] = prev
-    openv[f0:f1] = sm
-    mouth[f0:f1] = np.clip(np.floor(sm * 4.6), 0, 4).astype(np.int8)
+    if t['who'] is not None and f1 > f0:
+        speaker[f0:f1] = KIDX[t['who']]
+# jaw: one open-close cycle per syllable, gated on real speech (scripts/mouth.py)
+openv = mouth.openness(db, fine, [(int(t['start'] * FPS), int(math.ceil(t['stop'] * FPS)), t['who']) for t in turns if t['who'] is not None], FPS, LEAD)
+mouth_state = np.clip(np.floor(openv * 4.6), 0, 4).astype(np.int8)
 
 # ---------------------------------------------------------------- head motion (per character, per frame)
 rng = np.random.default_rng(11)
@@ -268,7 +229,7 @@ while target < dur - SEG * 0.5:
 
 if out_web:
     import base64
-    web = dict(fps=FPS, nframes=nF, duration=round(dur, 3), keys=KEYS, labels=LABEL,
+    web = dict(fps=FPS, nframes=nF, duration=round(dur, 3), mouth='syllable', keys=KEYS, labels=LABEL,
                turns=[[round(t['start'], 3), round(t['stop'], 3), KIDX[t['who']]] for t in turns if t['who']],
                openv=base64.b64encode(np.clip(np.round(openv * 255), 0, 255).astype(np.uint8).tobytes()).decode(),
                shots=[[round(a, 3), round(b, 3), n] for a, b, n in shots],
@@ -276,7 +237,7 @@ if out_web:
                sections=[[round(st, 3), k] for st, k in section_adv], cuts=cuts)
     json.dump(web, open(out_web, 'w'), separators=(',', ':'), ensure_ascii=False)
 
-np.savez_compressed(out_npz, speaker=speaker, mouth=mouth, openv=openv, tilt=tilt, bob=bob, sway=sway,
+np.savez_compressed(out_npz, speaker=speaker, mouth=mouth_state, openv=openv, tilt=tilt, bob=bob, sway=sway,
                     shot=shot_f, adv=adv_f)
 json.dump(dict(fps=FPS, nframes=nF, duration=dur, keys=KEYS, shot_names=shot_names, shots=shots, captions=caps,
                sections=section_adv, labels=LABEL), open(out_json, 'w'), indent=0)
@@ -286,4 +247,4 @@ for s, e, nm in shots:
     cnt[nm] += e - s
 print('frames', nF, 'shots', len(shots), 'captions', len(caps))
 print({k: round(v / 60, 1) for k, v in cnt.most_common()})
-print('mouth hist', np.bincount(mouth[speaker >= 0], minlength=5) / (speaker >= 0).sum())
+print('mouth hist', np.bincount(mouth_state[speaker >= 0], minlength=5) / (speaker >= 0).sum())

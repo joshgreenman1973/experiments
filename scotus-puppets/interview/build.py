@@ -5,7 +5,8 @@
 #          W/page/data.json, W/page/audio/sNN.mp3   (+ W/page/index.html via finish_page.py when layout.json exists)
 import base64, json, math, os, random, re, subprocess, sys
 import numpy as np
-from scipy.signal import butter, sosfiltfilt
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'scripts'))
+import mouth
 
 W = os.environ.get('W') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'work', 'interview')
 SR, FPS, LEAD = 16000, 24, 0.045
@@ -245,44 +246,10 @@ if '--table' in sys.argv:
         print(f"{t['i']:3d} {tfmt(t['start'])} {t['stop'] - t['start']:6.1f}s {t['who']:9s} {t['text'][:110]}")
     sys.exit()
 
-# ====================================================================== 5. mouth envelope (same method as scripts/timeline.py)
-sos = butter(4, [180, 3400], btype='band', fs=SR, output='sos')
-yb = sosfiltfilt(sos, y)
+# ====================================================================== 5. mouth envelope (scripts/mouth.py, shared with scripts/timeline.py)
 nF = int(math.floor(dur * FPS))
-win = int(0.035 * SR)
-c = np.cumsum(np.r_[0, yb ** 2])
-centers = ((np.arange(nF) / FPS + LEAD) * SR).astype(int)
-lo = np.clip(centers - win // 2, 0, len(yb)); hi = np.clip(centers + win // 2, 0, len(yb))
-db = 20 * np.log10(np.sqrt((c[hi] - c[lo]) / np.maximum(hi - lo, 1)) + 1e-7)
-GFLOOR = np.percentile(db, 8)   # silence level of the whole recording (same rule as scripts/timeline.py)
-openv = np.zeros(nF, dtype=np.float32)
-for t in TURN:
-    f0, f1 = int(t['start'] * FPS), min(nF, int(math.ceil(t['stop'] * FPS)))
-    if f1 <= f0:
-        continue
-    seg = db[f0:f1]
-    floor, peak = np.percentile(seg, 12), np.percentile(seg, 97)
-    # open only for real speech: above the turn's own quiet level and the recording's silence level, for at least 3 frames
-    thr = max(floor + 7.0, GFLOOR + 13.0)
-    thr = max(GFLOOR + 5.0, min(thr, peak - 16.0))   # quiet speakers: gate no more than 16 dB under the turn's loud end (same as timeline.py)
-    on = seg > thr
-    j = 0
-    while j < len(on):
-        if on[j]:
-            k = j
-            while k < len(on) and on[k]:
-                k += 1
-            if k - j < 3:
-                on[j:k] = False
-            j = k
-        else:
-            j += 1
-    o = np.clip((seg - thr) / max(8.0, peak - thr), 0, 1) ** 0.85 * on
-    sm = np.zeros_like(o); prev = 0.0
-    for k, v in enumerate(o):                      # instant attack, release factor 0.45 per frame
-        prev = v if v > prev else max(v, prev * 0.45)
-        sm[k] = prev
-    openv[f0:f1] = sm
+db, fine = mouth.envelopes(mouth.band_energy(y, SR), SR, FPS, LEAD)
+openv = mouth.openness(db, fine, [(int(t['start'] * FPS), int(math.ceil(t['stop'] * FPS)), t['who']) for t in TURN], FPS, LEAD)
 
 # ====================================================================== 6. edit decision list
 rng = random.Random(20261008)
@@ -482,7 +449,7 @@ while target < dur - SEG * 0.5:
     CUTS.append(round((lo_ + int(np.argmin(db_sm[lo_:hi_]))) / FPS, 3))
     target = CUTS[-1] + SEG
 
-TLW = dict(fps=FPS, nframes=nF, duration=round(dur, 3), keys=KEYS, labels=LABEL,
+TLW = dict(fps=FPS, nframes=nF, duration=round(dur, 3), mouth='syllable', keys=KEYS, labels=LABEL,
            turns=[[round(t['start'], 3), round(t['stop'], 3), KIDX[t['who']]] for t in TURN],
            openv=base64.b64encode(np.clip(np.round(openv * 255), 0, 255).astype(np.uint8).tobytes()).decode(),
            shots=SHOTS, captions=CAPS, sections=[[round(TURN[0]['start'], 3), 'lawler']], cuts=CUTS)
