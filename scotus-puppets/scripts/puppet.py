@@ -754,7 +754,7 @@ def build_beard(name, s, Vu, Fu, Mu, Vj, Fj, Mj, head, jaw, hinge, seed):
     w_jaw, w_cheek, w_must = beard_weights(s, bd)
 
     def gray_p(z):
-        return bd.get('frac', 0.0) + bd.get('chin', 0.0) * np.clip(((zm - 0.025) - z) / 0.07, 0, 1)
+        return bd.get('frac', 0.0) + bd.get('chin', 0.0) * np.clip(((zm + bd.get('chin_from', -0.025)) - z) / bd.get('chin_span', 0.07), 0, 1)
 
     def comb_down(P, n):
         v = np.stack([np.sign(P[:, 0]) * 0.18 * np.clip(np.abs(P[:, 0]) / 0.08, 0, 1), np.full(len(P), -0.12),

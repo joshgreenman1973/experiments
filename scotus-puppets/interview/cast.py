@@ -61,7 +61,7 @@ CAST = {
         hair=dict(style='cut', hex='#0f0c0a', rough=0.5, radial=0.5, coat=0.0, ior=1.12, mix=dict(hex2='#a9a59f', frac=0.0, temple=0.4), length=0.07,
                   side_len=0.04, front_z=0.14, temple=0.012, side=0.55, sweep=0.45, up=0.4, tousle=0.4, lift=0.5,
                   jitter=0.22, clump=0.4, count=120000, rand=0.04, r0=0.0009),
-        beard=dict(hex='#221a15', ior=1.12, hex2='#bdb8b1', frac=0.1, chin=0.6, density=1.1, len=0.0085, chin_len=0.012,
+        beard=dict(hex='#221a15', ior=1.12, hex2='#bdb8b1', frac=0.1, chin=0.85, chin_from=-0.03, chin_span=0.055, density=1.1, len=0.0085, chin_len=0.012,
                    cheek_z=0.0, sideburn_z=0.04, mw=0.048, must_len=0.011, must_out=0.25, lips_w=0.05, lip_gap=0.006,
                    shadow=0.35, shadow_hex='#4a423c'),
         body=dict(robe='#1e2b55', shirt='#deb088', collar_hex='#1e2b55', collar_fabric='knit', fabric='knit',

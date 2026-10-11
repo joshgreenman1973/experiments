@@ -287,8 +287,8 @@ def make_mats():
     M.walnut = mat_oak('walnut', '#2a140a', '#4a2614', rough=0.42, coat=0.25)
     M.rustic = mat_oak('rustic', '#4a2814', '#7a4a26', rough=0.6, coat=0.05, scale=(1.0, 6.0, 1.0))
     M.floor = mat_floor('floor')
-    M.panel_x = mat_planks('panel_x', '#3a1d0e', '#5a3118', axis='x')
-    M.panel_y = mat_planks('panel_y', '#3a1d0e', '#5a3118', axis='y')
+    M.panel_x = mat_planks('panel_x', '#1e0e06', '#34190b', axis='x')
+    M.panel_y = mat_planks('panel_y', '#1e0e06', '#34190b', axis='y')
     M.ceiling = mat_planks('ceiling', '#2a140a', '#43230f', axis='x', pitch=0.18, coat=0.05, grain='y')
     M.ceiling_y = mat_planks('ceiling_y', '#2a140a', '#43230f', axis='y', pitch=0.18, coat=0.05, grain='x')
     M.ceramic = plain('ceramic', '#f6f3ec', rough=0.12, coat=0.6, spec=0.6)
@@ -296,8 +296,10 @@ def make_mats():
     M.silver = plain('silver', '#d6d8dc', rough=0.16, metallic=1.0)
     M.iron = mat_noise('iron', '#1b1c1e', '#34353a', scale=30, rough=0.55, bump=0.4, spec=0.3)
     M.iron.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value = 0.8
-    M.mirror = plain('mirror', '#7a746b', rough=0.09, metallic=1.0)   # antiqued mirror: dim, slightly soft reflections
+    M.mirror = mat_noise('mirror', '#1d1b18', '#4a463f', scale=5.0, rough=0.34, bump=0.0, spec=0.3, distort=1.5)   # tarnished: dim, mottled reflections
+    M.mirror.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value = 0.75
     M.leather = plain('leather', '#0d0d0f', rough=0.42, coat=0.3)
+    M.bentwood = mat_oak('bentwood', '#2b150a', '#4d2a14', rough=0.55, coat=0.04)
     M.black = plain('black_plastic', '#17181a', rough=0.35, coat=0.3)
     M.shade = mat_shade('shade')
     M.glass = mat_glass('glass')
@@ -806,38 +808,39 @@ def build_room(M, G, work):
 
 
 def build_chair(name, M, G, idx):
-    """Bentwood cafe chair: black leather seat, dark bentwood legs, back loop and hoop."""
+    """Bentwood cafe chair: black leather seat, dark bentwood legs and a tall bentwood back (two loops and a slat panel)."""
     st = SEATS[name]
     f = facing(name)
     pos = (st['x'] - f.x * 0.1, st['y'] - f.y * 0.1, 0)
     g = group(f'chair_{name}', pos, st['rot'])
     S = G['set']
     zs = 0.5
-    S.append(lathe(f'{name}_seat', [(0, zs + 0.0), (0.205, zs + 0.0), (0.215, zs + 0.02), (0.205, zs + 0.045), (0.12, zs + 0.058), (0, zs + 0.06)],
+    W_ = M.bentwood
+    S.append(lathe(f'{name}_seat', [(0, zs + 0.0), (0.215, zs + 0.0), (0.225, zs + 0.02), (0.215, zs + 0.045), (0.12, zs + 0.058), (0, zs + 0.06)],
                    M.leather, (0, 0, 0), g, segs=40))
-    S.append(torus(f'{name}_seatring', 0.205, 0.016, M.walnut, (0, 0, zs - 0.005), g, maj_seg=40, min_seg=8))
-    S.append(torus(f'{name}_stretch', 0.18, 0.011, M.walnut, (0, 0, 0.2), g, maj_seg=36, min_seg=8))
+    S.append(torus(f'{name}_seatring', 0.215, 0.022, W_, (0, 0, zs - 0.012), g, maj_seg=40, min_seg=8))
     for sx in (-1, 1):
         for sy in (-1, 1):
-            top = (sx * 0.15, sy * 0.15, zs - 0.01)
-            bot = (sx * 0.2, sy * 0.2, 0.0)
+            top = (sx * 0.16, sy * 0.16, zs - 0.01)
+            bot = (sx * 0.22, sy * 0.22, 0.0)
             if sy == 1:   # rear legs run up into the back
-                pts = [bot, (sx * 0.19, 0.19, 0.25), top, (sx * 0.16, 0.2, 0.7), (sx * 0.13, 0.21, 0.95)]
-                rad = [0.014, 0.014, 0.015, 0.014, 0.012]
+                pts = [bot, (sx * 0.2, 0.2, 0.25), top, (sx * 0.185, 0.215, 0.75), (sx * 0.16, 0.22, 1.06)]
+                rad = [0.02, 0.02, 0.021, 0.02, 0.017]
             else:
-                pts = [bot, (sx * 0.18, sy * 0.18, 0.25), top]
-                rad = [0.013, 0.014, 0.015]
-            S.append(P.tube(f'{name}_leg{sx}{sy}', pts, rad, [M.walnut], nseg=10, parent=g))
-    # bentwood back: a loop across the top and a smaller hoop below it
-    th = np.linspace(math.pi, 0, 17)
-    loop = [(0.13 * math.cos(a), 0.215 + 0.02 * math.sin(a), 0.95 + 0.07 * math.sin(a)) for a in th]
-    S.append(P.tube(f'{name}_loop', loop, [0.012] * len(loop), [M.walnut], nseg=10, parent=g, caps=True))
-    hoop = [(0.15 * math.cos(a), 0.205, 0.72 + 0.055 * math.sin(a)) for a in np.linspace(math.pi, 2 * math.pi, 15)]
-    S.append(P.tube(f'{name}_hoop', hoop, [0.011] * len(hoop), [M.walnut], nseg=10, parent=g))
+                pts = [bot, (sx * 0.19, sy * 0.19, 0.25), top]
+                rad = [0.019, 0.02, 0.021]
+            S.append(P.tube(f'{name}_leg{sx}{sy}', pts, rad, [W_], nseg=10, parent=g))
+    S.append(torus(f'{name}_stretch', 0.19, 0.014, W_, (0, 0, 0.22), g, maj_seg=36, min_seg=8))
+    # tall back: a top loop, a lower hoop, and a solid bentwood slat panel between them
+    th = np.linspace(math.pi, 0, 19)
+    loop = [(0.16 * math.cos(a), 0.225 + 0.02 * math.sin(a), 1.06 + 0.09 * math.sin(a)) for a in th]
+    S.append(P.tube(f'{name}_loop', loop, [0.017] * len(loop), [W_], nseg=10, parent=g))
+    hoop = [(0.185 * math.cos(a), 0.222, 0.75 + 0.05 * math.sin(a)) for a in np.linspace(math.pi, 2 * math.pi, 15)]
+    S.append(P.tube(f'{name}_hoop', hoop, [0.015] * len(hoop), [W_], nseg=10, parent=g))
+    S.append(sphere(f'{name}_slat', 1.0, W_, (0, 0.228, 0.92), scale=(0.15, 0.016, 0.115), parent=g, segs=24, rings=12, rot=(0.12, 0, 0)))
     return g
 
 
-# ----------------------------------------------------------------------------- lights
 def add_area(name, loc, target, energy, size, color=(1.0, 0.92, 0.8), size_y=None):
     l = bpy.data.lights.new(name, 'AREA'); l.energy = energy
     if size_y:
