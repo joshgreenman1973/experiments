@@ -192,6 +192,7 @@ Then publish `W/page/` as its own new private Artifact.
   - A long table, everyone along the far side and the two ends, the guest in the middle facing the camera, and the near side open for the camera. It's the easiest layout to animate.
   - A square or round table puts someone's back to the camera.
 - **Chapters:** 22 of them, one per new line of questioning, named "Asker asks about topic."
+- **Name tags:** each close-up also catches the neighbors, so a lower-left tag sat on the wrong puppet. `page.tag_at = 'center'` puts it over the speaker.
 
 ---
 
@@ -202,25 +203,29 @@ Then publish `W/page/` as its own new private Artifact.
 | Setting | Value |
 |---|---|
 | Plate samples `S_PLATE` | 96 for a single case; 48 for the slate and the interview |
-| Layer samples `S_LAYER` | 64 for a single case; 32 for the slate and the interview |
+| Layer samples `S_LAYER` | 64 for a single case; 32 for the slate and the interview, and for the October 2026 justice re-render (saves time, barely visible) |
 | Resolution | Wide 2560×1440; close-ups 1280×720 |
 | Exposure | −0.35 EV on the lawyer cameras, because fair skin washed out under the lectern key light |
 | Jaw angles `JAW` | 0.015, 0.105, 0.195, 0.285, 0.375 rad: five mouth shapes, `head0` to `head4` |
 | `head5` | Eyes closed, jaw shut (blinks) |
 | `meta.json` | Crops and pivots. Write it with a render-free pass (`__none__`): parallel renders overwrite each other's copy. |
 
-**Lip sync** (`scripts/timeline.py`; `interview/build.py` uses the same rule)
+**Lip sync** (`scripts/mouth.py`, shared by `scripts/timeline.py` and `interview/build.py`)
+
+The first version made the mouth follow the loudness directly, and it opened only about once every 2–3 syllables. The user's complaint: the mouths "move slower than the words." Room recordings were worst, because echo fills the gaps between syllables. The current rule:
 
 | Setting | Value |
 |---|---|
-| Loudness | Band-pass 180–3400 Hz, 35 ms RMS windows, 24 fps |
-| Timing | The mouth leads the audio by 45 ms |
-| Mouth state | `min(4, floor(openness × 4.6))` |
-| Silence floor | `GFLOOR` = the 8th percentile of the whole recording's dB |
-| Per-turn threshold | `max(GFLOOR+5, min(max(p12+7, GFLOOR+13), p97−16))`. The `p97−16` cap keeps quiet speakers moving; the `GFLOOR+5` floor keeps room noise from opening mouths. |
-| Clean-up | Speech runs shorter than 3 frames are dropped; release decays by ×0.45 per frame |
+| Loudness | Band-pass 180–3400 Hz; a 5 ms envelope for finding syllables; 35 ms RMS windows at 24 fps for gating |
+| Syllables | Envelope peaks at least 110 ms apart and at least 3 dB above their neighboring valleys, with a fainter second pass in long stretches that have none |
+| Open and close | The jaw opens on each peak and shuts (state 0–1) at each valley. Width depends on the peak's loudness rank within its turn, so full-open (state 4) is about 12–13% of open frames. |
+| Timing | The mouth leads the audio by 45 ms; measured lag is within 0.1 frame of that |
+| Silence | `GFLOOR` is the 8th percentile of the recording's dB. Per-turn threshold: `max(GFLOOR+5, min(max(p12+7, GFLOOR+13), p97−16))`. No frame opens within 8–12 dB of the room level (8 for quiet speakers, 12 for loud ones). |
+| Head bob | When `tl_web.json` has `mouth: 'syllable'`, the player bobs the speaker's head from the smoothed opening, not each jaw pulse |
 
-Results with these settings: on Rahimi, 7.6% of silent frames open (Roberts 2.7%, down from 19%) and 93% of clear speech. In the interview the quiet speakers went from 13–20% to 44–56% open.
+Results: about 0.83–0.89 open-close cycles per syllable, against 0.57–0.65 before; silent frames essentially never open (Rahimi went from 7.7% to 0%).
+
+To measure: count jaw cycles (state 2 or more, then 0–1) per syllable of transcript text, per speaker.
 
 **Editing:** a close-up on whoever talks for more than 2.2 s; bench cutaways every 10 to 19 s during long answers; a reaction shot inside long questions; captions of about 90 to 96 characters; audio cut points at the quietest moment near every 600 s.
 
@@ -252,6 +257,8 @@ Performance cost: 6–8 ms per frame, against a 41.7 ms budget. The user chose t
 | Per version | 256 MB and 511 files |
 
 - Large pages go up over several publishes to the same URL.
+- Removals (`null` entries) count toward the 255-entry limit, so send uploads and removals in separate publishes when there are many.
+- The host refuses to overwrite published files that weren't read or listed in the current session. After a session restart, list the artifact's files first (`action: list, scope: files`).
 - Audio types served: `.mp3 .wav .ogg .mp4 .webm`. `.m4a` is refused, so put AAC in `.mp4`.
 - `assemble_theater.py` names images by content hash, so a rebuild changes only the files that changed. Republish just those, and remove stale ones by passing `null`.
 - Pages are private until the user shares them. They depict real people, so sharing is the user's call. Never write private artifact URLs into the public repo.
