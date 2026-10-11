@@ -944,7 +944,7 @@ def cameras(cast):
     Returns (cams, head_yaw): head_yaw[(cam, name)] = rotation of that person's head (about its z) for that camera."""
     bpy.context.view_layer.update()
     cams, yaw = {}, {}
-    cams['wide'] = make_camera('cam_wide', (0.0, -6.0, 1.85), (0.0, 0.45, 1.18), 50, focus=6.8, fstop=5.6)
+    cams['wide'] = make_camera('cam_wide', (0.0, -6.0, 1.85), (0.0, 0.45, 1.18), 46, focus=6.8, fstop=5.6)
     wide_loc = cams['wide'].location
     for n in ORDER:
         h = head_world(cast[n])
