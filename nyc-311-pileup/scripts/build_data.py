@@ -133,8 +133,9 @@ def load_coords():
 
 
 def steps():
-    # Slider stops: every 0.1% up to 10%, then every 1% to 100%.
-    s = [round(i / 1000, 4) for i in range(1, 101)] + [round(i / 100, 4) for i in range(11, 101)]
+    # Slider stops: every 0.01% up to 0.1%, every 0.1% up to 10%, then every 1% to 100%.
+    s = ([round(i / 10000, 5) for i in range(1, 10)] + [round(i / 1000, 4) for i in range(1, 101)]
+         + [round(i / 100, 4) for i in range(11, 101)])
     return s
 
 
@@ -273,7 +274,7 @@ def main():
     checks.update({
         'total': TOT, 'blank': blank, 'named': named, 'unplaced': unplaced, 'locations': N, 'top_k': K,
         'median': float(np.median(counts)), 'one_complaint': int((counts == 1).sum()),
-        'at': {str(p): share_at(p) for p in (0.001, 0.01, 0.05, 0.10, 0.20, 0.50)},
+        'at': {str(p): share_at(p) for p in (0.0001, 0.001, 0.01, 0.05, 0.10, 0.20, 0.50)},
         'top10_share': int(cum[9]) / TOT, 'top100_share': int(cum[99]) / TOT,
         'top5_without_top100': (cum[K - 1] - cum[99]) / (TOT - cum[99]),
         'types_total': int(len(type_tot)), 'types_big': len(big),

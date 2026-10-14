@@ -118,7 +118,7 @@ def methodology():
     a655, a672 = CAD['655 EAST 230 STREET'], CAD['672 EAST 231 STREET']
     named_ex = ', '.join(f'<code>{html.escape(a)}</code> in {z} ({f(n)})' for a, z, n in K['top_named'][:6])
     share_rows = ''.join(
-        f'<tr><td>Top {p(float(k), 1 if float(k) < 0.01 else 0)}</td><td class="n">{f(v["k"])}</td>'
+        f'<tr><td>Top {p(float(k), 2 if float(k) < 0.001 else 1 if float(k) < 0.01 else 0)}</td><td class="n">{f(v["k"])}</td>'
         f'<td class="n">{f(v["min"])}</td><td class="n">{f(v["cum"])}</td><td class="n">{p(v["share"])}</td></tr>'
         for k, v in at.items())
     pl, on = W['bronx_plateau'], W['bronx_overnight']
@@ -146,7 +146,7 @@ def methodology():
 <p>Addresses are sorted by total complaints, largest first, with ties broken alphabetically by address. The top X% is the first <code>round(N &times; X)</code> addresses, where N = {f(N)}. A slice's share is the complaints at those addresses divided by all {f(TOT)} complaints, including the ones with no street address. Using only complaints with a street address as the base would raise the top 5% figure from {p(top5['share'])} to {p(top5['cum'] / (TOT - UN))}.</p>
 <table class="h"><tr><th>Slice</th><th class="n">Addresses</th><th class="n">Fewest complaints in slice</th><th class="n">Complaints</th><th class="n">Share of all</th></tr>{share_rows}</table>
 <p>The median address has {w(K['median'])} complaints; {f(K['one_complaint'])} addresses have exactly one. The 10 busiest addresses hold {p(K['top10_share'])} of all complaints and the 100 busiest {p(K['top100_share'])}. With the 100 busiest removed from both the top and the total, the top 5% still holds {p(K['top5_without_top100'])}.</p>
-<p>The slider stops every 0.1 percentage point up to 10% and every point after that.</p>
+<p>The slider stops every 0.01 percentage point up to 0.1%, every 0.1 point up to 10% and every point after that. Below 0.1%, the slice is less than one square in the address grid, so that square is drawn partly filled.</p>
 
 <h2>Complaint types and categories</h2>
 <p>311 uses {K['types_total']} complaint type names in this period once spellings that differ only in capitalization are merged (the most common spelling is kept). The page groups them into six categories. The grouping is a judgment call; the full list:</p>
@@ -282,6 +282,7 @@ def build_log():
 <h2>Change log</h2>
 <ul>
 <li>Oct. 14, 2026: first version.</li>
+<li>Oct. 14, 2026: the slider now goes down to the top 0.01% (130 addresses), at Josh's request.</li>
 </ul>
 
 <h2>What this page does not do</h2>

@@ -43,6 +43,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
 .readout{font-size:var(--t-find);font-family:var(--display);font-variation-settings:'wdth' 88;line-height:1.3;max-width:52ch;margin-top:16px}
 .readout b{color:var(--fg)}
 .key i.o{background:transparent!important;border:1px solid var(--fg2)}
+#sliver{display:block;color:var(--fg)}
 
 /* mix */
 .stack{display:flex;height:30px;margin:6px 0 4px;gap:2px}
@@ -127,7 +128,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
     <section class="fig" id="pick" aria-label="Addresses and complaints, as two grids of 1,000 squares">
       <p class="figcap"><span id="pickcap"></span></p>
       <div class="waffles">
-        <figure><figcaption><b>Addresses</b>, most complaints first</figcaption><canvas id="wA" role="img"></canvas></figure>
+        <figure><figcaption><b>Addresses</b>, most complaints first <span id="sliver"></span></figcaption><canvas id="wA" role="img"></canvas></figure>
         <figure><figcaption><b>Complaints</b>, by kind</figcaption><canvas id="wC" role="img"></canvas></figure>
       </div>
       <p class="readout" id="readout" aria-live="polite"></p>
@@ -195,7 +196,7 @@ let S,P,C,step,map,mapReady=false,activeCats=[0,1,2,3,4,5],pinned=null;
 
 function mil(n){return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+' million':fmt(n)}
 function pct(x,d){if(d==null)d=x<0.1&&x>0?1:x<0.995?1:0;let s=(x*100).toFixed(d);return s.replace(/\.0$/,'')+'%'}
-function cutLabel(p){return (p*100).toFixed(p<0.1?1:0).replace(/\.0$/,'')+'%'}
+function cutLabel(p){let t=(p*100).toFixed(p<0.001?2:p<0.1?1:0);if(t.includes('.'))t=t.replace(/0+$/,'').replace(/\.$/,'');return t+'%'}
 function words(n){return n>=0&&n<10&&n===Math.round(n)?['zero','one','two','three','four','five','six','seven','eight','nine'][n]:fmt(n)}
 function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
 function prettyAddr(a){
@@ -223,6 +224,7 @@ function drawWaffle(cv,cells,label){
   for(let i=0;i<1000;i++){
     const x=(i%COLS)*(cell+gap), y=Math.floor(i/COLS)*(cell+gap), c=cells[i];
     if(c==='outline'){g.strokeStyle=fg2;g.lineWidth=1;g.strokeRect(x+.5,y+.5,cell-1,cell-1)}
+    else if(typeof c==='object'){g.fillStyle=c.bg;g.fillRect(x,y,cell,cell);g.fillStyle=c.fg;g.fillRect(x,y,Math.max(1,cell*c.frac),cell)}
     else{g.fillStyle=c;g.fillRect(x,y,cell,cell)}
   }
   cv.setAttribute('aria-label',label);
@@ -234,13 +236,14 @@ function largestRemainder(vals,total){
 }
 function renderWaffles(){
   const i=step,p=S.steps[i],share=S.cum[i]/S.total;
-  const aSq=Math.round(p*1000), unSq=Math.round(S.unplaced/S.total*1000);
+  const aSq=Math.floor(p*1000+1e-9), aFrac=p*1000-aSq, unSq=Math.round(S.unplaced/S.total*1000);
   let cSq=Math.min(Math.round(share*1000),1000-unSq);
-  const A=[];for(let j=0;j<1000;j++)A.push(j<aSq?tok('fg'):tok('rest'));
+  const A=[];for(let j=0;j<1000;j++)A.push(j<aSq?tok('fg'):j===aSq&&aFrac>1e-6?{fg:tok('fg'),bg:tok('rest'),frac:aFrac}:tok('rest'));
   const per=largestRemainder(S.cat_cum.map(c=>c[i]),cSq);
   const Cc=[];per.forEach((n,c)=>{for(let j=0;j<n;j++)Cc.push(CC(c))});
   while(Cc.length<1000-unSq)Cc.push(tok('rest'));while(Cc.length<1000)Cc.push('outline');
-  drawWaffle($('#wA'),A,`${aSq} of 1,000 squares lit: the top ${cutLabel(p)} of addresses`);
+  drawWaffle($('#wA'),A,`${aSq?aSq+' of 1,000 squares':(aFrac*10).toFixed(0)+' tenths of one square'} lit: the top ${cutLabel(p)} of addresses`);
+  $('#sliver').textContent=p<0.001?`The top ${cutLabel(p)} is ${fmt(S.k[i])} addresses, ${words(Math.round(aFrac*10))}-tenth${Math.round(aFrac*10)>1?'s':''} of one square.`:'';
   drawWaffle($('#wC'),Cc,`${cSq} of 1,000 squares lit: the share of complaints at those addresses`);
 }
 
@@ -258,7 +261,7 @@ function setStep(i){
   renderWaffles();renderMix();renderStrip();filterMap();
 }
 function initControl(){
-  const presets=[0.001,0.01,0.05,0.1,0.25,0.5];
+  const presets=[0.0001,0.001,0.01,0.05,0.1,0.25,0.5];
   $('#presets').innerHTML=presets.map(p=>{const i=S.steps.findIndex(s=>Math.abs(s-p)<1e-9);return `<button class="chip" data-i="${i}" aria-pressed="false">${cutLabel(p)}</button>`}).join('');
   $('#presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setStep(+b.dataset.i)});
   $('#cut').max=S.steps.length-1;
