@@ -102,6 +102,19 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
 #runchart text{font-family:var(--sans);fill:var(--fg2);font-size:12px}
 .fine{font-size:var(--t-small);color:var(--fg2)}
 .notes p{max-width:68ch}
+.obar{display:grid;grid-template-columns:minmax(0,14.5em) minmax(0,1fr);gap:4px 12px;align-items:center;margin:0 0 10px;font-size:15px}
+.obar .lab{grid-row:span 2;line-height:1.25}
+.obar .b{display:flex;align-items:center;gap:8px;height:14px}
+.obar .b i{display:block;height:12px;min-width:1px}
+.obar .b u{text-decoration:none;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg2)}
+.obar .b.t u{color:var(--fg);font-weight:700}
+#dumb svg{display:block;width:100%;height:auto}
+#dumb text{font-family:var(--sans);fill:var(--fg2);font-size:13px}
+#dumb .lbl{fill:var(--fg)}
+.dontknow{max-width:70ch;padding-left:1.1em;margin:6px 0 14px}
+.dontknow li{margin:0 0 8px}
+.dontknow b{color:var(--fg)}
+#endpick{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 16px}
 .notes h3{margin-top:22px}
 </style>
 </head>
@@ -171,13 +184,36 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
     <div id="groups"></div>
   </section>
 
+  <section class="sec" id="ended">
+    <h2>How these complaints ended</h2>
+    <p class="aside" id="endlede"></p>
+    <div id="endpick" role="group" aria-label="Which busiest addresses to compare"></div>
+    <div class="split">
+      <div>
+        <h4 id="outtitle"></h4>
+        <div class="legend" style="margin:0 0 12px"><span class="key"><i style="background:var(--fg)"></i>Busiest addresses</span><span class="key"><i style="background:var(--fg2);opacity:.55"></i>Expected from the same complaint types elsewhere</span></div>
+        <div id="outbars"></div>
+      </div>
+      <div>
+        <h4>How often the agency took action, by complaint type</h4>
+        <div class="legend" style="margin:0 0 6px"><span class="key"><i style="background:var(--fg);border-radius:50%"></i>Busiest addresses</span><span class="key"><i style="background:var(--fg2);opacity:.55;border-radius:50%"></i>Every address outside the top 0.1%</span></div>
+        <div id="dumb"></div>
+        <p class="fine" id="dumbnote"></p>
+      </div>
+    </div>
+    <div class="grp" style="margin-top:18px"><p id="endtext"></p><p id="batchtext"></p></div>
+    <h3 style="margin-top:22px">What this doesn't tell us</h3>
+    <ul class="dontknow" id="dontknow"></ul>
+    <p class="fine"><a href="data/outcome-rules.csv" download>Download every closing note and the outcome it was sorted into (CSV)</a>. The rules are in the <a href="methodology.html#outcomes">methodology</a>.</p>
+  </section>
+
   <section class="sec notes" id="notes">
     <h2>What this counts</h2>
     <div id="notetext"></div>
   </section>
 
   <div class="foot">
-    <p class="caution">And please read this AI caution. The question and the choice of source are the author's (a human). The data pull, the code and the page were done by Anthropic's Claude Code under close direction. Quality control on this project: the quarterly pulls were summed and matched to the city's own row count exactly; addresses were cleaned by written rules, with entries that name only a street, park or airport set aside and counted; the timing analysis was rerun on the full record for each address after an exact-match query was found to miss older records stored with doubled spaces; and every number in the text on this page is computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
+    <p class="caution">And please read this AI caution. The question and the choice of source are the author's (a human). The data pull, the code and the page were done by Anthropic's Claude Code under close direction. Quality control on this project: the quarterly pulls were summed and matched to the city's own row count exactly; addresses were cleaned by written rules, with entries that name only a street, park or airport set aside and counted; the timing analysis was rerun on the full record for each address after an exact-match query was found to miss older records stored with doubled spaces; each agency's closing note was sorted into an outcome by written rules, and every note's assignment is published; and every number in the text on this page is computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
     <p><a href="methodology.html">Methodology</a> &middot; <a href="how-i-built-this.html">How I built this</a> &middot; <a href="data/top-5-percent-addresses.csv" download>Download the top 5% of addresses (CSV, 9 MB)</a> &middot; <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9/about_data">Source data</a></p>
   </div>
 </div>
@@ -192,7 +228,7 @@ const CC=i=>tok('c'+i);
 const BORO={M:'Manhattan',X:'the Bronx',K:'Brooklyn',Q:'Queens',R:'Staten Island'};
 const BOROCAP={M:'Manhattan',X:'Bronx',K:'Brooklyn',Q:'Queens',R:'Staten Island'};
 const MONTHS=['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'];
-let S,P,C,step,map,mapReady=false,activeCats=[0,1,2,3,4,5],pinned=null;
+let S,P,C,O,endKey='top_0.01',step,map,mapReady=false,activeCats=[0,1,2,3,4,5],pinned=null;
 
 function mil(n){return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+' million':fmt(n)}
 function pct(x,d){if(d==null)d=x<0.1&&x>0?1:x<0.995?1:0;let s=(x*100).toFixed(d);return s.replace(/\.0$/,'')+'%'}
@@ -390,7 +426,7 @@ function rows(keys){
   return '<div class="list">'+keys.map(([a,z])=>{const i=IDX[a+'|'+z];if(i==null)return '';
     const n=P.n[i],t=P.types[i];
     return `<div class="row" data-i="${i}" role="button" tabindex="0"><i class="sw" style="background:${CC(P.cat[i])}"></i>
-      <span><span class="nm">${prettyAddr(a)}</span><span class="sub">${BOROCAP[P.boro[i]]} ${z} &middot; No. ${fmt(i+1)} &middot; ${pct(t[1]/n,0)} ${prettyType(P.tlabels[t[0]]).toLowerCase()}</span></span>
+      <span><span class="nm">${prettyAddr(a)}</span><span class="sub">${BOROCAP[P.boro[i]]} ${z} &middot; No. ${fmt(i+1)} &middot; ${pct(t[1]/n,0)} ${prettyType(P.tlabels[t[0]]).toLowerCase()}${i<O.per_address.act.length?` &middot; agency action ${pct(O.per_address.act[i],0)} (${pct(O.per_address.exp[i],0)} expected)`:''}</span></span>
       <span class="num">${fmt(n)}${yearBars(P.years[i],98,22)}</span></div>`}).join('')+'</div>';
 }
 let IDX={};
@@ -455,6 +491,53 @@ function renderRun(){
     el.addEventListener('mousemove',e=>showTip(e,`<b>${dateAP(k).replace(/, \d{4}$/,'')}, ${timeAP(k)}</b>${fmt(v)} complaints that hour`));el.addEventListener('mouseleave',hideTip)});
 }
 
+/* ---------- how complaints ended ---------- */
+const OUTORDER=['action','corrected','nothing_found','no_access','duplicate','referred','unclear','open'];
+const OUTLABEL={action:'Agency took action or found a violation',corrected:'Fixed by the time the agency checked',nothing_found:'Agency found nothing to act on',no_access:"Agency couldn't get in or get details",duplicate:'Closed as a duplicate',referred:"Referred elsewhere, or not that agency's job",unclear:'Closing note gives no clear outcome',open:'Still open'};
+function sliceN(k){return k==='top_0.01'?130:1301}
+function renderEnded(){
+  const k=endKey,n=sliceN(k),raw=O.raw[k],exp=O.adjusted_expected[k],cs=O.closed_share;
+  $('#endpick').innerHTML=[['top_0.01','Top 0.01%, 130 addresses'],['top_0.1','Top 0.1%, 1,301 addresses']].map(([key,l])=>`<button class="chip" data-k="${key}" aria-pressed="${key===k}">${l}</button>`).join('');
+  $('#endpick').onclick=e=>{const b=e.target.closest('button');if(b){endKey=b.dataset.k;renderEnded()}};
+  $('#endlede').innerHTML=`Nearly every 311 complaint ends up marked "closed": ${pct(cs['top_0.01'])} at the 130 busiest addresses and ${pct(cs.everyone_else)} everywhere else, so the label says little. The note the agency writes when it closes a complaint says more, such as "took action to fix the condition" or "observed no evidence of the violation." The city used ${fmt(O.notes_per_quarter)} different closing notes in this period, and each was sorted into one of eight outcomes by written rules. Each complaint type at the busiest addresses is compared with the same type everywhere outside the top 0.1%, weighted to match the mix of complaints at the busiest addresses.`;
+  $('#outtitle').textContent=`How complaints at the top ${k==='top_0.01'?'0.01%':'0.1%'} of addresses ended`;
+  const mx=Math.max(...OUTORDER.map(g=>Math.max(raw[g],exp[g])));
+  $('#outbars').innerHTML=OUTORDER.map(g=>`<div class="obar"><span class="lab">${OUTLABEL[g]}</span>
+    <span class="b t"><i style="width:${raw[g]/mx*85}%;background:${tok('fg')}"></i><u>${pct(raw[g])}</u></span>
+    <span class="b"><i style="width:${exp[g]/mx*85}%;background:${tok('fg2')};opacity:.55"></i><u>${pct(exp[g])}</u></span></div>`).join('');
+  const below=O.below_expected[k].below,half=O.below_expected[k].below_half;
+  $('#endtext').innerHTML=`At the ${fmt(n)} busiest addresses, <b>${pct(raw.action)}</b> of complaints ended with the agency taking action or finding a violation. The same kinds of complaints elsewhere would be expected to get there <b>${pct(exp.action)}</b> of the time. Responders found nothing to act on ${pct(raw.nothing_found)} of the time, against an expected ${pct(exp.nothing_found)}. The gap is widest for complaints the police handle, such as residential noise, vehicle noise, drug activity and illegal parking. Repair complaints like plumbing and paint end about the same way they do elsewhere. The gap shows up across most of these addresses: ${fmt(below)} of the ${fmt(n)} got action less often than their own mix of complaints would predict, and ${fmt(half)} got it less than half as often.`;
+  const B=O.batches,b655=B['655 EAST 230 STREET'],b661=B['661 EAST 230 STREET'],b672=B['672 EAST 231 STREET'];
+  const others=['1465 WASHINGTON AVENUE','177 SANDS STREET','1869 83 STREET'].map(a=>B[a]);
+  const none=others.every(x=>x.share_in_batches_10plus===0);
+  $('#batchtext').innerHTML=`Closing times show something about how some complaints were handled. At 655 and 661 East 230th Street in the Bronx, ${(()=>{const a=pct(b655.share_in_batches_10plus,0),b=pct(b661.share_in_batches_10plus,0);return a===b?'about '+a:a+' and '+b+', respectively,'})()} of complaints were closed in batches of 10 or more within the same second, and ${pct(b672.share_in_batches_10plus,0)} at 672 East 231st Street. ${none?'At three other addresses with more than 10,000 residential noise complaints each (1465 Washington Avenue, 177 Sands Street and 1869 83rd Street), none were.':''} That fits one response closing many complaints at once, but the data does not record it.`;
+  $('#dontknow').innerHTML=[
+    ['Whether the problems were real.','"Found nothing to act on" records what responders reported when they arrived or decided. It does not show whether the noise or condition happened.'],
+    ['Whether each complaint got its own response.','The notes often say the agency "responded," but the public data has no record of visits. At addresses that drew complaints every few seconds, it cannot show how many were checked in person.'],
+    ['Why the busiest addresses get less action.','Agencies closing repeat complaints after one visit would produce this pattern. So would complaints about problems that are not there, and problems that stop before anyone arrives. The data cannot separate them.'],
+    ['What "took action" means.','That is the agency\'s own phrase. The data does not say what the action was.'],
+    ['How good the sorting is.',`The eight outcomes come from rules written for this page, and every closing note's assignment can be checked in the download below. Citywide, ${pct(O.unclear_city)} of complaints got a note that says nothing about the outcome, such as a blank or a pointer to an agency website. Those stay in "no clear outcome."`]
+  ].map(([h,t])=>`<li><b>${h}</b> ${t}</li>`).join('');
+  renderDumb();
+}
+function renderDumb(){
+  const k=endKey,box=$('#dumb');if(!box)return;
+  const ts=O.by_type.filter(t=>t['top_0.1']&&t[k]&&(t['top_0.1'].action>0||t.everyone_else.action>0));
+  const W=Math.max(300,box.clientWidth),l=Math.min(170,W*0.42),r=14,rowH=28,top=8,H=top+rowH*ts.length+26;
+  const mx=0.5,x=v=>l+Math.min(v,mx)/mx*(W-l-r);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of complaints that ended in agency action, by complaint type">`;
+  for(let g=0;g<=mx+1e-9;g+=0.1){s+=`<line x1="${x(g)}" x2="${x(g)}" y1="${top}" y2="${H-22}" stroke="${tok('grid')}"/><text x="${x(g)}" y="${H-6}" text-anchor="middle">${Math.round(g*100)}%</text>`}
+  ts.forEach((t,j)=>{const y=top+rowH*j+rowH/2,a=t[k].action,b=t.everyone_else.action;
+    s+=`<text x="${l-10}" y="${y+4}" text-anchor="end" class="lbl">${prettyType(t.type.charAt(0)+t.type.slice(1).toLowerCase()).replace(/^Noise - /,'Noise: ')}</text>`;
+    s+=`<line x1="${x(a)}" x2="${x(b)}" y1="${y}" y2="${y}" stroke="${tok('line')}" stroke-width="3"/>`;
+    s+=`<circle cx="${x(b)}" cy="${y}" r="6" fill="${tok('fg2')}" fill-opacity=".55" data-j="${j}" data-w="e"/><circle cx="${x(a)}" cy="${y}" r="6" fill="${tok('fg')}" stroke="${tok('bg')}" stroke-width="1.5" data-j="${j}" data-w="t"/>`});
+  s+='</svg>';box.innerHTML=s;
+  box.querySelectorAll('circle').forEach(el=>{const t=ts[+el.dataset.j],isT=el.dataset.w==='t',v=isT?t[k]:t.everyone_else,nn=isT?t['n_'+k]:t.n_else;
+    el.addEventListener('mousemove',e=>showTip(e,`<b>${t.type.charAt(0)+t.type.slice(1).toLowerCase()}</b>${isT?'Busiest addresses':'Outside the top 0.1%'}: ${pct(v.action)} action, ${pct(v.nothing_found)} nothing found, ${pct(v.duplicate)} duplicates, of ${fmt(nn)} complaints`));el.addEventListener('mouseleave',hideTip)});
+  const heat=O.by_type.find(t=>t.type==='HEAT/HOT WATER');
+  $('#dumbnote').textContent=`Heat and hot water complaints rarely end in a violation anywhere; at the busiest addresses, ${pct(heat[k].duplicate,0)} were closed as duplicates of a building-wide complaint, against ${pct(heat.everyone_else.duplicate,0)} elsewhere. Helicopter complaints are left out: almost all end with the city's Economic Development Corporation saying the helicopter was not a tour helicopter it oversees.`;
+}
+
 /* ---------- text ---------- */
 function renderText(){
   const i5=S.steps.findIndex(s=>Math.abs(s-0.05)<1e-9),nd=new Date(S.newest);
@@ -474,16 +557,16 @@ function renderText(){
 }
 
 /* ---------- boot ---------- */
-const DATA_VERSION='2026-10-14b'; // change whenever the data files change, so browsers don't pair new code with cached data
-Promise.all(['data/summary.json','data/points.json','data/cadence.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
-.then(([s,p,c])=>{
-  S=s;P=p;C=c;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
+const DATA_VERSION='2026-10-14d'; // change whenever the data files change, so browsers don't pair new code with cached data
+Promise.all(['data/summary.json','data/points.json','data/cadence.json','data/outcomes.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
+.then(([s,p,c,o])=>{
+  S=s;P=p;C=c;O=o;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
   renderText();initControl();initCats();
   setStep(S.steps.findIndex(v=>Math.abs(v-0.05)<1e-9));
-  renderGroups();
+  renderGroups();renderEnded();
   const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&!map){initMap();io.disconnect()}},{rootMargin:'400px'});
   io.observe($('#map'));
-  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{renderWaffles();renderStrip();renderRun()},150)});
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{renderWaffles();renderStrip();renderRun();renderDumb()},150)});
 })
 .catch(err=>{$('#readout').textContent='The data did not load: '+err.message;console.error(err)});
 </script>

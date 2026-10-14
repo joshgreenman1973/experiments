@@ -15,6 +15,9 @@ import build_data as B  # noqa: E402
 K = json.load(open(os.path.join(ROOT, 'build', 'checks.json')))
 S = json.load(open(os.path.join(ROOT, 'data', 'summary.json')))
 C = json.load(open(os.path.join(ROOT, 'data', 'cadence.json')))
+O = json.load(open(os.path.join(ROOT, 'data', 'outcomes.json')))
+sys.path.insert(0, HERE)
+import analyze_outcomes as AO  # noqa: E402
 W = C['windows']
 CAD = {r['address']: r for r in C['addresses']}
 
@@ -167,6 +170,16 @@ def methodology():
 </ul>
 <p>The timing describes when 311 logged a request. A phone that saves requests offline and sends them later could log several in the same second, so same-second pairs are not treated as evidence on their own. Nothing in the public data identifies who filed a complaint or how, beyond the channel field, so the page describes the timing and does not name a cause.</p>
 
+<h2 id="outcomes">How complaints ended</h2>
+<p>A third pull counted every complaint by complaint type, status and <code>resolution_description</code>, the note the agency writes when it closes a complaint: 28 quarterly queries citywide, and 33 queries covering every spelling of the 1,301 busiest addresses (the top 0.1%). Both reconcile with the counts above: {f(O['top_0.01_n'])} complaints at the top 130 addresses and {f(O['top_0.1_n'])} at the top 1,301.</p>
+<p>The status field does not help: {p(O['closed_share']['top_0.01'])} of complaints at the 130 busiest addresses and {p(O['closed_share']['everyone_else'])} everywhere else are marked closed. The city used {f(O['notes_per_quarter'])} different closing notes in the period. Each note was sorted into one outcome by regular-expression rules applied in this order, first match wins; anything not closed is "still open":</p>
+<table class="h"><tr><th>Outcome</th><th>A note goes here if it matches (case ignored)</th></tr>{''.join(f'<tr><td>{html.escape(AO.LABELS[g])}</td><td><code>{html.escape(rx)}</code></td></tr>' for g, rx in AO.RULES)}<tr><td>{html.escape(AO.LABELS['unclear'])}</td><td>everything else, including blank notes</td></tr></table>
+<p>Every note, its outcome and its count are in <a href="data/outcome-rules.csv">data/outcome-rules.csv</a>. Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome.</p>
+<p><b>Comparison.</b> "Everywhere else" is every complaint outside the top 0.1% of addresses, found by subtracting the top addresses' counts from the citywide counts, type by type. The expected share of an outcome at the busiest addresses is the sum, over complaint types, of that type's count at the busiest addresses times the outcome's share for that type everywhere else, divided by the busiest addresses' total. This removes the effect of the busiest addresses having a different mix of complaint types; it does not remove any other difference.</p>
+<p><b>Per address.</b> The same calculation, run for each of the 1,301 busiest addresses, gives its own expected action share. {O['top130_below_expected']} of the top 130 fall below theirs and {O['top130_below_half_expected']} fall below half of it.</p>
+<p><b>Batch closings.</b> For the 22 addresses pulled record by record, complaints are grouped by <code>closed_date</code> to the second; a batch is 10 or more complaints closed in the same second. The share of complaints in batches is {p(O['batches']['655 EAST 230 STREET']['share_in_batches_10plus'])} at 655 East 230th Street, {p(O['batches']['661 EAST 230 STREET']['share_in_batches_10plus'])} at 661 East 230th Street and {p(O['batches']['672 EAST 231 STREET']['share_in_batches_10plus'])} at 672 East 231st Street, and zero at 1465 Washington Avenue, 177 Sands Street and 1869 83rd Street. Heat complaints are often closed in large batches when one building-wide complaint covers many apartments, so batches are not compared for heat.</p>
+<p><b>Not known.</b> The notes are the agencies' own words. The data has no record of visits, so it cannot show whether each complaint got its own response, whether the condition was real or what "took action" consisted of.</p>
+
 <h2>Limits</h2>
 <ul>
 <li>Counts are not adjusted for building size. A large apartment building draws more complaints because more people live there.</li>
@@ -263,6 +276,24 @@ def build_log():
       'Call it a bot, or speculate about the filer.',
       'The page stops short of the tip that the filer is a bot and sticks to what the timing shows.',
       'Claude')}
+{call('Sorting closing notes into outcomes',
+      "Sort the city's closing notes into eight outcomes with written rules, and publish every note with its outcome.",
+      'The status field marks almost everything closed. The notes carry the outcome, but in about 1,260 different wordings.',
+      'Read a sample by hand, or use only the status field.',
+      f"Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome. One note, a promise to keep a location under observation for idling trucks, was moved from action to no clear outcome after review, which lowered the top addresses' action share by less than one point.",
+      "Claude, at Josh's request to add outcomes")}
+{call('What to compare the busiest addresses with',
+      "Compare each complaint type at the busiest addresses with the same type at every address outside the top 0.1%, weighted to the busiest addresses' mix of types.",
+      'Complaint types end differently: heat complaints rarely end in a violation, parking complaints often do. A raw comparison would mostly measure the mix.',
+      'Compare with the citywide average directly.',
+      f"Raw, the citywide action share is {p(O['raw']['city']['action'])}; adjusted for the top 130 addresses' mix, it is {p(O['adjusted_expected']['top_0.01']['action'])}. Their observed share is {p(O['raw']['top_0.01']['action'])} either way.",
+      'Claude')}
+{call('Saying what the data does not show',
+      'Put a list of what the outcomes cannot tell readers next to the findings.',
+      "The notes are the agencies' own words and the data has no visit records, so several natural readings of the gap cannot be tested.",
+      'Leave the caveats to the methodology.',
+      'None on the numbers.',
+      'Josh asked for it')}
 {call('Chart colors',
       'Use the house inks, with a pink in place of lilac and a gray for "everything else."',
       'Lilac and cobalt were too close for readers with normal vision and with red-green color blindness; the swap passed a color-separation check against the black page.',
@@ -283,12 +314,13 @@ def build_log():
 <ul>
 <li>Oct. 14, 2026: first version.</li>
 <li>Oct. 14, 2026: the slider now goes down to the top 0.01% (130 addresses), at Josh's request.</li>
+<li>Oct. 14, 2026: added "How these complaints ended," comparing agencies' closing notes at the busiest addresses with the same complaint types elsewhere, with a list of what the comparison cannot show, at Josh's request.</li>
 </ul>
 
 <h2>What this page does not do</h2>
 <ul>
 <li>It does not adjust for building size or population.</li>
-<li>It does not identify who filed any complaint, or say whether a complaint was valid.</li>
+<li>It does not identify who filed any complaint, or say whether a complaint was valid. The outcome section reports what agencies wrote when they closed complaints, which is not the same thing.</li>
 <li>It does not follow complaints over time beyond the yearly bars and the timing study of 22 addresses.</li>
 <li>It does not cover 311 requests before 2020, which sit in a separate dataset.</li>
 </ul>
