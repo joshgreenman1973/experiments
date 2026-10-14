@@ -474,7 +474,8 @@ function renderText(){
 }
 
 /* ---------- boot ---------- */
-Promise.all(['data/summary.json','data/points.json','data/cadence.json'].map(u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
+const DATA_VERSION='2026-10-14b'; // change whenever the data files change, so browsers don't pair new code with cached data
+Promise.all(['data/summary.json','data/points.json','data/cadence.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
 .then(([s,p,c])=>{
   S=s;P=p;C=c;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
   renderText();initControl();initCats();
