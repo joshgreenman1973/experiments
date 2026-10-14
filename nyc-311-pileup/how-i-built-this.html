@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How I built this: where 311 complaints pile up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+.doc{max-width:820px}
+.doc p,.doc li{max-width:70ch}
+.doc h2{margin-top:34px}
+.doc h3{margin-top:22px}
+.doc code{font-size:.92em;background:var(--bg2);padding:1px 5px}
+.doc table.h{margin:10px 0 18px}
+.call{border-top:1px solid var(--line);padding:14px 0 6px}
+.call h3{margin:0 0 6px}
+.call dl{display:grid;grid-template-columns:120px 1fr;gap:4px 14px;margin:0 0 8px}
+.call dt{font-weight:700;color:var(--fg2);font-size:var(--t-small);padding-top:2px}
+.call dd{margin:0}
+@media(max-width:560px){.call dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span><a href="index.html">Where 311 complaints pile up</a></span><span><a href="methodology.html">Methodology</a></span></div>
+  <div class="sec doc">
+
+<h1>How I built this</h1>
+<p class="lede">Every step from the city's 311 file to <a href="index.html">the page</a>, and every judgment call along the way: what was decided, why, the alternative, what difference it makes and who made the call. Formulas and exact counts are in the <a href="methodology.html">methodology</a>.</p>
+<p class="caution">Who did what. Josh Greenman asked the questions: which 5% (or whatever share made sense) of locations draw the most 311 complaints, what those complaints are and what share of all complaints they make up; then for an interactive infographic; then whether the most prolific filers file too fast to be human. Claude (Anthropic's Claude Code) chose the definitions, pulled and processed the data, wrote the code and the text and ran the checks. Calls marked "Claude" are open to Josh's review.</p>
+
+<h2>The build, step by step</h2>
+<ol>
+<li>Pulled counts of complaints by address, ZIP code and complaint type for each quarter since January 2020 (28 queries) and checked that they add up to the dataset's row count.</li>
+<li>Cleaned addresses, set aside entries with no house number, and ranked 1,301,096 street addresses by complaints.</li>
+<li>Computed the share of complaints held by each slice of addresses, and the mix of complaint types inside each slice.</li>
+<li>Pulled coordinates for every address and every individual record for 22 of the busiest addresses.</li>
+<li>Measured the timing of complaints at those 22 addresses.</li>
+<li>Built the page: two grids of 1,000 squares tied to a slider, category and type charts, a map of the top 5% and an annotated list of the busiest addresses.</li>
+</ol>
+
+<h2>Judgment calls</h2>
+<div class="call"><h3>A location is a street address plus ZIP code</h3><dl><dt>Decision</dt><dd>Rank addresses as 311 records them, after cleanup, keyed by address and ZIP code.</dd><dt>Why</dt><dd>It matches what a reader means by "a location" and needs no outside data.</dd><dt>Alternative</dt><dd>Tax lot (BBL) would merge buildings with several addresses and split nothing; rounded coordinates would merge neighbors.</dd><dt>Effect</dt><dd>A big complex with several street addresses counts as several locations.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Entries without a house number are not ranked</h3><dl><dt>Decision</dt><dd>Set aside 1,243,802 complaints filed under a street name, park or airport (Broadway in one ZIP code, Central Park, JFK) along with 944,278 with no address.</dd><dt>Why</dt><dd>Those entries cover a stretch of street or a whole park, so ranking them beside single buildings mixes different things.</dd><dt>Alternative</dt><dd>Rank them as locations, which the first answer in chat did.</dd><dt>Effect</dt><dd>The top 5% share fell from 55.3% (66,371 addresses, in the first answer in chat) to 51.6% (65,055 addresses). The headline "just over half" holds either way.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Shares use all complaints as the base</h3><dl><dt>Decision</dt><dd>Divide by all 22,788,256 complaints, including the 9.6% with no street address.</dd><dt>Why</dt><dd>Josh asked what share of total complaints the slice accounts for.</dd><dt>Alternative</dt><dd>Divide by complaints that have a street address.</dd><dt>Effect</dt><dd>The top 5% share would be 57.1% instead of 51.6%.</dd><dt>Who decided</dt><dd>Claude, following Josh's wording</dd></dl></div>
+<div class="call"><h3>Address cleanup</h3><dl><dt>Decision</dt><dd>Uppercase, collapse spaces and spell out six abbreviations.</dd><dt>Why</dt><dd>Older records store some addresses with doubled spaces, which would split one building into two.</dd><dt>Alternative</dt><dd>Use the raw strings.</dd><dt>Effect</dt><dd>The abbreviation rule touched 22,924 complaints. The doubled spaces matter more: 655 East 230th Street has 237,208 of its complaints under the doubled-space spelling.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Six categories</h3><dl><dt>Decision</dt><dd>Group complaint types into apartment and building conditions, noise, parking and vehicles, police and street order, streets and sanitation, and everything else.</dd><dt>Why</dt><dd>Readers need a handful of kinds to compare slices; 311 has 261 type names.</dd><dt>Alternative</dt><dd>Group by the agency that handles each type, which puts most noise and parking together under the police.</dd><dt>Effect</dt><dd>Category shares depend on the lists in the methodology.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Default slice of 5%</h3><dl><dt>Decision</dt><dd>Open the page at the top 5% and let readers move the slider from 0.1% to 100%.</dd><dt>Why</dt><dd>Josh suggested 5% "or whatever is the right number." The curve has no natural break, so the slider lets readers pick.</dd><dt>Alternative</dt><dd>Open at 1%, where the top slice holds about 30% of complaints.</dd><dt>Effect</dt><dd>None on the numbers.</dd><dt>Who decided</dt><dd>Josh (5%), Claude (the slider)</dd></dl></div>
+<div class="call"><h3>Map coordinates</h3><dl><dt>Decision</dt><dd>Use each address's coordinates from the quarter with the most located complaints.</dd><dt>Why</dt><dd>The geocoder sometimes places one address in two spots; an average could fall between them.</dd><dt>Alternative</dt><dd>Average all coordinates.</dd><dt>Effect</dt><dd>2,290 of the top 5% have quarterly points more than 100 meters apart.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Naming addresses</h3><dl><dt>Decision</dt><dd>Show and name the busiest addresses, including private homes.</dd><dt>Why</dt><dd>They are published in the city's open data, and the timing findings depend on them. The page says these are complaints filed, not problems found, and that the data does not identify filers.</dd><dt>Alternative</dt><dd>Show only counts by neighborhood.</dd><dt>Effect</dt><dd>Readers can find a specific building. Josh should review this call before the page is shared widely.</dd><dt>Who decided</dt><dd>Claude, flagged for review</dd></dl></div>
+<div class="call"><h3>How to describe the fastest filing</h3><dl><dt>Decision</dt><dd>Say the timing "looks automated" and give the measurements; say nothing about who files or why.</dd><dt>Why</dt><dd>Hours of complaints at an even 172 an hour and nights of gaps of 38 seconds are hard to square with a person filing by hand, but the data cannot show what tool or person is behind them.</dd><dt>Alternative</dt><dd>Call it a bot, or speculate about the filer.</dd><dt>Effect</dt><dd>The page stops short of the tip that the filer is a bot and sticks to what the timing shows.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+<div class="call"><h3>Chart colors</h3><dl><dt>Decision</dt><dd>Use the house inks, with a pink in place of lilac and a gray for "everything else."</dd><dt>Why</dt><dd>Lilac and cobalt were too close for readers with normal vision and with red-green color blindness; the swap passed a color-separation check against the black page.</dd><dt>Alternative</dt><dd>Keep lilac.</dd><dt>Effect</dt><dd>None on the numbers.</dd><dt>Who decided</dt><dd>Claude</dd></dl></div>
+
+<h2>How the numbers were checked</h2>
+<ul>
+<li>The 28 quarterly pulls sum to 22,788,256, equal to the dataset's own count of 22,788,256.</li>
+<li>The concentration figures were computed twice: once in the first analysis in chat and again in the page build, with matching results before the house-number rule was added.</li>
+<li>The first record-level pull returned 4,522 complaints for 655 East 230th Street, against 241,730 in the counts. The cause was the doubled-space spelling; the pull was rewritten to match every spelling, and the record counts now match the aggregate counts for all 22 addresses.</li>
+<li>Group facts quoted on the page (distances between addresses, totals, years) were checked against the built data, and the page computes its numbers from the data files rather than typing them in.</li>
+<li>The page's script was syntax-checked, and the page was loaded and clicked through at desktop and phone widths.</li>
+</ul>
+
+<h2>Change log</h2>
+<ul>
+<li>Oct. 14, 2026: first version.</li>
+</ul>
+
+<h2>What this page does not do</h2>
+<ul>
+<li>It does not adjust for building size or population.</li>
+<li>It does not identify who filed any complaint, or say whether a complaint was valid.</li>
+<li>It does not follow complaints over time beyond the yearly bars and the timing study of 22 addresses.</li>
+<li>It does not cover 311 requests before 2020, which sit in a separate dataset.</li>
+</ul>
+  </div>
+</div>
+</body>
+</html>

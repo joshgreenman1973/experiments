@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where 311 complaints pile up</title>
+<meta name="description" content="One in 20 New York City addresses accounts for just over half of all 311 complaints since 2020. Pick a slice of addresses, see what fills it, map it and look at how fast complaints arrive at the very top.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{
+  --accent:var(--fg);
+  /* category inks; checked for color-blind separation against the black ground */
+  --c0:var(--vermilion); --c1:var(--sun); --c2:var(--cobalt); --c3:#ea8fe0; --c4:var(--mint); --c5:#8a8f89;
+  --rest:#343934;
+}
+[hidden]{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+
+/* the linked block: a control bar that follows the reader through three sections */
+.ctl{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line2);
+  padding:10px clamp(16px,4vw,48px);display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.ctl label{font-weight:700;font-size:15px}
+.ctl .say{font-size:15px;color:var(--fg2);min-width:16ch}
+.ctl .say b{color:var(--fg)}
+.ctl .presets{display:flex;gap:6px;flex-wrap:wrap}
+.ctl .chip{padding:5px 9px}
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;width:min(360px,100%);height:28px;margin:0;flex:1 1 220px;max-width:420px}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:22px;background:var(--fg);border:0;margin-top:-10px;cursor:pointer}
+input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);border:0;border-radius:0;cursor:pointer}
+
+/* waffles */
+.waffles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px 44px;margin-top:6px}
+@media(max-width:700px){.waffles{grid-template-columns:1fr}}
+.waffles figure{margin:0}
+.waffles figcaption{font-size:var(--t-small);color:var(--fg2);margin:0 0 8px}
+.waffles figcaption b{color:var(--fg);font-size:15px}
+.readout{font-size:var(--t-find);font-family:var(--display);font-variation-settings:'wdth' 88;line-height:1.3;max-width:52ch;margin-top:16px}
+.readout b{color:var(--fg)}
+.key i.o{background:transparent!important;border:1px solid var(--fg2)}
+
+/* mix */
+.stack{display:flex;height:30px;margin:6px 0 4px;gap:2px}
+.stack span{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#111311;overflow:hidden;white-space:nowrap;min-width:0}
+.stacklbl{font-size:var(--t-small);color:var(--fg2);margin-top:14px}
+.stacklbl b{color:var(--fg)}
+.ttype{display:grid;grid-template-columns:minmax(0,15em) minmax(0,1fr) 3.4em;gap:10px;align-items:center;padding:4px 0;font-size:15px}
+.ttype .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttype i{display:block;height:12px}
+.ttype u{text-decoration:none;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+#strip svg{display:block;width:100%;height:auto;overflow:visible}
+#strip text{font-family:var(--sans);fill:var(--fg2);font-size:13px}
+#strip .lbl{fill:var(--fg);font-weight:600}
+.tip{position:fixed;z-index:1000;pointer-events:none;background:var(--bg);border:1px solid var(--line);padding:7px 10px;font-size:14px;max-width:300px;display:none;line-height:1.4}
+.tip b{display:block}
+
+/* map */
+.mapsec{border-top:1px solid var(--line2);margin-top:12px;scroll-margin-top:72px}
+@media(max-width:700px){.mapsec{scroll-margin-top:140px}}
+#map{height:72vh;min-height:480px;background:var(--bg2)}
+.maplibregl-ctrl-group{border-radius:0;box-shadow:none;border:1px solid var(--line);background:var(--bg2)}
+.maplibregl-ctrl-group button{border-radius:0}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line)}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
+.maplibregl-ctrl-attrib,.maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(17,19,17,.85);color:var(--fg2)}
+.maplibregl-ctrl-attrib a{color:var(--fg2)}
+.maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-popup-content{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:0;padding:9px 12px;font-family:var(--sans);font-size:14px;box-shadow:none;max-width:290px}
+.maplibregl-popup-tip{display:none}
+.maplibregl-popup-close-button{color:var(--fg2);font-size:18px}
+.pop b{font-family:var(--display);font-variation-settings:'wdth' 88;font-size:1.05rem;display:block;line-height:1.2;padding-right:14px}
+.pop .m{color:var(--fg2);font-size:13px;margin:2px 0 6px}
+.pop .t{display:flex;justify-content:space-between;gap:10px}
+.pop .t span:last-child{font-variant-numeric:tabular-nums;color:var(--fg2)}
+.pop svg{display:block;margin-top:8px}
+.catrow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:0 clamp(16px,4vw,48px) 12px}
+.catrow .chip{display:inline-flex;align-items:center;gap:7px}
+.catrow .chip i{width:10px;height:10px;display:inline-block}
+.catrow .chip[aria-pressed=true]{background:transparent;color:var(--fg);border-color:var(--line)}
+.catrow .chip[aria-pressed=true]:hover{border-color:var(--fg)}
+.catrow .chip[aria-pressed=false]{opacity:.5}
+.catrow .chip[aria-pressed=false] i{background:transparent!important;border:1.5px solid var(--fg2)}
+.mapnote{font-size:var(--t-small);color:var(--fg2);padding:8px clamp(16px,4vw,48px) 0}
+
+/* the top of the list */
+.grp{margin:34px 0 0;max-width:980px}
+.grp p{max-width:68ch;margin:0 0 12px}
+.grp .list{margin-top:8px}
+.list .row{cursor:pointer}
+.list .row:hover .nm{text-decoration:underline;text-decoration-color:var(--fg2);text-underline-offset:3px}
+.list .num{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.list .num svg{display:block}
+.runfig{margin:6px 0 16px}
+.runfig .figcap{margin-bottom:4px}
+#runchart svg{display:block;width:100%;height:auto}
+#runchart text{font-family:var(--sans);fill:var(--fg2);font-size:12px}
+.fine{font-size:var(--t-small);color:var(--fg2)}
+.notes p{max-width:68ch}
+.notes h3{margin-top:22px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip">
+    <span>New York City Open Data &middot; 311 Service Requests from 2020 to Present</span>
+    <span id="range">Jan. 1, 2020, to Oct. 13, 2026</span>
+  </div>
+  <header class="head">
+    <h1>Where 311 complaints pile up</h1>
+    <p class="finding" id="finding">One in 20 New York City addresses accounts for just over half of all 311 complaints since 2020.</p>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <div id="linked">
+    <div class="ctl" role="group" aria-label="Choose the slice of addresses">
+      <label for="cut">Top</label>
+      <input type="range" id="cut" min="0" max="189" step="1" aria-describedby="say">
+      <span class="say" id="say"></span>
+      <span class="presets" id="presets"></span>
+    </div>
+
+    <section class="fig" id="pick" aria-label="Addresses and complaints, as two grids of 1,000 squares">
+      <p class="figcap"><span id="pickcap"></span></p>
+      <div class="waffles">
+        <figure><figcaption><b>Addresses</b>, most complaints first</figcaption><canvas id="wA" role="img"></canvas></figure>
+        <figure><figcaption><b>Complaints</b>, by kind</figcaption><canvas id="wC" role="img"></canvas></figure>
+      </div>
+      <p class="readout" id="readout" aria-live="polite"></p>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="sec" id="mix">
+      <h2>What fills the slice</h2>
+      <p class="aside" id="mixlede"></p>
+      <div class="split">
+        <div>
+          <h4>Kinds of complaints</h4>
+          <div id="bars"></div>
+        </div>
+        <div>
+          <h4 id="toptitle">The biggest complaint types in the slice</h4>
+          <div id="toptypes"></div>
+        </div>
+      </div>
+      <h3 style="margin-top:38px">Some complaints pile up more than others</h3>
+      <p class="aside" id="striplede"></p>
+      <div id="strip"></div>
+      <p class="fine" id="stripnote"></p>
+    </section>
+
+    <section class="mapsec" id="mapsec">
+      <div class="sec" style="padding-bottom:12px">
+        <h2>Where they are</h2>
+        <p class="aside" id="maplede"></p>
+      </div>
+      <div class="catrow" id="catrow"></div>
+      <div id="map" aria-label="Map of the addresses with the most 311 complaints"></div>
+      <p class="mapnote" id="mapnote"></p>
+    </section>
+  </div>
+
+  <section class="sec" id="top">
+    <h2>The top of the list</h2>
+    <p class="aside">Most of the busiest addresses get one kind of complaint over and over. The city's public 311 data does not say who files a complaint, so these counts say how often an address was named, not how many people named it. For the busiest ones, the timing of each complaint says something about how they were filed. Select an address to find it on the map.</p>
+    <div id="groups"></div>
+  </section>
+
+  <section class="sec notes" id="notes">
+    <h2>What this counts</h2>
+    <div id="notetext"></div>
+  </section>
+
+  <div class="foot">
+    <p class="caution">And please read this AI caution. The question and the choice of source are the author's (a human). The data pull, the code and the page were done by Anthropic's Claude Code under close direction. Quality control on this project: the quarterly pulls were summed and matched to the city's own row count exactly; addresses were cleaned by written rules, with entries that name only a street, park or airport set aside and counted; the timing analysis was rerun on the full record for each address after an exact-match query was found to miss older records stored with doubled spaces; and every number in the text on this page is computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
+    <p><a href="methodology.html">Methodology</a> &middot; <a href="how-i-built-this.html">How I built this</a> &middot; <a href="data/top-5-percent-addresses.csv" download>Download the top 5% of addresses (CSV, 9 MB)</a> &middot; <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9/about_data">Source data</a></p>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
+const CC=i=>tok('c'+i);
+const BORO={M:'Manhattan',X:'the Bronx',K:'Brooklyn',Q:'Queens',R:'Staten Island'};
+const BOROCAP={M:'Manhattan',X:'Bronx',K:'Brooklyn',Q:'Queens',R:'Staten Island'};
+const MONTHS=['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'];
+let S,P,C,step,map,mapReady=false,activeCats=[0,1,2,3,4,5],pinned=null;
+
+function mil(n){return n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,'')+' million':fmt(n)}
+function pct(x,d){if(d==null)d=x<0.1&&x>0?1:x<0.995?1:0;let s=(x*100).toFixed(d);return s.replace(/\.0$/,'')+'%'}
+function cutLabel(p){return (p*100).toFixed(p<0.1?1:0).replace(/\.0$/,'')+'%'}
+function words(n){return n>=0&&n<10&&n===Math.round(n)?['zero','one','two','three','four','five','six','seven','eight','nine'][n]:fmt(n)}
+function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
+function prettyAddr(a){
+  const w=a.toLowerCase().split(' ');const small=new Set(['of','the','and']);
+  return w.map((x,j)=>{
+    if(/^\d+$/.test(x)&&j>0&&/^(street|avenue|road|place|drive|lane|terrace|court)$/.test(w[j+1]||''))return ord(+x);
+    if(/^\d/.test(x))return x.toUpperCase();
+    if(x==='st'&&j<w.length-1)return 'St.';
+    if(j>0&&small.has(x))return x;
+    return x.charAt(0).toUpperCase()+x.slice(1);
+  }).join(' ');
+}
+function prettyType(t){return t===t.toUpperCase()?t.charAt(0)+t.slice(1).toLowerCase():t}
+function dateAP(s){const d=new Date(s.length===10?s+'T00:00:00':s.replace(' ','T'));return MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()}
+function timeAP(s){const d=new Date(s.replace(' ','T'));let h=d.getHours(),m=d.getMinutes();const ap=h<12?'a.m.':'p.m.';h=h%12||12;return h+(m?':'+String(m).padStart(2,'0'):'')+' '+ap}
+
+/* ---------- waffles ---------- */
+const COLS=40,ROWS=25;
+function drawWaffle(cv,cells,label){
+  const W=cv.parentElement.clientWidth, gap=W<420?1.5:2;
+  const cell=(W-gap*(COLS-1))/COLS, H=ROWS*cell+(ROWS-1)*gap, dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cv.style.width=W+'px';cv.style.height=H+'px';
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const fg2=tok('fg2');
+  for(let i=0;i<1000;i++){
+    const x=(i%COLS)*(cell+gap), y=Math.floor(i/COLS)*(cell+gap), c=cells[i];
+    if(c==='outline'){g.strokeStyle=fg2;g.lineWidth=1;g.strokeRect(x+.5,y+.5,cell-1,cell-1)}
+    else{g.fillStyle=c;g.fillRect(x,y,cell,cell)}
+  }
+  cv.setAttribute('aria-label',label);
+}
+function largestRemainder(vals,total){
+  const sum=vals.reduce((a,b)=>a+b,0);if(!sum)return vals.map(()=>0);
+  const raw=vals.map(v=>v/sum*total),fl=raw.map(Math.floor);let left=total-fl.reduce((a,b)=>a+b,0);
+  raw.map((r,i)=>[r-fl[i],i]).sort((a,b)=>b[0]-a[0]).slice(0,left).forEach(([,i])=>fl[i]++);return fl;
+}
+function renderWaffles(){
+  const i=step,p=S.steps[i],share=S.cum[i]/S.total;
+  const aSq=Math.round(p*1000), unSq=Math.round(S.unplaced/S.total*1000);
+  let cSq=Math.min(Math.round(share*1000),1000-unSq);
+  const A=[];for(let j=0;j<1000;j++)A.push(j<aSq?tok('fg'):tok('rest'));
+  const per=largestRemainder(S.cat_cum.map(c=>c[i]),cSq);
+  const Cc=[];per.forEach((n,c)=>{for(let j=0;j<n;j++)Cc.push(CC(c))});
+  while(Cc.length<1000-unSq)Cc.push(tok('rest'));while(Cc.length<1000)Cc.push('outline');
+  drawWaffle($('#wA'),A,`${aSq} of 1,000 squares lit: the top ${cutLabel(p)} of addresses`);
+  drawWaffle($('#wC'),Cc,`${cSq} of 1,000 squares lit: the share of complaints at those addresses`);
+}
+
+/* ---------- linked control ---------- */
+function setStep(i){
+  step=Math.max(0,Math.min(S.steps.length-1,i));$('#cut').value=step;
+  const p=S.steps[step],k=S.k[step],share=S.cum[step]/S.total;
+  $('#say').innerHTML=`<b>${cutLabel(p)}</b> of addresses &rarr; <b>${pct(share)}</b> of complaints`;
+  document.querySelectorAll('#presets .chip').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.i===step));
+  if(p<1){
+    $('#readout').innerHTML=`The top <b>${cutLabel(p)}</b> of addresses, ${fmt(k)} places with at least ${words(S.min[step])} complaints each, account for <b>${pct(share)}</b> of all 311 complaints: ${mil(S.cum[step])} of ${mil(S.total)}.`;
+  }else{
+    $('#readout').innerHTML=`All ${fmt(k)} addresses together account for <b>${pct(share)}</b> of complaints. The other ${pct(S.unplaced/S.total)} have no street address.`;
+  }
+  renderWaffles();renderMix();renderStrip();filterMap();
+}
+function initControl(){
+  const presets=[0.001,0.01,0.05,0.1,0.25,0.5];
+  $('#presets').innerHTML=presets.map(p=>{const i=S.steps.findIndex(s=>Math.abs(s-p)<1e-9);return `<button class="chip" data-i="${i}" aria-pressed="false">${cutLabel(p)}</button>`}).join('');
+  $('#presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setStep(+b.dataset.i)});
+  $('#cut').max=S.steps.length-1;
+  $('#cut').addEventListener('input',e=>setStep(+e.target.value));
+}
+
+/* ---------- mix ---------- */
+function renderMix(){
+  const i=step,p=S.steps[i],sl=S.cum[i],restTot=S.total-S.unplaced-sl;
+  const sliceSh=S.cats.map((c,j)=>S.cat_cum[j][i]/sl);
+  const restSh=S.cats.map((c,j)=>restTot>0?(c.total-c.unplaced-S.cat_cum[j][i])/restTot:0);
+  const bar=sh=>`<div class="stack">${sh.map((v,j)=>v>0?`<span style="flex:${v} 1 0;background:${CC(j)}" title="${S.cats[j].label}: ${pct(v)}">${v>=0.07?pct(v,0):''}</span>`:'').join('')}</div>`;
+  let h=`<div class="stacklbl"><b>Top ${cutLabel(p)} of addresses</b>, ${mil(sl)} complaints</div>${bar(sliceSh)}`;
+  if(restTot>0)h+=`<div class="stacklbl"><b>Every other address</b>, ${mil(restTot)} complaints</div>${bar(restSh)}`;
+  h+=`<div class="legend">${S.cats.map((c,j)=>`<span class="key"><i style="background:${CC(j)}"></i>${c.label}</span>`).join('')}</div>`;
+  $('#bars').innerHTML=h;
+  const b=S.cats.findIndex(c=>c.key==='building'),n=S.cats.findIndex(c=>c.key==='noise'),v=S.cats.findIndex(c=>c.key==='vehicles'),st=S.cats.findIndex(c=>c.key==='streets');
+  $('#mixlede').textContent=restTot>0
+    ?`At the top ${cutLabel(p)} of addresses, apartment and building conditions make up ${pct(sliceSh[b],0)} of complaints and noise ${pct(sliceSh[n],0)}. At every other address, those shares are ${pct(restSh[b],0)} and ${pct(restSh[n],0)}. Parking and vehicles are ${pct(sliceSh[v],0)} at the top and ${pct(restSh[v],0)} everywhere else; streets, sanitation and trees are ${pct(sliceSh[st],0)} and ${pct(restSh[st],0)}.`
+    :`Across every address, apartment and building conditions make up ${pct(sliceSh[b],0)} of complaints and noise ${pct(sliceSh[n],0)}.`;
+  const tt=S.types.map(t=>({l:t.label,c:t.cat,v:t.cum[i]})).sort((a,b)=>b.v-a.v).slice(0,10);
+  const mx=tt[0].v;
+  $('#toptitle').textContent=`The 10 biggest complaint types in the top ${cutLabel(p)}`;
+  $('#toptypes').innerHTML=tt.map(t=>`<div class="ttype"><span class="nm" title="${prettyType(t.l)}">${prettyType(t.l)}</span><i style="width:${t.v/mx*100}%;background:${CC(t.c)}"></i><u>${pct(t.v/sl)}</u></div>`).join('')+
+    `<p class="fine">Share of the slice's complaints. Complaint types are 311's own names.</p>`;
+}
+
+/* ---------- concentration strip ---------- */
+function renderStrip(){
+  const i=step,p=S.steps[i],ref=S.cum[i]/S.total;
+  const box=$('#strip'),W=Math.max(320,box.clientWidth),narrow=W<640;
+  const left=narrow?8:250,right=16,rowH=narrow?66:50,top=26,H=top+rowH*S.cats.length+30;
+  const x=v=>left+v*(W-left-right);
+  const maxT=Math.max(...S.types.map(t=>t.total));
+  const r=t=>2.5+Math.sqrt(t/maxT)*15;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of each complaint type that comes from the top ${cutLabel(p)} of addresses">`;
+  for(let g=0;g<=1.0001;g+=0.25){s+=`<line x1="${x(g)}" x2="${x(g)}" y1="${top-6}" y2="${H-24}" stroke="${tok('grid')}"/>`;
+    s+=`<text x="${x(g)}" y="${H-6}" text-anchor="middle">${g*100}%</text>`}
+  s+=`<line x1="${x(ref)}" x2="${x(ref)}" y1="${top-14}" y2="${H-24}" stroke="${tok('fg')}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+  s+=`<text x="${x(ref)}" y="${top-18}" text-anchor="${ref>0.8?'end':'start'}" style="fill:${tok('fg')}">all complaints: ${pct(ref)}</text>`;
+  S.cats.forEach((c,j)=>{
+    const cy=top+rowH*j+rowH/2+(narrow?12:0);
+    s+=narrow?`<text x="${left}" y="${cy-24}">${c.label}</text>`:`<text x="${left-14}" y="${cy+4}" text-anchor="end">${c.label}</text>`;
+    const ts=S.types.map((t,k)=>({t,k,v:t.cum[i]/t.total})).filter(o=>o.t.cat===j).sort((a,b)=>b.t.total-a.t.total);
+    ts.slice().reverse().forEach(o=>{s+=`<circle cx="${x(o.v)}" cy="${cy}" r="${r(o.t.total)}" fill="${CC(j)}" fill-opacity=".85" stroke="${tok('bg')}" stroke-width="1.5" data-k="${o.k}"/>`});
+  });
+  s+='</svg>';box.innerHTML=s;
+  box.querySelectorAll('circle').forEach(el=>{
+    const t=S.types[+el.dataset.k];
+    el.addEventListener('mousemove',e=>showTip(e,`<b>${prettyType(t.label)}</b>${pct(t.cum[step]/t.total,0)} of ${mil(t.total)} complaints came from the top ${cutLabel(S.steps[step])} of addresses`));
+    el.addEventListener('mouseleave',hideTip);
+  });
+  const all=S.types.map(t=>({l:prettyType(t.label),v:t.cum[i]/t.total})).sort((a,b)=>b.v-a.v);
+  const hi=all.slice(0,4).map(o=>`${o.l.toLowerCase()} (${pct(o.v,0)})`).join(', ');
+  const lo=all.slice(-4).reverse().map(o=>`${o.l.toLowerCase()} (${pct(o.v,0)})`).join(', ');
+  $('#striplede').textContent=`Each dot is a complaint type with at least 40,000 complaints since 2020, sized by how many there are. Its position shows how much of that type comes from the top ${cutLabel(p)} of addresses. The dashed line is the slice's share of all complaints; types to its right are more concentrated than the average.`;
+  $('#stripnote').textContent=p<1?`Most concentrated: ${hi}. Least: ${lo}. Types that 311 mostly logs without a street address, like traffic signals, sit near zero at any slice.`:'';
+}
+function showTip(e,html){const t=$('#tip');t.innerHTML=html;t.style.display='block';
+  const x=Math.min(e.clientX+14,window.innerWidth-t.offsetWidth-8),y=Math.min(e.clientY+14,window.innerHeight-t.offsetHeight-8);t.style.left=x+'px';t.style.top=y+'px'}
+function hideTip(){$('#tip').style.display='none'}
+
+/* ---------- map ---------- */
+function yearBars(ys,w,h){
+  const mx=Math.max(1,...ys),bw=w/ys.length;
+  let s=`<svg width="${w}" height="${h+14}" aria-hidden="true">`;
+  ys.forEach((v,j)=>{const bh=v/mx*h;s+=`<rect x="${j*bw+1}" y="${h-bh}" width="${bw-2}" height="${bh}" fill="${j===ys.length-1?tok('fg2'):tok('fg')}"/>`});
+  s+=`<text x="0" y="${h+12}" fill="${tok('fg2')}" font-size="11" font-family="Karla">${P.ylabels[0]}</text><text x="${w}" y="${h+12}" text-anchor="end" fill="${tok('fg2')}" font-size="11" font-family="Karla">${P.ylabels[P.ylabels.length-1]}*</text></svg>`;
+  return s;
+}
+function popHTML(i){
+  const n=P.n[i],t=P.types[i];let rows='';
+  for(let j=0;j<t.length;j+=2)rows+=`<div class="t"><span>${prettyType(P.tlabels[t[j]])}</span><span>${pct(t[j+1]/n,0)}</span></div>`;
+  return `<div class="pop"><b>${prettyAddr(P.addr[i])}</b><div class="m">${BOROCAP[P.boro[i]]||''} ${P.zip[i]} &middot; No. ${fmt(i+1)} of ${fmt(S.locations)} &middot; ${fmt(n)} complaints</div>${rows}${P.ntypes[i]>3?`<div class="m" style="margin:4px 0 0">and ${P.ntypes[i]-3} other type${P.ntypes[i]-3>1?'s':''}</div>`:''}${yearBars(P.years[i],140,34)}<div class="m" style="margin:2px 0 0">Complaints a year. *2026 through Oct. 13.</div></div>`;
+}
+function initMap(){
+  const feats=[];
+  for(let i=0;i<P.n.length;i++){if(P.lat[i]==null)continue;
+    feats.push({type:'Feature',geometry:{type:'Point',coordinates:[P.lon[i]/1e5,P.lat[i]/1e5]},properties:{i,n:P.n[i],c:P.cat[i],r:i+1}})}
+  map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    bounds:[[-74.26,40.49],[-73.69,40.92]],fitBoundsOptions:{padding:10},minZoom:8,maxZoom:18,attributionControl:{compact:true},cooperativeGestures:window.matchMedia('(pointer:coarse)').matches});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  map.on('load',()=>{
+    map.addSource('pts',{type:'geojson',data:{type:'FeatureCollection',features:feats}});
+    const col=['match',['get','c']];for(let c=0;c<6;c++)col.push(c,CC(c));col.push('#ffffff');
+    const rad=z=>['interpolate',['linear'],['sqrt',['get','n']],7,z*0.9,30,z*2,100,z*5,500,z*14];
+    map.addLayer({id:'pts',type:'circle',source:'pts',paint:{
+      'circle-color':col,'circle-opacity':0.78,
+      'circle-radius':['interpolate',['linear'],['zoom'],10,rad(1),13,rad(1.8),16,rad(3)],
+      'circle-stroke-color':tok('bg'),'circle-stroke-width':['interpolate',['linear'],['zoom'],10,0,13,0.6]},
+      layout:{'circle-sort-key':['-',0,['get','n']]}});
+    mapReady=true;filterMap();
+    const pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:8,maxWidth:'300px'});
+    map.on('mousemove','pts',e=>{map.getCanvas().style.cursor='pointer';const f=e.features[0];pop.setLngLat(f.geometry.coordinates).setHTML(popHTML(f.properties.i)).addTo(map)});
+    map.on('mouseleave','pts',()=>{map.getCanvas().style.cursor='';pop.remove()});
+    map.on('click','pts',e=>{const f=e.features[0];if(pinned)pinned.remove();pinned=new maplibregl.Popup({offset:8,maxWidth:'300px'}).setLngLat(f.geometry.coordinates).setHTML(popHTML(f.properties.i)).addTo(map)});
+  });
+}
+function filterMap(){
+  const kMax=S.top_k,k=Math.min(S.k[step],kMax),p=S.steps[step];
+  const shown=p<=S.top_share+1e-9;
+  $('#maplede').innerHTML=shown
+    ?`Each dot is one of the ${fmt(k)} addresses in the top ${cutLabel(p)}. Size shows complaints since 2020; color shows the kind of complaint each address gets most. Hover or tap a dot for its details.`
+    :`The map stops at the top 5%, the ${fmt(kMax)} addresses with at least ${fmt(S.min[S.steps.findIndex(s=>Math.abs(s-S.top_share)<1e-9)])} complaints each. Size shows complaints since 2020; color shows the kind of complaint each address gets most.`;
+  if(!mapReady)return;
+  map.setFilter('pts',['all',['<=',['get','r'],k],['in',['get','c'],['literal',activeCats]]]);
+}
+function initCats(){
+  $('#catrow').innerHTML=S.cats.map((c,j)=>`<button class="chip" data-c="${j}" aria-pressed="true"><i style="background:${CC(j)}"></i>${c.label}</button>`).join('');
+  $('#catrow').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);
+    activeCats=[...document.querySelectorAll('#catrow .chip')].filter(x=>x.getAttribute('aria-pressed')==='true').map(x=>+x.dataset.c);filterMap()});
+  const miss=P.lat.filter(v=>v==null).length;
+  $('#mapnote').textContent=miss?`${fmt(miss)} of the ${fmt(S.top_k)} addresses ${miss===1?'has':'have'} no coordinates in the 311 data and ${miss===1?'is':'are'} not drawn.`:'';
+}
+function focusAddr(i){
+  $('#mapsec').scrollIntoView({behavior:'smooth',block:'start'});
+  if(S.k[step]<i+1){const j=S.steps.findIndex((s,k)=>S.k[k]>=i+1);if(j>=0&&S.steps[j]<=S.top_share)setStep(j)}
+  const go=()=>{map.flyTo({center:[P.lon[i]/1e5,P.lat[i]/1e5],zoom:16,speed:1.4});
+    if(pinned)pinned.remove();pinned=new maplibregl.Popup({offset:8,maxWidth:'300px'}).setLngLat([P.lon[i]/1e5,P.lat[i]/1e5]).setHTML(popHTML(i)).addTo(map)};
+  if(mapReady)go();else{const t=setInterval(()=>{if(mapReady){clearInterval(t);go()}},200)}
+}
+
+/* ---------- the top of the list ---------- */
+function rows(keys){
+  return '<div class="list">'+keys.map(([a,z])=>{const i=IDX[a+'|'+z];if(i==null)return '';
+    const n=P.n[i],t=P.types[i];
+    return `<div class="row" data-i="${i}" role="button" tabindex="0"><i class="sw" style="background:${CC(P.cat[i])}"></i>
+      <span><span class="nm">${prettyAddr(a)}</span><span class="sub">${BOROCAP[P.boro[i]]} ${z} &middot; No. ${fmt(i+1)} &middot; ${pct(t[1]/n,0)} ${prettyType(P.tlabels[t[0]]).toLowerCase()}</span></span>
+      <span class="num">${fmt(n)}${yearBars(P.years[i],98,22)}</span></div>`}).join('')+'</div>';
+}
+let IDX={};
+function groupTotal(keys){return keys.reduce((s,[a,z])=>s+(P.n[IDX[a+'|'+z]]||0),0)}
+function cad(a){return C.addresses.find(r=>r.address===a)}
+function renderGroups(){
+  const W=C.windows;
+  const wake=[['655 EAST 230 STREET','10466'],['672 EAST 231 STREET','10466'],['674 EAST 231 STREET','10466'],['661 EAST 230 STREET','10466']];
+  const qns=[['78-15 PARSONS BOULEVARD','11366'],['82-68 164 STREET','11432'],['159-06 UNION TURNPIKE','11366'],['158-33 78 AVENUE','11366'],['71-01 PARSONS BOULEVARD','11365']];
+  const park=[['5-47 50 AVENUE','11101'],['191 UNION STREET','11231'],['100 MESEROLE AVENUE','11222'],['34-16 ASTORIA BOULEVARD SOUTH','11103'],['298 CLASSON AVENUE','11205'],['301 GOLD STREET','11201']];
+  const heli=[['18-11 129 STREET','11356'],['88-08 151 AVENUE','11414'],['88-12 151 AVENUE','11414']];
+  const heat=[['2176 TIEBOUT AVENUE','10457'],['31-35 CRESCENT STREET','11106'],['1040B EAST 217 STREET','10469'],['2040 BRONXDALE AVENUE','10462'],['76 ST NICHOLAS PLACE','10032']];
+  const parks=[['1000 5 AVENUE','10028'],['95 PROSPECT PARK WEST','11215']];
+  const a655=cad('655 EAST 230 STREET'),a672=cad('672 EAST 231 STREET');
+  const wt=groupTotal(wake),pl=W.bronx_plateau,on=W.bronx_overnight,il=W.bronx_interleave_2025;
+  const qt=groupTotal(qns),qh=W.queens_hours,ph=W.parking_hours;
+  const qFast=W.queens_interleave.reduce((s,r)=>s+r.switches_under_10s,0);
+  const parkCad=['5-47 50 AVENUE','191 UNION STREET','100 MESEROLE AVENUE','34-16 ASTORIA BOULEVARD SOUTH'].map(cad);
+  const pm=parkCad.map(r=>r.median_gap_min),pSw=W.parking_interleave.reduce((s,r)=>s+r.switches,0),pSw60=W.parking_interleave.reduce((s,r)=>s+r.switches_under_60s,0);
+  const heliCad=heli.map(([a])=>cad(a)),hm=heliCad.map(r=>r.median_gap_min);
+  const heliType=S.types.find(t=>t.label==='Noise - Helicopter');
+  const heliN=heli.reduce((s,[a,z])=>{const i=IDX[a+'|'+z],t=P.types[i];let v=0;for(let j=0;j<t.length;j+=2)if(P.tlabels[t[j]]==='Noise - Helicopter')v+=t[j+1];return s+v},0);
+  const sum=(a,b,c)=>a.slice(b,c).reduce((s,v)=>s+v,0);
+  let h='';
+  h+=`<div class="grp"><h3>One block in the Bronx</h3>
+   <p>Four addresses within about 100 meters of each other on East 230th and East 231st Streets drew ${fmt(wt)} complaints, ${pct(wt/S.total)} of every 311 complaint in the city since 2020. Nearly all came through the 311 mobile app, and nearly all were filed as loud music or a party.</p>
+   <p>The timing looks automated. From ${timeAP(a655.longest_burst_start)} on ${dateAP(a655.longest_burst_start)}, to ${timeAP(a655.longest_burst_end)} on ${dateAP(a655.longest_burst_end)}, complaints about 655 East 230th Street came in ${fmt(a655.longest_burst_n)} times with no gap longer than two minutes. For 14 hours starting at noon on Jan. 5, they arrived at ${fmt(pl.hourly_mean)} an hour, give or take ${pl.hourly_sd.toFixed(1)}; complaints filed at random moments at that pace would vary by about ${Math.round(pl.random_sd_at_that_rate)} an hour. Overnight on Jan. 7, ${pct(on.share_within_1s_of_median,0)} of the gaps were ${on.median_gap_s} seconds, give or take one. The address had ${a655.runs_over_24h} runs like this that lasted a day or more; 672 East 231st Street had ${a672.runs_over_24h}. On its busiest day, ${dateAP(a655.peak_day)}, it drew ${fmt(a655.peak_day_n)} complaints, about ${(a655.peak_day_n/1440).toFixed(1)} a minute.</p>
+   <div class="runfig"><p class="figcap"><span><b>Complaints an hour about 655 East 230th Street</b>, ${dateAP(a655.longest_burst_start).replace(/, \d{4}$/,'')} to ${dateAP(a655.longest_burst_end)}</span></p><div id="runchart"></div></div>
+   <p>The stream moves between neighbors. In 2025, consecutive complaints switched between 655 and 661 East 230th Street ${fmt(il.switches)} times, and ${fmt(il.switches_under_60s)} of those switches came within a minute, which points to one source behind both. The public data cannot say who or what that source is.</p>
+   ${rows(wake)}</div>`;
+  h+=`<div class="grp"><h3>Five addresses in eastern Queens</h3>
+   <p>Five addresses within a mile of each other, in and around Fresh Meadows, drew ${fmt(qt)} complaints, nearly all through the 311 website. Vehicle noise, mostly car horns, and drug use outside are among the top three complaint types at all five. Complaints often hit several of them within seconds: on Dec. 4, 2022, the same drug complaint was filed at three of the addresses at 5:33:29, 5:33:33 and 5:33:37 a.m. Consecutive complaints jumped between two of the addresses in under 10 seconds ${fmt(qFast)} times. That is faster than a person could fill out the city's web form by hand for each one. The filing keeps a daytime schedule, though: ${pct(sum(qh,8,18),0)} came between 8 a.m. and 6 p.m., and ${pct(sum(qh,1,6),0)} between 1 and 6 a.m.</p>
+   ${rows(qns)}</div>`;
+  h+=`<div class="grp"><h3>Illegal parking, reported at the same doors</h3>
+   <p>Six addresses where nearly every complaint is illegal parking, most often a blocked sidewalk. Each drew fewer than 50 a year in 2020 and 2021 and thousands a year by 2025. At the four checked closely, the pace looks like people: ${pct(sum(ph,8,21),0)} of reports came between 8 a.m. and 9 p.m., the median gap ran from ${Math.round(Math.min(...pm))} to ${Math.round(Math.max(...pm))} minutes, and of ${fmt(pSw)} switches between the addresses, ${fmt(pSw60)} came within a minute, so they appear to be separate filers.</p>
+   ${rows(park)}</div>`;
+  h+=`<div class="grp"><h3>Helicopters</h3>
+   <p>One address in College Point and two side by side in Howard Beach drew ${fmt(heliN)} helicopter-noise complaints, ${pct(heliN/heliType.total,0)} of the city's total since 2020. Each ran for two or three years and then mostly stopped. Complaints came a median of ${Math.round(Math.min(...hm))} to ${Math.round(Math.max(...hm))} minutes apart.</p>
+   ${rows(heli)}</div>`;
+  h+=`<div class="grp"><h3>Heat and repairs</h3>
+   <p>The busiest addresses for apartment conditions. Heat and hot water make up most of their complaints.</p>
+   ${rows(heat)}</div>`;
+  h+=`<div class="grp"><h3>Addresses that stand in for a park</h3>
+   <p>1000 Fifth Avenue is the Metropolitan Museum of Art's address; its complaints are about park noise, park rules and park upkeep, so 311 appears to use it for that stretch of Central Park. 95 Prospect Park West, on the street that runs along Prospect Park, mostly gets park complaints: maintenance, animals in a park and park noise.</p>
+   ${rows(parks)}</div>`;
+  $('#groups').innerHTML=h;
+  $('#groups').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)focusAddr(+r.dataset.i)});
+  $('#groups').addEventListener('keydown',e=>{const r=e.target.closest('.row');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();focusAddr(+r.dataset.i)}});
+  renderRun();
+}
+function renderRun(){
+  const a=cad('655 EAST 230 STREET'),hs=a.longest_burst_hourly,box=$('#runchart');
+  const W=Math.max(320,box.clientWidth),H=200,l=34,r=8,t=10,b=26,mx=Math.ceil(Math.max(...hs.map(h=>h[1]))/100)*100;
+  const bw=(W-l-r)/hs.length,y=v=>t+(H-t-b)*(1-v/mx);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hourly complaints during the longest nonstop run, steady at about 172 an hour for most of Jan. 5 and 6">`;
+  for(let g=0;g<=mx;g+=100){s+=`<line x1="${l}" x2="${W-r}" y1="${y(g)}" y2="${y(g)}" stroke="${tok('grid')}"/><text x="${l-6}" y="${y(g)+4}" text-anchor="end">${g}</text>`}
+  hs.forEach(([k,v],j)=>{const d=new Date(k.replace(' ','T'));
+    s+=`<rect x="${l+j*bw+0.5}" y="${y(v)}" width="${Math.max(1,bw-1.5)}" height="${y(0)-y(v)}" fill="${CC(1)}" data-j="${j}"/>`;
+    if(d.getHours()===0)s+=`<line x1="${l+j*bw}" x2="${l+j*bw}" y1="${y(0)}" y2="${y(0)+6}" stroke="${tok('fg2')}"/><text x="${l+j*bw+3}" y="${H-6}">${MONTHS[d.getMonth()]} ${d.getDate()}</text>`});
+  s+='</svg>';box.innerHTML=s;
+  box.querySelectorAll('rect').forEach(el=>{const [k,v]=hs[+el.dataset.j];
+    el.addEventListener('mousemove',e=>showTip(e,`<b>${dateAP(k).replace(/, \d{4}$/,'')}, ${timeAP(k)}</b>${fmt(v)} complaints that hour`));el.addEventListener('mouseleave',hideTip)});
+}
+
+/* ---------- text ---------- */
+function renderText(){
+  const i5=S.steps.findIndex(s=>Math.abs(s-0.05)<1e-9),nd=new Date(S.newest);
+  $('#range').textContent=`Jan. 1, 2020, to ${MONTHS[nd.getMonth()]} ${nd.getDate()}, ${nd.getFullYear()}`;
+  $('#lede').innerHTML=`311 logged ${mil(S.total)} complaints from Jan. 1, 2020, to ${MONTHS[nd.getMonth()]} ${nd.getDate()}, ${nd.getFullYear()}, at ${fmt(S.locations)} street addresses. The ${fmt(S.k[i5])} addresses with the most, each with at least ${fmt(S.min[i5])}, account for <b>${mil(S.cum[i5])}</b> of them. Half of all addresses have ${words(S.median)} or fewer. At the very top, a few addresses draw complaints every few seconds for days on end.`;
+  $('#pickcap').innerHTML=`<b>Drag the slider or pick a share.</b> Each square is 0.1%: about ${fmt(S.locations/1000)} addresses on the left, about ${fmt(S.total/1000)} complaints on the right. Outlined squares are complaints with no street address.`;
+  $('#legend').innerHTML=S.cats.map((c,j)=>`<span class="key"><i style="background:${CC(j)}"></i>${c.label}</span>`).join('')+
+    `<span class="key"><i style="background:${tok('rest')}"></i>Other addresses</span><span class="key"><i class="o"></i>No street address</span>`;
+  const t=S.total;
+  $('#notetext').innerHTML=`
+   <p>A location here is a street address with a house number, plus its ZIP code, as 311 records it. The city's geocoder standardizes most addresses. Older records sometimes have doubled spaces, and a few thousand use abbreviations like BLVD; both were cleaned so one building counts once.</p>
+   <p>${mil(S.unplaced)} complaints, ${pct(S.unplaced/t)} of the total, have no street address. ${fmt(S.blank)} have no address at all; half of those are traffic signal and streetlight problems, which 311 logs by intersection or block. Another ${mil(S.named)} name only a street, park or airport, such as Broadway in one ZIP code or JFK Airport. Those cover a stretch of street or a whole park, so they count toward the total but aren't ranked as one location. Every share on this page uses all ${mil(t)} complaints as its base.</p>
+   <p>Only addresses with at least one complaint are counted. Adding buildings with none would make the concentration steeper.</p>
+   <p>Bigger buildings draw more complaints because more people live in them. These counts are not adjusted for the number of apartments.</p>
+   <p>Each complaint is one service request. Timing comes from the time 311 logged each request, to the second. Requests saved on a phone and sent later could arrive in a bunch, which can explain a few complaints logged in the same second but not days of complaints at an even pace.</p>
+   <p>2026 runs through ${MONTHS[nd.getMonth()]} ${nd.getDate()}.</p>`;
+}
+
+/* ---------- boot ---------- */
+Promise.all(['data/summary.json','data/points.json','data/cadence.json'].map(u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
+.then(([s,p,c])=>{
+  S=s;P=p;C=c;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
+  renderText();initControl();initCats();
+  setStep(S.steps.findIndex(v=>Math.abs(v-0.05)<1e-9));
+  renderGroups();
+  const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&!map){initMap();io.disconnect()}},{rootMargin:'400px'});
+  io.observe($('#map'));
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{renderWaffles();renderStrip();renderRun()},150)});
+})
+.catch(err=>{$('#readout').textContent='The data did not load: '+err.message;console.error(err)});
+</script>
+</body>
+</html>
