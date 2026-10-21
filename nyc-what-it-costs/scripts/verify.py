@@ -7,8 +7,13 @@ d = json.loads((ROOT / "data/dashboard.json").read_text())
 bad = []
 
 # 1. The contribution identity must hold for both years.
+gap = d.get("ly_gap")  # last year's month is one BLS never published
+if d["contrib_ly"] is None and not gap:
+    bad.append("contrib_ly missing although last year's month is not a known gap")
 for k in ("contrib", "contrib_ly"):
     c = d[k]
+    if c is None:
+        continue
     s = sum(g["contrib"] for g in c["groups"])
     if abs(s - c["total"]) > 0.02:
         bad.append(f"{k}: contributions sum {s:.3f} != total {c['total']}")
@@ -17,7 +22,7 @@ for k in ("contrib", "contrib_ly"):
 
 # 2. No missing headline numbers.
 for l in d["lines"] + d["aisles"]:
-    for f in ("ytd", "ytd_ly"):
+    for f in ("ytd",) if gap else ("ytd", "ytd_ly"):
         if l[f] is None:
             bad.append(f"{l['label']}: {f} missing")
 
@@ -47,4 +52,5 @@ if re.search(r"NaN|undefined|Infinity", (ROOT / "data/dashboard.json").read_text
 
 if bad:
     print("VERIFY FAILED"); [print(" -", b) for b in bad]; sys.exit(1)
-print(f"verify ok: BLS {d['ref']}, all items since Dec {d['contrib']['total']}% vs {d['contrib_ly']['total']}% same months last year")
+ly = d["contrib_ly"]["total"] if d["contrib_ly"] else "n/a (BLS gap)"
+print(f"verify ok: BLS {d['ref']}, all items since Dec {d['contrib']['total']}% vs {ly}% same months last year")

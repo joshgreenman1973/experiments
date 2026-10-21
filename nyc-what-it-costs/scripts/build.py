@@ -37,7 +37,9 @@ def pct(a, b):
     return round(100 * (a / b - 1), 2)
 
 
-REF = max(BLS[NY + "SA0"]["obs"])          # latest published NY CPI month
+import os
+REF = os.environ.get("NYC_REF_TEST") or max(BLS[NY + "SA0"]["obs"])  # latest NY CPI month (override only for testing)
+GAP_MONTHS = {"2025-10"}  # BLS published no New York index (federal shutdown)
 REF_Y = int(REF[:4])
 BASE = f"{REF_Y - 1}-12"                    # December before this year
 REF_LY = ym_add(REF, -12)
@@ -77,6 +79,8 @@ TRANSPORT_PARTS = [("SETB01", "Gasoline (all types)", "Gasoline")]
 
 
 def contributions(base, ref, wkey):
+    if BLS[NY + "SA0"]["obs"].get(ref) is None:
+        return None  # e.g. October 2025: no index, so no comparison for that span
     w = W[wkey]["weights"]
     out = []
     for code, name in GROUPS:
@@ -162,6 +166,7 @@ def main():
     d = {
         "built": datetime.date.today().isoformat(),
         "ref": REF, "base": BASE, "ref_ly": REF_LY, "base_ly": BASE_LY,
+        "ly_gap": REF_LY in GAP_MONTHS,
         "bls_fetched": json.loads((RAW / "bls.json").read_text())["fetched"],
         "contrib": contributions(BASE, REF, BASE),
         "contrib_ly": contributions(BASE_LY, REF_LY, BASE_LY),
@@ -182,7 +187,7 @@ def main():
         "homes": homes(),
     }
     (ROOT / "data/dashboard.json").write_text(json.dumps(d, indent=1))
-    print("built", REF, "all items since Dec:", d["contrib"]["total"], "same span last year:", d["contrib_ly"]["total"])
+    print("built", REF, "all items since Dec:", d["contrib"]["total"], "same span last year:", (d["contrib_ly"] or {}).get("total", "n/a (no BLS index for " + REF_LY + ")"))
 
 
 def monthly_block(src, val, ref=None):
