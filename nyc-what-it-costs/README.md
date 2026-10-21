@@ -4,7 +4,8 @@ Prices in New York City and its metro area since the start of the year, compared
 with the same months of the year before. Government sources throughout, except
 Zillow's asking-rent index (labeled private) and Citi Bike's own posted price.
 
-A draft tool. Replaces the NYC Price Watch (`../nyc-price-watch`) and the price
+A draft tool, in two pages: `index.html` (prices) and `pay.html`, Keeping Up in
+New York (pay and rent burden). Replaces the NYC Price Watch (`../nyc-price-watch`) and the price
 side of the earlier NYC Affordability Index draft (`../vc-affordability-index`). See
 `methodology.html` for the rules and why each source was chosen.
 
@@ -20,6 +21,17 @@ a failed verify.
 
 City-set prices live in `data/administered.json`. Add a step only when the
 agency's own page confirms a change, with the URL and a quoted line.
+
+## Yearly sources for the pay page
+
+- `python3 scripts/fetch_oews.py <YY>`: BLS OEWS May wages for the metro area (spring).
+- `python3 scripts/fetch_acs.py`: Census ACS 1-year rent burden for New York City
+  (September/October). Needs CENSUS_API_KEY (Keychain on Josh's Mac).
+- `data/burden_static.json`: Housing and Vacancy Survey figures and the five
+  reference measures, entered by hand from each publisher's own report.
+- Then `python3 scripts/build_pay.py && python3 scripts/verify.py`.
+
+The old draft at vitalcity-nyc.github.io/nyc-affordability-index forwards here.
 
 ## Calendar
 
