@@ -113,7 +113,7 @@ def contributions(base, ref, wkey):
                 dict(g, name="Gasoline (car costs)"),
                 {"code": None, "name": "Other car costs: vehicles, insurance, repairs, parking and tolls", "weight": round(ow, 3),
                  "change": round(100 * oc / ow, 4), "contrib": round(oc, 4), "derived": True},
-                {"code": None, "name": "Public transportation: airfares, subway, bus, commuter rail and intercity fares", "weight": round(pw, 3),
+                {"code": None, "name": "Fares: airlines, subway and bus, commuter rail, intercity", "weight": round(pw, 3),
                  "change": round(100 * pc2 / pw, 4), "contrib": round(pc2, 4), "derived": True},
             ]
             row["private"] = {"weight": wp, "change": round(100 * cp / wp, 4), "contrib": round(cp, 4)}

@@ -34,13 +34,13 @@
   $('finding').textContent =
     `Prices in the New York area rose ${C.total.toFixed(1)}% from December to ${mname(D.ref)}` +
     (CL ? `, against ${CL.total.toFixed(1)}% over the same months of ${D.ref_ly.slice(0, 4)}. ` : '. ') +
-    (trShare > 0.6 ? `Getting around accounts for ${trShare > 1 ? 'more than all' : 'most'} of the difference: gasoline, and public transportation fares, which include airfares. ` : '') +
+    (trShare > 0.6 ? `Getting around accounts for ${trShare > 1 ? 'more than all' : 'most'} of the difference: gasoline, and fares for planes, trains and buses. ` : '') +
     `Leave out car costs, since ${noCar} percent of New York City households have no car, and prices rose ${C.without_car_costs.toFixed(1)}%` +
     (CL ? `, against ${CL.without_car_costs.toFixed(1)}%.` : '.');
   const rent = D.lines.find(l => l.key === 'rent');
   $('lede').innerHTML =
     `Every figure on this page compares the same months in two years, so the normal seasonal ups and downs cancel out, and every price is the same thing measured the same way each month. ` +
-    `Gasoline in the metro area is up <b>${sign(gas.change)}</b> since December. Public transportation fares, a category that includes airfares, are up <b>${sign(pub.change)}</b>; the subway and bus fare itself is up ${sign(D.administered.items.find(i => i.id === 'subway').since_dec)} since Dec. 31. The rent New York-area tenants actually pay, stabilized leases included, is up <b>${sign(rent.ytd)}</b>` + (rent.ytd_ly == null ? '' : ', ') +
+    `Gasoline in the metro area is up <b>${sign(gas.change)}</b> since December. Fares for planes, trains and buses, which BLS groups together, are up <b>${sign(pub.change)}</b>; the subway and bus fare alone is up ${sign(D.administered.items.find(i => i.id === 'subway').since_dec)} since Dec. 31. The rent New York-area tenants actually pay, stabilized leases included, is up <b>${sign(rent.ytd)}</b>` + (rent.ytd_ly == null ? '' : ', ') +
     (rent.ytd_ly == null ? '' : `against ${sign(rent.ytd_ly)} over the same months last year`) + `. ` +
     `Groceries are up <b>${sign(D.lines.find(l => l.key === 'groceries').ytd)}</b>. ` +
     (D.lines[0].yoy == null ? gapNote : `Over the full twelve months to ${mname(D.ref)}, prices are up <b>${sign(D.lines[0].yoy)}</b>.`);
