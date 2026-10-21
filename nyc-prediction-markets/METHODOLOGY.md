@@ -12,7 +12,7 @@ All three are public APIs, no authentication required.
 
 | Source | Endpoint | Pagination | Pricing |
 |---|---|---|---|
-| Polymarket | `https://gamma-api.polymarket.com/markets?closed=false&active=true` | `limit=100` + `offset`, up to 60 pages | `outcomePrices` (decimal, JSON-encoded) |
+| Polymarket | `https://gamma-api.polymarket.com/markets?closed=false&active=true`, then `/public-search?q=…` per keyword | `limit=100` + `offset` (Gamma stops at 2,100), then up to 8 search pages × ~40 keywords | `outcomePrices` (decimal, JSON-encoded) |
 | Kalshi | `https://api.elections.kalshi.com/trade-api/v2/events?status=open&with_nested_markets=true` | `cursor`, capped at 60 pages × 200 | `last_price_dollars` (decimal string) |
 | Manifold | `https://api.manifold.markets/v0/search-markets?term=…` | per-keyword search × 22 queries | `probability` (decimal) |
 
@@ -20,7 +20,9 @@ Polymarket and Kalshi are real-money venues; their volumes are USD. Manifold is 
 
 Each source also reports **24-hour trading volume**, which the table sorts on by default (see "Default view" below): Polymarket `volume24hr`, Kalshi `volume_24h_fp`, Manifold `volume24Hours`.
 
-Note on Polymarket pagination: the Gamma API now hard-caps every response at 100 items regardless of the requested `limit`. The fetcher pages by 100 via `offset` until the list is exhausted (a `422` past the end is treated as the stop signal). An earlier version asked for `limit=500`, received 100, saw `100 < 500` and stopped after the first page — which silently scanned only the top ~100 of ~2,100 open markets and was why most New York races never appeared.
+Note on Polymarket coverage (Oct 21, 2026): Gamma refuses any offset past 2,100 ("offset too large"), and Polymarket now lists tens of thousands of open markets, most of them sports. The offset scan therefore saw only the first 2,100, and the tracker had shrunk to 31 Polymarket markets, missing the New York governor and attorney general winner markets, every House seat but a handful, and the Tisch market. The fetcher now also runs a keyword search pass (the Manifold keyword list plus New York, Blakeman, Tisch, DiNapoli, Jeffries, Albany, Nassau, Long Island, Buffalo and the boroughs), reads every market nested in the events it returns, and runs each through the same filter. The first run with it found 401 Polymarket markets. The search pass brought in a few false matches, so the exclusion list gained New York Cosmos and New York Atlas games, "snow in", Buffalo City (South Africa) and post-count markets on the mayor's social media.
+
+Older note on Polymarket pagination: the Gamma API now hard-caps every response at 100 items regardless of the requested `limit`. The fetcher pages by 100 via `offset` until the list is exhausted (a `422` past the end is treated as the stop signal). An earlier version asked for `limit=500`, received 100, saw `100 < 500` and stopped after the first page — which silently scanned only the top ~100 of ~2,100 open markets and was why most New York races never appeared.
 
 ## Filter logic — `matchesNY()` in `fetch.mjs`
 

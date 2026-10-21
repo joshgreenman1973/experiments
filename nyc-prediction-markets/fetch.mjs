@@ -195,8 +195,11 @@ const AMBIGUOUS = [
 // what keeps "all civic" scope from pulling in Knicks games, Broadway openings
 // or daily NYC temperature markets. Word-list is intentionally specific to
 // avoid clobbering civic markets (e.g. no bare "Bills" — that's legislation).
+// The Polymarket search pass (Oct 2026) added: Cosmos soccer and Atlas lacrosse
+// games, "snow in NYC", Buffalo City (South Africa) mayor races and weekly
+// post-count markets on the mayor's social media.
 const EXCLUDE_RE =
-  /\b(?:Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|Sabres|Buffalo Bills|NYCFC|New York City FC|Subway Series|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|PGA|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|playoffs?|championship|Heisman|box office|Oscars?|Grammys?|Emmys?|Tonys?|Tony Award|Met Gala|Fashion Week|Broadway|Eurovision|Dancing with the Stars|DWTS|temperatures?|rainfall|snowfall|snowiest|Fahrenheit|Celsius|heat wave|blizzard|hurricane|inches of (?:rain|snow))\b/i;
+  /\b(?:Knicks|Yankees|Mets|Giants|Jets|Rangers|Nets|Islanders|Liberty|Red Bulls|Sabres|Buffalo Bills|NYCFC|New York City FC|Subway Series|NY Marathon|NYC Marathon|MLS Cup|MLB|NBA|NHL|NFL|UFC|PGA|WNBA|NCAA|Champions League|Premier League|Bundesliga|La Liga|Super Bowl|World Series|Stanley Cup|Final Four|playoffs?|championship|Heisman|box office|Oscars?|Grammys?|Emmys?|Tonys?|Tony Award|Met Gala|Fashion Week|Broadway|Eurovision|Dancing with the Stars|DWTS|temperatures?|rainfall|snowfall|snowiest|Fahrenheit|Celsius|heat wave|blizzard|hurricane|inches of (?:rain|snow)|snow in|New York Cosmos|New York Atlas|Waterdogs|end in a draw|win on \d{4}-\d{2}-\d{2}|Buffalo City|post \d+(?:-\d+|\+)? posts)\b/i;
 
 // Word-boundary regex for a list of literal phrases (case-insensitive).
 function buildRegex(phrases) {
@@ -377,8 +380,83 @@ function num(x) {
 
 // ---------- Polymarket ----------
 
+// Turns one Gamma market into a tracker row, or null if it isn't a New York market.
+// eventTags carries the parent event's title and slug when the market came from
+// an event (search results nest markets inside events, without m.events).
+function polymarketRow(m, eventTags = []) {
+  if (m.closed || m.active === false) return null;
+  const question = m.question || m.title || "";
+  const tags = [...eventTags];
+  if (Array.isArray(m.events)) {
+    for (const ev of m.events) {
+      if (ev?.title) tags.push(ev.title);
+      if (ev?.slug) tags.push(ev.slug);
+    }
+  }
+  if (m.category) tags.push(m.category);
+  const verdict = matchesNY(question, tags);
+  if (!verdict.match) return null;
+
+  // outcomePrices is a JSON-encoded string like "[\"0.42\", \"0.58\"]"
+  let yesPrice = null;
+  try {
+    const prices = typeof m.outcomePrices === "string"
+      ? JSON.parse(m.outcomePrices)
+      : m.outcomePrices;
+    const outcomes = typeof m.outcomes === "string"
+      ? JSON.parse(m.outcomes)
+      : m.outcomes;
+    if (Array.isArray(prices) && prices.length > 0) {
+      // For Yes/No markets, take the Yes price; else first outcome.
+      if (Array.isArray(outcomes)) {
+        const yi = outcomes.findIndex(
+          (o) => typeof o === "string" && o.toLowerCase() === "yes",
+        );
+        if (yi >= 0) yesPrice = num(prices[yi]);
+      }
+      if (yesPrice === null) yesPrice = num(prices[0]);
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const eventSlug = m.events?.[0]?.slug || eventTags[1] || m.slug;
+  const topic = tagTopic(question);
+  return {
+    source: "polymarket",
+    id: String(m.id ?? m.slug ?? m.conditionId ?? ""),
+    question,
+    url: eventSlug ? `https://polymarket.com/event/${eventSlug}` : null,
+    yes_price: yesPrice,
+    volume_usd: num(m.volume),
+    volume_24h_usd: num(m.volume24hr),
+    liquidity_usd: num(m.liquidity),
+    open_interest_usd: null,
+    created_at: m.createdAt || m.startDateIso || m.startDate || null,
+    close_date: m.endDate || m.end_date_iso || null,
+    matched_keywords: verdict.hits,
+    topic_id: topic.topic_id,
+    topic_label: topic.topic_label,
+  };
+}
+
+// Gamma refuses offsets past 2,100 ("offset too large"), and there are tens of
+// thousands of open markets, most of them sports. So the offset scan below only
+// sees the first 2,100; a keyword search pass finds the New York markets beyond
+// them. (Found Oct 21 2026: the governor and attorney general winner markets
+// were missing.)
+const polymarketQueries = () => [
+  ...MANIFOLD_QUERIES,
+  "New York", "NY governor", "Blakeman", "Tisch", "DiNapoli", "Jeffries",
+  "Albany", "Nassau", "Long Island", "Buffalo", "Brooklyn", "Queens", "Bronx",
+];
+
 async function fetchPolymarket() {
   const out = [];
+  const seen = new Set();
+  const add = (row) => {
+    if (row && !seen.has(row.id)) { seen.add(row.id); out.push(row); }
+  };
   // Gamma now hard-caps responses at 100 items regardless of the requested
   // limit, so we page by 100 and keep going until a page comes back empty.
   // (The old code asked for 500, got 100, saw 100 < 500 and stopped after the
@@ -396,64 +474,29 @@ async function fetchPolymarket() {
       break;
     }
     if (!Array.isArray(batch) || batch.length === 0) break;
-    for (const m of batch) {
-      const question = m.question || m.title || "";
-      const tags = [];
-      if (Array.isArray(m.events)) {
-        for (const ev of m.events) {
-          if (ev?.title) tags.push(ev.title);
-          if (ev?.slug) tags.push(ev.slug);
-        }
-      }
-      if (m.category) tags.push(m.category);
-      const verdict = matchesNY(question, tags);
-      if (!verdict.match) continue;
-
-      // outcomePrices is a JSON-encoded string like "[\"0.42\", \"0.58\"]"
-      let yesPrice = null;
-      try {
-        const prices = typeof m.outcomePrices === "string"
-          ? JSON.parse(m.outcomePrices)
-          : m.outcomePrices;
-        const outcomes = typeof m.outcomes === "string"
-          ? JSON.parse(m.outcomes)
-          : m.outcomes;
-        if (Array.isArray(prices) && prices.length > 0) {
-          // For Yes/No markets, take the Yes price; else first outcome.
-          if (Array.isArray(outcomes)) {
-            const yi = outcomes.findIndex(
-              (o) => typeof o === "string" && o.toLowerCase() === "yes",
-            );
-            if (yi >= 0) yesPrice = num(prices[yi]);
-          }
-          if (yesPrice === null) yesPrice = num(prices[0]);
-        }
-      } catch {
-        /* ignore */
-      }
-
-      const eventSlug = m.events?.[0]?.slug || m.slug;
-      const topic = tagTopic(question);
-      out.push({
-        source: "polymarket",
-        id: String(m.id ?? m.slug ?? m.conditionId ?? ""),
-        question,
-        url: eventSlug ? `https://polymarket.com/event/${eventSlug}` : null,
-        yes_price: yesPrice,
-        volume_usd: num(m.volume),
-        volume_24h_usd: num(m.volume24hr),
-        liquidity_usd: num(m.liquidity),
-        open_interest_usd: null,
-        created_at: m.createdAt || m.startDateIso || m.startDate || null,
-        close_date: m.endDate || m.end_date_iso || null,
-        matched_keywords: verdict.hits,
-        topic_id: topic.topic_id,
-        topic_label: topic.topic_label,
-      });
-    }
+    for (const m of batch) add(polymarketRow(m));
     if (batch.length < limit) break;
     offset += limit;
   }
+  const scanned = out.length;
+
+  for (const q of polymarketQueries()) {
+    for (let page = 1; page <= 8; page++) {
+      const url = `https://gamma-api.polymarket.com/public-search?q=${encodeURIComponent(q)}&limit_per_type=50&events_status=active&page=${page}`;
+      let body;
+      try {
+        body = await getJson(url);
+      } catch (e) {
+        console.error(`[polymarket] search "${q}" page ${page} error:`, e.message);
+        break;
+      }
+      for (const ev of body?.events || []) {
+        for (const m of ev.markets || []) add(polymarketRow(m, [ev.title || "", ev.slug || ""]));
+      }
+      if (!body?.pagination?.hasMore) break;
+    }
+  }
+  console.log(`  ${scanned} from the market scan, ${out.length - scanned} more from search`);
   return out;
 }
 
