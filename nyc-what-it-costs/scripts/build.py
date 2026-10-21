@@ -209,6 +209,7 @@ def main():
         "pay": pay(),
         "administered": administered(),
         "rent_rules": ADMIN["rent_rules"],
+        "con_ed_plan": ADMIN["con_ed_plan"],
         "zori": monthly_block(EXTRA["zori"], lambda v: v),
         "energy": energy(),
         "homes": homes(),
