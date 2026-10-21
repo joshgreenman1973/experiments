@@ -7,6 +7,8 @@
   const myear = ym => MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
   const sign = (v, d = 1) => v == null ? 'n/a' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d) + '%';
   const pct = (v, d = 1) => v.toFixed(d) + '%';
+  // Prose form of a change: 'rose 2.0%' / 'fell 0.8%'.
+  const chg = v => v == null ? 'is not available' : Math.abs(v) < 0.05 ? 'was unchanged' : (v > 0 ? 'rose ' : 'fell ') + Math.abs(v).toFixed(1) + '%';
   const money = v => '$' + v.toFixed(2);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const dt = s => { const [y, m, d] = s.split('-'); return d ? `${MON[+m - 1]} ${+d}, ${y}` : `${MON[+m - 1]} ${y}`; };
@@ -49,17 +51,18 @@
 
   // ---- opening ------------------------------------------------------------
   const M = D.monthly, rows = M.rows, lastRow = rows[rows.length - 1];
+  const Cm = D.comptroller;
   const Wg = D.wages, wl = Wg.years[Wg.years.length - 1], w0 = Wg.years[0];
   const A = D.acs.years, aYears = Object.keys(A), aLast = aYears[aYears.length - 1], a = A[aLast];
   $('span-line').textContent = `Pay through ${myear(M.ahe_ref)} · rent burden through ${aLast} · rebuilt ${D.built}`;
+  const refLY = `${+M.ahe_ref.slice(0, 4) - 1}${M.ahe_ref.slice(4)}`;
   $('finding').textContent =
-    `The typical worker in the New York area earned ${money(wl.median_hourly)} an hour in May ${wl.year}, ` +
-    `${sign(wl.median_since_first)} since May ${w0.year}, while prices rose ${sign(wl.cpi_since_first).replace('+', '')}. ` +
-    `In ${aLast}, ${pct(a.share_30_plus)} of the city's renter households spent 30 percent or more of their income on rent.`;
+    `From May ${w0.year} to May ${wl.year}, the median hourly wage in the New York area ${chg(wl.median_since_first)}, to ${money(wl.median_hourly)}, and prices in the area ${chg(wl.cpi_since_first)} over the same months. ` +
+    `In ${aLast}, the latest year of Census data, ${pct(a.share_30_plus)} of the city's renter households spent 30 percent or more of their income on rent.`;
   $('lede').innerHTML =
-    `This page is the companion to <a href="./">the price tracker</a>. It sets pay beside prices over the same months, without subtracting one from the other, ` +
-    `and shows how much of their income New York City renters spend on rent. In ${aLast}, <b>${pct(a.share_30_plus)}</b> of renter households paid 30 percent or more of income in rent and <b>${pct(a.share_50_plus)}</b> paid half or more. ` +
-    `Over the twelve months to ${MONTHS[+M.ahe_ref.slice(5) - 1]}, average hourly pay in the city rose <b>${sign(lastRow.pay)}</b> and prices in the area <b>${sign(lastRow.prices)}</b>.`;
+    `This page is the companion to <a href="./">the price tracker</a>. Every figure names the period it measures, and pay is set beside prices only over identical spans, never subtracted from them. ` +
+    `In ${aLast}, <b>${pct(a.share_30_plus)}</b> of New York City renter households paid 30 percent or more of income in rent and <b>${pct(a.share_50_plus)}</b> paid half or more. ` +
+    `From ${myear(refLY)} to ${myear(M.ahe_ref)}, average hourly pay for jobs in the city <b>${chg(lastRow.pay)}</b> (three-month averages) and prices in the area <b>${chg(lastRow.prices)}</b>.`;
 
   // ---- monthly chart ------------------------------------------------------
   const idx = m => (+m.slice(0, 4) - 2025) * 12 + (+m.slice(5) - 1);
@@ -82,13 +85,16 @@
   };
   $('wages').innerHTML = `
     <h2>The typical worker, not the average</h2>
-    <p class="aside">Once a year BLS surveys employers' payrolls for every occupation, which gives the median: the wage with half of workers above and half below. In May ${wl.year} the median in the New York area was ${money(wl.median_hourly)} an hour; the average, pulled up by high earners, was ${money(wl.mean_hourly)}. From May ${wl.year - 1} to May ${wl.year} the median rose ${sign(wl2.median_yoy)}, and prices in the same area over the same twelve months rose ${sign(wl2.cpi_yoy)}.</p>
+    <p class="aside">Once a year BLS surveys employers' payrolls for every occupation, which gives the median: the wage with half of workers above and half below. In May ${wl.year} the median in the New York area was ${money(wl.median_hourly)} an hour; the average, pulled up by high earners, was ${money(wl.mean_hourly)}. From May ${wl.year - 1} to May ${wl.year} the median ${chg(wl2.median_yoy)}, and prices in the same area over the same twelve months ${chg(wl2.cpi_yoy)}.</p>
     <div class="figcap"><span><b>Change since May ${w0.year}</b>, wages for all occupations and consumer prices, same metro area, May of each year</span><span><span class="key"><i style="background:var(--mint)"></i>Median wage</span><span class="key"><i style="background:var(--cobalt)"></i>Average wage</span><span class="key"><i style="background:var(--vermilion)"></i>Prices</span></span></div>
     <div class="chart" id="c-wages"></div>
     <div class="scroll"><table class="h" style="max-width:860px;margin-top:14px"><thead><tr><th>May of</th><th class="n">Median hourly</th><th class="n">Average hourly</th><th class="n">Jobs</th></tr></thead><tbody>
       ${Wg.years.map(r => `<tr><td>${r.year}</td><td class="n">${money(r.median_hourly)}</td><td class="n">${money(r.mean_hourly)}</td><td class="n">${(r.employment / 1e6).toFixed(2)} million</td></tr>`).join('')}
     </tbody></table></div>
-    <p class="note">BLS cautions that these estimates are built for comparing places and occupations in a given year rather than over time; changes in survey methods and occupation codes add noise to year-to-year moves, so read the direction over several years, not a single year's change. Jobs in the area fell from ${(w0.employment / 1e6).toFixed(2)} million in May ${w0.year} to ${(Wg.years.find(r => r.year === 2021).employment / 1e6).toFixed(2)} million in May 2021; when lower-paid jobs disappear, the median and the average rise even if no one's pay does. The minimum wage in New York City has been ${money(mwNow[1])} since ${dt(mwNow[0])}. Source: <a href="${Wg.url}">BLS Occupational Employment and Wage Statistics</a>, New York-Newark-Jersey City metro area; prices from the BLS index for the same area.</p>`;
+    <p class="note">BLS cautions that these estimates are built for comparing places and occupations in a given year rather than over time; changes in survey methods and occupation codes add noise to year-to-year moves, so read the direction over several years, not a single year's change. Jobs in the area fell from ${(w0.employment / 1e6).toFixed(2)} million in May ${w0.year} to ${(Wg.years.find(r => r.year === 2021).employment / 1e6).toFixed(2)} million in May 2021; when lower-paid jobs disappear, the median and the average rise even if no one's pay does. The minimum wage in New York City has been ${money(mwNow[1])} since ${dt(mwNow[0])}. Source: <a href="${Wg.url}">BLS Occupational Employment and Wage Statistics</a>, New York-Newark-Jersey City metro area; prices from the BLS index for the same area.</p>
+    <h3 style="margin-top:26px">Income, not only wages: ${esc(Cm.span)}</h3>
+    <p class="note" style="margin-top:0">Wages leave out investment income, business income and anyone not on a payroll. The Comptroller's office measured all income before taxes and benefits, using state income tax records for city residents. From 2019 to 2024, median income per tax unit rose ${pct(Cm.median_nominal)} before inflation and <b style="color:var(--fg)">fell ${pct(Math.abs(Cm.median_real))}</b> after it, using the ${esc(Cm.deflator)}. The bottom 90 percent averaged $${Cm.bottom90_avg_2019.toLocaleString()} in 2019 and $${Cm.bottom90_avg_2024.toLocaleString()} in 2024, up ${pct(Cm.bottom90_nominal)}, or ${pct(Math.abs(Cm.bottom90_real))} lower after inflation; the report notes that a shift in the mix of households filing accounts for some of that, and that holding 2019's mix constant turns it into a ${pct(Cm.bottom90_real_reweighted)} gain. The top 1 percent took ${Cm.top1_share_of_growth} percent of the city's real income growth over those years (${Cm.top1_share_of_growth_us} percent nationally) and in 2024 received ${Cm.top1_income_share_2024} percent of all income (${Cm.top1_income_share_2024_us} percent nationally).</p>
+    <p class="note">These are the Comptroller's figures, inflation adjustment included, and they cover 2019 to 2024, not the May 2019 to May ${wl.year} span of the wage figures above, so the two are not compared. Source: <a href="${Cm.url}">New York City Comptroller, Recent Trends in Personal Income and Wage Inequality</a>, ${dt(Cm.published)}.</p>`;
   drawW();
 
   // ---- rent burden -------------------------------------------------------------
@@ -106,14 +112,14 @@
   };
   $('burden').innerHTML = `
     <h2>Rent as a share of income</h2>
-    <p class="aside">The Census Bureau asks renter households each year what they pay in rent and utilities and what they earn. In ${aLast}, the typical New York City renter household spent ${pct(a.median_ratio)} of its income on rent; ${pct(a.share_30_plus)} spent 30 percent or more, the federal line for being rent burdened, and ${pct(a.share_50_plus)} spent half or more. The median renter household earned $${Math.round(a.renter_median_income).toLocaleString()} and the median rent was $${Math.round(a.median_gross_rent).toLocaleString()} a month.</p>
+    <p class="aside">The Census Bureau asks renter households each year what they pay in rent and utilities and what they earn. In ${aLast}, the typical New York City renter household spent ${pct(a.median_ratio)} of its income on rent; ${pct(a.share_30_plus)} spent 30 percent or more, the federal line for being rent burdened, and ${pct(a.share_50_plus)} spent half or more. In ${aLast} the median renter household earned $${Math.round(a.renter_median_income).toLocaleString()} and the median rent was $${Math.round(a.median_gross_rent).toLocaleString()} a month.</p>
     <div class="figcap"><span><b>New York City renter households</b>, share of income spent on rent and utilities</span><span><span class="key"><i style="background:var(--sun)"></i>Share paying 30% or more</span><span class="key"><i style="background:var(--vermilion)"></i>Share paying 50% or more</span><span class="key"><i style="background:var(--fg2)"></i>Median share of income</span></span></div>
     <div class="toggle"><button class="chip" data-z="0">Fit to data</button><button class="chip" data-z="1">Start at zero</button></div>
     <div class="chart" id="c-burden"></div>
     <p class="note">No standard figures exist for 2020, when the pandemic disrupted the survey. Census figures for 2025 are scheduled for Oct. 29, 2026. Each estimate has a margin of error; for the median share in ${aLast} it is ±${a.median_ratio_moe.toFixed(1)} points. Source: <a href="${D.acs.url}">Census Bureau, American Community Survey 1-year estimates, tables B25070, B25071, B25064 and B25119</a>.</p>
     <div class="two">
       <div><h3>Lower-income renters</h3>
-        <p class="note" style="margin-top:0">The city's own Housing and Vacancy Survey, run every three years with the Census Bureau, shows what the citywide median hides. In 2023 the typical renter household spent ${pct(H.median_ratio_2023)} of income on rent, down from ${pct(H.median_ratio_2021)} in 2021. Among renters earning less than $${H.renter_median_income_2023.toLocaleString()}, the median renter income, the typical household spent <b style="color:var(--fg)">${pct(H.median_ratio_below_median_income_2023)}</b>. <a href="${H.url}">HPD, 2023 Housing and Vacancy Survey</a>.</p></div>
+        <p class="note" style="margin-top:0">The city's own Housing and Vacancy Survey, run every three years with the Census Bureau, shows what the citywide median hides. In 2023 the typical renter household spent ${pct(H.median_ratio_2023)} of income on rent, down from ${pct(H.median_ratio_2021)} in 2021. Among renters earning less than $${H.renter_median_income_2023.toLocaleString()} in 2023, the median renter income that year, the typical household spent <b style="color:var(--fg)">${pct(H.median_ratio_below_median_income_2023)}</b>. <a href="${H.url}">HPD, 2023 Housing and Vacancy Survey</a>.</p></div>
       <div><h3>Why the two surveys differ</h3>
         <p class="note" style="margin-top:0">The two surveys measure rent and income differently and in different years, so their citywide medians do not match (${pct(H.median_ratio_2023)} and ${pct(A['2023'].median_ratio)} for 2023). Each figure here is compared only with figures from the same survey. Neither tells you what the rent for a newly leased apartment would take from a household's income; see the asking-rent index on <a href="./#rent-sec">the price tracker</a>.</p></div>
     </div>`;

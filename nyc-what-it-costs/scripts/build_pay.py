@@ -74,6 +74,7 @@ def main():
         "acs": ACS,
         "hvs": STATIC["hvs"],
         "shelf": STATIC["shelf"],
+        "comptroller": STATIC["comptroller"],
     }
     (ROOT / "data/pay.json").write_text(json.dumps(d, indent=1))
     w = d["wages"]["years"][-1]

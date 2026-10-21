@@ -64,11 +64,12 @@
 
   function smallMult(N, o) {
     // o: {title, sub, series, ytd, ytd_ly, yoy, ref, src, ink, extra}
-    const sameRef = o.ref === N.D.ref;
-    const lag = sameRef ? '' : ` (latest: ${N.myear(o.ref)})`;
+    const ry = +o.ref.slice(0, 4), rm = +o.ref.slice(5) - 1;
+    const s1 = `Dec. ${ry - 1} to ${MONS[rm]} ${ry}`, s0 = `Dec. ${ry - 2} to ${MONS[rm]} ${ry - 1}`, s12 = `${MONS[rm]} ${ry - 1} to ${MONS[rm]} ${ry}`;
     return `<figure><figcaption>${N.esc(o.title)}<small>${o.sub}</small></figcaption>
       ${ytdChart(N, o.series, {ink: o.ink, label: o.title, ref: o.ref})}
-      <div class="big"><span class="${N.cls(o.ytd)}">${N.sign(o.ytd)}</span> <span style="color:var(--fg2);font-weight:400;font-size:.9rem">since Dec.${lag}; ${N.sign(o.ytd_ly)} same months last year; ${N.sign(o.yoy)} over 12 months</span></div>
+      <div class="big"><span class="${N.cls(o.ytd)}">${N.sign(o.ytd)}</span> <span style="color:var(--fg2);font-weight:400;font-size:.9rem">${s1}</span></div>
+      <div style="font-size:13.5px;color:var(--fg2)">${N.sign(o.ytd_ly)} ${s0}; ${N.sign(o.yoy)} ${s12}</div>
       ${o.extra ? `<div class="note">${o.extra}</div>` : ''}
       <div class="src note">${o.src}</div></figure>`;
   }
@@ -85,7 +86,7 @@
     const rgb = R.rgb;
     const [o57, o58] = rgb;
     const stock = hvs.stock.map(s => `
-      <div class="r"><div><b>${N.esc(s.label)}</b> <small>${Math.round(s.units / 1000).toLocaleString()} thousand apartments; median rent $${s.median.toLocaleString()}</small>
+      <div class="r"><div><b>${N.esc(s.label)}</b> <small>${Math.round(s.units / 1000).toLocaleString()} thousand apartments in 2023; median rent $${s.median.toLocaleString()} in 2023</small>
         <i style="width:${s.units / hvs.stock[0].units * 100}%;background:var(--${inks[s.key]});margin-top:4px"></i>
         <small style="display:block;margin-top:3px">${N.esc(s.rule)}</small></div>
         <div style="font-size:13px;color:var(--fg2);text-align:right">${s.in_cpi === 'yes' ? 'In the BLS rent index' : 'Not in the BLS rent index'}</div></div>`).join('');
@@ -111,7 +112,7 @@
           <div class="src note">Source: <a href="${hvs.url}">NYC Department of Housing Preservation and Development, 2023 Housing and Vacancy Survey, selected initial findings</a></div></div>
         <div><h3>How to read the three measures</h3>
           <p class="note" style="margin-top:0">The BLS index is the closest thing to a measure of the rent New Yorkers pay. It follows a fixed sample of occupied apartments across the 25-county metro area, prices each one every six months and counts the full contract rent, including a Section 8 subsidy. It covers stabilized and controlled apartments but excludes public housing by design, so NYCHA tenants, whose rent follows their income, are outside it.</p>
-          <p class="note">The asking-rent index answers a different question: what a household that moves this month faces. In ${N.myear(z.ref)} it was up ${N.sign(z.yoy)} on the year, against ${N.sign(rent.yoy)} for rents tenants pay. That gap is the cost of moving, and it is not what most renters see in a given year.</p>
+          <p class="note">The asking-rent index answers a different question: what a household that moves this month faces. From ${N.myear(N.D.ref_ly)} to ${N.myear(z.ref)} it ${N.chg(z.yoy)}, while the rent tenants pay ${N.chg(rent.yoy)} over the same twelve months. That gap is the cost of moving, and it is not what most renters see in a given year.</p>
           <p class="note">This page does not blend the three into a single homemade rent figure. Doing so would require guessing how many market-rate leases renew each month and at what increase, and no public source reports that. ${N.esc(R.acs.note)}</p></div>
       </div>`;
   };
@@ -123,11 +124,11 @@
     const d = s => { const [y, m, dd] = s.split('-'); return `${MONS[+m - 1]} ${+dd}, ${y}`; };
     N.$('energy-sec').innerHTML = `
       <h2>Energy</h2>
-      <p class="aside">The New York-area energy index is up ${N.sign(en.ytd)} since December, against ${N.sign(en.ytd_ly)} over the same months of last year. BLS stopped publishing New York-area electricity and piped-gas prices after December 2024, so electricity here comes from what Con Edison's own customers were billed, as reported to the federal Energy Information Administration, and piped gas from the Northeast regional index.</p>
+      <p class="aside">The New York-area energy index ${N.chg(en.ytd)} from ${N.span}, against ${en.ytd_ly.toFixed(1)}% from ${N.spanLY}. BLS stopped publishing New York-area electricity and piped-gas prices after December 2024, so electricity here comes from what Con Edison's own customers were billed, as reported to the federal Energy Information Administration, and piped gas from the Northeast regional index.</p>
       <div class="figcap"><span>${keyHTML(N, 'orange')}</span></div>
       <div class="sm">
         ${smallMult(N, {title: 'Gasoline, New York City', sub: 'Regular, average of EIA\'s weekly survey prices for each month', series: g.series, ytd: g.ytd, ytd_ly: g.ytd_ly, yoy: g.yoy, ref: g.ref, ink: 'orange',
-          extra: `$${g.latest.toFixed(2)} a gallon in ${N.myear(g.ref)}. Latest week: $${lw.v.toFixed(2)} (${d(lw.date)}), against $${lw.year_ago.v.toFixed(2)} the same week last year. The BLS index for the whole metro area, all grades, is up ${N.sign(line(N, 'gasoline').ytd)} since December.`,
+          extra: `$${g.latest.toFixed(2)} a gallon in ${N.myear(g.ref)}. Latest week: $${lw.v.toFixed(2)} (${d(lw.date)}), against $${lw.year_ago.v.toFixed(2)} the same week last year. The BLS index for the whole metro area, all grades, ${N.chg(line(N, 'gasoline').ytd)} from ${N.span}.`,
           src: `Source: <a href="${g.url}">U.S. Energy Information Administration</a>`})}
         ${smallMult(N, {title: 'Con Edison electricity', sub: 'Residential revenue per kilowatt-hour, customers buying both delivery and supply from Con Edison', series: c.series, ytd: c.ytd, ytd_ly: c.ytd_ly, yoy: c.yoy, ref: c.ref, ink: 'sun',
           extra: `${c.latest.toFixed(1)} cents per kilowatt-hour in ${N.myear(c.ref)}, ${c.preliminary.toLowerCase()} data. This is average revenue, so it moves with how much households use, not only with rates; compare it with the same month a year earlier. The state approved Con Edison's current rate plan on Jan. 22, 2026, effective Jan. 1.`,
@@ -142,7 +143,7 @@
   window.render_food = function (N) {
     const D = N.D, gr = line(N, 'groceries'), rs = line(N, 'restaurants');
     const aisles = D.aisles.map(a => smallMult(N, {title: a.label, sub: 'BLS, New York area', series: a.series, ytd: a.ytd, ytd_ly: a.ytd_ly, yoy: a.yoy, ref: a.ref, ink: 'sun', src: bls(N, a.id)})).join('');
-    const rows = D.staples.map(s => `<tr><td class="nm">${N.esc(s.label)}</td><td>$${s.latest.toFixed(2)}/${s.unit}</td><td class="${N.cls(s.ytd)}">${N.sign(s.ytd)}</td><td>${N.sign(s.ytd_ly)}</td><td class="${N.cls(s.yoy)}">${N.sign(s.yoy)}</td><td style="color:var(--fg2)">${s.ref === D.ref ? '' : N.myear(s.ref)}</td></tr>`).join('');
+    const rows = D.staples.map(s => `<tr><td class="nm">${N.esc(s.label)}</td><td>$${s.latest.toFixed(2)}/${s.unit}</td><td class="${N.cls(s.ytd)}">${N.sign(s.ytd)}</td><td>${N.sign(s.ytd_ly)}</td><td class="${N.cls(s.yoy)}">${N.sign(s.yoy)}</td><td style="color:var(--fg2)">${N.myear(s.ref)}</td></tr>`).join('');
     N.$('food-sec').innerHTML = `
       <h2>Food</h2>
       <p class="aside">Groceries and restaurant meals in the New York area, then grocery prices aisle by aisle.</p>
@@ -154,7 +155,7 @@
       </div>
       <h3 style="margin-top:28px">Prices of single items</h3>
       <p class="note" style="margin-top:0">BLS average prices for a fixed item description. BLS publishes these for the Northeast region, not for the New York area, and does not adjust them for quality, so they are a check on the indexes above rather than a substitute.</p>
-      <div class="scroll"><table class="cat"><thead><tr><th>Item, Northeast</th><th>Latest price</th><th>Since Dec.</th><th>Same months<br>last year</th><th>Over 12 months</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="scroll"><table class="cat"><thead><tr><th>Item, Northeast</th><th>Latest price</th><th>Dec. to latest month</th><th>Same months a year earlier</th><th>12 months to latest month</th><th>Latest month</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div class="src note">Source: <a href="https://www.bls.gov/cpi/factsheets/average-prices.htm">BLS average price data</a></div>`;
   };
 
@@ -165,7 +166,7 @@
     const d = s => { const [y, m, dd] = s.split('-'); return `${MONS[+m - 1]} ${+dd}, ${y}`; };
     const cards = A.items.map(it => {
       const steps = it.steps.map(([s, v]) => `<li>${d(s)}: ${fmt(it, v)}</li>`).join('');
-      const ch = it.no_change_calc ? '' : `<span class="${N.cls(it.since_dec)}">${N.sign(it.since_dec)}</span> since Dec. 31; ${N.sign(it.yoy)} over 12 months`;
+      const ch = it.no_change_calc ? '' : `<span class="${N.cls(it.since_dec)}">${N.sign(it.since_dec)}</span> from Dec. 31, ${+it.as_of.slice(0, 4) - 1}, to ${d(it.as_of)}; ${N.sign(it.yoy)} from ${d((+it.as_of.slice(0, 4) - 1) + it.as_of.slice(4))}`;
       return `<figure><figcaption><b>${N.esc(it.label)}</b><small style="display:block;color:var(--fg2);font-size:13px">${N.esc(it.unit)}</small></figcaption>
         <div class="now">${fmt(it, it.now)}</div><div style="font-size:14px">${ch}</div>
         ${stepChart(N, it)}
@@ -212,11 +213,11 @@
       <h2>Owning, and pay</h2>
       <div class="split">
         <div><h3>Owning a home</h3>
-          <p class="note" style="margin-top:0">BLS does not price owner housing from sales or mortgages. Its owners' equivalent rent asks what owned homes would rent for: up ${N.sign(oer.ytd)} since December (${N.sign(oer.ytd_ly)} same months last year), and the largest single weight in the index at $${oer.weight.toFixed(2)} of every $100. Sale prices come from the Federal Housing Finance Agency's quarterly index for the New York-Jersey City-White Plains metro division, which tracks repeat sales of the same houses with conforming mortgages and so leaves out most co-ops and condos: up ${N.sign(h.yoy)} from a year earlier in ${h.ref.replace('-Q', ', quarter ')}.</p>
+          <p class="note" style="margin-top:0">BLS does not price owner housing from sales or mortgages. Its owners' equivalent rent asks what owned homes would rent for: it ${N.chg(oer.ytd)} from ${N.span} (${oer.ytd_ly.toFixed(1)}% from ${N.spanLY}), and the largest single weight in the index at $${oer.weight.toFixed(2)} of every $100. Sale prices come from the Federal Housing Finance Agency's quarterly index for the New York-Jersey City-White Plains metro division, which tracks repeat sales of the same houses with conforming mortgages and so leaves out most co-ops and condos: up ${N.sign(h.yoy)} from a year earlier in ${h.ref.replace('-Q', ', quarter ')}.</p>
           <div class="src note">Sources: ${bls(N, oer.id, "CPI owners' equivalent rent").replace('Source: ', '')}; <a href="${h.url}">FHFA House Price Index, purchase-only, not seasonally adjusted</a></div></div>
         <div><h3>Pay, alongside prices</h3>
-          <p class="note" style="margin-top:0">Average hourly earnings for private-sector jobs in New York City, from the BLS payroll survey, were $${p.latest.toFixed(2)} in ${N.myear(p.ref)}. Averaged over the latest three months, they were up ${N.sign(p.yoy_3mo)} from the same three months a year earlier. Prices in the area rose ${N.sign(all.yoy)} over the twelve months to ${N.mname(all.ref)}.</p>
-          <p class="note">The two are shown side by side, not subtracted. Average hourly earnings shift when the mix of jobs shifts, a single city's monthly figures are noisy, and the price index covers the whole 25-county metro area. The minimum wage in the city is $${mw.now.toFixed(2)}, up ${N.sign(mw.yoy)} from a year ago, and is set to stay there in 2027.</p>
+          <p class="note" style="margin-top:0">Average hourly earnings for private-sector jobs in New York City, from the BLS payroll survey, were $${p.latest.toFixed(2)} in ${N.myear(p.ref)}. Averaged over the three months ending ${N.myear(p.ref)}, they were ${p.yoy_3mo >= 0 ? 'up' : 'down'} ${Math.abs(p.yoy_3mo).toFixed(1)}% from the three months ending ${N.myear(N.D.ref_ly)}. From ${N.myear(N.D.ref_ly)} to ${N.myear(all.ref)}, prices in the area ${N.chg(all.yoy)}.</p>
+          <p class="note">The two are shown side by side, not subtracted. Average hourly earnings shift when the mix of jobs shifts, a single city's monthly figures are noisy, and the price index covers the whole 25-county metro area. The minimum wage in the city has been $${mw.now.toFixed(2)} since ${(([y, m, dd]) => `${MONS[+m - 1]} ${+dd}, ${y}`)(mw.steps[mw.steps.length - 1][0].split('-'))}, up ${Math.abs(mw.yoy).toFixed(1)}% from $${mw.at_year_ago.toFixed(2)}, and is set to stay there in 2027.</p>
           <div class="src note">${bls(N, p.id, 'Current Employment Statistics, New York City')}</div></div>
       </div>`;
   };

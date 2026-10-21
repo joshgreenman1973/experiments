@@ -48,6 +48,12 @@ if pay["monthly"]["ahe_ref"] != d["ref"] and pay["monthly"]["ahe_ref"] < d["ref"
     bad.append(f"pay page earnings month {pay['monthly']['ahe_ref']} behind prices {d['ref']}")
 if len(pay["acs"]["years"]) < 10 or len(pay["wages"]["years"]) < 5:
     bad.append("pay page missing ACS or wage history")
+# Every quoted report figure must carry its dates, so nothing undated gets compared.
+for item in pay["shelf"]:
+    if not item.get("published") or not item.get("data_year"):
+        bad.append(f"shelf item {item.get('name')} missing its publication date or data year")
+if not pay["comptroller"].get("span") or not pay["comptroller"].get("published"):
+    bad.append("Comptroller figures missing their span or publication date")
 # 5. The page's scripts must parse.
 for f in ("app.js", "sections.js", "pay.js"):
     r = subprocess.run(["node", "--check", str(ROOT / f)], capture_output=True, text=True)

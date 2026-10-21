@@ -16,7 +16,10 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 
   const C = D.contrib, CL = D.contrib_ly;
+  // Every figure names its span. 'span' = this year, 'spanLY' = same months a year earlier, 'span12' = past twelve months.
   const span = `December ${D.base.slice(0, 4)} to ${myear(D.ref)}`;
+  const span12 = `${myear(D.ref_ly)} to ${myear(D.ref)}`;
+  const chg = v => v == null ? 'is not available' : Math.abs(v) < 0.05 ? 'was unchanged' : (v > 0 ? 'rose ' : 'fell ') + Math.abs(v).toFixed(1) + '%';
   const spanLY = `December ${D.base_ly.slice(0, 4)} to ${myear(D.ref_ly)}`;
   $('span-line').textContent = `Latest month: ${myear(D.ref)} · rebuilt ${D.built}`;
 
@@ -32,18 +35,21 @@
   const V = D.context.vehicles, noCar = Math.round(V.nyc.no_vehicle / V.nyc.households * 100);
   const pub = tr.parts[2];
   $('finding').textContent =
-    `Prices in the New York area rose ${C.total.toFixed(1)}% from December to ${mname(D.ref)}` +
-    (CL ? `, against ${CL.total.toFixed(1)}% over the same months of ${D.ref_ly.slice(0, 4)}. ` : '. ') +
+    `Prices in the New York area ${chg(C.total)} from ${span}` +
+    (CL ? `, against ${CL.total.toFixed(1)}% from ${spanLY}. ` : '. ') +
     (trShare > 0.6 ? `Getting around accounts for ${trShare > 1 ? 'more than all' : 'most'} of the difference: gasoline, and fares for planes, trains and buses. ` : '') +
-    `Leave out car costs, since ${noCar} percent of New York City households have no car, and prices rose ${C.without_car_costs.toFixed(1)}%` +
-    (CL ? `, against ${CL.without_car_costs.toFixed(1)}%.` : '.');
+    `Leaving out car costs, prices rose ${C.without_car_costs.toFixed(1)}%` +
+    (CL ? ` and ${CL.without_car_costs.toFixed(1)}% over those two spans` : ` from ${span}`) +
+    `; ${noCar} percent of New York City households had no car in ${V.year}, according to the Census Bureau.`;
   const rent = D.lines.find(l => l.key === 'rent');
+  const fs = D.administered.items.find(i => i.id === 'subway').steps, [fd, fv] = fs[fs.length - 1], fp = fs[fs.length - 2][1];
+  const fareStep = `on ${MON[+fd.slice(5, 7) - 1]} ${+fd.slice(8)}, ${fd.slice(0, 4)}, from $${fp.toFixed(2)} to $${fv.toFixed(2)}`;
   $('lede').innerHTML =
     `Every figure on this page compares the same months in two years, so the normal seasonal ups and downs cancel out, and every price is the same thing measured the same way each month. ` +
-    `Gasoline in the metro area is up <b>${sign(gas.change)}</b> since December. Fares for planes, trains and buses, which BLS groups together, are up <b>${sign(pub.change)}</b>; the subway and bus fare alone is up ${sign(D.administered.items.find(i => i.id === 'subway').since_dec)} since Dec. 31. The rent New York-area tenants actually pay, stabilized leases included, is up <b>${sign(rent.ytd)}</b>` + (rent.ytd_ly == null ? '' : ', ') +
-    (rent.ytd_ly == null ? '' : `against ${sign(rent.ytd_ly)} over the same months last year`) + `. ` +
-    `Groceries are up <b>${sign(D.lines.find(l => l.key === 'groceries').ytd)}</b>. ` +
-    (D.lines[0].yoy == null ? gapNote : `Over the full twelve months to ${mname(D.ref)}, prices are up <b>${sign(D.lines[0].yoy)}</b>.`);
+    `From ${span}, gasoline in the metro area <b>${chg(gas.change)}</b> and fares for planes, trains and buses, which BLS groups together, <b>${chg(pub.change)}</b>; the subway and bus fare itself last changed ${fareStep}. ` +
+    `Over the same months, the rent New York-area tenants actually pay, stabilized leases included, <b>${chg(rent.ytd)}</b>` +
+    (rent.ytd_ly == null ? '' : `, against ${rent.ytd_ly.toFixed(1)}% from ${spanLY}`) + `, and groceries <b>${chg(D.lines.find(l => l.key === 'groceries').ytd)}</b>. ` +
+    (D.lines[0].yoy == null ? gapNote : `From ${span12}, prices ${chg(D.lines[0].yoy)}.`);
 
   // ---- contribution bars ---------------------------------------------------
   const both = CL ? [C, CL] : [C];
@@ -69,6 +75,7 @@
   $('contrib-key').innerHTML = order.map(code => `<span class="key"><i style="background:var(--${INK[code]})"></i>${esc(byCode(C, code).name)}</span>`).join('');
   $('contrib-note').innerHTML = `Bars are percentage points: each category's weight in the New York-area Consumer Price Index times its own price change. They add up exactly to the all-items change. Source: <a href="https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyorkarea.htm">BLS Consumer Price Index, New York-Newark-Jersey City</a> and <a href="https://www.bls.gov/cpi/tables/relative-importance/home.htm">BLS relative importance tables</a>.`;
 
+  $('wdate').textContent = `December ${D.base.slice(0, 4)}`;
   // ---- category table --------------------------------------------------------
   const maxC = Math.max(...C.groups.flatMap(g => [g.contrib, ...g.parts.map(p => p.contrib)]).map(Math.abs));
   const cbox = (v, ink) => `<span class="cbox">${pts(v)}<i style="width:${Math.abs(v) / maxC * 70}px;background:var(--${ink});opacity:${v < 0 ? .5 : 1}"></i></span>`;
@@ -77,7 +84,7 @@
     const g = byCode(CL, code);
     return partCode === undefined ? g : g.parts.find(p => p.code === partCode.code && p.name === partCode.name);
   };
-  let t = `<thead><tr><th>Category</th><th>Of every $100</th><th>Change this year<br>${mshort(D.base)} to ${mshort(D.ref)}</th><th>Same months<br>last year</th><th>Points of the<br>${C.total.toFixed(1)}% total</th></tr></thead><tbody>`;
+  let t = `<thead><tr><th>Category</th><th>Of every $100</th><th>Change<br>${mshort(D.base)} ${D.base.slice(0, 4)} to ${mshort(D.ref)} ${D.ref.slice(0, 4)}</th><th>Same months a year earlier<br>${mshort(D.base_ly)} ${D.base_ly.slice(0, 4)} to ${mshort(D.ref_ly)} ${D.ref_ly.slice(0, 4)}</th><th>Points of the<br>${C.total.toFixed(1)}% total</th></tr></thead><tbody>`;
   C.groups.forEach(g => {
     const ly = lyFor(g.code);
     t += `<tr><td class="nm"><span class="sw" style="background:var(--${INK[g.code]})"></span>${esc(g.name)}</td><td>$${g.weight.toFixed(2)}</td><td class="${cls(g.change)}">${sign(g.change)}</td><td>${ly ? sign(ly.change) : 'n/a'}</td><td>${cbox(g.contrib, INK[g.code])}</td></tr>`;
@@ -90,7 +97,7 @@
   $('cat').innerHTML = t;
 
   // shared helpers for the sections other files fill in
-  window.NYC = {D, $, tok, esc, sign, pts, cls, mname, mshort, myear, span, spanLY};
+  window.NYC = {D, $, tok, esc, sign, pts, cls, mname, mshort, myear, span, spanLY, span12, chg};
   for (const f of ['rent', 'energy', 'food', 'admin', 'pay', 'foot']) {
     if (window['render_' + f]) window['render_' + f](window.NYC);
   }
