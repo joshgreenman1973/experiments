@@ -8,7 +8,7 @@ import json, os, sys, time, urllib.request, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "data/raw/bls.json"
-START, END = 2024, 2026
+START, END = 2019, 2026  # 2019 for the yearly May wage comparison
 
 NY = "CUURS12A"  # CPI-U, New York-Newark-Jersey City, NY-NJ-PA, not seasonally adjusted
 CPI_ITEMS = ["SA0", "SA0L1E", "SAF", "SAF1", "SAF11", "SAF111", "SAF112", "SEFJ", "SAF113",

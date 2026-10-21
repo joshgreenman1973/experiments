@@ -6,4 +6,5 @@ python3 scripts/fetch_bls.py
 python3 scripts/fetch_other.py
 python3 scripts/extract_weights.py
 python3 scripts/build.py
+python3 scripts/build_pay.py
 python3 scripts/verify.py

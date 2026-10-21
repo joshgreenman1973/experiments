@@ -42,14 +42,20 @@ for l in d["lines"]:
     if l["yoy"] is not None and abs(l["yoy"]) > 80:
         bad.append(f"{l['label']}: 12-month change {l['yoy']}% looks wrong")
 
+# Pay page: built, current, and its ACS and wage data present.
+pay = json.loads((ROOT / "data/pay.json").read_text())
+if pay["monthly"]["ahe_ref"] != d["ref"] and pay["monthly"]["ahe_ref"] < d["ref"]:
+    bad.append(f"pay page earnings month {pay['monthly']['ahe_ref']} behind prices {d['ref']}")
+if len(pay["acs"]["years"]) < 10 or len(pay["wages"]["years"]) < 5:
+    bad.append("pay page missing ACS or wage history")
 # 5. The page's scripts must parse.
-for f in ("app.js", "sections.js"):
+for f in ("app.js", "sections.js", "pay.js"):
     r = subprocess.run(["node", "--check", str(ROOT / f)], capture_output=True, text=True)
     if r.returncode:
         bad.append(f"{f} syntax: {r.stderr.strip()[:200]}")
 
 # 6. No NaN/undefined anywhere in the data.
-if re.search(r"NaN|undefined|Infinity", (ROOT / "data/dashboard.json").read_text()):
+if re.search(r"NaN|undefined|Infinity", (ROOT / "data/dashboard.json").read_text() + (ROOT / "data/pay.json").read_text()):
     bad.append("NaN/undefined in dashboard.json")
 
 if bad:
