@@ -4,8 +4,8 @@ Prices in New York City and its metro area since the start of the year, compared
 with the same months of the year before. Government sources throughout, except
 Zillow's asking-rent index (labeled private) and Citi Bike's own posted price.
 
-Replaces the NYC Price Watch (`../nyc-price-watch`) and the price side of the
-Vital City Affordability Index (`../vc-affordability-index`). See
+A draft tool. Replaces the NYC Price Watch (`../nyc-price-watch`) and the price
+side of the earlier NYC Affordability Index draft (`../vc-affordability-index`). See
 `methodology.html` for the rules and why each source was chosen.
 
 ## Refresh
