@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What New York Costs</title>
+<meta name="description" content="Prices in New York City and its metro area since the start of 2026, compared month for month with the same stretch of 2025. Government sources throughout.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css">
+<style>
+:root{--accent:var(--vermilion)}
+.wrap{max-width:1180px}
+.num{font-variant-numeric:tabular-nums}
+.up{color:var(--vermilion)} .dn{color:var(--mint)}
+.note{font-size:var(--t-small);color:var(--fg2);max-width:70ch;margin:8px 0 0}
+.note a{color:var(--fg2)}
+.sec h2{margin-top:6px}
+.sec+.sec{border-top:1px solid var(--line2)}
+/* contribution bars */
+.cbar{display:grid;grid-template-columns:150px minmax(0,1fr) 70px;gap:12px;align-items:center;margin:10px 0}
+.cbar .lab{font-size:15px;font-weight:600}
+.cbar .lab small{display:block;font-weight:400;color:var(--fg2);font-size:13px}
+.cbar .track{position:relative;height:34px}
+.cbar .track i{position:absolute;top:0;height:100%;display:block;mix-blend-mode:var(--blend)}
+.cbar .tot{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:650;font-size:1.25rem;text-align:right}
+.axis{position:relative;height:18px;margin-left:162px;margin-right:82px;font-size:12px;color:var(--fg2)}
+.axis span{position:absolute;transform:translateX(-50%)}
+@media(max-width:560px){.cbar{grid-template-columns:90px minmax(0,1fr) 54px;gap:8px}.axis{margin-left:98px;margin-right:62px}}
+/* category table */
+table.cat{width:100%;border-collapse:collapse;font-size:15px;margin-top:10px}
+table.cat th{font-size:13px;font-weight:600;color:var(--fg2);text-align:right;padding:6px 8px;border-bottom:1.5px solid var(--fg);vertical-align:bottom}
+table.cat th:first-child,table.cat td:first-child{text-align:left;padding-left:0}
+table.cat td{padding:8px;border-bottom:1px solid var(--line2);text-align:right;font-variant-numeric:tabular-nums}
+table.cat td.nm{font-weight:600}
+table.cat tr.part td.nm{font-weight:400;padding-left:18px;color:var(--fg2)}
+table.cat .sw{display:inline-block;width:11px;height:11px;margin-right:8px;vertical-align:-1px}
+table.cat .cbox{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+table.cat .cbox i{display:block;height:9px}
+.scroll{overflow-x:auto}
+/* dumbbells */
+.db{display:grid;grid-template-columns:minmax(150px,230px) minmax(0,1fr) 64px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2)}
+.db .nm{font-size:15px;font-weight:600;line-height:1.2}
+.db .nm small{display:block;font-weight:400;color:var(--fg2);font-size:13px}
+.db svg{display:block;width:100%;height:26px;overflow:visible}
+.db .v{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:650;text-align:right;font-size:1.05rem}
+@media(max-width:560px){.db{grid-template-columns:110px minmax(0,1fr) 50px}}
+/* small multiples */
+.sm{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:22px 28px;margin-top:14px}
+.sm figure{margin:0}
+.sm figcaption{font-size:15px;font-weight:600;line-height:1.25}
+.sm figcaption small{display:block;font-weight:400;color:var(--fg2);font-size:13px;margin-top:2px}
+.sm svg{display:block;width:100%;height:120px;margin-top:6px;overflow:visible}
+.sm .big{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:650;font-size:1.15rem;margin-top:4px}
+.sm .src{font-size:12px;margin-top:4px}
+/* step charts for administered prices */
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:26px 32px;margin-top:14px}
+.steps figure{margin:0;border-top:1.5px solid var(--fg);padding-top:10px}
+.steps svg{display:block;width:100%;height:90px;margin-top:8px;overflow:visible}
+.steps .now{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:650;font-size:1.3rem}
+.steps ul{margin:8px 0 0;padding:0;list-style:none;font-size:13px;color:var(--fg2)}
+.steps li{padding:2px 0}
+.toggle{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+/* rent */
+.rentgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px 44px;margin-top:12px}
+@media(max-width:860px){.rentgrid{grid-template-columns:1fr}}
+.stock{display:grid;gap:3px;margin-top:10px}
+.stock .r{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px;align-items:center;font-size:14px}
+.stock .r i{display:block;height:16px}
+.stock .r small{color:var(--fg2)}
+</style>
+</head>
+<body>
+<div class="sheet wrap">
+  <div class="strip"><span>Government price data for New York City and its metro area</span><span id="span-line"></span></div>
+  <header class="head">
+    <h1>What New York Costs</h1>
+    <p class="finding" id="finding"></p>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="fig" id="contrib-fig">
+    <div class="figcap"><span><b>Where the increase came from.</b> Percentage points of the all-items change, by category</span><span id="contrib-key"></span></div>
+    <div id="contrib"></div>
+    <div class="axis" id="contrib-axis"></div>
+    <p class="note" id="contrib-note"></p>
+  </section>
+
+  <section class="sec" id="table-sec">
+    <h2>Every category, same months, two years</h2>
+    <p class="aside">Each row is a BLS price index for the New York-Newark-Jersey City area. The weight is how many dollars of every $100 the typical household in the area spent on it, by BLS's own accounting as of last December. Contribution is weight times change, so the column adds up to the total.</p>
+    <div class="scroll"><table class="cat" id="cat"></table></div>
+  </section>
+
+  <section class="sec" id="rent-sec"></section>
+  <section class="sec" id="energy-sec"></section>
+  <section class="sec" id="food-sec"></section>
+  <section class="sec" id="admin-sec"></section>
+  <section class="sec" id="pay-sec"></section>
+
+  <footer class="foot" id="foot"></footer>
+</div>
+<script src="sections.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
