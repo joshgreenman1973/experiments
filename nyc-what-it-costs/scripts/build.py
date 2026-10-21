@@ -34,7 +34,7 @@ def ym_add(ym, k):
 def pct(a, b):
     if a is None or b is None:
         return None
-    return round(100 * (a / b - 1), 2)
+    return round(100 * (a / b - 1), 4)  # 4 places, so the page's one-place rounding is the only rounding
 
 
 import os
@@ -87,7 +87,7 @@ def contributions(base, ref, wkey):
         o = BLS[NY + code]["obs"]
         ch = o[ref] / o[base] - 1
         row = {"code": code, "name": name, "weight": w[name],
-               "change": round(100 * ch, 2), "contrib": round(w[name] * ch, 3), "parts": []}
+               "change": round(100 * ch, 4), "contrib": round(w[name] * ch, 4), "parts": []}
         parts = HOUSING_PARTS if code == "SAH" else TRANSPORT_PARTS if code == "SAT" else []
         acc = 0
         for pc_, pname, label in parts:
@@ -96,18 +96,45 @@ def contributions(base, ref, wkey):
             c = w[pname] * pch
             acc += c
             row["parts"].append({"code": pc_, "name": label, "weight": w[pname],
-                                 "change": round(100 * pch, 2), "contrib": round(c, 3)})
+                                 "change": round(100 * pch, 4), "contrib": round(c, 4)})
+        if code == "SAT":
+            # Split transportation into car costs and public transportation. BLS
+            # publishes private transportation (SAT1) and gasoline for New York; the
+            # other two pieces are exact differences of published weights and indexes.
+            po = BLS[NY + "SAT1"]["obs"]
+            wp = w["Private transportation"]
+            cp = wp * (po[ref] / po[base] - 1)
+            g = row["parts"][0]
+            ow = wp - g["weight"]
+            oc = cp - g["contrib"]
+            pw = w[name] - wp
+            pc2 = row["contrib"] - cp
+            row["parts"] = [
+                dict(g, name="Gasoline (car costs)"),
+                {"code": None, "name": "Other car costs: vehicles, insurance, repairs, parking and tolls", "weight": round(ow, 3),
+                 "change": round(100 * oc / ow, 4), "contrib": round(oc, 4), "derived": True},
+                {"code": None, "name": "Public transportation: airfares, subway, bus, commuter rail and intercity fares", "weight": round(pw, 3),
+                 "change": round(100 * pc2 / pw, 4), "contrib": round(pc2, 4), "derived": True},
+            ]
+            row["private"] = {"weight": wp, "change": round(100 * cp / wp, 4), "contrib": round(cp, 4)}
+            parts = []
         if parts:
             rw = w[name] - sum(w[p[1]] for p in parts)
             row["parts"].append({"code": None, "name": "Everything else in " + name.lower(),
                                  "weight": round(rw, 3), "change": None,
-                                 "contrib": round(row["contrib"] - acc, 3), "remainder": True})
+                                 "contrib": round(row["contrib"] - acc, 4), "remainder": True})
         out.append(row)
     a = BLS[NY + "SA0"]["obs"]
-    total = round(100 * (a[ref] / a[base] - 1), 2)
+    total_exact = 100 * (a[ref] / a[base] - 1)
+    total = round(total_exact, 4)
     check = round(sum(r["contrib"] for r in out), 2)
     assert abs(check - total) < 0.02, (check, total)
-    return {"base": base, "ref": ref, "weights_from": wkey, "total": total, "groups": out}
+    # Exact all-items change leaving out car costs (private transportation): the
+    # fixed-basket index without that component, reweighted to sum to 100.
+    pv = next(r for r in out if r["code"] == "SAT")["private"]
+    no_car = round((total_exact - pv["contrib"]) / (100 - pv["weight"]) * 100, 4)
+    return {"base": base, "ref": ref, "weights_from": wkey, "total": total, "groups": out,
+            "without_car_costs": no_car}
 
 
 # --- 2. Category lines (all on the Dec = 100 basis) ---------------------------
@@ -185,6 +212,7 @@ def main():
         "zori": monthly_block(EXTRA["zori"], lambda v: v),
         "energy": energy(),
         "homes": homes(),
+        "context": json.loads((ROOT / "data/context.json").read_text()),
     }
     (ROOT / "data/dashboard.json").write_text(json.dumps(d, indent=1))
     print("built", REF, "all items since Dec:", d["contrib"]["total"], "same span last year:", (d["contrib_ly"] or {}).get("total", "n/a (no BLS index for " + REF_LY + ")"))

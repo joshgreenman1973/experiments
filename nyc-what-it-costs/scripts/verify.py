@@ -20,6 +20,8 @@ for k in ("contrib", "contrib_ly"):
     if abs(sum(g["weight"] for g in c["groups"]) - 100) > 0.05:
         bad.append(f"{k}: weights do not sum to 100")
 
+if d["contrib"].get("without_car_costs") is None:
+    bad.append("without_car_costs missing")
 # 2. No missing headline numbers.
 for l in d["lines"] + d["aisles"]:
     for f in ("ytd",) if gap else ("ytd", "ytd_ly"):

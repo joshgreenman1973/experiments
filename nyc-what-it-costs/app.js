@@ -29,14 +29,18 @@
   const gapNote = `BLS published no New York index for ${myear(D.ref_ly)} because of the federal shutdown, so this month has no same-months comparison.`;
   const diff = CL ? C.total - CL.total : 0;
   const trShare = CL && diff > 0 ? (tr.contrib - trLY.contrib) / diff : 0;
+  const V = D.context.vehicles, noCar = Math.round(V.nyc.no_vehicle / V.nyc.households * 100);
+  const pub = tr.parts[2];
   $('finding').textContent =
     `Prices in the New York area rose ${C.total.toFixed(1)}% from December to ${mname(D.ref)}` +
     (CL ? `, against ${CL.total.toFixed(1)}% over the same months of ${D.ref_ly.slice(0, 4)}. ` : '. ') +
-    (trShare > 0.6 ? `Transportation, mostly gasoline, accounts for ${trShare > 1 ? 'more than all' : 'most'} of the difference.` : '');
+    (trShare > 0.6 ? `Getting around accounts for ${trShare > 1 ? 'more than all' : 'most'} of the difference: gasoline, and public transportation fares, which include airfares. ` : '') +
+    `Leave out car costs, since ${noCar} percent of New York City households have no car, and prices rose ${C.without_car_costs.toFixed(1)}%` +
+    (CL ? `, against ${CL.without_car_costs.toFixed(1)}%.` : '.');
   const rent = D.lines.find(l => l.key === 'rent');
   $('lede').innerHTML =
     `Every figure on this page compares the same months in two years, so the normal seasonal ups and downs cancel out, and every price is the same thing measured the same way each month. ` +
-    `Gasoline in the metro area is up <b>${sign(gas.change)}</b> since December. The rent New York-area tenants actually pay, stabilized leases included, is up <b>${sign(rent.ytd)}</b>` + (rent.ytd_ly == null ? '' : ', ') +
+    `Gasoline in the metro area is up <b>${sign(gas.change)}</b> since December. Public transportation fares, a category that includes airfares, are up <b>${sign(pub.change)}</b>; the subway and bus fare itself is up ${sign(D.administered.items.find(i => i.id === 'subway').since_dec)} since Dec. 31. The rent New York-area tenants actually pay, stabilized leases included, is up <b>${sign(rent.ytd)}</b>` + (rent.ytd_ly == null ? '' : ', ') +
     (rent.ytd_ly == null ? '' : `against ${sign(rent.ytd_ly)} over the same months last year`) + `. ` +
     `Groceries are up <b>${sign(D.lines.find(l => l.key === 'groceries').ytd)}</b>. ` +
     (D.lines[0].yoy == null ? gapNote : `Over the full twelve months to ${mname(D.ref)}, prices are up <b>${sign(D.lines[0].yoy)}</b>.`);
@@ -71,15 +75,15 @@
   const lyFor = (code, partCode) => {
     if (!CL) return null;
     const g = byCode(CL, code);
-    return partCode === undefined ? g : g.parts.find(p => p.code === partCode);
+    return partCode === undefined ? g : g.parts.find(p => p.code === partCode.code && p.name === partCode.name);
   };
   let t = `<thead><tr><th>Category</th><th>Of every $100</th><th>Change this year<br>${mshort(D.base)} to ${mshort(D.ref)}</th><th>Same months<br>last year</th><th>Points of the<br>${C.total.toFixed(1)}% total</th></tr></thead><tbody>`;
   C.groups.forEach(g => {
     const ly = lyFor(g.code);
     t += `<tr><td class="nm"><span class="sw" style="background:var(--${INK[g.code]})"></span>${esc(g.name)}</td><td>$${g.weight.toFixed(2)}</td><td class="${cls(g.change)}">${sign(g.change)}</td><td>${ly ? sign(ly.change) : 'n/a'}</td><td>${cbox(g.contrib, INK[g.code])}</td></tr>`;
     g.parts.forEach(p => {
-      const lp = lyFor(g.code, p.code);
-      t += `<tr class="part"><td class="nm">${esc(p.name)}${p.remainder ? ' (remainder)' : ''}</td><td>$${p.weight.toFixed(2)}</td><td class="${cls(p.change)}">${p.remainder ? '' : sign(p.change)}</td><td>${p.remainder || !lp ? '' : sign(lp.change)}</td><td>${cbox(p.contrib, INK[g.code])}</td></tr>`;
+      const lp = lyFor(g.code, p);
+      t += `<tr class="part"><td class="nm">${esc(p.name)}${p.remainder ? ' (remainder)' : p.derived ? ' (derived)' : ''}</td><td>$${p.weight.toFixed(2)}</td><td class="${cls(p.change)}">${p.remainder ? '' : sign(p.change)}</td><td>${p.remainder || !lp ? '' : sign(lp.change)}</td><td>${cbox(p.contrib, INK[g.code])}</td></tr>`;
     });
   });
   t += `<tr><td class="nm">All items</td><td>$100.00</td><td class="${cls(C.total)}"><b>${sign(C.total)}</b></td><td>${CL ? sign(CL.total) : 'n/a'}</td><td><span class="cbox">${pts(C.total)}</span></td></tr></tbody>`;
