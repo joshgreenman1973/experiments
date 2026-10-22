@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How I built this: Who builds New York</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../house-style/house.css">
+<style>
+:root{--accent:var(--sun)}
+main{max-width:860px;padding:0 clamp(16px,4vw,48px) 60px}
+main h2{margin-top:38px}
+main p,main li{max-width:72ch;line-height:1.6}
+main li{margin-bottom:8px}
+.call{border-top:1.5px solid var(--fg);padding:12px 0 6px;margin-top:14px}
+.call h3{font-size:1.15rem}
+.call dl{margin:6px 0 0}
+.call dt{font-size:var(--t-small);color:var(--fg2);font-weight:700;margin-top:6px}
+.call dd{margin:0}
+</style>
+</head>
+<body>
+<div class="sheet">
+<div class="strip"><a href="../">Back to Who builds New York</a><span>Written Oct. 22, 2026</span></div>
+<header class="head"><h1>How I built this</h1>
+<p class="finding">Every number on the page comes from five public sources, combined by two scripts that stop if their checks fail.</p></header>
+<main>
+
+<h2 id="sources">The sources</h2>
+<ul>
+<li><a href="https://data.cityofnewyork.us/d/br6q-ssj3">Housing Database, project-level file</a>, version 26Q2.1, from the Department of City Planning. One row per Department of Buildings job since 2010 that adds or removes homes: new buildings, conversions and demolitions, with the net change in permanent homes (the city calls them Class A units), the year the job was permitted and the year it was finished. 111,909 residential jobs. It runs through June 30, 2026.</li>
+<li>City Planning's own summaries of the same database by <a href="https://data.cityofnewyork.us/d/szq8-b4uy">2024 Council district</a> and <a href="https://data.cityofnewyork.us/d/dbdt-5s7j">community district</a>, used only as a check.</li>
+<li><a href="https://data.cityofnewyork.us/d/hg8x-zxpr">Affordable Housing Production by Building</a>, from the Department of Housing Preservation and Development (HPD): 9,551 buildings in projects started from Jan. 1, 2014 through June 30, 2026, with homes by income tier.</li>
+<li>The <a href="https://wherewelive.cityofnewyork.us/wp-content/uploads/2026/08/Fair-Housing-Growth-Strategy_Draft-Report.pdf">draft Fair Housing Growth Strategy</a>, released Aug. 19, 2026 by HPD and City Planning under Local Law 167 of 2023. Pages 36 to 42 give a five-year target for each of the 59 community districts. I read the tables out of the PDF with a script and saved them as <a href="../research/fhgs_targets_draft_2026-08-19.csv">a CSV</a>. They add up to 350,260, against the report's citywide target of 350,000; the difference is the report's own rounding.</li>
+<li>The Census Bureau: 2020 census block populations (from the bureau's TIGERweb map service) and the American Community Survey five-year estimates for 2020 to 2024, by census tract: <a href="https://data.census.gov/table/ACSDT5Y2024.B19001">household income brackets</a>, <a href="https://data.census.gov/table/ACSDT5Y2024.B25063">gross rent</a>, <a href="https://data.census.gov/table/ACSDT5Y2024.B25061">rent asked for vacant units</a>, <a href="https://data.census.gov/table/ACSDT5Y2024.B25070">rent as a share of income</a> and tenure.</li>
+<li>District boundaries from City Planning, clipped to the shoreline. Council members from the <a href="https://council.nyc.gov/districts/">Council's district list</a>, read Oct. 22, 2026. HPD's <a href="https://www.nyc.gov/site/hpd/services-and-information/area-median-income.page">2026 area median income</a> chart.</li>
+</ul>
+
+<h2 id="steps">The build, step by step</h2>
+<ol>
+<li><code>scripts/fetch.py</code> downloads everything. It refuses to save a file that comes back short: fewer than 100,000 Housing Database jobs, 9,000 HPD buildings, 51 or 59 districts, or a block population under 8 million.</li>
+<li><code>scripts/build.py</code> places each 2020 census block in a Council district and a community district by the block's internal point. Block populations add up to 8,804,190, the 2020 census count for the city, exactly; the build stops otherwise.</li>
+<li>It sums the Housing Database jobs into districts by year, using the district each job already carries in City Planning's file.</li>
+<li>It sums HPD buildings into districts using the district HPD assigns each building.</li>
+<li>It splits each census tract's survey numbers among districts in proportion to where the tract's 2020 residents live, then estimates district medians from the summed brackets.</li>
+<li>The page does the rest in the browser: year ranges, per-person rates, rankings and the counts written into sentences change with the controls.</li>
+</ol>
+
+<h2 id="districts">Net homes and districts</h2>
+<p>A "net home" is the change in permanent homes from one Buildings Department job: a new 100-unit building on an empty lot adds 100; a demolished two-family house subtracts two; turning an office into 40 apartments adds 40. Completed homes are counted in the year City Planning records the job as finished. Permitted homes are counted in the year the job got its construction permit, for jobs that are permitted, partly finished or finished; jobs withdrawn after a permit are left out, so a permitted year can shrink a little as the file is updated.</p>
+<p>Seven jobs have no Council district and 43 have no community district (36 of those sit in parks or airports, which are not community districts). They count toward citywide totals but no district.</p>
+
+<h2 id="calc">Calculated figures</h2>
+<ul>
+<li>Shares such as "the 10 districts that built the most account for 51%" divide the sum for those districts by the citywide sum for the same years.</li>
+<li>"Districts that account for half" counts districts from the top until their sum reaches half of the citywide total.</li>
+<li>Rates per 1,000 residents divide by the 2020 census population and by the number of years selected. 2026 counts as half a year, since the data stop on June 30.</li>
+<li>The citywide totals are my sums of the project file. They differ from City Planning's own summary tables by at most 580 homes in any district over 2010 to June 2026, nearly all of it in 2017, when City Planning's summary counts 580 more completions citywide than the project file does.</li>
+</ul>
+
+<h2 id="targets">The targets chart</h2>
+<p>Target pace is the district's five-year goal divided by five. Past pace is net homes completed from 2016 through 2025, divided by 10. I picked 2016 to 2025 because that is the window the city used to sort districts into growth cohorts (page 29 of the draft). For the income-restricted view, past pace is HPD's new construction in projects started 2016 to 2025, divided by 10; HPD counts a project when financing closes, so these homes are counted earlier than the completions in the all-homes view.</p>
+
+<h2 id="income">Median income</h2>
+<p>The Census Bureau does not publish figures for Council or community districts. I added up each tract's household counts in 16 income brackets, split by where the tract's residents live, and found the median by straight-line interpolation inside the bracket where the middle household falls. Run on the whole city, this gives $80,890; the bureau's published 2020-2024 median for New York City is $80,483, half a percent lower. The target pace line in the scatter chart is 70,000 homes a year divided by the 2020 population: 8.0 per 1,000 residents.</p>
+
+<h2 id="rents">Rents</h2>
+<p>Affordable means a rent of 30 percent of income or less. I used a two-person household: 60 percent of HPD's 2026 median income for two people is $81,420 a year, or $2,036 a month; 100 percent is $135,700, or $3,393 a month. Shares are interpolated inside the census rent brackets. Gross rent includes utilities; the asking rent for vacant units is contract rent, without them, so the vacant view is a slightly easier test. A district would be left blank in the vacant view if the survey found fewer than 150 vacant units for rent there, after weighting; none fell under that line in this release.</p>
+
+<h2 id="calls">Judgment calls</h2>
+<p>Each is marked with who made it. Josh has not yet reviewed the ones marked Claude.</p>
+
+<div class="call"><h3>Use net homes, with demolitions subtracted</h3><dl>
+<dt>Decision</dt><dd>Every count is net of homes lost.</dd>
+<dt>Why</dt><dd>The Chicago dashboard this follows could not subtract demolitions; New York's Housing Database can. A district that tears down two-family houses for a slightly larger building should not get credit for the gross count.</dd>
+<dt>Effect</dt><dd>Jobs completed 2016 to 2025 added 315,320 homes and removed 21,586; the page shows the difference, 293,734.</dd>
+<dt>Who</dt><dd>Claude.</dd></dl></div>
+
+<div class="call"><h3>Show both Council districts and community districts</h3><dl>
+<dt>Decision</dt><dd>A switch at the top changes every chart except the targets, which exist only for community districts.</dd>
+<dt>Why</dt><dd>The Council votes on rezonings, and by custom it follows the local member on projects in that member's district; the city's targets are set for community districts.</dd>
+<dt>Who</dt><dd>Claude.</dd></dl></div>
+
+<div class="call"><h3>Name the current Council member</h3><dl>
+<dt>Decision</dt><dd>Each Council district shows who represents it now, with a note in the district panel that most homes finished in a given year were approved years earlier, often under someone else.</dd>
+<dt>Alternative</dt><dd>Leave names off, or match each year to the member then serving. Matching by year would still misassign credit, since approvals happen years before completion.</dd>
+<dt>Who</dt><dd>Claude.</dd></dl></div>
+
+<div class="call"><h3>Replace hand-collected listings with census rents</h3><dl>
+<dt>Decision</dt><dd>The Chicago dashboard checked two July snapshots of listings. I used the census survey: rents tenants pay, and asking rents for vacant units, for 2020 to 2024.</dd>
+<dt>Why</dt><dd>It covers every district with a published method.</dd>
+<dt>Cost</dt><dd>Five-year survey numbers trail the market and understate current rents, and the vacant-unit sample is small.</dd>
+<dt>Who</dt><dd>Claude.</dd></dl></div>
+
+<div class="call"><h3>Count HPD homes by project start</h3><dl>
+<dt>Decision</dt><dd>Income-restricted homes are dated by when the project started, the date HPD reports against its own goals.</dd>
+<dt>Effect</dt><dd>These are homes financed, not finished. Many started since 2023 are still under construction.</dd>
+<dt>Who</dt><dd>Claude, following HPD's convention.</dd></dl></div>
+
+<div class="call"><h3>Split census tracts by where people live</h3><dl>
+<dt>Decision</dt><dd>A tract that straddles a district line is split by its 2020 block populations.</dd>
+<dt>Alternative</dt><dd>Assign each tract wholly to one district, or split by land area. Both move more people into the wrong district.</dd>
+<dt>Who</dt><dd>Claude.</dd></dl></div>
+
+<h2 id="not">What this does not do</h2>
+<ul>
+<li>It does not count basement apartments and other homes created without a Buildings Department job, or homes built illegally.</li>
+<li>It does not count income-restricted homes the city did not finance or require, such as some state-financed projects and NYCHA's own buildings.</li>
+<li>It does not say why a district built what it did. Zoning, land prices, transit and Council decisions all play a part; the page shows outcomes.</li>
+<li>The targets are a draft. The final report is due later in 2026, and the numbers may change.</li>
+</ul>
+
+<h2 id="checks">Checks run</h2>
+<ul>
+<li>2020 block populations sum to 8,804,190, the census count; 1,760 residents fall outside every Council district line, along the shore.</li>
+<li>District completions match City Planning's own summaries within 580 homes over 16 and a half years.</li>
+<li>HPD's income tiers add up to its counted homes in every building.</li>
+<li>Every HPD building has a Council district and a community district.</li>
+<li>The citywide median income from summed brackets lands within 0.5 percent of the published figure.</li>
+<li>The 59 targets sum to within 260 of the report's 350,000.</li>
+</ul>
+
+<h2 id="log">Change log</h2>
+<ul><li>Oct. 22, 2026: first version. Housing Database 26Q2.1; HPD data through June 30, 2026; draft targets of Aug. 19, 2026.</li></ul>
+</main>
+<footer class="foot"><a href="../">Back to the dashboard</a></footer>
+</div>
+</body>
+</html>
