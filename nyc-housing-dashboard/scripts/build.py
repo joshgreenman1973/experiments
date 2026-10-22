@@ -124,10 +124,12 @@ for b in blocks:
 total_pop = sum(tract_pop.values())
 print(f"2020 population {total_pop:,.0f}; in council districts {sum(pop['council'].values()):,.0f}; "
       f"in community districts {sum(pop['cd'].values()):,.0f}")
-if abs(total_pop - 8_804_190) > 1000:
+if round(total_pop) != 8_804_190:
     fail(f"2020 block population {total_pop:,.0f} does not match the census count of 8,804,190")
-if unplaced_pop > 2000:
-    fail(f"{unplaced_pop:,.0f} residents fell outside every council district")
+unplaced_cd = total_pop - sum(pop["cd"].values())
+print(f"residents outside every council district: {unplaced_pop:,.0f}; outside every community district: {unplaced_cd:,.0f}")
+if unplaced_pop > 2000 or unplaced_cd > 5000:
+    fail("too many residents fell outside the district lines")
 
 # ---------- ACS 2020-2024, allocated tract -> district by 2020 population ----------
 acs = load("acs2024_tracts.json")
@@ -169,18 +171,20 @@ def check_cols(group, cols):
 
 
 def median_from_brackets(counts, edges):
+    """Returns (median, open) where open is True when the median falls in the
+    top bracket, which has no upper edge; the value is then the bracket floor."""
     total = sum(counts)
     if total <= 0:
-        return None
+        return None, False
     half, run = total / 2, 0
     for i, c in enumerate(counts):
         if run + c >= half:
             lo, hi = edges[i], edges[i + 1]
             if hi is None:
-                return lo  # median in the open top bracket: report its floor
-            return lo + (half - run) / c * (hi - lo) if c else lo
+                return lo, True
+            return (lo + (half - run) / c * (hi - lo) if c else lo), False
         run += c
-    return None
+    return None, False
 
 
 def share_below(counts, edges, cutoff):
@@ -205,6 +209,7 @@ for g, cols in [("B19001", INC_COLS), ("B25063", GR_COLS), ("B25061", RA_COLS)]:
 # Rents a two-person household could pay at 30 percent of income
 RENT60 = AMI2026[2] * 0.60 * 0.30 / 12
 RENT100 = AMI2026[2] * 1.00 * 0.30 / 12
+half_up = lambda x: math.floor(x + 0.5)
 
 acsd = {}
 for level in ("council", "cd"):
@@ -219,15 +224,18 @@ for level in ("council", "cd"):
     for k in (council if level == "council" else cd):
         b = burden[k]
         computed = b[0] - b[10]  # all renters minus "not computed"
+        medinc, inc_open = median_from_brackets(inc[k], INC_EDGES)
+        gr_med, gr_open = median_from_brackets(gr[k], GR_EDGES)
+        ra_med, ra_open = median_from_brackets(ra[k], RA_EDGES)
         out[k] = {
-            "medinc": round(median_from_brackets(inc[k], INC_EDGES) or 0),
+            "medinc": round(medinc or 0), "medinc_open": inc_open,
             "households": round(hh[k][0]),
             "renter_share": round(ten[k][2] / ten[k][0], 3) if ten[k][0] else None,
-            "gross_rent_median": round(median_from_brackets(gr[k], GR_EDGES) or 0),
+            "gross_rent_median": round(gr_med or 0), "gross_rent_open": gr_open,
             "occ_aff60": round(share_below(gr[k], GR_EDGES, RENT60), 3),
             "occ_aff100": round(share_below(gr[k], GR_EDGES, RENT100), 3),
             "vac_for_rent": round(vac[k][0]),
-            "asked_median": round(median_from_brackets(ra[k], RA_EDGES) or 0),
+            "asked_median": round(ra_med or 0), "asked_open": ra_open,
             "asked_aff60": (round(share_below(ra[k], RA_EDGES, RENT60), 3) if sum(ra[k]) >= 150 else None),
             "burdened": round((b[6] + b[7] + b[8] + b[9]) / computed, 3) if computed else None,
             "severe": round(b[9] / computed, 3) if computed else None,
@@ -239,7 +247,7 @@ city_inc = [0.0] * len(INC_COLS)
 for r in acs["B19001"]:
     for i, c in enumerate(INC_COLS):
         city_inc[i] += max(num(r.get(c)), 0)
-city_med = median_from_brackets(city_inc, INC_EDGES)
+city_med, _ = median_from_brackets(city_inc, INC_EDGES)
 print(f"citywide median household income from brackets: ${city_med:,.0f}")
 
 # ---------- Housing Database ----------
@@ -336,7 +344,7 @@ for h in H:
     hpd_rows.append({
         "project": h.get("project_name", ""), "pid": h.get("project_id"),
         "addr": f"{h.get('house_number','') or ''} {h.get('street_name','') or ''}".strip().title() or "Address withheld",
-        "boro": h.get("borough", ""), "cd": cdk if cdk in cd else None,
+        "boro": h.get("borough", ""), "boro2": cdcode[:2], "cd": cdk if cdk in cd else None,
         "cc": cck if cck in council else None,
         "start": sd, "done": (h.get("building_completion_date") or h.get("project_completion_date") or "")[:10],
         "type": h.get("reporting_construction_type"),
@@ -347,11 +355,13 @@ for h in H:
 tier_sum_gap = sum(abs(sum(r["tiers"]) - r["counted"]) for r in hpd_rows)
 print(f"HPD buildings: {len(hpd_rows):,}; counted units {sum(r['counted'] for r in hpd_rows):,}; "
       f"tier-vs-counted mismatch {tier_sum_gap}")
-if tier_sum_gap > 0.01 * sum(r["counted"] for r in hpd_rows):
+if tier_sum_gap > 0:
     fail("HPD income tiers do not add up to counted units")
 no_cc = sum(1 for r in hpd_rows if r["cc"] is None)
 no_cd = sum(1 for r in hpd_rows if r["cd"] is None)
 print(f"HPD buildings with no council district: {no_cc}; no community district: {no_cd}")
+if no_cc or no_cd:
+    fail("an HPD building has no district")
 
 with open(os.path.join(OUT, "hpd_buildings.csv"), "w", newline="") as f:
     wr = csv.writer(f)
@@ -375,6 +385,20 @@ if set(targets) != set(cd):
 
 members = json.load(open(os.path.join(ROOT, "research", "council_members_2026-10-22.json")))["members"]
 
+# 2020 census housing units by district, from DCP's own summary tables
+stock = {"council": {}, "cd": {}}
+for lvl, fname, key in [("council", "hdb_council.json", "councildst"), ("cd", "hdb_cd.json", "commntydst")]:
+    for s in load(fname):
+        k = int(num(s[key]))
+        if k in (council if lvl == "council" else cd):
+            stock[lvl][k] = round(num(s.get("cenunits20")))
+    if len(stock[lvl]) != len(council if lvl == "council" else cd):
+        fail(f"{lvl}: housing stock missing for some districts")
+city_stock = sum(stock["council"].values())
+print(f"2020 housing units in council districts: {city_stock:,}")
+if abs(city_stock - 3_618_635) > 5000:
+    fail("2020 housing stock does not match the census count of 3,618,635")
+
 BORO = {1: "Manhattan", 2: "Bronx", 3: "Brooklyn", 4: "Queens", 5: "Staten Island"}
 
 
@@ -387,6 +411,7 @@ def pack(lvl, k):
          "big": a["big"][:5]}
     if lvl != "city":
         d["pop20"] = round(pop[lvl][k])
+        d["units20"] = stock[lvl][k]
         d.update(acsd[lvl][k])
     return d
 
@@ -394,13 +419,15 @@ def pack(lvl, k):
 out = {
     "meta": {"hdb_version": HDB_VERSION, "first": FIRST, "last": LAST, "hpd_first": HPD_FIRST,
              "target_city_5yr": TARGET_CITY_5YR, "pop20": round(total_pop),
-             "rent60": round(RENT60), "rent100": round(RENT100), "ami2": AMI2026[2],
-             "city_medinc_brackets": round(city_med), "built": "2026-10-22"},
+             "rent60": half_up(RENT60), "rent100": half_up(RENT100), "ami2": AMI2026[2],
+             "city_medinc_brackets": round(city_med), "units20": city_stock, "built": "2026-10-22"},
     "city": pack("city", 0),
+    "peaks": {"comp_year": FIRST + max(range(LAST - FIRST), key=lambda i: agg["city"][0]["comp_net"][i]),
+              "permit_years": sorted(range(FIRST, LAST + 1), key=lambda y: -agg["city"][0]["permit_net"][y - FIRST])[:2]},
     "council": {}, "cd": {},
     "hpd": [[r["cc"], r["cd"], int(r["start"][:4]), 0 if r["type"] == "New Construction" else 1, *r["tiers"]]
             for r in hpd_rows],
-    "hpd_list": [[r["project"], r["addr"], r["boro"][:2], r["cc"], r["cd"], r["start"], r["done"],
+    "hpd_list": [[r["project"], r["addr"], r["boro2"], r["cc"], r["cd"], r["start"], r["done"],
                   "N" if r["type"] == "New Construction" else "P", r["counted"], *r["tiers"]] for r in hpd_rows],
 }
 for k in sorted(council):

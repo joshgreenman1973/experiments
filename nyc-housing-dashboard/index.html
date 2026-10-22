@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Who builds New York</title>
+<meta property="og:title" content="Who builds New York">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <meta name="description" content="Every New York City Council district and community district, measured by the homes it added since 2010, the income-restricted homes the city financed, and the city's own 2030 housing targets.">
+<meta property="og:description" content="Every New York City Council district and community district, measured by the homes it added since 2010, the income-restricted homes the city financed, and the city's own 2030 housing targets.">
 <link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
 <link rel="stylesheet" href="https://vital-city-nyc.github.io/vital-city-design-system/tokens/tokens.css">
 <link rel="stylesheet" href="https://vital-city-nyc.github.io/vital-city-design-system/charts/chart-theme.css">
@@ -19,7 +23,7 @@
   --vermilion:#e7466d;/* homes lost: magenta */
   --lilac:#394882;    /* targets: indigo */
   --mint:#57aa4a;     /* income-restricted */
-  --cyan:#217ebe;--rose:#e7466d;--orange:#ff7c53;--fg2c:#707175;
+  --cyan:#217ebe;--rose:#e7466d;--orange:#ff7c53;--fg2c:#707175;--chart-c2:#dde44c;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:#fff;color:var(--fg)}
@@ -141,15 +145,17 @@ dl.f dd{margin:0}
     <span class="grp" id="measBtns">
       <button class="chip" data-m="comp" aria-pressed="true">Completed</button>
       <button class="chip" data-m="permit" aria-pressed="false">Permitted</button>
+      <button class="chip" data-m="pipe" aria-pressed="false">In the pipeline</button>
     </span>
     <span class="grp" id="perBtns">
       <button class="chip" data-p="total" aria-pressed="true">Total homes</button>
-      <button class="chip" data-p="rate" aria-pressed="false">Per 1,000 residents a year</button>
+      <button class="chip" data-p="rate" aria-pressed="false">Per 1,000 residents</button>
+      <button class="chip" data-p="stock" aria-pressed="false">Growth of 2020 homes</button>
     </span>
   </div>
   <div class="mapwrap">
     <div><svg class="map" id="mapBuilt"></svg><div class="ramp" id="rampBuilt"></div></div>
-    <div><div class="figcap" id="rankBuiltTitle"></div><div class="rank" id="rankBuilt"></div></div>
+    <div><div class="figcap" id="rankBuiltTitle"></div><div class="rank" id="rankBuilt"></div><div class="toolbar" style="margin:10px 0 0"><button class="chip solo" id="rankCsv">Download this ranking</button></div></div>
   </div>
   <p class="note" id="builtNote"></p>
 </section>
@@ -179,6 +185,10 @@ dl.f dd{margin:0}
   <h2 id="affH"></h2>
   <p class="sub" id="affAside"></p>
   <div class="toolbar">
+    <span class="grp" id="avBtns">
+      <button class="chip" data-av="count" aria-pressed="true">Homes financed</button>
+      <button class="chip" data-av="share" aria-pressed="false">Share of homes completed</button>
+    </span>
     <span class="grp" id="typeBtns">
       <button class="chip" data-ty="all" aria-pressed="true">New and preserved</button>
       <button class="chip" data-ty="N" aria-pressed="false">New construction</button>
@@ -186,7 +196,7 @@ dl.f dd{margin:0}
     </span>
     <span class="grp tiers" id="tierBtns"></span>
   </div>
-  <div class="mapwrap">
+  <div class="mapwrap" id="affMap">
     <div><svg class="map" id="mapAff"></svg><div class="ramp" id="rampAff"></div></div>
     <div><div class="figcap" id="rankAffTitle"></div><div class="rank" id="rankAff"></div></div>
   </div>
@@ -255,6 +265,10 @@ const SRC={
   bur:'https://data.census.gov/table/ACSDT5Y2024.B25070',
   pop:'https://data.census.gov/table/DECENNIALPL2020.P1',
   members:'https://council.nyc.gov/districts/',
+  brief:'https://www.nyc.gov/assets/planning/download/pdf/planning-level/housing-economy/permitting-first-half-of-2022-info-brief.pdf',
+  hnymap:'https://www.nyc.gov/site/housing/action/hny-map.page',
+  units:'https://data.census.gov/table/DECENNIALPL2020.H1',
+  ten:'https://data.census.gov/table/ACSDT5Y2024.B25003',
   how:'docs/how-i-built-this.html'
 };
 const L=(href,t)=>`<a href="${href}">${t}</a>`;
@@ -265,10 +279,18 @@ const css=getComputedStyle(document.documentElement), tok=n=>css.getPropertyValu
 const fmt=d3.format(','), pct=x=>x==null?'n/a':Math.round(x*100)+'%', one=d3.format(',.1f');
 const money=x=>'$'+fmt(Math.round(x));
 const BORO={1:'Manhattan',2:'Bronx',3:'Brooklyn',4:'Queens',5:'Staten Island'};
+const BORO2={MN:'Manhattan',BX:'Bronx',BK:'Brooklyn',QN:'Queens',SI:'Staten Island'};
 const TIERS=[['Extremely low','lilac','up to 30% of median income'],['Very low','cobalt','31-50%'],['Low','mint','51-80%'],['Moderate','chart-c2','81-120%'],['Middle','orange','121-165%'],['Other','fg2','superintendent units and other']];
 document.getElementById('ver').textContent=M.hdb_version;
 
-const S={geo:'council',m:'comp',p:'total',y0:2016,y1:2025,t:'total',ty:'all',tiers:[1,1,1,1,1,1],r:'occ_aff60',q:''};
+const S={geo:'council',m:'comp',p:'total',y0:2016,y1:2025,t:'total',ty:'all',av:'count',tiers:[1,1,1,1,1,1],r:'occ_aff60',q:'',d:null};
+const OK={geo:['council','cd'],m:['comp','permit','pipe'],p:['total','rate','stock'],t:['total','aff'],ty:['all','N','P'],av:['count','share'],r:['occ_aff60','occ_aff100','asked_aff60','burdened']};
+(function(){const q=new URLSearchParams(location.hash.slice(1));for(const k in OK){const v=q.get(k);if(v&&OK[k].includes(v))S[k]=v}
+  const y0=+q.get('y0'),y1=+q.get('y1');if(y0>=F&&y0<=LAST)S.y0=y0;if(y1>=F&&y1<=LAST)S.y1=y1;if(S.y0>S.y1)[S.y0,S.y1]=[S.y1,S.y0];
+  const t=q.get('tiers');if(t&&/^[01]{6}$/.test(t)&&t.includes('1'))S.tiers=[...t].map(Number);
+  const d=q.get('d');if(d&&/^\d+$/.test(d))S.d=+d})();
+function pushState(){const q=new URLSearchParams();for(const k in OK)if(S[k]!==OK[k][0])q.set(k,S[k]);if(S.y0!==2016)q.set('y0',S.y0);if(S.y1!==2025)q.set('y1',S.y1);
+  if(S.tiers.some(x=>!x))q.set('tiers',S.tiers.join(''));if(S.d!=null)q.set('d',S.d);const s=q.toString();history.replaceState(null,'',s?'#'+s:location.pathname+location.search)}
 const geo={council:GC,cd:GD};
 function dists(g){return Object.entries(D[g]).map(([id,v])=>({id:+id,v,g}))}
 function name(d){return d.g==='council'?`District ${d.id}`:`${BORO[Math.floor(d.id/100)]} ${d.id%100}`}
@@ -276,8 +298,10 @@ function sub(d){return d.g==='council'?(d.v.member?`Council Member ${d.v.member}
 function full(d){return d.g==='council'?`Council District ${d.id}`:`${BORO[Math.floor(d.id/100)]} Community District ${d.id%100}, ${d.v.name}`}
 const sum=(a,y0,y1)=>{let s=0;for(let y=y0;y<=y1;y++)s+=a[y-F]||0;return s};
 const yearsIn=(y0,y1)=>{let n=0;for(let y=y0;y<=y1;y++)n+=(y===LAST?0.5:1);return n}; // 2026 holds six months
-function built(d,m=S.m,y0=S.y0,y1=S.y1){return sum(d.v[m],y0,y1)}
-function rate(d,m=S.m,y0=S.y0,y1=S.y1){return built(d,m,y0,y1)/d.v.pop20*1000/yearsIn(y0,y1)}
+function built(d,m=S.m,y0=S.y0,y1=S.y1){return m==='pipe'?d.v.pipeline:sum(d.v[m],y0,y1)}
+function rate(d,m=S.m,y0=S.y0,y1=S.y1){return built(d,m,y0,y1)/d.v.pop20*1000/(m==='pipe'?1:yearsIn(y0,y1))}
+function growth(d,m=S.m,y0=S.y0,y1=S.y1){return built(d,m,y0,y1)/d.v.units20*100/(m==='pipe'?1:yearsIn(y0,y1))}
+const pct1=x=>(Math.round(x*100)/100).toFixed(2)+'%';
 
 // ---------- year selects ----------
 const y0s=document.getElementById('y0'), y1s=document.getElementById('y1');
@@ -292,12 +316,14 @@ function buttons(id,attr,key,cb){
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S[key]=b.dataset[attr];
     el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));cb?cb():render()});
 }
-buttons('geoBtns','geo','geo');buttons('measBtns','m','m');buttons('perBtns','p','p');buttons('tgtBtns','t','t',drawTargets);
-buttons('typeBtns','ty','ty');buttons('rentBtns','r','r',drawRents);
+buttons('geoBtns','geo','geo');buttons('measBtns','m','m');buttons('perBtns','p','p');buttons('tgtBtns','t','t',()=>{drawTargets();pushState()});
+buttons('typeBtns','ty','ty');buttons('avBtns','av','av',()=>{drawAfford();pushState()});buttons('rentBtns','r','r',()=>{drawRents();pushState()});
+for(const [id,attr,key] of [['geoBtns','geo','geo'],['measBtns','m','m'],['perBtns','p','p'],['tgtBtns','t','t'],['typeBtns','ty','ty'],['avBtns','av','av'],['rentBtns','r','r']])
+  document.querySelectorAll('#'+id+' button').forEach(b=>b.setAttribute('aria-pressed',b.dataset[attr]===S[key]));
 const tb=document.getElementById('tierBtns');
-TIERS.forEach((t,i)=>{const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed','true');
+TIERS.forEach((t,i)=>{const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',!!S.tiers[i]);
   b.innerHTML=`<i style="background:var(--${t[1]})"></i>${t[0]}`;b.title=t[2];
-  b.onclick=()=>{S.tiers[i]=S.tiers[i]?0:1;if(!S.tiers.some(Boolean))S.tiers[i]=1;b.setAttribute('aria-pressed',!!S.tiers[i]);drawAfford()};tb.appendChild(b)});
+  b.onclick=()=>{S.tiers[i]=S.tiers[i]?0:1;if(!S.tiers.some(Boolean))S.tiers[i]=1;b.setAttribute('aria-pressed',!!S.tiers[i]);drawAfford();pushState()};tb.appendChild(b)});
 
 // ---------- tooltip ----------
 const tip=document.getElementById('tip');
@@ -326,7 +352,7 @@ function choropleth(svgId,rankId,rampId,titleId,{value,label,ink,title,tipExtra,
     return `<button data-id="${d.id}"><span class="nm">${name(d)}<small>${sub(d)}</small></span><span class="bx"><i style="width:${w}%;background:${v<0?'var(--vermilion)':`var(--${ink})`};opacity:.85"></i></span><u>${v==null?'n/a':label(v,true)}</u></button>`}).join('');
   rk.onclick=e=>{const b=e.target.closest('button');if(b)openDrawer(byId.get(+b.dataset.id))};
   document.getElementById(titleId).textContent=title;
-  document.getElementById(rampId).innerHTML=`<span>${lo<0?label(lo,true):label(0,true)}</span><span class="g" style="background:linear-gradient(90deg,${lo<0?tok('vermilion')+','+tok('bg2')+',':tok('bg2')+','}${tok(ink)})"></span><span>${label(hi,true)}</span>`;
+  document.getElementById(rampId).innerHTML=lo<0?`<span>${label(lo,true)}</span><span class="g" style="background:linear-gradient(90deg,${tok('vermilion')},${tok('bg2')} ${Math.round(-lo/(hi-lo)*100)}%,${tok(ink)})"></span><span>${label(hi,true)}</span><span style="margin-left:6px">(0 at ${Math.round(-lo/(hi-lo)*100)}% along the bar)</span>`:`<span>${label(0,true)}</span><span class="g" style="background:linear-gradient(90deg,${tok('bg2')},${tok(ink)})"></span><span>${label(hi,true)}</span>`;
 }
 
 // ---------- opening ----------
@@ -336,34 +362,42 @@ function opening(){
   const city=sum(D.city.comp,2016,2025);
   const top10=s.slice(0,10).reduce((a,d)=>a+dec(d),0);
   const bottom10=s.slice(-10).reduce((a,d)=>a+dec(d),0);
-  const rec=D.city.comp[2025-F], perYr=M.target_city_5yr/5;
+  const peakY=D.peaks.comp_year, rec=D.city.comp[peakY-F], perYr=M.target_city_5yr/5;
   const same=top.v.boro===bot.v.boro;
   document.getElementById('finding').innerHTML=`From 2016 through 2025, Council District ${top.id} in ${top.v.boro} added ${L(SRC.hdb,'<b>'+fmt(dec(top))+'</b> homes')}. District ${bot.id}, ${same?'also in '+bot.v.boro:'in '+bot.v.boro}, added ${L(SRC.hdb,'<b>'+fmt(dec(bot))+'</b>')}.`;
-  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,'<b>'+fmt(city)+'</b>')} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),'<b>'+pct(top10/city)+'</b>')} of them, and the 10 that built the least for ${L(HOW('calc'),'<b>'+pct(bottom10/city)+'</b>')}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','<b>350,000</b> homes')} in five years.`;
+  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,'<b>'+fmt(city)+'</b>')} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),'<b>'+pct(top10/city)+'</b>')} of them, and the 10 that built the least for ${L(HOW('calc'),'<b>'+pct(bottom10/city)+'</b>')}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','<b>350,000</b> homes')} in five years. The most finished in any year since 2010 was ${L(SRC.hdb,'<b>'+fmt(rec)+'</b>')}, in ${peakY}.`;
   const cds=dists('cd'), behind=cds.filter(d=>sum(d.v.comp,2016,2025)/10<d.v.goal/5/2).length;
   const stat=(n,href,lbl)=>`<div class="stat"><div class="num"><a href="${href}">${n}</a></div><div class="lbl">${lbl}</div></div>`;
   document.getElementById('stats').innerHTML=
     stat(fmt(city),SRC.hdb,'Net new homes, 2016-2025')+
-    stat(fmt(rec),SRC.hdb,'Most in one year since 2010 (2025)')+
+    stat(fmt(rec),SRC.hdb,`Most in one year since 2010 (${peakY})`)+
     stat(fmt(perYr),SRC.fhgs+'#page=28','A year, the pace the 2030 targets set')+
     stat(behind+' of 59',HOW('targets'),'Community districts on pace for under half their target');
 }
 
 // ---------- section 1 ----------
 function drawBuilt(){
-  const rateMode=S.p==='rate', mlabel=S.m==='comp'?'completed':'permitted';
+  const pipe=S.m==='pipe', mlabel={comp:'completed',permit:'permitted',pipe:'in the pipeline'}[S.m];
+  const per=S.p, val=d=>per==='rate'?rate(d):per==='stock'?growth(d):built(d);
+  const unit=per==='rate'?(pipe?' per 1,000 residents':' per 1,000 residents a year'):per==='stock'?(pipe?' of the homes counted in 2020':' of the homes counted in 2020, a year'):'';
+  const unitT=per==='stock'?(pipe?', as a share of the homes counted in 2020':', a year, as a share of the homes counted in 2020'):per==='rate'?','+unit:'';
+  const when=pipe?'as of June 30, 2026':yrLabel();
   choropleth('mapBuilt','rankBuilt','rampBuilt','rankBuiltTitle',{
-    value:d=>rateMode?rate(d):built(d), ink:S.m==='comp'?'sun':'cobalt',
-    label:(v,short)=>rateMode?one(v)+(short?'':' net homes per 1,000 residents a year'):fmt(Math.round(v))+(short?'':' net homes '+mlabel),
-    title:`Net homes ${mlabel}, ${yrLabel()}${rateMode?', per 1,000 residents a year':''}`,
+    value:val, ink:S.m==='comp'?'sun':S.m==='permit'?'cobalt':'lilac',
+    label:(v,short)=>(per==='rate'?one(v):per==='stock'?pct1(v):fmt(Math.round(v)))+(short?'':(per==='total'?' net homes '+mlabel:unit)),
+    title:`Net homes ${mlabel}, ${when}${unitT}`,
     tipExtra:d=>S.m==='comp'?`${fmt(sum(d.v.gain,S.y0,S.y1))} added, ${fmt(sum(d.v.loss,S.y0,S.y1))} lost`:''
   });
-  const ds=dists(S.geo), city=S.m==='comp'?sum(D.city.comp,S.y0,S.y1):sum(D.city.permit,S.y0,S.y1);
+  const ds=dists(S.geo), city=pipe?D.city.pipeline:sum(D.city[S.m],S.y0,S.y1);
   const s=ds.map(d=>built(d)).sort((a,b)=>b-a); let run=0,k=0; while(run<city/2&&k<s.length){run+=s[k++]}
   const neg=ds.filter(d=>built(d)<0).length;
-  const yrs=S.y0===S.y1?`in ${yrLabel()}`:`from ${S.y0} to ${S.y1===LAST?'June 2026':S.y1}`;
-  document.getElementById('builtH').textContent=`Half the net new homes ${mlabel} ${yrs} are in ${k} of ${ds.length} ${S.geo==='council'?'council':'community'} districts`;
-  document.getElementById('builtNote').innerHTML=`Citywide, ${L(SRC.hdb,fmt(city)+' net homes')} ${mlabel}, ${yrLabel()}. ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts account for half.${neg?` ${neg} lost more homes than they gained.`:''} ${S.m==='permit'?'Permitted counts every job that got a construction permit in the year, whether or not it has finished; jobs later withdrawn are left out.':'Completed counts homes in the year the job finished.'} Residents are the ${L(SRC.pop,'2020 census count')}. Not counted: illegal units, and the homes created without a Buildings Department job.`;
+  const yrs=pipe?'':S.y0===S.y1?` in ${yrLabel()}`:` from ${S.y0} to ${S.y1===LAST?'June 2026':S.y1}`;
+  document.getElementById('builtH').innerHTML=`Half the net new homes ${mlabel}${yrs} are in ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts`;
+  const rk=dists(S.geo).map(d=>({d,v:val(d)})).sort((a,b)=>b.v-a.v);
+  document.getElementById('rankCsv').onclick=()=>{const head=S.geo==='council'?['council_district','member','value','measure']:['community_district','name','value','measure'];
+    const csv=[head.join(',')].concat(rk.map(r=>[r.d.id,`"${(S.geo==='council'?r.d.v.member:r.d.v.name)||''}"`,per==='total'?Math.round(r.v):r.v.toFixed(3),`"Net homes ${mlabel}, ${when}${unitT}"`].join(','))).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`who-builds-new-york-${S.geo}-${S.m}-${S.y0}-${S.y1}.csv`;a.click()};
+  document.getElementById('builtNote').innerHTML=`Citywide, ${L(SRC.hdb,fmt(city)+' net homes')} ${mlabel}, ${when}. ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts account for half.${neg?` ${neg} ${S.m==='comp'?'lost more homes than they gained':S.m==='permit'?'permitted more demolitions than new homes':'have more demolition than construction permitted'}.`:''} ${S.m==='permit'?'Permitted counts every job that got a construction permit in the year, whether or not it has finished; jobs later withdrawn are left out.':pipe?'The pipeline is every job with a construction permit that has not been recorded as finished, whatever year it was permitted; some of these jobs have stalled.':'Completed counts homes in the year the job finished.'} Residents are the ${L(SRC.pop,'2020 census count')} and existing homes the ${L(SRC.units,'2020 census count of housing units')}. Not counted: illegal units, and the homes created without a Buildings Department job.`;
 }
 
 // ---------- year chart ----------
@@ -383,8 +417,8 @@ function drawYears(){
       .on('mousemove',e=>showTip(e,`<b>${y===LAST?'2026, January to June':y}</b>${fmt(D.city.comp[i])} net homes completed<br>${fmt(D.city.permit[i])} net homes in jobs permitted<br>${fmt(D.city.loss[i])} homes lost in completed jobs`)).on('mouseleave',hideTip));
     G.append('rect').attr('x',X+xi('c')).attr('width',xi.bandwidth()).attr('y',yS(0)).attr('height',yS(-D.city.loss[i])-yS(0)).attr('fill',tok('vermilion')).attr('opacity',on(y)?1:.3);
   });
-  const p15=D.city.permit[2015-F], p22=D.city.permit[2022-F];
-  document.getElementById('yearsAside').innerHTML=`Net homes in permitted jobs reached ${L(SRC.hdb,fmt(p15))} in 2015 and ${L(SRC.hdb,fmt(p22))} in 2022. The 421-a property tax break lapsed in January 2016 and June 2022, and developers ${L('https://www.nyc.gov/assets/planning/download/pdf/planning-level/housing-economy/permitting-first-half-of-2022-info-brief.pdf','moved projects forward to qualify')}. Completions followed years later; in 2024 the state ${L('https://www.furmancenter.org/soc-report/state-of-new-york-citys-housing-and-neighborhoods-in-2023/state-of-the-citys-housing-stock-2023/','extended the deadline')} to finish the 2022 projects. The selected years are lit. 2026 covers January to June.`;
+  const [pa,pb]=D.peaks.permit_years.slice().sort(), p15=D.city.permit[pa-F], p22=D.city.permit[pb-F];
+  document.getElementById('yearsAside').innerHTML=`Net homes in permitted jobs peaked at ${L(SRC.hdb,fmt(p15))} in ${pa} and ${L(SRC.hdb,fmt(p22))} in ${pb}. The 421-a property tax break for new apartment buildings expired in ${L(SRC.brief,'December 2015')} and again on ${L(SRC.brief,'June 15, 2022')}, and developers ${L(SRC.brief,'sped up projects to qualify')}. Completions followed years later; in 2024 the state ${L('https://www.furmancenter.org/soc-report/state-of-new-york-citys-housing-and-neighborhoods-in-2023/state-of-the-citys-housing-stock-2023/','extended the deadline')} to finish the 2022 projects. The selected years are lit. 2026 covers January to June.`;
 }
 
 // ---------- targets ----------
@@ -414,7 +448,7 @@ function drawTargets(){
   const cityPast=aff?[...hpdNew.values()].reduce((a,b)=>a+b,0)/10:sum(D.city.comp,2016,2025)/10;
   const cityTgt=aff?ds.reduce((a,d)=>a+d.v.goal_aff,0)/5:M.target_city_5yr/5;
   document.getElementById('pacekey').textContent=aff?'HPD-financed new income-restricted homes a year, started 2016 to 2025':'Net homes completed a year, 2016 to 2025';
-  document.getElementById('targetsH').textContent=aff?`At their 2016-2025 pace, ${behind} of 59 community districts would reach less than half their 2030 target for income-restricted homes`:`At their 2016-2025 pace, ${behind} of 59 community districts would reach less than half their 2030 housing target`;
+  document.getElementById('targetsH').innerHTML=aff?`At their 2016-2025 pace, ${L(HOW('targets'),behind+' of 59')} community districts would reach less than half their 2030 target for income-restricted homes`:`At their 2016-2025 pace, ${L(HOW('targets'),behind+' of 59')} community districts would reach less than half their 2030 housing target`;
   document.getElementById('targetsAside').innerHTML=aff
     ?`The draft also sets a target for income-restricted homes in each district, ${L(SRC.fhgs+'#page=36','a quarter of its total')}. Here the past pace is the new construction HPD financed, by start date. ${L(HOW('targets'),met+' of 59')} districts already ran at the target pace; ${L(HOW('targets'),behind)} ran at less than half.`
     :`In August the Department of Housing Preservation and Development and the Department of City Planning set a ${L(SRC.fhgs+'#page=36','five-year target for each of the 59 community districts')}, adding up to ${L(SRC.fhgs+'#page=28','350,000 homes')} by 2030. The targets are drafts and are not binding. Districts that grew slowly were asked to speed up the most (${L(SRC.fhgs+'#page=30','the method')}). At their pace from 2016 through 2025, ${L(HOW('targets'),behind+' districts')} would reach less than half their target, and ${L(HOW('targets'),met)} would meet it.`;
@@ -428,23 +462,38 @@ function drawAfford(){
   const by=new Map(), col=S.geo==='council'?0:1; let city=0;
   D.hpd.forEach(r=>{if(!hpdFilter(r))return;const u=hpdUnits(r);by.set(r[col],(by.get(r[col])||0)+u);city+=u});
   const ty={all:'started',N:'newly built, started',P:'preserved, started'}[S.ty];
-  const y0=Math.max(S.y0,M.hpd_first);
-  choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:d=>by.get(d.id)||0,ink:'mint',
-    label:(v,short)=>fmt(v)+(short?'':' income-restricted homes'),title:`Income-restricted homes ${ty} ${y0===S.y1?y0:y0+' to '+(S.y1===LAST?'June 2026':S.y1)}`});
-  const ds=dists(S.geo), s=ds.map(d=>by.get(d.id)||0).sort((a,b)=>b-a); let run=0,k=0; while(run<city/2&&k<s.length)run+=s[k++];
-  document.getElementById('affH').textContent=`Half the income-restricted homes the city financed ${y0===S.y1?'in '+y0:'from '+y0+' to '+(S.y1===LAST?'June 2026':S.y1)} are in ${k} of ${ds.length} ${S.geo==='council'?'council':'community'} districts`;
-  document.getElementById('affAside').innerHTML=`Homes with income limits that the Department of Housing Preservation and Development or the Housing Development Corporation financed or required, counted by the date the project started. ${L(SRC.hpd,fmt(city))} fit the current choices; ${L(HOW('calc'),k+' districts')} hold half of them. Preservation means existing homes that got new financing in exchange for keeping rents restricted. Records start in ${M.hpd_first}${S.y0<M.hpd_first?`, so years before ${M.hpd_first} are left out here`:''}. Not counted: NYCHA's own buildings, and income-restricted homes built without city financing.`;
+  const y0=Math.max(S.y0,M.hpd_first), span=y0===S.y1?y0:y0+' to '+(S.y1===LAST?'June 2026':S.y1);
+  const ds=dists(S.geo);
+  document.getElementById('typeBtns').style.display=S.av==='share'?'none':'';document.getElementById('tierBtns').style.display=S.av==='share'?'none':'';
+  const tooEarly=S.av!=='share'&&S.y1<M.hpd_first;
+  document.getElementById('affMap').style.display=tooEarly?'none':'';
+  if(S.av==='share'){
+    const sh=d=>{const g=sum(d.v.gain,S.y0,S.y1);return g>0?sum(d.v.afford_hdb,S.y0,S.y1)/g:null};
+    const cg=sum(D.city.gain,S.y0,S.y1), ca=sum(D.city.afford_hdb,S.y0,S.y1);
+    choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:sh,ink:'mint',label:(v,short)=>v==null?'no homes added':pct(v)+(short?'':' of homes added were income-restricted'),title:`Share of homes added in completed jobs that were HPD income-restricted, ${yrLabel()}`});
+    const top=ds.filter(d=>sh(d)!=null).sort((a,b)=>sh(b)-sh(a));
+    document.getElementById('affH').innerHTML=`${L(HOW('share'),pct(ca/cg))} of the homes added in jobs completed ${S.y0===S.y1?'in '+yrLabel():'from '+S.y0+' to '+(S.y1===LAST?'June 2026':S.y1)} were income-restricted; in ${name(top[0])} it was ${L(HOW('share'),pct(sh(top[0])))} and in ${name(top[top.length-1])}, ${L(HOW('share'),pct(sh(top[top.length-1])))}`;
+    document.getElementById('affAside').innerHTML=`This view uses the ${L(SRC.hdb,'Housing Database')}, which records for each completed job how many of its homes HPD counts as income-restricted, so the timing matches the completions above. Citywide, ${L(SRC.hdb,fmt(ca))} of the ${L(SRC.hdb,fmt(cg))} homes added in completed jobs, ${yrLabel()}, were income-restricted. Homes lost to demolition are not in the denominator. A district with a high share may have built little of anything.`;
+  } else {
+    choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:d=>by.get(d.id)||0,ink:'mint',
+      label:(v,short)=>fmt(v)+(short?'':' income-restricted homes'),title:`Income-restricted homes ${ty} ${span}`});
+    const s=ds.map(d=>by.get(d.id)||0).sort((a,b)=>b-a); let run=0,k=0; while(run<city/2&&k<s.length)run+=s[k++];
+    if(tooEarly){document.getElementById('affH').textContent=`HPD's records start in ${M.hpd_first}, after the years selected`;document.getElementById('affAside').innerHTML=`Pick an end year of ${M.hpd_first} or later to see income-restricted homes by district.`;drawTable();return}
+    document.getElementById('affH').innerHTML=`Half the income-restricted homes the city financed ${y0===S.y1?'in '+y0:'from '+y0+' to '+(S.y1===LAST?'June 2026':S.y1)} are in ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts`;
+    document.getElementById('affAside').innerHTML=`Homes with income limits that the Department of Housing Preservation and Development (HPD) ${L(SRC.hpd,'counts toward the city\'s housing plans')}, by the date the project started: the financing closed, or the units went to market. ${L(SRC.hpd,fmt(city))} fit the current choices; ${L(HOW('calc'),k+' districts')} hold half of them. Preservation means ${L(SRC.hpd,'existing homes whose rent restrictions were kept or extended')}, sometimes with no construction. Records start in ${M.hpd_first}${S.y0<M.hpd_first?`, so years before ${M.hpd_first} are left out here`:''}. This is not a count of all income-restricted or public housing in the city, only what HPD ${L(SRC.hnymap,'counts toward its plans')}.`;
+  }
   drawTable();
 }
 function drawTable(){
   const q=S.q.toLowerCase(), col=S.geo==='council'?3:4;
-  const rows=D.hpd_list.filter((r,i)=>{const h=D.hpd[i];return hpdFilter(h)&&(!q||(r[0]+' '+r[1]+' '+r[2]).toLowerCase().includes(q)||String(r[col])===q)});
-  rows.sort((a,b)=>b[8]-a[8]);
-  const tot=rows.reduce((a,r)=>a+r[8],0);
-  document.getElementById('hpdCount').innerHTML=`${fmt(rows.length)} buildings with ${L(SRC.hpd,fmt(tot)+' counted homes')}${rows.length>300?'; the 300 largest shown':''}. Searching a number finds a district by its ${S.geo==='council'?'council':'community district'} code.`;
+  const rows=D.hpd_list.filter((r,i)=>{const h=D.hpd[i];return hpdFilter(h)&&(!q||(r[0]+' '+r[1]+' '+(BORO2[r[2]]||r[2])).toLowerCase().includes(q)||String(r[col])===q)});
+  const hu=r=>{let s=0;for(let i=0;i<6;i++)if(S.tiers[i])s+=r[9+i];return s};
+  rows.sort((a,b)=>hu(b)-hu(a));
+  const tot=rows.reduce((a,r)=>a+hu(r),0), allTiers=S.tiers.every(Boolean);
+  document.getElementById('hpdCount').innerHTML=`${L(SRC.hpd,fmt(rows.length)+' buildings')} with ${L(SRC.hpd,fmt(tot)+' counted homes')}${rows.length>300?'; the 300 largest shown':''}${allTiers?'':' in the income tiers selected'}. Searching a number finds a district by its ${S.geo==='council'?'council':'community district'} code.`;
   const t=document.getElementById('hpdTable');
   t.innerHTML=`<thead><tr><th>Project</th><th>Address</th><th>${S.geo==='council'?'Council':'Comm. dist.'}</th><th>Started</th><th>Type</th><th class="n">Homes</th><th class="n">Up to 50% of median</th></tr></thead><tbody>`+
-    rows.slice(0,300).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}, ${esc(r[2])}</td><td>${r[col]??''}</td><td>${r[5].slice(0,7)}</td><td>${r[7]==='N'?'New':'Preserved'}</td><td class="n">${fmt(r[8])}</td><td class="n">${fmt(r[9]+r[10])}</td></tr>`).join('')+'</tbody>';
+    rows.slice(0,300).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}, ${BORO2[r[2]]||esc(r[2])}</td><td>${r[col]??''}</td><td>${r[5].slice(0,7)}</td><td>${r[7]==='N'?'New':'Preserved'}</td><td class="n">${fmt(hu(r))}</td><td class="n">${fmt(r[9]+r[10])}</td></tr>`).join('')+'</tbody>';
   t._rows=rows;
 }
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -452,7 +501,8 @@ let qt;document.getElementById('hpdSearch').oninput=e=>{clearTimeout(qt);qt=setT
 document.getElementById('hpdCsv').onclick=()=>{
   const rows=document.getElementById('hpdTable')._rows||[];
   const head=['project','address','borough','council_district','community_district','start','completion','type','counted_homes','extremely_low','very_low','low','moderate','middle','other'];
-  const csv=[head.join(',')].concat(rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','))).join('\n');
+  const cell=v=>{let s=String(v??'');if(/^[=+\-@]/.test(s))s="'"+s;return `"${s.replace(/"/g,'""')}"`};
+  const csv=[head.join(',')].concat(rows.map(r=>r.map((v,i)=>cell(i===2?(BORO2[v]||v):v)).join(','))).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='hpd-buildings-filtered.csv';a.click();
 };
 
@@ -474,12 +524,12 @@ function drawScatter(){
     svg.append('text').attr('x',W-m.r-4).attr('y',y(v)-6).attr('text-anchor','end').style('fill',tok(c)).text(`${t}: ${one(v)}`)});
   const g=svg.append('g');
   pts.forEach(p=>{g.append('circle').attr('cx',x(p.x)).attr('cy',y(p.y)).attr('r',7).attr('fill',tok('sun')).attr('fill-opacity',.9).attr('stroke','#fff').style('cursor','pointer')
-    .on('mousemove',e=>showTip(e,`<b>${name(p.d)}</b>${sub(p.d)}<br>Median household income ${money(p.x)}<br>${one(p.y)} net homes per 1,000 residents a year`)).on('mouseleave',hideTip).on('click',()=>openDrawer(p.d));
+    .on('mousemove',e=>showTip(e,`<b>${name(p.d)}</b>${sub(p.d)}<br>Median household income ${money(p.x)}${p.d.v.medinc_open?'+':''}<br>${one(p.y)} net homes per 1,000 residents a year`)).on('mouseleave',hideTip).on('click',()=>openDrawer(p.d));
     g.append('text').attr('x',x(p.x)+9).attr('y',y(p.y)+4).style('font-size','11px').text(S.geo==='council'?p.d.id:name(p.d).replace('Manhattan','MN').replace('Brooklyn','BK').replace('Queens','QN').replace('Bronx','BX').replace('Staten Island','SI'))});
   const rich=pts.filter(p=>p.x>=100000), richLow=rich.filter(p=>p.y<cityRate).length, over=pts.filter(p=>p.y>=tgtRate).length;
-  document.getElementById('incomeH').textContent=`Of the ${rich.length} ${S.geo==='council'?'council':'community'} districts with a median household income of $100,000 or more, ${richLow} built more slowly than the city as a whole`;
-  document.getElementById('incomeAside').innerHTML=`Each dot is a district. Higher-income places can carry more new housing, since more households there can pay what new construction costs. Of the ${L(HOW('income'),rich.length+' districts')} with a median household income of $100,000 or more, ${L(HOW('income'),richLow)} built more slowly than the city as a whole, ${yrLabel()}. ${L(HOW('income'),over)} of ${pts.length} beat the pace the city's 2030 target implies, ${L(HOW('income'),one(tgtRate)+' per 1,000 residents a year')}.`;
-  document.getElementById('incomeNote').innerHTML=`Median income comes from ${L(SRC.inc,'the census income brackets')} for 2020 to 2024, summed from tracts into districts by where people live; the method lands within 1 percent of the published citywide figure (${L(HOW('income'),'how')}). The target pace line is ${fmt(M.target_city_5yr/5)} homes a year spread over the ${L(SRC.pop,'2020 population')}.`;
+  document.getElementById('incomeH').innerHTML=`Of the ${L(HOW('income'),rich.length)} ${S.geo==='council'?'council':'community'} districts with a median household income of $100,000 or more, ${L(HOW('income'),richLow)} built more slowly than the city as a whole`;
+  document.getElementById('incomeAside').innerHTML=`Each dot is a district. Higher-income places can carry more new housing, since more households there can pay what new construction costs. Of the ${L(HOW('income'),rich.length+' districts')} with a median household income of $100,000 or more, ${L(HOW('income'),richLow)} built more slowly than the city as a whole, which added ${L(HOW('calc'),one(cityRate)+' net homes per 1,000 residents a year')}, ${yrLabel()}. ${L(HOW('income'),over)} of ${pts.length} beat the pace the city's 2030 target implies, ${L(HOW('income'),one(tgtRate)+' per 1,000 residents a year')}.`;
+  document.getElementById('incomeNote').innerHTML=`Median income comes from ${L(SRC.inc,'the census income brackets')} for 2020 to 2024, summed from tracts into districts by where people live; the method lands within 1 percent of the published citywide figure (${L(HOW('income'),'how')}). The target pace line is ${L(SRC.fhgs+'#page=28',fmt(M.target_city_5yr/5)+' homes a year')} spread over the ${L(SRC.pop,'2020 population')}.`;
 }
 
 // ---------- rents ----------
@@ -489,11 +539,12 @@ function drawRents(){
            asked_aff60:['rose',`Share of vacant apartments for rent asking ${money(M.rent60)} or less`,'vacant for-rent units asking an affordable rent'],
            burdened:['vermilion','Share of renter households paying 30% or more of income on rent','renter households rent-burdened']}[S.r];
   choropleth('mapRent','rankRent','rampRent','rankRentTitle',{value:d=>d.v[S.r],ink:R[0],label:(v,short)=>v==null?'too few vacant units to say':pct(v)+(short?'':' of '+R[2]),title:R[1],
-    tipExtra:d=>`Median gross rent ${money(d.v.gross_rent_median)}${d.g==='cd'&&d.v.laa?'<br>The city counts this as a Limited Affordability Area':''}`});
+    tipExtra:d=>`Median gross rent ${money(d.v.gross_rent_median)}${d.v.gross_rent_open?'+':''}${d.g==='cd'&&d.v.laa?'<br>The city counts this as a Limited Affordability Area':''}`});
   {const ds=dists(S.geo).filter(d=>d.v[S.r]!=null).sort((a,b)=>b.v[S.r]-a.v[S.r]), hi=ds[0], lo=ds[ds.length-1];
    const what={occ_aff60:'of rented homes are within reach of a household at 60% of median income',occ_aff100:'of rented homes are within reach of a household at median income',asked_aff60:'of vacant apartments ask a rent a household at 60% of median income can pay',burdened:'of renters pay 30% or more of income on rent'}[S.r];
-   document.getElementById('rentH').textContent=`In ${name(hi)}, ${pct(hi.v[S.r])} ${what}; in ${name(lo)}, ${pct(lo.v[S.r])}`;}
-  document.getElementById('rentAside').innerHTML=`The line for affordable is 30 percent of income. For a two-person household at 60 percent of the ${L(SRC.ami,'2026 area median income')}, ${L(SRC.ami,money(M.ami2*.6))} a year, that is ${L(HOW('rents'),money(M.rent60)+' a month')}; at 100 percent, ${L(HOW('rents'),money(M.rent100))}. The first two views count what current tenants pay, ${L(SRC.gr,'rent plus utilities')}, including people in rent-stabilized apartments they have held for years. The vacant view uses the ${L(SRC.ra,'asking rent')} for apartments on the market when the census called, which is closer to what a newcomer faces; these estimates rest on small samples.`;
+   const src={occ_aff60:SRC.gr,occ_aff100:SRC.gr,asked_aff60:SRC.ra,burdened:SRC.bur}[S.r];
+   document.getElementById('rentH').innerHTML=`In ${name(hi)}, ${L(src,pct(hi.v[S.r]))} ${what}; in ${name(lo)}, ${L(src,pct(lo.v[S.r]))}`;}
+  document.getElementById('rentAside').innerHTML=`The line for affordable is ${L(HOW('rents'),'30 percent of income')}, the standard the federal and city housing agencies use. For a two-person household at 60 percent of the ${L(SRC.ami,'2026 area median income')}, ${L(SRC.ami,money(M.ami2*.6))} a year, that is ${L(HOW('rents'),money(M.rent60)+' a month')}; at 100 percent, ${L(HOW('rents'),money(M.rent100))}. The first two views count what current tenants pay, ${L(SRC.gr,'rent plus utilities')}, including people in rent-stabilized apartments they have held for years. The vacant view uses the ${L(SRC.ra,'asking rent')} for apartments on the market when the census called, which is closer to what a newcomer faces; these estimates rest on small samples.`;
   document.getElementById('rentNote').innerHTML=`Source: American Community Survey, 2020 to 2024, summed from tracts into districts by where people live. Five-year estimates trail the market, so they understate today's rents. In community district view, the tooltip notes the districts the city calls ${L(SRC.fhgs+'#page=31','Limited Affordability Areas')}, the ones with the fewest low-cost rentals on the market.`;
 }
 
@@ -501,7 +552,7 @@ function drawRents(){
 const drawer=document.getElementById('drawer');
 drawer.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeDrawer()});
 addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
-function closeDrawer(){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true')}
+function closeDrawer(){drawer.classList.remove('open');drawer.setAttribute('aria-hidden','true');S.d=null;pushState()}
 function openDrawer(d){
   hideTip();
   const v=d.v, dec=sum(v.comp,2016,2025), cityDec=sum(D.city.comp,2016,2025);
@@ -515,10 +566,10 @@ function openDrawer(d){
   h+=`<dl class="f">`;
   if(d.g==='cd'){const tp=v.goal/5, pp=dec/10;h+=`<div><dt>2030 target</dt><dd>${L(SRC.fhgs+'#page=36',fmt(v.goal)+' homes')} over five years, ${fmt(Math.round(tp))} a year; past pace ${fmt(Math.round(pp))} a year, ${pct(pp/tp)} of it. Income-restricted target ${L(SRC.fhgs+'#page=36',fmt(v.goal_aff))}, ${L(SRC.fhgs+'#page=36',fmt(v.goal_deep))} of them for households at 60% of median income or less.</dd></div>`}
   h+=`<div><dt>Homes added and lost</dt><dd>${L(SRC.hdb,fmt(sum(v.gain,2016,2025)))} added and ${L(SRC.hdb,fmt(sum(v.loss,2016,2025)))} lost in jobs completed 2016-2025</dd></div>`;
-  h+=`<div><dt>Income-restricted</dt><dd>${L(SRC.hpd,fmt(aff)+' homes')} in HPD projects started 2014 to June 2026, ${fmt(affN)} of them newly built; ${fmt(deep)} for households at 50% of median income or less</dd></div>`;
-  h+=`<div><dt>Residents</dt><dd>${L(SRC.pop,fmt(v.pop20))} in 2020; ${pct(v.renter_share)} of households rent</dd></div>`;
-  h+=`<div><dt>Median household income</dt><dd>${L(SRC.inc,money(v.medinc))}, 2020-2024</dd></div>`;
-  h+=`<div><dt>Rents</dt><dd>Median gross rent ${L(SRC.gr,money(v.gross_rent_median))}. ${L(SRC.gr,pct(v.occ_aff60))} of rented homes are within reach at 60% of median income; ${L(SRC.bur,pct(v.burdened))} of renters pay 30% or more of income.</dd></div>`;
+  h+=`<div><dt>Income-restricted</dt><dd>${L(SRC.hpd,fmt(aff)+' homes')} in HPD projects started 2014 to June 2026, ${L(SRC.hpd,fmt(affN))} of them newly built; ${L(SRC.hpd,fmt(deep))} for households at 50% of median income or less</dd></div>`;
+  h+=`<div><dt>Residents</dt><dd>${L(SRC.pop,fmt(v.pop20))} in 2020, in ${L(SRC.units,fmt(v.units20))} homes; ${L(SRC.ten,pct(v.renter_share))} of households rent</dd></div>`;
+  h+=`<div><dt>Median household income</dt><dd>${L(SRC.inc,money(v.medinc)+(v.medinc_open?' or more':''))}, 2020-2024${v.medinc_open?' (the median falls in the census\'s open top bracket)':''}</dd></div>`;
+  h+=`<div><dt>Rents</dt><dd>Median gross rent ${L(SRC.gr,money(v.gross_rent_median)+(v.gross_rent_open?' or more':''))}. ${L(SRC.gr,pct(v.occ_aff60))} of rented homes are within reach at 60% of median income; ${L(SRC.bur,pct(v.burdened))} of renters pay 30% or more of income.</dd></div>`;
   h+=`</dl>`;
   if(v.big.length)h+=`<h4>Largest completed jobs since 2010</h4><table class="h"><tr><th>Address</th><th>Year</th><th class="n">Net homes</th><th class="n">Income-restricted</th></tr>${v.big.map(b=>`<tr><td>${esc(b.addr)}</td><td>${b.year}</td><td class="n">${fmt(b.net)}</td><td class="n">${b.aff?fmt(b.aff):''}</td></tr>`).join('')}</table>`;
   if(d.g==='council')h+=`<p class="note">Homes finished in these years were mostly approved and permitted years earlier, often under a previous Council member. The member named is the one serving now, per the ${L(SRC.members,'Council')}.</p>`;
@@ -530,11 +581,12 @@ function openDrawer(d){
   svg.append('g').attr('class','ax').attr('transform',`translate(0,${H-m.b})`).call(d3.axisBottom(x).tickSize(0).tickFormat(y=>y===LAST?"'26*":"'"+String(y).slice(2))).call(g=>g.select('.domain').remove());
   ys.forEach(yr=>{const val=v.comp[yr-F];svg.append('rect').attr('x',x(yr)).attr('width',x.bandwidth()).attr('y',y(Math.max(0,val))).attr('height',Math.abs(y(val)-y(0))).attr('fill',val<0?tok('vermilion'):tok('sun'))});
   svg.append('text').attr('x',m.l).attr('y',12).text('Net homes completed each year (2026: January to June)');
-  drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');drawer.querySelector('.xbtn').focus();
+  drawer.classList.add('open');drawer.setAttribute('aria-hidden','false');drawer.querySelector('.xbtn').focus();S.d=d.id;pushState();
 }
 
-function render(){drawBuilt();drawYears();drawAfford();drawScatter();drawRents()}
+function render(){drawBuilt();drawYears();drawAfford();drawScatter();drawRents();pushState()}
 opening();render();drawTargets();
+if(S.d!=null){const d=dists(S.geo).find(x=>x.id===S.d);if(d)openDrawer(d);else S.d=null}
 })().catch(e=>{document.getElementById('finding').textContent='The data did not load. Reload the page to try again.';console.error(e)});
 </script>
 </body>
