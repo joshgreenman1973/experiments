@@ -5,77 +5,138 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Who builds New York</title>
 <meta name="description" content="Every New York City Council district and community district, measured by the homes it added since 2010, the income-restricted homes the city financed, and the city's own 2030 housing targets.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<link rel="stylesheet" href="https://vital-city-nyc.github.io/vital-city-design-system/tokens/tokens.css">
+<link rel="stylesheet" href="https://vital-city-nyc.github.io/vital-city-design-system/charts/chart-theme.css">
 <style>
-:root{--accent:var(--sun)}
-.bar{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:10px clamp(16px,4vw,48px)}
-.bar .grp{display:flex;gap:0;align-items:center}
-.bar .grp .chip+.chip{border-left:0}
-.bar label{font-size:var(--t-small);color:var(--fg2);margin-right:8px}
-.bar select{padding:7px 8px}
-.sec h2{max-width:34ch}
-.sec .aside a{color:var(--fg2)}
-.mapwrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px 40px;align-items:start}
-@media(max-width:900px){.mapwrap{grid-template-columns:1fr}}
+@font-face{font-family:'GascogneTS';src:url('https://vital-city-nyc.github.io/vital-city-design-system/fonts/GascogneTS-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+/* Vital City card system, no wordmark. Chart code reads these names. */
+:root{
+  --vc-sans:"halyard-text","Helvetica Neue",Arial,sans-serif;--vc-serif:"GascogneTS",Georgia,serif;
+  --bg:#ffffff;--bg2:#f7f7f4;--fg:#050507;--fg2:#707175;--line:#dddddd;--line2:#dddddd;--grid:#e6e6e3;
+  --sun:#ff7c53;      /* completions: safety orange, series 1 */
+  --cobalt:#217ebe;   /* permits: cerulean */
+  --vermilion:#e7466d;/* homes lost: magenta */
+  --lilac:#394882;    /* targets: indigo */
+  --mint:#57aa4a;     /* income-restricted */
+  --cyan:#217ebe;--rose:#e7466d;--orange:#ff7c53;--fg2c:#707175;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--fg)}
+body{font-family:var(--vc-sans);font-weight:300;padding:24px 16px;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-underline-offset:2px;text-decoration-color:var(--fg2)}
+a:hover{text-decoration-color:var(--fg)}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+button{font-family:inherit}
+.card{max-width:1120px;margin:0 auto;border:1px solid var(--fg);background:#fff}
+.head{padding:22px 24px 18px;border-bottom:1px solid var(--line)}
+h1{font-family:var(--vc-sans);font-weight:900;font-size:1.75rem;line-height:1.15;margin:0 0 10px;max-width:30ch}
+.dek{font-weight:300;font-size:.95rem;line-height:1.55;margin:0;max-width:70ch}
+.dek b{font-weight:700}
+.dek a,.sub a,.note a{color:inherit}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--bg2);border-bottom:1px solid var(--line)}
+.stat{padding:14px 16px 12px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .num{font-family:var(--vc-serif);font-weight:300;font-size:1.7rem;line-height:1;margin-bottom:6px;font-variant-numeric:tabular-nums}
+.stat .num a{text-decoration:none}
+.stat .lbl{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);line-height:1.4}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:0}.stat:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+.bar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--fg);display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 24px}
+.tl{font-weight:700;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--fg2);margin-right:8px}
+.grp{display:inline-flex;border:1px solid var(--fg)}
+.chip{font-family:var(--vc-sans);font-size:.8rem;font-weight:700;padding:7px 11px;border:0;border-right:1px solid var(--fg);background:#fff;color:var(--fg);cursor:pointer;border-radius:0}
+.grp .chip:last-child{border-right:0}
+.chip:hover{background:var(--bg2)}
+.chip[aria-pressed=true]{background:var(--fg);color:#fff}
+a.chip,.solo{border:1px solid var(--fg)}
+select{font-family:var(--vc-sans);font-size:.85rem;font-weight:700;padding:6px 8px;border:1px solid var(--fg);background:#fff;color:var(--fg);border-radius:0}
+.sec{padding:24px 24px 26px;border-bottom:1px solid var(--line)}
+.sec:last-of-type{border-bottom:0}
+.sec h2{font-family:var(--vc-sans);font-weight:900;font-size:1.25rem;line-height:1.25;margin:0 0 4px;max-width:62ch}
+.sub{font-weight:200;font-size:.95rem;color:var(--fg2);margin:0 0 14px;max-width:70ch;line-height:1.45}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 16px}
+.mapwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px 32px;align-items:start}
+@media(max-width:860px){.mapwrap{grid-template-columns:1fr}}
 svg.map{width:100%;height:auto;display:block}
-svg.map path.d{stroke:var(--bg);stroke-width:.7;cursor:pointer}
+svg.map path.d{stroke:#fff;stroke-width:.8;cursor:pointer}
 svg.map path.d:hover,svg.map path.d.sel{stroke:var(--fg);stroke-width:1.6}
-svg.map path.d.none{fill:var(--bg2)}
-.rank{max-height:620px;overflow:auto;border-top:1.5px solid var(--fg)}
-.rank button{display:grid;grid-template-columns:minmax(0,1fr) minmax(60px,140px) 64px;gap:10px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--line2);padding:6px 4px 6px 0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.figcap{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);margin:0 0 6px;line-height:1.4}
+.rank{max-height:600px;overflow:auto;border-top:1px solid var(--fg);border-bottom:1px solid var(--fg)}
+.rank button{display:grid;grid-template-columns:minmax(0,1fr) minmax(50px,130px) 70px;gap:10px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:6px 4px 6px 0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.rank button:last-child{border-bottom:0}
 .rank button:hover,.rank button.sel{background:var(--bg2)}
-.rank .nm{font-size:.94rem;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rank .nm small{display:block;font-weight:400;color:var(--fg2);font-size:var(--t-micro);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rank .bx{position:relative;height:22px}
-.rank .bx i{position:absolute;left:0;top:5px;height:12px;display:block}
-.rank u{text-align:right;text-decoration:none;font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:600;font-variant-numeric:tabular-nums;font-size:.92rem;}
-.ramp{display:flex;align-items:center;gap:8px;font-size:var(--t-micro);color:var(--fg2);margin-top:8px}
+.rank .nm{font-size:.88rem;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank .nm small{display:block;font-weight:300;color:var(--fg2);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank .bx{position:relative;height:12px}
+.rank .bx i{position:absolute;left:0;top:0;height:12px;display:block}
+.rank u{text-align:right;text-decoration:none;font-family:var(--vc-serif);font-weight:300;font-size:1.15rem;line-height:1;font-variant-numeric:tabular-nums}
+.ramp{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--fg2);margin-top:8px}
 .ramp span.g{height:10px;width:160px;display:block}
-.tip{position:fixed;pointer-events:none;z-index:999;background:var(--bg2);border:1px solid var(--line);padding:8px 10px;font-size:14px;max-width:280px;display:none;line-height:1.4}
-.tip b{display:block;font-family:var(--display);font-variation-settings:'wdth' 88;font-size:1rem}
-svg text{fill:var(--fg2);font-family:var(--sans);font-size:12px}
+.tip{position:fixed;pointer-events:none;z-index:999;background:#fff;border:1px solid var(--fg);padding:8px 10px;font-size:.82rem;max-width:280px;display:none;line-height:1.4}
+.tip b{display:block;font-weight:700;font-size:.92rem}
+svg text{fill:var(--fg2);font-family:var(--vc-sans);font-size:12px}
 svg .ax line,svg .ax path{stroke:var(--line)}
 svg .gridl{stroke:var(--grid)}
-.note{font-size:var(--t-small);color:var(--fg2);max-width:80ch;margin:10px 0 0}
-.note a{color:var(--fg2)}
-.hpdtable{max-height:520px;overflow:auto;margin-top:12px}
-.hpdtable td{font-size:.9rem}
-.tiers{display:flex;flex-wrap:wrap;gap:0}
-.tiers .chip+.chip{border-left:0}
+.note{font-size:.75rem;color:var(--fg2);max-width:90ch;margin:12px 0 0;line-height:1.5;border-top:1px solid var(--line);padding-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.8rem;margin-top:10px}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:11px;height:11px;display:inline-block}
+.dumb{width:100%;display:block}
 .tiers .chip i{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:0}
-.dumb{width:100%}
-.spark{width:100%;height:auto}
-.foot p{max-width:80ch}
-.lede a,.finding a{color:inherit}
-.dbody .lede{max-width:none}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 14px}
-.toolbar .grp{display:flex}
-.toolbar .grp .chip+.chip{border-left:0}
+.tiers .chip[aria-pressed=false]{color:var(--fg2)}
+.tiers .chip[aria-pressed=false] i{opacity:.3}
+.tiers .chip[aria-pressed=true]{background:#fff;color:var(--fg)}
+.tiers .chip[aria-pressed=true]:hover{background:var(--bg2)}
+h3{font-weight:900;font-size:1.05rem;margin:28px 0 6px}
+input[type=search]{flex:1 1 260px;min-width:0;font-family:var(--vc-sans);font-size:.9rem;font-weight:300;padding:8px 11px;border:1px solid var(--fg);background:#fff;color:var(--fg);border-radius:0;outline:none}
+.hpdtable{max-height:520px;overflow:auto;margin-top:10px;border-top:1px solid var(--fg)}
+table.h{width:100%;border-collapse:collapse;font-size:.85rem}
+table.h th{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--fg);position:sticky;top:0;background:#fff}
+table.h td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+table.h .n{text-align:right;font-variant-numeric:tabular-nums}
+.foot{padding:16px 24px 20px;border-top:1px solid var(--fg);font-size:.75rem;color:var(--fg2);line-height:1.55}
+.foot p{max-width:100ch;margin:0 0 6px}
+.foot a{color:var(--fg2)}
+.drawer{position:fixed;inset:0;z-index:900;display:none}
+.drawer.open{display:block}
+.drawer .scrim{position:absolute;inset:0;background:rgba(5,5,7,.35)}
+.drawer .panel{position:absolute;top:0;right:0;height:100%;width:min(700px,100%);background:#fff;border-left:1px solid var(--fg);overflow:auto}
+.dhead{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--fg);padding:16px 22px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start;z-index:2}
+.dhead .lbl{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2)}
+.dhead h2{margin:4px 0 0;font-weight:900;font-size:1.3rem;line-height:1.2}
+.xbtn{font-size:18px;line-height:1;background:#fff;border:1px solid var(--fg);width:32px;height:32px;cursor:pointer;color:var(--fg);flex:none}
+.xbtn:hover{background:var(--bg2)}
+.dbody{padding:18px 22px 60px}
+.dbody .dek{margin-bottom:14px}
+.spark{width:100%;height:auto;margin-bottom:10px}
+dl.f{margin:0 0 18px;border-top:1px solid var(--fg)}
+dl.f>div{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.88rem;line-height:1.45}
+dl.f dt{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);padding-top:3px}
+dl.f dd{margin:0}
+@media(max-width:560px){dl.f>div{grid-template-columns:1fr;gap:2px}.bar,.sec,.head,.foot{padding-left:16px;padding-right:16px}body{padding:12px 8px}}
+.dbody h4{font-weight:700;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fg2);margin:20px 0 6px}
 </style>
 </head>
 <body>
-<div class="sheet">
-<div class="strip"><span>From the <a href="https://data.cityofnewyork.us/d/br6q-ssj3">city's Housing Database</a>, <a href="https://data.cityofnewyork.us/d/hg8x-zxpr">HPD's affordable housing records</a>, the <a href="https://wherewelive.cityofnewyork.us/wp-content/uploads/2026/08/Fair-Housing-Growth-Strategy_Draft-Report.pdf">2030 district targets</a> and the census</span><span>Homes completed Jan. 2010 through June 2026</span></div>
-
+<div class="card">
 <header class="head">
   <h1>Who builds New York</h1>
-  <p class="finding" id="finding">Loading the numbers.</p>
-  <p class="lede" id="lede"></p>
+  <p class="dek" id="finding">Loading the numbers.</p>
+  <p class="dek" id="lede" style="margin-top:10px"></p>
 </header>
+<div class="stats" id="stats"></div>
 
 <div class="bar" role="group" aria-label="Geography and years">
-  <span class="grp" id="geoBtns">
-    <button class="chip" data-geo="council" aria-pressed="true">Council districts</button>
-    <button class="chip" data-geo="cd" aria-pressed="false">Community districts</button>
-  </span>
-  <span><label for="y0">Years</label><select id="y0"></select> <label for="y1" style="margin:0 6px">to</label><select id="y1"></select></span>
+  <span><span class="tl">Districts</span><span class="grp" id="geoBtns">
+    <button class="chip" data-geo="council" aria-pressed="true">Council</button>
+    <button class="chip" data-geo="cd" aria-pressed="false">Community</button>
+  </span></span>
+  <span><label class="tl" for="y0">Years</label><select id="y0"></select> <label class="tl" for="y1" style="margin:0 6px">to</label><select id="y1"></select></span>
 </div>
 
 <section class="sec" id="built">
-  <h2>Where the new homes went</h2>
-  <p class="aside">Net new homes: every home added by new buildings and conversions, minus every home lost to demolitions and conversions, as recorded by the Department of Buildings and compiled by the Department of City Planning. Click any district for its full record.</p>
+  <h2 id="builtH"></h2>
+  <p class="sub">Net new homes: every home added by new buildings and conversions, minus every home lost to demolitions and conversions, as recorded by the Department of Buildings and compiled by the Department of City Planning. Click any district for its full record.</p>
   <div class="toolbar">
     <span class="grp" id="measBtns">
       <button class="chip" data-m="comp" aria-pressed="true">Completed</button>
@@ -88,21 +149,21 @@ svg .gridl{stroke:var(--grid)}
   </div>
   <div class="mapwrap">
     <div><svg class="map" id="mapBuilt"></svg><div class="ramp" id="rampBuilt"></div></div>
-    <div><div class="figcap"><b id="rankBuiltTitle"></b></div><div class="rank" id="rankBuilt"></div></div>
+    <div><div class="figcap" id="rankBuiltTitle"></div><div class="rank" id="rankBuilt"></div></div>
   </div>
   <p class="note" id="builtNote"></p>
 </section>
 
 <section class="sec" id="years">
-  <h2>Year by year, citywide</h2>
-  <p class="aside" id="yearsAside"></p>
+  <h2>Permits spiked twice, each time just before a tax break for new apartment buildings lapsed</h2>
+  <p class="sub" id="yearsAside"></p>
   <svg id="yearChart" class="dumb"></svg>
   <div class="legend"><span class="key"><i style="background:var(--sun)"></i>Net homes completed</span><span class="key"><i style="background:var(--cobalt)"></i>Net homes in jobs permitted that year</span><span class="key"><i style="background:var(--vermilion)"></i>Homes lost in completed jobs</span></div>
 </section>
 
 <section class="sec" id="targets">
-  <h2>Measured against the city's own targets</h2>
-  <p class="aside" id="targetsAside"></p>
+  <h2 id="targetsH"></h2>
+  <p class="sub" id="targetsAside"></p>
   <div class="toolbar">
     <span class="grp" id="tgtBtns">
       <button class="chip" data-t="total" aria-pressed="true">All homes</button>
@@ -115,40 +176,40 @@ svg .gridl{stroke:var(--grid)}
 </section>
 
 <section class="sec" id="afford">
-  <h2>Income-restricted homes the city financed</h2>
-  <p class="aside" id="affAside"></p>
+  <h2 id="affH"></h2>
+  <p class="sub" id="affAside"></p>
   <div class="toolbar">
     <span class="grp" id="typeBtns">
       <button class="chip" data-ty="all" aria-pressed="true">New and preserved</button>
       <button class="chip" data-ty="N" aria-pressed="false">New construction</button>
       <button class="chip" data-ty="P" aria-pressed="false">Preservation</button>
     </span>
-    <span class="tiers" id="tierBtns"></span>
+    <span class="grp tiers" id="tierBtns"></span>
   </div>
   <div class="mapwrap">
     <div><svg class="map" id="mapAff"></svg><div class="ramp" id="rampAff"></div></div>
-    <div><div class="figcap"><b id="rankAffTitle"></b></div><div class="rank" id="rankAff"></div></div>
+    <div><div class="figcap" id="rankAffTitle"></div><div class="rank" id="rankAff"></div></div>
   </div>
-  <h3 style="margin-top:30px">Every building</h3>
+  <h3>Every building</h3>
   <div class="toolbar" style="margin-top:8px">
     <input type="search" id="hpdSearch" placeholder="Search a project, street or neighborhood">
-    <button class="chip" id="hpdCsv">Download these rows</button>
+    <button class="chip solo" id="hpdCsv">Download these rows</button>
     <a class="chip" href="data/hpd_buildings.csv" download style="text-decoration:none">Download all 9,551</a>
   </div>
-  <div class="note" id="hpdCount"></div>
+  <div class="sub" id="hpdCount" style="margin:0"></div>
   <div class="hpdtable"><table class="h" id="hpdTable"></table></div>
 </section>
 
 <section class="sec" id="income">
-  <h2>Income and building</h2>
-  <p class="aside" id="incomeAside"></p>
+  <h2 id="incomeH"></h2>
+  <p class="sub" id="incomeAside"></p>
   <svg id="scatter" class="dumb"></svg>
   <p class="note" id="incomeNote"></p>
 </section>
 
 <section class="sec" id="rents">
-  <h2>What renters pay, and what's for rent</h2>
-  <p class="aside" id="rentAside"></p>
+  <h2 id="rentH"></h2>
+  <p class="sub" id="rentAside"></p>
   <div class="toolbar">
     <span class="grp" id="rentBtns">
       <button class="chip" data-r="occ_aff60" aria-pressed="true">Rents within reach at 60% of median income</button>
@@ -159,13 +220,13 @@ svg .gridl{stroke:var(--grid)}
   </div>
   <div class="mapwrap">
     <div><svg class="map" id="mapRent"></svg><div class="ramp" id="rampRent"></div></div>
-    <div><div class="figcap"><b id="rankRentTitle"></b></div><div class="rank" id="rankRent"></div></div>
+    <div><div class="figcap" id="rankRentTitle"></div><div class="rank" id="rankRent"></div></div>
   </div>
   <p class="note" id="rentNote"></p>
 </section>
 
 <footer class="foot">
-  <p><a href="docs/how-i-built-this.html">How I built this</a>: every source, every calculation and every judgment call, with the checks run against the city's own totals. Data: <a href="https://data.cityofnewyork.us/d/br6q-ssj3">Housing Database, version <span id="ver"></span></a> (Department of City Planning); <a href="https://data.cityofnewyork.us/d/hg8x-zxpr">Affordable Housing Production by Building</a> (Department of Housing Preservation and Development); <a href="https://wherewelive.cityofnewyork.us/wp-content/uploads/2026/08/Fair-Housing-Growth-Strategy_Draft-Report.pdf#page=36">draft Fair Housing Growth Strategy, Aug. 19, 2026</a>; <a href="https://data.census.gov/table/ACSDT5Y2024.B19001">American Community Survey 2020-2024</a> and the 2020 census; <a href="https://council.nyc.gov/districts/">City Council district list</a>, read Oct. 22, 2026.</p>
+  <p><b><a href="docs/how-i-built-this.html">How I built this</a></b>: every source, every calculation and every judgment call, with the checks run against the city's own totals. Data: <a href="https://data.cityofnewyork.us/d/br6q-ssj3">Housing Database, version <span id="ver"></span></a> (Department of City Planning); <a href="https://data.cityofnewyork.us/d/hg8x-zxpr">Affordable Housing Production by Building</a> (Department of Housing Preservation and Development); <a href="https://wherewelive.cityofnewyork.us/wp-content/uploads/2026/08/Fair-Housing-Growth-Strategy_Draft-Report.pdf#page=36">draft Fair Housing Growth Strategy, Aug. 19, 2026</a>; <a href="https://data.census.gov/table/ACSDT5Y2024.B19001">American Community Survey 2020-2024</a> and the 2020 census; <a href="https://council.nyc.gov/districts/">City Council district list</a>, read Oct. 22, 2026.</p>
   <p>Inspired by A City That Works' <a href="https://housing.acitythatworks.org/">Chicago housing dashboard</a>. Built Oct. 22, 2026 by Josh Greenman with Claude.</p>
 </footer>
 </div>
@@ -204,7 +265,7 @@ const css=getComputedStyle(document.documentElement), tok=n=>css.getPropertyValu
 const fmt=d3.format(','), pct=x=>x==null?'n/a':Math.round(x*100)+'%', one=d3.format(',.1f');
 const money=x=>'$'+fmt(Math.round(x));
 const BORO={1:'Manhattan',2:'Bronx',3:'Brooklyn',4:'Queens',5:'Staten Island'};
-const TIERS=[['Extremely low','cobalt','up to 30% of median income'],['Very low','cyan','31-50%'],['Low','mint','51-80%'],['Moderate','sun','81-120%'],['Middle','orange','121-165%'],['Other','fg2','superintendent units and other']];
+const TIERS=[['Extremely low','lilac','up to 30% of median income'],['Very low','cobalt','31-50%'],['Low','mint','51-80%'],['Moderate','chart-c2','81-120%'],['Middle','orange','121-165%'],['Other','fg2','superintendent units and other']];
 document.getElementById('ver').textContent=M.hdb_version;
 
 const S={geo:'council',m:'comp',p:'total',y0:2016,y1:2025,t:'total',ty:'all',tiers:[1,1,1,1,1,1],r:'occ_aff60',q:''};
@@ -277,8 +338,15 @@ function opening(){
   const bottom10=s.slice(-10).reduce((a,d)=>a+dec(d),0);
   const rec=D.city.comp[2025-F], perYr=M.target_city_5yr/5;
   const same=top.v.boro===bot.v.boro;
-  document.getElementById('finding').innerHTML=`From 2016 through 2025, Council District ${top.id} in ${top.v.boro} added ${L(SRC.hdb,fmt(dec(top))+' homes')}. District ${bot.id}, ${same?'also in '+bot.v.boro:'in '+bot.v.boro}, added ${L(SRC.hdb,fmt(dec(bot)))}.`;
-  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,fmt(city))} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),pct(top10/city))} of them, and the 10 that built the least for ${L(HOW('calc'),pct(bottom10/city))}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','350,000 homes')} in five years, or ${fmt(perYr)} a year. The most in any year since 2010 was ${L(SRC.hdb,fmt(rec))}, in 2025.`;
+  document.getElementById('finding').innerHTML=`From 2016 through 2025, Council District ${top.id} in ${top.v.boro} added ${L(SRC.hdb,'<b>'+fmt(dec(top))+'</b> homes')}. District ${bot.id}, ${same?'also in '+bot.v.boro:'in '+bot.v.boro}, added ${L(SRC.hdb,'<b>'+fmt(dec(bot))+'</b>')}.`;
+  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,'<b>'+fmt(city)+'</b>')} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),'<b>'+pct(top10/city)+'</b>')} of them, and the 10 that built the least for ${L(HOW('calc'),'<b>'+pct(bottom10/city)+'</b>')}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','<b>350,000</b> homes')} in five years.`;
+  const cds=dists('cd'), behind=cds.filter(d=>sum(d.v.comp,2016,2025)/10<d.v.goal/5/2).length;
+  const stat=(n,href,lbl)=>`<div class="stat"><div class="num"><a href="${href}">${n}</a></div><div class="lbl">${lbl}</div></div>`;
+  document.getElementById('stats').innerHTML=
+    stat(fmt(city),SRC.hdb,'Net new homes, 2016-2025')+
+    stat(fmt(rec),SRC.hdb,'Most in one year since 2010 (2025)')+
+    stat(fmt(perYr),SRC.fhgs+'#page=28','A year, the pace the 2030 targets set')+
+    stat(behind+' of 59',HOW('targets'),'Community districts on pace for under half their target');
 }
 
 // ---------- section 1 ----------
@@ -293,6 +361,8 @@ function drawBuilt(){
   const ds=dists(S.geo), city=S.m==='comp'?sum(D.city.comp,S.y0,S.y1):sum(D.city.permit,S.y0,S.y1);
   const s=ds.map(d=>built(d)).sort((a,b)=>b-a); let run=0,k=0; while(run<city/2&&k<s.length){run+=s[k++]}
   const neg=ds.filter(d=>built(d)<0).length;
+  const yrs=S.y0===S.y1?`in ${yrLabel()}`:`from ${S.y0} to ${S.y1===LAST?'June 2026':S.y1}`;
+  document.getElementById('builtH').textContent=`Half the net new homes ${mlabel} ${yrs} are in ${k} of ${ds.length} ${S.geo==='council'?'council':'community'} districts`;
   document.getElementById('builtNote').innerHTML=`Citywide, ${L(SRC.hdb,fmt(city)+' net homes')} ${mlabel}, ${yrLabel()}. ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts account for half.${neg?` ${neg} lost more homes than they gained.`:''} ${S.m==='permit'?'Permitted counts every job that got a construction permit in the year, whether or not it has finished; jobs later withdrawn are left out.':'Completed counts homes in the year the job finished.'} Residents are the ${L(SRC.pop,'2020 census count')}. Not counted: illegal units, and the homes created without a Buildings Department job.`;
 }
 
@@ -314,7 +384,7 @@ function drawYears(){
     G.append('rect').attr('x',X+xi('c')).attr('width',xi.bandwidth()).attr('y',yS(0)).attr('height',yS(-D.city.loss[i])-yS(0)).attr('fill',tok('vermilion')).attr('opacity',on(y)?1:.3);
   });
   const p15=D.city.permit[2015-F], p22=D.city.permit[2022-F];
-  document.getElementById('yearsAside').innerHTML=`Permits jumped twice, in ${L(SRC.hdb,'2015 ('+fmt(p15)+')')} and ${L(SRC.hdb,'2022 ('+fmt(p22)+')')}. Both times the 421-a property tax break for new apartment buildings was about to lapse, in January 2016 and June 2022, and developers ${L('https://www.nyc.gov/assets/planning/download/pdf/planning-level/housing-economy/permitting-first-half-of-2022-info-brief.pdf','moved projects forward to qualify')}. Completions followed years later; in 2024 the state ${L('https://www.furmancenter.org/soc-report/state-of-new-york-citys-housing-and-neighborhoods-in-2023/state-of-the-citys-housing-stock-2023/','extended the deadline')} to finish the 2022 projects. The selected years are lit. 2026 covers January to June.`;
+  document.getElementById('yearsAside').innerHTML=`Net homes in permitted jobs reached ${L(SRC.hdb,fmt(p15))} in 2015 and ${L(SRC.hdb,fmt(p22))} in 2022. The 421-a property tax break lapsed in January 2016 and June 2022, and developers ${L('https://www.nyc.gov/assets/planning/download/pdf/planning-level/housing-economy/permitting-first-half-of-2022-info-brief.pdf','moved projects forward to qualify')}. Completions followed years later; in 2024 the state ${L('https://www.furmancenter.org/soc-report/state-of-new-york-citys-housing-and-neighborhoods-in-2023/state-of-the-citys-housing-stock-2023/','extended the deadline')} to finish the 2022 projects. The selected years are lit. 2026 covers January to June.`;
 }
 
 // ---------- targets ----------
@@ -344,6 +414,7 @@ function drawTargets(){
   const cityPast=aff?[...hpdNew.values()].reduce((a,b)=>a+b,0)/10:sum(D.city.comp,2016,2025)/10;
   const cityTgt=aff?ds.reduce((a,d)=>a+d.v.goal_aff,0)/5:M.target_city_5yr/5;
   document.getElementById('pacekey').textContent=aff?'HPD-financed new income-restricted homes a year, started 2016 to 2025':'Net homes completed a year, 2016 to 2025';
+  document.getElementById('targetsH').textContent=aff?`At their 2016-2025 pace, ${behind} of 59 community districts would reach less than half their 2030 target for income-restricted homes`:`At their 2016-2025 pace, ${behind} of 59 community districts would reach less than half their 2030 housing target`;
   document.getElementById('targetsAside').innerHTML=aff
     ?`The draft also sets a target for income-restricted homes in each district, ${L(SRC.fhgs+'#page=36','a quarter of its total')}. Here the past pace is the new construction HPD financed, by start date. ${L(HOW('targets'),met+' of 59')} districts already ran at the target pace; ${L(HOW('targets'),behind)} ran at less than half.`
     :`In August the Department of Housing Preservation and Development and the Department of City Planning set a ${L(SRC.fhgs+'#page=36','five-year target for each of the 59 community districts')}, adding up to ${L(SRC.fhgs+'#page=28','350,000 homes')} by 2030. The targets are drafts and are not binding. Districts that grew slowly were asked to speed up the most (${L(SRC.fhgs+'#page=30','the method')}). At their pace from 2016 through 2025, ${L(HOW('targets'),behind+' districts')} would reach less than half their target, and ${L(HOW('targets'),met)} would meet it.`;
@@ -361,6 +432,7 @@ function drawAfford(){
   choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:d=>by.get(d.id)||0,ink:'mint',
     label:(v,short)=>fmt(v)+(short?'':' income-restricted homes'),title:`Income-restricted homes ${ty} ${y0===S.y1?y0:y0+' to '+(S.y1===LAST?'June 2026':S.y1)}`});
   const ds=dists(S.geo), s=ds.map(d=>by.get(d.id)||0).sort((a,b)=>b-a); let run=0,k=0; while(run<city/2&&k<s.length)run+=s[k++];
+  document.getElementById('affH').textContent=`Half the income-restricted homes the city financed ${y0===S.y1?'in '+y0:'from '+y0+' to '+(S.y1===LAST?'June 2026':S.y1)} are in ${k} of ${ds.length} ${S.geo==='council'?'council':'community'} districts`;
   document.getElementById('affAside').innerHTML=`Homes with income limits that the Department of Housing Preservation and Development or the Housing Development Corporation financed or required, counted by the date the project started. ${L(SRC.hpd,fmt(city))} fit the current choices; ${L(HOW('calc'),k+' districts')} hold half of them. Preservation means existing homes that got new financing in exchange for keeping rents restricted. Records start in ${M.hpd_first}${S.y0<M.hpd_first?`, so years before ${M.hpd_first} are left out here`:''}. Not counted: NYCHA's own buildings, and income-restricted homes built without city financing.`;
   drawTable();
 }
@@ -401,10 +473,11 @@ function drawScatter(){
     svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',y(v)).attr('y2',y(v)).attr('stroke',tok(c)).attr('stroke-dasharray','5 4').attr('stroke-width',1.5);
     svg.append('text').attr('x',W-m.r-4).attr('y',y(v)-6).attr('text-anchor','end').style('fill',tok(c)).text(`${t}: ${one(v)}`)});
   const g=svg.append('g');
-  pts.forEach(p=>{g.append('circle').attr('cx',x(p.x)).attr('cy',y(p.y)).attr('r',7).attr('fill',tok('sun')).attr('fill-opacity',.8).attr('stroke',tok('bg')).style('cursor','pointer')
+  pts.forEach(p=>{g.append('circle').attr('cx',x(p.x)).attr('cy',y(p.y)).attr('r',7).attr('fill',tok('sun')).attr('fill-opacity',.9).attr('stroke','#fff').style('cursor','pointer')
     .on('mousemove',e=>showTip(e,`<b>${name(p.d)}</b>${sub(p.d)}<br>Median household income ${money(p.x)}<br>${one(p.y)} net homes per 1,000 residents a year`)).on('mouseleave',hideTip).on('click',()=>openDrawer(p.d));
     g.append('text').attr('x',x(p.x)+9).attr('y',y(p.y)+4).style('font-size','11px').text(S.geo==='council'?p.d.id:name(p.d).replace('Manhattan','MN').replace('Brooklyn','BK').replace('Queens','QN').replace('Bronx','BX').replace('Staten Island','SI'))});
   const rich=pts.filter(p=>p.x>=100000), richLow=rich.filter(p=>p.y<cityRate).length, over=pts.filter(p=>p.y>=tgtRate).length;
+  document.getElementById('incomeH').textContent=`Of the ${rich.length} ${S.geo==='council'?'council':'community'} districts with a median household income of $100,000 or more, ${richLow} built more slowly than the city as a whole`;
   document.getElementById('incomeAside').innerHTML=`Each dot is a district. Higher-income places can carry more new housing, since more households there can pay what new construction costs. Of the ${L(HOW('income'),rich.length+' districts')} with a median household income of $100,000 or more, ${L(HOW('income'),richLow)} built more slowly than the city as a whole, ${yrLabel()}. ${L(HOW('income'),over)} of ${pts.length} beat the pace the city's 2030 target implies, ${L(HOW('income'),one(tgtRate)+' per 1,000 residents a year')}.`;
   document.getElementById('incomeNote').innerHTML=`Median income comes from ${L(SRC.inc,'the census income brackets')} for 2020 to 2024, summed from tracts into districts by where people live; the method lands within 1 percent of the published citywide figure (${L(HOW('income'),'how')}). The target pace line is ${fmt(M.target_city_5yr/5)} homes a year spread over the ${L(SRC.pop,'2020 population')}.`;
 }
@@ -417,6 +490,9 @@ function drawRents(){
            burdened:['vermilion','Share of renter households paying 30% or more of income on rent','renter households rent-burdened']}[S.r];
   choropleth('mapRent','rankRent','rampRent','rankRentTitle',{value:d=>d.v[S.r],ink:R[0],label:(v,short)=>v==null?'too few vacant units to say':pct(v)+(short?'':' of '+R[2]),title:R[1],
     tipExtra:d=>`Median gross rent ${money(d.v.gross_rent_median)}${d.g==='cd'&&d.v.laa?'<br>The city counts this as a Limited Affordability Area':''}`});
+  {const ds=dists(S.geo).filter(d=>d.v[S.r]!=null).sort((a,b)=>b.v[S.r]-a.v[S.r]), hi=ds[0], lo=ds[ds.length-1];
+   const what={occ_aff60:'of rented homes are within reach of a household at 60% of median income',occ_aff100:'of rented homes are within reach of a household at median income',asked_aff60:'of vacant apartments ask a rent a household at 60% of median income can pay',burdened:'of renters pay 30% or more of income on rent'}[S.r];
+   document.getElementById('rentH').textContent=`In ${name(hi)}, ${pct(hi.v[S.r])} ${what}; in ${name(lo)}, ${pct(lo.v[S.r])}`;}
   document.getElementById('rentAside').innerHTML=`The line for affordable is 30 percent of income. For a two-person household at 60 percent of the ${L(SRC.ami,'2026 area median income')}, ${L(SRC.ami,money(M.ami2*.6))} a year, that is ${L(HOW('rents'),money(M.rent60)+' a month')}; at 100 percent, ${L(HOW('rents'),money(M.rent100))}. The first two views count what current tenants pay, ${L(SRC.gr,'rent plus utilities')}, including people in rent-stabilized apartments they have held for years. The vacant view uses the ${L(SRC.ra,'asking rent')} for apartments on the market when the census called, which is closer to what a newcomer faces; these estimates rest on small samples.`;
   document.getElementById('rentNote').innerHTML=`Source: American Community Survey, 2020 to 2024, summed from tracts into districts by where people live. Five-year estimates trail the market, so they understate today's rents. In community district view, the tooltip notes the districts the city calls ${L(SRC.fhgs+'#page=31','Limited Affordability Areas')}, the ones with the fewest low-cost rentals on the market.`;
 }
@@ -434,7 +510,7 @@ function openDrawer(d){
   D.hpd.forEach(r=>{if(r[col]===d.id){const u=r[4]+r[5]+r[6]+r[7]+r[8]+r[9];aff+=u;if(r[3]===0)affN+=u;deep+=r[4]+r[5]}});
   document.getElementById('dLbl').textContent=d.g==='council'?(v.member?'Council Member '+v.member:''):`${v.boro} · ${v.cohort.toLowerCase()} growth cohort${v.laa?' · Limited Affordability Area':''}`;
   document.getElementById('dTitle').textContent=full(d);
-  let h=`<p class="lede">${L(SRC.hdb,fmt(dec)+' net homes')} completed from 2016 through 2025, ${rank===1?'the most':'ranked '+rank+' of '+all.length} among ${d.g==='council'?'council':'community'} districts and ${L(HOW('calc'),(dec/cityDec*100).toFixed(1)+'%')} of the city's total. ${L(SRC.hdb,fmt(sum(v.comp,LAST,LAST)))} more in the first half of 2026, and ${L(SRC.hdb,fmt(v.pipeline))} in jobs with permits that have not finished.</p>`;
+  let h=`<p class="dek">${L(SRC.hdb,fmt(dec)+' net homes')} completed from 2016 through 2025, ${rank===1?'the most':'ranked '+rank+' of '+all.length} among ${d.g==='council'?'council':'community'} districts and ${L(HOW('calc'),(dec/cityDec*100).toFixed(1)+'%')} of the city's total. ${L(SRC.hdb,fmt(sum(v.comp,LAST,LAST)))} more in the first half of 2026, and ${L(SRC.hdb,fmt(v.pipeline))} in jobs with permits that have not finished.</p>`;
   h+=`<svg class="spark" id="dSpark"></svg>`;
   h+=`<dl class="f">`;
   if(d.g==='cd'){const tp=v.goal/5, pp=dec/10;h+=`<div><dt>2030 target</dt><dd>${L(SRC.fhgs+'#page=36',fmt(v.goal)+' homes')} over five years, ${fmt(Math.round(tp))} a year; past pace ${fmt(Math.round(pp))} a year, ${pct(pp/tp)} of it. Income-restricted target ${L(SRC.fhgs+'#page=36',fmt(v.goal_aff))}, ${L(SRC.fhgs+'#page=36',fmt(v.goal_deep))} of them for households at 60% of median income or less.</dd></div>`}
