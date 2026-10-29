@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New York City's small high schools</title>
+<meta name="description" content="How many New York City high schools have fewer than 250, 300 and 350 students, from 1994-95 to 2025-26, and how much more small schools spend per student.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+:root{
+  --accent:var(--sun);
+  /* series inks: under 250, under 300, under 350 */
+  --c0:var(--sun); --c1:var(--vermilion); --c2:var(--cobalt);
+  --rest:#4a4f4a;
+}
+.g-paper{--rest:#b9bdb7}
+[hidden]{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+.chart{position:relative;min-height:300px}
+.chart.tall{min-height:380px}
+.chart.short{min-height:240px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:var(--sans);fill:var(--fg2);font-size:13px}
+.chart .end{font-weight:700;font-size:13px}
+.key i.c0{background:var(--c0)} .key i.c1{background:var(--c1)} .key i.c2{background:var(--c2)} .key i.rest{background:var(--rest)}
+.tip{position:absolute;z-index:10;pointer-events:none;background:var(--bg);border:1px solid var(--line);padding:7px 10px;font-size:14px;max-width:280px;line-height:1.4}
+.tip .h{color:var(--fg2)}
+.body{max-width:62ch;margin:0 0 14px}
+.body b{font-weight:700}
+.tablebox{max-height:32rem;overflow:auto;border-top:1.5px solid var(--fg)}
+.tablebox table.h th{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--fg)}
+table.h th button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+table.h th[aria-sort=ascending] button::after{content:" ↑"}
+table.h th[aria-sort=descending] button::after{content:" ↓"}
+.wide{overflow-x:auto}
+@media(max-width:620px){.hide-narrow{display:none}}
+.method p{max-width:70ch;margin:0 0 12px;font-size:.96rem;line-height:1.6;color:var(--fg2)}
+.method h3{margin-top:22px}
+.err{color:var(--fg2);font-size:var(--t-small);padding:40px 0}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span>New York State Education Department enrollment and spending files</span><span>1994-95 to 2025-26</span></div>
+
+  <header class="head">
+    <h1>New York City's small high schools</h1>
+    <p class="finding">The city has more high schools under 250 students than at any point since 2005-06, and nearly all of them are established schools that shrank, not new ones still filling in.</p>
+    <p class="lede">This fall <b data-v="counts:under_250:2025-26">—</b> of the city's <b data-v="counts:schools:2025-26">—</b> regular public high schools had fewer than 250 students, <b data-v="counts:under_300:2025-26">—</b> had fewer than 300 and <b data-v="counts:under_350:2025-26">—</b> had fewer than 350. The count under 250 has more than doubled since the 2019-20 low of <b data-v="counts:under_250:2019-20">—</b>. The median high school now has <b data-v="counts:median_size:2025-26">—</b> students, down from <b data-v="counts:median_size:1994-95">—</b> in 1994-95. Small schools also cost more: after accounting for the students they serve, a school under 250 spent about <b data-v="bins:need_adjusted_vs_500_999_pct:Under 250:pct">—</b> percent more per student in 2024-25 than one with 500 to 999 students.</p>
+    <p class="src">Prompted by Chalkbeat New York's Oct. 28, 2026, story on small high schools in shared buildings. <a href="https://www.chalkbeat.org/newyork/2026/10/28/nyc-small-high-schools-shared-campues-resource-sharing-enrollment-solutions/">Read it</a>.</p>
+  </header>
+
+  <section class="fig" id="counts">
+    <div class="figcap"><span><b>High schools under 250, 300 and 350 students</b>, school years 1994-95 to 2025-26</span>
+      <span><span class="key"><i class="c0"></i>Under 250</span><span class="key"><i class="c1"></i>Under 300</span><span class="key"><i class="c2"></i>Under 350</span></span></div>
+    <div class="chart" id="cutoffs"></div>
+    <p class="aside">Each line counts schools below that size, so the 350 line includes the schools under 300 and 250.</p>
+    <div class="wide">
+      <table class="h" style="max-width:640px">
+        <thead><tr><th>2025-26</th><th class="n">Schools</th><th class="n">Students in them</th><th class="n">Share of high school students</th></tr></thead>
+        <tbody id="cuttable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" id="why-small">
+    <h2>Small used to mean new. Now it means shrinking.</h2>
+    <p class="body">The Bloomberg-era schools opened with one ninth-grade class and added a grade a year, so for their first three years they were small by design. In 2004-05, <b data-v="counts:under_250_new:2004-05">—</b> of the <b data-v="counts:under_250:2004-05">—</b> schools under 250 were still phasing in. In 2025-26, <b data-v="counts:under_250_mature:2025-26">—</b> of <b data-v="counts:under_250:2025-26">—</b> were established schools with a senior class.</p>
+    <div class="figcap"><span><b>Schools under 250 students</b>, still phasing in vs. established</span>
+      <span><span class="key"><i class="rest"></i>Still phasing in</span><span class="key"><i class="c0"></i>Established</span></span></div>
+    <div class="chart" id="newold"></div>
+    <p class="aside">"Still phasing in" means no 12th graders yet and open less than four years.</p>
+  </section>
+
+  <section class="sec" id="cost">
+    <h2>What small schools cost</h2>
+    <p class="body">Spending per student falls steadily as schools get bigger. Part of that gap is the students: the smallest schools enroll more students with disabilities and English learners, who are funded at higher rates. The rest is the fixed cost of running a school. A principal, an office, a guidance counselor and a full slate of required courses cost about the same whether 150 or 1,500 students show up. The city's funding formula builds some of this in: every school gets a flat <b data-v="fsf:amount:Foundation:usd">—</b> on top of its per-student money.</p>
+    <div class="split">
+      <div>
+        <div class="figcap"><span><b>Spending per student vs. enrollment</b>, 2024-25, one dot per school</span>
+          <span><span class="key"><i class="c0"></i>Under 350</span><span class="key"><i class="rest"></i>350 or more</span></span></div>
+        <div class="chart tall" id="scatter"></div>
+        <p class="aside">Enrollment on a log scale. Dashed lines at 250 and 350 students.</p>
+      </div>
+      <div>
+        <div class="figcap"><span><b>Extra spending per student by size</b>, after adjusting for need</span></div>
+        <div class="chart" id="premium"></div>
+        <p class="aside">Percent above a 500-999-student school with the same shares of students with disabilities, English learners and low-income students.</p>
+      </div>
+    </div>
+    <h3 style="margin-top:26px">How much extra, in dollars</h3>
+    <div class="wide">
+      <table class="h" style="max-width:720px">
+        <thead><tr><th>2024-25</th><th class="n">Schools</th><th class="n">Students</th><th class="n">Extra spending</th><th class="n">Per student</th></tr></thead>
+        <tbody id="premtable"></tbody>
+      </table>
+    </div>
+    <p class="body" style="margin-top:14px">Those are estimates of what the schools spent above what bigger schools spend on similar students, not savings the city would book by merging them. Merged schools keep most of their teachers and students, and the extra money does buy smaller classes and more adult attention. It does not buy breadth. Murry Bergtraum, the school at the center of Chalkbeat's series, spent <b data-v="schools:spending_per_pupil:02M520:usd:dbn">—</b> per student in 2024-25 by the state's count, and Chalkbeat reports it had one math teacher.</p>
+    <h3 style="margin-top:26px">Where the money goes, by school size</h3>
+    <p class="aside">Dollars per student, 2024-25, weighted by enrollment. Shared costs (buildings, food, transportation, central offices) are spread across schools per student in the state's reports, so they barely change with size.</p>
+    <div class="wide">
+      <table class="h">
+        <thead><tr><th>Size</th><th class="n">Schools</th><th class="n">Total</th><th class="n">Instruction</th><th class="n">Pupil support</th><th class="n">School administration</th><th class="n hide-narrow">Shared costs</th><th class="n hide-narrow">Students with disabilities</th><th class="n hide-narrow">English learners</th></tr></thead>
+        <tbody id="bintable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" id="chalkbeat">
+    <h2>Why these counts are lower than Chalkbeat's</h2>
+    <p class="body">Chalkbeat's chart shows about 112 high schools under 250 students in 2025. Its note says transfer schools are excluded, but its totals match the state data closely only when transfer schools are counted. When New York reorganized its school codes in 2003-04, the old alternative high school district, where transfer schools had been grouped, went away, so a filter on that district stops working after 2003. The city lists <b data-v="counts:transfer_schools:2025-26">—</b> transfer schools, most of them small. Leaving them in gives <b data-v="counts:under_250_incl_transfer:2025-26">—</b> schools under 250 this year; taking them out gives <b data-v="counts:under_250:2025-26">—</b>. It is worth asking Chalkbeat's data team before citing either figure.</p>
+    <div class="figcap"><span><b>High schools under 250 students</b>, with and without transfer schools</span>
+      <span><span class="key"><i class="rest"></i>Transfer schools included</span><span class="key"><i class="c0"></i>Excluded (this page)</span></span></div>
+    <div class="chart short" id="transfer"></div>
+  </section>
+
+  <section class="sec" id="list">
+    <h2>Every high school, 2024-25</h2>
+    <p class="aside">Sorted smallest first. Click a column to sort. "Extra vs. 500-999" is the need-adjusted premium the model gives the school's size group.</p>
+    <div class="controls" style="padding-inline:0;border:0"><input type="search" id="q" placeholder="Search by school name or code" aria-label="Search schools"></div>
+    <div class="tablebox">
+      <table class="h" id="schooltable">
+        <thead><tr>
+          <th><button type="button" data-sort="dbn">Code</button></th>
+          <th><button type="button" data-sort="name">School</button></th>
+          <th class="n" aria-sort="ascending"><button type="button" data-sort="enrollment">Students</button></th>
+          <th class="n"><button type="button" data-sort="spending_per_pupil">Spending per student</button></th>
+          <th class="n hide-narrow"><button type="button" data-sort="school_admin_pp">School administration</button></th>
+          <th class="n hide-narrow"><button type="button" data-sort="p_swd">Students with disabilities</button></th>
+          <th class="n hide-narrow"><button type="button" data-sort="need_adjusted_premium_pp">Extra vs. 500-999</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec method" id="method">
+    <h2>How this was done</h2>
+    <h3>Which schools count</h3>
+    <p>School enrollment comes from the New York State Education Department's public school enrollment files, 1994-95 through 2025-26 (BEDS day, all students). A high school here is a New York City public school, not a charter, where grades 9 to 12 make up at least a quarter of enrollment. That keeps 6-12 schools and drops elementary and middle schools with a stray ninth grader. Excluded: District 75 special education schools, District 79 alternative programs, the pre-2004 alternative high school district (state code 77) and its successor schools, and every school the Education Department has labeled a transfer high school in its progress reports (2006-07 to 2012-13) or School Quality Reports (2014-15 to 2023-24). Size is total enrollment, including middle school grades at 6-12 schools, as in Chalkbeat's chart. School years are labeled by span; Chalkbeat appears to label them by the fall year.</p>
+    <h3>New vs. established</h3>
+    <p>A school counts as still phasing in if it has no 12th graders and first appears in the state files less than four years earlier. Schools are followed across the 2003-04 recode by borough and school number.</p>
+    <h3>Spending</h3>
+    <p>Spending per student is the state's 2024-25 school-level figure (federal, state and local; report card database, table "Expenditures per Pupil"). The breakdown comes from each school's 2024-25 Financial Transparency Report on data.nysed.gov: instruction is functions 1 and 3, pupil support function 2, school administration function 5, shared costs functions 4 and 6 to 12. Needs shares come from the state's 2024-25 enrollment files for students with disabilities, English language learners and economically disadvantaged students. The $225,000 foundation is from the Education Department's FY2027 Fair Student Funding presentation.</p>
+    <h3>The size premium</h3>
+    <p>A regression of log spending per student on size group plus the three needs shares and a flag for schools with middle grades (420 schools; reference group 500-999 students). Each school's premium is its predicted spending at its own size minus its predicted spending at 500-999, times its enrollment. A smooth version using log enrollment instead of size groups gives a smaller estimate for schools under 250 (about $24 million), because the extra cost climbs steeply only at the smallest sizes. The 2023-24 data show a steeper size gradient than 2024-25. These figures include the effect of the city's hold harmless policy, which since 2023-24 has kept shrinking schools from losing money as enrollment falls, so part of today's small-school premium is that policy.</p>
+    <h3>What this cannot show</h3>
+    <p>The state's report spreads many costs evenly per student, so it understates how much buildings and central services cost small schools. It cannot say what a merger would save, which depends on which staff and buildings are kept. Course offerings, the breadth problem in the Chalkbeat story, are not in these data.</p>
+    <h3>Files</h3>
+    <p>The page's data: <a href="output/counts.csv">counts.csv</a>, <a href="output/schools_2024_25.csv">schools_2024_25.csv</a>, <a href="output/size_bins_2024_25.csv">size_bins_2024_25.csv</a>, <a href="output/premium_2024_25.csv">premium_2024_25.csv</a>, <a href="output/fsf.csv">fsf.csv</a>. The scripts that build them are in the <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-small-high-schools/scripts">scripts folder</a>.</p>
+  </section>
+
+  <footer class="foot">Built Oct. 29, 2026, by Josh Greenman with Claude. Sources: New York State Education Department; NYC Public Schools; Chalkbeat New York.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(() => {
+  const FILES = { counts: 'output/counts.csv', schools: 'output/schools_2024_25.csv', bins: 'output/size_bins_2024_25.csv', premium: 'output/premium_2024_25.csv', fsf: 'output/fsf.csv' };
+  const fmt = d3.format(',');
+  const money = (v) => (v < 0 ? '-$' : '$') + d3.format(',.0f')(Math.abs(v));
+  const millions = (v) => '$' + d3.format(',.0f')(v / 1e6) + ' million';
+  const pct0 = d3.format('.0%');
+  const yr = (s) => `${s - 1}-${String(s).slice(2)}`;
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue('--' + n).trim();
+
+  const axisStyle = (g) => {
+    g.attr('font-size', null).attr('font-family', null);
+    g.selectAll('line').attr('stroke', css('grid'));
+    g.select('.domain').remove();
+  };
+  const tipFor = (el) => { const t = document.createElement('div'); t.className = 'tip'; t.hidden = true; el.append(t); return t; };
+  const showTip = (el, t, head, lines, x, y) => {
+    t.replaceChildren();
+    const h = document.createElement('div'); h.className = 'h'; h.textContent = head; t.append(h);
+    lines.forEach((s) => { const d = document.createElement('div'); d.textContent = s; t.append(d); });
+    t.hidden = false;
+    const w = el.clientWidth;
+    t.style.left = Math.max(0, Math.min(w - t.offsetWidth, x + 12)) + 'px';
+    t.style.top = Math.max(0, y - t.offsetHeight - 10) + 'px';
+  };
+  const yearTicks = (rows, W) => rows.map((r) => r.spring).filter((s) => (s - 1995) % (W < 520 ? 10 : 5) === 0);
+
+  function drawCutoffs(rows) {
+    const el = document.getElementById('cutoffs'); el.replaceChildren();
+    const W = Math.max(320, el.clientWidth), H = 300, m = { t: 12, r: 44, b: 28, l: 36 };
+    const x = d3.scaleLinear(d3.extent(rows, (r) => r.spring), [m.l, W - m.r]);
+    const y = d3.scaleLinear([0, d3.max(rows, (r) => r.under_350) * 1.1], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r))).call(axisStyle);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(yearTicks(rows, W)).tickFormat(yr).tickSize(0).tickPadding(8)).call(axisStyle);
+    const last = rows[rows.length - 1];
+    const ends = [];
+    [['under_250', 'c0'], ['under_300', 'c1'], ['under_350', 'c2']].forEach(([k, c]) => {
+      svg.append('path').datum(rows).attr('fill', 'none').attr('stroke', css(c) || css('sun')).attr('stroke-width', 2.5).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+        .attr('d', d3.line((r) => x(r.spring), (r) => y(r[k])));
+      ends.push({ y: y(last[k]), v: last[k], c });
+    });
+    ends.sort((a, b) => a.y - b.y);
+    for (let j = 1; j < ends.length; j++) if (ends[j].y - ends[j - 1].y < 15) ends[j].y = ends[j - 1].y + 15;
+    ends.forEach((e) => svg.append('text').attr('class', 'end').attr('x', W - m.r + 6).attr('y', e.y).attr('dy', '0.35em').style('fill', css(e.c)).text(fmt(e.v)));
+    const t = tipFor(el);
+    const rule = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).attr('stroke', css('fg2')).attr('opacity', 0);
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [px] = d3.pointer(ev); const s = Math.round(x.invert(px)); const r = rows.find((q) => q.spring === s); if (!r) return;
+        rule.attr('x1', x(s)).attr('x2', x(s)).attr('opacity', 1);
+        const k = el.clientWidth / W;
+        showTip(el, t, r.school_year, [`Under 250: ${fmt(r.under_250)}`, `Under 300: ${fmt(r.under_300)}`, `Under 350: ${fmt(r.under_350)}`, `All high schools: ${fmt(r.schools)}`], x(s) * k, y(r.under_350) * k);
+      })
+      .on('pointerleave', () => { t.hidden = true; rule.attr('opacity', 0); });
+  }
+
+  function drawNewOld(rows) {
+    const el = document.getElementById('newold'); el.replaceChildren();
+    const W = Math.max(320, el.clientWidth), H = 300, m = { t: 12, r: 8, b: 28, l: 36 };
+    const x = d3.scaleBand(rows.map((r) => r.spring), [m.l, W - m.r]).padding(0.2);
+    const y = d3.scaleLinear([0, d3.max(rows, (r) => r.under_250) * 1.1], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r))).call(axisStyle);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(yearTicks(rows, W)).tickFormat(yr).tickSize(0).tickPadding(8)).call(axisStyle);
+    const g = svg.selectAll('g.b').data(rows).join('g');
+    g.append('rect').attr('x', (r) => x(r.spring)).attr('width', x.bandwidth()).attr('y', (r) => y(r.under_250_mature)).attr('height', (r) => y(0) - y(r.under_250_mature)).attr('fill', css('c0'));
+    g.append('rect').attr('x', (r) => x(r.spring)).attr('width', x.bandwidth()).attr('y', (r) => y(r.under_250)).attr('height', (r) => y(r.under_250_mature) - y(r.under_250)).attr('fill', css('rest'));
+    const t = tipFor(el);
+    g.append('rect').attr('x', (r) => x(r.spring)).attr('width', x.step()).attr('y', m.t).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointerenter', (ev, r) => { const k = el.clientWidth / W; showTip(el, t, r.school_year, [`Established: ${fmt(r.under_250_mature)}`, `Still phasing in: ${fmt(r.under_250_new)}`], x(r.spring) * k, y(r.under_250) * k); })
+      .on('pointerleave', () => { t.hidden = true; });
+  }
+
+  function drawTransfer(rows) {
+    const el = document.getElementById('transfer'); el.replaceChildren();
+    const W = Math.max(320, el.clientWidth), H = 240, m = { t: 12, r: 44, b: 28, l: 36 };
+    const x = d3.scaleLinear(d3.extent(rows, (r) => r.spring), [m.l, W - m.r]);
+    const y = d3.scaleLinear([0, d3.max(rows, (r) => r.under_250_incl_transfer) * 1.1], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-(W - m.l - m.r))).call(axisStyle);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(yearTicks(rows, W)).tickFormat(yr).tickSize(0).tickPadding(8)).call(axisStyle);
+    const last = rows[rows.length - 1];
+    [['under_250_incl_transfer', 'fg2'], ['under_250', 'c0']].forEach(([k, c]) => {
+      svg.append('path').datum(rows).attr('fill', 'none').attr('stroke', css(c)).attr('stroke-width', 2.5).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round').attr('d', d3.line((r) => x(r.spring), (r) => y(r[k])));
+      svg.append('text').attr('class', 'end').attr('x', W - m.r + 6).attr('y', y(last[k])).attr('dy', '0.35em').style('fill', css(c)).text(fmt(last[k]));
+    });
+    const t = tipFor(el);
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [px] = d3.pointer(ev); const s = Math.round(x.invert(px)); const r = rows.find((q) => q.spring === s); if (!r) return;
+        const k = el.clientWidth / W;
+        showTip(el, t, r.school_year, [`Transfer schools included: ${fmt(r.under_250_incl_transfer)}`, `Excluded: ${fmt(r.under_250)}`], x(s) * k, y(r.under_250_incl_transfer) * k);
+      })
+      .on('pointerleave', () => { t.hidden = true; });
+  }
+
+  function drawScatter(rows) {
+    const el = document.getElementById('scatter'); el.replaceChildren();
+    const W = Math.max(320, el.clientWidth), H = 380, m = { t: 12, r: 12, b: 34, l: 52 };
+    const x = d3.scaleLog([50, d3.max(rows, (r) => r.enrollment) * 1.1], [m.l, W - m.r]);
+    const ymax = Math.min(80000, d3.max(rows, (r) => r.spending_per_pupil) * 1.05);
+    const y = d3.scaleLinear([15000, ymax], [H - m.b, m.t]).nice();
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat((v) => '$' + d3.format(',')(v / 1000) + 'k').tickSize(-(W - m.l - m.r))).call(axisStyle);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([100, 250, 500, 1000, 2000, 4000].filter((v) => v < x.domain()[1])).tickFormat(d3.format(',')).tickSize(0).tickPadding(8)).call(axisStyle);
+    svg.append('text').attr('x', W - m.r).attr('y', H - 2).attr('text-anchor', 'end').text('Students');
+    [250, 350].forEach((v) => svg.append('line').attr('x1', x(v)).attr('x2', x(v)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', css('fg2')).attr('stroke-dasharray', '3 3'));
+    const shown = rows.filter((r) => r.spending_per_pupil <= y.domain()[1]);
+    svg.append('g').selectAll('circle').data(shown.filter((r) => r.enrollment >= 350)).join('circle').attr('cx', (r) => x(r.enrollment)).attr('cy', (r) => y(r.spending_per_pupil)).attr('r', 3.2).attr('fill', css('rest'));
+    svg.append('g').style('mix-blend-mode', css('blend')).selectAll('circle').data(shown.filter((r) => r.enrollment < 350)).join('circle').attr('cx', (r) => x(r.enrollment)).attr('cy', (r) => y(r.spending_per_pupil)).attr('r', 3.6).attr('fill', css('c0'));
+    const pts = shown.map((r) => [x(r.enrollment), y(r.spending_per_pupil), r]);
+    const dl = d3.Delaunay.from(pts, (p) => p[0], (p) => p[1]);
+    const ring = svg.append('circle').attr('r', 6).attr('fill', 'none').attr('stroke', css('fg')).attr('opacity', 0);
+    const t = tipFor(el);
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [px, py] = d3.pointer(ev); const p = pts[dl.find(px, py)]; if (!p) return; const r = p[2];
+        ring.attr('cx', p[0]).attr('cy', p[1]).attr('opacity', 1);
+        const k = el.clientWidth / W;
+        showTip(el, t, r.name, [`${fmt(r.enrollment)} students`, `${money(r.spending_per_pupil)} per student`, `${pct0(r.p_swd)} students with disabilities`], p[0] * k, p[1] * k);
+      })
+      .on('pointerleave', () => { t.hidden = true; ring.attr('opacity', 0); });
+    const over = rows.length - shown.length;
+    if (over > 0) svg.append('text').attr('x', m.l + 4).attr('y', m.t + 10).text(`${over} school${over > 1 ? 's' : ''} above $80k not shown`);
+  }
+
+  function drawPremium(bins) {
+    const el = document.getElementById('premium'); el.replaceChildren();
+    const W = Math.max(320, el.clientWidth), H = 300, m = { t: 8, r: 64, b: 24, l: 84 };
+    const y = d3.scaleBand(bins.map((r) => r.bin), [m.t, H - m.b]).padding(0.3);
+    const x = d3.scaleLinear([Math.min(0, d3.min(bins, (r) => r.v)), d3.max(bins, (r) => r.v)], [m.l, W - m.r]).nice();
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`);
+    svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickFormat((v) => v + '%').tickSize(-(H - m.t - m.b))).call(axisStyle);
+    svg.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', css('fg'));
+    const bh = Math.min(30, y.bandwidth());
+    svg.selectAll('text.l').data(bins).join('text').attr('x', m.l - 8).attr('y', (r) => y(r.bin) + bh / 2).attr('dy', '0.35em').attr('text-anchor', 'end').style('fill', css('fg')).text((r) => r.bin);
+    svg.selectAll('rect.b').data(bins).join('rect').attr('x', (r) => x(Math.min(0, r.v))).attr('width', (r) => Math.abs(x(r.v) - x(0))).attr('y', (r) => y(r.bin)).attr('height', bh)
+      .attr('fill', (r) => (r.order < 3 ? css('c0') : css('rest')));
+    svg.selectAll('text.v').data(bins).join('text').attr('x', (r) => x(Math.max(0, r.v)) + 6).attr('y', (r) => y(r.bin) + bh / 2).attr('dy', '0.35em')
+      .text((r) => (r.bin === '500-999' ? 'baseline' : (r.v > 0 ? '+' : '') + d3.format('.0f')(r.v) + '%'));
+  }
+
+  function fillTables(D) {
+    const last = D.counts[D.counts.length - 1];
+    document.getElementById('cuttable').replaceChildren(...[250, 300, 350].map((c) => {
+      const tr = document.createElement('tr');
+      [`Under ${c}`, fmt(last[`under_${c}`]), fmt(last[`under_${c}_students`]), d3.format('.1%')(last[`under_${c}_students`] / last.students)].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i) td.className = 'n'; tr.append(td); });
+      return tr;
+    }));
+    document.getElementById('premtable').replaceChildren(...D.premium.map((r) => {
+      const tr = document.createElement('tr');
+      [r.cutoff, fmt(r.schools), fmt(r.students), millions(r.premium_dollars), money(r.premium_per_pupil)].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i) td.className = 'n'; tr.append(td); });
+      return tr;
+    }));
+    document.getElementById('bintable').replaceChildren(...D.bins.map((r) => {
+      const tr = document.createElement('tr');
+      [r.bin, fmt(r.schools), money(r.mean_pp_weighted), money(r.instruction_pp), money(r.pupil_support_pp), money(r.school_admin_pp), money(r.shared_pp), pct0(r.swd), pct0(r.ell)]
+        .forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i) td.className = 'n' + (i >= 6 ? ' hide-narrow' : ''); tr.append(td); });
+      return tr;
+    }));
+  }
+
+  let sortKey = 'enrollment', sortDir = 1, query = '';
+  function fillSchools(rows) {
+    const tb = document.querySelector('#schooltable tbody');
+    const q = query.trim().toLowerCase();
+    const data = rows.filter((r) => !q || r.name.toLowerCase().includes(q) || r.dbn.toLowerCase().includes(q)).sort((a, b) => {
+      const A = a[sortKey], B = b[sortKey];
+      return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B))) * sortDir;
+    });
+    tb.replaceChildren(...data.map((r) => {
+      const tr = document.createElement('tr');
+      [r.dbn, r.name, fmt(r.enrollment), money(r.spending_per_pupil), isNaN(r.school_admin_pp) ? '' : money(r.school_admin_pp), pct0(r.p_swd), (r.need_adjusted_premium_pp > 0 ? '+' : '') + money(r.need_adjusted_premium_pp)]
+        .forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i >= 2) td.className = 'n' + (i >= 4 ? ' hide-narrow' : ''); tr.append(td); });
+      return tr;
+    }));
+  }
+
+  function fillValues(D) {
+    document.querySelectorAll('[data-v]').forEach((el) => {
+      const [id, field, key, kind = 'n', col] = el.getAttribute('data-v').split(':');
+      const keyCol = col || { counts: 'school_year', bins: 'bin', premium: 'cutoff', fsf: 'item', schools: 'dbn' }[id];
+      const r = D[id].find((x) => String(x[keyCol]) === key);
+      if (!r) return;
+      const v = r[field];
+      el.textContent = kind === 'pct' ? d3.format('.0f')(v) : kind === 'usd' ? money(v) : fmt(v);
+    });
+  }
+
+  const numeric = (rows) => rows.map((r) => { const o = {}; for (const k in r) { const n = Number(r[k]); o[k] = r[k] !== '' && !isNaN(n) && !['school_year', 'dbn', 'bin', 'cutoff', 'item', 'name', 'size_bin'].includes(k) ? n : r[k]; } return o; });
+
+  Promise.all(Object.entries(FILES).map(([k, f]) => d3.csv(f).then((rows) => [k, numeric(rows)]))).then((pairs) => {
+    const D = Object.fromEntries(pairs);
+    D.bins.forEach((r) => { r.v = r.need_adjusted_vs_500_999_pct; });
+    D.bins.sort((a, b) => a.order - b.order);
+    D.schools.forEach((r) => { ['school_admin_pp', 'need_adjusted_premium_pp'].forEach((k) => { if (r[k] === '') r[k] = NaN; }); });
+    fillValues(D); fillTables(D); fillSchools(D.schools);
+    const drawAll = () => { drawCutoffs(D.counts); drawNewOld(D.counts); drawTransfer(D.counts); drawScatter(D.schools); drawPremium(D.bins); };
+    drawAll();
+    let w = window.innerWidth;
+    window.addEventListener('resize', () => { if (window.innerWidth !== w) { w = window.innerWidth; drawAll(); } });
+    document.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.getAttribute('data-sort');
+      sortDir = k === sortKey ? -sortDir : (k === 'name' || k === 'dbn' ? 1 : -1); sortKey = k;
+      document.querySelectorAll('#schooltable th').forEach((th) => th.removeAttribute('aria-sort'));
+      b.closest('th').setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
+      fillSchools(D.schools);
+    }));
+    document.getElementById('q').addEventListener('input', (e) => { query = e.target.value; fillSchools(D.schools); });
+  }).catch((e) => {
+    document.querySelectorAll('.chart').forEach((el) => { el.innerHTML = '<p class="err">The data files did not load.</p>'; });
+    console.error(e);
+  });
+})();
+</script>
+</body>
+</html>
