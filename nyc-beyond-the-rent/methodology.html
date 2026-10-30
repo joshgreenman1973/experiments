@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beyond the Rent: methodology</title>
+<meta name="description" content="Sources, definitions and calculations behind Beyond the Rent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+:root{--accent:var(--vermilion)}
+.doc{max-width:760px;padding:10px clamp(16px,4vw,48px) 70px}
+.doc h2{margin:38px 0 8px}
+.doc h3{margin:26px 0 6px;font-size:1.15rem}
+.doc p,.doc li{color:var(--fg2)}
+.doc p b,.doc li b{color:var(--fg)}
+.doc code{font-family:var(--sans);font-weight:700;color:var(--fg)}
+.doc :target{scroll-margin-top:20px}
+.doc table{margin:8px 0 4px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><a href="./">← Beyond the Rent</a><span>Methodology</span></div>
+  <div class="doc">
+    <h1>How Beyond the Rent is built</h1>
+    <p class="finding">Every figure on the page comes from a government agency or a regulated utility’s filing with one, and every calculation is set out here.</p>
+    <p>The page is rebuilt from raw files by <code>scripts/refresh.sh</code>, which downloads each series, then runs <code>scripts/build.py</code>. That script computes every derived number the page prints and writes them to <code>data/dashboard.json</code>; the page’s sentences are generated from that file, so a refresh updates the prose along with the charts. Hand-collected records (water rates, rate cases, tax figures) live in <code>research/</code> with the URL and a verbatim quote for each value.</p>
+    <p>Changes are stated year over year: a month against the same month a year earlier, or a 12-month window against the 12 months before it. Month-to-month changes in utility prices mostly reflect seasons and are not used.</p>
+
+    <h2>Sources</h2>
+    <ul>
+      <li><b>EIA-861M</b>, the Energy Information Administration’s monthly survey of electric utilities: residential revenue, kilowatt-hours sold and customers by utility and month, 2010 to the latest month (<a href="https://www.eia.gov/electricity/data/eia861m/">EIA</a>). State and national totals come from the same program’s <code>sales_revenue.xlsx</code>.</li>
+      <li><b>BLS Consumer Price Index</b> (CPI-U, not seasonally adjusted) for the New York-Newark-Jersey City area, the Northeast and the U.S., and <b>BLS average prices</b> per kilowatt-hour, therm and gallon, through the public API (<a href="https://www.bls.gov/cpi/">BLS</a>).</li>
+      <li><b>NYISO</b> day-ahead market zonal location-based marginal prices, hourly, from the public MIS archive (<a href="https://mis.nyiso.com/public/P-2Alist.htm">NYISO</a>).</li>
+      <li><b>EIA natural gas prices</b>: New York, New Jersey and U.S. residential (<a href="https://www.eia.gov/dnav/ng/hist/n3010ny3m.htm">N3010NY3</a>, <a href="https://www.eia.gov/dnav/ng/hist/n3010nj3m.htm">N3010NJ3</a>, <a href="https://www.eia.gov/dnav/ng/hist/n3010us3m.htm">N3010US3</a>), New York city gate (<a href="https://www.eia.gov/dnav/ng/hist/n3050ny3m.htm">N3050NY3</a>) and Henry Hub spot (<a href="https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm">RNGWHHD</a>).</li>
+      <li><b>NYSERDA</b> weekly residential heating oil prices by region, on the state’s open data portal (<a href="https://data.ny.gov/d/rc94-5y2u">data.ny.gov</a>); <b>EIA</b> weekly U.S. residential heating oil (<a href="https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=W_EPD2F_PRS_NUS_DPG&f=W">W_EPD2F_PRS_NUS_DPG</a>) and the monthly New York Harbor No. 2 spot price (<a href="https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EER_EPD2F_PF4_Y35NY_DPG&f=M">EER_EPD2F_PF4_Y35NY_DPG</a>).</li>
+      <li><b>NYC Water Board</b> rate schedules and rate reports, <b>New York Public Service Commission</b> rate orders, <b>Con Edison’s annual reports to the SEC</b> and <b>New York City</b> finance documents, each cited line by line on the page.</li>
+    </ul>
+
+    <h2>Electricity</h2>
+    <h3 id="t12">Prices and 12-month averages</h3>
+    <p>A utility’s average price in a month is residential revenue divided by residential kilowatt-hours sold. The 12-month average is total revenue over the 12 months divided by total kilowatt-hours over the same months, so heavier-use months count for more, as they do on bills. It removes the seasonal swing; Con Edison charges more for delivery from June through September.</p>
+    <p><b>Full-service customers only.</b> EIA-861M reports a utility’s residential sales to customers who buy both the electricity and its delivery from the utility. Customers who buy their supply from an energy service company appear under that company, and their delivery revenue is reported separately. Con Edison’s figures therefore describe households that buy power from Con Edison, which were about 2.99 million accounts in August 2026. The state and national lines are EIA’s totals for all residential customers.</p>
+    <p>“Other New York utilities” is the sales-weighted combination of National Grid’s upstate company (Niagara Mohawk), NYSEG, RG&amp;E, Central Hudson, Orange &amp; Rockland and the Long Island Power Authority (operated by PSEG Long Island): the investor-owned and public utilities that serve the rest of the state.</p>
+    <h3 id="ratio">The national comparison</h3>
+    <p>The ratio in the opening sentence divides Con Edison’s 12-month average price by EIA’s U.S. residential average over the same 12 months.</p>
+    <h3 id="peers">The utility ranking</h3>
+    <p>Every utility in EIA-861M with 12 months of data in the latest 12-month window and at least 50,000 full-service residential customers on average, ranked by 12-month average price (total revenue over total kilowatt-hours). Utilities in several states are combined. Rooftop-solar lessors that appear in the survey are excluded. “Eastern states” are those east of the Mississippi. The bill ranking divides 12 months of residential revenue by average customers and by 12.</p>
+    <h3 id="bill">Average monthly bill</h3>
+    <p>Residential revenue divided by residential customers for each month. The 12-month figure is the average of the 12 monthly values. It is an average across all households, large and small, and includes every charge the utility bills (supply, delivery, taxes and surcharges).</p>
+    <h3 id="split">What is in the price</h3>
+    <p>The yellow band is the simple average of hourly NYISO day-ahead prices for Zone J (New York City) over the 12 months, converted from dollars per megawatt-hour to cents per kilowatt-hour. The rest is Con Edison’s 12-month average price minus that figure. The wholesale energy price understates the cost of supply: it leaves out installed-capacity payments, ancillary services, line losses and the effect of the utility’s hedges, and it is not weighted by when households use power. The split is a lower bound on the supply share, not a bill breakdown.</p>
+    <h3 id="gaspower">Wholesale power and gas</h3>
+    <p>Pearson correlation between monthly Zone J day-ahead averages ($/MWh) and monthly Henry Hub spot averages ($/MMBtu), January 2010 to the latest month both exist.</p>
+    <h3 id="lag">Pass-through from wholesale to retail</h3>
+    <p>For each month from January 2011, the change in Con Edison’s average price from the same month a year earlier (cents per kWh) is paired with the same year-over-year change in the Zone J price (converted to cents per kWh) zero to six months earlier. The bars show the correlation at each lag; the slope is from a straight-line fit of retail change on wholesale change at the strongest lag.</p>
+    <h3 id="season">Seasonal pattern</h3>
+    <p>Kilowatt-hours per customer, price and bill by calendar month, averaged over the last three complete calendar years.</p>
+    <h3>Metro-area prices</h3>
+    <p>BLS average price per kilowatt-hour, averaged over the 12 months of 2014 and of 2024. BLS stopped publishing electricity and piped-gas indexes and average prices for the New York area and most other metro areas after December 2024. The BLS figure covers all households in the metro area, which for New York includes northern New Jersey, Long Island, the lower Hudson Valley and part of Pennsylvania, whatever their supplier.</p>
+
+    <h3 id="taxes">Taxes</h3>
+    <p>Con Edison’s tax figures are from the annual 10-K reports of Consolidated Edison Company of New York, which cover its electric, gas and steam businesses in every jurisdiction where it owns property, not New York City alone; no official source breaks out the city’s share. The city’s figures are the Department of Finance’s property tax levy on Class 3 (equipment owned by regulated utilities, excluding their land and buildings, and covering every regulated utility, not only Con Edison) and the utility tax revenue reported by the city’s Office of Management and Budget and Comptroller. The company reports calendar years; the city reports fiscal years ending June 30. The two series are shown side by side, not combined. The commission’s statements on property taxes’ share of each rate increase are quoted from its orders and press releases. As a check on the EIA price data, Con Edison’s 10-K reports average residential revenue of 36.7 cents per kWh for 2025; the EIA-861M monthly figures give 36.7 cents for the same year (total revenue over total kilowatt-hours, January to December).</p>
+    <h3 id="cases">Rate cases and events</h3>
+    <p>Approved delivery revenue increases are the Public Service Commission’s figures for plans from 2020 on, and Con Edison’s 10-K figures for earlier plans, where case numbers and order dates are not included. Bill effects are quoted as each source states them, for the typical customer it describes; they are not comparable across plans. Each dated event links to its source.</p>
+
+    <h2 id="gas">Gas heat</h2>
+    <p>No official monthly price for residential gas in New York City alone exists after December 2024, when BLS dropped its New York-area series. The page uses BLS’s New York-area average price per therm through 2024 and EIA’s statewide residential price after that, and labels which is which. EIA prices in dollars per thousand cubic feet are converted to dollars per therm at 10.36 therms per thousand cubic feet (1.036 million Btu, EIA’s typical heat content for pipeline gas). BLS prices are survey averages that include taxes and fixed charges; EIA’s are utility revenue divided by volume. Changes in the opening section compare calendar-year averages.</p>
+    <h3 id="stack">Price stack</h3>
+    <p>Twelve-month simple averages of the Henry Hub spot price (converted to dollars per thousand cubic feet at 1.036 million Btu each), the New York city-gate price and the New York residential price. The middle band is city gate minus Henry Hub; the top band is residential minus city gate. The commodity share is the Henry Hub average divided by the residential average.</p>
+
+    <h2>Heating oil</h2>
+    <h3 id="oilyoy">Weekly prices and year-over-year change</h3>
+    <p>NYSERDA surveys dealers weekly from October through March and monthly the rest of the year. The year-over-year comparison pairs the latest NYSERDA reading with the reading closest to 364 days earlier. EIA’s national residential series covers the heating season only.</p>
+    <h3 id="margin">Retail markup</h3>
+    <p>The monthly average of NYSERDA’s New York City readings minus EIA’s monthly New York Harbor No. 2 heating oil spot price. The markup covers dealer costs, delivery, taxes and margin; in summer months it rests on a single reading.</p>
+
+    <h2 id="overview">The four-panel overview</h2>
+    <p>Electricity: 12-month average prices at each December and the latest month. Gas: calendar-year averages. Heating oil: averages of October-to-March readings, labelled by the year the season ends. Water: fiscal-year rates. “Change since 2016” divides each value by the 2016 value (for electricity, the 12 months through December 2016). The national water line is BLS’s CPI for water and sewerage maintenance averaged over fiscal years, since no national dollar rate exists.</p>
+
+    <h2 id="water">Water and sewer</h2>
+    <p>Sources: the board’s rate schedules, annual rate reports, adoption notices and minutes, and the NYC Water and Sewer System’s audited financial statements, all on nyc.gov. Metered water rates per 100 cubic feet are sourced for fiscal 1997–2027; annual increases for fiscal 1988–2027 (1988–1996 read from a bar chart in a board report). The sewer charge is 159% of the water charge in every year covered, and the sewer and combined rates are calculated that way. In fiscal 2017 the board adopted a 2.1% increase with a $183 credit for one- to three-family homes; a court annulled it and the board repealed it in January 2018, so the rate stayed at $3.81 from fiscal 2016 through 2018. Typical bills use the board’s assumed annual use, which changed (single-family homes: 100,000 gallons in fiscal 2009, 80,000 from 2010, 70,000 from 2019), so they are not comparable across those breaks. The rental payment figures are actual payments from the audited statements, except the latest year, which is the budgeted amount.</p>
+    <p>The NYC Water Board adopts one schedule of rates each spring for the fiscal year that starts July 1. The page uses the metered rate per 100 cubic feet for water and for sewer (wastewater), and the board’s stated overall increase. Typical bills are the board’s own figures. Reasons for each year’s increase are summarized from the board’s and DEP’s rate documents, each linked. BLS publishes no water index for the New York area.</p>
+
+    <h2>What is left out</h2>
+    <ul>
+      <li><b>Steam.</b> Con Edison’s steam system sells to large buildings in Manhattan; it has no household rate to track.</li>
+      <li><b>Phone, internet and cable.</b> BLS publishes no New York-area index for them, and their prices are not set by a public agency.</li>
+      <li><b>Energy-service-company customers.</b> Households that buy electricity supply from a third party pay that company’s price plus Con Edison’s delivery charges; EIA does not publish their combined price by utility.</li>
+      <li><b>Bill assistance.</b> Discounts such as the state’s Energy Affordability Program lower bills for enrolled households; utility revenue figures include their effect.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
