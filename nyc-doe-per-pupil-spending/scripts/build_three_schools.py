@@ -56,11 +56,16 @@ cols = list(tb.keys())
 ess = [{c: tb[c][i] for c in cols} for i in range(len(tb[cols[0]]))]
 ess = [r for r in ess if r['YEAR'] == 2025 and r['PER_FED_STATE_LOCAL_EXP']]
 by_beds = {r['ENTITY_CD']: r for r in ess}
-# Comparison sets: District 75 (codes 3075...) and schools in the 32 geographic districts (borough digits 1-5)
+# Comparison sets: District 75 (codes 3075...) and district schools in the 32 geographic districts (borough digits 1-5).
+# Entity codes are CC DD TTTT NNNN; type 0001 is a district school, 0086 a charter school. Charters are coded inside the
+# geographic districts but are not run by the department, so they are left out (corrected Oct. 30, 2026; before, the
+# set had 1,811 codes including 280 charters).
 d75 = [r['PER_FED_STATE_LOCAL_EXP'] for r in ess if r['ENTITY_CD'].startswith('3075')]
 geo = [r['PER_FED_STATE_LOCAL_EXP'] for r in ess
        if len(r['ENTITY_CD']) == 12 and r['ENTITY_CD'][0] == '3' and r['ENTITY_CD'][1] in '12345'
-       and r['ENTITY_CD'][2:4].isdigit() and 1 <= int(r['ENTITY_CD'][2:4]) <= 32 and r['ENTITY_CD'][8:] != '0000']
+       and r['ENTITY_CD'][2:4].isdigit() and 1 <= int(r['ENTITY_CD'][2:4]) <= 32
+       and r['ENTITY_CD'][4:8] == '0001' and r['ENTITY_CD'][8:] != '0000']
+assert len(geo) == 1531, len(geo)
 
 fb = pd.read_excel(form_path, sheet_name='Part B', header=6).set_index('Local School Code')
 fc = pd.read_excel(form_path, sheet_name='Part C', header=6).set_index('Local School Code')
