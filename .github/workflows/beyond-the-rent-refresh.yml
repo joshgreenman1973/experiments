@@ -1,0 +1,61 @@
+name: Beyond the Rent — monthly refresh
+
+# Re-pulls every federal and state series behind nyc-beyond-the-rent/ and rebuilds
+# data/dashboard.json. EIA posts its monthly utility file around the 24th, so this
+# runs on the 27th. All sources are keyless. The raw downloads (~60 MB) are not kept
+# between runs; each run fetches them fresh, except data/raw/bls.json, which is kept
+# in git so the keyless BLS pull only needs the last two years. scripts/check.py refuses any build that
+# went backward or came back thinner, and the run then fails (GitHub emails on failure).
+# The hand-collected files in research/ (water rates, rate cases, taxes) are not touched.
+on:
+  schedule:
+    - cron: '0 13 27 * *' # 13:00 UTC ≈ 08:00–09:00 ET
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beyond-the-rent-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: nyc-beyond-the-rent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pandas numpy xlrd openpyxl
+
+      - name: Keep the published build for comparison
+        run: cp data/dashboard.json "$RUNNER_TEMP/published.json"
+
+      - name: Fetch and rebuild
+        run: sh scripts/refresh.sh
+
+      - name: Check the new build against the published one
+        id: check
+        run: python scripts/check.py "$RUNNER_TEMP/published.json"
+
+      - name: Commit and push if the data changed
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/dashboard.json data/raw/bls.json
+          git commit -m "Beyond the Rent: monthly data refresh $(date +%Y-%m-%d)"
+          for attempt in 1 2 3 4 5; do
+            git push origin HEAD:main && exit 0
+            echo "Push rejected (attempt $attempt); rebasing on latest main"
+            git pull --rebase origin main
+          done
+          echo "Push failed after retries"; exit 1

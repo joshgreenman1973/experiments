@@ -4,13 +4,17 @@
 CPI-U (not seasonally adjusted) for the New York metro area, the Northeast region
 and the U.S. city average, plus BLS average prices per kWh / therm / gallon.
 Writes data/raw/bls.json: {"series": {id: {"YYYY-MM": value}}}.
-Keyless tier: 25 series and 10 years per request, so the pull runs in windows.
+Keyless tier: 25 series and 10 years per request and 25 requests a day, so the pull
+runs in windows. bls.json is kept in git; when it exists only the last two years are
+re-pulled and merged in (3 requests), otherwise the full history (12 requests).
 """
 import json, os, sys, time, urllib.request, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "data/raw/bls.json"
-WINDOWS = [(1997, 2006), (2007, 2016), (2017, 2026)]
+# Ten-year windows ending this year, back to 1997.
+YEAR = time.localtime().tm_year
+WINDOWS = [(max(1997, y - 9), y) for y in range(YEAR, 1996, -10)][::-1]
 
 AREAS = {"S12A": "New York metro", "0100": "Northeast", "0000": "U.S. city average"}
 ITEMS = ["SA0", "SEHA", "SA0E", "SAH2", "SAH21", "SEHF", "SEHF01", "SEHF02",
@@ -36,7 +40,13 @@ def post(ids, y0, y1):
 def main():
     ids = [f"CUUR{a}{i}" for a in AREAS for i in ITEMS] + AP
     out = {i: {} for i in ids}
-    for y0, y1 in WINDOWS:
+    windows = WINDOWS
+    if OUT.exists():
+        for i, v in json.load(open(OUT))["series"].items():
+            if i in out:
+                out[i].update(v)
+        windows = [(YEAR - 1, YEAR)]
+    for y0, y1 in windows:
         for k in range(0, len(ids), 25):
             d = post(ids[k:k + 25], y0, y1)
             if d.get("status") != "REQUEST_SUCCEEDED":
@@ -53,6 +63,7 @@ def main():
     have = {i: dict(sorted(v.items())) for i, v in out.items() if v}
     if len(have) < len(ids) * 0.6:
         sys.exit(f"only {len(have)} of {len(ids)} series returned; not writing")
+    OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({"fetched": time.strftime("%Y-%m-%d"), "empty": empty, "series": have}))
     for i, v in have.items():
         ks = list(v)

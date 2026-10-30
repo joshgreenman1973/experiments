@@ -8,7 +8,9 @@ Live: https://joshgreenman1973.github.io/experiments/nyc-beyond-the-rent/
 
     sh scripts/refresh.sh
 
-Downloads BLS (API), EIA (EIA-861M, natural gas and heating oil series), NYSERDA (data.ny.gov rc94-5y2u) and NYISO (day-ahead zonal archives) into `data/raw/` (not in git; the first run rebuilds the archive, about 60 MB), then writes `data/dashboard.json`. The page builds its prose from that file.
+Downloads BLS (API), EIA (EIA-861M, natural gas and heating oil series), NYSERDA (data.ny.gov rc94-5y2u) and NYISO (day-ahead zonal archives) into `data/raw/` (not in git except `bls.json`; the first run rebuilds the archive, about 60 MB), then writes `data/dashboard.json`. The page builds its prose from that file.
+
+GitHub Actions runs this on the 27th of each month (`.github/workflows/beyond-the-rent-refresh.yml` at the repo root, after EIA posts its monthly utility file around the 24th). `scripts/check.py` compares the new build with the published one and stops the run if any latest month went backward, a series shrank, the peer list thinned or a headline number came back empty. The run commits only when the data changed. A failed run sends GitHub's failure email.
 
 Hand-collected records, each value with URL and verbatim quote:
 - `research/water.json`: NYC Water Board rates FY1988-FY2027, typical bills, reasons, rental payment, assistance
