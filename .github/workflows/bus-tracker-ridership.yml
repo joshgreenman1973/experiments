@@ -28,7 +28,14 @@ jobs:
         # an X-App-Token when this is set; empty is fine and keeps old behavior.
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
-        run: python3 nyc-bus-tracker/scripts/fetch_route_ridership.py
+        # On failure, surface the last lines as an annotation so the cause is
+        # readable from the run page and the API without downloading logs.
+        run: |
+          set -o pipefail
+          python3 nyc-bus-tracker/scripts/fetch_route_ridership.py 2>&1 | tee fetch.log || {
+            tail -n 8 fetch.log | tr '\n' ' ' | sed 's/^/::error title=Ridership fetch failed::/'
+            exit 1
+          }
 
       - name: Regenerate download CSVs
         run: node nyc-bus-tracker/scripts/export_csv.mjs
