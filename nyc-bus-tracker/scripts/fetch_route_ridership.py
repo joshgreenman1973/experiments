@@ -156,7 +156,8 @@ all_rows = fetch({
     '$select': 'route_id,month as m,sum(estimated_ridership) as b',
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(all_rows)} route-months', flush=True)
-all_rows = [r for r in all_rows if r['m'][:7] in complete]
+# Socrata omits the sum when every estimate in a group is null; skip those.
+all_rows = [r for r in all_rows if r['m'][:7] in complete and r.get('b') is not None]
 
 print('fetching weekday-only totals…', flush=True)
 wd_rows = fetch({
@@ -166,7 +167,7 @@ wd_rows = fetch({
     '$where': "day_type = 'weekday'",
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(wd_rows)} route-months', flush=True)
-wd_rows = [r for r in wd_rows if r['m'][:7] in complete]
+wd_rows = [r for r in wd_rows if r['m'][:7] in complete and r.get('b') is not None]
 
 months = sorted({r['m'][:7] for r in all_rows})
 if len(months) < 12:
