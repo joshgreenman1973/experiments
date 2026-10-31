@@ -353,21 +353,35 @@ for k, rec in routes.items():
 # per-route split is not reliable. Both keys carry the COMBINED pair figure,
 # flagged with tapsJoint, and the ratio is the pair's counters over the pair's
 # taps. Never add these two routes' taps together.
+# Since October 2026 the ridership estimates also report the pair as one
+# route, "Q52/53+". Both tracker keys then carry the pair's combined estimates
+# (flagged estimatesJoint), and the pair key itself is dropped after the
+# system totals above have counted it once.
+PAIR = 'Q52/53+'
+if PAIR in routes:
+    pair = routes.pop(PAIR)
+    for k in TAP_JOINT:
+        routes[k] = {'total': list(pair['total']), 'wdAvg': list(pair['wdAvg']),
+                     'estimatesJoint': list(TAP_JOINT)}
+    not_in_gtfs = [k for k in not_in_gtfs if k != PAIR]
 if all(k in routes for k in TAP_JOINT):
     a, b = (routes[k] for k in TAP_JOINT)
+    joint_est = 'estimatesJoint' in a
     tt, tw = [None] * N, [None] * N
     for ym, agg in taps.items():
         if any(k in agg['total'] for k in TAP_JOINT):
             i = midx[ym]
             tt[i] = sum(agg['total'].get(k, 0) for k in TAP_JOINT)
             tw[i] = round(sum(agg['wd'].get(k, 0) for k in TAP_JOINT) / wd_days[ym])
-    rr = [ratio(a['wdAvg'][i] + b['wdAvg'][i], tw[i]) if a['wdAvg'][i] and b['wdAvg'][i] else None
-          for i in range(N)]
+    pair_wd = (a['wdAvg'] if joint_est else
+               [a['wdAvg'][i] + b['wdAvg'][i] if a['wdAvg'][i] and b['wdAvg'][i] else 0
+                for i in range(N)])
+    rr = [ratio(pair_wd[i], tw[i]) if pair_wd[i] else None for i in range(N)]
     for rec in (a, b):
         rec['tapsTotal'], rec['tapsWdAvg'], rec['ratio'] = list(tt), list(tw), list(rr)
         rec['tapsJoint'] = list(TAP_JOINT)
 else:
-    sys.exit(f'FATAL: expected counter routes {TAP_JOINT} for the joint-tap rule')
+    sys.exit(f'FATAL: expected counter routes {TAP_JOINT} (or {PAIR}) for the joint-tap rule')
 
 system['tapsTotal'] = sys_taps_total
 system['tapsWdAvg'] = sys_taps_wd
@@ -515,6 +529,10 @@ out = {
                  'records how the two lined up, route by route, beforehand.',
         'system.tapsTotal': 'Every fare tap in the dataset that month, all routes, including any '
                             'that have no counter data (see tapsUnmatched).',
+        'estimatesJoint': 'Since October 2026 the MTA also reports ridership estimates for '
+                          'the Q52 SBS and Q53 SBS together, as Q52/53+. Both routes carry the '
+                          'pair\'s combined total and wdAvg; they are counted once in the system '
+                          'figures.',
         'tapsJoint': 'The MTA notes that fare data for the Q52 SBS and Q53 SBS are reported '
                      'together, so the split between them is not reliable. Both routes carry the '
                      'COMBINED taps of the pair, and their ratio is the pair\'s combined counters '
