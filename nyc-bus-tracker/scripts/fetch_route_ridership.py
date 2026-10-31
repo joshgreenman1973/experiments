@@ -4,8 +4,12 @@ data/ridership/routes-monthly.json.
 
 Two independent measures, side by side:
 
-  * Passenger counters: MTA Bus Stop Level Ridership (data.ny.gov fvdm-uavx),
-    boardings recorded by Automatic Passenger Counters on board buses.
+  * Ridership estimates: MTA Bus Stop Ridership Estimates (data.ny.gov
+    fvdm-uavx), boardings estimated from Automatic Passenger Counters. Until
+    October 2026 this dataset held raw counter boardings by date; the MTA
+    replaced it with estimates scaled to all riders, by month, day of week and
+    hour, for January 2024 on. The whole series is refetched each run, so
+    every month in the file uses the new method.
     Fields: total, wdAvg (unchanged since the first version of this file).
   * Fare taps: MTA Bus Hourly Ridership (data.ny.gov kv7t-n8in for 2020-2024,
     gxb3-akrn for 2025 onward), paid OMNY and MetroCard entries including free
@@ -128,20 +132,20 @@ def live_id(rid):
 
 
 # ------------------------------------------------------- counter boardings
-# Which months are actually COMPLETE? The series opens on 2024-09-30, so
-# September 2024 holds a single day. Dividing one day's boardings by a full
-# month's weekdays produces a near-zero point that drags every trend line
-# upward, so partial months are dropped rather than shown.
+# Which months are present? Since October 2026 the MTA publishes this dataset
+# as "Bus Stop Ridership Estimates": one row per route, direction, stop, month,
+# day of week and hour, with estimated_ridership summed over every such day in
+# the month. There is no daily date column any more, so day-level coverage
+# can't be checked; the publisher posts whole months. A month counts only if
+# all seven days of the week are present.
 print('checking month coverage…', flush=True)
-cov = fetch({'$select': 'date_trunc_ym(date) as m,count(distinct date) as days',
+cov = fetch({'$select': 'month as m,count(distinct weekday) as wds',
              '$group': 'm', '$limit': '500'})
 complete = set()
 partial = []
 for r in cov:
     ym = r['m'][:7]
-    y, mo = map(int, ym.split('-'))
-    have, need = int(r['days']), calendar.monthrange(y, mo)[1]
-    (complete.add(ym) if have >= need else partial.append(f'{ym} ({have}/{need} days)'))
+    (complete.add(ym) if int(r['wds']) == 7 else partial.append(f"{ym} ({r['wds']}/7 weekdays)"))
 if partial:
     print(f'  dropping partial months: {", ".join(partial)}', flush=True)
 if len(complete) < 12:
@@ -149,17 +153,17 @@ if len(complete) < 12:
 
 print('fetching per-route monthly totals…', flush=True)
 all_rows = fetch({
-    '$select': 'route_id,date_trunc_ym(date) as m,sum(boardings) as b',
+    '$select': 'route_id,month as m,sum(estimated_ridership) as b',
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(all_rows)} route-months', flush=True)
 all_rows = [r for r in all_rows if r['m'][:7] in complete]
 
 print('fetching weekday-only totals…', flush=True)
 wd_rows = fetch({
-    '$select': 'route_id,date_trunc_ym(date) as m,sum(boardings) as b',
-    # Socrata date_extract_dow: 0 = Sunday … 6 = Saturday (verified against
-    # 2026-06-07, a Sunday, which returns 0). So 1-5 is Monday-Friday.
-    '$where': 'date_extract_dow(date) between 1 and 5',
+    '$select': 'route_id,month as m,sum(estimated_ridership) as b',
+    # day_type is 'weekday' for Monday-Friday and 'weekend' otherwise
+    # (checked against the weekday column for August 2026).
+    '$where': "day_type = 'weekday'",
     '$group': 'route_id,m', '$limit': '50000'})
 print(f'  {len(wd_rows)} route-months', flush=True)
 wd_rows = [r for r in wd_rows if r['m'][:7] in complete]
@@ -471,19 +475,23 @@ if unmatched_breaks:
 # ------------------------------------------------------------------ write
 out = {
     'updated': date.today().isoformat(),
-    'source': 'MTA Bus Stop Level Ridership (data.ny.gov fvdm-uavx), boardings recorded by '
-              'Automatic Passenger Counters on board MTA buses.',
+    'source': 'MTA Bus Stop Ridership Estimates (data.ny.gov fvdm-uavx), boardings estimated '
+              'from Automatic Passenger Counters on board MTA buses. In October 2026 the MTA '
+              'replaced raw counter boardings in this dataset with these estimates for every '
+              'month from January 2024; all months here use the new method.',
     'tapsSource': 'MTA Bus Hourly Ridership (data.ny.gov kv7t-n8in for months through 2024, '
                   'gxb3-akrn from January 2025), OMNY and MetroCard entries by route.',
     'definitions': {
-        'total': 'All boardings recorded on the route that month, every day of the week.',
+        'total': 'Estimated boardings on the route that month, every day of the week.',
         'wdAvg': 'Monday-Friday boardings that month divided by the number of calendar '
                  'weekdays in the month. Public holidays are counted as weekdays, so months '
                  'containing them read slightly low.',
-        'months': 'Only calendar months with data for every day are included; partial months '
-                  'at either end of the series are dropped.',
-        'caveat': 'Counters miss some riders and not every bus carries one. The MTA publishes '
-                  'these as estimates.',
+        'months': 'Only calendar months with data for all seven days of the week are '
+                  'included.',
+        'caveat': 'These are MTA estimates built from passenger counters, which not every bus '
+                  'carries; the MTA scales them up to stand for all riders. Before October 2026 '
+                  'the dataset held unscaled counter boardings, which ran far lower, so figures '
+                  'saved from earlier versions of this file are not comparable.',
         'tapsTotal': 'Fare taps: every OMNY tap and MetroCard swipe that let a rider onto a bus '
                      'on the route that month, including free transfers from another bus or the '
                      'subway. It is a count of paid entries, not of riders: people who board '
@@ -495,20 +503,15 @@ out = {
                      'in it that month.',
         'tapsWdAvg': 'Monday-Friday fare taps that month divided by the number of calendar '
                      'weekdays in the month, the same denominator as wdAvg.',
-        'ratio': 'Passenger-counter boardings per fare tap: wdAvg divided by tapsWdAvg, rounded '
-                 'to three decimals. Null where either is missing or zero. A ratio of 1.5 means '
-                 'the counters logged three boardings for every two paid entries. Read it as a '
-                 'calibration between two incomplete counts, not as an evasion rate. If the '
-                 'counters caught every rider, the MTA evasion estimate implies a ratio near 2 on '
-                 'local routes; in the 2024-2026 data the system-wide ratio sits only a little '
-                 'above 1, and on about half of routes the counters log fewer boardings than '
-                 'there were paid taps. So the counter figures in this file are not a complete '
-                 'count of riders (see caveat), and a route\'s ratio reflects how much of its '
-                 'service was counted as well as how many riders skipped the fare. That is why it '
-                 'matters: when a route\'s counters fall while its taps hold steady, the counting '
-                 'changed, not the riders. And if buses go fare-free, taps stop and counters are '
-                 'the only measure left; this series records how the two lined up, route by '
-                 'route, beforehand.',
+        'ratio': 'Estimated boardings per fare tap: wdAvg divided by tapsWdAvg, rounded to '
+                 'three decimals. Null where either is missing or zero. A ratio of 1.5 means the '
+                 'MTA estimates three boardings for every two paid entries. It is not an evasion '
+                 'rate: taps include free transfers, and both series are estimates with their '
+                 'own gaps. Still, because the boardings now stand for all riders, a ratio well '
+                 'above 1 is broadly consistent with the MTA fare evasion estimate (about half of '
+                 'local riders not paying implies a ratio near 2 on local routes). If buses go '
+                 'fare-free, taps stop and the estimates are the only measure left; this series '
+                 'records how the two lined up, route by route, beforehand.',
         'system.tapsTotal': 'Every fare tap in the dataset that month, all routes, including any '
                             'that have no counter data (see tapsUnmatched).',
         'tapsJoint': 'The MTA notes that fare data for the Q52 SBS and Q53 SBS are reported '
