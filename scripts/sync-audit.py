@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Sync audit: is every project safe to lose this machine?
 
-Walks the Experiments monorepo, every nested git repo inside it, and a
-short list of project directories that live outside Experiments. For each
+Walks the Experiments monorepo, every nested git repo inside it (up to three
+folders down), and a short list of project directories that live outside
+Experiments. It also lists folders inside Experiments that no repo holds at
+all. For each
 one it answers the only question that matters for migration: if this
 laptop died right now, what would be lost?
 
 Flags, in order of severity:
   NOT-IN-GIT     directory has no .git at all
   NO-REMOTE      repo exists but has no GitHub remote
+  UNREACHABLE    --fetch failed as every signed-in account; it would not clone
   MID-REBASE     repo is stuck in a rebase/merge/cherry-pick
   UNPUSHED       commits on the current branch that origin doesn't have
   DETACHED       HEAD is not on any branch
@@ -25,7 +28,7 @@ Usage:
 Writes sync-report.json next to this script's parent (Experiments root).
 Exits 1 if anything would be lost (so cron/CI fails loud), 0 if clean.
 """
-import json, os, subprocess, sys, datetime, concurrent.futures as cf
+import json, os, re, shutil, subprocess, sys, datetime, threading, concurrent.futures as cf
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser("~")
@@ -43,10 +46,36 @@ DO_FETCH = "--fetch" in sys.argv
 PRINT_JSON = "--json" in sys.argv
 
 
-def git(path, *args, timeout=60):
+def git(path, *args, timeout=60, env=None):
     r = subprocess.run(["git", "-C", path] + list(args),
-                       capture_output=True, text=True, timeout=timeout)
+                       capture_output=True, text=True, timeout=timeout, env=env)
     return r.stdout.strip() if r.returncode == 0 else None
+
+
+GH = shutil.which("gh") or os.path.join(HOME, ".local", "bin", "gh")
+_tokens = {}
+_tokens_lock = threading.Lock()  # audit_repo runs on 12 threads
+
+
+def fetch_as_owner(path, remote):
+    """gh's sign-in helper only serves the ACTIVE GitHub account, so fetching
+    the other account's private repos failed quietly and their ahead/behind
+    counts went stale. Try the owning account first, each with a token for
+    that one command; the active account never changes."""
+    if not os.path.exists(GH):
+        return git(path, "fetch", "--quiet", timeout=120) is not None
+    with _tokens_lock:
+        if not _tokens:
+            st = subprocess.run([GH, "auth", "status"], capture_output=True, text=True)
+            for acct in sorted(set(re.findall(r"account (\S+)", st.stdout + st.stderr))):
+                _tokens[acct] = subprocess.run([GH, "auth", "token", "--user", acct],
+                                               capture_output=True, text=True).stdout.strip()
+    owner = (remote or "").split("github.com/", 1)[-1].split("/")[0].lower()
+    for acct in sorted(_tokens, key=lambda a: a.lower() != owner):
+        env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GH_TOKEN=_tokens[acct])
+        if git(path, "fetch", "--quiet", timeout=120, env=env) is not None:
+            return True
+    return False
 
 
 def audit_repo(path):
@@ -55,8 +84,11 @@ def audit_repo(path):
         rec["flags"].append("NOT-IN-GIT")
         return rec
 
-    if DO_FETCH:
-        git(path, "fetch", "--quiet", timeout=120)
+    # A fetch that fails as every signed-in account means a new Mac could not
+    # clone this repo either: renamed, deleted, or no account has access.
+    origin = git(path, "remote", "get-url", "origin")
+    if DO_FETCH and origin and not fetch_as_owner(path, origin):
+        rec["flags"].append("UNREACHABLE")
 
     gitdir = git(path, "rev-parse", "--git-dir") or os.path.join(path, ".git")
     if not os.path.isabs(gitdir):
@@ -104,18 +136,98 @@ def audit_repo(path):
     return rec
 
 
+# Folders that are never projects: Claude's scratch worktrees, dependency
+# installs and build output. Everything else that git can't see gets listed.
+SKIP_DIRS = {".git", ".claude", "node_modules", ".venv", "venv", "__pycache__",
+             ".pytest_cache", ".next", ".cache", ".wrangler", ".netlify"}
+MAX_DEPTH = 3  # nyc-data/<project>, vital-city-tools/<project>, personal/<project>
+
+
 def find_repos():
+    """Every nested repo up to MAX_DEPTH folders down, not just the top level.
+
+    Container folders like nyc-data/ and vital-city-tools/ are not repos
+    themselves but hold dozens; an audit that stopped one level down left
+    36 projects off machine/repos.json, so a new Mac would not have cloned
+    them. A repo's own subfolders are not searched.
+    """
     repos = [ROOT]
-    for entry in sorted(os.listdir(ROOT)):
-        p = os.path.join(ROOT, entry)
-        if os.path.isdir(os.path.join(p, ".git")):
-            repos.append(p)
+
+    def walk(d, depth):
+        try:
+            entries = sorted(os.listdir(d))
+        except OSError:
+            return
+        for entry in entries:
+            p = os.path.join(d, entry)
+            if entry in SKIP_DIRS or not os.path.isdir(p) or os.path.islink(p):
+                continue
+            if os.path.isdir(os.path.join(p, ".git")):
+                repos.append(p)
+            elif depth < MAX_DEPTH:
+                walk(p, depth + 1)
+
+    walk(ROOT, 1)
     repos += [p for p in EXTERNAL if os.path.isdir(p)]
     return repos
 
 
+def du_mb(path):
+    r = subprocess.run(["du", "-sk", path], capture_output=True, text=True)
+    try:
+        return round(int(r.stdout.split()[0]) / 1024)
+    except (IndexError, ValueError):
+        return None
+
+
+def find_local_only(repo_paths):
+    """Folders inside ~/Experiments that no git repo holds: not committed to
+    the monorepo (untracked or gitignored) and not a nested repo either.
+    GitHub has no copy of these; Time Machine is their only backup.
+
+    git reports the top-most such folder. When that folder is a container
+    holding nested repos (personal/, vital-city-tools/), look inside it and
+    report the children that aren't repos.
+    """
+    out = git(ROOT, "status", "--porcelain", "--ignored", "--untracked-files=normal") or ""
+    candidates = [l[3:].rstrip("/") for l in out.splitlines()
+                  if l[:3] in ("?? ", "!! ") and l.endswith("/")]
+    repo_set = set(repo_paths)
+    found = []
+
+    # kind "project": a whole project folder (top level, or directly inside a
+    # container like nyc-data/). kind "inside-project": a gitignored folder
+    # within a project that is on GitHub, usually downloaded data or build
+    # output the project's own scripts can recreate.
+    def holds_repos(p):
+        return any(r.startswith(p + os.sep) for r in repo_set)
+
+    def consider(rel):
+        p = os.path.join(ROOT, rel)
+        if (set(rel.split("/")) & SKIP_DIRS or p in repo_set
+                or not os.path.isdir(p) or os.path.islink(p)):
+            return
+        if holds_repos(p):
+            for child in sorted(os.listdir(p)):
+                consider(f"{rel}/{child}")
+            return
+        parent = os.path.dirname(p)
+        kind = "project" if parent == ROOT or holds_repos(parent) else "inside-project"
+        found.append({"path": p, "mb": du_mb(p), "kind": kind})
+
+    for rel in candidates:
+        consider(rel)
+    # git lists ignored folders inside untracked ones separately; keep the outer one
+    found.sort(key=lambda f: f["path"])
+    kept = []
+    for f in found:
+        if not any(f["path"].startswith(k["path"] + os.sep) for k in kept):
+            kept.append(f)
+    return kept
+
+
 # Losing these means losing work. BEHIND/STASHES are informational.
-CRITICAL = {"NOT-IN-GIT", "NO-REMOTE", "MID-REBASE", "UNPUSHED",
+CRITICAL = {"NOT-IN-GIT", "NO-REMOTE", "UNREACHABLE", "MID-REBASE", "UNPUSHED",
             "DETACHED", "NO-UPSTREAM", "DIRTY"}
 
 
@@ -151,12 +263,26 @@ def main():
             print(f"  {r['name']:<32} {','.join(r['flags'])}")
         print()
 
+    local_only = find_local_only(repos)
+    if local_only:
+        print("=== ONLY ON THIS MACHINE (in no git repo; Time Machine is the backup) ===")
+        for kind, label in [("project", "project folders"),
+                            ("inside-project", "data or build folders inside projects")]:
+            print(f"  -- {label}")
+            for f in local_only:
+                if f["kind"] == kind:
+                    print(f"  {os.path.relpath(f['path'], ROOT):<44} {f['mb']} MB")
+        print()
+
+    # sync-report.json is gitignored, so the local-only folder names stay out
+    # of the public repo; the snapshot carries them to the private one.
     report = {
         "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "fetched": DO_FETCH,
         "checked": len(results),
         "at_risk": len(problems),
         "repos": results,
+        "local_only": local_only,
     }
     out = os.path.join(ROOT, "sync-report.json")
     with open(out, "w") as f:

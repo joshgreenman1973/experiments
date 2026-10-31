@@ -35,13 +35,32 @@ import concurrent.futures as cf
 import json
 import os
 import re
+import signal
 import subprocess
+import threading
 import sys
 import time
 import datetime
 
 ACCOUNTS = ["joshgreenman1973", "vitalcity-nyc"]
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Progress is reported to stderr as repos finish. A scan that stalls used to be
+# indistinguishable from a scan that was merely slow; the heartbeat makes the
+# stalling repo nameable after the fact.
+_PROGRESS = {"done": 0, "total": 0, "t0": 0.0, "lock": threading.Lock()}
+
+
+def _tick(nwo):
+    with _PROGRESS["lock"]:
+        _PROGRESS["done"] += 1
+        n, tot = _PROGRESS["done"], _PROGRESS["total"]
+    if n % 10 == 0 or n == tot:
+        el = time.time() - _PROGRESS["t0"]
+        rate = n / el if el else 0
+        eta = (tot - n) / rate if rate else 0
+        print(f"ci-triage: {n}/{tot} repos  {el/60:.1f}m elapsed  "
+              f"~{eta/60:.1f}m left  (last: {nwo})", file=sys.stderr, flush=True)
 NOW = datetime.datetime.now(datetime.timezone.utc)
 
 # Runner noise that crowds out the actual error. Dropped before classifying.
@@ -102,6 +121,12 @@ GUARD = [
     (r"(refus|abort)\w*[^\n]{0,40}(empty|zero rows|no rows|no records)", "refused to ship empty data"),
     (r"sys\.exit\(1\)[^\n]*guard", "a guard exited non-zero"),
     (r"not yet summarized|awaiting summary|missing summar", "content is waiting to be written"),
+    # A change-cap abort: the job worked out what it would do, decided it was
+    # too much to do unsupervised and changed nothing. Same family as the
+    # empty-data refusal above, and it was landing in "real" -- which reads
+    # like a bug to fix rather than a decision waiting on a human.
+    (r"ABORTED\b[^\n]{0,60}nothing was changed", "a change-cap guard held; nothing moved"),
+    (r"proposes [\d,]+ changes \(cap [\d,]+\)", "a change-cap guard held; nothing moved"),
 ]
 
 UPSTREAM = [
@@ -116,10 +141,32 @@ UPSTREAM = [
 ]
 
 
+LEGACY_PAGES_PATH = "dynamic/pages/pages-build-deployment"
+
+
 def sh(args, timeout=120):
+    # subprocess.run(timeout=) kills only the direct child, then waits for the
+    # pipes to close; if gh left a grandchild holding stdout, that wait never
+    # ends (a `gh repo list` hung a whole scan for 39 min on Oct 9 2026). Run
+    # each command in its own session and kill the whole group on timeout.
     try:
-        r = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
-        return r.stdout if r.returncode == 0 else ""
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+    except Exception:
+        return ""
+    try:
+        out, _ = p.communicate(timeout=timeout)
+        return out if p.returncode == 0 else ""
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except Exception:
+            pass
+        try:
+            p.communicate(timeout=5)
+        except Exception:
+            pass
+        return ""
     except Exception:
         return ""
 
@@ -132,10 +179,42 @@ def gh_json(args, timeout=120):
         return None
 
 
+def origin_url(path):
+    """Read origin's URL straight out of .git/config. Spawning one `git remote
+    get-url` per clone cost ~350s on a cold FS cache across ~180 repos; a file
+    read costs nothing. Falls back to git for the shapes a plain read misses
+    (a .git gitdir pointer, an include.path indirection, a conditional url)."""
+    cfg = os.path.join(path, ".git", "config")
+    try:
+        with open(cfg, "r", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        text = ""
+    if text and "include" not in text:
+        section = None
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                continue
+            if section == 'remote "origin"':
+                k, _, v = line.partition("=")
+                if k.strip() == "url" and v.strip():
+                    return v.strip()
+    return sh(["git", "-C", path, "remote", "get-url", "origin"], timeout=15).strip()
+
+
 def local_clones():
     """Map 'owner/repo' -> local directory. Folder names do not reliably match
     repo names here, so trust the git remote, never the directory name."""
     m = {}
+    # ROOT is itself a clone (joshgreenman1973/experiments), and a finding there
+    # was reaching the queue with local_path null because the walk below only
+    # looks inside it.
+    if os.path.isdir(os.path.join(ROOT, ".git")):
+        url = origin_url(ROOT)
+        if url:
+            m[re.sub(r"\.git$", "", re.sub(r".*github\.com[:/]", "", url))] = ROOT
     for entry in os.scandir(ROOT):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
@@ -148,7 +227,7 @@ def local_clones():
         for path in candidates:
             if not os.path.isdir(os.path.join(path, ".git")):
                 continue
-            url = sh(["git", "-C", path, "remote", "get-url", "origin"], timeout=15).strip()
+            url = origin_url(path)
             if url:
                 nwo = re.sub(r"\.git$", "", re.sub(r".*github\.com[:/]", "", url))
                 m.setdefault(nwo, path)
@@ -156,21 +235,48 @@ def local_clones():
 
 
 def repos_for(account):
-    data = gh_json(["repo", "list", account, "--limit", "300", "--json", "nameWithOwner"])
-    return [r["nameWithOwner"] for r in (data or [])]
+    # GitHub's API stalls at random on this listing (Oct 9 2026: the same call
+    # took 0.9s, then hung past two minutes). Retry with a short timeout, and
+    # never return an empty account silently -- a scan that quietly drops
+    # ~150 repos looks exactly like a clean bill of health.
+    for attempt in range(4):
+        data = gh_json(["repo", "list", account, "--limit", "300",
+                        "--json", "nameWithOwner"], timeout=60)
+        if data:
+            return [r["nameWithOwner"] for r in data]
+        time.sleep(5 * (attempt + 1))
+    sys.exit(f"ci-triage: could not list repos for {account} after 4 tries "
+             "-- refusing to report a partial scan as complete")
 
 
 def latest_run_per_workflow(nwo):
     """Only the newest run of each workflow matters -- an old failure that was
     later fixed is not a live problem."""
     data = gh_json(["api", f"repos/{nwo}/actions/runs?per_page=60"], timeout=90)
+    page = (data or {}).get("workflow_runs", [])
     seen, out = set(), []
-    for run in (data or {}).get("workflow_runs", []):
+    for run in page:
         wf = run.get("workflow_id")
         if wf in seen:
             continue
         seen.add(wf)
         out.append(run)
+    # A full page means the window may have cut off. In a busy repo a
+    # frequent job (Collect Bus Data, Pages deploys) fills all 60 slots and a
+    # daily job's failure falls out of view: Bus Tracker Route Ridership was
+    # failing on Oct 18 2026 while the scan reported zero broken workflows.
+    # Ask each active workflow not yet seen for its own latest run.
+    if len(page) >= 60:
+        wfs = gh_json(["api", f"repos/{nwo}/actions/workflows?per_page=100"], timeout=90)
+        for w in (wfs or {}).get("workflows", []):
+            if w.get("id") in seen or w.get("state") != "active":
+                continue
+            r = gh_json(["api", f"repos/{nwo}/actions/workflows/{w['id']}/runs?per_page=1"],
+                        timeout=60)
+            runs = (r or {}).get("workflow_runs", [])
+            if runs:
+                seen.add(w["id"])
+                out.append(runs[0])
     return out
 
 
@@ -190,6 +296,31 @@ def disabled_workflow_ids(nwo):
         time.sleep(5)
     return {w["id"] for w in (data or {}).get("workflows", [])
             if w.get("state") != "active"}
+
+
+def legacy_pages_retired(nwo):
+    """True when the repo builds Pages from a workflow, retiring the legacy builder.
+
+    Switching Pages to build_type 'workflow' parks the branch-source builder
+    (dynamic/pages/pages-build-deployment) for good: GitHub never runs it
+    again, so its last run keeps whatever conclusion it had at the cutover --
+    usually a failure, because the cutover is what interrupted it. That frozen
+    status is history, not a live alarm, and it cannot even be re-run (GitHub
+    refuses retries after a month), so every scan reports it and every repair
+    run spends its rerun on a call that can only fail. Deploy health in this
+    configuration lives in the repo's own Actions workflow, which this scan
+    already covers.
+
+    Turning Pages off altogether parks it the same way (nyc-building-age, Oct
+    28 2026: the site moved to Vercel and the last legacy deploy 404'd). That
+    is read from the repo's explicit has_pages=false, not from the pages
+    endpoint's 404, so an API hiccup can never hide a live failure.
+    """
+    repo = gh_json(["api", f"repos/{nwo}"], timeout=60)
+    if repo and repo.get("has_pages") is False:
+        return True
+    data = gh_json(["api", f"repos/{nwo}/pages"], timeout=60)
+    return (data or {}).get("build_type") == "workflow"
 
 
 def failed_step(nwo, run_id):
@@ -263,8 +394,12 @@ def inspect(nwo):
         return findings
     # Only worth an extra API call once we know this repo has something failing.
     off = disabled_workflow_ids(nwo)
+    retired_pages = any(r.get("path") == LEGACY_PAGES_PATH for r in runs) \
+        and legacy_pages_retired(nwo)
     for run in runs:
         if run.get("workflow_id") in off:
+            continue
+        if run.get("path") == LEGACY_PAGES_PATH and retired_pages:
             continue
         job_id, job_name, step_name = failed_step(nwo, run["id"])
         if job_id == "cancelled":
@@ -316,8 +451,17 @@ def main():
 
     clones = local_clones()
     findings = []
+    _PROGRESS["total"] = len(repos)
+    _PROGRESS["t0"] = time.time()
+
+    def inspect_ticked(nwo):
+        try:
+            return inspect(nwo)
+        finally:
+            _tick(nwo)
+
     with cf.ThreadPoolExecutor(12) as ex:
-        for res in ex.map(inspect, repos):
+        for res in ex.map(inspect_ticked, repos):
             findings += res
     for f in findings:
         f["local_path"] = clones.get(f["repo"])
