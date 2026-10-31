@@ -175,7 +175,7 @@ const learned = [
   {
     head: 'Riders',
     text: prior12
-      ? `Weekday boardings counted by the MTA's passenger counters averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. The counters are partial: they ran only ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months, though the MTA estimates about half of local riders don't pay.`
+      ? `Weekday boardings, as estimated by the MTA from its passenger counters, averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. Those estimates ran ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months, broadly consistent with the MTA's estimate that about half of local riders don't pay.`
       : `Weekday boardings averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}.`,
   },
   {

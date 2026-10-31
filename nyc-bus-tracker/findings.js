@@ -327,7 +327,7 @@
       if (!best || bd > 28) return null;
       showTip(e, `<div class="t-h"><span style="color:${BORO_COL(best.borough)}">●</span> ${best.route}</div>`
         + row('Speed', f1(best.speed) + ' mph')
-        + row('Weekday riders', best.riders ? num(best.riders) : 'not in counter data')
+        + row('Weekday riders', best.riders ? num(best.riders) : 'not in MTA estimates')
         + (best.busLaneShare != null ? row('Route on bus lanes', Math.round(best.busLaneShare * 100) + '%') : ''));
       return { x: x(best.speed), noGuide: true };
     });
@@ -364,7 +364,7 @@
     hoverLayer(svg, m, w, h, (px, py, e) => {
       const i = Math.max(0, Math.min(S.length - 1, Math.round(x.inv(px))));
       const s = S[i];
-      showTip(e, `<div class="t-h">${apMonth(s.month)}</div>` + row('Passenger counters', num(s.riders))
+      showTip(e, `<div class="t-h">${apMonth(s.month)}</div>` + row('MTA estimate', num(s.riders))
         + (s.taps ? row('Paid fare taps', num(s.taps)) + row('Counters per tap', (s.riders / s.taps).toFixed(2)) : row('Paid fare taps', 'not available')));
       return { x: x(i) };
     });
@@ -531,7 +531,7 @@
     document.getElementById('day-recent-label').textContent = `Recent weeks, ${apDate(P.recent.start)} to ${apDate(P.recent.end)}`;
     document.getElementById('day-base-label').textContent = `First weeks, ${apDate(P.baseline.start)} to ${apDate(P.baseline.end)}`;
     document.getElementById('riders-copy').textContent =
-      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, counted by the MTA's on-board passenger counters, beside paid fare taps (dashed). Both are partial counts: taps miss riders who don't pay, and not every bus carries a working counter.`;
+      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, as estimated by the MTA from its on-board passenger counters, beside paid fare taps (dashed). The estimates stand for all riders; taps miss riders who don't pay.`;
   }
 
   // ── controls ──

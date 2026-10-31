@@ -248,7 +248,7 @@
         <div class="mini-value">${num(rec.wdAvg[li])}<span class="mini-unit">riders/wkday</span></div>
         <div class="trend-change flat">${span} vs. a year earlier: ${chg(sameMonths(rec.wdAvg, rec.breakMonths))}</div>
         <div class="trend-change flat">vs. the 12 months before: ${chg(c)}</div>
-        ${taps ? `<div class="trend-change flat">fare taps ${num(taps)} · counters/taps ${(rec.wdAvg[li] / taps).toFixed(2)}</div>` : ''}
+        ${taps ? `<div class="trend-change flat">fare taps ${num(taps)} · estimate/taps ${(rec.wdAvg[li] / taps).toFixed(2)}</div>` : ''}
         ${spark(rec.wdAvg.map(x => x || null), true)}
       </div>`;
     };

@@ -140,10 +140,10 @@
       const breaks = (rr?.breakMonths || []).map(m => ({ date: `${m}-01`, kind: 'network', label: 'Network redesign changed this route', detail: '' }));
       BC.timeChart($('chart-riders'), {
         title: 'Average weekday riders', sub: 'by month', fmt: v => Math.round(v).toLocaleString('en-US'), zero: true, events: breaks,
-        empty: 'No counter data for this route.', tipHead: p => new Date(p.d + 'T12:00:00Z').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+        empty: 'No MTA ridership estimate for this route.', tipHead: p => new Date(p.d + 'T12:00:00Z').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
         series: [
           { label: 'Fare taps', color: BC.COL.base, width: 1.5, points: rpts(rr?.tapsWdAvg), gapDays: 40 },
-          { label: 'Passenger counters', color: BC.COL.rose, width: 2.4, points: rpts(rr?.wdAvg), gapDays: 40 },
+          { label: 'MTA ridership estimate', color: BC.COL.rose, width: 2.4, points: rpts(rr?.wdAvg), gapDays: 40 },
         ],
       });
     };
@@ -151,7 +151,7 @@
     if (rr) {
       const li = rider.months.length - 1;
       const ratio = rr.wdAvg[li] && rr.tapsWdAvg?.[li] ? (rr.wdAvg[li] / rr.tapsWdAvg[li]).toFixed(2) : null;
-      $('rider-note').textContent = ratio ? `In ${new Date(rider.months[li] + '-15T12:00:00Z').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}, counters recorded ${ratio} boardings for every paid tap on this route.` : '';
+      $('rider-note').textContent = ratio ? `In ${new Date(rider.months[li] + '-15T12:00:00Z').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}, the MTA estimated ${ratio} boardings for every paid tap on this route.` : '';
     }
 
     const rows = [...W].reverse().map(w => `<tr class="${w.cwd ? '' : 'nc'}"><td>${w.p}</td><td>${BC.apDate(w.sys.weekStart)}</td>
