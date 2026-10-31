@@ -42,7 +42,7 @@ a.back{font:600 14px 'Barlow',sans-serif;color:#333}
 </style></head><body><div class="wrap">
 <a class="back" href="index.html">Back to the infographic</a>
 <h1>Methodology and sources</h1>
-<p class="lede">Every figure on the infographic is listed here with the page it came from and the exact words on that page. The "then" figure is the one closest to September 2001 that the source publishes; where that is the 2000 census or a 2002 survey, the label says so. The "now" figure is the most recent published as of early September 2026. Percent changes are computed from the two values shown, by script, and are nominal unless the row says otherwise. Figures whose source page could not be fetched during research were left out rather than estimated.</p>
+<p class="lede">Every figure on the infographic is listed here with the page it came from and the exact words on that page. The "then" figure is the one closest to September 2001 that the source publishes; where that is the 2000 census or a 2002 survey, the label says so. The "now" figures were gathered in early September 2026; the jail population was updated to fiscal 2026 on October 8, 2026. Each label identifies its reference period. Percent changes are computed from the two values shown, by script, and are nominal unless the row says otherwise. Figures whose source page could not be fetched during research were left out rather than estimated.</p>
 <p class="lede">Research and coding were done with Anthropic's Claude Code under the author's direction. Each figure was required to come from a fetched page with a verbatim quote; the quotes are reproduced below unedited.</p>
 ${rows}
 ${ms ? `<h2>World Trade Center site milestones</h2>${ms}` : ''}
