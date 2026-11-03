@@ -68,8 +68,7 @@ BLS or S&P products reproduced without transformation:
 | Energy | BLS CPI, energy, same CBSA | Same |
 | Shelter | BLS CPI, shelter, same CBSA | Rental-equivalence framework; see §7.2 |
 | Home prices | S&P Cotality Case-Shiller, NY metro | Repeat-sales estimator |
-| Pay growth | BLS Employment Cost Index, NY metro | Fixed-weight compensation measure |
-| Average pay | BLS QCEW, New York County | Near-census of covered employment |
+| Pay | BLS Current Employment Statistics, NY metro | Monthly establishment payroll survey |
 | Earnings growth | BLS CES, avg hourly and weekly earnings, NY-NJ metro | Establishment survey; monthly |
 | Category inflation | BLS CPI-U, all Table 1 expenditure categories, same CBSA | Same as headline CPI |
 
@@ -128,8 +127,8 @@ therms); yellow taxi 3-mile Manhattan trip.*
 ### 3.3 Published market statistics (carried as-is)
 
 *AAA gasoline average; StreetEasy median asking rent (citywide and four
-boroughs); Case-Shiller; all BLS CPI series; Employment Cost Index;
-Quarterly Census of Employment and Wages (QCEW) average weekly wage.*
+boroughs); Case-Shiller; all BLS CPI series; CES average hourly and
+weekly earnings.*
 
 - **Estimator:** the publisher's. We record the published value on a
   fixed schedule and do not re-estimate, smooth or re-base.
@@ -236,8 +235,8 @@ interchangeable**. Every card carries a scope chip.
 
 | Scope | Definition | Series |
 |---|---|---|
-| **New York City** | Five boroughs, or a city/state agency's jurisdiction | Subway, toll, Citi Bike, water/sewer, taxi, both ConEd bills, Broadway, all rent series, QCEW wage, all survey panels |
-| **NYC metro area** | New York-Newark-Jersey City CBSA (or the Case-Shiller NY metro definition), **including parts of New Jersey and the lower Hudson Valley** | AAA gasoline, all five CPI series, Case-Shiller, Employment Cost Index |
+| **New York City** | Five boroughs, or a city/state agency's jurisdiction | Subway, toll, Citi Bike, water/sewer, taxi, both ConEd bills, Broadway, all rent series, all survey panels |
+| **NYC metro area** | New York-Newark-Jersey City CBSA (or the Case-Shiller NY metro definition), **including parts of New Jersey and the lower Hudson Valley** | AAA gasoline, all five CPI series, Case-Shiller, CES earnings |
 | **U.S. city average** | National, not New York | BEC ingredient index |
 
 **Consequences:**
@@ -249,9 +248,9 @@ interchangeable**. Every card carries a scope chip.
 2. **Cross-scope comparisons are hazardous.** Comparing city shelter
    costs to metro shelter CPI, for example, compares different
    populations.
-3. **The QCEW wage series is New York County (Manhattan) only** — the
-   city's dominant employment center, but not the city. A five-county
-   aggregate would be materially lower. This is stated on the card.
+3. **The CES earnings series is the New York metro area**, not the five
+   boroughs — it takes in northern New Jersey and the lower Hudson Valley.
+   This is stated on the card.
 
 ---
 
@@ -284,8 +283,7 @@ even though the panel is unbalanced in real time:
 | BLS CPI (metro) | ~2 weeks after month end |
 | StreetEasy rents | ~1–2 weeks |
 | Case-Shiller | **~2 months** |
-| Employment Cost Index | ~1 month after quarter end |
-| QCEW | **~5–7 months** |
+| CES earnings | ~3 weeks after month end |
 
 The panel is therefore **ragged**: the newest column is not equally
 fresh across series. Cross-series comparisons at "the latest reading"
@@ -336,7 +334,7 @@ reference periods.
 ### 6.3 Percent change versus percentage points
 
 Series whose *values are already rates* (the five CPI lines,
-Case-Shiller YoY, ECI) move in **percentage points**, and their change
+Case-Shiller YoY) move in **percentage points**, and their change
 figures are labeled `pp`. Series whose values are levels (dollars) move
 in **percent**. The page does not mix these. Broadway paid admission is
 a dollar level and is treated as such despite being suppressed from the
@@ -346,7 +344,7 @@ year-over-year badge for a separate reason (§7.4).
 
 BLS CPI (NSA series are not routinely revised, but seasonal factors and
 some inputs are), Case-Shiller (routinely revised for several months)
-and QCEW (revised at each subsequent release) all change after first
+and CES (revised in the two months after first publication) all change after first
 publication. **We record the value as first observed and do not
 retroactively revise history**, because the log is intended as a record
 of what was knowable at each date. Where a revision is material, it is
@@ -365,7 +363,7 @@ and are not used in any computed statistic. Series containing any
 interpolated display segment are flagged `est.` on the chart.
 
 The same flag marks a series whose baseline is **back-derived** rather
-than observed. Four borough rent series and the QCEW wage series carry
+than observed. Four borough rent series carry
 a year-ago point reconstructed from the publisher's own reported
 year-over-year change. Such a point is arithmetically sound and
 reproduces the published rate exactly — but it is not an independent
@@ -503,18 +501,19 @@ of lease-renewal cycles and the six-month sample rotation.
 
 ### 7.2 Averages are not medians
 
-The QCEW wage series is an **average weekly wage** = total quarterly
-wages ÷ average monthly employment. In a jurisdiction with New York
-County's income distribution, this is far above the median and is
-**highly sensitive to the upper tail**. It also includes bonuses on a
-cash basis, which makes Q1 spike in finance-heavy geographies. Growth in
-this series may reflect bonus timing or compositional change (which
-jobs exist) rather than any worker's raise.
+The CES earnings series are **averages**: total private payroll dollars
+divided by hours or by workers. In a metro with New York's income
+distribution an average sits well above the median and is
+**highly sensitive to the upper tail**. Growth in these series may reflect
+compositional change — which jobs exist — rather than any worker's raise.
+Average weekly earnings additionally move with hours worked, so they can
+fall while hourly pay rises.
 
-The **Employment Cost Index** is carried specifically because it fixes
-occupational and industry weights, isolating pay growth from
-composition. Where the two disagree, ECI is the better measure of "are
-wages rising"; QCEW is the better measure of "what is total pay."
+Only **one** earnings source is carried. The Employment Cost Index and the
+Quarterly Census of Employment and Wages are both quarterly and land on different vintages, so placing either
+beside a monthly CES reading invites comparison between numbers that
+describe different periods. CES is the timeliest measure available for this
+geography and is used alone.
 
 No published monthly or quarterly **median** wage exists for this
 geography. The page therefore cannot answer "what happened to the

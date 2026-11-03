@@ -203,7 +203,7 @@
     });
   });
 
-  // CPI-U approximate trajectory 2000->2024 (~85% cumulative). For display:
+  // CPI-U approximate trajectory 2000->2024 (~82% cumulative). For display:
   // Use actual BLS CPI-U annual averages (2000=172.2, 2024=313.7 -> 182.2 indexed).
   const cpiAnchor = [
     [2000, 172.2], [2001, 177.1], [2002, 179.9], [2003, 184.0], [2004, 188.9],

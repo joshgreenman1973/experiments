@@ -22,12 +22,15 @@ re-priced monthly by deterministic string match. Deterministic guards reject
 desserts/drinks as an entree, require the kid item to be cheaper than the adult,
 and enforce sane price ranges (adult $6–$32; a $25+ signature entree is flagged).
 
-## The panel (84 restaurants, all five boroughs)
+## The panel (all five boroughs)
 
-84 restaurants are active in the panel. A restaurant only counts in a given month
-if all of its pinned dishes re-price cleanly, so the number priced is
-usually a bit lower — **76 of 84 in the July 2026 check** (the other 8 missed and
-were excluded from that month's number, not carried forward).
+The panel started with 84 restaurants in May 2026. Restaurants that can't be
+re-priced are dropped (see below), so the number active changes from month to
+month; the page shows the current count, and `panel-history.js` records it. A
+restaurant only counts in a given month if all of its pinned dishes re-price
+cleanly, so the number priced is usually a bit lower than the number active.
+In the November 2026 check, for example, 67 of 69 active restaurants were priced
+(the other 2 missed and were excluded from that month's number, not carried forward).
 
 Restaurants whose menus are reliably readable online, balanced across boroughs.
 Built in three passes:

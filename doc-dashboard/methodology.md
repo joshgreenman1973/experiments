@@ -138,7 +138,7 @@ Dataset `7479-ugqb` is a **live daily snapshot**: it contains one row per person
 ## Limitations
 
 1. **Population backfill**: Cannot automatically fill in past months' population from the live dataset. Depends on Comptroller Dashboard for historical time series.
-2. **Use of force**: The Local Law 33 aggregate dataset on Open Data has been abandoned since 2021. Use-of-force data comes from the Comptroller Dashboard and must be updated manually.
+2. **Use of force**: The aggregate dataset on Open Data required by Local Law 33 of 2016 (`2wuc-x56b`, "Local Law 33 - Security Indicators Report") has been abandoned since 2021. Use-of-force data comes from the Comptroller Dashboard and must be updated manually.
 3. **Staffing**: No Open Data time series for sick rates or medically restricted staff. Current values are quarterly snapshots from the Comptroller Dashboard.
 4. **Death identification**: The daily news scanner depends on media coverage. Deaths that are not reported in the press may be missed until official sources (Board of Correction, Comptroller Dashboard) update.
 5. **Incident lag**: Violence data (assaults, fights, stabbings) typically lags 1-2 months behind the current date.
