@@ -117,7 +117,7 @@ writeFileSync(
   join(import.meta.dirname, 'feed.xml'),
   buildRssFeed({
     title: 'City Record Digest',
-    description: 'Notable NYC government notices — procurement, hearings, rules, and more',
+    description: 'Notable New York City government notices — procurement, hearings, rules and more',
     link: SITE_URL,
     feedUrl: SITE_URL + '/feed.xml',
     items: allItems

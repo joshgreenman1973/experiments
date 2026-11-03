@@ -1,16 +1,16 @@
 # NYC Price Watch — tracking schedule
 
-A schedule built around when each source actually publishes, so a
+A schedule built around when each source publishes, so a
 refresh lands on fresh data instead of an arbitrary calendar date.
 
 The design goal: **one monthly run, one quarterly add-on, one annual
-watch** — few enough touchpoints that it actually happens.
+watch** — few enough touchpoints that it gets done.
 
 ---
 
 ## The release calendar (when sources publish)
 
-Knowing this is the whole game. Each row is when new data becomes
+Each row is when new data becomes
 available for the prior period.
 
 | Source | Publishes | Covers | Lag |
@@ -28,9 +28,9 @@ available for the prior period.
 | NYC Water Board rate | Annual, July 1 | Fiscal year | — |
 | NYC TLC taxi tariff | On change (rare) | — | — |
 
-The key insight: by **the last Tuesday of the month**, every monthly
+By **the last Tuesday of the month**, every monthly
 source for the prior month is already out, and the fresh Case-Shiller
-release just dropped. That's the natural anchor date.
+release just dropped. That makes it the anchor date.
 
 ---
 
@@ -71,7 +71,7 @@ In those four months, the last-Tuesday run also picks up:
    Case-Shiller, ConEd), compute the quarter's average and lock the
    closed quarter's value into the trendline.
 4. **Panel surveys** (pizza, bagel, coffee, Uber) → if collected this
-   quarter, append; if not, leave the quarter as an honest gap.
+   quarter, append; if not, leave the quarter as a gap.
 
 ---
 
@@ -128,7 +128,7 @@ first:
    tech, most reliable. (Matches the existing weekly-catalogue setup.)
 2. **Scheduled agent.** A scheduled task runs the Claude pull
    automatically on the last Tuesday, appends to `readings.json`,
-   re-renders, commits, and texts a summary of what moved. Hands-off
+   re-renders, commits and texts a summary of what moved. Hands-off
    except for the StreetEasy fallback.
 3. **Manual.** Just run it yourself when you remember. Works, but the
    last-Tuesday anchor exists precisely so it doesn't drift.
@@ -141,7 +141,7 @@ if StreetEasy blocks the fetch.
 
 ## Why last Tuesday, not the 1st or 15th
 
-- The **1st** is too early — none of the prior month's CPI, rent, or
+- The **1st** is too early — none of the prior month's CPI, rent or
   home-price data is out yet.
 - The **15th** catches CPI and StreetEasy but misses Case-Shiller,
   which releases the last Tuesday.

@@ -1,6 +1,6 @@
 # 311 streetlight outage map: methodology and data reference
 
-This document details every data source, filter, calculation and design decision in the streetlight outage map. Nothing is a black box.
+This document details every data source, filter, calculation and design decision in the streetlight outage map.
 
 ---
 
@@ -11,7 +11,7 @@ This document details every data source, filter, calculation and design decision
 **Socrata endpoint:** `https://data.cityofnewyork.us/resource/erm2-nwe9.json`
 **Documentation:** https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2010-to-Present/erm2-nwe9
 
-The 311 dataset contains every service request filed through NYC's 311 system. Each record includes a complaint type, descriptor, location (address, borough, community board, latitude, longitude), timestamps and status.
+The 311 dataset contains every service request filed through New York City's 311 system. Each record includes a complaint type, descriptor, location (address, borough, community board, latitude, longitude), timestamps and status.
 
 **Date range queried:** Jan. 1, 2024 through the current date (the query uses `created_date > '2024-01-01T00:00:00'`).
 
@@ -56,7 +56,7 @@ Only complaints whose `descriptor` field exactly matches one of these eight valu
 
 All eight fall under the umbrella complaint type "Street Light Condition." Other complaint types in the same category (e.g., "Street Light Cycling On and Off") are not included because they don't indicate a dark condition.
 
-**What these descriptors mean:** These are complaints about pole-mounted streetlights that illuminate public streets and sidewalks. Traffic signals and pedestrian signals have entirely separate 311 categories ("Traffic Signal Condition") and are not included.
+**What these descriptors mean:** These are complaints about pole-mounted streetlights that illuminate public streets and sidewalks. Traffic signals and pedestrian signals have separate 311 categories ("Traffic Signal Condition") and are not included.
 
 ---
 
@@ -74,11 +74,11 @@ After retrieving complaints matching the descriptors above, the app applies a se
 
 **Other non-street locations:** cemetery, stadium, island, plaza
 
-**Why exclude these?** The map focuses on streetlights that illuminate ordinary streets and sidewalks where people walk and drive at night. Park lights, highway lights and bridge lights are maintained by different agencies (NYC Parks, DOT highway division) and serve different purposes. Including them would muddy the picture.
+**Why exclude these?** The map focuses on streetlights that illuminate ordinary streets and sidewalks where people walk and drive at night. Park lights, highway lights and bridge lights are maintained by different agencies (NYC Parks, the Department of Transportation's highway division) and serve different purposes. Including them would muddy the picture.
 
 **What this means in practice:** A complaint at "123 ATLANTIC AVE" passes the filter. A complaint at "PROSPECT PARK WEST AND PARK CIRCLE" is excluded because it contains "park." A complaint at "FDR DRIVE AND E 62 ST" is excluded because it contains "FDR."
 
-**Known limitation:** This is pattern-based, not perfect. A complaint at "123 PARK AVE" would be incorrectly excluded because the address contains "park." A complaint at a location inside a park but filed with a regular street address would be incorrectly included. For the vast majority of complaints, the filter works correctly.
+**Known limitation:** The filter matches words in the address, so it makes mistakes. A complaint at "123 PARK AVE" would be incorrectly excluded because the address contains "park." A complaint at a location inside a park but filed with a regular street address would be incorrectly included. For the vast majority of complaints, the filter works correctly.
 
 ---
 
@@ -92,7 +92,7 @@ roundedLat = (Math.round(lat * 2000) / 2000).toFixed(4)
 roundedLng = (Math.round(lng * 2000) / 2000).toFixed(4)
 ```
 
-This rounds to the nearest 0.0005 degrees, which equals roughly **55 meters (180 feet) north-south** and roughly **42 meters (138 feet) east-west** at NYC's latitude (~40.7 degrees N).
+This rounds to the nearest 0.0005 degrees, which equals roughly **55 meters (180 feet) north-south** and roughly **42 meters (138 feet) east-west** at New York City's latitude (~40.7 degrees N).
 
 Each unique `roundedLat,roundedLng` pair becomes one "location." All complaints that round to the same grid point are grouped together. The displayed position for each cluster is the **average** of all complaint coordinates in that group (not the rounded center), so dots appear at the true centroid of reports.
 
@@ -128,7 +128,7 @@ Uses Uber's H3 hexagonal spatial indexing library at **resolution 8**.
 
 These breakpoints were set manually after examining the distribution of complaints per hex cell. The comment in the code notes the distribution: p10=7, p25=20, p50=42, p75=68, p90=94, max=189.
 
-**Popup contents (click a hex cell):** Total complaints, neighborhood name, borough, number still open, and the top 3 addresses within that cell.
+**Popup contents (click a hex cell):** Total complaints, neighborhood name, borough, number still open and the top 3 addresses within that cell.
 
 ### 5b. All spots (point layer)
 
@@ -154,7 +154,7 @@ Plots every clustered location (see section 4) as a circle marker.
 
 Points with 3+ complaints also get a slightly thicker white stroke (1.5px vs. 0.5px).
 
-**Popup contents:** Address, neighborhood, borough, complaint count, open/closed status, and breakdown by complaint descriptor.
+**Popup contents:** Address, neighborhood, borough, complaint count, open/closed status and breakdown by complaint descriptor.
 
 ### 5c. Chronic dark spots (10+ and 20+)
 
@@ -183,7 +183,7 @@ Groups all complaints by `incident_address` (the raw text from the 311 data, not
 
 ### 6b. By census tract
 
-Groups all complaints by their assigned 2020 census tract (see section 7 below). Lists the top 20 tracts by total complaint count. Each entry shows the tract number, NTA (Neighborhood Tabulation Area) name, and count. Clicking flies to the average coordinate of complaints in that tract.
+Groups all complaints by their assigned 2020 census tract (see section 7 below). Lists the top 20 tracts by total complaint count. Each entry shows the tract number, Neighborhood Tabulation Area (NTA) name and count. Clicking flies to the average coordinate of complaints in that tract.
 
 ### 6c. Per square mile (by census tract)
 
@@ -213,7 +213,7 @@ The raw GeoJSON was downloaded in three paginated batches (1,000 records each, 2
 **Simplification steps applied to the raw data:**
 1. Coordinate precision reduced from ~15 decimal places to 4 decimal places (~11 meter accuracy).
 2. Point reduction: every third point in each polygon ring is kept (minimum 4 points per ring), with the ring always properly closed.
-3. Only four property fields are retained per tract: `ctlabel` (tract number), `boroname` (borough), `ntaname` (Neighborhood Tabulation Area name), and `shape_area` (area in square feet).
+3. Only four property fields are retained per tract: `ctlabel` (tract number), `boroname` (borough), `ntaname` (Neighborhood Tabulation Area name) and `shape_area` (area in square feet).
 
 **Result:** 1.5 MB static file vs. ~9 MB raw, loads in under a second from GitHub Pages CDN.
 
@@ -329,7 +329,7 @@ All 311 complaint data is fetched live from the NYC Open Data API at page load. 
 
 ## 14. Known limitations and caveats
 
-1. **311 complaints reflect who has called, not where problems exist.** Complaint volume is a measure of reporting behavior, not an objective inventory of streetlight outages. Neighborhoods differ in their propensity for using the 311 system, and many outages are never reported. Areas with lower complaint counts may have just as many dark streetlights as areas with higher counts — they may simply have fewer residents who know to call 311 or who believe it will make a difference. This data is an important signal of where residents see a problem, but it is subject to reporting bias and should not be treated as a complete picture of dark streets.
+1. **311 complaints reflect who has called, not where problems exist.** Complaint volume is a measure of reporting behavior, not an objective inventory of streetlight outages. Neighborhoods differ in their propensity for using the 311 system, and many outages are never reported. Areas with lower complaint counts may have just as many dark streetlights as areas with higher counts — they may have fewer residents who know to call 311 or who believe it will make a difference. This data shows where residents see a problem, but it is subject to reporting bias and should not be treated as a complete picture of dark streets.
 
 2. **Address-based filtering is imperfect.** The word-matching exclusion filter can produce false positives (e.g., "Park Ave" is excluded because it contains "park") and false negatives (a park complaint filed with a nearby street address would be included).
 
@@ -339,7 +339,7 @@ All 311 complaint data is fetched live from the NYC Open Data API at page load. 
 
 5. **Census tract assignment can miss edge cases.** Complaints on tract boundaries or in water/unmapped areas won't be assigned to any tract. These still appear in hex grid and point views but are absent from census tract rankings.
 
-6. **Data freshness.** The map loads from a pre-built static file for speed, then silently refreshes from the API in the background. The static file is regenerated periodically. For the absolute latest data, the background refresh will pick up new complaints automatically.
+6. **Data freshness.** The map loads from a pre-built static file for speed, then silently refreshes from the API in the background. The static file is regenerated periodically. For the latest data, the background refresh will pick up new complaints automatically.
 
 7. **Census tract geometry is simplified.** Coordinates are rounded to 4 decimal places (~11m) and polygon rings are point-reduced. This means tract boundaries are approximate to within about 10-15 meters, which can misassign a small number of complaints near tract edges.
 

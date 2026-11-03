@@ -20,7 +20,7 @@ Six ways to read the same data, in the Layout switcher:
 | **Orbit** | Four concentric tiers, each a "worked together this often" band, members spread evenly around. The inner ring is the inner circle. |
 | **Spiral** | Continuous radius ordered by count, so the filmography unwinds from closest to most incidental. |
 | **Force** | Physics layout; clusters find themselves. |
-| **Chord** | Everyone on one rim, arcs bowed through the middle. The connections *are* the picture. |
+| **Chord** | Everyone on one rim, arcs bowed through the middle. |
 | **Matrix** | The peer mesh as a grid — every collaborator against every other, exact numbers instead of a hairball. |
 | **Years** | Every collaboration on a shared time axis, one lane per person, one mark per title. Shows the *shape* of a relationship: a career-long marriage versus three films in one burst. |
 
@@ -46,7 +46,7 @@ each pair actually appeared in together.
 | Titles, people, credits, ratings | [IMDb non-commercial datasets](https://developer.imdb.com/non-commercial-datasets/), refreshed daily by IMDb | High for credited principals; see caveats |
 | Family relationships | [Wikidata](https://query.wikidata.org) properties P22 (father), P25 (mother), P40 (child), P26 (spouse), P3373 (sibling) | Partial — see below |
 
-Family coverage has two separate limits, and both matter. Wikidata's own
+Family coverage has two separate limits. Wikidata's own
 coverage of film families is uneven and skews toward famous names. On top of
 that, the fetcher only asks about the **60,000 most-voted people** in the local
 database, because Wikidata's public endpoint cannot be queried in bulk (it caps
@@ -123,7 +123,7 @@ implies; the visual design is new and is not a reconstruction of anything.
 ### Deliberate departures from the recovered code
 
 Three changes were made on top of the verbatim recovery. Each fixed something
-that was wrong, not merely different.
+that was wrong.
 
 1. **Search matched a prefix of the whole name**, so "scorsese" returned people
    literally surnamed Scorsese and never Martin Scorsese. It now also matches on

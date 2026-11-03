@@ -1,6 +1,6 @@
 # Methodology: NYC 911 response times
 
-This dashboard measures **911 response time** — the interval between when an NYPD call-for-service job is entered into the dispatch system (`add_ts`) and when the first responding unit arrives on scene (`arrivd_ts`). It is the same general metric NYPD uses internally to report response time.
+This dashboard measures **911 response time** — the interval between when a New York Police Department (NYPD) call-for-service job is entered into the dispatch system (`add_ts`) and when the first responding unit arrives on scene (`arrivd_ts`). It is the same general metric NYPD uses internally to report response time.
 
 ## Data source
 
@@ -25,7 +25,7 @@ Precinct boundaries come from the NYC Police Precincts dataset (`y76i-bdw7`).
 
 ## What is a precinct?
 
-NYC is divided into 77 NYPD patrol precincts (numbered 1-123 with gaps). Each precinct is the operational unit responsible for first response to calls within its boundary. Precincts do not align with community districts, school districts, or zip codes.
+New York City is divided into 77 NYPD patrol precincts (numbered 1-123 with gaps). Each precinct is the operational unit responsible for first response to calls within its boundary. Precincts do not align with community districts, school districts or zip codes.
 
 ## Calculation methodology
 
@@ -53,7 +53,7 @@ This dashboard uses the **median**. NYPD response times have a long right tail �
 
 ### Outlier handling
 
-Records where the computed response time is negative (clearly a data error) or greater than 12 hours (almost always a closeout artifact, not a real wait) are dropped before any aggregation. NYPD's own response-time metric similarly caps far below half a day.
+Records where the computed response time is negative (clearly a data error) or greater than 12 hours (almost always a closeout artifact) are dropped before any aggregation. NYPD's own response-time metric similarly caps far below half a day.
 
 ### Precinct aggregation
 
@@ -93,13 +93,13 @@ Server-side filters:
 
 ### Only calls with a recorded arrival are included
 
-Calls that were cancelled before arrival, handled over the phone, or never closed out with an arrival timestamp are excluded entirely. If certain call types are disproportionately resolved without on-scene arrival, those will be undercounted here.
+Calls that were cancelled before arrival, handled over the phone or never closed out with an arrival timestamp are excluded entirely. If certain call types are disproportionately resolved without on-scene arrival, those will be undercounted here.
 
-### "Arrived" reflects what dispatch records, not what you experienced
+### "Arrived" is the time units report to dispatch
 
 `arrivd_ts` is when the responding unit told dispatch they were on scene. In practice that's usually accurate within a minute or two of physical arrival, but it can be delayed if units are mid-task and update their status late.
 
-### Call types are how NYPD categorizes the call, not the underlying event
+### Call types reflect how NYPD coded the call
 
 A call labeled "INVESTIGATE/POSSIBLE CRIME: SERIOUS/OTHER" may turn out to be anything from a real emergency to an unfounded report. The dataset reflects how the call was coded at intake.
 

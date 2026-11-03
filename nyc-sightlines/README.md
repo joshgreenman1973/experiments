@@ -8,7 +8,7 @@ How the 16 landmarks were chosen, and what that choice does to the numbers, is s
 
 ## How it works
 
-1. **Surface model** (`pipeline/build_dsm.py`). A 3 m grid in UTM 18N covering the city and the nearby shore. It combines the USGS 1/3-arc-second DEM with 1.96 million building footprints and heights from Overture Maps. Of the 1.1 million buildings in the city, 99% have OpenStreetMap heights, which come from NYC's own data. The rest of the 1.96 million are in New Jersey, Westchester and Nassau, and more of their heights are Microsoft's machine-learned estimates.
+1. **Surface model** (`pipeline/build_dsm.py`). A 3 m grid in UTM 18N covering the city and the nearby shore. It combines the U.S. Geological Survey (USGS) 1/3-arc-second digital elevation model (DEM) with 1.96 million building footprints and heights from Overture Maps. Of the 1.1 million buildings in the city, 99% have OpenStreetMap heights, which come from New York City's own data. The rest of the 1.96 million are in New Jersey, Westchester and Nassau, and more of their heights are Microsoft's machine-learned estimates.
    - Woods of 1 hectare or more get an 18 m canopy.
    - The Brooklyn Heights Promenade and the High Line are raised to deck height.
    - Borough codes come from NYC Planning's shoreline-clipped `nybb`. `fix_boro.py` gives piers that touch only Brooklyn or Queens to those boroughs, and `fix_outside.py` returns land in neighbouring counties to "outside".
@@ -18,7 +18,7 @@ How the 16 landmarks were chosen, and what that choice does to the numbers, is s
 3. **Viewsheds** (`pipeline/viewshed.py`). Radial line-of-sight from each landmark at three heights, with earth curvature, refraction (k = 0.13) and an eye height of 1.6 m. Each cell is judged by the ray nearest its own bearing. Each landmark's own structure is removed first, and bridge points snap to the mapped towers.
 4. **Validation** (`pipeline/validate.py`). Exact point-to-point checks on 4,000 cells per landmark, half from cells the fast method calls visible and half from the rest. Of the first half, 0.9–1.4% fail the exact check; of the second, at most 0.2% pass it.
 5. **Analysis** (`pipeline/analyze.py`, `pipeline/label_places.py`).
-   - Coverage by landmark, borough and neighbourhood. The neighbourhoods are 2010 NTAs, dissolved from NYC Planning tracts by `pipeline/nta_from_tracts.py`.
+   - Coverage by landmark, borough and neighbourhood. The neighbourhoods are 2010 Neighborhood Tabulation Areas (NTAs), dissolved from NYC Planning tracts by `pipeline/nta_from_tracts.py`.
    - Best spots, longest sightlines (with a specific place name for each), and where the Statue of Liberty can be seen from.
 6. **Sunrise and sunset** (`pipeline/sun.py`, `pipeline/sun_times.py`, `pipeline/sun_stats.py`).
    - For 8 maps (each of the solstices, five pairs of dates mirrored around them, and Manhattanhenge), the sun's path near the horizon is sampled at 13 apparent altitudes from 0.3° to 6°.

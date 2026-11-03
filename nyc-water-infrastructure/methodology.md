@@ -12,7 +12,7 @@
 
 **EPA action level:** The Environmental Protection Agency's action level for lead in drinking water is 15 ppb (0.015 mg/L). This is not a safety threshold -- it is a regulatory trigger. When more than 10% of samples in a water system exceed 15 ppb, the utility must take corrective action. There is no known safe level of lead exposure.
 
-**Important context:** NYC's water supply itself is essentially lead-free. Lead contamination occurs when water passes through lead service lines, lead solder, or lead-containing fixtures and fittings inside buildings. Older buildings (pre-1986) are more likely to have lead plumbing components.
+**Where lead comes from:** New York City's water supply itself is essentially lead-free. Lead contamination occurs when water passes through lead service lines, lead solder or lead-containing fixtures and fittings inside buildings. Older buildings (pre-1986) are more likely to have lead plumbing components.
 
 ### 2. Water main break reports
 
@@ -20,11 +20,11 @@
 
 **API endpoint:** `https://data.cityofnewyork.us/resource/erm2-nwe9.json` (filtered to DEP agency, water main break descriptor)
 
-**What it captures:** 311 complaints reporting possible water main breaks. These are not confirmed breaks -- they are reports from the public of conditions that suggest a water main may have broken (e.g., water bubbling up from the street, flooding, loss of water pressure). Each record includes the date, location, borough, and resolution status.
+**What it captures:** 311 complaints reporting possible water main breaks. These are reports from the public of conditions that suggest a water main may have broken (e.g., water bubbling up from the street, flooding, loss of water pressure). Each record includes the date, location, borough and resolution status.
 
-**What counts as a "break":** A water main break occurs when one of the pressurized pipes in the city's underground water distribution network cracks, ruptures, or develops a significant leak. NYC has approximately 6,800 miles of water mains, some dating back to the mid-1800s. Breaks can be caused by age, corrosion, ground movement, temperature changes, or construction activity.
+**What counts as a "break":** A water main break occurs when one of the pressurized pipes in the city's underground water distribution network cracks, ruptures or develops a significant leak. New York City has approximately 6,800 miles of water mains, some dating back to the mid-1800s. Breaks can be caused by age, corrosion, ground movement, temperature changes or construction activity.
 
-**How it is reported:** Residents call 311 or submit online complaints. DEP dispatches crews to investigate. Not every complaint corresponds to an actual break -- some may be hydrant leaks, service line issues, or other water problems. The resolution field in each record indicates the outcome of the investigation.
+**How it is reported:** Residents call 311 or submit online complaints. DEP dispatches crews to investigate. Not every complaint corresponds to an actual break -- some may be hydrant leaks, service line issues or other water problems. The resolution field in each record indicates the outcome of the investigation.
 
 ### 3. Drinking water quality
 
@@ -32,11 +32,11 @@
 
 **API endpoint:** `https://data.cityofnewyork.us/resource/bkwf-xfky.json`
 
-**What it measures:** Water quality parameters at sampling sites within the city's distribution system. These are not at-the-tap measurements -- they reflect water quality as it moves through the city's mains, before entering individual buildings. Key parameters include:
+**What it measures:** Water quality parameters at sampling sites within the city's distribution system. They reflect water quality as it moves through the city's mains, before entering individual buildings. Key parameters include:
 
 - **Turbidity (NTU):** A measure of water clarity. Higher turbidity means more suspended particles. The EPA maximum contaminant level for turbidity is 1 NTU for systems using conventional treatment, though NYC's filtered supply is typically well below this. Values below 0.5 NTU are considered excellent.
 
-- **Residual free chlorine (mg/L):** Chlorine added during treatment to kill bacteria and other pathogens. The EPA requires a minimum detectable level (0.2 mg/L) throughout the distribution system. Typical NYC levels range from 0.2 to 1.5 mg/L. Higher levels may cause taste and odor issues but are not a health concern at distribution-system concentrations.
+- **Residual free chlorine (mg/L):** Chlorine added during treatment to kill bacteria and other pathogens. The EPA requires a minimum detectable level (0.2 mg/L) throughout the distribution system. Typical New York City levels range from 0.2 to 1.5 mg/L. Higher levels may cause taste and odor issues but are not a health concern at distribution-system concentrations.
 
 - **Total coliform (MPN/100mL):** Coliform bacteria are used as indicator organisms -- their presence suggests the water may have been contaminated. The EPA standard requires that no more than 5% of monthly samples test positive for total coliform. A result of "<1" means no coliform was detected.
 
@@ -49,8 +49,8 @@
 ### Lead testing data
 
 - **Self-selected sample:** The at-home testing program is voluntary. Residents who suspect lead problems may be more likely to request a test kit, which could bias results toward higher lead levels compared to the general housing stock.
-- **Not representative of all buildings or units:** Only a fraction of NYC's roughly 1 million residential buildings have been tested. Coverage varies by neighborhood and building age.
-- **Point-in-time measurement:** A single test captures conditions at one moment. Lead levels can vary based on time of day, water usage patterns, and how long water has been sitting in pipes.
+- **Not representative of all buildings or units:** Only a fraction of New York City's roughly 1 million residential buildings have been tested. Coverage varies by neighborhood and building age.
+- **Point-in-time measurement:** A single test captures conditions at one moment. Lead levels can vary based on time of day, water usage patterns and how long water has been sitting in pipes.
 - **No geographic coordinates:** The dataset includes ZIP code and borough but not precise addresses or coordinates, so the map displays results aggregated by ZIP code centroid rather than exact locations.
 
 ### Water main break data

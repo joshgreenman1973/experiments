@@ -2,7 +2,7 @@
 
 ## Overview
 
-This dashboard tracks conditions in New York City jails operated by the Department of Correction (DOC), with a focus on population, violence, staffing, medical access, and in-custody deaths. Data is updated automatically via NYC Open Data APIs and a daily news scanner.
+This dashboard tracks conditions in New York City jails operated by the Department of Correction (DOC), with a focus on population, violence, staffing, medical access and in-custody deaths. Data is updated automatically via NYC Open Data APIs and a daily news scanner.
 
 ## Data sources
 
@@ -36,7 +36,7 @@ common, so the series is continuous across the changeover.
 | Historical deaths (2000-2018 annual) | NYC DOC Annual Reports; Federal Monitor Second Status Report (Oct 28, 2022) | Page 19 of federal monitor report covers 2015-2021 |
 | Individual death records (2019-2025) | NYC Comptroller DOC Dashboard; Vera Institute of Justice; Board of Correction FOIL records | Name, age, date, facility, race, cause |
 | Staffing (sick rate, medically restricted) | NYC Comptroller DOC Dashboard | No automated source exists. `eddp-3v5g` (Aggregate Employee Statistics) carries an active/ceased roster but has no date field and no sick-leave category, so it cannot reconstruct the series |
-| Uniformed headcount (annual) | NYC Comptroller DOC Dashboard | The MMR publishes monthly average daily population but not uniformed staff counts |
+| Uniformed headcount (annual) | NYC Comptroller DOC Dashboard | The Mayor's Management Report (MMR) publishes monthly average daily population but not uniformed staff counts |
 | Medical missed appointments | NYC Open Data (`5n4h-km5r`) | Quarterly, coarse granularity; the dataset itself carries nothing later than 2025 |
 | Use of force (A/B/C) | NYC Comptroller DOC Dashboard | The Open Data aggregate dataset (`2wuc-x56b`) has been dead since FY2021. The MMR use-of-force counts are a different measure and do not reconcile: for FY26 Q1 the MMR totals 1,724 incidents (1,759 including allegations) against the 1,812 shown here, so they are not substituted in |
 
@@ -95,7 +95,7 @@ The live population count from dataset `7479-ugqb` includes all people in DOC cu
 - **SSR** -- State sentence ready (awaiting transfer to state prison)
 - **DNS** -- Detained, not sentenced
 
-This matches how DOC officially reports its population. The vast majority of people in NYC jails have not been convicted and are awaiting trial.
+This matches how DOC officially reports its population. The vast majority of people in New York City jails have not been convicted and are awaiting trial.
 
 ### Incident data completeness
 The incident datasets (assaults, fights, stabbings) are incident-level records with date fields. The update script only includes **complete months** -- it excludes the current partial month to avoid showing artificially low counts. Once a month ends, its data typically appears in the API within 2-4 weeks.
@@ -138,7 +138,7 @@ Dataset `7479-ugqb` is a **live daily snapshot**: it contains one row per person
 ## Limitations
 
 1. **Population backfill**: Cannot automatically fill in past months' population from the live dataset. Depends on Comptroller Dashboard for historical time series.
-2. **Use of force**: The LL33 aggregate dataset on Open Data has been abandoned since 2021. UOF data comes from the Comptroller Dashboard and must be updated manually.
+2. **Use of force**: The Local Law 33 aggregate dataset on Open Data has been abandoned since 2021. Use-of-force data comes from the Comptroller Dashboard and must be updated manually.
 3. **Staffing**: No Open Data time series for sick rates or medically restricted staff. Current values are quarterly snapshots from the Comptroller Dashboard.
 4. **Death identification**: The daily news scanner depends on media coverage. Deaths that are not reported in the press may be missed until official sources (Board of Correction, Comptroller Dashboard) update.
 5. **Incident lag**: Violence data (assaults, fights, stabbings) typically lags 1-2 months behind the current date.

@@ -793,7 +793,7 @@ function ActHistory() {
 
         <FadeIn>
         <div className="insight-box">
-          <div className="insight-label">Why this matters</div>
+          <div className="insight-label">Comparing like with like</div>
           <p>
             {compView === 'normalized'
               ? 'Once you normalize for all the functions NYC handles — K-12 education, public hospitals, social services, courts — its per-capita spending is still higher than peer cities, but far less dramatically. The gap narrows from 4-to-1 to roughly 1.4-to-1 vs. Chicago.'
@@ -830,7 +830,7 @@ function ActCliff() {
           New York City is required by law to adopt a balanced budget every year — a rule imposed after the 1975 fiscal crisis, when the city nearly went bankrupt and the state created the Financial Control Board to oversee its finances. The FCB still exists today.
         </p>
         <p className="act-sub">
-          That’s the mayor’s number — and much of the gap comes from Mamdani’s decision to honestly budget for costs the Adams administration routinely understated. The IBO found that shelter costs, cash assistance, rental vouchers, and legal claims were all dramatically underfunded in Adams-era budgets. The Independent Budget Office projects a <strong style={{ color: C.orange }}>$6.5 billion combined gap</strong> for FY2026-27 ($535 million this year, $5.9 billion next year). Comptroller Levine puts the combined shortfall at <strong style={{ color: C.orange }}>$10.4 billion</strong> — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
+          That’s the mayor’s number — and much of the gap comes from Mamdani’s decision to budget fully for costs the Adams administration routinely understated. The IBO found that shelter costs, cash assistance, rental vouchers, and legal claims were all dramatically underfunded in Adams-era budgets. The Independent Budget Office projects a <strong style={{ color: C.orange }}>$6.5 billion combined gap</strong> for FY2026-27 ($535 million this year, $5.9 billion next year). Comptroller Levine puts the combined shortfall at <strong style={{ color: C.orange }}>$10.4 billion</strong> — the worst since the Great Recession. The Citizens Budget Commission’s "False Choice" report pegs it at <strong style={{ color: C.orange }}>$9.4 billion</strong>.
           On April 1, the Council released its own alternative: <strong style={{ color: C.chartreuse }}>$6 billion in identified resources</strong> — $3.5 billion from re-estimations (unfilled positions, fee adjustments), $2 billion from efficiencies (competitive DOE contracting, debt service savings), and $462 million in revenue enhancements — closing the gap without property tax increases, service cuts, or reserve drawdowns.
         </p>
 
@@ -871,7 +871,7 @@ function ActCliff() {
           <strong style={{ color: C.chartreuse }}>$1.7 billion in unrecognized resources</strong> — from higher-than-projected
           tax revenue, debt service savings, unfilled vacancies, and unrecognized interest earnings — arguing the Rainy Day Fund
           doesn’t need to be tapped at all. The CBC called the savings targets aspirational, not operational.
-          And all of it assumes Albany cooperates on the income tax — during an election year.
+          And all of it assumes Albany cooperates on the income tax in an election year.
         </p>
         </FadeIn>
 
@@ -889,14 +889,14 @@ function ActCliff() {
         </FadeIn>
 
         <p className="prose" style={{ marginTop: 24 }}>
-          <strong style={{ color: C.white }}>These gaps are projections, not certainties.</strong> They assume current tax
+          <strong style={{ color: C.white }}>These gaps are projections.</strong> They assume current tax
           rates, current service levels, and current labor costs. But each line item carries its own risk — and
           the risks are piling up.
         </p>
 
         {/* Risk range chart */}
         <FadeIn>
-        <h3 className="chart-head" style={{ color: C.white, marginTop: 36 }}>The risks that keep budget wonks up at night</h3>
+        <h3 className="chart-head" style={{ color: C.white, marginTop: 36 }}>The risks to the budget</h3>
         <p className="chart-sub">Estimated additional costs beyond what’s already budgeted. Ranges reflect uncertainty.</p>
 
         <div className="risk-chart">
@@ -968,12 +968,12 @@ function ActProposals() {
           <h2 className="act-headline">Before you try to close the gap, here’s what the experts are proposing</h2>
         </FadeIn>
         <p className="act-sub">
-          The mayor, the comptroller, the Citizens Budget Commission, and the City Council all have plans. They overlap in some places, clash in others. Understanding the landscape makes the next section — where you try it yourself — more honest.
+          The mayor, the comptroller, the Citizens Budget Commission, and the City Council all have plans. They overlap in some places, clash in others. Knowing where they stand will help in the next section, where you try it yourself.
         </p>
 
         {/* Labor cost explainer */}
         <FadeIn>
-        <h3 className="chart-head">The elephant in the room: labor costs</h3>
+        <h3 className="chart-head">Labor costs</h3>
         <p className="chart-sub">Personnel spending, pensions and health benefits account for the vast majority of city expenditure</p>
 
         <div className="labor-bar-wrap">
@@ -1032,11 +1032,11 @@ function ActProposals() {
 
         {/* Mamdani new spending */}
         <FadeIn>
-        <h3 className="chart-head">It’s not just about closing the gap — Mamdani wants to spend more, too</h3>
+        <h3 className="chart-head">Mamdani wants to spend more, too</h3>
         <p className="chart-sub">The preliminary budget includes new investments even as the city faces a $5.4 billion hole</p>
 
         <p className="prose">
-          This is what makes budget politics so difficult: Mamdani wants Albany to authorize new taxes on the wealthy and on corporations. The 9.5% property tax hike in his budget is widely seen as a pressure tactic — a deliberately hard-to-swallow fallback designed to push Albany toward his preferred revenue package. Every major political partner, from the City Council speaker to the governor, has called the property tax increase a non-starter. Yet even as the city works to close a $5.4 billion hole, Mamdani is also proposing <strong>significant new spending</strong>. His preliminary budget includes:
+          Mamdani wants Albany to authorize new taxes on the wealthy and on corporations. The 9.5% property tax hike in his budget is widely seen as a pressure tactic — a deliberately hard-to-swallow fallback designed to push Albany toward his preferred revenue package. Every major political partner, from the City Council speaker to the governor, has called the property tax increase a non-starter. Yet even as the city works to close a $5.4 billion hole, Mamdani is also proposing <strong>significant new spending</strong>. His preliminary budget includes:
         </p>
 
         <div className="new-spending-list">
@@ -1116,9 +1116,9 @@ function ActProposals() {
           <div className="insight-label">The math problem</div>
           <p>
             The funded initiatives above total roughly <span className="hl">$1.76 billion</span>. Add that to the $5.4B structural gap and
-            Mamdani actually needs to find <span className="hl">$7.2 billion</span> — through some combination of new taxes, spending cuts
+            Mamdani needs to find <span className="hl">$7.2 billion</span> — through some combination of new taxes, spending cuts
             elsewhere, and reserve drawdowns. And that’s before free buses or the Department of Community Safety. Fiscal watchdogs question whether the math adds up. Supporters say the city can’t afford
-            <em>not</em> to invest in childcare and climate. The tension between those two positions is what makes this budget so difficult.
+            <em>not</em> to invest in childcare and climate.
           </p>
         </div>
         </FadeIn>
@@ -1128,7 +1128,7 @@ function ActProposals() {
         {/* Expert proposals */}
         <FadeIn>
         <h3 className="chart-head">What the experts propose</h3>
-        <p className="chart-sub">Three serious plans, three different philosophies</p>
+        <p className="chart-sub">Three plans, and how they differ</p>
         </FadeIn>
 
         <FadeIn>
@@ -1138,7 +1138,7 @@ function ActProposals() {
             <div className="proposal-title">"False Choice" (March 2026)</div>
           </div>
           <p className="prose" style={{ marginBottom: 12 }}>
-            The CBC — the city’s most influential fiscal watchdog — published its most aggressive reform agenda yet. Their core argument: the combined FY26–27 gap is <strong>$9.4 billion</strong>, city-funded spending grew <strong>6.8% annually</strong> from FY21–25 (outpacing tax revenue growth of 5.2%), and <strong>NYC’s spending problem is structural, not cyclical</strong>. No amount of new revenue will fix it without operational reform.
+            The CBC, a fiscal watchdog, published its most aggressive reform agenda yet. Their core argument: the combined FY26–27 gap is <strong>$9.4 billion</strong>, city-funded spending grew <strong>6.8% annually</strong> from FY21–25 (outpacing tax revenue growth of 5.2%), and <strong>NYC’s spending problem is structural, not cyclical</strong>. No amount of new revenue will fix it without operational reform.
           </p>
           <div className="proposal-items">
             <div className="proposal-item"><span className="proposal-amount">{fmtM(1300)}</span> Seek state relief from class size mandate</div>
@@ -1197,7 +1197,7 @@ function ActProposals() {
         <div className="insight-box">
           <div className="insight-label">The union question</div>
           <p>
-            Almost every serious savings proposal eventually runs into <span className="hl">organized labor</span>. Health insurance reform? Unions sued. Workforce reduction? DC 37 mobilizes. Overtime caps? PBA invokes public safety. Pension reform? State law protects existing benefits. This doesn’t mean reform is impossible — but it means any honest budget plan must account for the political cost of taking on the city’s most powerful constituency. The unions represent the workers who keep the city running. They also represent the single largest claim on every tax dollar the city collects.
+            Almost every serious savings proposal eventually runs into <span className="hl">organized labor</span>. Health insurance reform? Unions sued. Workforce reduction? DC 37 mobilizes. Overtime caps? PBA invokes public safety. Pension reform? State law protects existing benefits. Reform is possible, but any budget plan must account for the political cost of taking on the city’s most powerful constituency. The unions represent the workers who keep the city running. They also represent the single largest claim on every tax dollar the city collects.
           </p>
         </div>
         </FadeIn>
@@ -1609,7 +1609,7 @@ export default function App() {
       <ActScale />
 
       <Bridge>
-        That’s the snapshot. But a budget is not a photograph — it’s a time-lapse. To understand why the city
+        That’s the snapshot. To understand why the city
         faces a $5.4 billion hole, you have to see how spending got here.
       </Bridge>
 

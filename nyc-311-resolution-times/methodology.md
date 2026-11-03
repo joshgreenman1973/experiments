@@ -1,4 +1,4 @@
-# Methodology: NYC 311 resolution times
+# Methodology: New York City 311 resolution times
 
 This dashboard measures **resolution time** — the interval between when a complaint is filed (`created_date`) and when the responsible agency marks it closed (`closed_date`). That is not the same as "resolution time" in the everyday sense (time until someone shows up or acknowledges the complaint). The 311 public dataset does not expose a dispatch or first-action timestamp, only created and closed, so this tool can only measure the full open-to-close lifecycle.
 
@@ -47,7 +47,7 @@ Expressed in days (fractional). A complaint opened at 9:00 AM and closed at 9:00
 This dashboard uses **median** resolution time rather than mean (average). The median is the middle value when all resolution times are sorted. This choice was made because:
 
 - 311 resolution times have highly skewed distributions, with some complaints taking months to resolve
-- A single outlier (e.g., a complaint open for 200 days) can dramatically inflate a mean but has minimal effect on the median
+- A single outlier (e.g., a complaint open for 200 days) can inflate a mean but has minimal effect on the median
 - The median better represents the "typical" experience a resident has when filing a complaint
 
 ### Community district aggregation
@@ -72,7 +72,7 @@ The legend beneath the map displays the actual numeric thresholds for the curren
 
 ### Agency breakdown
 
-The agency chart shows resolution times for the **top 15 agencies by complaint volume** in the current selection, sorted by median resolution time. Selecting by volume (rather than by slowest median) ensures that high-volume fast responders — such as NYPD (noise, illegal parking) and DHS (homeless outreach) — are included alongside slower agencies like HPD and TLC.
+The agency chart shows resolution times for the **top 15 agencies by complaint volume** in the current selection, sorted by median resolution time. Selecting by volume (rather than by slowest median) ensures that high-volume fast responders — such as the Police Department (noise, illegal parking) and the Department of Homeless Services (homeless outreach) — are included alongside slower agencies like the Department of Housing Preservation and Development and the Taxi and Limousine Commission.
 
 When a community district is selected on the map, the agency chart recalculates median resolution times using only complaints from that district. This shows which agencies are faster or slower in a specific neighborhood.
 
@@ -92,7 +92,7 @@ Records are ordered by `created_date` descending. In practice, the full universe
 
 ### Only closed complaints are included
 
-Open and pending complaints are excluded entirely. This means the dashboard does not capture complaints that agencies have not yet resolved. If an agency systematically leaves difficult complaints open rather than closing them, their measured performance may appear artificially better than it actually is.
+Open and pending complaints are excluded entirely. This means the dashboard does not capture complaints that agencies have not yet resolved. If an agency systematically leaves difficult complaints open rather than closing them, their measured performance may look better than it is.
 
 ### "Closed" does not always mean "resolved"
 
@@ -117,7 +117,7 @@ To prevent runaway queries, the client applies a hard upper bound of 500,000 rec
 
 ### Reporting rates vary by neighborhood
 
-311 data only captures complaints that are called in, submitted online, or reported via the 311 app. Issues that residents do not report are not reflected. Neighborhoods with lower 311 usage may appear to have fewer or faster-resolved problems than they actually do. Reporting rates vary by neighborhood, demographic group, and complaint type.
+311 data only captures complaints that are called in, submitted online or reported via the 311 app. Issues that residents do not report are not reflected. Neighborhoods with lower 311 usage may appear to have fewer or faster-resolved problems than they do. Reporting rates vary by neighborhood, demographic group and complaint type.
 
 ## Tools and libraries
 

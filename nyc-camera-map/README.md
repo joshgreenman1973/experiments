@@ -23,7 +23,7 @@ equally reliable.
 
 ## The derived layers
 
-The city refuses to release the locations of its automated enforcement cameras. A DOT
+The city refuses to release the locations of its automated enforcement cameras. A Department of Transportation (DOT)
 spokesman told *West Side Rag* in August 2026 that keeping the sites secret makes the
 program more effective.
 
@@ -83,24 +83,24 @@ Nothing here should be added into a single grand total.
 
 - The headline figure of 5,697 counts only individually located devices. The 2021 survey
   is never added to it. That layer counts cameras *visible from* a corner, and about 3,317
-  of its 28,950 were on poles and street furniture rather than buildings — which is to
-  say, many of them are the traffic and enforcement cameras already drawn as their own
+  of its 28,950 were on poles and street furniture rather than buildings, so many of
+  them are the traffic and enforcement cameras already drawn as their own
   layers.
 - 162 of the 1,194 crowdsourced plate readers sit within 40 metres of an enforcement
   camera reconstructed independently here. Each is flagged in its detail panel. They are
-  kept rather than deleted, because a plate reader and a ticketing camera can genuinely
+  kept rather than deleted, because a plate reader and a ticketing camera can
   share a pole.
 - The three enforcement layers cannot overlap each other; each comes from a different
   violation code.
 
 ## What is missing
 
-The NYPD's own camera network (the Domain Awareness System draws on thousands of cameras,
+The New York Police Department's own camera network (the Domain Awareness System draws on thousands of cameras,
 none of them published), the SafeCam registry of private cameras, subway and bus cameras,
-congestion pricing readers, and the great majority of private cameras beyond whatever the
+congestion pricing readers and the great majority of private cameras beyond whatever the
 2021 volunteers happened to see from an intersection.
 
-There are no Flock Safety cameras in New York City. The NYPD, DOT and MTA have all said
+There are no Flock Safety cameras in New York City. The NYPD, DOT and the Metropolitan Transportation Authority have all said
 they do not contract with the company.
 
 ## Rebuilding

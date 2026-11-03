@@ -1,6 +1,6 @@
-# NYC Price Watch — How the tracking actually works
+# NYC Price Watch — How the tracking works
 
-A candid look at what each of the 15 prices takes to maintain, given the
+A look at what each of the 15 prices takes to maintain, given the
 operating reality: one person (Josh), working through Claude, no field
 team, no paid data feeds.
 
@@ -11,11 +11,11 @@ team, no paid data feeds.
 Every line on this page has to be sustainable for a single person who
 isn't going to walk to ten pizzerias on the first Monday of every month,
 and who doesn't have a paid data subscription. That rules out a lot of
-elegant ideas. It also means we have to be honest about which series
+elegant ideas. It also means being clear about which series
 will get refreshed and which will quietly stop after two months.
 
-The right move is to be explicit about difficulty up front, and lean
-hardest on the items that are easy enough to actually keep going.
+So the plan is to state the difficulty up front and lean
+hardest on the items that are easy enough to keep going.
 
 ---
 
@@ -78,7 +78,7 @@ realistic only if it's bolted onto an existing routine.
 
 ### Keep (10 items, all sustainable)
 
-These are the ones where the monthly or quarterly refresh is genuinely
+These are the ones where the monthly or quarterly refresh is
 easy enough that the page won't go stale.
 
 - **Tier 1 tariffs** (subway, toll, Citi Bike, water, taxi). Most months
@@ -101,19 +101,19 @@ The hand-survey panels (pizza, bagel, coffee) and the Uber benchmark
 were the right shape conceptually but won't hold up in practice without
 field labor. Three options:
 
-1. **Drop them outright.** Goes from 15 items to 11. Honest, simple,
+1. **Drop them outright.** Goes from 15 items to 11. Simple, and
    keeps the page from quietly degrading.
 2. **Replace with proxies that auto-refresh.** Some candidates:
-   - **Pizza slice** → Domino's or Papa John's NYC delivery price for
+   - **Pizza slice** → Domino's or Papa John's New York City delivery price for
      a fixed plain pizza. Posted, scrapeable, less cool but real.
-   - **Coffee** → Starbucks app price for a tall coffee at a fixed NYC
+   - **Coffee** → Starbucks app price for a tall coffee at a fixed New York City
      store. Posted, fetchable, less cool but real.
    - **Bagel** → no good proxy.
    - **Uber** → drop entirely; the benchmark idea doesn't work without
      a person holding a phone.
 3. **Keep as opt-in panels.** Mark them clearly as "when surveyed" —
-   collect on a known walk every quarter or two, accept that gaps will
-   be honest gaps in the trendline. Don't pretend they're monthly.
+   collect on a known walk every quarter or two, and accept that the
+   trendline will have gaps. Don't pretend they're monthly.
 
 My recommendation: **drop Uber, drop the bagel and coffee panels, keep
 pizza but make it quarterly and replace the panel with chain-delivery
@@ -127,24 +127,24 @@ These are items I missed in the first pass that fit Tier 1 or Tier 2:
 - **NY Times newsstand price** — published, changes rarely. Trivial.
 - **Average cooling bill, summer months** — ConEd publishes this each
   summer for typical apartment. Trivial.
-- **Property tax average bill, Class 1 (1–3 family homes)** — NYC DOF
-  publishes annually. Trivial.
-- **Express bus fare or LIRR peak** — published, MTA. Trivial.
-- **Manhattan parking meter rate** — DOT publishes; changes once every
+- **Property tax average bill, Class 1 (1–3 family homes)** — the city's
+  Department of Finance publishes annually. Trivial.
+- **Express bus fare or Long Island Rail Road peak** — published, MTA. Trivial.
+- **Manhattan parking meter rate** — the Department of Transportation publishes; changes once every
   few years. Trivial.
 - **NYC Health + Hospitals visit copay** — published, low frequency.
   Trivial.
 - **Citi Bike day pass** — published. Already on the pricing page.
   Trivial.
 
-The pattern: **the easiest series to track are also the most boring.**
-That's a feature, not a bug — boring-and-real beats interesting-and-fake.
+**The easiest series to track are also the most boring**, which is fine
+for a page built on real numbers.
 
 ---
 
 ## The monthly / quarterly workflow
 
-Here's what a refresh actually looks like:
+What a refresh looks like:
 
 ### Monthly refresh — 15 minutes total
 
@@ -169,7 +169,7 @@ Here's what a refresh actually looks like:
 - Roll up the three monthly observations to one quarterly value per
   series, recompute YoY badges.
 
-### When something genuinely breaks
+### When something breaks
 
 - **Source moves or 403s.** Note it in `readings.json` (`source_status:
   "blocked YYYY-MM-DD"`) and try the alternate source in the methodology
@@ -183,7 +183,7 @@ Here's what a refresh actually looks like:
 
 ---
 
-## Honesty notes
+## Caveats
 
 - **Backfilled history is not the same as live observation.** Pre-Q2
   2026 quarters on the gas and ConEd cards are flagged `est.` because
@@ -194,7 +194,7 @@ Here's what a refresh actually looks like:
   source URL and a retrieval date. If a number on the page looks
   wrong, the raw entry is one click away.
 - **No team, no field staff.** This document exists because the
-  honest answer to "can you also track X" is sometimes "no, not
+  answer to "can you also track X" is sometimes "no, not
   sustainably" — and saying so up front is better than building
   something that quietly stops updating in month three.
 
@@ -218,5 +218,4 @@ parking meter rate.
 **Quarterly:** Broadway League season average, family-of-four dinner,
 chain-delivery pizza price (proxy for the slice panel).
 
-That's a page that can survive a year. Anything more aspirational is
-decoration.
+That page can survive a year.

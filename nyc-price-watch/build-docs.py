@@ -12,7 +12,7 @@ DOCS = [
      "and what it cannot be used to claim. Written for readers who will interrogate "
      "the estimator and the sampling frame before trusting a number."),
     ("TRACKING.md", "tracking.html", "How tracking works",
-     "A candid account of what it takes to keep each price current with no field staff "
+     "An account of what it takes to keep each price current with no field staff "
      "and no paid data feeds, and which items are realistically sustainable."),
     ("SCHEDULE.md", "schedule.html", "Refresh schedule",
      "When every source publishes, and the calendar the monthly refresh runs on so that "

@@ -6,7 +6,7 @@ City restaurants, plus a one-time citywide cross-section for context.
 ## The number we track
 
 A real family-of-four dinner bill, with the bundle sized to how families
-actually order at each kind of restaurant:
+order at each kind of restaurant:
 
 ```
 pizzerias : 1 large pizza
@@ -15,8 +15,8 @@ everywhere else (standard): 2 adult entrees + 2 kid portions (kids' menu where o
 + 2 drinks ($2.50 each, standardized) ; then x (1 + 8.875% tax + 18% tip)
 ```
 
-The published headline is the **median bill across the panel** (robust to a few
-pricey institutions), shown with the average and the 25th–75th percentile range.
+The published headline is the **median bill across the panel** (which a few
+pricey institutions can't drag around), shown with the average and the 25th–75th percentile range.
 This is a dollar figure, not an index. Each restaurant's pinned dishes are
 re-priced monthly by deterministic string match. Deterministic guards reject
 desserts/drinks as an entree, require the kid item to be cheaper than the adult,
@@ -25,7 +25,7 @@ and enforce sane price ranges (adult $6–$32; a $25+ signature entree is flagge
 ## The panel (84 restaurants, all five boroughs)
 
 84 restaurants are active in the panel. A restaurant only counts in a given month
-if all of its pinned dishes re-price cleanly, so the number actually priced is
+if all of its pinned dishes re-price cleanly, so the number priced is
 usually a bit lower — **76 of 84 in the July 2026 check** (the other 8 missed and
 were excluded from that month's number, not carried forward).
 
@@ -42,7 +42,7 @@ Built in three passes:
    scrape artifact, or any pair where the kid item isn't cheaper than the adult).
    Restaurants that can't form a valid pair are dropped.
 
-## How we keep it honest
+## How the prices are checked
 
 - **Direct prices only — never delivery.** Delivery-app menu prices run 15–25%
   above dine-in and move with platform commissions, not the kitchen. We exclude
@@ -66,7 +66,7 @@ Built in three passes:
 - **Price ceiling.** The panel targets entrees under $25; signature dishes above it
   (Katz's pastrami, a chicken parm) are flagged (●), not hidden.
 
-## Selection bias (the honest caveat, also stated on the site)
+## Selection bias (also stated on the site)
 
 We can only track restaurants that post a readable online menu — ~1 in 5 of those
 we check. This tilts the panel toward more-digitized spots and **away from the
@@ -80,7 +80,7 @@ price checks, which this automated panel does not do.
 The official yardstick is the BLS "food away from home" CPI for the
 New York–Newark–Jersey City metro: **+3.4% over the 12 months ending April 2026**
 ([BLS](https://www.bls.gov/regions/northeast/news-release/consumerpriceindex_newyork.htm)).
-How our more-local panel diverges from it is itself the story.
+Our more-local panel can diverge from it.
 
 ## The one-time cross-section
 
@@ -98,9 +98,9 @@ year-over-year will be the meaningful comparison once 12 months exist.
 
 **Gap in the series.** The baseline is 2026-05-01. No check ran in June 2026, and
 the second reading is dated **2026-07-15** — so the first interval spans two and a
-half months, not one. The gap is real and is left visible rather than
+half months, not one. The gap is left visible, not
 back-filled: menu prices at a past date can't be recovered after the fact, and
-inventing one would be exactly the carried-forward fiction this panel exists to
+inventing one would be the kind of carried-forward price this panel is built to
 avoid. Monthly points resume 2026-08-01.
 
 **Retired pipeline.** An earlier tracker (`check-prices.js` → `build-history.js` →

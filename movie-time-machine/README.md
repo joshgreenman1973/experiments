@@ -8,7 +8,7 @@ Live: https://joshgreenman1973.github.io/experiments/movie-time-machine/dist/
 
 | Panel | Source | How it updates |
 | --- | --- | --- |
-| At the Movies | TMDB API, queried live | Always current; nothing to refresh |
+| At the Movies | The Movie Database (TMDB) API, queried live | Always current; nothing to refresh |
 | On TV | `src/data/tv-schedules.json` (Wikipedia, epguides.com, TVMaze) | One new primetime season each autumn |
 | On the Radio | `src/data/music-charts.json` (Billboard Hot 100) | New chart week every Saturday |
 
@@ -19,8 +19,8 @@ either one means rebuilding the site and committing `dist/`.
 
 `.github/workflows/good-time-music-refresh.yml` (in the repo root) runs every
 Sunday: it fetches any new chart weeks, adds the new TV season once one has
-started, rebuilds, and commits. Both scripts fail loudly rather than exiting
-quietly if a source has moved, so a silent rot shows up as a failed run.
+started, rebuilds and commits. Both scripts stop with an error if a source has
+moved, so a broken source shows up as a failed run.
 
 To do it by hand:
 
@@ -35,7 +35,7 @@ npm run build                      # bake the data into dist/
 The site is static, so anything the browser needs is readable in the published
 JavaScript -- an API key included. So the app never sees the key: every TMDB
 request goes through the Cloudflare Worker in `worker/`, which holds the key as
-an encrypted secret, allows only the three endpoints the app uses, and is
+an encrypted secret, allows only the three endpoints the app uses and is
 deployed at https://good-time-tmdb.josh-greenman.workers.dev.
 
 The app gets that URL from `TMDB_PROXY` in `src/config.js` -- a public URL, safe

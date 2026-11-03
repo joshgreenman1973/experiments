@@ -4,22 +4,20 @@ A systematic scan of quintessentially New York costs that could be added.
 
 **Filter:** every candidate must be systematically trackable on a
 quarterly basis, apples-to-apples, with a public source. That is a
-sharper bar than "iconically New York." A lot of distinctive NYC
+sharper bar than "iconically New York." A lot of distinctive New York City
 prices fail it because they only change once a year (or once a
 decade), so a quarterly axis just shows a flat line.
 
 Each candidate is weighed on:
 
 - **NYC-iconic** (1–5)
-- **Quarterly-trackability** — does this produce a genuinely apples-to-apples reading every quarter, from a public source?
+- **Quarterly-trackability** — does this produce an apples-to-apples reading every quarter, from a public source?
 - **Signal value** (1–5)
 - **Tier** (1–6, see TRACKING.md)
 
 ---
 
 ## The two kinds of "trackable"
-
-A useful distinction surfaced as I worked through this:
 
 **Step-function items** — change rarely (once a year, or every few
 years), but the change is meaningful when it happens. Quarterly chart
@@ -29,8 +27,8 @@ for "what changed this year" not "what's happening this quarter."**
 
 **Quarterly-moving series** — produce a different reading every
 quarter from real underlying activity. Examples already on the page:
-gas, ConEd typical bill, Broadway average paid admission. **These are
-what gives a trendline its actual shape.**
+gas, ConEd typical bill, Broadway average paid admission. **These give
+a trendline its shape.**
 
 The user's constraint — apples-to-apples per quarter — privileges the
 second kind. The first kind earns a place only if its NYC-icon value
@@ -45,10 +43,9 @@ from a public, NYC-specific source.
 
 ### A. Manhattan median rent — Douglas Elliman quarterly market report
 
-Douglas Elliman publishes the gold-standard quarterly Manhattan
+Douglas Elliman publishes a quarterly Manhattan
 rental market report, written by Miller Samuel. Same metric, same
-methodology, every quarter, going back to 2008. The cleanest
-quarterly NYC rent series that exists.
+methodology, every quarter, going back to 2008.
 
 - NYC-iconic: 5/5
 - Quarterly-trackability: ✅ designed for it (the report is quarterly)
@@ -59,7 +56,7 @@ quarterly NYC rent series that exists.
 
 ### B. Brooklyn median rent — Douglas Elliman quarterly
 
-Same publisher, same quarterly cadence, distinct NYC trend. Brooklyn
+Same publisher, same quarterly cadence, distinct New York City trend. Brooklyn
 has decoupled from Manhattan repeatedly, so tracking both is worth
 the marginal cost.
 
@@ -110,8 +107,8 @@ with grocery basket to give two halves of the food story.
 
 NYSERDA publishes statewide heating-oil prices weekly. Quarterly
 average is trivial. Heating oil affects ~600,000 NY households,
-heavily concentrated downstate. Notable for tracking energy
-affordability beyond just electricity.
+heavily concentrated downstate. Useful for tracking energy
+affordability beyond electricity.
 
 - NYC-iconic: 3/5 — region, not just city
 - Quarterly-trackability: ✅ weekly source
@@ -134,7 +131,7 @@ a large enough seasonal swing that quarterly readings are meaningful.
 
 ### H. MTA average weekday subway ridership
 
-Not a price, but a quintessentially NYC indicator that contextualizes
+Not a price, but a quintessentially New York indicator that contextualizes
 the affordability story (post-pandemic recovery; congestion pricing
 effects). Published monthly, MTA dashboard. Could anchor a "context"
 section rather than a price card.
@@ -149,7 +146,7 @@ section rather than a price card.
 
 ## Step-function candidates (genuine NYC, but flat-line on a quarterly chart)
 
-These are distinctive NYC prices that are real and trackable, but
+These are distinctive New York City prices that are real and trackable, but
 won't move most quarters. Each one earns its place only if its
 icon-value is unusually high.
 
@@ -168,7 +165,7 @@ icon-value is unusually high.
 | Mortgage Recording Tax | 4/5 | Doesn't move | ❌ Cut |
 | Marriage license | 4/5 | Doesn't move | ❌ Cut |
 
-The honest read: **only RGB renewal cap is icon enough to justify a
+**Only RGB renewal cap is icon enough to justify a
 flat-line card.** Everything else is more useful as a sidebar fact
 than as a tracked line.
 

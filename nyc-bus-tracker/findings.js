@@ -382,7 +382,7 @@
     document.getElementById('season-copy').innerHTML =
       `The MTA reported ${f2(L.mph)} mph for ${apMonth(L.month)}, ${sinceTxt}. `
       + (av ? `But August is always the quick month: it has run ${f2(av.delta)} mph above its own year's average, and in ${apMonth(L.month).split(' ')[1]} the year so far averages ${f2(av.yearMean)} mph. ` : '')
-      + 'A record set in August is worth checking against the September that follows it.';
+      + 'Check a record set in August against the September that follows it.';
     const ours = S.oursAugSep;
     document.getElementById('augsep-note').innerHTML = ours
       ? `The tracker's own August-to-September change is ${ours.delta > 0 ? '+' : ''}${f1(ours.delta)} mph (${f1(ours.aug)} to ${f1(ours.sep)}), through ${apDate(ours.sepEnd)}${ours.partial ? ', with September still running' : ''}. The MTA will not publish its September figure for about six weeks.`

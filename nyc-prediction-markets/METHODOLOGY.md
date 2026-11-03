@@ -2,9 +2,9 @@
 
 ## What this is
 
-A consolidated view of every active prediction market touching New York City or New York State civic life — elections, government, policy, the economy, demographics, transit, crime and public health — refreshed every six hours via GitHub Actions. Sports, entertainment and daily weather markets are deliberately excluded.
+A consolidated view of every active prediction market touching New York City or New York State civic life — elections, government, policy, the economy, demographics, transit, crime and public health — refreshed every six hours via GitHub Actions. Sports, entertainment and daily weather markets are excluded.
 
-The relevance filter is **structural, not a hand-kept roster of names**: a market qualifies when it pairs a New York place with a civic context, or matches any electoral-district pattern. That means new races, candidates and topics surface on their own, without anyone editing a keyword list when the news changes.
+The relevance filter is **structural**: a market qualifies when it pairs a New York place with a civic context, or matches any electoral-district pattern. That means new races, candidates and topics surface on their own, without anyone editing a keyword list when the news changes.
 
 ## Data sources
 
@@ -20,7 +20,7 @@ Polymarket and Kalshi are real-money venues; their volumes are USD. Manifold is 
 
 Each source also reports **24-hour trading volume**, which the table sorts on by default (see "Default view" below): Polymarket `volume24hr`, Kalshi `volume_24h_fp`, Manifold `volume24Hours`.
 
-Note on Polymarket coverage (Oct 21, 2026): Gamma refuses any offset past 2,100 ("offset too large"), and Polymarket now lists tens of thousands of open markets, most of them sports. The offset scan therefore saw only the first 2,100, and the tracker had shrunk to 31 Polymarket markets, missing the New York governor and attorney general winner markets, every House seat but a handful, and the Tisch market. The fetcher now also runs a keyword search pass (the Manifold keyword list plus New York, Blakeman, Tisch, DiNapoli, Jeffries, Albany, Nassau, Long Island, Buffalo and the boroughs), reads every market nested in the events it returns, and runs each through the same filter. The first run with it found 401 Polymarket markets. The search pass brought in a few false matches, so the exclusion list gained New York Cosmos and New York Atlas games, "snow in", Buffalo City (South Africa) and post-count markets on the mayor's social media.
+Note on Polymarket coverage (Oct. 21, 2026): Gamma refuses any offset past 2,100 ("offset too large"), and Polymarket now lists tens of thousands of open markets, most of them sports. The offset scan therefore saw only the first 2,100, and the tracker had shrunk to 31 Polymarket markets, missing the New York governor and attorney general winner markets, every House seat but a handful, and the Tisch market. The fetcher now also runs a keyword search pass (the Manifold keyword list plus New York, Blakeman, Tisch, DiNapoli, Jeffries, Albany, Nassau, Long Island, Buffalo and the boroughs), reads every market nested in the events it returns, and runs each through the same filter. The first run with it found 401 Polymarket markets. The search pass brought in a few false matches, so the exclusion list gained New York Cosmos and New York Atlas games, "snow in", Buffalo City (South Africa) and post-count markets on the mayor's social media.
 
 Older note on Polymarket pagination: the Gamma API now hard-caps every response at 100 items regardless of the requested `limit`. The fetcher pages by 100 via `offset` until the list is exhausted (a `422` past the end is treated as the stop signal). An earlier version asked for `limit=500`, received 100, saw `100 < 500` and stopped after the first page — which silently scanned only the top ~100 of ~2,100 open markets and was why most New York races never appeared.
 
@@ -49,7 +49,7 @@ This is what brings in the down-ballot House primaries (NY-07, NY-12, NY-13, NY-
 
 ### 3. Strong keywords (any match qualifies, no geography needed)
 
-A convenience layer for markets that are unmistakably New York but contain no New York place name — e.g. "Will AOC win the 2028 nomination?" People: Mamdani, Hochul, Cuomo, Letitia/Tish James, Jumaane Williams, Brad Lander, Zellnor Myrie, Scott Stringer, Ritchie Torres, Dan Goldman, Jessica Ramos, Curtis Sliwa, Stefanik, Gillibrand, Schumer, Ocasio-Cortez/AOC, Hakeem Jeffries, Jamaal Bowman, Antonio Delgado, Mark Levine. Phrases/agencies: New York City, New York State, NYC, NYS, NY governor, NY Senate, MTA, NYPD, FDNY, NYCHA, Rikers, congestion pricing, City Hall, rent stabilization, Rent Guidelines Board, and the five borough DA offices. This list is deliberately short — it is not where coverage comes from.
+A convenience layer for markets that are unmistakably New York but contain no New York place name — e.g. "Will AOC win the 2028 nomination?" People: Mamdani, Hochul, Cuomo, Letitia/Tish James, Jumaane Williams, Brad Lander, Zellnor Myrie, Scott Stringer, Ritchie Torres, Dan Goldman, Jessica Ramos, Curtis Sliwa, Stefanik, Gillibrand, Schumer, Ocasio-Cortez/AOC, Hakeem Jeffries, Jamaal Bowman, Antonio Delgado, Mark Levine. Phrases/agencies: New York City, New York State, NYC, NYS, NY governor, NY Senate, MTA, NYPD, FDNY, NYCHA, Rikers, congestion pricing, City Hall, rent stabilization, Rent Guidelines Board, and the five borough DA offices. This list is short; coverage comes from the structural tests above.
 
 ### 4. Ambiguous tokens (require co-occurring NY context)
 
@@ -69,7 +69,7 @@ A market is rejected outright, before any New York test runs, if its text or tag
 
 Knicks, Yankees, Mets, Giants, Jets, Rangers, Nets, Islanders, Liberty, Red Bulls, Sabres, Buffalo Bills, NYCFC, New York City FC, Subway Series, NY/NYC Marathon, MLS Cup, MLB, NBA, NHL, NFL, UFC, PGA, WNBA, NCAA, Champions League, Premier League, Bundesliga, La Liga, Super Bowl, World Series, Stanley Cup, Final Four, playoffs, championship, Heisman, box office, Oscars, Grammys, Emmys, Tonys, Tony Award, Met Gala, Fashion Week, Broadway, Eurovision, Dancing with the Stars, DWTS, temperature, rainfall, snowfall, snowiest, Fahrenheit, Celsius, heat wave, blizzard, hurricane, "inches of rain/snow".
 
-The list is kept specific on purpose — there is no bare "Bills" (that would swallow legislation) and no bare "degrees" or "hottest" (those collide with housing and economy markets).
+The list is specific: there is no bare "Bills" (that would swallow legislation) and no bare "degrees" or "hottest" (those collide with housing and economy markets).
 
 Kalshi event tickers starting with `KXNFL`, `KXNBA`, `KXNHL`, `KXMLB`, `KXSOCCER`, `KXMVE…`, `KXUFC`, `KXTENNIS`, `KXGOLF`, `KXOSCAR`, `KXGRAMM`, `KXEMMY`, or matching `KX…GAME` are skipped before keyword matching. The `KX…GAME` catch-all covers every per-game head-to-head sports market across all leagues — these use team abbreviations (e.g. "MTA" for Maccabi Tel-Aviv) that would otherwise collide with NY keywords like MTA the transit agency.
 
@@ -79,7 +79,7 @@ Polymarket events sometimes have a parent event title like "New York City Mayora
 
 ## Default view
 
-The table sorts by **24-hour volume, descending** out of the box, so the markets people are actually trading right now sit on top. This is deliberately *not* lifetime volume (which is dominated by big national-flavored markets that did all their trading months ago) and *not* 24h price change (which floats thin markets that swung on a few dollars). Every column header is clickable to re-sort — 24h Δ, total volume, posted date, close date — and the category chips and search box narrow the set first. Manifold's 24h volume is in mana, so its play-money markets naturally rank below the real-money ones in the default view.
+The table sorts by **24-hour volume, descending** out of the box, so the markets people are trading right now sit on top. Lifetime volume would put big national-flavored markets that did all their trading months ago on top, and 24h price change would float thin markets that swung on a few dollars. Every column header is clickable to re-sort — 24h Δ, total volume, posted date, close date — and the category chips and search box narrow the set first. Manifold's 24h volume is in mana, so its play-money markets rank below the real-money ones in the default view.
 
 The "Same question, different platforms" comparison block is **collapsed by default** (a one-line toggle above the table), so the active markets lead the page instead of being pushed below a screen of comparison cards. Click the heading to expand it.
 
@@ -117,11 +117,11 @@ Each run also writes a snapshot to `data/history/YYYY-MM-DD-HH.json`. The 24h-ch
 ## Limitations
 
 - **No authentication = no markets behind logins.** Kalshi has some markets only visible to logged-in users; we see only what the public API returns.
-- **Pagination caps.** We stop at 6,000 Polymarket markets (60 pages × 100, against ~2,100 currently open), 12,000 Kalshi events, and 22 Manifold keyword searches × 100 results each. In practice this captures the entire active universe with room to spare, but extreme-tail markets could be missed.
+- **Pagination caps.** We stop at 6,000 Polymarket markets (60 pages × 100, against ~2,100 currently open), 12,000 Kalshi events and 22 Manifold keyword searches × 100 results each. In practice this captures the entire active universe with room to spare, but extreme-tail markets could be missed.
 - **Manifold play-money.** Manifold prices reflect crowd belief but no real money is at stake; treat them as forecast aggregators, not market prices.
 - **Two volume figures.** "Total vol" is lifetime contract volume since launch — a "$10M" market may have done all of it months ago — so the table also carries "24h vol" (the last day's trading) and sorts on it by default. Both come straight from each platform's reported numbers.
 - **Residual false negatives.** Because relevance is now structural (geography + context), most New York markets are caught automatically. The remaining gaps are markets that mention neither a New York place nor a strong keyword — e.g. a market that refers only to a candidate by name with no district, office or place. If something is missed, the levers in `fetch.mjs` are `GEO_KEYWORDS`, `CONTEXT_KEYWORDS`, `DISTRICT_RE`, `STRONG_KEYWORDS` and `MANIFOLD_QUERIES`.
-- **False positives.** A national market that happens to name a New York place alongside a context word could qualify. Spot checks find these are rare and almost always genuinely New York; the volume filter on the page hides the low-stakes noise.
+- **False positives.** A national market that happens to name a New York place alongside a context word could qualify. Spot checks find these are rare and almost always about New York; the volume filter on the page hides the low-stakes noise.
 - **Multi-outcome markets.** For events like "NYC Mayor 2025 winner" with N candidates, every candidate's contract appears as its own row. This is intentional — it's the only way to see how each contract is priced — but it means one event can dominate the table.
 
 ## Category classification
@@ -132,10 +132,10 @@ Classification is first-match-wins, so the order is the precedence — `categori
 
 1. **Mamdani** — any market naming Mamdani (his mayoralty, policy pledges, even his 2028 presidential odds). The person bucket wins first so a click on "Mamdani" shows everything about him.
 2. **Presidential** — national White House markets: 2028 nominations, "elected president", presidential runs (for everyone other than Mamdani, who is already caught above).
-3. **House / Congress** — congressional district races, the single largest cluster (~460 rows, since every candidate in every district is its own contract). Split out of Elections so that chip stays usable: NY district shorthands (NY-12, "New York 21 House"), "congressional", and House primary/seat/district/general-election wording.
+3. **House / Congress** — congressional district races, the largest cluster (~460 rows, since every candidate in every district is its own contract). Split out of Elections so that chip stays usable: NY district shorthands (NY-12, "New York 21 House"), "congressional", and House primary/seat/district/general-election wording.
 4. **Elections** — every *other* New York race: governor, state senate and assembly, US Senate, attorney general, comptroller, mayor, borough president, district attorney, city council, ballot measures (~74 rows).
 5. **Policy & government** — congestion pricing, rent, the MTA, NYPD, crime, budget, taxes, housing, immigration, transit and the rest of the policy vocabulary.
-6. **Other** — genuinely uncategorized civic markets (population and demographics, city efficiency savings, a Waymo launch, and so on).
+6. **Other** — uncategorized civic markets (population and demographics, city efficiency savings, a Waymo launch, and so on).
 
 The same classifier is mirrored in `index.html` as a fallback, so the chips still work on older history snapshots written before the `category` field existed. To retune the buckets, edit the regexes in both places (or just `fetch.mjs` and re-run).
 
@@ -145,7 +145,7 @@ When the same outcome trades on more than one platform — e.g. "Mamdani freezes
 
 The `TOPIC_RULES` array in `fetch.mjs` is a list of `{ id, label, pattern }` rules. Each market's question is matched against the rules; the first match wins and tags the market with `topic_id` + `topic_label`. The dashboard groups markets by `topic_id` and surfaces any topic with 2+ distinct platforms in a "Same question, different platforms" comparison strip at the top of the page, sorted by spread (biggest disagreement first).
 
-Topics are deliberately conservative: same outcome **and** same time window. "Mamdani freezes rent in 2026" and "Mamdani freezes rent before 2027" are distinct topics — they're betting on different things. Markets that don't match any rule have `topic_id: null` and don't appear in the comparison strip; they show up only in the main table.
+Topics are conservative: same outcome **and** same time window. "Mamdani freezes rent in 2026" and "Mamdani freezes rent before 2027" are distinct topics — they're betting on different things. Markets that don't match any rule have `topic_id: null` and don't appear in the comparison strip; they show up only in the main table.
 
 Adding a new topic is a one-line append to `TOPIC_RULES`.
 

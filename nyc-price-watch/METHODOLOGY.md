@@ -3,9 +3,9 @@
 **Version 2.0 · July 28, 2026**
 
 This document specifies what the NYC Price Watch measures, how each
-series is constructed, and — as precisely as possible — what it cannot
+series is constructed and — as precisely as possible — what it cannot
 support. It is written for readers who will interrogate the estimator,
-the sampling frame, and the geographic and temporal concordance before
+the sampling frame and the geographic and temporal concordance before
 they trust a number.
 
 ---
@@ -13,16 +13,16 @@ they trust a number.
 ## 1. Object of measurement
 
 The Price Watch measures **New York City affordability in two parts**:
-an **earnings-and-inflation panel** carrying official BLS statistics on
-what people earn and how prices are moving, and an **item-by-item price
+an **earnings-and-inflation panel** carrying official Bureau of Labor
+Statistics (BLS) figures on what people earn and how prices are moving, and an **item-by-item price
 tracker** of individually-specified series for specific fares, tolls,
 rents and bills. It is not a cost-of-living index and not a substitute
 for the Consumer Price Index — the CPI is itself one of the statistics
 carried.
 
-The distinction is load-bearing, so state it plainly:
+The difference between the two:
 
-- A **price index** (CPI, PCE) tracks the cost of a fixed or
+- A **price index** (the CPI, the personal consumption expenditures index) tracks the cost of a fixed or
   chained basket of goods weighted by expenditure shares, with quality
   adjustment and substitution logic. It answers: *how much more does it
   cost to attain a comparable standard of living?*
@@ -41,16 +41,16 @@ does not do the arithmetic for them.
 **There is no aggregate.** The page deliberately publishes no
 composite "NYC affordability number," because the series carry no
 expenditure weights and mix units (dollars, dollar-per-unit, index
-levels, and year-over-year rates). Averaging them would be
+levels and year-over-year rates). Averaging them would be
 meaningless. Any reader who wants an aggregate should use the CPI
 series that are already on the page (`cpi_allitems`).
 
 ### What the dashboard is good for
 
-Direction, magnitude, and composition of price change in named,
+Direction, magnitude and composition of price change in named,
 recognizable items — including several that no official index isolates
 (a specific bridge toll, a specific transit fare, a benchmark taxi
-trip). It is a reporting instrument, not an econometric one.
+trip). It is a reporting instrument and makes no econometric claims.
 
 ---
 
@@ -74,8 +74,8 @@ BLS or S&P products reproduced without transformation:
 | Category inflation | BLS CPI-U, all Table 1 expenditure categories, same CBSA | Same as headline CPI |
 
 The value added by this project is in the **22 tracker series** beyond these: posted
-tariffs, rate-schedule reconstructions, and market prices that are real,
-locally salient, and not otherwise assembled in one place.
+tariffs, rate-schedule reconstructions and market prices that are real,
+locally salient and not otherwise assembled in one place.
 
 ---
 
@@ -113,10 +113,10 @@ therms); yellow taxi 3-mile Manhattan trip.*
   no traffic time, no tip, no peak surcharge.
 - **Interpretation:** these isolate the **price** effect by holding
   quantity constant. They are explicitly *not* estimates of what a
-  household actually pays, which varies with consumption, weather,
-  dwelling size, rate class, and (for taxis) traffic.
+  household pays, which varies with consumption, weather,
+  dwelling size, rate class and (for taxis) traffic.
 - **Known limitation:** the stipulated quantities (300 kWh, 100 therms,
-  3 miles) are conventional round numbers, not the NYC modal or median
+  3 miles) are conventional round numbers, not the New York City modal or median
   consumption. Levels are therefore illustrative; **changes** are the
   meaningful signal, since the quantity vector is frozen.
 - **Structural-break risk:** if a utility restructures its rate design
@@ -129,10 +129,10 @@ therms); yellow taxi 3-mile Manhattan trip.*
 
 *AAA gasoline average; StreetEasy median asking rent (citywide and four
 boroughs); Case-Shiller; all BLS CPI series; Employment Cost Index;
-QCEW average weekly wage.*
+Quarterly Census of Employment and Wages (QCEW) average weekly wage.*
 
 - **Estimator:** the publisher's. We record the published value on a
-  fixed schedule and do not re-estimate, smooth, or re-base.
+  fixed schedule and do not re-estimate, smooth or re-base.
 - **Each publisher's estimator differs** and is documented in §7.
 - **Revisions:** several of these are revised (see §6.4).
 
@@ -172,7 +172,7 @@ bacon-egg-and-cheese; Uber benchmark trip; family-of-four dinner.*
   establishments:  `x̄(t) = (1/n) Σ pᵢ(t)`, n ≈ 5–10.
 - **Sampling frame:** **purposive, not probabilistic.** The panels are
   hand-chosen for recognizability and geographic spread. They support
-  **no inference to a population** of NYC pizzerias, delis, or carts.
+  **no inference to a population** of New York City pizzerias, delis or carts.
   There is no sampling-error estimate because there is no probability
   design; a standard error computed from these panels would be
   meaningless as a population statement.
@@ -196,7 +196,7 @@ The spotlight at the top of the page and the category table beneath it
 are retrieved directly from the BLS public API (v2) and reproduced
 without transformation. Construction rules:
 
-- **Earnings** are CES series `SMU36356200500000003` (average hourly
+- **Earnings** are Current Employment Statistics (CES) series `SMU36356200500000003` (average hourly
   earnings) and `SMU36356200500000011` (average weekly earnings), all
   employees on total-private payrolls, New York-Newark-Jersey City,
   NY-NJ metropolitan area, not seasonally adjusted. These are **growth
@@ -240,7 +240,7 @@ interchangeable**. Every card carries a scope chip.
 | **NYC metro area** | New York-Newark-Jersey City CBSA (or the Case-Shiller NY metro definition), **including parts of New Jersey and the lower Hudson Valley** | AAA gasoline, all five CPI series, Case-Shiller, Employment Cost Index |
 | **U.S. city average** | National, not New York | BEC ingredient index |
 
-**Consequences a careful reader should hold onto:**
+**Consequences:**
 
 1. **The dashboard is not a pure five-borough instrument.** Six of the
    most-cited series (gasoline, four CPI lines, Case-Shiller) are
@@ -269,7 +269,7 @@ separate:
 
 The chart plots values at their **reference period**, not their release
 or retrieval date. The card's "as of" line shows retrieval. Confusing
-these is the most common way a dashboard like this goes wrong, and
+these is a common way for a dashboard like this to go wrong, and
 `readings.json` stores the reference period explicitly.
 
 ### 5.2 Publication lag
@@ -307,7 +307,7 @@ observation versus latest 2026 observation.
 ### 6.1 Seasonal adjustment
 
 **Series are carried as published; most are not seasonally adjusted.**
-The CPI metro series used here are NSA; Case-Shiller is available in
+The CPI metro series used here are not seasonally adjusted (NSA); Case-Shiller is available in
 both forms and the YoY rate we carry is not sensitive to the choice at
 the level of precision displayed.
 
@@ -345,15 +345,15 @@ year-over-year badge for a separate reason (§7.4).
 ### 6.4 Revisions
 
 BLS CPI (NSA series are not routinely revised, but seasonal factors and
-some inputs are), Case-Shiller (routinely revised for several months),
+some inputs are), Case-Shiller (routinely revised for several months)
 and QCEW (revised at each subsequent release) all change after first
 publication. **We record the value as first observed and do not
 retroactively revise history**, because the log is intended as a record
 of what was knowable at each date. Where a revision is material, it is
 appended as a new note rather than silently overwriting. This means the
 displayed history can differ slightly from a fresh pull of the
-publisher's current vintage — a deliberate, documented trade-off in
-favor of an audit trail. Readers needing the current vintage should go
+publisher's current vintage; the trade-off favors an audit
+trail. Readers needing the current vintage should go
 to the source, which every card links.
 
 ### 6.5 Interpolation and the `est.` flag
@@ -395,8 +395,8 @@ This rule was added after an audit found three violations:
 - **ConEd** and **Case-Shiller** carried shape-approximated back-history
   beneath month-specific readings. Both now carry only real observations.
 
-The cost of the rule is shorter series; the benefit is that every
-plotted move is a real move. Where removing a splice leaves fewer than
+The rule shortens series, but every
+plotted move is now a real move. Where removing a splice leaves fewer than
 three points, the series falls under §6.5.1 and is drawn as discrete
 points rather than a line.
 
@@ -418,12 +418,12 @@ This is a display rule only; it does not alter stored values.
 The change-since-2026 figure compares the **first available observation
 at or after January 2026** with the latest. For several series the first
 2026 observation is not January — the badge therefore names the month it
-actually starts from (for example "since Apr") rather than asserting a
+starts from (for example "since Apr") rather than asserting a
 January baseline it does not have. Where that baseline falls inside an
 interpolated `est.` stretch, the figure is prefixed `~` to mark it as
 approximate.
 
-**No value is ever imputed, extrapolated, or nowcast.** A series with no
+**No value is ever imputed, extrapolated or nowcast.** A series with no
 observation is blank; a series with no observations at all is a dashed
 placeholder reading "awaiting data." If a scheduled fetch fails, the
 prior value is held and the failure is logged in `STATUS.md` — the
@@ -447,7 +447,7 @@ view the headline number is replaced by the change across the series'
 Two safeguards apply, because a naive year-to-date figure is easy to
 misread:
 
-1. **The window is stated, not assumed.** Several series have no
+1. **The window is stated.** Several series have no
    January reading — gasoline begins in April, the CPI lines in April,
    ConEd in April. Each card prints its actual span ("Apr → Jul 2026")
    rather than implying a January baseline. The control is labeled
@@ -455,7 +455,7 @@ misread:
 2. **Unknowable means TBD.** Where a series has no 2026 observation, or
    only one, no change is computed and the card reads `TBD`. As of v1.0
    that applies to 16 of 30 cards, including all seven uncollected
-   survey items, both wage series, and Broadway (whose 2025-26 season
+   survey items, both wage series and Broadway (whose 2025-26 season
    has not closed).
 
 **Seasonal series are withheld rather than flagged.** Con Edison's
@@ -478,7 +478,7 @@ They are subject to:
 
 - **Selection on vacancy.** Only units turning over appear. Units with
   sitting tenants — the large majority of the stock — never enter.
-- **Exclusion of the regulated stock.** Roughly half of NYC rental
+- **Exclusion of the regulated stock.** Roughly half of New York City rental
   units are rent-stabilized; their renewal increases are set annually by
   the Rent Guidelines Board and are largely invisible to a listings
   median.
@@ -490,7 +490,7 @@ They are subject to:
 
 Consequently the asking-rent series **lead and overstate** what the
 typical tenant experiences. The page carries **shelter CPI** alongside
-precisely as the counterweight: shelter CPI is estimated from a
+as the counterweight: shelter CPI is estimated from a
 probability sample of *all* renters, including sitting and regulated
 tenants, and rises more slowly. Where the two diverge, shelter CPI is
 the better estimate of tenant experience and asking rent is the better
@@ -535,11 +535,11 @@ read is reported separately.
 Case-Shiller is a repeat-sales index: it controls for quality by
 comparing the same properties across sales, but it therefore covers only
 properties that transact at least twice, excludes new construction until
-a second sale, is weighted toward the single-family market, and is
+a second sale, is weighted toward the single-family market and is
 smoothed by a three-month moving average. Its NY metro definition is
 much larger than the city, and co-op transactions — a large share of
 Manhattan housing — are handled differently from detached housing
-markets. It is a sound index of its own concept; that concept is not
+markets. It is a sound index, but it does not measure
 "the price of a New York apartment."
 
 ### 7.5 Seasonal rate structures (ConEd electricity)
@@ -559,8 +559,7 @@ The metro energy CPI rose roughly 27% over the year to May 2026, a
 figure corroborated by the Northeast regional release. That move is
 driven **overwhelmingly by gasoline**, not by household utility bills;
 electricity was approximately flat in the same release. A reader who
-takes "energy +27%" to mean utility bills rose 27% will be badly wrong.
-Component detail matters more than the aggregate for this line.
+takes "energy +27%" to mean utility bills rose 27% will be wrong.
 
 ### 7.7 Retail gasoline averages
 
@@ -575,19 +574,19 @@ timing, and is the standard reference.
 
 - **`readings.json`** is the authoritative log. One entry per series per
   observation, each carrying `date` (reference period), `value`,
-  `source`, `source_url`, `cadence`, and a free-text `note` recording
+  `source`, `source_url`, `cadence` and a free-text `note` recording
   provenance and any caveat specific to that observation. Panel
   definitions and the BEC coefficient vector are stored there.
 - **`index.html`** contains the display layer only; every displayed
   value traces to a `readings.json` entry.
 - **`fetch-bls.py` → `bls-data.json`**, **`compute-bls.py` →
-  `bls-derived.json`**, and **`build-bls-section.py`** are the BLS
+  `bls-derived.json`** and **`build-bls-section.py`** are the BLS
   pipeline: fetch raw observations from the API, derive month-matched
-  year-over-year changes, and render the spotlight and category table
+  year-over-year changes and render the spotlight and category table
   into `index.html` between generated-section markers. The section is
   never hand-edited; re-running the three scripts refreshes it in
   place.
-- **`STATUS.md`** records each automated run: what moved, what was held,
+- **`STATUS.md`** records each automated run: what moved, what was held
   and every source that failed.
 - **`SCHEDULE.md`** documents the release calendar and the refresh
   cadence.
@@ -598,7 +597,7 @@ timing, and is the standard reference.
 
 **Refresh:** an automated job runs on the last Tuesday of each month —
 the first date on which all prior-month sources have published — pulls
-the machine-retrievable series, appends to `readings.json`, and writes
+the machine-retrievable series, appends to `readings.json` and writes
 `STATUS.md`. Quarterly series (wages, family dinner) refresh in March,
 June, September and December. The job is instructed never to invent a
 value; on fetch failure it holds the prior reading and logs the failure.
@@ -606,8 +605,6 @@ value; on fetch failure it holds the prior reading and logs the failure.
 ---
 
 ## 9. Statements this dashboard does not support
-
-Stated explicitly, because the failure modes are predictable:
 
 1. **"New York got X% more expensive."** No composite exists here. Use
    `cpi_allitems` for that claim, with its metro caveat.
@@ -623,7 +620,7 @@ Stated explicitly, because the failure modes are predictable:
    purposive samples usable for same-store change only, and are
    currently unpopulated in any case.
 5. **Causal claims.** Nothing here identifies a causal effect of any
-   policy, including congestion pricing, rate cases, or fare changes.
+   policy, including congestion pricing, rate cases or fare changes.
 6. **Sub-monthly or turning-point precision.** Ragged publication lags
    and NSA data make short-window inference unreliable.
 
@@ -640,6 +637,6 @@ Stated explicitly, because the failure modes are predictable:
 
 ---
 
-*Questions, corrections, and methodological objections are welcome as
+*Questions, corrections and methodological objections are welcome as
 issues on the repository. Where this document and the display disagree,
-this document is the specification and the display is the bug.*
+the document governs and the display should be corrected.*

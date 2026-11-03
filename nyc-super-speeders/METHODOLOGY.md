@@ -1,6 +1,6 @@
 # NYC Super Speeders — Methodology
 
-Live companion to the [NYC Traffic Collisions deep dive](https://joshgreenman1973.github.io/experiments/nyc-collisions/). Every chart, counter, and map below is a live read from [NYC Open Data](https://data.cityofnewyork.us) via the Socrata Open Data API. No backend, no caching layer.
+Live companion to the [NYC Traffic Collisions deep dive](https://joshgreenman1973.github.io/experiments/nyc-collisions/). Every chart, counter and map below is a live read from [NYC Open Data](https://data.cityofnewyork.us) via the Socrata Open Data API. No backend, no caching layer.
 
 ## Data sources
 
@@ -11,12 +11,12 @@ Live companion to the [NYC Traffic Collisions deep dive](https://joshgreenman197
 
 ## Definitions
 
-- **Super speeder** — in this project, any plate with ≥15 school-zone speed-camera tickets during NYC Fiscal Year 2026 (the dataset's window). The DVAP statutory threshold is ≥15 in a rolling 12-month window; because pvqr-7yc4 is fiscal-year-scoped, FY2026 is a 12-month proxy that becomes an exact match as the fiscal year closes on June 30, 2026.
+- **Super speeder** — in this project, any plate with ≥15 school-zone speed-camera tickets during NYC Fiscal Year 2026 (the dataset's window). The Dangerous Vehicle Abatement Program (DVAP) statutory threshold is ≥15 in a rolling 12-month window; because pvqr-7yc4 is fiscal-year-scoped, FY2026 is a 12-month proxy that becomes an exact match as the fiscal year closes on June 30, 2026.
 - **Dual-threshold plate** (Both view on the Most-ticketed-plates table) — a plate that crosses *both* DVAP statutory thresholds in the selected window: ≥15 school-zone speed-camera tickets AND ≥5 red-light-camera tickets. Either threshold alone triggers DVAP boot eligibility; dual-threshold plates are doubly eligible and represent drivers exhibiting two distinct dangerous patterns (unsafe speed and failure to stop at red lights).
-- **Camera ticket** — speed-camera citation (code 36) or red-light-camera citation (code 7) issued by NYC DOT. Does not include NYPD officer-issued red-light or speed tickets.
+- **Camera ticket** — speed-camera citation (code 36) or red-light-camera citation (code 7) issued by the city's Department of Transportation (DOT). Does not include NYPD officer-issued red-light or speed tickets.
 - **DVAP status** (on the plate lookup dossier) — Red: ≥15 FY2026 tickets (legally eligible for booting). Amber: 10–14 (approaching). Green: <10.
 - **Window** — NYC Fiscal Year 2026, July 1, 2025 – June 30, 2026. Hero counters reflect live cumulative totals within that window.
-- **Base fines** — `$50 × ticket count`. $50 is the statutory NYC base fine for both school-zone speed-camera violations (NY VTL §1180-b) and red-light camera violations, flat with no per-violation escalation. The estimate excludes the $25 late-payment fee (applied after 30 days unpaid), the $25 NYS public safety fee, DMV add-ons, accrued interest, dismissals, and payment status. Real billed exposure for an unpaid plate can reasonably run 1.5× the base-fine figure.
+- **Base fines** — `$50 × ticket count`. $50 is the statutory NYC base fine for both school-zone speed-camera violations (NY VTL §1180-b) and red-light camera violations, flat with no per-violation escalation. The estimate excludes the $25 late-payment fee (applied after 30 days unpaid), the $25 NYS public safety fee, DMV add-ons, accrued interest, dismissals and payment status. Real billed exposure for an unpaid plate can reasonably run 1.5× the base-fine figure.
 
 ## Filters and queries
 
@@ -45,8 +45,8 @@ $limit=20000
 ## Calculations
 
 - **Top-1% concentration** (Why Speed Kills panel): fetch the top 20,000 plates by FY2026 ticket count, sum the top 1% of the list, divide by the total ticket volume of those 20k plates. The denominator is "plates in the top 20k," not citywide, so the true citywide concentration is somewhat lower than reported — this is an acceptable over-estimate because the long tail of 1-ticket plates is dominated by one-time offenders who aren't the focus of the chart.
-- **Insurance externality estimate** ($328 / NYC household / year): derived from NYC's average full-coverage auto premium ($~4,100/yr per Bankrate 2025) × an 8% allocation attributable to excess-speed-related claims. The 8% is a conservative estimate informed by NHTSA attribution of ~29% of traffic fatalities to speeding and the smaller proportional contribution of speeding to injury-only claims. This number is **an estimate**, not a statutory figure — it's intended as an order-of-magnitude illustration of the shared-cost externality.
-- **Pedestrian fatality curve** (20/30/40/50 mph → ~10/40/80/95%): synthesis of AAA Foundation for Traffic Safety; Rosén & Sander, *Accident Analysis & Prevention* (2009); and the NHTSA/NACTO literature on impact-speed lethality. Not a NYC-specific measurement.
+- **Insurance externality estimate** ($328 / NYC household / year): derived from NYC's average full-coverage auto premium ($~4,100/yr per Bankrate 2025) × an 8% allocation attributable to excess-speed-related claims. The 8% is a conservative estimate informed by National Highway Traffic Safety Administration (NHTSA) attribution of ~29% of traffic fatalities to speeding and the smaller proportional contribution of speeding to injury-only claims. This number is **an estimate**, not a statutory figure — it's intended as an order-of-magnitude illustration of the shared-cost externality.
+- **Pedestrian fatality curve** (20/30/40/50 mph → ~10/40/80/95%): synthesis of AAA Foundation for Traffic Safety; Rosén & Sander, *Accident Analysis & Prevention* (2009); and the NHTSA/NACTO literature on impact-speed lethality. Not a New York City-specific measurement.
 - **NYC registered vehicles ≈ 2,000,000**: used as DVAP-simulator denominator. Source: NYS DMV registration counts.
 
 ## Geography
@@ -55,13 +55,13 @@ The School Zone map plots camera-ticket totals at **intersection level**, ~500 p
 
 ## Cross-dataset per-capita comparison
 
-The "Same places, same people" chart normalizes both metrics to per-100,000-residents using 2020 Census borough populations (NYC DCP): Brooklyn 2,736,074 · Queens 2,405,464 · Manhattan 1,694,251 · Bronx 1,472,654 · Staten Island 495,747. Without population normalization, the comparison reduces to borough-size and obscures the actual rate question.
+The "Same places, same people" chart normalizes both metrics to per-100,000-residents using 2020 Census borough populations (NYC DCP): Brooklyn 2,736,074 · Queens 2,405,464 · Manhattan 1,694,251 · Bronx 1,472,654 · Staten Island 495,747. Without population normalization, the comparison reduces to borough-size and obscures the rate question.
 
 ## Known limitations
 
 1. **Camera coverage is school-zone-only.** A plate with zero speed-camera tickets is not necessarily a safe driver — it may simply not have passed a camera at a speed worth capturing. Speed cameras cover a subset of NYC roadways, so this is a floor on observed speeding, not a ceiling.
 2. **Plate-level, not driver-level.** The data identifies the vehicle's registered owner's plate, not the person driving at the time of the ticket. A family-shared vehicle, a rental, or a fleet car may have multiple drivers contributing to a single plate's record.
-3. **Full plates are displayed.** License plates are public record and have been published previously by Transportation Alternatives, Streetsblog, and NYC DOF's public violation-lookup tool. This project follows that precedent. If your plate appears and you believe it shouldn't, the data flows directly from the DOF record — disputes should be directed to NYC DOF.
+3. **Full plates are displayed.** License plates are public record and have been published previously by Transportation Alternatives, Streetsblog and the city Department of Finance's (DOF) public violation-lookup tool. This project follows that precedent. If your plate appears and you believe it shouldn't, the data flows directly from the DOF record — disputes should be directed to NYC DOF.
 4. **Fine totals don't reflect payment status.** The $50 × count is statutory gross, not outstanding balance. A dedicated paid/unpaid overlay querying per-ticket payment status is a v2 feature.
 5. **Aug 1, 2022 inflection.** Speed cameras were legally limited to school hours until this date, after which they run 24/7. The FY2026 dataset is entirely post-inflection, so this matters only for context, not for in-scope comparisons.
 6. **Null `issue_date` in pvqr-7yc4.** Roughly 58% of rows in pvqr-7yc4 (about 1.77M of 3M speed-camera rows as of this writing) have a null `issue_date`. Counts and groupings (Wall of Shame, DVAP cohort, concentration math) use the full 3M row population, but anything time-indexed (escalation curves, monthly trend, day-of-week, hour histogram, "data through" timestamp) applies a `WHERE issue_date IS NOT NULL` filter and therefore runs on the dated subset.

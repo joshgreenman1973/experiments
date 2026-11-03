@@ -794,7 +794,7 @@ export const MAIN_QUESTIONS = [
       "Where bad metrics go to be quietly buried"
     ],
     correct: 1,
-    explanation: 'The Mayor\'s Management Report (MMR), required by the Charter, is published twice a year (preliminary in January, final in September) and tracks key performance indicators across every major city agency — from average 311 response time to overtime spending to permit issuance speed. It\'s one of the most useful single documents on how city government is actually performing. <a href="https://www.nyc.gov/site/operations/performance/mmr.page" target="_blank" rel="noopener">MMR</a>.'
+    explanation: 'The Mayor\'s Management Report (MMR), required by the Charter, is published twice a year (preliminary in January, final in September) and tracks key performance indicators across every major city agency — from average 311 response time to overtime spending to permit issuance speed. It\'s one of the most useful single documents on how city government is performing. <a href="https://www.nyc.gov/site/operations/performance/mmr.page" target="_blank" rel="noopener">MMR</a>.'
   },
   {
     category: "Charter",
@@ -1083,7 +1083,7 @@ export const MAIN_QUESTIONS = [
       "Whatever the New York Post needed a one-word slur for"
     ],
     correct: 1,
-    explanation: "The 'Zohramp' was the community nickname for a long-stalled cyclist accessibility ramp on the Williamsburg Bridge that DOT completed in Mamdani's first week. It became an early viral signal that the new administration was actually going to build small things quickly."
+    explanation: "The 'Zohramp' was the community nickname for a long-stalled cyclist accessibility ramp on the Williamsburg Bridge that DOT completed in Mamdani's first week. It became an early viral signal that the new administration was going to build small things quickly."
   },
   {
     category: "Mamdani Watch",

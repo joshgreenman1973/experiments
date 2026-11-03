@@ -304,7 +304,7 @@ function render(d) {
     <p>Renewals are also what makes June look the way it does. Their monthly count runs ${M.slice(0, 3).map(m => `${short(m)} ${n0(m.renewals)}`).join(', ')} early in the year, then spikes to <span class="num">${n0(Math.max(...M.map(m => m.renewals)))}</span> in ${short(M.reduce((a, x) => x.renewals > a.renewals ? x : a))}.</p>
     ${figure('Renewal awards per month', 'Count of awards whose selection method is Renewal.',
       barChart(M.map(m => ({ label: short(m), value: m.renewals, color: m.renewals === Math.max(...M.map(x => x.renewals)) ? RED : BLUE })), { height: 180 }),
-      'Counts, not rates — the point here is the absolute pile-up, and the heaviest month is one of the better-covered ones.')}
+      'Counts, not rates, to show the absolute pile-up; the heaviest month is one of the better-covered ones.')}
     <p>None of this is irregular. Renewing a multi-year human-services contract is ordinary, and the notice runs exactly as the rules require. But it means most of the dollars in the paper this year were decided in an earlier year, and the renewal notice is the only public-comment window on them.</p>
   </section>`);
 
@@ -325,12 +325,12 @@ function render(d) {
   out.push(`<section class="finding" id="median">
     <div class="kicker">Finding 03</div>
     <h2>The typical award got bigger in June and stayed bigger</h2>
-    <p class="standfirst">One billion-dollar renewal can swing a month's total. The median is harder to move. It moved too.</p>
+    <p class="standfirst">One billion-dollar renewal can swing a month's total. The median, which is harder to move, rose as well.</p>
     <p>In every month before ${peakRate.label} the median published award sat between <span class="num">${money(earlyLo)}</span> and <span class="num">${money(earlyHi)}</span>. In every month from ${peakRate.label} onward it has sat between <span class="num">${money(lateLo)}</span> and <span class="num">${money(lateHi)}</span> &mdash; roughly ${n1(((lateLo + lateHi) / 2) / ((earlyLo + earlyHi) / 2))} times higher, with no overlap between the two ranges. The middle of the distribution moved, and it has stayed there.</p>
     ${figure('Median published award, by month', 'The midpoint award — half above, half below.',
       lineChart(M.map(m => ({ label: short(m), value: m.median, display: money(m.median) })), { fmt: money, color: RED }),
       'Medians are computed on awards with a published amount above zero.')}
-    <p>The size mix shows what happened. Small awards did not go away: awards under $100,000 ran <span class="num">${n1(smallFirst)}</span> a day in ${first.label} and <span class="num">${n1(smallLast)}</span> a day in ${last.label}. The middle and upper bands did. Awards between $1 million and $10 million went from <span class="num">${n1(midFirst)}</span> a day to <span class="num">${n1(midLast)}</span> a day, peaking at <span class="num">${n1(Math.max(...M.map(m => m.bands.m1_10 / m.days)))}</span> a day in ${short(M.reduce((a, x) => (x.bands.m1_10 / x.days) > (a.bands.m1_10 / a.days) ? x : a))}.</p>
+    <p>Small awards did not go away: awards under $100,000 ran <span class="num">${n1(smallFirst)}</span> a day in ${first.label} and <span class="num">${n1(smallLast)}</span> a day in ${last.label}. The middle and upper bands did. Awards between $1 million and $10 million went from <span class="num">${n1(midFirst)}</span> a day to <span class="num">${n1(midLast)}</span> a day, peaking at <span class="num">${n1(Math.max(...M.map(m => m.bands.m1_10 / m.days)))}</span> a day in ${short(M.reduce((a, x) => (x.bands.m1_10 / x.days) > (a.bands.m1_10 / a.days) ? x : a))}.</p>
     ${figure('Award size mix, by month', 'Share of that month\'s awards falling in each size band.',
       stackedShare(M.map(m => ({ label: short(m), ...m.bands })), bandSeries, { height: 200 }),
       'Shares, so each column sums to 100 percent. The chart shows composition; the counts behind it are in the archive.')}
@@ -381,7 +381,7 @@ function render(d) {
     ${figure('Cumulative share of published award dollars, by rank',
       'Awards sorted largest to smallest.',
       rankBars(c.top.map(x => ({ label: `Largest ${n0(x.n)} awards`, value: x.share, display: `${pct(x.share, 1)}  ·  ${money(x.value)}`, color: BLUE })), { padL: 160, fmt: v => pct(v) }),
-      'The concentration is a property of contract publishing, not an anomaly: a handful of multi-year citywide agreements dwarf everything else in the paper.')}
+      'The concentration comes from how contracts are published: a handful of multi-year citywide agreements dwarf everything else in the paper.')}
     <table class="tbl"><thead><tr><th>Date</th><th>Agency</th><th>Vendor</th><th class="num">Published value</th></tr></thead><tbody>
       ${d.largest.slice(0, 10).map(a => `<tr><td>${shortDate(a.date)}</td><td>${esc(a.agency)}</td><td>${esc(a.vendor || '—')}<div style="color:#999;font-size:11px;line-height:1.4;margin-top:2px;">${esc((a.title || '').slice(0, 72))}${(a.title || '').length > 72 ? '…' : ''} &middot; ${esc(a.method || 'method not stated')}</div></td><td class="num">${money(a.value)}</td></tr>`).join('')}
     </tbody></table>
@@ -402,7 +402,7 @@ function render(d) {
       groupedBars(sw.series.map(s => ({ label: short(s), a: s.award_hearings, b: s.public_comment })),
         [{ key: 'a', label: 'Contract Award Hearings', color: GREY }, { key: 'b', label: 'Public Comment on Contract Awards', color: BLUE }], { height: 190 }),
       'The handover happens between January and February. Anyone tracking the old section alone would conclude the city stopped taking comment on awards.')}
-    <p>Something was lost in the move. Notices in the old section came through with the standard procurement fields. The records in the new one arrive with no vendor name and no contract amount at all &mdash; the fields are absent from the row, not blank. More awards are open to public comment in the record, and less is known about them.</p>
+    <p>Notices in the old section came through with the standard procurement fields. The records in the new one arrive with no vendor name and no contract amount at all &mdash; the fields are absent from the row, not blank. More awards are open to public comment in the record, and less is known about them.</p>
     ${checkit('This is the kind of change that silently breaks a tracker. If a dashboard elsewhere shows award-comment activity falling off a cliff in February 2026, this is almost certainly why.')}
   </section>`);
 
@@ -460,7 +460,7 @@ function render(d) {
     ${figure('Median days from published solicitation to bid deadline',
       'Months with at least 10 dated solicitations.',
       lineChart(bwMonths.map(m => ({ label: short(m), value: m.median, display: n0(m.median) + 'd' })), { fmt: v => v.toFixed(0) + 'd', color: BLUE, height: 175 }),
-      'A flat line here is the point: whatever else changed about city contracting this year, the response window did not.')}
+      'The line is flat: whatever else changed about city contracting this year, the response window did not.')}
     <p>Short windows do exist. <span class="num">${pct(bw.short_share, 1)}</span> of dated solicitations give two weeks or less, and a handful run within days of their own deadline &mdash; ${bw.very_short.length ? `the shortest in the archive is ${n0(bw.very_short[0].days)} days, on ${esc(bw.very_short[0].agency)}'s "${esc((bw.very_short[0].title || '').slice(0, 56))}" notice` : ''}. Some of those are real deadlines set close in. Others are almost certainly a notice published late against a deadline set earlier. The City Record cannot tell the two apart, and neither can this page.</p>
   </section>`);
 
@@ -483,7 +483,7 @@ function render(d) {
     }).join('')}
     <p>Shelter and homeless services is the biggest of them by dollars &mdash; <span class="num">${money(shelter.series.reduce((s, x) => s + x.value, 0))}</span> across <span class="num">${n0(themeTotal(shelter))}</span> notices &mdash; and unlike most categories it does not drop off after the fiscal-year line. Its published award value in ${shelter.series[shelter.series.length - 1].label} alone is <span class="num">${money(shelter.series[shelter.series.length - 1].value)}</span>.</p>
     <p>Immigrant and low-wage-worker legal services is the sharpest late move, though the numbers are small: <span class="num">${n0(themeTotal(legal))}</span> notices in the whole archive, <span class="num">${n0(legal.series[legal.series.length - 1].notices)}</span> of them in ${legal.series[legal.series.length - 1].label} and <span class="num">${n0(legal.series[legal.series.length - 2] ? legal.series[legal.series.length - 2].notices : 0)}</span> in ${legal.series[legal.series.length - 2] ? legal.series[legal.series.length - 2].label : ''}. They come from the Department of Social Services and the Department of Youth and Community Development. ${legal.top && legal.top.length >= 2 ? `The two largest, both published on ${longDate(legal.top[0].date)}, went to ${esc(legal.top[0].vendor)} (<span class="num">${money(legal.top[0].value)}</span>) and ${esc(legal.top[1].vendor)} (<span class="num">${money(legal.top[1].value)}</span>).` : ''}</p>
-    <p>Two things are notable for being absent. Across ${n0(d.coverage.publication_days)} publication days, ${themeThin.map(t => `<span class="num">${n0(themeTotal(t))}</span> ${themeTotal(t) === 1 ? 'notice mentions' : 'notices mention'} ${t.label.toLowerCase()}`).join(', and ')}. Whatever the city is doing on either front, it is not arriving through published contract notices in this period.</p>
+    <p>Two subjects are nearly absent. Across ${n0(d.coverage.publication_days)} publication days, ${themeThin.map(t => `<span class="num">${n0(themeTotal(t))}</span> ${themeTotal(t) === 1 ? 'notice mentions' : 'notices mention'} ${t.label.toLowerCase()}`).join(', and ')}. Whatever the city is doing on either front, it is not arriving through published contract notices in this period.</p>
   </section>`);
 
   // ── 12. Limits ────────────────────────────────────────────────────────

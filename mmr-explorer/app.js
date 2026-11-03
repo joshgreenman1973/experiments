@@ -662,7 +662,7 @@ function viewBoard(host) {
     draw();
     pad.appendChild(table);
     const n2 = el('p', 'note');
-    n2.innerHTML = 'Agencies with fewer than ten scorable indicators are left out — a three-of-four "success rate" is not a fact about an agency. ' +
+    n2.innerHTML = 'Agencies with fewer than ten scorable indicators are left out — a three-of-four "success rate" says little about an agency. ' +
       'Share is of scored indicators only. Indicator counts are not independent observations or a measure of statistical confidence. Open an agency for the underlying measures.';
     pad.appendChild(n2);
     right.appendChild(pad);
@@ -908,7 +908,7 @@ const MEASURES = [
   },
   {
     k: 'gcagr', label: 'Sustained trend, per year', dir: true,
-    blurb: 'The first-to-last change compounded over the years between, so a rise of 60 per cent across nine years reads as the 5.4 per cent a year it actually is. This is the plainest answer to "which way has this been going, and how fast" — but it only looks at the two ends of the run.',
+    blurb: 'The first-to-last change compounded over the years between, so a rise of 60 per cent across nine years reads as 5.4 per cent a year. It answers "which way has this been going, and how fast," but it only looks at the two ends of the run.',
     ends: ['Strongest sustained trend the city\'s way', 'Strongest sustained trend against it'],
     get: r => r.st && r.st.n >= 5 ? r.st.gcagr : null,
     txt: r => fmtPct(r.st.cagr, 1) + '/yr',
@@ -916,7 +916,7 @@ const MEASURES = [
   },
   {
     k: 'gtr', label: 'Trend through every year published', dir: true,
-    blurb: 'A straight line fitted through every published year, not just the first and last, expressed as a percentage of the indicator\'s own average per year. The fit figure says how much of the movement that line actually explains: near 1 is a steady march, near 0 means a straight line explains little of the variation, so the slope alone is a poor summary.',
+    blurb: 'A straight line fitted through every published year, not just the first and last, expressed as a percentage of the indicator\'s own average per year. The fit figure says how much of the movement that line explains: near 1 is a steady march, near 0 means a straight line explains little of the variation, so the slope alone is a poor summary.',
     ends: ['Steepest line the city\'s way', 'Steepest line against it'],
     get: r => r.st && r.st.n >= 5 ? r.st.gtr : null,
     txt: r => fmtPct(r.st.tr, 1) + '/yr',
@@ -931,7 +931,7 @@ const MEASURES = [
   },
   {
     k: 'gz', label: 'Distance from its own normal', dir: true,
-    blurb: 'How far the latest figure sits from the average of every earlier year, measured in standard deviations of that indicator\'s own history. This is the measure that finds a number that is strange for itself, not merely large.',
+    blurb: 'How far the latest figure sits from the average of every earlier year, measured in standard deviations of that indicator\'s own history. It flags a number that is unusual for its own series, whatever its size.',
     ends: ['Furthest above its normal, in the city\'s favour', 'Furthest from normal, against it'],
     get: r => r.st && r.st.gz,
     txt: r => (r.st.z > 0 ? '+' : '') + r.st.z.toFixed(1) + ' sd', sub: r => (r.st.z > 0 ? 'above' : 'below') + ' its normal',
@@ -953,7 +953,7 @@ const MEASURES = [
   },
   {
     k: 'gst', label: 'Consecutive years in one direction', dir: true,
-    blurb: 'An unbroken run of years all moving the same way, ending at the latest figure. A long run is a harder fact than a single year\'s move.',
+    blurb: 'An unbroken run of years all moving the same way, ending at the latest figure. A long run is stronger evidence than a single year\'s move.',
     ends: ['Longest run the city\'s way', 'Longest run against it'],
     get: r => r.st && r.st.gst, needs: r => r.st && r.st.gst,
     txt: r => (r.st.gst > 0 ? '+' : '') + r.st.gst + ' yrs', sub: r => 'ending FY' + String(r.st.ly).slice(2),

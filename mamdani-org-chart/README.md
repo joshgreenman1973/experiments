@@ -54,8 +54,8 @@ fresh snapshot of the city's agency file; it refuses to write a short read.
 ## Using it
 
 - Click any box to open the person, their announcement, the agency page, the
-  department's own chart, and the published contacts: the officeholder's direct line
-  where the Green Book lists one, the agency main line, and the press office with its
+  department's own chart and the published contacts: the officeholder's direct line
+  where the Green Book lists one, the agency main line and the press office with its
   email. Emails come only from the city's published press-contact page; none is
   inferred from a name pattern.
 - Columns run deputy mayors first, then the other officials who report to the mayor.
@@ -82,10 +82,10 @@ supervise or keep liaison with. `EO23` in build.py records the section and verb 
 order names, and the box cites it. Offices the order does not name keep the placement below.
 
 The city publishes 132 of them in `t3jq-9nkf`, which is the source used here. Open any
-box and it shows where that file puts the office, and says so plainly if this chart
+box and it shows where that file puts the office, and says so if this chart
 shows it somewhere else. The file is updated annually and still carries a few portfolio
 names from the last administration; those are mapped to the post that absorbed the work
-in `CITY_PORTFOLIO`, and the ones with no successor are left out rather than guessed at.
+in `CITY_PORTFOLIO`, and the ones with no successor are left out.
 Offices with no published line sit in their own column. Where the Green Book and the
 governance file name different agency heads, both are shown with the reason one is
 preferred.

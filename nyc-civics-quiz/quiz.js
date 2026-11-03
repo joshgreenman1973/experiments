@@ -305,7 +305,7 @@ function rankFor(mainScore, includedBonus) {
   // Thresholds scale with MAIN_PER_RUN (25): ≤5, ≤10, ≤15, ≤19, else Policy Expert.
   if (mainScore <= 5)  return { rank: "Tourist", blurb: "You might want to Google &ldquo;City Hall.&rdquo; The basics of how New York governs itself are still a foreign country to you — which makes you, statistically, a normal New Yorker." };
   if (mainScore <= 10) return { rank: "Transplant", blurb: "You're learning. You probably know the difference between a Council Member and a State Assemblymember most days. The agencies remain a blur." };
-  if (mainScore <= 15) return { rank: "Engaged Resident", blurb: "You read the local news, follow local politics, and have opinions about ULURP. You're the kind of New Yorker the city actually depends on." };
+  if (mainScore <= 15) return { rank: "Engaged Resident", blurb: "You read the local news, follow local politics, and have opinions about ULURP. You're the kind of New Yorker the city depends on." };
   if (mainScore <= 19) return { rank: "Civic Wonk", blurb: "You probably work in or near government, journalism, or advocacy &mdash; or you're an unusually motivated civilian. Either way, the Charter is your beach read." };
   return {
     rank: "Policy Expert",

@@ -1,6 +1,6 @@
 # Vital City — Experiments Gallery
 
-A prototype gallery page for [Vital City](https://www.vitalcitynyc.org/) showcasing creative urban data tools and maps built by independent developers and small teams.
+A prototype gallery page for [Vital City](https://www.vitalcitynyc.org/) that collects urban data tools and maps built by independent developers and small teams.
 
 ## Files
 

@@ -24,11 +24,11 @@ Research was done with Anthropic's Claude Code under the author's direction, usi
 
 ## Like-for-like check
 
-Every pair was checked on Sept. 6, 2026 for a matching definition, universe and source series. Where the two ends came from different products (a decennial census count and an American Community Survey estimate; an executive budget proposal and an adopted budget; a Downtown Alliance figure drawn from a broker's report and a later one from Cushman & Wakefield), the label or the methodology page says so.
+Every pair was checked on Sept. 6, 2026 for a matching definition, universe and source series. Where the two ends came from different products (a decennial census count and an American Community Survey (ACS) estimate; an executive budget proposal and an adopted budget; a Downtown Alliance figure drawn from a broker's report and a later one from Cushman & Wakefield), the label or the methodology page says so.
 
 ## Skeptic's pass
 
-A final review on Sept. 6, 2026 asked of each row what an economist, demographer or statistician would object to. Changes made as a result: the counterterrorism row no longer shows a zero baseline, since the NYPD's intelligence division predates 9/11 and the current budget line combines both bureaus; real-dollar changes were added to every money row; the 2020 census race-coding change is stated on the page; and caveats were added on early stop-and-frisk reporting, tourism estimate methods, the 2021 Housing and Vacancy Survey redesign, the ACS population controls behind the 2024 count of children, and whether the 2001 life table includes attack deaths.
+A final review on Sept. 6, 2026 asked of each row what an economist, demographer or statistician would object to. Changes made as a result: the counterterrorism row no longer shows a zero baseline, since the New York Police Department's intelligence division predates 9/11 and the current budget line combines both bureaus; real-dollar changes were added to every money row; the 2020 census race-coding change is stated on the page; and caveats were added on early stop-and-frisk reporting, tourism estimate methods, the 2021 Housing and Vacancy Survey redesign, the ACS population controls behind the 2024 count of children, and whether the 2001 life table includes attack deaths.
 
 ## Known limitations
 
@@ -38,4 +38,4 @@ A final review on Sept. 6, 2026 asked of each row what an economist, demographer
 - The NYPD's 2000 headcount peak comes from secondary sources that agree with each other (40,285 and 40,280) and with the City Comptroller's description of a required peak of 40,710.
 - The count of buildings 1,000 feet or taller relies on a maintained encyclopedia list; the tall-buildings council's database could not be fetched.
 - The fiscal 2002 budget figure is the April 2001 executive proposal, the last budget document before the attacks, rather than the total adopted in June 2001.
-- Federal homeland security grants compare two awards (fiscal 2004 and fiscal 2024) to the same New York urban area. Fiscal 2025 is disputed between FEMA's published allocation and the state's account of what was issued, and fiscal 2026 is so far only a target allocation, so neither is used as the headline figure.
+- Federal homeland security grants compare two awards (fiscal 2004 and fiscal 2024) to the same New York urban area. Fiscal 2025 is disputed between the Federal Emergency Management Agency's published allocation and the state's account of what was issued, and fiscal 2026 is so far only a target allocation, so neither is used as the headline figure.
