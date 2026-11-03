@@ -32,240 +32,280 @@ code{font-size:.88em;background:var(--vc-paper);padding:1px 4px;}
 </head>
 <body>
 <main>
-<h1>Subway vs. street: methodology</h1>
-<p>How the model behind “Is the subway safer than the street?” works, every number it uses, where each one comes from and which ones are assumptions. Revised November 3, 2026, with full-year 2025 data.</p>
-<h2>What the model measures</h2>
-<p>The model asks how often violent crime happens per hour that people spend in a place. It divides crimes in the subway by the total hours people spend in the subway, does the same for streets and other public outdoor spaces, and compares the two rates.</p>
+<h1>How the subway-vs-street calculation works</h1>
+<p>This document walks through every step of the calculation behind “Is the subway safer than the street?”: what goes in, where each number comes from, which numbers are measured and which are assumed, and the arithmetic that connects them. It uses full-year 2025 data and was published in November 2026.</p>
+<h2>A word of caution first</h2>
+<p>Every result here is an estimate. The crime counts include only crimes reported to police. The time people spend in the subway is estimated from fare data and an assumed trip length. The time they spend on the street is estimated from a travel survey plus several judgment calls, and it is the least certain number in the whole calculation; reasonable changes to it make the gap between street and subway noticeably larger or smaller.</p>
+<p>The rates are citywide averages over a full year, and no one actually faces the average. Street risk in particular varies greatly by neighborhood: by the measure in Step 9, violent crime per resident in Mott Haven is about 12 times what it is in Bayside. Beyond neighborhood, a person’s risk depends on which station or block, the hour of the day, how long they linger, who they are with, their age and circumstances, and many other things this calculation cannot see. The results are a way to compare two kinds of places in general. They are not a prediction of what will happen to any one person, and the personal calculator should be read the same way.</p>
+<h2>The question and where it comes from</h2>
+<p>Most people judge the subway’s safety by counting crimes, but a count alone can’t tell you how risky a place is. A place where few crimes happen can still be dangerous if almost nobody spends time there. The fairer comparison is crimes per hour that people spend in each place.</p>
+<p>That idea comes from “<a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/">Underground: Safer Than the Surface?</a>,” by Aaron Chalfin, Alex Chohlas-Wood and Morgan C. Williams Jr. (Vital City, October 2, 2024). Using 2023 data, the article:</p>
+<ol>
+<li>Counted violent index crimes (murders, rapes, robberies and felony assaults) in the subway (1,120) and on city streets and other public places such as parks and parking lots (16,079).</li>
+<li>Estimated how much time people spent in the subway: “over 1.3 billion” rides, counting an estimate of fare evaders, at 30 minutes on a train plus 10 minutes on platforms, in tunnels and on stairs. That came to about 880 million person-hours.</li>
+<li>Divided the two to get a subway rate of almost 1.3 violent crimes per million person-hours.</li>
+<li>Asked how much time people would have to spend on the street for the street rate to be that low. The answer was “over 12.5 billion hours,” or more than 25 hours a week for each of the roughly 9.5 million people in the city on a given day (about 8.3 million residents plus over 1 million commuters and tourists).</li>
+<li>Compared that with a sketch of a typical New Yorker’s week outside: about an hour a day commuting on weekdays, five hours of errands and eight hours of weekend leisure, roughly 18 hours in all. The article concluded the subway was likely safer per hour, while noting that its estimates rest on “some educated guesses about how people spend their time.”</li>
+</ol>
+<p>The article stopped at step 5: it showed how much street time it would take to erase the subway’s advantage, but did not estimate how much street time there actually is. This analysis follows the same steps with 2025 data and adds that missing piece, an estimate of total street time, so the two rates can be compared directly.</p>
+<h2>The basic formula</h2>
+<p>A <strong>person-hour</strong> is one person spending one hour in a place. If a million people each spend an hour in the subway, that is a million person-hours.</p>
 <blockquote>
-<p>rate = crimes ÷ person-hours of exposure</p>
+<p>rate = crimes ÷ person-hours</p>
 <p>ratio = street rate ÷ subway rate</p>
 </blockquote>
-<p>A person-hour is one person spending one hour in a place. Rates are stated per million person-hours.</p>
-<p>The approach comes from Aaron Chalfin, Alex Chohlas-Wood and Morgan C. Williams Jr., “<a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/">Underground: Safer Than the Surface?</a>” (Vital City, October 2, 2024). That article computed the subway rate for 2023 and asked how much street time would make the two rates equal. This model goes one step further and estimates street time directly.</p>
-<h2>Headline results (2025)</h2>
+<p>Rates are stated per million person-hours. A ratio of 8 means that, on average, an hour on the street carries eight times the chance of violent victimization of an hour in the subway.</p>
+<p>It doesn’t matter whether the subway’s hours come from many people riding a little or a few people riding a lot. For every hour anyone spends down there, the rate says how many crimes occur on average. Someone who rides more accumulates more exposure, but the average rate per hour is the same.</p>
+<h2>Step 1: Count the crimes</h2>
+<p><strong>The data.</strong> Every count comes from NYPD Complaint Data Historic (<a href="https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i">NYC Open Data, qgea-i56i</a>), a record of every criminal complaint NYPD takes, accessed November 3, 2026. Each complaint is assigned to a year by the date it was reported, the convention NYPD uses for its own annual totals.</p>
+<p><strong>Which crimes.</strong> The main measure is the one the Vital City article used, violent index crimes:</p>
+<ul>
+<li>murder and non-negligent manslaughter</li>
+<li>rape</li>
+<li>robbery</li>
+<li>felony assault</li>
+</ul>
+<p>The calculator offers two other groupings:</p>
+<ul>
+<li><strong>Violent plus misdemeanor assault</strong> adds “assault 3 and related offenses,” the lower-level assault charge that covers most fights resulting in minor injury.</li>
+<li><strong>All index crimes</strong> adds the three property crimes in NYPD’s index: burglary, grand larceny and grand larceny of a motor vehicle.</li>
+</ul>
+<p><strong>What counts as the subway.</strong> A complaint counts as a subway crime if NYPD’s Transit Bureau, which polices the subway, handled it (the dataset’s jurisdiction field reads “N.Y. Transit Police”). That covers trains, platforms and stations. Applied to 2023, this rule gives 1,120 violent crimes, exactly the article’s number.</p>
+<p><strong>What counts as the street.</strong> A complaint counts as a street crime if any other part of NYPD handled it and the premise is one of these public outdoor places: street; park or playground; public or private parking lot or garage; highway or parkway; open lot; bus stop; bridge; marina or pier. Applied to 2023, this rule gives 16,099 violent crimes, within 0.1% of the article’s 16,079. (The article doesn’t list which premise codes it used. This list is the closest documented rule.)</p>
+<p><strong>The 2025 counts.</strong></p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
-<th></th>
+<th>Crime</th>
 <th>Subway</th>
 <th>Street and public spaces</th>
-<th>Street ÷ subway</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Violent index crimes</td>
-<td>1,007</td>
-<td>16,003</td>
-<td></td>
+<td>Murder</td>
+<td>4</td>
+<td>0 (see below)</td>
 </tr>
 <tr>
-<td>Person-hours</td>
-<td>952 million</td>
-<td>1.82 billion</td>
-<td></td>
+<td>Rape</td>
+<td>9</td>
+<td>181</td>
 </tr>
 <tr>
-<td>Violent crimes per million person-hours</td>
-<td>1.06</td>
-<td>8.79</td>
-<td><strong>8.3×</strong></td>
+<td>Robbery</td>
+<td>401</td>
+<td>7,542</td>
 </tr>
 <tr>
-<td>Plus misdemeanor assault, per million hours</td>
-<td>2.86</td>
-<td>18.65</td>
-<td><strong>6.5×</strong></td>
+<td>Felony assault</td>
+<td>593</td>
+<td>8,280</td>
 </tr>
 <tr>
-<td>All seven index crimes, per million hours</td>
-<td>2.28</td>
-<td>25.37</td>
-<td><strong>11.2×</strong></td>
-</tr>
-</tbody>
-</table></div>
-<p>Run on 2023 inputs, the same code gives 8.0× for violent crime, against 7.9× in the earlier version of the page.</p>
-<h2>1. Counting the crimes</h2>
-<p><strong>Dataset.</strong> NYPD Complaint Data Historic (<a href="https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i">NYC Open Data, qgea-i56i</a>), pulled November 3, 2026. It covers complaints reported through December 31, 2025. Each complaint is dated by its report date (RPT_DT), the convention NYPD uses for its own year totals. The 2023 violent total in this dataset (46,588) matches the sum of NYPD’s published 2023 counts for murder, rape, robbery and felony assault.</p>
-<p><strong>Crime categories.</strong></p>
-<ul>
-<li>Violent index crimes: murder and non-negligent manslaughter, rape, robbery, felony assault.</li>
-<li>Violent plus misdemeanor assault: adds “Assault 3 and related offenses,” the lower-level assault charge.</li>
-<li>All index crimes: the four violent crimes plus burglary, grand larceny and grand larceny of a motor vehicle.</li>
-</ul>
-<p><strong>Where a crime counts as “subway.”</strong> Complaints under the jurisdiction of the NYPD Transit Bureau (JURIS_DESC = “N.Y. TRANSIT POLICE”). This reproduces the Vital City article’s 2023 subway count of 1,120 exactly. Using the premise code “Transit – NYC Subway” instead gives 1,086, so the article evidently counted by jurisdiction.</p>
-<p><strong>Where a crime counts as “street.”</strong> Every other complaint whose premise is one of: street; park or playground; public or private parking lot or garage; highway or parkway; open lot; bus stop; bridge; marina or pier. This gives 16,099 violent crimes for 2023, within 0.1% of the article’s 16,079. The article does not publish its premise list; this is the closest documented rule found, and the new numbers use it consistently.</p>
-<p><strong>Counts.</strong></p>
-<div class="table-wrap"><table>
-<thead>
-<tr>
-<th></th>
-<th>2023 subway</th>
-<th>2023 street</th>
-<th>2025 subway</th>
-<th>2025 street</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Violent index</td>
-<td>1,120</td>
-<td>16,099</td>
-<td>1,007</td>
-<td>16,003</td>
+<td><strong>Violent index crimes</strong></td>
+<td><strong>1,007</strong></td>
+<td><strong>16,003</strong></td>
 </tr>
 <tr>
 <td>Misdemeanor assault</td>
-<td>1,790</td>
-<td>16,301</td>
 <td>1,720</td>
 <td>17,949</td>
 </tr>
 <tr>
-<td>Violent + misdemeanor assault</td>
-<td>2,910</td>
-<td>32,400</td>
-<td>2,727</td>
-<td>33,952</td>
+<td><strong>Violent plus misdemeanor assault</strong></td>
+<td><strong>2,727</strong></td>
+<td><strong>33,952</strong></td>
 </tr>
 <tr>
-<td>All seven index crimes</td>
-<td>2,285</td>
-<td>46,487</td>
-<td>2,166</td>
-<td>46,180</td>
+<td>Burglary</td>
+<td>14</td>
+<td>1,271</td>
+</tr>
+<tr>
+<td>Grand larceny</td>
+<td>1,145</td>
+<td>16,930</td>
+</tr>
+<tr>
+<td>Grand larceny of a motor vehicle</td>
+<td>0</td>
+<td>11,976</td>
+</tr>
+<tr>
+<td><strong>All index crimes</strong></td>
+<td><strong>2,166</strong></td>
+<td><strong>46,180</strong></td>
 </tr>
 </tbody>
 </table></div>
-<p>Citywide, at all locations, 2025: 47,291 violent index crimes, 60,898 misdemeanor assaults and 121,756 index crimes.</p>
-<p><strong>Caveats on the counts.</strong></p>
+<p>Of the 16,003 street violent crimes, 14,508 happened on a street, 1,037 in a park or playground and the remaining 458 in the other public places listed above.</p>
+<p>The subway’s share of violent crime in public places: 1,007 ÷ (1,007 + 16,003) = 5.9%, or about 1 in 17.</p>
+<p><strong>Things to know about these counts.</strong></p>
 <ul>
-<li>About half of murders have no premise recorded (163 of 309 in 2025), so they never enter the street count. That slightly understates street risk.</li>
-<li>New York broadened its legal definition of rape in September 2024. Rape complaints rose from 1,452 in 2023 to 2,049 in 2025 citywide. The change applies to subway and street alike, but it affects comparisons across years.</li>
-<li>The index category includes car theft (grand larceny of a motor vehicle: 11,976 of the 46,180 street index crimes in 2025). Car theft is not a risk to a person walking down the street, so the “all index” ratio overstates the danger a pedestrian faces. It is kept because it is NYPD’s standard grouping.</li>
-<li>These are crimes, not victims. A robbery of two people is one complaint, and one person can be victimized twice.</li>
-<li>Only reported crimes count. If subway crime is reported more often (more cameras, more police, more witnesses), the true gap is larger than measured.</li>
+<li><strong>Murders on the street.</strong> About half of murders in this dataset have no premise recorded (163 of 309 in 2025), so none reach the street count. That slightly understates street risk.</li>
+<li><strong>Rape.</strong> New York broadened its legal definition of rape in September 2024, so 2025 counts are higher than in earlier years under the old definition. The change affects subway and street alike.</li>
+<li><strong>Car theft.</strong> The “all index” grouping includes car theft, which is not a danger to a person walking down the street. That grouping therefore overstates pedestrian risk; it is offered because it is NYPD’s standard set.</li>
+<li><strong>Crimes, not victims.</strong> A robbery of two people is one complaint, and one person can be a victim twice.</li>
+<li><strong>Reported crimes only.</strong> Many crimes are never reported. If subway crime is reported more often than street crime (more cameras, police and witnesses), the true gap is larger than measured; if less often, smaller.</li>
 </ul>
-<h2>2. Subway exposure</h2>
+<h2>Step 2: Estimate time spent in the subway</h2>
+<p>The article’s method, with 2025 inputs:</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
 <th>Input</th>
 <th>Value</th>
 <th>Source</th>
-<th>Status</th>
+<th>Measured or assumed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Paid subway entries, 2025</td>
 <td>1,282,466,281</td>
-<td><a href="https://data.ny.gov/Transportation/MTA-Daily-Ridership-and-Traffic-Beginning-2020/sayj-mze2">MTA Daily Ridership and Traffic</a> (data.ny.gov), mode = Subway, summed over 2025</td>
+<td><a href="https://data.ny.gov/Transportation/MTA-Daily-Ridership-and-Traffic-Beginning-2020/sayj-mze2">MTA Daily Ridership and Traffic</a>, mode “Subway,” summed over the year</td>
 <td>Measured</td>
 </tr>
 <tr>
-<td>Fare evasion, 2025</td>
+<td>Share of riders who don’t pay</td>
 <td>10.20%</td>
-<td>Mean of the four 2025 quarterly rates (9.8%, 9.9%, 11.0%, 10.1%) in <a href="https://data.ny.gov/Transportation/MTA-NYCT-Subway-Fare-Evasion-Beginning-2018/6kj3-ijvb">MTA NYCT Subway Fare Evasion</a></td>
+<td>Average of MTA’s four 2025 quarterly estimates (9.8%, 9.9%, 11.0% and 10.1%) in <a href="https://data.ny.gov/Transportation/MTA-NYCT-Subway-Fare-Evasion-Beginning-2018/6kj3-ijvb">MTA NYCT Subway Fare Evasion</a></td>
 <td>Survey estimate</td>
 </tr>
 <tr>
 <td>Time in the system per trip</td>
 <td>40 minutes</td>
-<td>Vital City: 30 on the train, 10 on platforms and stairs</td>
-<td>Assumption, checked below</td>
+<td>The article: 30 minutes on the train, 10 on platforms, in tunnels and on stairs</td>
+<td>Assumed</td>
 </tr>
 </tbody>
 </table></div>
+<p>MTA’s ridership counts paid entries. People who jump the turnstile are in the subway too, so the paid count is scaled up. If 10.2% of riders don’t pay, paid riders are the other 89.8%:</p>
 <blockquote>
-<p>trips = 1,282,466,281 ÷ (1 − 0.1020) = 1,428,136,170</p>
+<p>all trips = 1,282,466,281 ÷ (1 − 0.1020) = 1,282,466,281 ÷ 0.8980 = 1,428,136,170</p>
 <p>person-hours = 1,428,136,170 × 40 ÷ 60 = 952,090,780 ≈ <strong>952 million</strong></p>
 </blockquote>
-<p><strong>Check against the original.</strong> For 2023: 1,150,217,108 paid entries ÷ (1 − 0.12675) × 40 ÷ 60 = 878 million, matching the article’s “about 880 million” and its “over 1.3 billion” rides. That confirms the article added fare evaders to MTA’s paid count, and that this update repeats its method.</p>
-<p><strong>Check on the 40 minutes.</strong> NYC DOT’s 2024 Citywide Mobility Survey records each leg of a trip. Summing the subway legs of each trip gives a weighted average of about 42 minutes in the subway per trip. So 40 minutes is a fair round number. If the true figure were 33 minutes, subway hours would fall to about 785 million and the violent-crime ratio would fall from 8.3× to about 6.9×.</p>
-<h2>3. Street exposure</h2>
-<p>This is the weakest link. No dataset measures how long New Yorkers spend on the street, so the model builds three estimates and averages them. Each input below is marked as measured or assumed.</p>
-<p><strong>Effective daily population: 9,785,000.</strong> 8,585,000 residents (Census Vintage 2025 estimate for July 1, 2025, as reported by the <a href="https://s-media.nyc.gov/agencies/dcp/assets/files/pdf/data-tools/population/population-estimates/new-york-city-population-estimates-and-trends-march-2026.pdf">NYC Department of City Planning</a>, March 2026) plus 1,000,000 commuters and 200,000 tourists. The commuter and tourist figures are the Vital City article’s and were not refreshed. The earlier version of this page used 8.3 million residents (9.5 million in all).</p>
-<h3>Method 1: walking-trip decomposition</h3>
+<p>The same steps reproduce the article’s 2023 figure. MTA counted 1,150,217,108 paid entries in 2023, and fare evasion averaged 12.675% across that year’s four quarters (11.1%, 12.3%, 14.0% and 13.3%). That gives 1,150,217,108 ÷ 0.87325 = 1,317,168,174 trips (the article’s “over 1.3 billion”) and 1,317,168,174 × 40 ÷ 60 = 878 million person-hours (the article’s “about 880 million”).</p>
+<p><strong>Checking the 40 minutes.</strong> NYC Department of Transportation’s 2024 Citywide Mobility Survey asks New Yorkers to log every trip, broken into legs. Adding up the subway legs of each subway trip gives a weighted average of about 42 minutes in the subway per trip, close to the article’s 40. If the true figure were 33 minutes, subway hours would fall to about 785 million and the final violent-crime ratio would fall from 8.3 to about 6.9.</p>
+<h2>Step 3: Calculate the subway rate</h2>
 <blockquote>
-<p>street hours = population × trips per person per day × share of trips made on foot × minutes per walking trip ÷ 60 × 365</p>
+<p>subway rate = 1,007 ÷ 952 million person-hours = <strong>1.06 violent crimes per million person-hours</strong></p>
 </blockquote>
+<p>(More precisely 1,007 ÷ 952 = 1.0578. The article’s 2023 figure was 1,120 ÷ 880 = 1.27, its “almost 1.3.”)</p>
+<h2>Step 4: Find the break-even amount of street time</h2>
+<p>This is the article’s central move. How many hours would people have to spend on the street for the street rate to be as low as the subway’s?</p>
+<blockquote>
+<p>break-even street hours = street crimes ÷ subway rate = 16,003 ÷ 1.0578 per million = 15.13 billion person-hours</p>
+</blockquote>
+<p>Spread over everyone in the city on a given day (Step 5 explains the 9,785,000):</p>
+<blockquote>
+<p>15,130,000,000 ÷ 52 weeks ÷ 9,785,000 people = <strong>29.7 hours a week each</strong></p>
+</blockquote>
+<p>The article’s 2023 version of this number was “over 25 hours per week.” If people spend less time than this on the street, the street is the riskier place per hour. The rest of the analysis estimates how much less.</p>
+<h2>Step 5: Estimate time spent on the street</h2>
+<p>No dataset measures how long New Yorkers spend on the street, so this step builds three independent estimates and averages them. Each input is marked as measured or assumed.</p>
+<p><strong>Who is in the city on a given day: 9,785,000 people.</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Number</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Residents</td>
+<td>8,585,000</td>
+<td>Census Bureau estimate for July 1, 2025 (Vintage 2025), as reported by the <a href="https://s-media.nyc.gov/agencies/dcp/assets/files/pdf/data-tools/population/population-estimates/new-york-city-population-estimates-and-trends-march-2026.pdf">NYC Department of City Planning</a>, March 2026</td>
+</tr>
+<tr>
+<td>Commuters from outside the city</td>
+<td>1,000,000</td>
+<td>The article’s “over 1 million” commuters and tourists; assumed</td>
+</tr>
+<tr>
+<td>Tourists</td>
+<td>200,000</td>
+<td>Assumed</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Method 1: Count the walking trips</h3>
+<p>Multiply the number of people by how many trips they make, the share of those trips made on foot and how long a walking trip lasts.</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
 <th>Input</th>
 <th>Value</th>
-<th>Source</th>
-<th>Status</th>
+<th>Measured or assumed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Trips per adult per day</td>
+<td>Trips per adult per day, averaged over all seven days of the week</td>
 <td>3.666</td>
-<td>2024 Citywide Mobility Survey microdata</td>
-<td>Measured</td>
+<td>Measured, 2024 Citywide Mobility Survey</td>
 </tr>
 <tr>
 <td>Share of trips made entirely on foot</td>
 <td>36.65%</td>
-<td>Same</td>
-<td>Measured</td>
+<td>Measured, same survey</td>
 </tr>
 <tr>
-<td>Mean walk-only trip</td>
+<td>Average length of a walk-only trip</td>
 <td>22.25 minutes</td>
-<td>Same</td>
-<td>Measured</td>
+<td>Measured, same survey</td>
 </tr>
 </tbody>
 </table></div>
 <blockquote>
-<p>9,785,000 × 3.666 × 0.3665 = 13,147,662 walking trips a day</p>
-<p>13,147,662 × 22.25 ÷ 60 = 4,874,667 person-hours a day</p>
-<p>× 365 = <strong>1,779,253,500</strong> (1.78 billion)</p>
+<p>walking trips per day = 9,785,000 × 3.666 × 0.3665 = 13,147,662</p>
+<p>hours per day = 13,147,662 × 22.25 ÷ 60 = 4,874,667</p>
+<p>hours per year = 4,874,667 × 365 = <strong>1,779,253,500</strong> (1.78 billion)</p>
 </blockquote>
-<p>The survey figures come from the trip table (<a href="https://data.cityofnewyork.us/d/wgnh-qwsg">wgnh-qwsg</a>) and day table (<a href="https://data.cityofnewyork.us/d/naav-ygga">naav-ygga</a>) with the survey’s citywide weights. Trips per day is total weighted trips divided by total weighted adult-days, which the survey’s user guide gives as the correct way to compute a trip rate; it averages over all seven days of the week. Transit trips are counted once even though the survey stores them as several legs.</p>
-<p>The earlier version used 2.5 trips per weekday and 2.3 per weekend day (a weighted 2.44), a 41% walking share credited to MIT’s 2026 Nature Cities study and 20 minutes a trip. The 2.5 trips could not be traced to a published survey figure. The 41% appears in the MIT paper as background drawn from travel surveys, not as a result of the model. The survey microdata replace all three.</p>
-<p>Limits of this method:</p>
+<p>The survey inputs come from the survey’s trip records (<a href="https://data.cityofnewyork.us/d/wgnh-qwsg">wgnh-qwsg</a>) and day records (<a href="https://data.cityofnewyork.us/d/naav-ygga">naav-ygga</a>), using the weights the survey provides to make its sample represent the city’s adults. Trips per day is the weighted number of trips divided by the weighted number of days, the method the survey’s user guide prescribes. A subway trip is counted once, even though the survey records the walk to the station, the ride and the walk from the station as separate legs.</p>
+<p>This method misses some street time, so treat it as a floor:</p>
 <ul>
-<li>It counts only trips made entirely on foot. It leaves out walking to and from transit, which the same survey measures at another 9.0 minutes a day per adult. Some of that walking happens inside stations, which the subway’s 40 minutes already covers.</li>
-<li>The survey covers adult residents in May and June. The model applies their walking rates to children, commuters and tourists, and to the whole year. Spring weather probably inflates walking compared with a yearly average, which makes the street look safer than it is.</li>
-<li>The median walk-only trip is 9 minutes and the mean is 22. Long recreational walks pull the mean up, but the mean is the right figure for a total.</li>
+<li>It counts only trips made entirely on foot. Walking to and from the subway or bus adds another 9.0 minutes a day per adult in the same survey, though some of that walking happens inside stations, which the subway’s 40 minutes already covers.</li>
+<li>It leaves out time outside that isn’t a trip: standing on a corner, waiting at a bus stop, sitting at an outdoor table.</li>
 </ul>
-<h3>Method 2: time-use approach</h3>
-<blockquote>
-<p>street hours = (residents × 45 min × 365 + commuters × 30 min × 250 workdays + tourists × 120 min × 365) ÷ 60 × 0.70</p>
-</blockquote>
+<p>It also has biases in the other direction:</p>
+<ul>
+<li>The survey covers adult residents in May and June. The calculation applies their habits to children, commuters and tourists, and to the whole year. Spring weather probably means more walking than the yearly average, which inflates street time and makes the street look safer than it is.</li>
+<li>The typical (median) walk-only trip is 9 minutes; long recreational walks pull the average up to 22. The average is the right figure for a total, but it is sensitive to those long walks.</li>
+</ul>
+<h3>Method 2: Estimate time outdoors</h3>
+<p>Assign each group a daily amount of time spent outdoors on foot, then remove the share that isn’t comparable to a street.</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
 <th>Input</th>
 <th>Value</th>
-<th>Status</th>
+<th>Measured or assumed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Resident outdoor pedestrian time</td>
-<td>45 minutes a day</td>
-<td>Assumption</td>
+<td>Residents’ outdoor pedestrian time</td>
+<td>45 minutes a day, every day</td>
+<td>Assumed</td>
 </tr>
 <tr>
-<td>Commuter outdoor pedestrian time</td>
-<td>30 minutes a workday</td>
-<td>Assumption</td>
+<td>Commuters’ outdoor pedestrian time</td>
+<td>30 minutes a day, 250 workdays</td>
+<td>Assumed</td>
 </tr>
 <tr>
-<td>Tourist outdoor pedestrian time</td>
-<td>120 minutes a day</td>
-<td>Assumption</td>
+<td>Tourists’ outdoor pedestrian time</td>
+<td>120 minutes a day, every day</td>
+<td>Assumed</td>
 </tr>
 <tr>
-<td>Share of outdoor time that is street-comparable</td>
+<td>Share of outdoor time spent somewhere street-like</td>
 <td>70%</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 </tbody>
 </table></div>
@@ -273,103 +313,110 @@ code{font-size:.88em;background:var(--vc-paper);padding:1px 4px;}
 <p>residents: 8,585,000 × 45 ÷ 60 × 365 = 2,350,143,750</p>
 <p>commuters: 1,000,000 × 30 ÷ 60 × 250 = 125,000,000</p>
 <p>tourists: 200,000 × 120 ÷ 60 × 365 = 146,000,000</p>
-<p>total 2,621,143,750 × 0.70 = <strong>1,834,800,625</strong> (1.83 billion)</p>
+<p>total outdoor time: 2,621,143,750</p>
+<p>street-comparable: 2,621,143,750 × 0.70 = <strong>1,834,800,625</strong> (1.83 billion)</p>
 </blockquote>
-<p>The earlier version grounded the 45 minutes in a claim that Americans walk about 20 minutes a day according to the American Time Use Survey and that New Yorkers walk 1.5 to 2.5 times as much. Neither figure could be traced to a source. The 2024 Mobility Survey now gives a direct check: adults spend 29.9 minutes a day on walk-only trips and 9.0 minutes walking to and from transit, 38.9 minutes in all. A 45-minute figure that also covers outdoor time that is not a trip is consistent with that, so it is unchanged.</p>
-<p>The 30% discount removes time in parks, plazas and private outdoor space, which counts as outdoors but is not comparable to streets for crime exposure. It is a judgment call.</p>
-<h3>Method 3: residual-time accounting</h3>
-<blockquote>
-<p>street hours = population × (24 − sleep − work or school − home awake − transit) × 0.60 × 365 × (0.30 to 0.45)</p>
-</blockquote>
+<p>The 45 minutes is checked against the Mobility Survey, which shows adults spending 29.9 minutes a day on walk-only trips and 9.0 minutes walking to and from transit, 38.9 minutes in all. Time spent outdoors that isn’t a trip comes on top of that, so 45 minutes is a reasonable figure.</p>
+<p>The 30% reduction removes time in parks, plazas and private outdoor spaces such as yards and outdoor dining areas. That time is outdoors, but not exposed to street crime in the same way. (Central Park alone gets about 42 million visits a year.) The 30% is a judgment call.</p>
+<h3>Method 3: Account for the whole day</h3>
+<p>Start with 24 hours, subtract time that is clearly not on the street, and estimate how much of what’s left is.</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
 <th>Input</th>
 <th>Value</th>
-<th>Status</th>
+<th>Measured or assumed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Sleep</td>
 <td>8.0 hours</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 <tr>
 <td>Work or school, indoors</td>
 <td>8.5 hours</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 <tr>
 <td>Home, awake</td>
 <td>4.5 hours</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 <tr>
 <td>Transit</td>
 <td>0.7 hours</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 <tr>
-<td>Share of leftover time that is outdoors</td>
+<td>Share of the remaining time spent outdoors</td>
 <td>60%</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 <tr>
-<td>Share of that which is truly on the street</td>
+<td>Share of that outdoor time truly on the street</td>
 <td>30% to 45%</td>
-<td>Assumption</td>
+<td>Assumed</td>
 </tr>
 </tbody>
 </table></div>
 <blockquote>
-<p>leftover time: 24 − 8.0 − 8.5 − 4.5 − 0.7 = 2.3 hours</p>
-<p>2.3 × 0.60 = 1.38 hours a day</p>
-<p>9,785,000 × 1.38 × 365 = 4,928,704,500</p>
-<p>× 0.30 = <strong>1,478,611,350</strong>; × 0.45 = <strong>2,217,917,025</strong>; midpoint 1,848,264,188</p>
+<p>time left over = 24 − 8.0 − 8.5 − 4.5 − 0.7 = 2.3 hours a day</p>
+<p>outdoors = 2.3 × 0.60 = 1.38 hours a day</p>
+<p>citywide = 9,785,000 × 1.38 × 365 = 4,928,704,500</p>
+<p>on the street, low end = 4,928,704,500 × 0.30 = <strong>1,478,611,350</strong></p>
+<p>on the street, high end = 4,928,704,500 × 0.45 = <strong>2,217,917,025</strong></p>
+<p>midpoint = 1,848,264,188</p>
 </blockquote>
-<p>This method is a sanity check. Every input is a guess, and the time budget treats every day as a workday for everyone, which understates free time for children, retirees and everyone on weekends.</p>
-<h3>Central estimate</h3>
+<p>Every input here is a guess, so this method serves mainly as a check on the other two. Its time budget also treats every day as a workday for everyone, which understates free time for children, retirees and everyone on weekends.</p>
+<h3>The central estimate</h3>
+<p>Average the three methods, taking Method 3 at its midpoint:</p>
 <blockquote>
 <p>(1,779,253,500 + 1,834,800,625 + 1,848,264,188) ÷ 3 = 1,820,772,771 ≈ <strong>1.82 billion person-hours</strong></p>
 </blockquote>
-<p>The earlier version described its 1.6 billion as “weighted toward Methods 1 and 2.” Its own three figures average to 1.58 billion, so a simple average is what it effectively used. This version says so. The model rounds the central estimate to the nearest 10 million (1,820 million). The three methods span 1.48 billion to 2.22 billion.</p>
-<p><strong>Per person, the central estimate works out to about 31 minutes a day on the street</strong> (1.82 billion ÷ 9,785,000 ÷ 365).</p>
-<h2>4. Rates and ratios</h2>
+<p>The calculation rounds this to 1,820 million. The three methods span 1.48 billion to 2.22 billion.</p>
+<p>Per person, that works out to 1,820,772,771 ÷ 9,785,000 ÷ 365 = 0.51 hours, or <strong>about 31 minutes a day on the street.</strong> Total street time is about 1.9 times total subway time (1,820 ÷ 952).</p>
+<h2>Step 6: Calculate the street rate and compare</h2>
+<blockquote>
+<p>street rate = 16,003 ÷ 1,820 million person-hours = <strong>8.79 violent crimes per million person-hours</strong></p>
+<p>ratio = 8.7929 ÷ 1.0578 = <strong>8.31</strong></p>
+</blockquote>
+<p>On average, an hour on the street carries about <strong>8.3 times</strong> the risk of violent victimization of an hour in the subway. Put another way, 60 ÷ 8.31 = 7.2: <strong>about 7 minutes on the street carries the same average risk as an hour in the subway.</strong></p>
+<p>The same arithmetic for the other crime groupings:</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
-<th></th>
-<th>Subway</th>
-<th>Street</th>
+<th>Grouping</th>
+<th>Subway rate</th>
+<th>Street rate</th>
 <th>Ratio</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Violent index</td>
-<td>1,007 ÷ 952 = 1.0578</td>
-<td>16,003 ÷ 1,820 = 8.7929</td>
-<td>8.31×</td>
+<td>Violent index crimes</td>
+<td>1,007 ÷ 952 = 1.06</td>
+<td>16,003 ÷ 1,820 = 8.79</td>
+<td>8.3</td>
 </tr>
 <tr>
-<td>Violent + misdemeanor assault</td>
-<td>2,727 ÷ 952 = 2.8645</td>
-<td>33,952 ÷ 1,820 = 18.6549</td>
-<td>6.51×</td>
+<td>Violent plus misdemeanor assault</td>
+<td>2,727 ÷ 952 = 2.86</td>
+<td>33,952 ÷ 1,820 = 18.65</td>
+<td>6.5</td>
 </tr>
 <tr>
-<td>All index</td>
-<td>2,166 ÷ 952 = 2.2752</td>
-<td>46,180 ÷ 1,820 = 25.3736</td>
-<td>11.15×</td>
+<td>All index crimes</td>
+<td>2,166 ÷ 952 = 2.28</td>
+<td>46,180 ÷ 1,820 = 25.37</td>
+<td>11.2</td>
 </tr>
 </tbody>
 </table></div>
-<p>Rates are per million person-hours. 60 ÷ 8.31 = 7.2, so about 7 minutes on the street carries the violent-crime risk of an hour on the subway.</p>
-<p>Subway share of public-space violent crime, 2025: 1,007 ÷ (1,007 + 16,003) = 5.9%, about 1 in 17.</p>
-<h2>5. Sensitivity to street time</h2>
-<p>Holding the subway rate at 1.0578:</p>
+<p>Rates are per million person-hours. Misdemeanor assault narrows the gap because the subway has a larger share of low-level fights. The property crimes in the index widen it, largely because of car theft.</p>
+<h2>Step 7: Test how much the street-time estimate matters</h2>
+<p>Street time is the least certain number in the calculation, so here is the violent-crime ratio across a wide range of values, holding the subway rate at 1.0578:</p>
 <div class="table-wrap"><table>
 <thead>
 <tr>
@@ -381,108 +428,109 @@ code{font-size:.88em;background:var(--vc-paper);padding:1px 4px;}
 <tbody>
 <tr>
 <td>1.0 billion</td>
-<td>16.00</td>
-<td>15.1×</td>
+<td>16,003 ÷ 1,000 = 16.00</td>
+<td>15.1</td>
 </tr>
 <tr>
 <td>1.2 billion</td>
-<td>13.34</td>
-<td>12.6×</td>
+<td>16,003 ÷ 1,200 = 13.34</td>
+<td>12.6</td>
 </tr>
 <tr>
 <td>1.5 billion</td>
-<td>10.67</td>
-<td>10.1×</td>
+<td>16,003 ÷ 1,500 = 10.67</td>
+<td>10.1</td>
 </tr>
 <tr>
 <td><strong>1.82 billion (central)</strong></td>
-<td><strong>8.79</strong></td>
-<td><strong>8.3×</strong></td>
+<td><strong>16,003 ÷ 1,820 = 8.79</strong></td>
+<td><strong>8.3</strong></td>
 </tr>
 <tr>
 <td>2.2 billion</td>
-<td>7.27</td>
-<td>6.9×</td>
+<td>16,003 ÷ 2,200 = 7.27</td>
+<td>6.9</td>
 </tr>
 <tr>
 <td>3.0 billion</td>
-<td>5.33</td>
-<td>5.0×</td>
+<td>16,003 ÷ 3,000 = 5.33</td>
+<td>5.0</td>
 </tr>
 </tbody>
 </table></div>
-<p>Across the range the three methods produce (1.48 billion to 2.22 billion), the ratio runs from 10.2× to 6.8×.</p>
-<p><strong>Break-even.</strong> The rates would be equal at 16,003 ÷ 1.0578 = 15.1 billion street person-hours a year, or 29.7 hours a week for each of the 9.785 million people in the city on a given day. (The Vital City article’s 2023 figure was “over 12.5 billion” and “over 25 hours a week.”)</p>
-<h2>6. The personal calculator</h2>
+<p>Across the range the three methods produce (1.48 billion to 2.22 billion), the ratio runs from 10.2 to 6.8. Even at 3 billion hours, two-thirds more than the central estimate, the street comes out five times riskier per hour. The two rates meet only at the break-even of about 15.1 billion hours from Step 4.</p>
+<h2>Step 8: The personal risk calculator</h2>
+<p>The calculator turns the average rates into a rough yearly chance of being a victim, given how many hours a week someone spends in each place. It assumes that person faces the citywide average risk every hour, which no real person does; treat its output as an illustration of scale, not a forecast.</p>
 <blockquote>
-<p>annual risk = 1 − (1 − r)^h</p>
+<p>chance of being a victim in a year = 1 − (1 − r)^h</p>
 </blockquote>
-<p>where r is crimes per person-hour and h is the user’s hours a year (weekly hours × 52). Each hour is treated as an independent trial with the same small chance of being victimized; at these rates the result is almost exactly r × h.</p>
-<p>Default example, violent index crimes, citywide:</p>
 <ul>
-<li>Subway, 5 hours a week: r = 1,007 ÷ 952,000,000 = 1.0578 × 10⁻⁶; h = 260; risk = 1 − 0.999725 = 0.0275%, or 1 in 3,637.</li>
-<li>Street, 10 hours a week: r = 16,003 ÷ 1,820,000,000 = 8.7929 × 10⁻⁶; h = 520; risk = 1 − 0.995438 = 0.456%, or 1 in 219.</li>
-<li>Street in Mott Haven (multiplier 3.204): r = 2.8172 × 10⁻⁵; risk = 1.454%, or 1 in 69. The calculator rounds the multiplier to 3.20 and shows 1.452%.</li>
+<li><strong>r</strong> is the average chance per hour: crimes ÷ person-hours.</li>
+<li><strong>h</strong> is that person’s hours a year: hours a week × 52.</li>
 </ul>
-<p>The calculator’s “street risk ÷ subway risk” card compares total annual risk, so it depends on the hours entered as well as the per-hour rates.</p>
-<h2>7. Neighborhood multipliers</h2>
-<p>The calculator can scale street risk by neighborhood. The multiplier is a precinct’s violent index crimes per resident divided by the citywide rate.</p>
+<p>The formula treats each hour as an independent draw with a small chance of victimization; the result is the chance that at least one hour in the year goes wrong. At these small rates it is almost exactly r × h.</p>
+<p><strong>Example: 5 hours a week in the subway.</strong></p>
 <blockquote>
-<p>citywide rate, 2025: 47,291 ÷ 8,804,081 = 5.37 per 1,000 residents</p>
-<p>Mott Haven (40th Precinct): 1,737 ÷ 100,929 = 17.21 per 1,000 → 17.21 ÷ 5.37 = <strong>3.20×</strong></p>
-<p>Bayside (111th Precinct): 179 ÷ 122,211 = 1.46 per 1,000 → 1.46 ÷ 5.37 = <strong>0.27×</strong></p>
+<p>r = 1,007 ÷ 952,000,000 = 0.0000010578</p>
+<p>h = 5 × 52 = 260</p>
+<p>chance = 1 − (1 − 0.0000010578)^260 = 1 − 0.999725 = 0.0275%, about <strong>1 in 3,637</strong></p>
 </blockquote>
-<p>Crimes are 2025 complaints by precinct (ADDR_PCT_CD). Populations are 2020 Census counts by precinct from John Keefe’s <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a> (they sum to 8,804,081). Neighborhoods that span several precincts add the crimes and the residents before dividing. The “All Index” setting repeats the calculation with all seven index crimes.</p>
-<p>Limits:</p>
+<p><strong>Example: 10 hours a week on the street, citywide.</strong></p>
+<blockquote>
+<p>r = 16,003 ÷ 1,820,000,000 = 0.0000087929</p>
+<p>h = 10 × 52 = 520</p>
+<p>chance = 1 − (1 − 0.0000087929)^520 = 1 − 0.995438 = 0.456%, about <strong>1 in 219</strong></p>
+</blockquote>
+<p>The third card in the calculator divides the street chance by the subway chance (here, 0.456 ÷ 0.0275 = 16.6). That figure compares total yearly risk in each place, so it depends on the hours entered as well as the per-hour rates.</p>
+<h2>Step 9: Adjust for neighborhood</h2>
+<p>Street risk varies enormously across the city, so the calculator can scale the street rate up or down by neighborhood. The subway rate is not adjusted, because the subway is one connected system: a rider from Mott Haven passes through Midtown on the same train as a rider from the Upper East Side.</p>
+<p>The multiplier is a neighborhood’s violent crime per resident divided by the citywide rate.</p>
+<blockquote>
+<p>citywide: 47,291 violent crimes ÷ 8,804,081 residents = 5.37 per 1,000</p>
+<p>Mott Haven (40th Precinct): 1,737 ÷ 100,929 = 17.21 per 1,000; 17.21 ÷ 5.37 = <strong>3.20</strong></p>
+<p>Bayside (111th Precinct): 179 ÷ 122,211 = 1.46 per 1,000; 1.46 ÷ 5.37 = <strong>0.27</strong></p>
+</blockquote>
+<p>So Mott Haven’s rate is 3.2 times the city’s and Bayside’s about a quarter, a gap of about 12 to 1 (3.204 ÷ 0.273 = 11.8). In the calculator, 10 hours a week on the street in Mott Haven becomes:</p>
+<blockquote>
+<p>r = 0.0000087929 × 3.204 = 0.000028172</p>
+<p>chance = 1 − (1 − 0.000028172)^520 = 1.454%, about 1 in 69</p>
+</blockquote>
+<p>(The calculator rounds the multiplier to 3.20 and shows 1.452%.)</p>
+<p>Crimes are 2025 complaints, all locations, by the precinct where they occurred. Residents are 2020 Census counts by precinct from John Keefe’s <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a>, which sum to 8,804,081 citywide. Neighborhoods covering several precincts add their crimes and residents before dividing. With “All Index” selected, the calculator uses the same calculation with all seven index crimes.</p>
+<p>Limits of the multiplier:</p>
 <ul>
-<li>The multiplier counts all violent crime in a precinct, indoors and out, but is applied only to street time. Domestic violence raises a precinct’s multiplier without raising the risk to someone walking through it.</li>
-<li>Residents are the denominator, so precincts with many workers and visitors look more dangerous than they are. Midtown (14th and 18th Precincts) comes out at 3.04× and is left out of the calculator for that reason.</li>
-<li>Recomputing 2024 with the same code reproduces the earlier version’s multipliers to within 0.02 everywhere except Hunts Point, where the data give 3.28 rather than the 2.67 the page showed.</li>
+<li>It counts all violent crime in a precinct, indoors and out, but is applied only to street time. Domestic violence, for instance, raises a precinct’s multiplier without raising the risk to someone walking through it.</li>
+<li>It divides by residents only, so areas full of workers and visitors look more dangerous than they are. Midtown (14th and 18th Precincts) comes out at 3.04 and is left out of the calculator for that reason.</li>
+<li>A precinct is still a large area. Risk varies block by block and hour by hour within it.</li>
 </ul>
-<h2>8. What the model cannot tell you</h2>
+<h2>What the calculation cannot tell you</h2>
 <ul>
-<li><strong>The street-time estimate is the crux.</strong> The central estimate implies about 31 minutes a day on the street per person. The 2024 Mobility Survey measures 39 minutes a day of walking as travel for adults (walk-only trips plus walking to and from transit), before counting any time spent outdoors that is not a trip. If street time were set from that measurement (about 2.3 billion hours), the violent-crime ratio would be about 6.5×. The Vital City article also sketched a typical working New Yorker’s week at around 18 hours outside, which would bring the ratio much closer to even. The direction of the finding is robust; its size depends on this one estimate.</li>
-<li><strong>Crime type.</strong> In 2025, robbery was 40% of violent crime on the subway and 47% on the street; felony assault was a larger share underground.</li>
-<li><strong>Place and time.</strong> Both rates vary enormously by station, neighborhood and hour. These are system-wide averages.</li>
-<li><strong>Concentration.</strong> In 2025, half of violent subway crimes were reported at 56 station names. NYPD’s station names merge some stations that share a name, such as those at 14th Street, so the true number of stations is somewhat higher. The model does not measure per-hour rates at individual stations.</li>
-<li><strong>Perception.</strong> An enclosed train can feel more dangerous than it is. Fear and risk are related but distinct.</li>
+<li><strong>The size of the gap rests on one estimate.</strong> Street time is the least certain input. The central estimate means about 31 minutes a day per person. The Mobility Survey measures 39 minutes a day of walking as travel for adults, before counting any time outside that isn’t a trip; at that level (about 2.3 billion hours) the ratio would be about 6.5. The article’s sketch of a typical working New Yorker, about 18 hours a week outside, would bring the ratio much closer to even, though that sketch describes one kind of New Yorker rather than the average across children, retirees and everyone else. Across the estimates here the street comes out riskier per hour; how much riskier depends on this number.</li>
+<li><strong>Your risk is not the average.</strong> These are citywide averages. Individual risk varies in many ways: by neighborhood and block, by station and line, by time of day and day of week, by how long someone lingers rather than passes through, by age and circumstances, and by whether someone is caught up in disputes with people they know. The calculation captures none of that beyond the rough neighborhood adjustment.</li>
+<li><strong>Correlation, not cause.</strong> As the article says, the comparison does not show that being in the subway causes lower risk. The people, times of day and activities in each place differ.</li>
+<li><strong>Crime type.</strong> The subway’s violent crime is more heavily felony assault: in 2025, robbery was 40% of violent crime in the subway and 47% on the street.</li>
+<li><strong>Concentration.</strong> In 2025, half of violent subway crimes were reported at 56 station names, out of 472 stations. NYPD’s station names merge some stations that share a name, such as those at 14th Street. The calculation does not measure per-hour rates at individual stations.</li>
+<li><strong>Perception.</strong> An enclosed underground train can feel more dangerous than it is. Fear of crime and the risk of crime are related but different.</li>
 </ul>
-<h2>9. Corrections in this revision</h2>
-<p>Beyond moving from 2023 to 2025 data, the review found and fixed these errors in the earlier version:</p>
+<h2>Reproducing the numbers</h2>
+<p>The scripts are in <code>scripts/</code> and write to <code>data/</code>. From the project folder:</p>
 <ol>
-<li><strong>All-index street count.</strong> The text used about 59,000 street index crimes (a 14× ratio); the calculator used 48,000 (11.6×). The 59,000 came from guessed outdoor shares by crime type that implied 28,500 violent crimes outdoors, contradicting the page’s own count of 16,079. Counting by premise gives 46,487 for 2023 and 46,180 for 2025. The bottom-line range changes from “6 to 14 times” to “6 to 11 times.”</li>
-<li><strong>Misdemeanor assault.</strong> The page gave 44,151 misdemeanor assaults citywide in 2023 and said 60% happened in residences. The complaint data show 58,322, with 45% in residences. The street count also used a narrower premise rule than the violent count, and the subway count used premise rather than jurisdiction. All three now use the same rules.</li>
-<li><strong>Subway hours.</strong> The walkthrough multiplied 1.3 billion trips by 40 minutes, got 866.7 million and “rounded” to 880 million. The 880 million actually comes from 1.317 billion trips (paid entries plus fare evaders). The explanation is corrected.</li>
-<li><strong>Method 3 arithmetic.</strong> The summary said 1.2 to 1.8 hours a day, 4.2 to 6.2 billion hours and 1.5 to 2.2 billion after discounting. Those do not follow from one another. The walkthrough’s figures (1.38 hours, 4.79 billion, 1.44 to 2.15 billion) were right, and the low end should have read 1.4, not 1.5.</li>
-<li><strong>Break-even population.</strong> The page said the break-even required “every person in the metro area” to spend 25+ hours a week outside. The article’s calculation uses the roughly 9.5 million people in the city on a given day; the metro area has about 20 million.</li>
-<li><strong>Sensitivity rounding.</strong> Ratios were computed from a subway rate rounded to 1.27, so the generous case showed 5.8× when the unrounded figure is 5.7×. All ratios are now computed unrounded.</li>
-<li><strong>“Tripling the conservative estimate.”</strong> The 3.0 billion case was 2.5 times the 1.2 billion “conservative” case. Reworded.</li>
-<li><strong>Neighborhood labels.</strong> “South Bronx / Melrose” covered the 44th and 46th Precincts, which are Highbridge, Concourse, Fordham and University Heights; Melrose is in the 40th and 42nd. Relabeled “Highbridge / Fordham.” “Williamsburg” included the 94th Precinct (Greenpoint) and is now “Williamsburg / Greenpoint.”</li>
-<li><strong>Crime mix.</strong> The page said the subway has “proportionally more robberies.” It has proportionally fewer: 48% vs. 51% in 2023 and 40% vs. 47% in 2025.</li>
-<li><strong>Station concentration.</strong> The page said half of violent subway crimes occur at 30 of 472 stations and that even those stations have per-hour rates far below the streets around them. The 2025 data put half at 56 station names, and no station-level exposure data exist to support the second claim. Corrected and removed.</li>
-<li><strong>Time of day.</strong> The page said rush hours are “when violence is lowest.” That was not checked against data, so the hypothesis is now worded without it.</li>
-<li><strong>Calculator note.</strong> In “All Index” mode the neighborhood note showed the violent-crime multiplier while the math used the index multiplier. The note now shows the multiplier actually applied.</li>
+<li><code>python3 -I scripts/pull_crime_counts.py</code> pulls NYPD complaint counts by year, offense, premise and jurisdiction for 2023 through 2025.</li>
+<li><code>python3 -I scripts/cms_walking.py data</code> computes the walking inputs from the 2024 Mobility Survey.</li>
+<li>Precinct counts (<code>data/precinct_violent_2025.json</code>, <code>data/precinct_index_2025.json</code>) come from the same NYPD dataset grouped by precinct; <code>data/nyc_precinct_2020pop.csv</code> comes from census-by-precincts. Then <code>python3 -I scripts/multipliers.py</code> computes the multipliers.</li>
+<li><code>python3 -I scripts/build_numbers.py</code> computes every figure in this document and on the page, prints them and saves <code>data/model.json</code>.</li>
+<li><code>python3 scripts/render_methodology.py</code> turns this file into <code>methodology.html</code>.</li>
 </ol>
-<h2>10. Reproducing the numbers</h2>
-<p>Scripts are in <code>scripts/</code>; data files land in <code>data/</code>. Run from the project folder:</p>
-<ol>
-<li><code>python3 -I scripts/pull_crime_counts.py</code>: NYPD complaints by year, offense, premise and jurisdiction for 2023 to 2025.</li>
-<li><code>python3 -I scripts/cms_walking.py data</code>: walking inputs from the 2024 Mobility Survey.</li>
-<li>Precinct counts (<code>data/precinct_violent_2024.json</code>, <code>precinct_violent_2025.json</code>, <code>precinct_index_2025.json</code>) come from grouped queries on the same NYPD dataset by ADDR_PCT_CD; <code>data/nyc_precinct_2020pop.csv</code> is from census-by-precincts. Then <code>python3 -I scripts/multipliers.py</code>.</li>
-<li><code>python3 -I scripts/build_numbers.py</code>: computes every figure on the page for 2023 and 2025, prints them and writes <code>data/model.json</code>.</li>
-<li><code>python3 scripts/render_methodology.py</code>: turns this file into <code>methodology.html</code>.</li>
-</ol>
-<p>MTA ridership, fare evasion and the population estimate are entered by hand at the top of <code>build_numbers.py</code>, each with its source.</p>
+<p>MTA ridership, fare evasion and the population figures are entered by hand at the top of <code>build_numbers.py</code>, each with its source.</p>
 <h2>Sources</h2>
 <ul>
-<li>Chalfin, Chohlas-Wood and Williams, “<a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/">Underground: Safer Than the Surface?</a>,” Vital City, October 2, 2024.</li>
+<li>Aaron Chalfin, Alex Chohlas-Wood and Morgan C. Williams Jr., “<a href="https://www.vitalcitynyc.org/underground-safer-than-the-surface/">Underground: Safer Than the Surface?</a>,” Vital City, October 2, 2024.</li>
 <li>NYPD, <a href="https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i">Complaint Data Historic</a>, NYC Open Data, accessed November 3, 2026.</li>
 <li>MTA, <a href="https://data.ny.gov/Transportation/MTA-Daily-Ridership-and-Traffic-Beginning-2020/sayj-mze2">Daily Ridership and Traffic: Beginning 2020</a>, data.ny.gov, accessed November 3, 2026.</li>
 <li>MTA, <a href="https://data.ny.gov/Transportation/MTA-NYCT-Subway-Fare-Evasion-Beginning-2018/6kj3-ijvb">NYCT Subway Fare Evasion: Beginning 2018</a>, data.ny.gov, accessed November 3, 2026.</li>
-<li>NYC Department of Transportation, Citywide Mobility Survey 2024: <a href="https://data.cityofnewyork.us/d/wgnh-qwsg">trips</a>, <a href="https://data.cityofnewyork.us/d/naav-ygga">days</a> and the 2024 user guide attached to those datasets.</li>
+<li>NYC Department of Transportation, Citywide Mobility Survey 2024: <a href="https://data.cityofnewyork.us/d/wgnh-qwsg">trip records</a>, <a href="https://data.cityofnewyork.us/d/naav-ygga">day records</a> and the survey user guide attached to them.</li>
 <li>NYC Department of City Planning, “<a href="https://s-media.nyc.gov/agencies/dcp/assets/files/pdf/data-tools/population/population-estimates/new-york-city-population-estimates-and-trends-march-2026.pdf">New York City Population Estimates and Trends</a>,” March 2026.</li>
-<li>John Keefe, <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a>, 2020 Census population by NYPD precinct.</li>
-<li>Sevtsuk and colleagues, “Spatial Distribution of Foot-traffic in New York City and Applications for Urban Planning,” Nature Cities, 2026 (<a href="https://news.mit.edu/2026/new-model-maps-foot-traffic-new-york-city-0206">MIT News summary</a>). Cited for context only; no figure from it is used.</li>
+<li>John Keefe, <a href="https://github.com/jkeefe/census-by-precincts">census-by-precincts</a>: 2020 Census population by NYPD precinct.</li>
 </ul>
 </main>
 </body>
