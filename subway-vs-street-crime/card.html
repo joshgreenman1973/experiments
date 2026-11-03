@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subway vs. street, hour for hour</title>
+<link rel="stylesheet" href="https://use.typekit.net/qqk2vto.css">
+<style>
+/* Vital City tokens */
+:root {
+  --vc-black:#050507;
+  --vc-white:#ffffff;
+  --vc-cloud:#dddddd;
+  --vc-orange:#ff7c53;
+  --vc-charcoal:#707175;
+  --vc-graphite:#3a3a3d;
+  --vc-cerulean:#217ebe;
+  --vc-orange-20:#fde5dd;
+  --vc-cerulean-20:#d2e4f0;
+  --vc-cloud-50:#eeeeee;
+  --vc-paper:#f7f7f4;
+
+  --vc-sans:"halyard-text","Inter","Helvetica Neue",Arial,sans-serif;
+  --vc-serif:"GascogneTS","Source Serif 4",Georgia,"Times New Roman",serif;
+}
+
+@font-face {
+  font-family:'GascogneTS';
+  src:url('https://vital-city-nyc.github.io/vital-city-design-system/fonts/GascogneTS-Light.ttf') format('truetype');
+  font-weight:300; font-style:normal; font-display:swap;
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+html,body{background:var(--vc-white);color:var(--vc-black);}
+body{
+  font-family:var(--vc-sans); font-weight:300;
+  line-height:1.5;
+  padding:24px 16px;
+  display:flex; justify-content:center;
+}
+
+.card{
+  width:100%; max-width:700px;
+  background:var(--vc-white);
+  border:1px solid var(--vc-black);
+  overflow:hidden;
+}
+
+/* Embed mode: the Ghost wrapper carries the only border */
+body.embed{padding:0; display:block;}
+body.embed .card{border:none; max-width:none;}
+
+/* Header */
+.head{
+  padding:22px 24px 20px;
+  border-bottom:1px solid var(--vc-cloud);
+}
+.head h1{
+  font-family:var(--vc-sans); font-weight:700;
+  font-size:1.5rem; line-height:1.15;
+  letter-spacing:-.005em;
+  margin-bottom:8px;
+  text-wrap:balance;
+}
+.head .dek{
+  font-size:.92rem; line-height:1.5;
+  max-width:62ch;
+}
+.head .dek b{font-weight:700;}
+
+/* Stats strip */
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  background:var(--vc-paper);
+  border-bottom:1px solid var(--vc-cloud);
+}
+.stat{
+  padding:14px 16px 12px;
+  border-right:1px solid var(--vc-cloud);
+}
+.stat:last-child{border-right:none;}
+.stat .num{
+  font-family:var(--vc-serif); font-weight:300;
+  font-size:1.7rem; line-height:1;
+  margin-bottom:6px;
+}
+.stat .num.subway{color:var(--vc-cerulean);}
+.stat .num.street{color:var(--vc-orange);}
+.stat .lbl{
+  font-weight:700;
+  font-size:.6rem; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--vc-charcoal);
+}
+.stat .sub{
+  display:block; margin-top:3px;
+  font-size:.7rem; color:var(--vc-charcoal);
+}
+
+/* Section labels */
+.panel{padding:18px 24px 20px; border-bottom:1px solid var(--vc-cloud);}
+.panel-label{
+  font-weight:700;
+  font-size:.6rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--vc-charcoal);
+  margin-bottom:12px;
+}
+.legend{display:flex; gap:16px; font-size:.75rem; color:var(--vc-graphite); margin-bottom:12px;}
+.legend i{display:inline-block; width:10px; height:10px; margin-right:6px; vertical-align:-1px;}
+.legend .sw-subway{background:var(--vc-cerulean);}
+.legend .sw-street{background:var(--vc-orange);}
+
+/* Bar chart: rate per million person-hours, three crime groupings */
+.group{margin-bottom:14px;}
+.group:last-child{margin-bottom:0;}
+.group-head{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  font-size:.82rem; margin-bottom:5px;
+}
+.group-head .name{font-weight:700;}
+.group-head .ratio{font-family:var(--vc-serif); font-size:1.05rem; white-space:nowrap;}
+.bar-row{display:grid; grid-template-columns:52px 1fr; align-items:center; gap:8px; margin-bottom:3px;}
+.bar-row .who{font-size:.68rem; color:var(--vc-charcoal); text-transform:uppercase; letter-spacing:.08em; font-weight:700;}
+.track{position:relative; height:16px;}
+.fill{position:absolute; left:0; top:0; bottom:0;}
+.fill.subway{background:var(--vc-cerulean);}
+.fill.street{background:var(--vc-orange);}
+.val{
+  position:absolute; top:50%; transform:translateY(-50%);
+  font-size:.72rem; color:var(--vc-graphite); white-space:nowrap;
+  padding-left:6px;
+}
+
+/* Calculator */
+.calc{display:grid; grid-template-columns:1fr 1fr; gap:14px 24px;}
+.slider label{display:block; font-size:.8rem; margin-bottom:4px;}
+.slider label b{font-weight:700;}
+.slider input[type=range]{width:100%; accent-color:var(--vc-black);}
+.out{
+  background:var(--vc-paper); padding:10px 12px;
+}
+.out .num{font-family:var(--vc-serif); font-weight:300; font-size:1.5rem; line-height:1.1;}
+.out.subway .num{color:var(--vc-cerulean);}
+.out.street .num{color:var(--vc-orange);}
+.out .lbl{font-size:.72rem; color:var(--vc-graphite);}
+.calc-note{grid-column:1 / -1; font-size:.75rem; color:var(--vc-charcoal);}
+
+/* Footer */
+.source{
+  padding:12px 24px;
+  font-size:.72rem; line-height:1.5;
+  color:var(--vc-graphite);
+  border-bottom:1px solid var(--vc-cloud);
+}
+.source b{color:var(--vc-black); font-weight:700; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; margin-right:6px;}
+.foot{
+  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:12px 24px;
+  font-size:.78rem;
+  color:var(--vc-graphite);
+}
+.foot a{color:var(--vc-orange); text-decoration:none; font-weight:700;}
+.foot a:hover{text-decoration:underline;}
+
+@media (max-width:600px){
+  body{padding:16px 10px;}
+  .head, .panel, .source, .foot{padding-left:16px; padding-right:16px;}
+  .head h1{font-size:1.3rem;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .stat:nth-child(2){border-right:none;}
+  .stat:nth-child(-n+2){border-bottom:1px solid var(--vc-cloud);}
+  .calc{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="head">
+    <h1>Hour for hour, the street is riskier than the subway</h1>
+    <p class="dek">Measured against the time people spend in each place, violent crime in 2025 was about <b>8 times</b> as common on New York City&rsquo;s streets as in its subway system.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num subway">1.06</div><div class="lbl">Subway</div><span class="sub">violent crimes per million hours</span></div>
+    <div class="stat"><div class="num street">8.79</div><div class="lbl">Street</div><span class="sub">violent crimes per million hours</span></div>
+    <div class="stat"><div class="num">8.3&times;</div><div class="lbl">Street vs. subway</div><span class="sub">risk per hour</span></div>
+    <div class="stat"><div class="num">7 min</div><div class="lbl">On the street</div><span class="sub">carries the risk of an hour on the subway</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Crimes per million person-hours, 2025</div>
+    <div class="legend"><span><i class="sw-subway"></i>Subway</span><span><i class="sw-street"></i>Street and public spaces</span></div>
+    <div id="bars"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">Your year</div>
+    <div class="calc">
+      <div class="slider">
+        <label for="sub-h">Hours a week on the subway: <b id="sub-h-val">5</b></label>
+        <input type="range" id="sub-h" min="0" max="20" step="0.5" value="5">
+      </div>
+      <div class="slider">
+        <label for="st-h">Hours a week on the street: <b id="st-h-val">10</b></label>
+        <input type="range" id="st-h" min="0" max="40" step="0.5" value="10">
+      </div>
+      <div class="out subway"><div class="num" id="sub-odds">1 in 3,637</div><div class="lbl">chance of a violent crime on the subway this year</div></div>
+      <div class="out street"><div class="num" id="st-odds">1 in 219</div><div class="lbl">chance of a violent crime on the street this year</div></div>
+      <p class="calc-note">Citywide averages for violent index crimes (murder, rape, robbery, felony assault). Street risk varies widely by neighborhood.</p>
+    </div>
+  </div>
+
+  <div class="source">
+    <b>Source</b>NYPD complaint data (2025); MTA ridership and fare-evasion estimates; NYC DOT Citywide Mobility Survey (2024); Census population estimates. Subway time is about 952 million person-hours a year. Street time is an estimate, about 1.82 billion hours; across the plausible range the street is 7 to 10 times riskier per hour.
+  </div>
+  <div class="foot">
+    <span>Builds on Vital City&rsquo;s &ldquo;Underground: Safer Than the Surface?&rdquo;</span>
+    <a href="methodology.html" target="_blank" rel="noopener">How we calculated this &rarr;</a>
+  </div>
+</div>
+
+<script>
+// All figures from scripts/build_numbers.py (2025). Rates are per million person-hours.
+const SUBWAY_HOURS = 952e6;
+const STREET_HOURS = 1820e6;
+const GROUPS = [
+  { name: 'Violent index crimes', subway: 1007, street: 16003 },
+  { name: 'Plus misdemeanor assault', subway: 2727, street: 33952 },
+  { name: 'All seven index crimes', subway: 2166, street: 46180 }
+];
+
+const rate = (n, h) => n / h * 1e6;
+const max = Math.max(...GROUPS.map(g => rate(g.street, STREET_HOURS)));
+const bars = document.getElementById('bars');
+bars.innerHTML = GROUPS.map(g => {
+  const s = rate(g.subway, SUBWAY_HOURS), t = rate(g.street, STREET_HOURS);
+  const row = (who, cls, v) =>
+    `<div class="bar-row"><span class="who">${who}</span><div class="track">` +
+    `<div class="fill ${cls}" style="width:${v / max * 82}%"></div>` +
+    `<span class="val" style="left:${v / max * 82}%">${v.toFixed(2)}</span></div></div>`;
+  return `<div class="group"><div class="group-head"><span class="name">${g.name}</span>` +
+    `<span class="ratio">${(t / s).toFixed(1)}&times;</span></div>` +
+    row('Subway', 'subway', s) + row('Street', 'street', t) + '</div>';
+}).join('');
+
+// Calculator: each hour is an independent trial at the citywide violent rate
+const V = GROUPS[0];
+const odds = (n, hours, perWeek) => {
+  if (perWeek === 0) return '—';
+  const p = 1 - Math.pow(1 - n / hours, perWeek * 52);
+  return '1 in ' + Math.round(1 / p).toLocaleString('en-US');
+};
+function update() {
+  const sh = parseFloat(document.getElementById('sub-h').value);
+  const th = parseFloat(document.getElementById('st-h').value);
+  document.getElementById('sub-h-val').textContent = sh;
+  document.getElementById('st-h-val').textContent = th;
+  document.getElementById('sub-odds').textContent = odds(V.subway, SUBWAY_HOURS, sh);
+  document.getElementById('st-odds').textContent = odds(V.street, STREET_HOURS, th);
+}
+document.getElementById('sub-h').addEventListener('input', update);
+document.getElementById('st-h').addEventListener('input', update);
+update();
+
+// Embed mode: ?embed=1 drops the card border and posts the card's height to the
+// Ghost page so the iframe fits. Measures the card itself, never the document.
+if (new URLSearchParams(location.search).get('embed') === '1') {
+  document.body.classList.add('embed');
+  const postHeight = () => {
+    const el = document.getElementById('card');
+    if (!el || innerWidth < 50) return;
+    const h = Math.ceil(el.getBoundingClientRect().height);
+    if (h > 0) parent.postMessage({ type: 'vc-embed-height', id: 'subway-vs-street-crime', height: h }, '*');
+  };
+  window.addEventListener('load', postHeight);
+  window.addEventListener('resize', postHeight);
+  let n = 0;
+  const t = setInterval(() => { postHeight(); if (++n > 20) clearInterval(t); }, 300);
+}
+</script>
+</body>
+</html>
