@@ -1302,6 +1302,13 @@ async function loadQualityData() {
     const url = 'https://data.cityofnewyork.us/resource/bkwf-xfky.json?$limit=50000&$order=sample_date DESC';
     qualityData = await fetchJSON(url);
     document.getElementById('quality-loading').style.display = 'none';
+    // As of October 2026 this dataset holds watershed wastewater plant samples, not distribution samples. Draw the charts only if the distribution fields come back.
+    if (!qualityData.some(d => 'turbidity_ntu' in d || 'residual_free_chlorine_mg_l' in d)) {
+      const el = document.getElementById('quality-error');
+      el.style.display = '';
+      el.innerHTML = 'No current data. This tab reads the city dataset bkwf-xfky on NYC Open Data, which used to hold samples from sampling sites in New York City&rsquo;s water mains. As of its October 2026 update it holds a copy of the Department of Environmental Protection&rsquo;s samples from wastewater treatment plants in the upstate watershed, which are not drinking water. No other dataset on NYC Open Data carries the distribution samples. Yearly results are in the department&rsquo;s <a href="https://www.nyc.gov/site/dep/about/drinking-water-supply-quality-report.page" target="_blank" rel="noopener">Drinking Water Supply and Quality Report</a>.';
+      return;
+    }
     document.getElementById('quality-content').style.display = '';
     renderQualityStats();
   } catch (err) {
@@ -1333,8 +1340,9 @@ function renderQualityStats() {
 
   if (latestTurbidity) {
     const v = parseWQValue(latestTurbidity.turbidity_ntu);
-    const cls = v <= 0.5 ? 'safe' : v <= 1 ? 'warning' : 'danger';
-    cards.push({ name: 'Turbidity', value: v.toFixed(2) + ' NTU', cls, status: v <= 0.5 ? 'Excellent' : v <= 1 ? 'Within limits' : 'Above limit' });
+    // Samples can't be sorted into filtered (1 NTU limit) and unfiltered (5 NTU limit) water, so the status names both limits.
+    const cls = v <= 0.5 ? 'safe' : v <= 5 ? 'warning' : 'danger';
+    cards.push({ name: 'Turbidity', value: v.toFixed(2) + ' NTU', cls, status: v <= 0.5 ? 'Excellent' : v <= 1 ? 'Under both limits' : v <= 5 ? 'Over filtered-water limit, under unfiltered limit' : 'Over both limits' });
   }
 
   if (latestChlorine) {
