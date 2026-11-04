@@ -19,6 +19,7 @@ O = json.load(open(os.path.join(ROOT, 'data', 'outcomes.json')))
 sys.path.insert(0, HERE)
 import analyze_outcomes as AO  # noqa: E402
 W = C['windows']
+NBK = json.load(open(os.path.join(ROOT, 'build', 'neighborhood-checks.json')))
 CAD = {r['address']: r for r in C['addresses']}
 
 
@@ -159,6 +160,14 @@ def methodology():
 <h2>The map</h2>
 <p>The map shows the top 5% ({f(TK)} addresses). Each address takes the coordinates from the quarter in which it had the most located complaints. Averaging across quarters would have placed some addresses between two geocoded spots: for {f(K['top_coord_spread_over_100m'])} of the {f(TK)}, the quarterly points sit more than 100 meters apart. {w(K['top_missing_coords']).capitalize()} address{'' if K['top_missing_coords'] == 1 else 'es'} {'has' if K['top_missing_coords'] == 1 else 'have'} no coordinates and {'is' if K['top_missing_coords'] == 1 else 'are'} not drawn. A dot's color is the category with the most complaints at that address; its area grows with the square root of its complaint count.</p>
 
+<h2 id="neighborhoods">Neighborhoods</h2>
+<p>Each ranked street address was placed in one of the city planning department's {NBK['ntas']} Neighborhood Tabulation Areas, as drawn in 2020, by its map point (the same point the map uses), with a point-in-polygon test. {p(NBK['in_nta_n'] / NBK['total'], 0)} of all complaints ({f(NBK['in_nta_n'])}) landed in a neighborhood. The rest have no street address ({f(NBK['total'] - NBK['placed_n'])}), have an address but no map point ({f(NBK['no_coords_n'])}) or fall just outside every boundary, mostly on the water's edge ({f(NBK['outside_nta_n'])} at {f(NBK['outside_nta_addresses'])} addresses).</p>
+<p>Residents are the American Community Survey 2020-2024 five-year estimates by neighborhood, from the planning department's tables, the same figures used on <a href="https://joshgreenman1973.github.io/nyc-nta-rankings/">Every neighborhood, ranked</a>. Only the {f(NBK['rated_ntas'])} residential neighborhoods with at least 5,000 residents get a share comparison; the parks, cemeteries, airports and other areas left over drew {f(NBK['unrated_n'])} complaints, which stay in the citywide totals.</p>
+<p>A neighborhood's share of complaints is its complaints divided by all complaints placed in a neighborhood, for the chosen complaint kind; its share of residents is its population divided by the city's. The page shows the first divided by the second. Rates per 1,000 residents divide by the {NBK['years']:.2f} years from Jan. 1, 2020, to {['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'][int(NBK['period_end'][5:7])-1]} {int(NBK['period_end'][8:])}, {NBK['period_end'][:4]}. Citywide, the rate is {f(NBK['city_rate'])} complaints a year per 1,000 residents; the middle neighborhood is at {f(NBK['rate_p50'])}, and the 10th and 90th percentiles are {f(NBK['rate_p10'])} and {f(NBK['rate_p90'])}.</p>
+<p>The neighborhoods with the highest rates, home to {p(NBK['shares']['0.1']['pop_share'], 0)} of New Yorkers, drew {p(NBK['shares']['0.1']['n_share'], 0)} of complaints. Leaving out the city's {f(NBK['heavy_k'])} busiest addresses (each with at least {f(NBK['heavy_min'])} complaints) brings that to {p(NBK['shares_light']['0.1']['n_share'], 0)}. The two rankings are closely related (rank correlation {NBK['spearman_rate_light']:.2f}), but {f(NBK['rank_moves_10plus'])} of the {f(NBK['rated_ntas'])} neighborhoods move 10 or more places.</p>
+<p>"Leave out" options: each neighborhood's single busiest address for the chosen kind of complaint, or the citywide top 130, 1,301 or 13,011 addresses (0.01%, 0.1% and 1% of all ranked addresses), ranked on all complaints. The public data has no caller identity, so none of these isolates repeat callers; they remove the busiest addresses, whatever the reason for their volume.</p>
+<p>Not adjusted for: jobs and visitors (Midtown's rate reflects far more people than its residents), building size, or differences in who uses 311. Complaints count where the problem is, not where the caller lives.</p>
+
 <h2>Timing at the busiest addresses</h2>
 <p>For each of the 22 addresses pulled record by record, complaints are sorted by created time and these are measured:</p>
 <ul>
@@ -192,6 +201,7 @@ def methodology():
 <ul>
 <li><code>scripts/fetch_311.py</code> pulls the quarterly aggregates. <code>scripts/build_data.py</code> builds <code>data/summary.json</code>, <code>data/points.json</code>, <code>data/top-5-percent-addresses.csv</code> and <code>build/checks.json</code>.</li>
 <li><code>scripts/fetch_records.py</code> and <code>scripts/analyze_cadence.py</code> pull the individual records and build <code>data/cadence.json</code>.</li>
+<li><code>scripts/build_neighborhoods.py</code> places addresses in neighborhoods and builds <code>data/neighborhoods.json</code>, <code>data/neighborhoods.csv</code> and <code>build/neighborhood-checks.json</code>.</li>
 <li><code>scripts/build_docs.py</code> writes this page and the build log from those files.</li>
 </ul>
 '''

@@ -116,6 +116,30 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
 .dontknow b{color:var(--fg)}
 #endpick{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 16px}
 .notes h3{margin-top:22px}
+
+/* by neighborhood */
+#hoods{border-top:1px solid var(--line2)}
+.hoodctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;margin:4px 0 6px}
+.hoodctl label{display:flex;flex-direction:column;gap:5px;font-size:var(--t-small);font-weight:700;color:var(--fg2)}
+.hoodctl select{max-width:min(340px,92vw)}
+.peel{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 4px}
+.peel .lab{font-size:var(--t-small);font-weight:700;color:var(--fg2);margin-right:4px}
+.peel #peel{display:flex;flex-wrap:wrap;gap:6px}
+#hoodsay{max-width:44ch}
+.shares{display:grid;grid-template-columns:7.5em minmax(0,1fr);gap:8px 12px;align-items:center;max-width:620px;margin:16px 0 4px;font-size:15px}
+.shares .b{display:flex;align-items:center;gap:8px}
+.shares .b i{display:block;height:16px;min-width:2px}
+.shares .b u{text-decoration:none;font-variant-numeric:tabular-nums;font-weight:700}
+#hoodcaveat{max-width:66ch;margin-top:12px}
+#hoodstrip svg{display:block;width:100%;height:auto;overflow:visible}
+#hoodstrip text{font-family:var(--sans);fill:var(--fg2);font-size:12px}
+#hoodstrip circle{cursor:pointer}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line2);cursor:pointer;font-size:15px}
+.hrow:hover .nm{text-decoration:underline;text-decoration-color:var(--fg2);text-underline-offset:3px}
+.hrow .sub{display:block;margin:2px 0 0;max-width:none;font-size:var(--t-small);line-height:1.4;color:var(--fg2)}
+.hrow u{text-decoration:none;font-variant-numeric:tabular-nums;font-weight:700}
+.hrow[aria-current=true] .nm{font-weight:700}
+#hoodskew{max-width:66ch}
 </style>
 </head>
 <body>
@@ -177,6 +201,27 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
       <p class="mapnote" id="mapnote"></p>
     </section>
   </div>
+
+  <section class="sec" id="hoods">
+    <h2>By neighborhood</h2>
+    <p class="aside" id="hoodlede"></p>
+    <div class="hoodctl">
+      <label>Neighborhood <select id="hoodsel"></select></label>
+      <label>Complaints <select id="typesel"></select></label>
+    </div>
+    <div class="peel"><span class="lab">Leave out</span><span id="peel" role="group" aria-label="Addresses to leave out"></span></div>
+    <p class="readout" id="hoodsay" aria-live="polite"></p>
+    <div class="shares" id="hoodbars"></div>
+    <p class="fine" id="hoodcaveat"></p>
+    <h3 style="margin-top:34px" id="striptitle"></h3>
+    <p class="aside" id="hoodskew"></p>
+    <div id="hoodstrip"></div>
+    <div class="split" style="margin-top:26px">
+      <div><h4 id="hititle"></h4><div id="hoodhi"></div></div>
+      <div><h4 id="lotitle"></h4><div id="hoodlo"></div></div>
+    </div>
+    <p class="fine" id="hoodnote" style="margin-top:18px"></p>
+  </section>
 
   <section class="sec" id="top">
     <h2>The top of the list</h2>
@@ -538,6 +583,155 @@ function renderDumb(){
   $('#dumbnote').textContent=`Heat and hot water complaints rarely end in a violation anywhere; at the busiest addresses, ${pct(heat[k].duplicate,0)} were closed as duplicates of a building-wide complaint, against ${pct(heat.everyone_else.duplicate,0)} elsewhere. Helicopter complaints are left out: almost all end with the city's Economic Development Corporation saying the helicopter was not a tour helicopter it oversees.`;
 }
 
+/* ---------- by neighborhood ---------- */
+const HBORO={BK:'Brooklyn',BX:'Bronx',MN:'Manhattan',QN:'Queens',SI:'Staten Island'};
+let NB,H=[],HK={},hood=null,hkey='all',peel='none';
+function hoodRows(){
+  H=NB.rows.map(r=>({code:r[0],name:r[1],boro:r[0].slice(0,2),type:r[3],pop:r[4],n:r[5],addresses:r[6],
+    top1_n:r[9],top1_addr:r[10],half:r[12],cats:r[14],types:r[16],bc:r[17],bt:r[18],tiers:r[19]}));
+  H.forEach(h=>{h.rated=h.type===0&&h.pop>=NB.min_pop;HK[h.code]=h});
+}
+const CATWORDS={building:'apartment and building complaints',noise:'noise complaints',vehicles:'parking and vehicle complaints',order:'police and street-order complaints',streets:'street, sanitation and tree complaints',other:'other complaints'};
+function keyLabel(k,lower){
+  if(k==='all')return lower?'311 complaints':'All complaints';
+  const [t,j]=k.split(':');
+  if(t==='c')return lower?CATWORDS[S.cats[+j].key]:S.cats[+j].label;
+  const l=prettyType(NB.types[+j].label).replace(/^Noise - /,'Noise: ');
+  return lower?`“${l}” complaints`:l;
+}
+function cnt(h,k){if(k==='all')return h.n;const [t,j]=k.split(':');return t==='c'?h.cats[+j]:h.types[+j]}
+function busy(h,k){
+  if(k==='all')return [h.top1_addr,h.top1_n];
+  const [t,j]=k.split(':'),a=t==='c'?h.bc:h.bt,i=a[2*j];
+  return i<0?['',0]:[NB.addrs[i],a[2*j+1]];
+}
+function tierN(h,k,i){const v=h.tiers[i];if(k==='all')return v[0];const [t,j]=k.split(':');return t==='c'?v[2+(+j)]:v[2+S.cats.length+(+j)]}
+function peeled(h,k){return peel==='none'?0:peel==='own'?busy(h,k)[1]:tierN(h,k,+peel.slice(1))}
+function useN(h,k){return cnt(h,k)-peeled(h,k)}
+function peelWords(){return peel==='own'?"each neighborhood's busiest address":`the city's ${fmt(NB.tiers[+peel.slice(1)])} busiest addresses`}
+function renderPeel(){
+  const opts=[['none','Nothing'],['own',"Each neighborhood's busiest address"],...NB.tiers.map((k,i)=>['t'+i,`City's busiest ${fmt(k)} addresses`])];
+  $('#peel').innerHTML=opts.map(([v,l])=>`<button class="chip" data-v="${v}" aria-pressed="${v===peel}">${l}</button>`).join('');
+}
+function hoodStats(k){
+  const TP=H.reduce((s,h)=>s+h.pop,0),TN=H.reduce((s,h)=>s+useN(h,k),0);
+  const R=H.filter(h=>h.rated).map(h=>({h,n:useN(h,k),ps:h.pop/TP,cs:TN?useN(h,k)/TN:0})).map(o=>({...o,r:o.cs/o.ps}));
+  return {TP,TN,R};
+}
+function sharePct(x){if(x===0)return '0%';const d=x<0.001?2:1;const s=(x*100).toFixed(d).replace(/\.0+$/,'');return (s==='0'?'<0.'+'0'.repeat(d-1)+'1':s)+'%'}
+function ratioWords(r){
+  if(r>=1.15)return `<b>${r<10?r.toFixed(1):Math.round(r)} times</b> its share of residents`;
+  if(r>=0.87)return 'about <b>in line with</b> its share of residents';
+  const f=r>=0.7?'about three-quarters of':r>=0.58?'about two-thirds of':r>=0.42?'about half':r>=0.29?'about a third of':r>=0.22?'about a quarter of':r>=0.15?'about a fifth of':r>=0.08?'about a tenth of':'less than a tenth of';
+  return `<b>${f}</b> its share of residents`;
+}
+function xTimes(r){return r===0?'0':r<0.095?r.toFixed(2)+'×':r<10?r.toFixed(1)+'×':Math.round(r)+'×'}
+function initHoods(){
+  hoodRows();
+  const byB={};H.filter(h=>h.rated).forEach(h=>(byB[h.boro]=byB[h.boro]||[]).push(h));
+  $('#hoodsel').innerHTML=['BX','BK','MN','QN','SI'].map(b=>`<optgroup label="${HBORO[b]}">${byB[b].sort((x,y)=>x.name.localeCompare(y.name)).map(h=>`<option value="${h.code}">${h.name}</option>`).join('')}</optgroup>`).join('');
+  let o='<option value="all">All complaints</option><optgroup label="Kinds of complaints">'+S.cats.map((c,j)=>`<option value="c:${j}">${c.label}</option>`).join('')+'</optgroup>';
+  S.cats.forEach((c,j)=>{
+    const ts=NB.types.map((t,i)=>({t,i})).filter(x=>x.t.cat===c.key);
+    if(ts.length)o+=`<optgroup label="${c.label}">${ts.map(x=>`<option value="t:${x.i}">${prettyType(x.t.label).replace(/^Noise - /,'Noise: ')}</option>`).join('')}</optgroup>`;
+  });
+  $('#typesel').innerHTML=o;
+  // From the address, or the neighborhood with the most complaints for its size.
+  const m=location.hash.match(/hood=([A-Z]{2}\d{4})/),t=location.hash.match(/[&#]t=([ct]:\d+|all)/),x=location.hash.match(/[&#]x=(own|t[0-2])/);
+  if(x)peel=x[1];
+  if(t&&$(`#typesel option[value="${t[1]}"]`))hkey=t[1];
+  if(m&&HK[m[1]]&&HK[m[1]].rated)hood=m[1];
+  else{const {R}=hoodStats('all');hood=R.sort((a,b)=>b.r-a.r)[0].h.code}
+  $('#hoodsel').value=hood;$('#typesel').value=hkey;
+  $('#hoodsel').onchange=e=>{hood=e.target.value;renderHoods(true)};
+  $('#typesel').onchange=e=>{hkey=e.target.value;renderHoods(true)};
+  renderPeel();
+  $('#peel').onclick=e=>{const b=e.target.closest('button');if(!b)return;peel=b.dataset.v;renderPeel();renderHoods(true)};
+  const nd=new Date(NB.end+'T00:00:00');
+  $('#hoodlede').innerHTML=`Pick a neighborhood to see its share of the city's residents next to its share of 311 complaints since 2020, for all complaints or for one kind. Neighborhoods are the city planning department's 2020 Neighborhood Tabulation Areas. Each complaint counts in the neighborhood its street address is in, so a complaint about a bar or a blocked hydrant counts where the problem is, whoever filed it. A few addresses can swing a neighborhood's number, so "Leave out" sets the busiest ones aside to compare the rest.`;
+  renderHoods(false);
+}
+function renderHoods(push){
+  const k=hkey,h=HK[hood],{TP,TN,R}=hoodStats(k),me=R.find(o=>o.h===h),nob=peel!=='none';
+  if(push)history.replaceState(null,'',`#hood=${hood}${k==='all'?'':'&t='+k}${nob?'&x='+peel:''}`);
+  const what=keyLabel(k,true);
+  $('#hoodsay').innerHTML=`<b>${h.name}</b> is home to <b>${sharePct(me.ps)}</b> of New Yorkers and drew <b>${sharePct(me.cs)}</b> of the city's ${what}${nob?', leaving out '+peelWords():''}: ${ratioWords(me.r)}.`;
+  const mx=Math.max(me.ps,me.cs);
+  $('#hoodbars').innerHTML=`<span>Residents</span><span class="b"><i style="width:${me.ps/mx*80}%;background:${tok('fg2')}"></i><u>${sharePct(me.ps)}</u></span>
+    <span>Complaints</span><span class="b"><i style="width:${me.cs/mx*80}%;background:${k==='all'?tok('fg'):CC(k[0]==='c'?+k.slice(2):S.cats.findIndex(c=>c.key===NB.types[+k.slice(2)].cat))}"></i><u>${sharePct(me.cs)}</u></span>`;
+  // How much one building drives it.
+  const all=cnt(h,k),[ba,bn]=busy(h,k),yrs=NB.years;
+  let cv=`${nob?'Counting every address, that':'That'} is ${fmt(all)} complaints, ${fmt(all/h.pop/yrs*1000)} a year for every 1,000 residents, against ${fmt(H.reduce((s,x)=>s+cnt(x,k),0)/TP/yrs*1000)} citywide.`;
+  if(bn>0){
+    const sh=bn/all;
+    if(peel==='own')cv+=` Its busiest address, ${prettyAddr(ba)}, drew ${fmt(bn)} of them (${pct(sh,0)}) and is left out here.`;
+    else if(nob){const i=+peel.slice(1),pn=tierN(h,k,i),na=h.tiers[i][1];
+      cv+=na?` It has ${words(na)} of the city's ${fmt(NB.tiers[i])} busiest addresses; ${na===1?'it':'they'} drew ${fmt(pn)} of these complaints (${pct(all?pn/all:0,0)}), left out here.`:` None of its addresses are among the city's ${fmt(NB.tiers[i])} busiest, so nothing is left out here.`;
+      if(sh>=0.25&&pn<bn)cv+=` Its busiest address for this kind of complaint, ${prettyAddr(ba)}, drew ${pct(sh,0)} of them.`}
+    else if(sh>=0.25){
+      const rw=((all-bn)/(TN-bn))/me.ps;
+      cv+=` <b>One address, ${prettyAddr(ba)}, drew ${pct(sh,0)} of them.</b> Without it, ${h.name}'s share would be ${sharePct((all-bn)/(TN-bn))}, ${rw>=1.15?(rw<10?rw.toFixed(1):Math.round(rw))+' times':rw>=0.87?'about in line with':'below'} its share of residents.`;
+    }else cv+=` Its busiest address, ${prettyAddr(ba)}, drew ${pct(sh,0)} of them.`;
+  }
+  if(k==='all'&&!nob)cv+=` Half of its complaints came from ${fmt(h.half)} of the ${fmt(h.addresses)} addresses there that drew any.`;
+  $('#hoodcaveat').innerHTML=cv;
+  renderHoodSkew(k,R,TN);renderHoodStrip(k,R);renderHoodLists(k,R);
+  $('#hoodnote').innerHTML=hoodNote(TN);
+}
+function renderHoodSkew(k,R,TN){
+  const s=R.slice().sort((a,b)=>b.r-a.r),tp=R.reduce((t,o)=>t+o.ps,0);
+  const slice=list=>{let p=0,c=0,i=0;while(i<list.length&&p<0.1*tp){p+=list[i].ps;c+=list[i].cs;i++}return {p,c,i}};
+  const hi=slice(s),lo=slice(s.slice().reverse());
+  $('#striptitle').textContent=`Every neighborhood: ${keyLabel(k,true)} against residents`;
+  $('#hoodskew').innerHTML=`The neighborhoods with the most ${keyLabel(k,true)} for their size, ${words(hi.i)} of them and home to ${pct(hi.p,0)} of New Yorkers, drew <b>${pct(hi.c,0)}</b> of them. The ${words(lo.i)} with the fewest, home to another ${pct(lo.p,0)}, drew <b>${pct(lo.c,lo.c<0.01?1:0)}</b>. Each dot below is a neighborhood, placed by its share of complaints divided by its share of residents; the middle line is an even split.`;
+}
+function renderHoodStrip(k,R){
+  const box=$('#hoodstrip'),W=Math.max(320,box.clientWidth),l=14,r=14,rad=W<560?3.6:4.6;
+  const pos=R.filter(o=>o.r>0).map(o=>o.r);
+  let lo=Math.pow(2,Math.floor(Math.log2(Math.min(...pos)))),hi=Math.pow(2,Math.ceil(Math.log2(Math.max(...pos))));
+  lo=Math.max(lo,1/64);hi=Math.min(Math.max(hi,2),256);if(lo>0.5)lo=0.5;
+  const x=v=>l+(Math.log2(Math.max(v,lo))-Math.log2(lo))/(Math.log2(hi)-Math.log2(lo))*(W-l-r);
+  // Stack dots that would overlap.
+  const pts=R.map(o=>({o,x:x(o.r)})).sort((a,b)=>a.x-b.x),placed=[];
+  pts.forEach(p=>{for(let lv=0;;lv++){const tries=lv?[lv,-lv]:[0];
+    const ok=tries.find(t=>!placed.some(q=>q.lv===t&&Math.abs(q.x-p.x)<rad*2.1));
+    if(ok!==undefined){p.lv=ok;placed.push(p);break}}});
+  const maxLv=Math.max(...pts.map(p=>Math.abs(p.lv))),mid=16+(maxLv+1)*rad*2.1,H=mid*2+10;
+  let s=`<svg viewBox="0 -16 ${W} ${H+54}" role="img" aria-label="Each neighborhood's share of ${keyLabel(k,true)} divided by its share of residents">`;
+  for(let g=lo;g<=hi*1.0001;g*=2){const gx=x(g),one=Math.abs(g-1)<1e-9;
+    s+=`<line x1="${gx}" x2="${gx}" y1="6" y2="${H}" stroke="${one?tok('fg'):tok('grid')}" ${one?'stroke-dasharray="3 3" stroke-width="1.5"':''}/>`;
+    s+=`<text x="${gx}" y="${H+14}" text-anchor="middle" ${one?`style="fill:${tok('fg')}"`:''}>${g>=1?g+'×':'1/'+Math.round(1/g)}</text>`}
+  pts.forEach(p=>{const me=p.o.h.code===hood;
+    s+=`<circle cx="${p.x}" cy="${mid+p.lv*rad*2.1}" r="${me?rad+2.5:rad}" fill="${me?tok('fg'):tok('fg2')}" fill-opacity="${me?1:.6}" stroke="${tok('bg')}" stroke-width="${me?2:1}" data-c="${p.o.h.code}"/>`});
+  const mp=pts.find(p=>p.o.h.code===hood);
+  if(mp){const cy=mid+mp.lv*rad*2.1,anc=mp.x>W*0.75?'end':mp.x<W*0.25?'start':'middle';
+    s+=`<line x1="${mp.x}" x2="${mp.x}" y1="-6" y2="${cy-rad-3}" stroke="${tok('fg')}"/><text x="${mp.x}" y="-9" text-anchor="${anc}" style="fill:${tok('fg')};font-weight:700;font-size:13px">${HK[hood].name}</text>`}
+  s+=`<text x="${x(1)-8}" y="${H+32}" text-anchor="end">&larr; fewer complaints than residents</text><text x="${x(1)+8}" y="${H+32}">more &rarr;</text>`;
+  const zeros=R.filter(o=>o.r===0).length;
+  if(zeros)s+=`<text x="${l}" y="${H+32}">${fmt(zeros)} with none sit at the left edge</text>`;
+  s+='</svg>';box.innerHTML=s;
+  box.querySelectorAll('circle').forEach(el=>{const o=R.find(q=>q.h.code===el.dataset.c);
+    el.addEventListener('mousemove',e=>showTip(e,`<b>${o.h.name}</b>${HBORO[o.h.boro]} &middot; ${sharePct(o.ps)} of residents, ${sharePct(o.cs)} of complaints: ${xTimes(o.r)}`));
+    el.addEventListener('mouseleave',hideTip);
+    el.addEventListener('click',()=>{hood=o.h.code;$('#hoodsel').value=hood;hideTip();renderHoods(true)})});
+}
+function renderHoodLists(k,R){
+  const s=R.slice().sort((a,b)=>b.r-a.r),nob=peel!=='none';
+  const row=o=>{const [ba,bn]=busy(o.h,k),sh=cnt(o.h,k)?bn/cnt(o.h,k):0;
+    const flag=!nob&&sh>=0.25?` &middot; one address drew ${pct(sh,0)}`:nob&&peel!=='own'&&sh>=0.25&&tierN(o.h,k,+peel.slice(1))<bn?` &middot; one address still drew ${pct(sh,0)}`:'';
+    return `<div class="hrow" data-c="${o.h.code}" role="button" tabindex="0" aria-current="${o.h.code===hood}"><span><span class="nm">${o.h.name}</span><span class="sub">${HBORO[o.h.boro]} &middot; ${sharePct(o.ps)} of residents, ${sharePct(o.cs)} of complaints${flag}</span></span><u>${xTimes(o.r)}</u></div>`};
+  $('#hititle').textContent='Most for their size';$('#lotitle').textContent='Fewest for their size';
+  $('#hoodhi').innerHTML=s.slice(0,10).map(row).join('');
+  $('#hoodlo').innerHTML=s.slice(-10).reverse().map(row).join('');
+  ['#hoodhi','#hoodlo'].forEach(id=>{const el=$(id);
+    el.onclick=e=>{const r=e.target.closest('.hrow');if(r){hood=r.dataset.c;$('#hoodsel').value=hood;renderHoods(true);$('#hoods').scrollIntoView({behavior:'smooth',block:'start'})}};
+    el.onkeydown=e=>{const r=e.target.closest('.hrow');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();r.click()}}});
+}
+function hoodNote(TN){
+  const un=H.filter(h=>!h.rated),unN=un.reduce((s,h)=>s+h.n,0),allN=H.reduce((s,h)=>s+h.n,0);
+  return `Residents are the Census Bureau's American Community Survey estimates for 2020 to 2024. Shares of complaints are out of the ${mil(allN)} complaints whose street address could be placed in a neighborhood (${pct(allN/S.total,0)} of all complaints; the rest have no street address or no map point). ${fmt(un.length)} areas with fewer than ${fmt(NB.min_pop)} residents, mostly parks, cemeteries, airports and industrial zones, drew ${mil(unN)} of those complaints; they count in the totals but get no dot, so the neighborhoods' shares add up to a bit less than 100%. "Leave out" drops complaints at some addresses before the shares are figured, in every neighborhood at once. "Each neighborhood's busiest address" drops the one address with the most complaints of the chosen kind in each neighborhood. The citywide options drop the top 0.01%, 0.1% or 1% of all ${fmt(S.locations)} addresses, ranked on all complaints as in the rest of this page, whatever kind of complaint is chosen. The public data does not say who files a complaint, so these are the busiest addresses, not a list of repeat callers: they include places where the timing looks automated, like 655 East 230th Street, and big buildings where many tenants report the same heat outage. More neighborhood comparisons are on <a href="https://joshgreenman1973.github.io/nyc-nta-rankings/">Every neighborhood, ranked</a>. <a href="data/neighborhoods.csv" download>Download the neighborhood table (CSV)</a>.`;
+}
+
 /* ---------- text ---------- */
 function renderText(){
   const i5=S.steps.findIndex(s=>Math.abs(s-0.05)<1e-9),nd=new Date(S.newest);
@@ -557,16 +751,16 @@ function renderText(){
 }
 
 /* ---------- boot ---------- */
-const DATA_VERSION='2026-10-14d'; // change whenever the data files change, so browsers don't pair new code with cached data
-Promise.all(['data/summary.json','data/points.json','data/cadence.json','data/outcomes.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
-.then(([s,p,c,o])=>{
-  S=s;P=p;C=c;O=o;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
+const DATA_VERSION='2026-11-04a'; // change whenever the data files change, so browsers don't pair new code with cached data
+Promise.all(['data/summary.json','data/points.json','data/cadence.json','data/outcomes.json','data/neighborhoods.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
+.then(([s,p,c,o,nb])=>{
+  S=s;P=p;C=c;O=o;NB=nb;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});
   renderText();initControl();initCats();
   setStep(S.steps.findIndex(v=>Math.abs(v-0.05)<1e-9));
-  renderGroups();renderEnded();
+  renderGroups();renderEnded();initHoods();
   const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&!map){initMap();io.disconnect()}},{rootMargin:'400px'});
   io.observe($('#map'));
-  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{renderWaffles();renderStrip();renderRun();renderDumb()},150)});
+  let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{renderWaffles();renderStrip();renderRun();renderDumb();if(H.length)renderHoodStrip(hkey,hoodStats(hkey).R)},150)});
 })
 .catch(err=>{$('#readout').textContent='The data did not load: '+err.message;console.error(err)});
 </script>
