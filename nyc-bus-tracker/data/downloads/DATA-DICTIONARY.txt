@@ -1,5 +1,7 @@
 NYC BUS TRACKER: DATA DICTIONARY (method version 2, October 2026)
 Copied into data/downloads/ by scripts/export_csv.mjs with every refresh.
+(In the repo copy, thresholds in double braces are filled in from the
+constants in collector/rollup.js when the file is copied.)
 Project: https://github.com/joshgreenman1973/experiments/tree/main/nyc-bus-tracker
 Method changes, dated: CHANGELOG.txt in this folder.
 
@@ -7,12 +9,13 @@ TWO KINDS OF DATA LIVE HERE. Do not mix them.
 
   A. SPEED AND BUSES: the tracker's own estimates from GPS positions in the
      MTA BusTime feed. Not official MTA figures.
-  B. RIDERSHIP: the MTA's own numbers, republished. Passenger-counter
-     boardings (data.ny.gov fvdm-uavx) and paid fare taps (kv7t-n8in through
-     2024, gxb3-akrn from 2025).
+  B. RIDERSHIP: the MTA's own numbers, republished. MTA estimates of
+     boardings derived from automatic passenger counters (data.ny.gov
+     fvdm-uavx) and paid fare taps (kv7t-n8in through 2024, gxb3-akrn from
+     2025). Boardings are not people: a rider who transfers boards twice.
 
 HOW SPEED IS MEASURED (applies to every speed column)
-  The collector records every bus in the feed about a dozen times over six
+  The collector records the buses reported in the feed about a dozen times over six
   minutes, at 9 and 39 minutes past every hour, 6 a.m. to 11 p.m. Eastern.
   A bus seen in two consecutive snapshots of the same burst gives one reading:
   straight-line distance between its two GPS positions over the time between
@@ -42,13 +45,17 @@ HOW FIGURES ARE WEIGHTED
   fewer than 85% as many routes ran at midday as on nearby weekdays.
 
 COMPARABILITY: READ THIS BEFORE COMPARING ANY TWO PERIODS
-  A week is comparable when all 7 days are in and every one of the 17 hours
-  was caught on at least 3 weekdays and at least 1 weekend day, except that up
-  to 2 hours per day type may be missed. A missed hour is filled by assuming it
+  A week is comparable when all 7 days are in and each of the 17 hours was
+  caught on at least 3 weekdays and at least 1 weekend day, except that up
+  to 2 hours per day type may be missed. So a comparable week can be partly
+  modeled rather than fully observed. A missed hour is filled by assuming it
   moved like the rest of that period's day relative to its usual level (the
   mean of the usual hourly levels plus the period's average deviation from them
   over the hours it has); a fully caught period is unchanged by this. The
-  filled hours are listed in weekly.json (wd.filledHours, we.filledHours).
+  filled hours are listed in weekly.json (wd.filledHours, we.filledHours) and
+  in the weekly and monthly system CSVs. The usual hourly levels are
+  recomputed from every week each time the files are rebuilt, so a week with
+  filled hours can revise slightly as more weeks arrive.
   Weekend 8 p.m. was often missed before October 2026. A month needs 8
   weekdays and 3 weekend days per hour and must be over. Incomplete day
   types leave the speed columns blank rather than averaging whatever hours
@@ -61,7 +68,7 @@ One row per day. Speeds here average only the hours caught that day, so a
 day with evening hours only reads fast; compare days only when
 hours_collected is 17.
   day_type, day_type_reason   weekday / weekend / holiday, and why
-  hours_collected             of the 17 window hours, those with 6+ snapshots
+  hours_collected             of the 17 window hours, those with 4+ snapshots
   routes_running_midday       regular routes with a bus in service 10 a.m.-4 p.m.
   buses_in_service            buses in the feed not on layover, mean per hour
   buses_in_service_regular_routes  the same, timetable routes only
@@ -87,6 +94,15 @@ One row per ISO week or calendar month.
                        service-delivered figure.
   mta_style_*          all regular routes including express, the way the MTA's
                        hourly route-speed file is averaged; for comparison only.
+  weekday_filled_hours, weekend_filled_hours   window hours (Eastern clock
+                       hour, 6-22) filled in rather than observed, space
+                       separated; blank when none were filled or the day type
+                       is incomplete
+  weekday_routes_per_hour, weekend_routes_per_hour   local, limited and SBS
+                       routes with a speed-with-stops value, averaged per hour
+                       over the period's days: the routes the index averages.
+                       A route that drops out of an hour changes the mix, so
+                       the index can move without any route changing speed.
 
 ------------------------------------------------------------ weekly-borough.csv
   group                M, B (Brooklyn), Bx, Q, S; X = express routes
@@ -107,25 +123,48 @@ One row per route per period it ran.
                        buses that report one; an indicator of crowding, not a count
 
 ---------------------------------------------------- route-ridership-monthly.csv
-One row per route per complete calendar month (source B).
-  counter_boardings, counter_avg_weekday   automatic passenger counters
+One row per route per month with data (source B). A route with no estimates
+in a month has no row here; in data/ridership/routes-monthly.json the same
+route-month is stored as 0, which means absent from the source, not zero
+boardings.
+  counter_boardings, counter_avg_weekday   MTA estimates of boardings
+                       (fvdm-uavx, field estimated_ridership), derived from
+                       automatic passenger counters and scaled by the MTA to
+                       stand for all boardings. The column names predate the
+                       MTA's change of method; the values are the scaled
+                       estimates for every month.
   fare_taps, fare_taps_avg_weekday   paid OMNY and MetroCard entries,
                        including free transfers. Q52+ and Q53+ are reported
                        together by the MTA; both rows carry the pair's total.
-  counter_to_taps_ratio   counters / taps, weekday averages
+  counter_to_taps_ratio   estimates / taps, weekday averages
   network_change_this_month   true where the Queens bus network redesign
                        (June 29 and Aug. 31, 2025; QM routes Sept. 2, 2025)
                        changed the route that month. Do not compare a route
                        across that line.
-  Weekday averages divide Monday-Friday boardings by calendar weekdays in the
-  month; holidays count as weekdays. Neither series is a full count of riders:
-  taps miss riders who don't pay (the MTA put local-bus fare evasion at 49.6% in
-  the second quarter of 2026, data.ny.gov uv5h-dfhp), and counters miss riders
-  on buses without a working counter. Systemwide the counters ran only 6% to
-  13% above taps in June-August 2026. A route's ratio can jump when counter
-  coverage changes, so a single route's counter trend can move for reasons that
-  have nothing to do with riders. January 2026 taps are blank: the MTA file has
-  near-zero taps for Jan. 10-15.
+  What the source now reports. Since October 2026 fvdm-uavx holds month,
+  day-of-week and hour aggregates (fields month, weekday, day_type, hour,
+  estimated_ridership), not daily counts. A month is kept only when all seven
+  weekday categories (Monday through Sunday) are present. Individual-day
+  completeness can't be verified from this file, and a kept month can still
+  lack estimates for some stops or routes. counter_avg_weekday is the
+  month's day_type = 'weekday' total divided by the number of calendar
+  weekdays in the month; holidays count as weekdays, so months with holidays
+  read slightly low.
+  Two independent series. The estimates and the taps are constructed
+  independently and differ substantially. Their ratio is not an estimate of
+  fare evasion: taps include free transfers, and the two differ in coverage
+  and method. For evasion, use the MTA's separately published measure, MTA
+  Bus Fare Evasion (data.ny.gov uv5h-dfhp), estimated quarterly from
+  passenger counters by type of service. For the third quarter of 2026 it
+  put evasion at 48.7% on local and limited buses, 46.7% on Select Bus
+  Service and 4.8% on express buses (47.4% overall). A route's ratio can jump
+  when the MTA's counting or scaling changes, so read a single route's trend
+  with its taps and ratio beside it. January 2026 taps are blank: the MTA
+  file has near-zero taps for Jan. 10-15.
+  Earlier versions. Before October 2026 the same dataset held raw counter
+  boardings by date, which ran far lower; figures saved from it are not
+  comparable with these. stops-hourly-june2026.csv is an archived extract
+  of that earlier version (see below).
 
 ------------------------------------------------------------ mta-comparison.csv
   mta_headline_mph     MTA Bus Speeds (cudb-vcni): all routes, all hours,
@@ -136,8 +175,15 @@ One row per route per complete calendar month (source B).
   ours_with_stops_mph, ours_moving_mph   the tracker's index, same weighting
   nowcast_mta_headline_mph   forecast of the MTA headline for a month the MTA
                        has not yet published: last published headline times the
-                       tracker's own change. Recorded before publication and
-                       scored after, in data/mta/nowcasts.json.
+                       tracker's own change. A conditional extrapolation, not an
+                       observed MTA speed; the two series weight routes and
+                       hours differently. Forecasts are logged when made and
+                       scored after publication in data/mta/nowcasts.json; the
+                       first forecast logged for a month is the one that counts.
+                       The backtest in data/mta/official.json applies the same
+                       rule retrospectively to earlier months using current
+                       data. It is not part of the advance record and is not
+                       yet a reliable estimate of future accuracy.
 
 -------------------------------------------------------------------- events.csv
   kind   holiday (or service cut), gap (fewer than 12 of 17 hours caught, or no
@@ -146,8 +192,13 @@ One row per route per complete calendar month (source B).
 
 ------------------------------------------------------- stops-hourly-june2026.csv
 One row per bus stop, June 2026 (source B). 13,351 stops.
+  ARCHIVED PRE-REVISION EXTRACT. Pulled from fvdm-uavx on July 26, 2026,
+  when the dataset held raw counter boardings and alightings by date. The MTA
+  has since replaced it with scaled estimates, so these figures will not
+  match route-ridership-monthly.csv for June 2026. The file is kept as a
+  historical snapshot and has not been rebuilt.
   HOUR COLUMNS ARE MONTH TOTALS, NOT DAILY AVERAGES.
-  wd_total_h0 .. wd_total_h23    boardings summed across all weekdays of the month
+  wd_total_h0 .. wd_total_h23    raw counter boardings summed across all weekdays of the month
   we_total_h0 .. we_total_h23    boardings summed across all weekend days
   weekday_days, weekend_days     the divisors (22 and 8 for June 2026)
   month_boardings/alightings     whole-month totals across all 30 days
@@ -182,3 +233,10 @@ WHAT NOT TO DO
     ratio beside it.
   - Don't treat buses_in_service against trips_scheduled as an MTA
     service-delivered figure; it is an indicator for trends.
+  - Don't read the speed index as service quality. It is the speed of routes
+    observed running on the days kept; weekdays with sharply reduced service
+    are left out, and the routes averaged can change from hour to hour.
+  - Don't read a before-and-after change as the effect of a policy. A simple
+    pre/post line can't separate fare-free service or bus priority from
+    season, route redesigns, traffic or changes in collection.
+  - Don't read counter_to_taps_ratio as a fare-evasion rate.
