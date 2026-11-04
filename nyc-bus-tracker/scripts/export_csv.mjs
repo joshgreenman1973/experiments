@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { MIN_HOUR_SNAPS, MAX_FILLED_HOURS } from '../collector/rollup.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'data', 'downloads');
@@ -52,7 +53,9 @@ const SYS_HEAD = ['period', 'start_date', 'end_date', 'days', 'weekdays', 'weeke
   'weekday_am_peak_with_stops_mph', 'weekday_pm_peak_with_stops_mph',
   'weekday_buses_in_service', 'weekday_trips_scheduled', 'weekday_service_ratio',
   'weekend_moving_mph', 'weekend_with_stops_mph', 'weekend_stopped_share', 'weekend_buses_in_service',
-  'mta_style_moving_mph', 'mta_style_with_stops_mph', 'snapshots', 'method_version'];
+  'mta_style_moving_mph', 'mta_style_with_stops_mph', 'snapshots', 'method_version',
+  'weekday_filled_hours', 'weekend_filled_hours', 'weekday_routes_per_hour', 'weekend_routes_per_hour'];
+const hoursList = hs => (Array.isArray(hs) ? hs.join(' ') : null);
 const sysRow = (p, mv) => [p.period, p.startDate, p.endDate, p.days, p.dayTypes.weekday, p.dayTypes.weekend, p.dayTypes.holiday,
   p.coveragePct, p.comparable, p.wd.complete, p.we.complete,
   p.idx.mov, p.idx.all, p.idx.stop, p.idx.buses,
@@ -61,7 +64,8 @@ const sysRow = (p, mv) => [p.period, p.startDate, p.endDate, p.days, p.dayTypes.
   g(p, 'wd', 'bands', 'am', 'all'), g(p, 'wd', 'bands', 'pm', 'all'),
   p.wd.buses, p.wd.sched, p.wd.delivered ?? null,
   p.we.mov, p.we.all, p.we.stop, p.we.buses,
-  p.mta.mov, p.mta.all, p.snapshots, mv];
+  p.mta.mov, p.mta.all, p.snapshots, mv,
+  hoursList(p.wd.filledHours), hoursList(p.we.filledHours), g(p, 'wd', 'routesPerHour', 'mean'), g(p, 'we', 'routesPerHour', 'mean')];
 const weekly = readJson('data/summary/weekly.json');
 const monthly = readJson('data/summary/monthly.json');
 writeCsv('weekly-system.csv', SYS_HEAD, weekly.periods.map(p => sysRow(p, weekly.methodVersion)));
@@ -163,6 +167,13 @@ if (ev?.events?.length) {
 }
 
 // ── dictionary and changelog ────────────────────────────────────────────────
-writeFileSync(join(OUT, 'DATA-DICTIONARY.txt'), readFileSync(join(ROOT, 'scripts', 'DATA-DICTIONARY.txt'), 'utf8'));
+// Thresholds in the dictionary are written as {{NAME}} and filled from the
+// constants the code uses, so the documentation cannot drift from them.
+const DICT_VALUES = { MIN_HOUR_SNAPS, MAX_FILLED_HOURS };
+const dict = readFileSync(join(ROOT, 'scripts', 'DATA-DICTIONARY.txt'), 'utf8')
+  .replace(/\{\{(\w+)\}\}/g, (m, k) => (k in DICT_VALUES ? String(DICT_VALUES[k]) : m));
+const unfilled = dict.match(/\{\{\w+\}\}/g);
+if (unfilled) { console.error(`export_csv: unknown placeholders in DATA-DICTIONARY.txt: ${[...new Set(unfilled)].join(', ')}`); process.exit(1); }
+writeFileSync(join(OUT, 'DATA-DICTIONARY.txt'), dict);
 writeFileSync(join(OUT, 'CHANGELOG.txt'), readFileSync(join(ROOT, 'scripts', 'CHANGELOG.txt'), 'utf8'));
 console.log('DATA-DICTIONARY.txt and CHANGELOG.txt copied');

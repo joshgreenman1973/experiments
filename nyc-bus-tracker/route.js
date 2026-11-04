@@ -139,7 +139,7 @@
       const rpts = (arr) => (rider && arr ? rider.months.map((m, i) => ({ d: `${m}-15`, v: arr[i] || null })) : []);
       const breaks = (rr?.breakMonths || []).map(m => ({ date: `${m}-01`, kind: 'network', label: 'Network redesign changed this route', detail: '' }));
       BC.timeChart($('chart-riders'), {
-        title: 'Average weekday riders', sub: 'by month', fmt: v => Math.round(v).toLocaleString('en-US'), zero: true, events: breaks,
+        title: 'Average weekday boardings', sub: 'by month', fmt: v => Math.round(v).toLocaleString('en-US'), zero: true, events: breaks,
         empty: 'No MTA ridership estimate for this route.', tipHead: p => new Date(p.d + 'T12:00:00Z').toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
         series: [
           { label: 'Fare taps', color: BC.COL.base, width: 1.5, points: rpts(rr?.tapsWdAvg), gapDays: 40 },
@@ -166,7 +166,7 @@
     $('all').hidden = false;
     const rows = Object.entries(index?.routes || {}).filter(([, r]) => r.kind !== 'shuttle' && r.kind !== 'unknown')
       .map(([id, r]) => ({ id, ...r, long: names[id]?.long || '' }));
-    $('edition').textContent = `${rows.length} routes. Latest week with every weekday hour caught: ${index?.lastWeekdayWeek || '–'}.`;
+    $('edition').textContent = `${rows.length} routes. Latest week with weekday hours complete enough to compare: ${index?.lastWeekdayWeek || '–'}.`;
     let group = 'all', sortKey = 'id', dir = 1;
     const seg = $('group-seg');
     seg.innerHTML = ['all', 'M', 'Bx', 'B', 'Q', 'S', 'X'].map(g => `<button data-g="${g}" class="${g === 'all' ? 'on' : ''}">${g === 'all' ? 'All' : GROUP[g]}</button>`).join('');

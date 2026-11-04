@@ -8,7 +8,8 @@
  *     included), local/limited/SBS routes only, each route counting once,
  *     every hour 6 a.m. to 11 p.m. counting equally, weekdays kept apart;
  *   - only comparable weeks (seven days, every weekday and weekend hour
- *     collected often enough) enter a trend or a comparison;
+ *     collected often enough, up to two per day type filled in) enter a
+ *     trend or a comparison;
  *   - a change is set against the average of the four comparable weeks
  *     before it, and a change smaller than the series' usual week-to-week
  *     wobble is labeled "no real change".
@@ -140,7 +141,7 @@
     const L = comp[comp.length - 1], E = compWe[compWe.length - 1];
     if (!L) { host.innerHTML = '<div class="tray-empty">No comparable week yet.</div>'; return; }
     $('tray-current-period').textContent = `Weekdays: ${L.period}, ${apDate(L.weekStart)} to ${apDate(L.weekEnd)}`
-      + (E && E.period !== L.period ? `. Weekends: ${E.period}, the latest week with every weekend hour caught` : '')
+      + (E && E.period !== L.period ? `. Weekends: ${E.period}, the latest week with weekend hours complete enough to compare` : '')
       + '. Each against the average of the comparable weeks before it.';
     const mph = x => `${x.toFixed(1)} mph`;
     const card = (label, value, unit, sub, series, floor, fmt, higher) => `<div class="trend-card">
@@ -245,7 +246,7 @@
       const taps = rec.tapsWdAvg?.[li];
       return `<div class="mini-trend">
         <div class="mini-label">${href ? `<a class="route-link" href="${href}">${esc(label)}</a>` : esc(label)}</div>
-        <div class="mini-value">${num(rec.wdAvg[li])}<span class="mini-unit">riders/wkday</span></div>
+        <div class="mini-value">${num(rec.wdAvg[li])}<span class="mini-unit">boardings/wkday</span></div>
         <div class="trend-change flat">${span} vs. a year earlier: ${chg(sameMonths(rec.wdAvg, rec.breakMonths))}</div>
         <div class="trend-change flat">vs. the 12 months before: ${chg(c)}</div>
         ${taps ? `<div class="trend-change flat">fare taps ${num(taps)} · estimate/taps ${(rec.wdAvg[li] / taps).toFixed(2)}</div>` : ''}
@@ -263,7 +264,7 @@
         <td class="num">${chg(sameMonths(x.rec.wdAvg, x.rec.breakMonths))}</td><td class="num">${chg(recentVsYear(x.rec.wdAvg, x.rec.breakMonths))}</td></tr>`;
     }).join('');
     host.innerHTML = `<div class="boro-trend rid-tiles">${tiles.join('')}</div>
-      <div class="rid-board"><div class="rid-board-title">Busiest routes, ${monthName(d.months[li])}: average weekday riders</div>
+      <div class="rid-board"><div class="rid-board-title">Busiest routes, ${monthName(d.months[li])}: average weekday boardings</div>
       <table class="tray-table rid-table"><thead><tr><th class="num">#</th><th>Route</th><th>Name</th><th class="num">Counters</th><th class="num">Fare taps</th><th class="num">Ratio</th><th class="num">${span} vs. year earlier</th><th class="num">vs. 12 months before</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }

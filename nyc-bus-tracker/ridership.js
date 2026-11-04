@@ -299,7 +299,7 @@ function updateClock() {
   const rounded = riders >= 1000 ? Math.round(riders / 100) * 100 : Math.round(riders);
   $('clock-riders').textContent = '≈' + rounded.toLocaleString('en-US');
   $('clock-riders-label').textContent =
-    `riders board citywide in this hour on an average ${daytype === 'wd' ? 'weekday' : 'weekend day'}`;
+    `boardings citywide in this hour on an average ${daytype === 'wd' ? 'weekday' : 'weekend day'}`;
   const peakH = citywide[daytype].indexOf(Math.max(...citywide[daytype]));
   const pl = hourLabel(peakH);
   $('clock-note').textContent = hour === peakH

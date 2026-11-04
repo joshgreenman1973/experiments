@@ -48,8 +48,11 @@ const SUMMARY_DIR = join(ROOT, 'data', 'summary');
 const HISTORY_DIR = join(ROOT, 'data', 'route-history');
 
 export const METHOD_VERSION = 2;
-const MIN_HOUR_SNAPS = 4;          // four snapshots (three readings per bus) make an hour "collected"
-const MAX_FILLED_HOURS = 2;        // a day type may miss at most two of its 17 hours
+// MIN_HOUR_SNAPS and MAX_FILLED_HOURS are exported so the data dictionary
+// (scripts/DATA-DICTIONARY.txt, filled in by scripts/export_csv.mjs) quotes
+// the same numbers the code uses.
+export const MIN_HOUR_SNAPS = 4;   // four snapshots (three readings per bus) make an hour "collected"
+export const MAX_FILLED_HOURS = 2; // a day type may miss at most two of its 17 hours
 const MIN_MOV_READINGS = 3;
 const MIN_ROUTE_TIME_S = 120;
 const MPS_TO_MPH = 2.2369363;
@@ -124,6 +127,9 @@ function deriveDay(day) {
       buses: s.buses, busesReg: s.busesReg,
       sched: s.hasSched ? s.sched : null,
       running: s.running,
+      // local, limited and SBS routes with a speed-with-stops value: the
+      // routes this hour's index value actually averages
+      routes: s.all.length,
     };
   }
   const middayRoutes = new Set();
@@ -176,6 +182,7 @@ function systemCells(days, type) {
       n: ds.length, mov: pick('mov'), all: pick('all'), stop: pick('stop'),
       mtaMov: pick('mtaMov'), mtaAll: pick('mtaAll'),
       buses: pick('buses'), busesReg: pick('busesReg'), sched,
+      routes: pick('routes'),
     };
   }
   return cells;
@@ -214,8 +221,13 @@ function summarizeCells(cells, minDays, withBands, ref) {
   const est = (k, n = 2) => (complete ? rd(fillMean(WINDOW_HOURS, valid, h => cells[h], ref, k), n) : null);
   const seen = WINDOW_HOURS.filter(h => cells[h].n > 0);
   const avgOver = (hs, k) => mean(hs.map(h => cells[h][k]));
+  const routeCounts = valid.map(h => cells[h].routes).filter(v => v != null);
   const out = {
     complete, missingHours: missing, filledHours: complete ? missing : [],
+    // Routes averaged per hour (mean over the period's days), across the hours
+    // the period has. The index is a mean over whichever routes qualified, so
+    // a change here can move it without any route changing speed.
+    routesPerHour: routeCounts.length ? { mean: rd(mean(routeCounts), 0), min: rd(Math.min(...routeCounts), 0), max: rd(Math.max(...routeCounts), 0) } : null,
     days: Math.max(0, ...WINDOW_HOURS.map(h => cells[h].n)),
     mov: est('mov'), all: est('all'), stop: est('stop', 4),
     buses: est('buses', 1), busesReg: est('busesReg', 1),
@@ -251,7 +263,7 @@ function aggregatePeriod(days, label, unit, periodDays, cells, ref) {
   for (const type of TYPES) {
     hourly[SHORT[type]] = Object.fromEntries(WINDOW_HOURS.map(h => {
       const c = cells[type][h];
-      return [h, { n: c.n, mov: rd(c.mov), all: rd(c.all), stop: rd(c.stop, 4), buses: rd(c.buses, 1), sched: rd(c.sched, 1) }];
+      return [h, { n: c.n, mov: rd(c.mov), all: rd(c.all), stop: rd(c.stop, 4), buses: rd(c.buses, 1), sched: rd(c.sched, 1), routes: rd(c.routes, 0) }];
     }));
   }
   return {

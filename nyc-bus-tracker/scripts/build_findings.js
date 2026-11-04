@@ -54,6 +54,11 @@ const system = full.map(w => ({
   am: w.wd.bands?.am?.all ?? null, pm: w.wd.bands?.pm?.all ?? null,
   buses: w.wd.buses != null ? Math.round(w.wd.buses) : null, sched: w.wd.sched != null ? Math.round(w.wd.sched) : null,
   partialSpeed: w.wd.partial?.all ?? null,
+  // Hours filled in rather than observed (at most two per day type in a
+  // comparable week), routes averaged per hour, and weekdays left out.
+  wdFilled: w.wd.filledHours || [], weFilled: w.we.filledHours || [],
+  routes: w.wd.routesPerHour?.mean ?? null, routesWe: w.we.routesPerHour?.mean ?? null,
+  excluded: (w.holidays || []).map(x => ({ date: x.date, reason: x.reason })),
 }));
 for (const s of system) {
   if (s.comparable && (s.speed < 3 || s.speed > 20 || s.buses < 500)) die(`implausible week ${s.week}: ${JSON.stringify(s)}`);
@@ -154,6 +159,24 @@ const seasonNote = recent.some(w => w.weekStart.slice(5, 7) === '09' || w.weekEn
   ? ` September is usually slower than August: the MTA's own figure fell from August to September in ${fell} of the ${augSep.length} years since ${augSep[0].year}.`
   : '';
 const amBand = mean(recent.map(w => w.wd.bands?.am?.all));
+
+// Sensitivity: the same first-versus-recent comparison using only comparable
+// weeks in which no weekday hour had to be filled in.
+const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const numWord = n => NUM_WORDS[n] ?? String(n);
+const observedOnly = comparable.filter(w => !(w.wd.filledHours || []).length);
+const change = ws => mean(ws.slice(-N).map(w => w.wd.all)) - mean(ws.slice(0, N).map(w => w.wd.all));
+const changeWords = d => (Math.abs(d) < 0.005 ? 'no change' : `a ${d < 0 ? 'drop' : 'rise'} of ${Math.abs(d).toFixed(2)} mph`);
+const sensitivity = observedOnly.length >= 2 * N && observedOnly.length < comparable.length
+  ? { weeks: observedOnly.map(w => w.period), changeAll: r2(change(comparable)), changeObserved: r2(change(observedOnly)) }
+  : null;
+const sensitivityNote = sensitivity
+  ? ` Counting only the ${numWord(observedOnly.length)} comparable weeks in which no weekday hour had to be filled in (the first began ${apDate(observedOnly[0].weekStart)}), the change from the first ${numWord(N)} weeks to the last ${numWord(N)} is ${changeWords(sensitivity.changeObserved)}, against ${changeWords(sensitivity.changeAll)} counting every comparable week.`
+  : '';
+const fe = official?.fareEvasion;
+const pctOf = x => `${(100 * x).toFixed(1)}%`;
+const evasionNote = ` These two independently constructed series differ substantially. Their ratio is not an estimate of fare evasion. For evasion, use the MTA's <a href="${fe?.url || 'https://data.ny.gov/Transportation/MTA-Bus-Fare-Evasion-Beginning-2019/uv5h-dfhp'}" target="_blank" rel="noopener">separately published measure</a>`
+  + (fe?.local != null && fe.quarterName ? `, which put evasion on local and limited buses at ${pctOf(fe.local)} in the ${fe.quarterName}${fe.express != null ? ` (${pctOf(fe.express)} on express buses)` : ''}.` : '.');
 const learned = [
   {
     head: 'Speed',
@@ -161,6 +184,7 @@ const learned = [
       + dir(net, 0.2, `The trend across all ${comparable.length} comparable weeks points up, about ${r1(net)} mph end to end.`, `The trend across all ${comparable.length} comparable weeks points down, about ${r1(Math.abs(net))} mph end to end.`,
         `Across all ${comparable.length} comparable weeks the trend is flat, moving less than a fifth of a mph end to end.`)
       + seasonNote
+      + sensitivityNote
       + ` Weekends ran faster, ${rc.weekend?.toFixed(1)} mph recently.`,
   },
   {
@@ -175,7 +199,7 @@ const learned = [
   {
     head: 'Riders',
     text: prior12
-      ? `Weekday boardings, as estimated by the MTA from its passenger counters, averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. Those estimates ran ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months, broadly consistent with the MTA's estimate that about half of local riders don't pay.`
+      ? `Weekday boardings, as estimated by the MTA from its passenger counters, averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. Those estimates ran ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months.${evasionNote}`
       : `Weekday boardings averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}.`,
   },
   {
@@ -204,7 +228,7 @@ const out = {
     snapshots: full.reduce((s, w) => s + w.snapshots, 0),
     days: full.reduce((s, w) => s + w.days, 0),
   },
-  periods: { baseline: b, recent: rc, speedSlopePerWeek: Math.round(slope * 1000) / 1000, n: N },
+  periods: { baseline: b, recent: rc, speedSlopePerWeek: Math.round(slope * 1000) / 1000, n: N, sensitivity },
   learned,
   system,
   dayShape: { recent: shape, baseline: dayShape(baseline) },

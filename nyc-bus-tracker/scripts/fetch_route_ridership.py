@@ -497,12 +497,18 @@ out = {
     'tapsSource': 'MTA Bus Hourly Ridership (data.ny.gov kv7t-n8in for months through 2024, '
                   'gxb3-akrn from January 2025), OMNY and MetroCard entries by route.',
     'definitions': {
-        'total': 'Estimated boardings on the route that month, every day of the week.',
-        'wdAvg': 'Monday-Friday boardings that month divided by the number of calendar '
-                 'weekdays in the month. Public holidays are counted as weekdays, so months '
-                 'containing them read slightly low.',
-        'months': 'Only calendar months with data for all seven days of the week are '
-                  'included.',
+        'total': 'Estimated boardings on the route that month, every day of the week. '
+                 'A route with no estimates in a month (no rows, or only null estimates) is '
+                 'stored as 0, which means absent from the source, not zero boardings.',
+        'wdAvg': 'Estimated weekday boardings that month (day_type = weekday) divided by '
+                 'the number of calendar weekdays in the month. Public holidays are counted '
+                 'as weekdays, so months containing them read slightly low. 0 means absent, '
+                 'as for total.',
+        'months': 'The source reports month, day-of-week and hour aggregates, not daily '
+                  'counts. A month is included only when all seven weekday categories '
+                  '(Monday through Sunday) are present. Individual-day completeness cannot '
+                  'be verified from the source, and an included month can still lack '
+                  'estimates for some stops or routes.',
         'caveat': 'These are MTA estimates built from passenger counters, which not every bus '
                   'carries; the MTA scales them up to stand for all riders. Before October 2026 '
                   'the dataset held unscaled counter boardings, which ran far lower, so figures '
@@ -510,9 +516,9 @@ out = {
         'tapsTotal': 'Fare taps: every OMNY tap and MetroCard swipe that let a rider onto a bus '
                      'on the route that month, including free transfers from another bus or the '
                      'subway. It is a count of paid entries, not of riders: people who board '
-                     'without paying are not in it, and the MTA estimates that a very large share '
-                     'of bus riders do not pay (about 45 to 50 percent on local buses in 2024-2026, '
-                     'MTA Bus Fare Evasion dataset, data.ny.gov uv5h-dfhp). Null where the fare '
+                     'without paying are not in it. For the share who do not pay, use the MTA\'s '
+                     'separately published estimate (MTA Bus Fare Evasion, data.ny.gov uv5h-dfhp, '
+                     'quarterly, by type of service). Null where the fare '
                      'dataset does not cover every day of the month (a day with almost no taps, '
                      'such as Jan 10-15, 2026, counts as missing), or where the route has no rows '
                      'in it that month.',
@@ -520,13 +526,13 @@ out = {
                      'weekdays in the month, the same denominator as wdAvg.',
         'ratio': 'Estimated boardings per fare tap: wdAvg divided by tapsWdAvg, rounded to '
                  'three decimals. Null where either is missing or zero. A ratio of 1.5 means the '
-                 'MTA estimates three boardings for every two paid entries. It is not an evasion '
-                 'rate: taps include free transfers, and both series are estimates with their '
-                 'own gaps. Still, because the boardings now stand for all riders, a ratio well '
-                 'above 1 is broadly consistent with the MTA fare evasion estimate (about half of '
-                 'local riders not paying implies a ratio near 2 on local routes). If buses go '
-                 'fare-free, taps stop and the estimates are the only measure left; this series '
-                 'records how the two lined up, route by route, beforehand.',
+                 'MTA estimates three boardings for every two paid entries. The two series are '
+                 'constructed independently and differ substantially. Their ratio is not an '
+                 'estimate of fare evasion: taps include free transfers, and the two differ in '
+                 'coverage and method. For evasion, use the MTA\'s separately published measure '
+                 '(data.ny.gov uv5h-dfhp). The ratio is kept as a reconciliation check. If buses '
+                 'go fare-free, taps stop and the estimates are the only measure left; this '
+                 'series records how the two lined up, route by route, beforehand.',
         'system.tapsTotal': 'Every fare tap in the dataset that month, all routes, including any '
                             'that have no counter data (see tapsUnmatched).',
         'estimatesJoint': 'Since October 2026 the MTA also reports ridership estimates for '

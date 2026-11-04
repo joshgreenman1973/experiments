@@ -15,6 +15,8 @@ Datasets (data.ny.gov, SODA):
              weighted by miles driven)
   v4z4-2h6n  Wait assessment;  8mkn-d32t  customer journey metrics
   sayj-mze2  Daily ridership (mode = Bus)
+  uv5h-dfhp  MTA Bus Fare Evasion (quarterly, by type of service), linked
+             beside the boardings-to-taps ratio, which is not an evasion rate
 
 Matching. The tracker's index (method version 2) counts each local, limited
 and Select Bus Service route once, gives each Eastern clock hour from 6 a.m.
@@ -116,6 +118,18 @@ def month_name(m):
     return datetime.strptime(m, '%Y-%m').strftime('%B %Y')
 
 
+NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+
+
+def quarter_name(q):
+    y, n = q.split('-Q')
+    return f"{['first', 'second', 'third', 'fourth'][int(n) - 1]} quarter of {y}"
+
+
+def num_word(n):
+    return NUM_WORDS[n] if 0 <= n < len(NUM_WORDS) else str(n)
+
+
 # ── MTA side ────────────────────────────────────────────────────────────────
 latest = soda('cudb-vcni', 'SELECT max(month) AS m')
 if not latest or not latest[0].get('m'):
@@ -196,6 +210,24 @@ for r in daily:
         wd_sum[r['date'][:7]] += float(r['count'])
 daily_wd = {m: wd_sum[m] / weekdays_in(m) for m in wd_sum
             if len(days_seen[m]) == calendar.monthrange(*map(int, m.split('-')))[1]}
+
+# The MTA's own fare-evasion estimate, latest quarter. Shown next to the
+# boardings-to-taps ratio so readers have the real measure; the ratio is not one.
+FARE_EVASION_URL = 'https://data.ny.gov/Transportation/MTA-Bus-Fare-Evasion-Beginning-2019/uv5h-dfhp'
+fe_rows = soda('uv5h-dfhp', 'SELECT time_period, trip_type, fare_evasion ORDER BY time_period DESC LIMIT 20')
+fe_q = max((r['time_period'] for r in fe_rows if r.get('time_period')), default=None)
+fe = {r['trip_type']: float(r['fare_evasion']) for r in fe_rows
+      if r.get('time_period') == fe_q and r.get('fare_evasion') not in (None, '')}
+if not fe_q or not re.match(r'^\d{4}-Q[1-4]$', fe_q) or 'Local' not in fe or not 0 < fe['Local'] < 1:
+    die(f'uv5h-dfhp returned no usable latest quarter: {fe_q} {fe}')
+fare_evasion = {
+    'quarter': fe_q, 'quarterName': quarter_name(fe_q), 'local': fe.get('Local'), 'sbs': fe.get('SBS'), 'express': fe.get('Express'), 'total': fe.get('Total'),
+    'url': FARE_EVASION_URL,
+    'about': 'MTA Bus Fare Evasion (data.ny.gov uv5h-dfhp): the estimated share of riders who board without paying, '
+             'calculated by the MTA each quarter from automatic passenger counters (from surveys before 2020). '
+             '"local" is the MTA\'s Local/Limited category.',
+}
+print('fare evasion', fare_evasion)
 
 # ── our side (method version 2) ─────────────────────────────────────────────
 monthly = read('data/summary/monthly.json')
@@ -297,12 +329,18 @@ if ratios:
 # Next month's MTA headline ≈ last published headline × the tracker's own
 # change (speed with stops, local index) between the two months. Scored
 # against every month where both are known.
+# The backtest applies the rule retrospectively using today's stored series,
+# which are regenerated, so it is not what the tracker could have known at the
+# time; the advance record is the log in nowcasts.json. Each row also scores
+# the simplest rival rule, no change from the month before (on the published,
+# rounded headline figures).
 backtest = []
 for m in paired:
     a = prev_month(m)
     if a in head and usable(a):
         pred = head[a] * ours[m]['idx']['all'] / ours[a]['idx']['all']
-        backtest.append({'month': m, 'predicted': round(pred, 2), 'actual': round(head[m], 2), 'error': round(pred - head[m], 2)})
+        backtest.append({'month': m, 'predicted': round(pred, 2), 'actual': round(head[m], 2), 'error': round(pred - head[m], 2),
+                         'noChange': round(head[a], 2), 'noChangeError': round(round(head[a], 2) - round(head[m], 2), 2)})
 nowcast = None
 target = [m for m in sorted(ours) if m > LAST and usable(m) and prev_month(m) in head and usable(prev_month(m))]
 if target:
@@ -310,20 +348,38 @@ if target:
     a = prev_month(m)
     value = round(head[a] * ours[m]['idx']['all'] / ours[a]['idx']['all'], 2)
     errs = [abs(b['error']) for b in backtest]
+    nc_errs = [abs(b['noChangeError']) for b in backtest]
+    mae, nc_mae = (round(st.mean(errs), 2), round(st.mean(nc_errs), 2)) if errs else (None, None)
+    if len(errs) == 1:
+        record = (f" Applied retrospectively to one earlier month using the current data, this rule missed by {mae:.2f} mph,"
+                  f" against {nc_mae:.2f} mph for assuming no change from the month before. This is not yet a reliable estimate of future forecast accuracy.")
+    elif errs:
+        record = (f" Applied retrospectively to {num_word(len(errs))} earlier months using the current data, this rule had a mean absolute error of {mae:.2f} mph,"
+                  f" against {nc_mae:.2f} mph for assuming no change from the month before. This is not yet a reliable estimate of future forecast accuracy.")
+    else:
+        record = ' There is no track record yet.'
     nowcast = {'month': m, 'value': value, 'basedOn': a, 'mtaBase': round(head[a], 2),
                'oursBase': ours[a]['idx']['all'], 'oursNow': ours[m]['idx']['all'],
-               'backtest': backtest, 'typicalError': round(st.mean(errs), 2) if errs else None,
+               'backtest': backtest, 'backtestKind': 'retrospective, current data',
+               'typicalError': mae, 'noChangeError': nc_mae,
                'text': f"The MTA has not yet published {month_name(m)}. If its headline figure moves the way the tracker did, it will come in near {value:.2f} mph, "
                        f"{abs(value - head[a]):.2f} {'below' if value < head[a] else 'above'} {month_name(a)}'s {head[a]:.2f}."
-                       + ((f" Made this way, the forecast for {month_name(backtest[-1]['month'])} would have missed by {abs(backtest[-1]['error']):.2f} mph." if len(errs) == 1
-                           else f" Made this way, forecasts for the {len(errs)} earlier months missed by {st.mean(errs):.2f} mph on average.") if errs else ' There is no track record yet.')}
+                       " That figure is an extrapolation from the tracker's own index, not an observed MTA speed, and the two series weight routes and hours differently."
+                       + record}
 log = read('data/mta/nowcasts.json', optional=True) or {'about': 'Running forecasts of the MTA headline bus speed (cudb-vcni), recorded when made and scored when the MTA publishes.', 'forecasts': []}
 if nowcast and not any(f['month'] == nowcast['month'] and f['value'] == nowcast['value'] for f in log['forecasts']):
     log['forecasts'].append({'month': nowcast['month'], 'value': nowcast['value'], 'madeAt': datetime.now(timezone.utc).isoformat(timespec='seconds')})
+# actual follows the MTA's current figure, which it can revise; firstActual
+# keeps the first figure this script saw (for forecasts scored before Nov.
+# 2026, the figure current when this field was added). The first forecast
+# logged for a month is the declared one; later entries are reissues.
 for f in log['forecasts']:
     if f['month'] in head:
         f['actual'] = round(head[f['month']], 2)
         f['error'] = round(f['value'] - f['actual'], 2)
+        if 'firstActual' not in f:
+            f['firstActual'] = f['actual']
+            f['firstActualSeen'] = datetime.now(timezone.utc).date().isoformat()
 
 # ── seasons ─────────────────────────────────────────────────────────────────
 season_months = sorted(full)
@@ -375,6 +431,7 @@ out = {
     },
     'nowcast': nowcast,
     'nowcastLog': log['forecasts'],
+    'fareEvasion': fare_evasion,
     'season': season,
     'metrics': metrics,
     'flags': flags,
@@ -397,6 +454,7 @@ out = {
         {'name': 'Wait assessment (v4z4-2h6n)', 'url': 'https://data.ny.gov/d/v4z4-2h6n', 'through': month_name(max(wa))},
         {'name': 'Customer journey metrics (8mkn-d32t)', 'url': 'https://data.ny.gov/d/8mkn-d32t', 'through': month_name(max(abst))},
         {'name': 'Daily ridership (sayj-mze2)', 'url': 'https://data.ny.gov/d/sayj-mze2', 'through': daily[-1]['date'][:10]},
+        {'name': 'Bus fare evasion (uv5h-dfhp)', 'url': FARE_EVASION_URL, 'through': quarter_name(fe_q)},
     ],
 }
 route_months = [m for m in MONTHS if m in mta_route_wd]

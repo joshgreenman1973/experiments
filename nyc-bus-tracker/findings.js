@@ -160,6 +160,10 @@
         el('rect', { x: a, y: h - m.b - 7, width: Math.max(3, b - a), height: 4, fill: EV_COL[e.kind] || COL.ink3, opacity: 0.9 }, svg);
       }
     }
+    // Filled hours and route counts for this chart's day type (absent in
+    // findings files built before November 2026).
+    const filledOf = s => (key === 'weekend' ? s.weFilled : s.wdFilled);
+    const routesOf = s => (key === 'weekend' ? s.routesWe : s.routes);
     const lastC = [...S].reverse().find(s => ok(s) && s[key] != null);
     if (lastC) txt(svg, x(mid(lastC)) + 9, y(lastC[key]) + 4, cfg.fmt(lastC[key], true), { class: 'dlabel', fill: COL.ours });
 
@@ -172,7 +176,9 @@
         + row(cfg.title, cfg.fmt(best[key], true))
         + (key !== 'buses' ? row('Buses on the road', num(best.buses)) : (best.sched ? row('Trips scheduled', num(best.sched)) : ''))
         + row('Hours caught', best.coverage + '%')
-        + (ok(best) ? '' : '<div class="t-n">Not comparable: some hours of the day were not caught often enough.</div>')
+        + (ok(best) && filledOf(best) ? row('Hours filled in', filledOf(best).length ? filledOf(best).map(hourName).join(', ') : 'none, all 17 observed') : '')
+        + (key !== 'buses' && routesOf(best) != null ? row('Routes averaged per hour', num(routesOf(best))) : '')
+        + (ok(best) ? '' : '<div class="t-n">Not comparable: more than two hours of the day were not caught often enough.</div>')
         + evNear(best.start, best.end));
       return { x: x(mid(best)) };
     });
@@ -482,8 +488,19 @@
       main.insertAdjacentHTML('beforeend', `<ul class="flags">${O.flags.map(f => `<li><b>${f.head}</b>${f.text}${f.detail ? `<span>${f.detail}</span>` : ''}</li>`).join('')}</ul>`);
     }
     if (O.nowcast?.text || O.nowcastLog?.length) {
-      const scored = (O.nowcastLog || []).filter(f => f.actual != null);
-      main.insertAdjacentHTML('beforeend', `<div class="nowcast"><b>Ahead of the MTA.</b> ${O.nowcast?.text || ''}${scored.length ? ` <span>Forecasts on record: ${scored.map(f => `${apMonth(f.month)} ${f2(f.value)} forecast, ${f2(f.actual)} actual`).join('; ')}.</span>` : ''}</div>`);
+      // The advance record: the first forecast logged for each month is the
+      // declared one; later entries for the same month are reissues and are
+      // not scored. Kept apart from the retrospective backtest in the text.
+      const log = [...(O.nowcastLog || [])].sort((a, b) => a.madeAt.localeCompare(b.madeAt));
+      const declared = log.filter((f, i) => log.findIndex(g => g.month === f.month) === i);
+      const reissues = m => log.filter(f => f.month === m).length - 1;
+      const record = declared.map(f => {
+        const r = reissues(f.month);
+        return `${apMonth(f.month)}: ${f2(f.value)} mph, logged ${apDate(f.madeAt.slice(0, 10), true)}; `
+          + (f.actual != null ? `the MTA published ${f2(f.actual)}, a miss of ${f2(Math.abs(f.value - f.actual))} mph` : 'not yet published')
+          + (r ? ` (${r === 1 ? 'one later reissue' : r + ' later reissues'}, not scored)` : '');
+      }).join('. ');
+      main.insertAdjacentHTML('beforeend', `<div class="nowcast"><b>Ahead of the MTA.</b> ${O.nowcast?.text || ''}${declared.length ? ` <span>Forecasts logged in advance, the first for each month: ${record}.</span>` : ''}</div>`);
     }
     if (O.sources?.length) {
       main.insertAdjacentHTML('beforeend', `<p class="note" style="margin-top:24px;color:var(--ink-3);font-size:12.5px">MTA sources: ${O.sources.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${s.name}</a> (through ${s.through})`).join('; ')}. Pulled ${apDate(O.fetchedAt.slice(0, 10), true)}.</p>`);
@@ -524,14 +541,14 @@
   function copy() {
     const T = D.totals, A = D.asOf, P = D.periods;
     document.getElementById('dek').textContent =
-      `What ${T.weeksElapsed} weeks of watching every New York City bus has shown so far: how fast they move, how many are on the road and how many people ride.`;
+      `What ${T.weeksElapsed} weeks of watching the New York City buses reported in the MTA feed has shown so far: how fast they move, how many are on the road and how often riders board.`;
     document.getElementById('edition').innerHTML =
       `Updated every Monday. This edition runs through <b>${apDate(A.end, true)}</b>, with ${T.comparableWeeks} comparable weeks out of ${T.weeksElapsed} and ${num(T.snapshots)} snapshots of the fleet since ${apDate(T.firstDate)}.`;
     document.getElementById('learned').innerHTML = D.learned.map(l => `<li><b>${l.head}</b>${l.text}</li>`).join('');
     document.getElementById('day-recent-label').textContent = `Recent weeks, ${apDate(P.recent.start)} to ${apDate(P.recent.end)}`;
     document.getElementById('day-base-label').textContent = `First weeks, ${apDate(P.baseline.start)} to ${apDate(P.baseline.end)}`;
     document.getElementById('riders-copy').textContent =
-      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, as estimated by the MTA from its on-board passenger counters, beside paid fare taps (dashed). The estimates stand for all riders; taps miss riders who don't pay.`;
+      `Average weekday boardings across the system through ${apMonth(D.ridership.lastMonth)}, as estimated by the MTA from its on-board passenger counters, beside paid fare taps (dashed). The estimates are scaled to stand for all boardings; taps miss boardings that aren't paid. Boardings are not people: a rider who transfers boards twice.`;
   }
 
   // ── controls ──
