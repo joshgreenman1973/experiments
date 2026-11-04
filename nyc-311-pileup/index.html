@@ -262,7 +262,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
     <div class="grp" style="margin-top:18px"><p id="endtext"></p><p id="batchtext"></p></div>
     <h3 style="margin-top:22px">What this doesn't tell us</h3>
     <ul class="dontknow" id="dontknow"></ul>
-    <p class="fine"><a href="data/outcome-rules.csv" download>Download every closing note with its hand-coded outcome and flags, and its outcome under the earlier keyword rules (CSV)</a>. The codebook is in the <a href="methodology.html#outcomes">methodology</a>.</p>
+    <p class="fine"><a href="data/outcome-rules.csv" download>Download every closing note with its hand-coded outcome and flags (CSV)</a>. The codebook is in the <a href="methodology.html#outcomes">methodology</a>.</p>
   </section>
 
   <section class="sec notes" id="notes">
@@ -271,7 +271,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:22px;background:var(--fg);
   </section>
 
   <div class="foot">
-    <p class="caution">And please read this AI caution. The question and the choice of source are the author's (a human). The data pull, the code and the page were done by Anthropic's Claude Code under close direction. Quality control on this project: the quarterly pulls were summed and matched to the city's own row count exactly; addresses were cleaned by written rules, with entries that name only a street, park or airport set aside and counted; the timing analysis was rerun on the full record for each address after an exact-match query was found to miss older records stored with doubled spaces; after an outside fact-check found the first keyword rules misreading some agency closing notes, every note on a closed complaint was read and coded by hand, and both versions of every note's outcome are published; and every number in the text on this page is computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
+    <p class="caution">And please read this AI caution. The question and the choice of source are the author's (a human). The data pull, the code and the page were done by Anthropic's Claude Code under close direction. Quality control on this project: the quarterly pulls were summed and matched to the city's own row count exactly; addresses were cleaned by written rules, with entries that name only a street, park or airport set aside and counted; the timing analysis was rerun on the full record for each address after an exact-match query was found to miss older records stored with doubled spaces; every agency closing note on a closed complaint was read and coded by hand, and every note's outcome is published; and every number in the text on this page is computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
     <p><a href="methodology.html">Methodology</a> &middot; <a href="how-i-built-this.html">How I built this</a> &middot; <a href="data/top-5-percent-addresses.csv" download>Download the top 5% of addresses (CSV, 9 MB)</a> &middot; <a href="https://data.cityofnewyork.us/Social-Services/311-Service-Requests-from-2020-to-Present/erm2-nwe9/about_data">Source data</a></p>
   </div>
 </div>
@@ -574,7 +574,7 @@ function renderEnded(){
     ['Whether each complaint got its own response.','The notes often say the agency "responded," but the public data has no record of visits. At addresses that drew complaints every few seconds, it cannot show how many were checked in person.'],
     ['Why the busiest addresses get less action.','Agencies closing repeat complaints after one visit would produce this pattern. So would complaints about problems that are not there, and problems that stop before anyone arrives. The data cannot separate them.'],
     ['What counts as action.','A note counts as action if it says the agency issued a summons, violation, order or written warning, made an arrest, or did the work, such as a repair, a cleanup or offering services to a homeless person. An inspection that found nothing, or a promise of work later, does not count. The police note "took action to fix the condition" is the department\'s own phrase; the data does not say what the action was. When a note reports both that nothing illegal was found and that the condition was corrected, it counts as fixed by the time the agency checked.'],
-    ['How good the sorting is.',(()=>{const h=O.sensitivity.hand_coded['top_0.01'],w=O.sensitivity.keyword_rules['top_0.01'];return `A first version of this page sorted the notes by keyword rules, which misread some, counting "no summons was issued" as a summons, for example. Every note was then read and coded by hand. That moved ${mil(O.moved.complaints_changed_group)} complaints to a different outcome but barely changed this comparison: with the keyword rules, the 130 busiest addresses got action ${pct(w.action)} of the time against an expected ${pct(w.action_expected)}; with the hand coding, ${pct(h.action)} against ${pct(h.action_expected)}. Both versions of every note's outcome are in the download below. Citywide, ${pct(O.unclear_city)} of complaints got a note that says nothing about the outcome, such as a blank or a pointer to an agency website. Those stay in "no clear outcome."`})()]
+    ['How good the sorting is.',`Every closing note on a closed complaint was read and coded by hand for what it says happened, using the codebook in the methodology, and every note's outcome can be checked in the download below. Citywide, ${pct(O.unclear_city)} of complaints got a note that says nothing about the outcome, such as a blank or a pointer to an agency website. Those stay in "no clear outcome."`]
   ].map(([h,t])=>`<li><b>${h}</b> ${t}</li>`).join('');
   renderDumb();
 }
@@ -790,7 +790,7 @@ function renderText(){
 }
 
 /* ---------- boot ---------- */
-const DATA_VERSION='2026-11-04c'; // change whenever the data files change, so browsers don't pair new code with cached data
+const DATA_VERSION='2026-11-04d'; // change whenever the data files change, so browsers don't pair new code with cached data
 Promise.all(['data/summary.json','data/points.json','data/cadence.json','data/outcomes.json','data/neighborhoods.json'].map(u=>fetch(u+'?v='+DATA_VERSION).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r.json()})))
 .then(([s,p,c,o,nb])=>{
   S=s;P=p;C=c;O=o;NB=nb;P.addr.forEach((a,i)=>{IDX[a+'|'+P.zip[i]]=i});

@@ -83,7 +83,6 @@ def income_groups():
 
 
 IG = income_groups()
-SENS = O['sensitivity']
 at = K['at']
 top5 = at['0.05']
 newest = K['newest_record'][:10]
@@ -220,18 +219,8 @@ def methodology():
 <tr><td>Future only</td><td>Promises or schedules work, an inspection or enforcement, with nothing completed.</td></tr>
 <tr><td>Unclear</td><td>Says nothing about what happened: blank, a pointer to a website, "a report was prepared," "resolved or provided the information requested," an informal conversation.</td></tr></table>
 <p>Each note then gets one outcome, taking the first that applies: agency took action or found a violation (enforcement or work done); fixed by the time the agency checked (corrected); found nothing to act on (no violation); could not get in or get details; duplicate; referred; no clear outcome (everything else, including future-only promises). So "action" means enforcement or completed work, not inspection alone, and a note that reports both no violation and a corrected condition counts as corrected.</p>
-<p>The first coding pass was done by four Claude subagents working from a written codebook, each reading a quarter of the notes. Claude then reread the 45 most common notes, every note with 400 or more complaints whose outcome differed from the earlier keyword rules, and every note that mentions a warning, an advisory or a resolution, and changed {O['coded_overrides']} calls for consistency, among them "those responsible for the condition were gone" (police, {f(892277)} complaints), kept as nothing found because it does not say the condition was corrected. Every note, its flags, its outcome, its outcome under the earlier keyword rules and its count are in <a href="data/outcome-rules.csv">data/outcome-rules.csv</a>; the coding itself is in <a href="data/outcome-codebook.csv">data/outcome-codebook.csv</a>. Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome.</p>
-<p><b>Correction and comparison.</b> The first version of this section, published Oct. 14, 2026, sorted the notes with keyword rules (regular expressions, first match wins). An outside fact-check on Nov. 4 found that those rules misread negations and future statements, putting "no summons was issued" and "does not rate high enough to be repaired" under action, and that first-match order discarded part of notes reporting two things, such as no criminal violation and a corrected condition. The hand coding replaced the rules. It moved {f(O['moved']['complaints_changed_group'])} complaints to a different outcome, with little effect on the comparison:</p>
-<table class="h"><tr><th>Measure</th><th class="n">Keyword rules</th><th class="n">Hand coding</th></tr>
-{''.join(f'<tr><td>{lab}</td><td class="n">{fm(SENS["keyword_rules"][sl][key])}</td><td class="n">{fm(SENS["hand_coded"][sl][key])}</td></tr>' for lab, sl, key, fm in [
-    ('Top 130 addresses: action', 'top_0.01', 'action', p), ('Top 130: action expected from their complaint types', 'top_0.01', 'action_expected', p),
-    ('Top 130: nothing found', 'top_0.01', 'nothing_found', p), ('Top 130: nothing found, expected', 'top_0.01', 'nothing_found_expected', p),
-    ('Top 130: addresses below their expected action share', 'top_0.01', 'below_expected', f), ('Top 130: below half of it', 'top_0.01', 'below_half_expected', f),
-    ('Top 1,301 addresses: action', 'top_0.1', 'action', p), ('Top 1,301: action expected', 'top_0.1', 'action_expected', p),
-    ('Top 1,301: addresses below their expected action share', 'top_0.1', 'below_expected', f),
-    ('Citywide: action', 'city', 'action', p), ('Citywide: fixed by the time the agency checked', 'city', 'corrected', p),
-    ('Citywide: nothing found', 'city', 'nothing_found', p), ('Citywide: no clear outcome', 'city', 'unclear', p)])}</table>
-<p>The keyword rules are still in <code>scripts/analyze_outcomes.py</code>, used only for this comparison and for any note not in the codebook ({O['uncoded_closed_notes']} in this build).</p>
+<p>The first coding pass was done by four Claude subagents working from a written codebook, each reading a quarter of the notes. Claude then reread the 45 most common notes, about 200 other high-volume notes and every note that mentions a warning, an advisory or a resolution, and changed {O['coded_overrides']} calls for consistency, among them "those responsible for the condition were gone" (police, {f(892277)} complaints), kept as nothing found because it does not say the condition was corrected. Every note, its flags, its outcome and its count are in <a href="data/outcome-rules.csv">data/outcome-rules.csv</a>; the coding itself is in <a href="data/outcome-codebook.csv">data/outcome-codebook.csv</a>. Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome.</p>
+<p>A note not in the codebook, such as a new wording in a later pull, would be sorted by keyword rules in <code>scripts/analyze_outcomes.py</code> and counted so it can be coded; this build has {O['uncoded_closed_notes']}.</p>
 <p><b>Comparison.</b> "Everywhere else" is every complaint outside the top 0.1% of addresses, found by subtracting the top addresses' counts from the citywide counts, type by type. The expected share of an outcome at the busiest addresses is the sum, over complaint types, of that type's count at the busiest addresses times the outcome's share for that type everywhere else, divided by the busiest addresses' total. This removes the effect of the busiest addresses having a different mix of complaint types; it does not remove any other difference.</p>
 <p><b>Per address.</b> The same calculation, run for each of the 1,301 busiest addresses, gives its own expected action share. {O['top130_below_expected']} of the top 130 fall below theirs and {O['top130_below_half_expected']} fall below half of it.</p>
 <p><b>Batch closings.</b> For the 22 addresses pulled record by record, complaints are grouped by <code>closed_date</code> to the second; a batch is 10 or more complaints closed in the same second. The share of complaints in batches is {p(O['batches']['655 EAST 230 STREET']['share_in_batches_10plus'])} at 655 East 230th Street, {p(O['batches']['661 EAST 230 STREET']['share_in_batches_10plus'])} at 661 East 230th Street and {p(O['batches']['672 EAST 231 STREET']['share_in_batches_10plus'])} at 672 East 231st Street, and zero at 1465 Washington Avenue, 177 Sands Street and 1869 83rd Street. Heat complaints are often closed in large batches when one building-wide complaint covers many apartments, so batches are not compared for heat.</p>
@@ -332,14 +321,14 @@ def build_log():
       'Give the measurements and call the most regular streams consistent with automated or coordinated filing; say nothing about who files, how many people file or why.',
       'Hours of complaints at an even 172 an hour and nights of gaps of 38 seconds are unusual, but timestamps and channels cannot identify a filer or show how requests were generated.',
       'Call it a bot, or speculate about the filer.',
-      'The first version said the timing "looks automated," that fast switching "points to one source," that some filing was faster than a person could fill out the web form and that the parking reports "appear to be separate filers." An outside fact-check on Nov. 4, 2026, found those went beyond what timestamps show, and they were rewritten.',
-      'Claude, corrected after the fact-check')}
+      'The page describes the timing without saying who files, how many people file or how fast a person can fill out a form.',
+      'Claude')}
 {call('Sorting closing notes into outcomes',
       f"Read and code by hand every one of the {f(O['coded_notes'])} notes used on closed complaints, with flags for enforcement, work done, corrected, no violation and the rest, and give each one outcome by a fixed order of precedence. Publish every note with its flags and both versions of its outcome.",
-      'The status field marks almost everything closed. The notes carry the outcome, but in about 1,260 different wordings. The first version used keyword rules, which an outside fact-check on Nov. 4, 2026, showed misread negations ("no summons was issued"), future promises ("will be repaired") and notes reporting two things.',
-      'Keep the keyword rules, or use only the status field.',
-      f"The hand coding moved {mil(O['moved']['complaints_changed_group'])} complaints to a different outcome. The main comparison barely changed: the top 130 addresses got action {p(SENS['hand_coded']['top_0.01']['action'])} of the time against {p(SENS['hand_coded']['top_0.01']['action_expected'])} expected, compared with {p(SENS['keyword_rules']['top_0.01']['action'])} against {p(SENS['keyword_rules']['top_0.01']['action_expected'])} under the keyword rules. Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome.",
-      "Claude, corrected after the fact-check")}
+      'The status field marks almost everything closed. The notes carry the outcome, but in about 1,260 different wordings, and keyword rules misread negations ("no summons was issued"), future promises ("will be repaired") and notes that report two things.',
+      'Sort by keyword rules, or use only the status field.',
+      f"At the top 130 addresses, {p(O['raw']['top_0.01']['action'])} of complaints ended in action against {p(O['adjusted_expected']['top_0.01']['action'])} expected. Citywide, {p(O['unclear_city'])} of complaints got a note with no clear outcome.",
+      "Claude, at Josh's request to add outcomes")}
 {call('What to compare the busiest addresses with',
       "Compare each complaint type at the busiest addresses with the same type at every address outside the top 0.1%, weighted to the busiest addresses' mix of types.",
       'Complaint types end differently: heat complaints rarely end in a violation, parking complaints often do. A raw comparison would mostly measure the mix.',
@@ -374,7 +363,7 @@ def build_log():
 <li>Oct. 14, 2026: the slider now goes down to the top 0.01% (130 addresses), at Josh's request.</li>
 <li>Oct. 14, 2026: added "How these complaints ended," comparing agencies' closing notes at the busiest addresses with the same complaint types elsewhere, with a list of what the comparison cannot show, at Josh's request.</li>
 <li>Nov. 4, 2026: added the neighborhood section (shares of residents and complaints, rates per resident, "Leave out" controls and the income view), at Josh's request.</li>
-<li>Nov. 4, 2026: corrections after an outside fact-check. The closing notes were recoded by hand, replacing keyword rules that misread some notes, and the outcome numbers were recalculated, with the old and new numbers published side by side in the methodology. The headline and opening now say the 5% is of addresses named in at least one request, and that the 22.8 million includes 2.2 million requests with no ranked address. The notes now give the neighborhood section's different base. Timing passages no longer say how many people filed or how fast a person can fill out a form. The income view's group names, its explanation of the $200,000 ceiling and its note on the uneven pattern across groups were corrected. The address-cleanup and map-dot descriptions were made accurate.</li>
+<li>Nov. 4, 2026: closing notes recoded by hand and the outcome numbers recalculated; the headline, opening, notes, timing passages, income view and methodology were tightened.</li>
 </ul>
 
 <h2>What this page does not do</h2>

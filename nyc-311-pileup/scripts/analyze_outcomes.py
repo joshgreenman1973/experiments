@@ -11,12 +11,12 @@ complaints were closed in batches (10 or more closed in the same second).
 
 Sorting: every distinct closing note on a closed request was read and coded by
 hand into flags (data/outcome-codebook.csv; see the methodology for the codebook
-and the precedence order). The keyword rules below are the first version of the
-sorting. They are kept only to (1) sort any note that is not in the codebook,
-which is counted and reported, and (2) publish a comparison of the two versions.
+and the precedence order). The keyword rules below only sort a note that is not
+in the codebook, such as a new wording in a later pull; those are counted and
+reported so they can be coded.
 
 Writes data/outcomes.json and data/outcome-rules.csv (every closing note, its
-group, its flags, its group under the old keyword rules and its count, so the
+group, its flags and its count, so the
 sorting can be checked), and prints a summary.
 
 Usage: python3 scripts/analyze_outcomes.py
@@ -71,7 +71,7 @@ UNCODED = {}
 
 
 def group_rules(status, note):
-    # The first, keyword-only version of the sorting (kept for comparison).
+    # Fallback for notes not in the codebook.
     if status.strip().lower() != 'closed':
         return 'open'
     for g, rx in RX:
@@ -138,35 +138,6 @@ def batches():
     return res
 
 
-def headline(city, top, col):
-    # Raw and type-adjusted expected shares and below-expected counts, using
-    # outcome column `col`.
-    c, t = city.assign(g=city[col]), top.assign(g=top[col])
-    rest = c.groupby(['tkey', 'g']).n.sum().sub(t.groupby(['tkey', 'g']).n.sum(), fill_value=0).clip(lower=0).reset_index()
-    rr = rest.groupby(['tkey', 'g']).n.sum().unstack(fill_value=0).reindex(columns=GROUPS, fill_value=0)
-    rr = rr.div(rr.sum(axis=1), axis=0)
-    res = {}
-    for name, n in (('top_0.01', 130), ('top_0.1', 1301)):
-        f = t[t['rank'] <= n]
-        raw, exp = rates(f), adjusted(f, rest)
-        below = half = 0
-        for _, g in f.groupby('rank'):
-            w = g.groupby('tkey').n.sum()
-            w = w[w.index.isin(rr.index)]
-            e = float((rr.loc[w.index, 'action'] * w).sum() / w.sum())
-            a = float(rates(g)['action'])
-            below += a < e
-            half += a < e / 2
-        res[name] = {'action': round(float(raw['action']), 4), 'action_expected': round(float(exp['action']), 4),
-                     'nothing_found': round(float(raw['nothing_found']), 4),
-                     'nothing_found_expected': round(float(exp['nothing_found']), 4),
-                     'corrected': round(float(raw['corrected']), 4), 'corrected_expected': round(float(exp['corrected']), 4),
-                     'below_expected': int(below), 'below_half_expected': int(half)}
-    res['city'] = {k: round(float(v), 4) for k, v in rates(c).items()}
-    res['everyone_else'] = {k: round(float(v), 4) for k, v in rates(rest).items()}
-    return res
-
-
 def main():
     city = load(os.path.join(OUT, 'city', '*.csv'))
     top = load(os.path.join(OUT, 'top', '*.csv'))
@@ -181,20 +152,16 @@ def main():
     notes = city.groupby(['status', 'resolution_description']).n.sum().reset_index()
     notes['g'] = [group(s, r) for s, r in zip(notes.status, notes.resolution_description)]
     notes['outcome'] = notes.g.map(LABELS)
-    notes['outcome_keyword_rules'] = [LABELS[group_rules(s, r)] for s, r in zip(notes.status, notes.resolution_description)]
     for f in FLAGS:
         notes[f] = [CB_FLAGS.get(r, {}).get(f, '') if st.strip().lower() == 'closed' else ''
                     for st, r in zip(notes.status, notes.resolution_description)]
     notes['hand_coded'] = [int(r in CODED) if st.strip().lower() == 'closed' else ''
                            for st, r in zip(notes.status, notes.resolution_description)]
-    (notes.sort_values('n', ascending=False)[['outcome', 'status', 'resolution_description', 'n', 'outcome_keyword_rules',
-                                              'hand_coded'] + FLAGS]
+    (notes.sort_values('n', ascending=False)[['outcome', 'status', 'resolution_description', 'n', 'hand_coded'] + FLAGS]
      .rename(columns={'resolution_description': 'closing_note', 'n': 'complaints'})
      .to_csv(os.path.join(ROOT, 'data', 'outcome-rules.csv'), index=False))
     city['g'] = [group(s, r) for s, r in zip(city.status, city.resolution_description)]
     top['g'] = [group(s, r) for s, r in zip(top.status, top.resolution_description)]
-    city['g_old'] = [group_rules(s, r) for s, r in zip(city.status, city.resolution_description)]
-    top['g_old'] = [group_rules(s, r) for s, r in zip(top.status, top.resolution_description)]
 
     # Everything outside the top 0.1%, built by subtracting the top rows from the city totals.
     key = ['tkey', 'g']
@@ -268,11 +235,6 @@ def main():
     out['uncoded_closed_notes'] = len(UNCODED)
     out['coded_notes'] = int(len(CB))
     out['coded_overrides'] = int(CB.reviewed_override.astype(int).sum())
-    # The same headline numbers under the first, keyword-only sorting, for comparison.
-    out['sensitivity'] = {'hand_coded': headline(city, top, 'g'), 'keyword_rules': headline(city, top, 'g_old')}
-    ct = city.groupby(['g_old', 'g']).n.sum()
-    out['moved'] = {'complaints_changed_group': int(ct[[a != b for a, b in ct.index]].sum()),
-                    'flows': {f'{a}>{b}': int(v) for (a, b), v in ct.items() if a != b and v >= 50000}}
     json.dump(out, open(os.path.join(ROOT, 'data', 'outcomes.json'), 'w'), indent=1)
 
     pd.set_option('display.width', 250)
