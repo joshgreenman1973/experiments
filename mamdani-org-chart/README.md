@@ -8,7 +8,7 @@ open into their own charts.
 
 ## Three sources
 
-**The top layer** is 230 appointees, built from `../mamdani-appointee-tracker/data.json`,
+**The top layer** is 231 appointees, built from `../mamdani-appointee-tracker/data.json`,
 where every person carries a link to the press release or news report that named
 them. A snapshot of exactly what went into the page is written to `data/roster.json`
 on every build, so this folder can rebuild itself even if the tracker is not checked
