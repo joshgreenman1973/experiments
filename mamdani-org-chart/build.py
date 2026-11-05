@@ -34,7 +34,7 @@ COLUMNS = [
         ("Edwin Raymond", "Sheriff"),
         ("Peter White", "Deed Theft Prevention"),
         ("Ahmer Qadeer", "Pensions and Investments"),
-        ("Renee Campion", "Labor Relations"),
+        ("Liz Vladeck", "Labor Relations"),
         ("Celeste Ramirez", "School Construction Authority"),
         ("Stanley Richards", "Correction"),
         ("Sharun Goodwin", "Probation"),
@@ -57,13 +57,14 @@ COLUMNS = [
         ("Ahmed Tigani", "Buildings"),
         ("Cea Weaver", "Office to Protect Tenants"),
         ("Lisa Kersavage", "Landmarks Preservation Commission"),
+        ("Pamela Puchalski", "Landmarks Preservation Commission"),
         ("John Mangin", "Standards and Appeals"),
         ("Erich Bilal", "Public Design Commission"),
     ]),
     ("Julia Kerson", "Deputy mayor for operations", [
         ("Lisa Garcia", "Environmental Protection"),
         ("Gregory Anderson", "Sanitation"),
-        ("Javier Lojan", "Sanitation"),
+        ("Joseph Antonelli", "Sanitation"),
         ("Mike Flynn", "Transportation"),
         ("Tricia Shimamura", "Parks and Recreation"),
         ("Paul Ochoa", "Design and Construction"),
@@ -128,6 +129,7 @@ COLUMNS = [
     ("Ramzi Kassem", "Chief counsel", [
         ("Vilda Vera Mayuga", "Administrative Trials and Hearings"),
         ("Ali Najmi", "Advisory Committee on the Judiciary"),
+        ("Erin Pilnyak", "Risk Management and Compliance"),
     ]),
     ("Steven Banks", "Corporation counsel", []),
     ("Anna Bahr", "Communications director", [
@@ -332,11 +334,15 @@ COLUMN_DEPTS = {
 # Appointed bodies that also have a Green Book roster.
 BOARD_DEPTS = {
     "Rent Guidelines Board": ["Rent Guidelines Board"],
+    "Board of Correction": ["Correction, Board of"],
+    "Civilian Complaint Review Board members": ["Civilian Complaint Review Board"],
+    "City Planning Commission nominees": ["City Planning Commission"],
+    "Commission on Racial Equity, chair from Aug. 1, 2027": ["Racial Equity, Commission on"],
 }
 
 PANELS = [
     ("Mayor's Advisory Committee on the Judiciary",
-     "Named July 23, 2026. Screens candidates for the mayor's judicial appointments. Chaired by Ali Najmi.",
+     "Named July 23, 2026. Screens candidates for the mayor's judicial appointments. Chaired by Ali Najmi. Douglas Keith, named Oct. 20, 2026, is its executive director, staff rather than a member.",
      "Judicial screening committee"),
     ("Judicial appointments",
      "Criminal Court judges appointed or reappointed by the mayor. They sit outside the administration's agencies.",
@@ -362,6 +368,14 @@ BOARDS = [
                                      "Amy Fair", "Courtney Rajwani", "Crystal Vera-Montalvo",
                                      "Marjorie Dienstag", "Lucas Koehler", "Primo Lasana",
                                      "Kristin Jefferson", "Maddy Fox", "Raysa Rodriguez"]),
+    ("Board of Correction", ["Christopher Watler"]),
+    ("Civilian Complaint Review Board members", ["Reginald Greene", "Lisa Hoyes", "Lisa Landau",
+                                                 "Wesner Pierre"]),
+    ("City Planning Commission nominees", ["Kenneth Knuckles", "Anthony Crowell", "Meenakshi Srinivasan",
+                                           "Margaret Anadu", "Julie Stein"]),
+    ("Commission on Racial Equity, chair from Aug. 1, 2027", ["Chris Alexander"]),
+    ("Nonprofit Advisory Council", [p["name"] for p in ROSTER["appointees"]
+                                    if p["agency"] == "Nonprofit Advisory Council"]),
 ]
 
 
@@ -509,6 +523,8 @@ def flag(p):
         return ("ret", "Retained")
     if "nominee" in p["title"].lower() or "recommended" in p["title"].lower():
         return ("pend", "Pending confirmation")
+    if "(from " in p["title"].lower():
+        return ("pend", "Not yet in office")
     return ("new", "New")
 
 
