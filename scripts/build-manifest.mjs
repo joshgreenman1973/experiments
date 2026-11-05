@@ -4,7 +4,7 @@
 // Also wired to a git post-commit hook so it refreshes automatically.
 
 import { readdirSync, statSync, readFileSync, writeFileSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { pbkdf2Sync, createCipheriv, createHash } from 'crypto';
 import { join } from 'path';
 
@@ -111,12 +111,25 @@ function applyOverrides(record) {
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);
 const SKIP = new Set(['.git', '.claude', '.github', '.netlify', '.agents', 'node_modules', 'scripts', '.DS_Store']);
 
+// Git hooks export repository-local variables that override a nested cwd.
+const gitEnv = { ...process.env };
+const localGitVars = execSync('git rev-parse --local-env-vars', { cwd: ROOT, encoding: 'utf8' });
+for (const name of localGitVars.trim().split(/\s+/)) delete gitEnv[name];
+
 function sh(cmd, cwd) {
   try {
-    return execSync(cmd, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    return execSync(cmd, { cwd, env: gitEnv, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
   } catch {
     return '';
   }
+}
+
+function isIgnoredByParent(path) {
+  try {
+    return !!execFileSync('git', ['check-ignore', '--', path], {
+      cwd: ROOT, env: gitEnv, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'],
+    }).trim();
+  } catch { return false; }
 }
 
 function readText(path, cap = 50000) {
@@ -191,13 +204,16 @@ function ghOwner(remote) {
 
 // Cache homepage lookups so we only hit the GitHub API once per repo per build
 const homepageCache = new Map();
-function getGhHomepage(remote) {
+function getGhDeployment(remote) {
   const p = parseGhRemote(remote);
   if (!p) return null;
   const key = `${p.owner}/${p.repo}`;
   if (homepageCache.has(key)) return homepageCache.get(key);
-  const out = sh(`gh api repos/${key} --jq .homepage`, ROOT);
-  const val = out && out !== 'null' ? out : null;
+  const out = sh(`gh api repos/${key} --jq '{homepage,has_pages}'`, ROOT);
+  let val = null;
+  try { val = JSON.parse(out); } catch {}
+  // A stale About-page link does not make a disabled Pages site live.
+  if (val?.has_pages === false && val.homepage?.replace(/\/$/, '') === ghPagesUrl(remote)?.replace(/\/$/, '')) val.homepage = null;
   homepageCache.set(key, val);
   return val;
 }
@@ -208,7 +224,7 @@ function getGitInfo(dir) {
     return {
       isNested: true,
       remote,
-      homepage: getGhHomepage(remote),
+      deployment: getGhDeployment(remote),
       lastCommit: sh('git log -1 --format=%cI', dir),
       lastCommitMsg: sh('git log -1 --format=%s', dir),
       // First commit (creation) — `--reverse | head -1` returns the oldest.
@@ -276,16 +292,18 @@ function projectRecord(fullPath, category) {
   const hasIndex = !!indexPath;
   const git = getGitInfo(fullPath);
   const relPath = fullPath.replace(ROOT + '/', '');
-  const indexUrl = hasIndex ? `./${indexPath.replace(ROOT + '/', '')}` : null;
+  let indexUrl = hasIndex ? `./${indexPath.replace(ROOT + '/', '')}` : null;
   // For nested repos, prefer the GitHub "homepage" field (set via repo settings)
   // which points to the actual deployment (Vercel, custom domain, etc.).
   // Fall back to the default github.io/<repo>/ pattern.
   const livePagesUrl = git.isNested
-    ? (git.homepage || ghPagesUrl(git.remote))
+    ? (git.deployment?.homepage || (git.deployment?.has_pages === false ? null : ghPagesUrl(git.remote)))
     : null;
   // Preview URL works both locally (file://) and when served from Pages:
   // - For nested repos: use their own live URL (absolute, works anywhere)
   // - For parent-repo projects: use relative path (resolves locally and on Pages)
+  // Nested checkouts and ignored files are not published by the parent repo.
+  if ((git.isNested && !livePagesUrl) || (!git.isNested && indexPath && isIgnoredByParent(indexPath))) indexUrl = null;
   const previewUrl = livePagesUrl || indexUrl;
   return applyOverrides({
     name,
