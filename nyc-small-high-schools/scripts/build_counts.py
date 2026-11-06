@@ -1,7 +1,7 @@
 """Count New York City public high schools by size, 1994-95 to 2025-26.
 
 Universe: NYSED public (non-charter) schools in New York City enrolling any students in grades 9-12,
-excluding District 75 and District 79 (codes 3075/3079), the pre-2004 alternative high school
+excluding District 75 and District 79 (codes 3075/3079, or district 75/79 under a county code in early years), the pre-2004 alternative high school
 superintendency (NYSED district 77) and its successors, and transfer high schools on DOE lists.
 Size = total enrollment, all grades (so a 6-12 school counts its middle schoolers).
 A school is "still phasing in" if it has no 12th graders and first appears in the files within the past four years.
@@ -15,6 +15,9 @@ d['hs'] = d[['g9', 'g10', 'g11', 'g12']].sum(1)
 # drop elementary and middle schools carrying a stray ninth grader: grades 9-12 must be at least a quarter of enrollment
 d = d[(d.school_type == 'PUBLIC') & (d.beds.str[:2] != '30') & (d.hs > 0) & (d.hs >= 0.25 * d.total)].copy()
 d['dist'] = d.beds.str[2:4].astype(int)
+# District 75/79 schools usually carry code 3075/3079 (dropped above), but in some early years a school sits under a
+# county code with district 75 or 79 (e.g. PS 162, 317500010162, in 1997-98). Drop those too.
+d = d[~d.dist.isin([75, 79])]
 d['boro_num'] = d.dbn.str[2] + d.dbn.str[-3:]
 
 transfer = set(json.load(open(ROOT / 'data/transfer_dbns.json')))
