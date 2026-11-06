@@ -32,7 +32,7 @@
   .mapctl .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .mapctl .lbl { font-size: var(--t-small); color: var(--fg2); margin-right: 4px; }
 
-  .roofs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0 36px; margin-top: 18px; }
+  .roofs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 0 36px; margin-top: 18px; }
   .roof { border-top: 1.5px solid var(--fg); padding: 10px 0 14px; cursor: pointer; }
   .roof:hover h4 { text-decoration: underline; }
   .roof h4 { margin: 0; font-family: var(--display); font-variation-settings: 'wdth' 85; font-weight: 650; font-size: 1.08rem; }
@@ -44,6 +44,8 @@
   .obar .track { grid-column: 1 / -1; height: 8px; position: relative; background: var(--bg2); }
   .obar .track i { position: absolute; left: 0; top: 0; bottom: 0; }
   .obar .track s { position: absolute; top: -3px; bottom: -3px; width: 1.5px; background: var(--fg); }
+  .key.note { white-space: normal; }
+  .roof, .obar { min-width: 0; }
   .tag { display: inline-block; padding: 0 5px; margin-left: 5px; font-size: 12px; font-weight: 700; color: var(--bg); background: var(--lilac); }
 
   .tablewrap { max-height: 600px; overflow: auto; border-top: 1.5px solid var(--fg); margin-top: 8px; }
@@ -54,7 +56,7 @@
   .methods p { max-width: 72ch; color: var(--fg2); margin: 0 0 12px; font-size: 16px; }
   .methods p b { color: var(--fg); }
   .methods h3 { margin: 26px 0 8px; }
-  .dl a { margin-right: 14px; white-space: nowrap; }
+  .dl a { margin-right: 14px; display: inline-block; }
   .drawer .orgs { margin-top: 6px; }
   .drawer .near { border-left: 3px solid var(--cobalt); padding: 6px 0 6px 12px; margin: 10px 0; font-size: 15px; }
   .drawer .near a { cursor: pointer; }
@@ -214,7 +216,7 @@
   const showTip = (e, h) => { tip.innerHTML = h; tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 320) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; };
   const hideTip = () => tip.style.display = 'none';
   const LVL = { ES: 'elementary', MS: 'middle', HS: 'high school', 'ES+MS': 'elementary and middle', 'MS+HS': 'middle and high school', 'ES+MS+HS': 'K–12', 'ES+HS': 'elementary and high school', unknown: 'grades unknown' };
-  const title = s => s.replace(/\s-\s[MXKQR]$/, '').replace(/\b([A-Z])([A-Z'.]+)/g, (m, a, b) => a + b.toLowerCase()).replace(/\bP\.s\./g, 'P.S.').replace(/\bI\.s\./g, 'I.S.').replace(/\bJ\.h\.s\./g, 'J.H.S.').replace(/\bHs\b/g, 'HS').replace(/\bM\.s\./g, 'M.S.').replace(/\bH\.s\./g, 'H.S.').replace(/\bIs\b/g, 'I.S.').replace(/\bPs\b/g, 'P.S.').replace(/\bJr\b/g, 'Jr.').replace(/\bJr\.\./g, 'Jr.');
+  const title = s => s.replace(/\s-\s[MXKQR]$/, '').replace(/\b([A-Z])([A-Z'.]+)/g, (m, a, b) => a + b.toLowerCase()).replace(/\bP\.s\./g, 'P.S.').replace(/\bI\.s\./g, 'I.S.').replace(/\bJ\.h\.s\./g, 'J.H.S.').replace(/\bHs\b/g, 'HS').replace(/\bM\.s\./g, 'M.S.').replace(/\bH\.s\./g, 'H.S.').replace(/\bIs\b/g, 'I.S.').replace(/\bPs\b/g, 'P.S.').replace(/\bJr\b/g, 'Jr.').replace(/\bJr\.\./g, 'Jr.').replace(/Laguardia/g, 'LaGuardia');
   const SPECIALIZED = new Set(['M477', 'K430', 'X445', 'R440', 'X905', 'K049', 'M485']);
   let D, BY = {}, map, mapF = 'pairs', distF = '', roofF = 'all';
 
@@ -278,7 +280,7 @@
     });
     svg += `</svg>`;
     box.innerHTML = svg;
-    $('stripkey').innerHTML = [['Under 60%', C.u60], ['60–79%', C.u80], ['80–100%', C.u100], ['101–119%', C.o100], ['120% or more', C.o120]].map(([l, c]) => `<span class="key"><i style="background:${c}"></i>${l}</span>`).join('') + `<span class="key" style="color:${C.fg2}">Wider marks are bigger buildings. Right column: the district overall.</span>`;
+    $('stripkey').innerHTML = [['Under 60%', C.u60], ['60–79%', C.u80], ['80–100%', C.u100], ['101–119%', C.o100], ['120% or more', C.o120]].map(([l, c]) => `<span class="key"><i style="background:${c}"></i>${l}</span>`).join('') + `<span class="key note" style="color:${C.fg2}">Wider marks are bigger buildings. Right column: the district overall.</span>`;
     bindB(box);
   }
   function bindB(box) {
@@ -395,7 +397,7 @@
       map.on('mouseleave', 'b', () => { map.getCanvas().style.cursor = ''; pop.remove(); });
       map.on('click', 'b', e => openB(e.features[0].properties.id));
     });
-    $('mapkey').innerHTML = [['Under 60%', C.u60], ['60–79%', C.u80], ['80–100%', C.u100], ['101–119%', C.o100], ['120% or more', C.o120], ['Split under one roof', C.rose]].map(([l, c]) => `<span class="key"><i style="background:${c};border-radius:50%"></i>${l}</span>`).join('') + `<span class="key" style="color:${C.fg2}">Circles sized by capacity</span>`;
+    $('mapkey').innerHTML = [['Under 60%', C.u60], ['60–79%', C.u80], ['80–100%', C.u100], ['101–119%', C.o100], ['120% or more', C.o120], ['Split under one roof', C.rose]].map(([l, c]) => `<span class="key"><i style="background:${c};border-radius:50%"></i>${l}</span>`).join('') + `<span class="key note" style="color:${C.fg2}">Circles sized by capacity</span>`;
   }
   function refreshMap() { if (!map || !map.getSource('b')) return; const md = mapData(); map.getSource('b').setData(md.pts); map.getSource('lines').setData(md.lines); }
   document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { mapF = b.dataset.f; document.querySelectorAll('[data-f]').forEach(x => x.setAttribute('aria-pressed', x === b)); refreshMap(); }));
