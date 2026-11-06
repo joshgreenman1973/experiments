@@ -45,7 +45,10 @@ try:
 except Exception as ex:
     print("prior-year archive not available yet:", ex)
 
-for s in ["N3010NY3m", "N3010US3m", "N3050NY3m", "RNGWHHDm", "N3010NJ3m"]:
+# Residential prices (monthly and annual), residential volumes (for sales weighting),
+# New York city gate and Henry Hub.
+for s in ["N3010NY3m", "N3010US3m", "N3050NY3m", "RNGWHHDm", "N3010NJ3m",
+          "N3010NY2m", "N3010NJ2m", "N3010US2m", "N3010NY3a", "N3010NJ3a", "N3010US3a"]:
     get(f"https://www.eia.gov/dnav/ng/hist_xls/{s}.xls", RAW / f"{s}.xls")
 for s in ["W_EPD2F_PRS_SNY_DPGw", "W_EPD2F_PRS_NUS_DPGw", "W_EPD2F_PRS_R10_DPGw", "EER_EPD2F_PF4_Y35NY_DPGm"]:
     get(f"https://www.eia.gov/dnav/pet/hist_xls/{s}.xls", RAW / f"{s}.xls")

@@ -7,6 +7,12 @@ point at one place. Conventions:
   the 12 months (a sales-weighted average), which removes seasonality.
 - Changes are year over year: a month against the same month a year earlier,
   or a 12-month window against the 12 months before it.
+- Average bills are pooled: total revenue over total customer-months, so the
+  12-month bill and the utility ranking use the same definition.
+- Headline values are stored at full precision (4 decimals) and rounded only
+  when the page displays them; percentage changes use the unrounded values.
+- Gas 12-month averages are weighted by residential sales volume, like the
+  electricity ones, and annual gas figures are EIA's published annual prices.
 """
 import json, math, pathlib, sys
 import numpy as np
@@ -43,9 +49,9 @@ def agg(rows):
     out["price"] = g.rev_k / g.mwh * 100                      # cents per kWh
     out["bill"] = g.rev_k * 1000 / g.cust                     # dollars per customer per month
     out["kwh"] = g.mwh * 1000 / g.cust                        # kWh per customer per month
-    rr, ss = g.rev_k.rolling(12).sum(), g.mwh.rolling(12).sum()
+    rr, ss, cc = g.rev_k.rolling(12).sum(), g.mwh.rolling(12).sum(), g.cust.rolling(12).sum()
     out["t12"] = rr / ss * 100
-    out["t12bill"] = (g.rev_k * 1000 / g.cust).rolling(12).mean()
+    out["t12bill"] = rr * 1000 / cc                           # total revenue / total customer-months
     return out
 
 
@@ -69,24 +75,26 @@ if coned.index.max() != nys.index.max():
 
 LAST = coned.index.max()
 yago = LAST - 12
+P = 4  # stored precision for headline values; the page rounds for display
 elec_latest = {
     "month": str(LAST),
-    "coned_price": r(coned.price[LAST]), "coned_price_yago": r(coned.price[yago]),
-    "coned_t12": r(coned.t12[LAST]), "coned_t12_yago": r(coned.t12[yago]),
-    "coned_t12bill": r(coned.t12bill[LAST], 0), "coned_t12bill_yago": r(coned.t12bill[yago], 0),
-    "coned_bill": r(coned.bill[LAST], 0), "coned_bill_yago": r(coned.bill[yago], 0),
-    "other_t12": r(other.t12[LAST]), "other_t12_yago": r(other.t12[yago]),
-    "nys_t12": r(nys.t12[LAST]), "nys_t12_yago": r(nys.t12[yago]),
-    "us_t12": r(us.t12[LAST]), "us_t12_yago": r(us.t12[yago]),
+    "nys_month": str(nys.index.max()), "us_month": str(us.index.max()),
+    "coned_price": r(coned.price[LAST], P), "coned_price_yago": r(coned.price[yago], P),
+    "coned_t12": r(coned.t12[LAST], P), "coned_t12_yago": r(coned.t12[yago], P),
+    "coned_t12bill": r(coned.t12bill[LAST], P), "coned_t12bill_yago": r(coned.t12bill[yago], P),
+    "coned_bill": r(coned.bill[LAST], P), "coned_bill_yago": r(coned.bill[yago], P),
+    "other_t12": r(other.t12[LAST], P), "other_t12_yago": r(other.t12[yago], P),
+    "nys_t12": r(nys.t12[LAST], P), "nys_t12_yago": r(nys.t12[yago], P),
+    "us_t12": r(us.t12[LAST], P), "us_t12_yago": r(us.t12[yago], P),
     "coned_cust": int(e[(e.uid == CONED) & (e.m == LAST)].cust.iloc[0]),
 }
-for k in ["coned", "other", "nys", "us"]:
-    a, b = elec_latest[f"{k}_t12"], elec_latest[f"{k}_t12_yago"]
-    elec_latest[f"{k}_t12_yoy"] = r((a / b - 1) * 100, 1)
-elec_latest["coned_t12bill_yoy"] = r((elec_latest["coned_t12bill"] / elec_latest["coned_t12bill_yago"] - 1) * 100, 1)
+for k, s in [("coned", coned), ("other", other), ("nys", nys), ("us", us)]:
+    elec_latest[f"{k}_t12_yoy"] = r((s.t12[LAST] / s.t12[yago] - 1) * 100, P)
+elec_latest["coned_t12bill_yoy"] = r((coned.t12bill[LAST] / coned.t12bill[yago] - 1) * 100, P)
+elec_latest["coned_us_ratio"] = r(coned.t12[LAST] / us.t12[LAST], P)
 # Long-run: t12 at the latest month vs the same 12-month window ten years earlier.
 base = LAST - 120
-elec_latest["decade"] = {k: {"from": r(s.t12[base]), "to": r(s.t12[LAST]), "pct": r((s.t12[LAST] / s.t12[base] - 1) * 100, 1)}
+elec_latest["decade"] = {k: {"from": r(s.t12[base], P), "to": r(s.t12[LAST], P), "pct": r((s.t12[LAST] / s.t12[base] - 1) * 100, P)}
                          for k, s in [("coned", coned), ("other", other), ("nys", nys), ("us", us)]}
 elec_latest["decade_from"] = str(base)
 
@@ -104,7 +112,7 @@ u["bill"] = u.rev_k * 1000 / u.cust / 12
 big = u[(u.cust >= 50000) & (~u.name.str.contains("Adjustment|State Total|Sunrun|Sunnova|Tesla", na=False))].sort_values("price", ascending=False)
 EAST = set("ME NH VT MA RI CT NY NJ PA DE MD DC VA WV NC SC GA FL OH MI IN IL KY TN AL MS WI".split())
 peers = [{"name": x.name, "states": x.states, "east": bool(set(x.states.split("/")) & EAST),
-          "price": r(x.price), "bill": r(x.bill, 0), "cust": int(x.cust)} for x in big.itertuples()]
+          "price": r(x.price, P), "bill": r(x.bill, P), "cust": int(x.cust)} for x in big.itertuples()]
 
 # BLS average price per kWh, metro areas, 2024 annual average (BLS stopped most metro
 # electricity prices after December 2024).
@@ -156,7 +164,8 @@ for k in range(0, 7):
     j = pd.concat([d_c, d_z.shift(k)], axis=1, keys=["c", "z"]).dropna()
     j = j[j.index >= pd.Period("2011-01", "M")]
     slope = np.polyfit(j.z, j.c, 1)[0]
-    lag.append({"lag": k, "r": r(j.c.corr(j.z), 3), "slope": r(slope, 3), "n": int(len(j))})
+    rho = j.c.corr(j.z)
+    lag.append({"lag": k, "r": r(rho, 3), "r2": r(rho ** 2, 3), "slope": r(slope, 3), "n": int(len(j))})
 # Power follows gas: Zone J vs Henry Hub, same month.
 jj = pd.concat([lbmp.J, hh], axis=1, keys=["j", "hh"]).dropna()
 gas_power_r = r(jj.j.corr(jj.hh), 3)
@@ -181,14 +190,16 @@ elec = {
     "henry_hub": ser(hh),
     "passthrough": lag, "gas_power_r": gas_power_r,
     "season": season, "season_years": yrs,
-    # Retail price split into the NYC-zone day-ahead energy price and everything else
-    # (delivery, capacity, ancillary services, losses, taxes, programs), 12-month averages.
+    # Two lines, not a bill breakdown: Con Ed's 12-month retail price and the 12-month simple
+    # average of NYC-zone day-ahead energy prices, a wholesale benchmark. Their difference is
+    # "retail price minus wholesale benchmark", not a measured delivery charge.
     "split": {"retail": ser(coned.t12), "energy": ser((lbmp.J / 10).rolling(12).mean())},
 }
 sp = pd.concat([coned.t12, (lbmp.J / 10).rolling(12).mean()], axis=1, keys=["c", "j"]).dropna()
-elec["split_latest"] = {"month": str(sp.index[-1]), "retail": r(sp.c.iloc[-1]), "energy": r(sp.j.iloc[-1]),
-                        "share": r(sp.j.iloc[-1] / sp.c.iloc[-1] * 100, 0),
-                        "base_month": str(sp.index[-1] - 120), "retail_base": r(sp.c.iloc[-121]), "energy_base": r(sp.j.iloc[-121])}
+elec["split_latest"] = {"month": str(sp.index[-1]), "retail": r(sp.c.iloc[-1], P), "energy": r(sp.j.iloc[-1], P),
+                        "gap": r(sp.c.iloc[-1] - sp.j.iloc[-1], P),
+                        "base_month": str(sp.index[-1] - 120), "retail_base": r(sp.c.iloc[-121], P), "energy_base": r(sp.j.iloc[-121], P),
+                        "gap_base": r(sp.c.iloc[-121] - sp.j.iloc[-121], P)}
 
 # ------------------------------------------------------------------ piped gas
 def bls_s(sid):
@@ -203,34 +214,75 @@ def eia_m(f):
 
 
 g_ny, g_nj, g_us, g_cg = eia_m("N3010NY3m.xls"), eia_m("N3010NJ3m.xls"), eia_m("N3010US3m.xls"), eia_m("N3050NY3m.xls")
-GLAST = g_ny.index.max()
+# Residential sales volumes (million cubic feet), used to weight 12-month averages. EIA reports
+# 100% of New York residential deliveries as included in its price, so price and volume cover
+# the same customers; for New Jersey and the U.S. the weights are total residential deliveries.
+v_ny, v_nj, v_us = eia_m("N3010NY2m.xls"), eia_m("N3010NJ2m.xls"), eia_m("N3010US2m.xls")
+
+
+def eia_a(f):
+    x = eia_xls(f)
+    return pd.Series(x.v.values, index=x.d.dt.year)
+
+
+a_ny, a_nj, a_us = eia_a("N3010NY3a.xls"), eia_a("N3010NJ3a.xls"), eia_a("N3010US3a.xls")
+GLAST = min(g_ny.index.max(), v_ny.index.max())
+
+
+def t12w(price, vol, need=12):
+    """Sales-weighted 12-month average: sum(price x volume) / sum(volume) over the 12 months
+    ending each month, using months where both exist and requiring `need` of the 12. EIA
+    withholds some monthly city-gate prices (March 2026, for one), so that line takes 11."""
+    j = pd.concat([price, vol], axis=1, keys=["p", "v"]).dropna()
+    j = j.reindex(pd.period_range(j.index.min(), j.index.max(), freq="M"))
+    return (j.p * j.v).rolling(12, min_periods=need).sum() / j.v.rolling(12, min_periods=need).sum()
 
 
 def t12(s):
     return s.rolling(12).mean()
 
 
-# Price stack, trailing 12-month simple averages ($ per thousand cubic feet). Henry Hub is
-# quoted per million Btu; 1 Mcf of pipeline gas carries about 1.036 MMBtu (EIA heat content).
-stack = pd.concat([t12(hh * 1.036), t12(g_cg), t12(g_ny)], axis=1, keys=["hh", "cg", "res"]).dropna()
+w_ny, w_nj, w_us = t12w(g_ny, v_ny), t12w(g_nj, v_nj), t12w(g_us, v_us)
+# Check against EIA's published annual prices (calendar years): the weighted December value
+# should sit within a few percent of the annual figure (monthly prices are rounded to cents).
+wcheck = {}
+for y in range(2006, GLAST.year):
+    dk = pd.Period(f"{y}-12", "M")
+    if dk in w_ny.index and y in a_ny.index and not pd.isna(w_ny[dk]):
+        wcheck[str(y)] = {"weighted": r(w_ny[dk], 3), "eia_annual": r(a_ny[y], 3), "diff_pct": r((w_ny[dk] / a_ny[y] - 1) * 100, 2)}
+worst = max(abs(v["diff_pct"]) for v in wcheck.values())
+if worst > 3:
+    sys.exit(f"gas weighting check failed: weighted calendar-year NY price is {worst}% off EIA's annual figure")
+
+# Three benchmark lines ($ per thousand cubic feet), each a 12-month average weighted by New York
+# residential volumes so all three describe the same months. Henry Hub is quoted per million Btu;
+# 1 Mcf of pipeline gas carries about 1.036 MMBtu (EIA heat content). These are benchmarks, not
+# components of a bill: the differences between them are not tariff charges.
+stack = pd.concat([t12w(hh * 1.036, v_ny), t12w(g_cg, v_ny, need=11), w_ny], axis=1, keys=["hh", "cg", "res"]).dropna()
 stack = stack[stack.index >= pd.Period("2005-01", "M")]
 gas = {
     "eia": {"ny": ser(g_ny), "nj": ser(g_nj), "us": ser(g_us), "citygate": ser(g_cg)},
-    "eia_t12": {"ny": ser(t12(g_ny)), "us": ser(t12(g_us)), "nj": ser(t12(g_nj))},
-    "stack": {k: ser(stack[k]) for k in stack.columns},
+    "eia_vol": {"ny": ser(v_ny, 0), "nj": ser(v_nj, 0), "us": ser(v_us, 0)},
+    # From 2000: EIA withheld New York's August-December 1996 prices, which leaves holes in
+    # the 12-month windows that follow; the page charts from 2005.
+    "eia_t12": {k: ser(w_[w_.index >= pd.Period("2000-01", "M")], 3) for k, w_ in [("ny", w_ny), ("us", w_us), ("nj", w_nj)]},
+    "eia_annual": {k: {str(y): r(v, 2) for y, v in s_.items()} for k, s_ in [("ny", a_ny), ("nj", a_nj), ("us", a_us)]},
+    "weight_check": wcheck,
+    "stack": {k: ser(stack[k], 3) for k in stack.columns},
     "bls_cpi": {k: ser(bls_s(s)) for k, s in [("nyc", "CUURS12ASEHF02"), ("ne", "CUUR0100SEHF02"), ("us", "CUUR0000SEHF02")]},
     "bls_therm": {k: ser(bls_s(s), 3) for k, s in [("nyc", "APUS12A72620"), ("ne", "APU010072620"), ("us", "APU000072620")]},
-    "latest": {"month": str(GLAST), "ny": r(g_ny[GLAST]), "ny_yago": r(g_ny[GLAST - 12]),
-               "ny_t12": r(t12(g_ny)[GLAST]), "ny_t12_yago": r(t12(g_ny)[GLAST - 12]),
-               "us_t12": r(t12(g_us)[GLAST]), "us_t12_yago": r(t12(g_us)[GLAST - 12]),
-               "hh_t12": r(stack.hh.iloc[-1]), "cg_t12": r(stack.cg.iloc[-1]), "stack_month": str(stack.index[-1])},
+    "latest": {"month": str(GLAST), "ny": r(g_ny[GLAST], P), "ny_yago": r(g_ny[GLAST - 12], P),
+               "ny_t12": r(w_ny[GLAST], P), "ny_t12_yago": r(w_ny[GLAST - 12], P),
+               "us_t12": r(w_us[GLAST], P), "us_t12_yago": r(w_us[GLAST - 12], P),
+               "hh_t12": r(stack.hh.iloc[-1], P), "cg_t12": r(stack.cg.iloc[-1], P), "res_t12": r(stack.res.iloc[-1], P),
+               "stack_month": str(stack.index[-1]),
+               "annual_year": int(a_ny.index.max()), "ny_annual": r(a_ny.iloc[-1], 2), "us_annual": r(a_us.iloc[-1], 2)},
     "season": [{"m": m, "ny": r(g_ny[[p.year in yrs and p.month == m for p in g_ny.index]].mean()),
                 "us": r(g_us[[p.year in yrs and p.month == m for p in g_us.index]].mean())} for m in range(1, 13)],
 }
 gl = gas["latest"]
-gl["ny_t12_yoy"] = r((gl["ny_t12"] / gl["ny_t12_yago"] - 1) * 100, 1)
-gl["us_t12_yoy"] = r((gl["us_t12"] / gl["us_t12_yago"] - 1) * 100, 1)
-gl["commodity_share"] = r(gl["hh_t12"] / gl["ny_t12"] * 100, 0)
+gl["ny_t12_yoy"] = r((w_ny[GLAST] / w_ny[GLAST - 12] - 1) * 100, P)
+gl["us_t12_yoy"] = r((w_us[GLAST] / w_us[GLAST - 12] - 1) * 100, P)
 
 # ---------------------------------------------------------------- heating oil
 ho = pd.read_csv(RAW / "nyserda_heating_oil.csv", parse_dates=["date"]).sort_values("date")
@@ -288,6 +340,17 @@ cf = ROOT / "research/coned.json"
 if cf.exists():
     coned_research = json.load(open(cf))
 
+# Source versions: a fingerprint of every raw file this build read, so a later build can tell a
+# revision at the source (file changed, same months) from a mistake here. Written beside the
+# dashboard and kept in git; scripts/check.py also logs revised historical values.
+import hashlib
+srcs = {}
+for f in sorted(list(RAW.glob("*.xls")) + list(RAW.glob("*.xlsx")) + list(RAW.glob("*.csv")) + list(RAW.glob("*.json"))
+                + list((RAW / "eia861m").glob("*"))):
+    if f.is_file():
+        srcs[str(f.relative_to(RAW))] = {"bytes": f.stat().st_size, "sha256": hashlib.sha256(f.read_bytes()).hexdigest()[:16]}
+(ROOT / "data/sources.json").write_text(json.dumps({"built": pd.Timestamp.now().strftime("%Y-%m-%d"), "files": srcs}, indent=1))
+
 out = {"built": pd.Timestamp.now().strftime("%Y-%m-%d"), "elec": elec, "gas": gas, "oil": oil, "cpi": cpi,
        "water": water, "coned_research": coned_research,
        "bls_fetched": json.load(open(RAW / "bls.json"))["fetched"]}
@@ -295,7 +358,7 @@ OUT.write_text(json.dumps(out, separators=(",", ":")))
 print("wrote", OUT, round(OUT.stat().st_size / 1024), "KB")
 print(json.dumps(elec_latest, indent=1))
 print("passthrough", lag, "gas-power r", gas_power_r)
-print(json.dumps(gas["latest"], indent=1)); print(json.dumps(oil["latest"], indent=1))
+print(json.dumps(gas["latest"], indent=1)); print(json.dumps(oil["latest"], indent=1)); print("gas weight check", wcheck)
 print("split", elec["split_latest"]); print("peers", len(peers))
 print("metro:"); [print(m) for m in metro]
 print("season:", season)

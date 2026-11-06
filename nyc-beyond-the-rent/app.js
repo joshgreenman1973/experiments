@@ -26,6 +26,7 @@ const SRC = {
   gasnj: 'https://www.eia.gov/dnav/ng/hist/n3010nj3m.htm',
   citygate: 'https://www.eia.gov/dnav/ng/hist/n3050ny3m.htm',
   nyserda: 'https://data.ny.gov/d/rc94-5y2u',
+  gasnya: 'https://www.eia.gov/dnav/ng/hist/n3010ny3a.htm',
   oilus: 'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=W_EPD2F_PRS_NUS_DPG&f=W',
   spot: 'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EER_EPD2F_PF4_Y35NY_DPG&f=M',
   m: a => 'methodology.html#' + a
@@ -160,22 +161,22 @@ function render(D) {
   const LM = el.month, LMn = monthName(LM), LMy = monthName(addM(LM, -12));
   const win = `the 12 months through ${LMn}`, winY = `the 12 months through ${LMy}`;
 
-  $('#through').innerHTML = `Electricity and gas through ${LMn}; heating oil through the week of ${apDate(ol.date)}`;
+  $('#through').innerHTML = `Latest data: electricity ${LMn}, gas ${monthName(gl.month)}, heating oil week of ${apDate(ol.date)}. Last refreshed ${apDate(D.built)}`;
 
   // ---------- finding + lede ----------
   const peers50 = E.peers;
   const ci = peers50.findIndex(p => p.name.startsWith('Consolidated Edison'));
   const above = peers50.slice(0, ci);
   const aboveTxt = above.length ? `only ${listJoin(above.map(p => shortName(p.name)))} charged more` : 'none charged more';
-  $('#finding').innerHTML = `New York City households that buy their power from Con Edison paid an average of ${L(SRC.e861, cents(el.coned_t12))} per kilowatt-hour over ${win}, ${L(SRC.m('ratio'), fx(el.coned_t12 / el.us_t12, 1) + ' times')} the national average of ${L(SRC.e861, cents(el.us_t12))}.`;
+  $('#finding').innerHTML = `Residential customers buying both electricity and delivery from Con Edison paid an average of ${L(SRC.e861, cents(el.coned_t12))} per kilowatt-hour across its service territory over ${win}, about ${L(SRC.m('ratio'), fx(el.coned_us_ratio ?? el.coned_t12 / el.us_t12, 1) + ' times')} the U.S. average of ${L(SRC.e861, cents(el.us_t12))}.`;
 
   const rentS = CPI.nyc_rent, allS = CPI.nyc_all, cm = Object.keys(allS).sort().pop();
   const rentY = pct(rentS[cm], rentS[addM(cm, -12)]), allY = pct(allS[cm], allS[addM(cm, -12)]);
   const wr = (W.rates || []).filter(x => x.increase_pct != null).sort((a, b) => b.fy - a.fy)[0];
   $('#lede').innerHTML =
-    `Among U.S. utilities with at least 50,000 full-service residential customers, ${aboveTxt} over that period (${L(SRC.m('peers'), 'EIA-861M')}). ` +
+    `The territory includes Westchester, so this is not a New York City-only figure. Among the utilities in EIA’s monthly survey with at least 50,000 full-service residential customers, ${aboveTxt} over that period (${L(SRC.m('peers'), 'EIA-861M')}); that ranks average revenue per kilowatt-hour, not any one household’s tariff. ` +
     `Con Edison’s 12-month average price ${L(SRC.m('t12'), chg(el.coned_t12_yoy))} from ${winY}, and its average residential bill ${L(SRC.m('bill'), `${chg(el.coned_t12bill_yoy)}, to ${usd(el.coned_t12bill, 0)} a month`)}. ` +
-    `Residential gas in New York State averaged ${L(SRC.gasny, usd(gl.ny_t12) + ' per thousand cubic feet')} over the 12 months through ${monthName(gl.month)}, ${L(SRC.m('gas'), chgShort(gl.ny_t12_yoy))} on the year. ` +
+    `Residential piped gas in New York State, city included, averaged ${L(SRC.gasny, usd(gl.ny_t12) + ' per thousand cubic feet')} over the 12 months through ${monthName(gl.month)}, weighted by sales, ${L(SRC.m('gas'), chgShort(gl.ny_t12_yoy))} on the year. ` +
     `Heating oil in New York City cost ${L(SRC.nyserda, usd(ol.nyc) + ' a gallon')} the week of ${apDate(ol.date)}, against ${L(SRC.nyserda, usd(ol.nyc_yago))} the week of ${apDate(ol.yago_date)}` +
     (wr ? `. The city’s water and sewer rates ${wr.increase_pct >= 0 ? 'rose' : 'fell'} ${L(wr.increase_url || wr.url, fx(wr.increase_pct, 1) + '%')} on July 1, ${wr.fy - 1}, for fiscal year ${wr.fy}` : '') +
     `. For comparison, New York-area rent ${L(SRC.bls('CUURS12ASEHA'), chg(rentY))} and all prices ${L(SRC.bls('CUURS12ASA0'), chg(allY))} from ${monthName(addM(cm, -12))} to ${monthName(cm)}.`;
@@ -185,7 +186,7 @@ function render(D) {
 
   // ---------- electricity ----------
   const dec = el.decade;
-  $('#e-intro').innerHTML = `Con Edison delivers power to the five boroughs and most of Westchester; about ${L(SRC.e861, fx(el.coned_cust / 1e6, 2) + ' million')} residential accounts bought their electricity from it in ${LMn}. Its 12-month average price ${L(SRC.m('t12'), chg(dec.coned.pct))} from ${L(SRC.e861, cents(dec.coned.from))} in the 12 months through ${monthName(el.decade_from)} to ${L(SRC.e861, cents(dec.coned.to))} in ${win}. Over the same decade, prices ${L(SRC.m('t12'), chg(dec.other.pct))} at the other New York utilities, which serve the rest of the state, and ${L(SRC.m('t12'), chg(dec.us.pct))} nationwide.`;
+  $('#e-intro').innerHTML = `Con Edison delivers power to the five boroughs, except the Rockaway Peninsula, and most of Westchester; about ${L(SRC.e861, fx(el.coned_cust / 1e6, 2) + ' million')} residential accounts in that territory bought their electricity from it in ${LMn}. Its 12-month average price ${L(SRC.m('t12'), chg(dec.coned.pct))} from ${L(SRC.e861, cents(dec.coned.from))} in the 12 months through ${monthName(el.decade_from)} to ${L(SRC.e861, cents(dec.coned.to))} in ${win}. Over the same decade, prices ${L(SRC.m('t12'), chg(dec.other.pct))} at six other large New York utilities, which serve most of the rest of the state (one of them, LIPA, also serves the Rockaways), and ${L(SRC.m('t12'), chg(dec.us.pct))} nationwide. These are average revenue per kilowatt-hour, which can move with how much customers use and which customers buy from the utility as well as with tariffs.`;
   const ann = planStarts(R);
   let emode = 't12';
   const eseries = mode => {
@@ -193,8 +194,8 @@ function render(D) {
     const S = [
       { label: 'United States', color: C.usa, data: pts(pick('us')), width: 2 },
       { label: 'New York State, all customers', color: C.ne, data: pts(pick('nys')), width: 2 },
-      { label: 'Other New York utilities', color: C.nys, data: pts(pick('other')), width: 2 },
-      { label: 'Con Edison', color: C.nyc, data: pts(pick('coned')), width: 3 },
+      { label: 'Selected other NY utilities', color: C.nys, data: pts(pick('other')), width: 2 },
+      { label: 'Con Edison service territory', color: C.nyc, data: pts(pick('coned')), width: 3 },
     ];
     return S.filter(s => s.data.length);
   };
@@ -203,14 +204,14 @@ function render(D) {
     const box = $('#c-elec'); if (box._d) charts.splice(charts.indexOf(box._d), 1);
     box._d = lineChart(box, { series: eseries(emode), fmt: (v, ax) => isBill ? `$${fx(v, 0)}` : (ax ? fx(v, 0) + '¢' : fx(v, 1) + '¢'), zero: true, xMin: 2010, ann: emode === 'price' ? [] : ann, aria: 'Residential electricity prices' });
     $('#e-note').innerHTML = isBill
-      ? `Average monthly bill = residential revenue divided by residential customers, averaged over 12 months. Con Edison’s apartment-heavy customer base uses less power per household than most of the country, so its bills sit closer to other utilities’ than its prices do. ${L(SRC.m('bill'), 'How this is calculated')}.`
+      ? `Average monthly bill = 12 months of residential revenue divided by 12 months of customer counts (total customer-months), the same definition the ranking below uses. Con Edison’s apartment-heavy customer base uses less power per household than most of the country, so its bills sit closer to other utilities’ than its prices do. ${L(SRC.m('bill'), 'How this is calculated')}.`
       : `Con Edison and other utilities: full-service residential customers only, the households that buy both power and delivery from the utility (${L(SRC.e861, 'EIA-861M')}). State and national lines: all residential customers (${L(SRC.e861, 'EIA')}). ${emode === 't12' ? 'Twelve-month averages remove the summer and winter swings.' : 'Monthly figures move with the seasons; see the grid below.'} ${ann.length ? 'Dotted lines mark the start of each Con Edison electric rate plan approved by the Public Service Commission.' : ''}`;
   };
   $('#c-elec')._d = null; drawE();
   toggle('[data-e]', 'e', v => { emode = v; drawE(); });
 
   // ranking
-  $('#e-rank-intro').innerHTML = `Average residential price over ${win}, every U.S. utility with at least 50,000 full-service residential customers (${L(SRC.e861, 'EIA-861M')}). Con Edison is in red, other New York utilities in blue.`;
+  $('#e-rank-intro').innerHTML = `Average residential revenue per kilowatt-hour over ${win}, for the utilities in EIA’s published monthly data with 12 months reported and at least 50,000 full-service residential customers (${L(SRC.e861, 'EIA-861M')}). EIA-861M is a monthly sample of utilities with estimated state totals, so this ranks the eligible utilities in that dataset; it is an average across each utility’s customers, not a comparison of tariffs. Con Edison is in red, other New York utilities in blue.`;
   let rmode = 'price', eastOnly = false;
   const drawRank = () => {
     let rows = E.peers.filter(p => !eastOnly || p.east).slice();
@@ -237,20 +238,22 @@ function render(D) {
 
   // metro table
   const ny = E.metro.find(m => m.metro === 'New York');
-  const eastAbove = E.metro.filter(m => m.east && m.p2024 > ny.p2024).map(m => m.metro);
-  $('#e-metro-intro').innerHTML = `BLS’s average price for electricity in 2024, the last full year before it stopped publishing most metro-area energy prices. New York’s metro average was ${L(SRC.bls('APUS12A72610'), cents(ny.p2024))} per kWh${eastAbove.length ? `; among eastern metros only ${listJoin(eastAbove)} was higher` : ''}.`;
-  $('#metro').innerHTML = `<thead><tr><th>Metro area</th><th class="r">2014</th><th class="r">2024</th><th class="r">Change</th></tr></thead><tbody>` +
-    E.metro.map(m => `<tr${m.metro === 'New York' ? ' style="font-weight:700"' : ''}><td>${m.metro}</td><td class="r">${m.p2014 ? fx(m.p2014) + '¢' : '–'}</td><td class="r">${L(SRC.bls(m.sid), fx(m.p2024) + '¢')}</td><td class="r">${m.p2014 ? fx(pct(m.p2024, m.p2014), 0) + '%' : '–'}</td></tr>`).join('') + '</tbody>';
+  $('#e-metro-intro').innerHTML = `Selected BLS survey averages for electricity, 2014 and 2024. BLS stopped publishing electricity and piped-gas average prices for all metropolitan areas after December 2024. It also ${L('https://www.bls.gov/cpi/factsheets/average-prices.htm', 'cautions')} that these averages are generally unsuitable for comparing one place with another, because the bills it prices differ in usage and rate schedules, so the column to read is the change within each metro. New York’s average ${L(SRC.bls('APUS12A72610'), chg(pct(ny.p2024, ny.p2014), 0))} over the decade, to ${L(SRC.bls('APUS12A72610'), cents(ny.p2024))} per kWh.`;
+  const metroRows = E.metro.slice().sort((a, b) => a.metro === 'U.S. city average' ? 1 : b.metro === 'U.S. city average' ? -1 : a.metro.localeCompare(b.metro));
+  $('#metro').innerHTML = `<thead><tr><th>Metro area</th><th class="r">Change, 2014–24</th><th class="r">2014</th><th class="r">2024</th></tr></thead><tbody>` +
+    metroRows.map(m => `<tr${m.metro === 'New York' ? ' style="font-weight:700"' : ''}><td>${m.metro}</td><td class="r">${m.p2014 ? fx(pct(m.p2024, m.p2014), 0) + '%' : '–'}</td><td class="r">${m.p2014 ? fx(m.p2014) + '¢' : '–'}</td><td class="r">${L(SRC.bls(m.sid), fx(m.p2024) + '¢')}</td></tr>`).join('') + '</tbody>';
 
   // split
   const sl = E.split_latest;
-  $('#e-split-intro').innerHTML = `The wholesale price of energy in the New York City zone averaged ${L(SRC.nyiso, cents(sl.energy) + ' per kWh')} over the 12 months through ${monthName(sl.month)}, ${L(SRC.m('split'), fx(sl.share, 0) + '%')} of Con Edison’s ${L(SRC.e861, cents(sl.retail))} residential price. Ten years earlier, over the 12 months through ${monthName(sl.base_month)}, it was ${L(SRC.nyiso, cents(sl.energy_base))} of ${L(SRC.e861, cents(sl.retail_base))}. The rest of the price, ${L(SRC.m('split'), cents(sl.retail - sl.energy))} now against ${L(SRC.m('split'), cents(sl.retail_base - sl.energy_base))} then, covers delivery, generating capacity, grid services, line losses, taxes and state programs.`;
+  const gapNow = sl.gap ?? sl.retail - sl.energy, gapThen = sl.gap_base ?? sl.retail_base - sl.energy_base;
+  $('#e-split-intro').innerHTML = `Over the 12 months through ${monthName(sl.month)}, Con Edison’s residential price averaged ${L(SRC.e861, cents(sl.retail) + ' per kWh')} and the New York City zone’s day-ahead wholesale energy price averaged ${L(SRC.nyiso, cents(sl.energy))}. Ten years earlier, over the 12 months through ${monthName(sl.base_month)}, the two were ${L(SRC.e861, cents(sl.retail_base))} and ${L(SRC.nyiso, cents(sl.energy_base))}. Retail price minus wholesale benchmark came to ${L(SRC.m('split'), cents(gapNow))} in the latest 12 months, against ${L(SRC.m('split'), cents(gapThen))} a decade earlier. That difference is not a measured delivery charge or a division of a customer’s bill: the benchmark is an unweighted market average, while the retail price reflects when households use power, the utility’s purchasing and hedges, and other costs, which can push actual supply costs above or below it.`;
   const sp = E.split, keys = Object.keys(sp.retail).filter(k => sp.energy[k] != null).sort();
-  lineChart($('#c-split'), { stack: true, zero: true, aria: 'Con Edison price split',
-    series: [{ label: 'Wholesale energy', color: C.sun, data: keys.map(k => [toT(k), sp.energy[k], k]) },
-             { label: 'Everything else', color: C.nyc, data: keys.map(k => [toT(k), sp.retail[k] - sp.energy[k], k]) }],
+  lineChart($('#c-split'), { zero: true, aria: 'Con Edison retail price and NYC-zone wholesale energy benchmark',
+    series: [{ label: 'Wholesale energy benchmark, Zone J', color: C.sun, data: keys.map(k => [toT(k), sp.energy[k], k]), width: 2.5 },
+             { label: 'Con Edison retail price', color: C.nyc, data: keys.map(k => [toT(k), sp.retail[k], k]), width: 3 },
+             { label: 'Retail minus benchmark', color: C.fg2, data: keys.map(k => [toT(k), sp.retail[k] - sp.energy[k], k]), width: 1.5, dash: '4 3' }],
     fmt: (v, ax) => ax ? fx(v, 0) + '¢' : fx(v, 1) + '¢', ann });
-  $('#split-note').innerHTML = `Wholesale energy is the simple average of NYISO day-ahead hourly prices for Zone J (${L(SRC.nyiso, 'NYISO')}). It leaves out capacity payments, which are large in New York City, and the utility’s hedging, so the real supply share of a bill is larger. ${L(SRC.m('split'), 'Method')}.`;
+  $('#split-note').innerHTML = `The benchmark is the simple average of NYISO day-ahead hourly prices for Zone J, New York City (${L(SRC.nyiso, 'NYISO')}), not weighted by when households use power. It does not include capacity payments, grid services or line losses. The dashed line is simple subtraction and is shown only for scale. ${L(SRC.m('split'), 'Method')}.`;
 
   // gas-power
   const J = E.lbmp.J, HH = E.henry_hub;
@@ -264,7 +267,7 @@ function render(D) {
 
   // lag
   const pl = E.passthrough, best = pl.reduce((a, b) => b.r > a.r ? b : a);
-  $('#e-lag-intro').innerHTML = `Comparing each month’s year-over-year change in Con Edison’s price with the year-over-year change in the Zone J wholesale price zero to six months earlier, 2011 to ${LM.slice(0, 4)}: the strongest link is ${best.lag === 0 ? 'in the same month' : best.lag + ' months later'}, and it is weak, a ${L(SRC.m('lag'), 'correlation of ' + fx(best.r, 2))}. Each extra cent per kWh of wholesale price came with about ${fx(best.slope * 100, 0)} hundredths of a cent of retail change.`;
+  $('#e-lag-intro').innerHTML = `Each month’s year-over-year change in Con Edison’s price, set against the year-over-year change in the Zone J wholesale price zero to six months earlier, 2011 to ${LM.slice(0, 4)}. The largest of the seven correlations is ${best.lag === 0 ? 'in the same month' : 'at ' + best.lag + ' months'}, ${L(SRC.m('lag'), fx(best.r, 2))}, which means wholesale changes line up with only about ${fx((best.r2 ?? best.r * best.r) * 100, 0)}% of the variation in retail changes in a simple two-variable fit. At that lag the fitted slope is ${fx(best.slope, 2)}: a 1-cent wholesale change came with a ${fx(best.slope, 2)}-cent retail change on average. That is an association, not a measured pass-through.`;
   const lagBox = $('#c-lag');
   const lagDraw = () => {
     const w = lagBox.clientWidth || 400, h = 190, bw = (w - 60) / pl.length, Y = v => 20 + (1 - v / 0.5) * (h - 50);
@@ -277,7 +280,7 @@ function render(D) {
     lagBox.innerHTML = s;
   };
   lagDraw(); charts.push(lagDraw);
-  $('#lag-note').innerHTML = `Bars show the correlation coefficient at each lag. Most of the price is made up of charges other than wholesale energy (see the chart above), which do not move with wholesale prices.`;
+  $('#lag-note').innerHTML = `Bars show the correlation coefficient at each lag. Picking the largest of seven, common shocks that move both series, changes in use and the way each month overlaps the last all limit what this shows; measuring how much of a wholesale change reaches bills, and how fast, would take a different design. ${L(SRC.m('lag'), 'Method')}.`;
 
   // heat grid
   $('#e-heat-intro').innerHTML = `Each square is one month for Con Edison’s full-service residential customers. Summer bills are the largest because use rises with air conditioning: from ${E.season_years[0]} to ${E.season_years[2]}, July use averaged ${L(SRC.m('season'), fx(E.season[6].kwh, 0) + ' kWh')} per customer against ${L(SRC.m('season'), fx(E.season[4].kwh, 0) + ' kWh')} in May.`;
@@ -306,23 +309,23 @@ function render(D) {
   const scale = (o, f) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v * f]));
   const nycT = G.bls_therm.nyc, nycLast = Object.keys(nycT).sort().pop();
   const nyc24 = avgYear(nycT, 2024), nyc14 = avgYear(nycT, 2014), us24 = avgYear(G.bls_therm.us, 2024), us14 = avgYear(G.bls_therm.us, 2014);
-  $('#g-intro').innerHTML = `Con Edison sells gas in Manhattan, the Bronx, parts of Queens and Westchester; National Grid serves Brooklyn, Staten Island and the rest of Queens. BLS’s New York-area price for piped gas averaged ${L(SRC.bls('APUS12A72620'), usd(nyc24, 2) + ' a therm')} in 2024, ${L(SRC.m('gas'), chgShort(pct(nyc24, nyc14), 0))} from ${L(SRC.bls('APUS12A72620'), usd(nyc14, 2))} in 2014; the national average went from ${L(SRC.bls('APU000072620'), usd(us14, 2))} to ${L(SRC.bls('APU000072620'), usd(us24, 2))} (${L(SRC.m('gas'), chgShort(pct(us24, us14), 0))}). BLS stopped the New York series after December 2024. Since then the closest official measure is EIA’s statewide residential price, which ${L(SRC.gasny, chg(gl.ny_t12_yoy))} over the 12 months through ${monthName(gl.month)} against the prior 12 months; the national price ${L(SRC.gasus, chg(gl.us_t12_yoy))}.`;
+  $('#g-intro').innerHTML = `Con Edison sells gas in Manhattan, the Bronx, parts of Queens and Westchester; National Grid serves Brooklyn, Staten Island and the rest of Queens. BLS’s New York-area price for piped gas averaged ${L(SRC.bls('APUS12A72620'), usd(nyc24, 2) + ' a therm')} in 2024, ${L(SRC.m('gas'), chgShort(pct(nyc24, nyc14), 0))} from ${L(SRC.bls('APUS12A72620'), usd(nyc14, 2))} in 2014; the national average went from ${L(SRC.bls('APU000072620'), usd(us14, 2))} to ${L(SRC.bls('APU000072620'), usd(us24, 2))} (${L(SRC.m('gas'), chgShort(pct(us24, us14), 0))}). BLS stopped the New York series after December 2024. Since then the closest official measure is EIA’s statewide residential price, which includes the city. Weighted by sales, it ${L(SRC.gasny, chg(gl.ny_t12_yoy))} over the 12 months through ${monthName(gl.month)} against the prior 12 months; the national price ${L(SRC.gasus, chg(gl.us_t12_yoy))}. EIA’s published annual average for New York was ${L(SRC.gasnya, usd(gl.ny_annual))} per thousand cubic feet in ${gl.annual_year}. These prices cover gas for cooking and hot water as well as heat.`;
   lineChart($('#c-gas'), { xMin: 2005, zero: true, aria: 'Residential gas prices',
     series: [{ label: 'United States', color: C.usa, data: pts(scale(G.eia_t12.us, therm)) },
              { label: 'New Jersey', color: C.ne, data: pts(scale(G.eia_t12.nj, therm)) },
              { label: 'New York State', color: C.nys, data: pts(scale(G.eia_t12.ny, therm)) },
              { label: 'NYC metro (BLS)', color: C.nyc, data: pts(nycTherm), width: 3 }],
     fmt: (v, ax) => '$' + fx(v, 2) });
-  $('#gas-note').innerHTML = `EIA prices per thousand cubic feet converted to therms at 10.36 therms per thousand cubic feet. The BLS city figure is an average retail price including taxes and fixed charges; EIA’s is revenue divided by volume. ${L(SRC.m('gas'), 'Method')}.`;
+  $('#gas-note').innerHTML = `EIA lines: 12-month averages weighted by residential sales volume, so winter months count for more, as they do in what households pay over a year; prices per thousand cubic feet converted to therms at 10.36 therms per thousand cubic feet. The BLS line is the simple 12-month average of its monthly survey price for the metro area, which includes taxes and fixed charges. ${L(SRC.m('gas'), 'Method')}.`;
   const st = G.stack, sk = Object.keys(st.res).filter(k => st.hh[k] != null && st.cg[k] != null).sort();
-  lineChart($('#c-gasstack'), { stack: true, zero: true, aria: 'New York residential gas price stack',
-    series: [{ label: 'Henry Hub', color: C.cobalt, data: sk.map(k => [toT(k), st.hh[k], k]) },
-             { label: 'To city gate', color: C.cyan, data: sk.map(k => [toT(k), Math.max(0, st.cg[k] - st.hh[k]), k]) },
-             { label: 'Local delivery and charges', color: C.nyc, data: sk.map(k => [toT(k), Math.max(0, st.res[k] - st.cg[k]), k]) }],
+  lineChart($('#c-gasstack'), { zero: true, aria: 'Three natural gas price benchmarks for New York',
+    series: [{ label: 'Henry Hub (Louisiana)', color: C.cobalt, data: sk.map(k => [toT(k), st.hh[k], k]), width: 2.5 },
+             { label: 'New York city gate', color: C.cyan, data: sk.map(k => [toT(k), st.cg[k], k]), width: 2.5 },
+             { label: 'New York residential', color: C.nyc, data: sk.map(k => [toT(k), st.res[k], k]), width: 3 }],
     fmt: (v, ax) => '$' + fx(v, ax ? 0 : 2) });
-  $('#stack-note').innerHTML = `Over the 12 months through ${monthName(gl.stack_month)}, gas at the Henry Hub averaged ${L(SRC.hh, usd(gl.hh_t12))} per thousand cubic feet, the city-gate price in New York ${L(SRC.citygate, usd(gl.cg_t12))} and the residential price ${L(SRC.gasny, usd(gl.ny_t12))}, so the commodity was ${L(SRC.m('stack'), fx(gl.commodity_share, 0) + '%')} of what households paid. Henry Hub is a Louisiana benchmark; New York’s winter supply costs run higher.`;
+  $('#stack-note').innerHTML = `Over the 12 months through ${monthName(gl.stack_month)}, the Henry Hub spot price averaged ${L(SRC.hh, usd(gl.hh_t12))} per thousand cubic feet, New York’s city-gate price ${L(SRC.citygate, usd(gl.cg_t12))} and its residential price ${L(SRC.gasny, usd(gl.res_t12 ?? gl.ny_t12))}, each weighted by New York residential sales. Henry Hub is a Louisiana trading benchmark, not what New York utilities paid for all their gas. The city-gate price is what utilities paid at the point they take delivery, which reflects where, how and when they bought. The gaps between the lines are not tariff charges for pipelines or local delivery. ${L(SRC.m('stack'), 'Method')}.`;
   const gs = G.season;
-  $('#g-season-intro').innerHTML = `New York’s residential price per thousand cubic feet, averaged by calendar month for ${E.season_years[0]}–${E.season_years[2]} (${L(SRC.gasny, 'EIA')}). Utilities’ fixed monthly charges are spread over much less gas in summer, so the per-unit price peaks when bills are smallest: ${L(SRC.gasny, usd(gs[6].ny))} in July against ${L(SRC.gasny, usd(gs[0].ny))} in January.`;
+  $('#g-season-intro').innerHTML = `New York’s residential price per thousand cubic feet, averaged by calendar month for ${E.season_years[0]}–${E.season_years[2]} (${L(SRC.gasny, 'EIA')}). Utilities’ fixed monthly charges are spread over much less gas in summer, so the per-unit price peaks when bills are smallest: ${L(SRC.gasny, usd(gs[6].ny))} in July against ${L(SRC.gasny, usd(gs[0].ny))} in January. It is also why a plain average of the 12 monthly prices runs well above what households paid per unit over a year; the annual figures on this page are weighted by sales.`;
   const gsBox = $('#c-gasseason');
   const gsDraw = () => {
     const w = gsBox.clientWidth || 600, h = 200, mx = Math.max(...gs.map(g => g.ny)) * 1.1, bw = (w - 50) / 12, Y = v => 10 + (1 - v / mx) * (h - 36);
@@ -356,10 +359,11 @@ function render(D) {
   const rmax = Math.max(...regs.map(r => r[1]));
   $('#oilreg').innerHTML = regs.map(([k, v]) => `<span class="n ${k === 'New York City' ? 'me-row' : ''}">${k}</span><span><i class="b ${k === 'New York City' ? 'me' : 'ny'}" style="width:${(v / rmax * 100).toFixed(1)}%"></i></span><span class="v">${L(SRC.nyserda, '$' + fx(v, 2))}</span>`).join('');
   const sp_ = O.spot, mg = O.margin, mk = Object.keys(mg).filter(k => k >= '2010').sort();
-  $('#o-margin-intro').innerHTML = `The wholesale spot price for heating oil in New York Harbor averaged ${L(SRC.spot, usd(ol.spot) + ' a gallon')} in ${monthName(ol.spot_month)}. The city’s retail price was ${L(SRC.m('margin'), usd(ol.margin))} above it that month; the gap averaged ${L(SRC.m('margin'), usd(ol.margin_t12))} over the 12 months through ${monthName(ol.margin_month)} and ${L(SRC.m('margin'), usd(ol.margin_t12_yago))} over the 12 months before. Summer retail prices come from fewer dealer reports.`;
-  lineChart($('#c-oilmargin'), { stack: true, zero: true, h: 260, aria: 'Heating oil wholesale and markup',
-    series: [{ label: 'Wholesale', color: C.sun, data: mk.map(k => [toT(k), sp_[k], k]) },
-             { label: 'Retail markup', color: C.nyc, data: mk.map(k => [toT(k), Math.max(0, mg[k]), k]) }],
+  $('#o-margin-intro').innerHTML = `The wholesale spot price for heating oil in New York Harbor averaged ${L(SRC.spot, usd(ol.spot) + ' a gallon')} in ${monthName(ol.spot_month)}. The city’s retail survey price was ${L(SRC.m('margin'), usd(ol.margin))} above it that month; the spread averaged ${L(SRC.m('margin'), usd(ol.margin_t12))} over the 12 months through ${monthName(ol.margin_month)} and ${L(SRC.m('margin'), usd(ol.margin_t12_yago))} over the 12 months before. The spread is not dealers’ profit, or even what they paid for the oil they sold: dealers buy ahead and hold inventory, and the spread also covers delivery, taxes, overhead and the timing of purchases. Summer retail prices come from fewer dealer reports.`;
+  lineChart($('#c-oilmargin'), { zero: true, h: 260, aria: 'Heating oil spot price and NYC retail survey price',
+    series: [{ label: 'New York Harbor spot', color: C.sun, data: mk.map(k => [toT(k), sp_[k], k]), width: 2.5 },
+             { label: 'NYC retail survey', color: C.nyc, data: mk.map(k => [toT(k), sp_[k] + mg[k], k]), width: 2.5 },
+             { label: 'Retail–spot spread', color: C.fg2, data: mk.map(k => [toT(k), mg[k], k]), width: 1.5, dash: '4 3' }],
     fmt: (v, ax) => '$' + fx(v, 2) });
 
   // ---------- water ----------
@@ -370,7 +374,7 @@ function render(D) {
   const idx = o => { const m = ma(o), b = m['2000-12']; return Object.fromEntries(Object.keys(m).sort().filter(k => k >= '2000-12').map(k => [k, (m[k] / b - 1) * 100])); };
   const av = (o, y) => avgYear(o, y);
   const ch24 = id => pct(av(CPI[id], 2024), av(CPI[id], 2000));
-  $('#r-intro').innerHTML = `Comparing annual averages for 2000 and 2024, the last full year BLS published New York-area utility indexes: electricity prices in the metro area ${L(SRC.bls('CUURS12ASEHF01'), chg(ch24('nyc_elec'), 0))}, piped gas ${L(SRC.bls('CUURS12ASEHF02'), chg(ch24('nyc_gas'), 0))}, rent ${L(SRC.bls('CUURS12ASEHA'), chg(ch24('nyc_rent'), 0))} and all prices ${L(SRC.bls('CUURS12ASA0'), chg(ch24('nyc_all'), 0))}. The rent and all-items lines continue through ${monthName(cm)}.`;
+  $('#r-intro').innerHTML = `Comparing annual averages for 2000 and 2024, the last full year BLS published New York-area utility indexes: electricity prices in the metro area ${L(SRC.bls('CUURS12ASEHF01'), chg(ch24('nyc_elec'), 0))}, piped gas ${L(SRC.bls('CUURS12ASEHF02'), chg(ch24('nyc_gas'), 0))}, rent ${L(SRC.bls('CUURS12ASEHA'), chg(ch24('nyc_rent'), 0))} and all prices ${L(SRC.bls('CUURS12ASA0'), chg(ch24('nyc_all'), 0))}. ${ch24('nyc_rent') > Math.max(ch24('nyc_elec'), ch24('nyc_gas')) ? 'Over that span rent rose faster than either utility.' : ''} These indexes measure percentage changes in price, not shares of household budgets, and the rent index tracks rents on existing leases, not asking rents. The rent and all-items lines continue through ${monthName(cm)}.`;
   lineChart($('#c-rent'), { xMin: 2000, zero: true, aria: 'Consumer price indexes since 2000',
     series: [{ label: 'All items', color: C.usa, data: pts(idx(CPI.nyc_all)) },
              { label: 'Rent', color: C.mint, data: pts(idx(CPI.nyc_rent)), width: 2.5 },
@@ -404,21 +408,26 @@ function overview(D) {
   const panels = [
     { id: 'Electricity', what: `Average residential price, cents per kWh, 12 months to each December${LM.endsWith('-12') ? '' : ' and ' + monthName(LM)}`,
       nyc: decs(E.coned.t12, LM), nys: decs(E.other.t12, LM), usa: decs(E.us.t12, LM), unit: v => fx(v, 1) + '¢', base: '2016-12',
-      cap: 'NYC: Con Edison. State: the other New York utilities, outside the city. U.S.: all customers.', link: SRC.e861 },
-    { id: 'Gas heat', what: 'Average residential price, dollars per therm, by calendar year',
-      nyc: keyY(yearly(G.bls_therm.nyc)), nys: keyY(scaleO(yearly(G.eia.ny), 1 / 10.36)), usa: keyY(scaleO(yearly(G.eia.us), 1 / 10.36)), unit: v => '$' + fx(v, 2), base: '2016',
-      cap: 'NYC: BLS metro price, ends 2024. State (includes the city) and U.S.: EIA.', link: SRC.gasny },
+      names: { nyc: 'Con Edison service territory', nys: 'Selected other NY utilities', usa: 'U.S., all customers' },
+      cap: 'Con Edison’s territory includes most of Westchester. The six other utilities serve most of the rest of the state; LIPA also serves the Rockaways. EIA-861M.', link: SRC.e861 },
+    { id: 'Piped gas', what: 'Average residential price, dollars per therm, by calendar year',
+      nyc: keyY(yearly(G.bls_therm.nyc)), nys: keyY(scaleO(G.eia_annual ? G.eia_annual.ny : yearly(G.eia.ny), 1 / 10.36)), usa: keyY(scaleO(G.eia_annual ? G.eia_annual.us : yearly(G.eia.us), 1 / 10.36)), unit: v => '$' + fx(v, 2), base: '2016',
+      names: { nyc: 'NY metro (BLS, ends 2024)', nys: 'New York State, city included (EIA)', usa: 'U.S. (EIA)' },
+      cap: 'BLS metro survey price through 2024. EIA published annual prices for the state and the U.S.', link: SRC.gasnya },
     { id: 'Heating oil', what: 'Residential No. 2 oil, dollars per gallon, heating-season average (Oct.–March)',
       nyc: keyY(season(oilM)), nys: keyY(season(oilS)), usa: keyY(season(usOil)), unit: v => '$' + fx(v, 2), base: '2016',
-      cap: 'NYC and state: NYSERDA. U.S.: EIA. Season labelled by the year it ends.', link: SRC.nyserda },
+      names: { nyc: 'New York City (NYSERDA)', nys: 'NY State average, city included (NYSERDA)', usa: 'U.S. (EIA)' },
+      cap: 'Season labelled by the year it ends.', link: SRC.nyserda },
     { id: 'Water and sewer', what: wr.length ? 'Combined water and sewer rate per 100 cubic feet, by fiscal year' : 'NYC Water Board rates',
       nyc: keyY(wcomb), nys: null, usa: wr.length ? keyY(usW) : null, unit: v => '$' + fx(v, 2), base: '2016', usaIndexOnly: true,
-      cap: 'NYC: Water Board rate schedules. U.S.: BLS water and sewerage index (no national dollar rate exists). No statewide series.', link: 'https://www.nyc.gov/site/nycwaterboard/rates/rates.page' }
+      names: { nyc: 'New York City (Water Board)', usa: 'U.S. price index (BLS)' },
+      cap: 'No national dollar rate and no statewide series exist; the U.S. line is a price index, shown only as change.', link: 'https://www.nyc.gov/site/nycwaterboard/rates/rates.page' }
   ];
   let mode = 'index';
   const box = $('#sm');
   const draw = () => {
-    box.innerHTML = panels.map((p, i) => `<div><h3>${p.id}</h3><p class="what">${mode === 'index' ? 'Change since 2016, %' : p.what}</p><div class="chart" id="sm${i}"></div><p class="chg" id="smc${i}"></p></div>`).join('');
+    const keyCls = { nyc: 'k-nyc', nys: 'k-nys', usa: 'k-usa' };
+    box.innerHTML = panels.map((p, i) => `<div><h3>${p.id}</h3><p class="what">${mode === 'index' ? 'Change since 2016, %' : p.what}</p><p class="pkey">${['nyc', 'nys', 'usa'].filter(k => p[k] && Object.keys(p[k]).length && !(mode === 'level' && k === 'usa' && p.usaIndexOnly)).map(k => `<span class="key"><i class="${keyCls[k]}"></i>${p.names[k]}</span>`).join('')}</p><div class="chart" id="sm${i}"></div><p class="chg" id="smc${i}"></p></div>`).join('');
     panels.forEach((p, i) => {
       const el = document.getElementById('sm' + i);
       const S = [['usa', C.usa], ['nys', C.nys], ['nyc', C.nyc]].filter(([k]) => p[k] && Object.keys(p[k]).length);
@@ -428,7 +437,7 @@ function overview(D) {
         if (mode === 'index' || (k === 'usa' && p.usaIndexOnly)) { const b = o[p.base] ?? o[p.base + '-12'];
           if (b == null) return null; o = Object.fromEntries(Object.entries(o).map(([kk, v]) => [kk, (v / b - 1) * 100])); }
         if (mode === 'level' && k === 'usa' && p.usaIndexOnly) return null;
-        return { label: k === 'nyc' ? 'New York City' : k === 'nys' ? 'New York State' : 'United States', color: col, width: k === 'nyc' ? 2.5 : 1.8,
+        return { label: p.names[k], color: col, width: k === 'nyc' ? 2.5 : 1.8,
           data: Object.keys(o).sort().filter(kk => kk >= '2010').map(kk => [kk.length === 4 ? +kk + 0.5 : toT(kk), o[kk], kk]), gap: 1.6, snap: 0.6 };
       }).filter(Boolean);
       lineChart(el, { series, h: 190, zero: mode !== 'index', xMin: 2010, lPad: 40,
@@ -439,7 +448,7 @@ function overview(D) {
       const at = (o, b) => o[b] ?? o[b + '-12'];
       const endK = p.nyc && Object.keys(p.nyc).length ? last(p.nyc)[0] : null;
       const ch = S.map(([k]) => { const o = p[k], lk = endK && o[endK] != null ? endK : last(o)[0], lv = o[lk], bv = at(o, p.base); if (bv == null || (endK && lk !== endK)) return '';
-        const nm = k === 'nyc' ? 'New York City' : k === 'nys' ? 'New York State' : 'U.S.';
+        const nm = p.names[k];
         return `${nm} <b>${chgShort(pct(lv, bv), 0)}</b>`; }).filter(Boolean).reverse();
       const lastNyc = p.nyc && Object.keys(p.nyc).length ? last(p.nyc)[0] : null;
       document.getElementById('smc' + i).innerHTML = lastNyc ? `${p.base.slice(0, 4)} to ${lastNyc.length === 4 ? (p.id === 'Water and sewer' ? 'fiscal ' + lastNyc : p.id === 'Heating oil' ? 'winter ' + (lastNyc - 1) + '–' + lastNyc.slice(2) : lastNyc) : monthName(lastNyc)}: ${ch.join(', ')}. <span style="color:var(--fg2)">${p.cap} ${L(SRC.m('overview'), 'Method')}.</span>` : '';
@@ -447,7 +456,7 @@ function overview(D) {
   };
   draw();
   toggle('[data-ov]', 'ov', v => { mode = v; draw(); });
-  $('#smnote').innerHTML = `Each panel compares like with like inside it, but the four panels use different sources and periods, set out under each. The national water line is a price index, so it appears only as change.`;
+  $('#smnote').innerHTML = `Each panel uses the closest official measure for that cost, so the geography, source and period differ from panel to panel; each has its own key. Not every household pays all four directly: heat and water are often included in rent or building charges, and gas and oil are alternative heating fuels. The four should not be added into a household total.`;
 }
 
 // ---------- Con Edison research (rate cases, taxes) ----------
@@ -481,9 +490,9 @@ function conedResearch(R) {
       <div class="chart" id="c-tax"></div></div><div><h3>How the taxes reach rates</h3><p class="aside">Taxes are a cost the Public Service Commission lets the utility recover through delivery rates. What the commission and the company say about them:</p><div class="why" id="taxwhy"></div></div></div>`;
   }
   const cases = (R.rate_cases || []).filter(c => c.delivery_increase_musd != null || c.bill_impact);
-  if (cases.length) h += `<div style="margin-top:38px"><h3>Rate cases</h3><p class="aside">Delivery rates for Con Edison and National Grid are set by the Public Service Commission in multiyear rate plans. Each row is one approved step, in the agency’s or the company’s own figures. Bill effects are as stated in the source, for the typical customer it describes.</p><div class="tablewrap"><table class="h" id="cases"></table></div><p><button class="chip" id="cases-more"></button></p></div>`;
+  if (cases.length) h += `<div style="margin-top:38px"><h3>Rate cases</h3><p class="aside">Delivery rates for Con Edison and National Grid are set by the Public Service Commission in multiyear rate plans. Each row is one approved step, in the agency’s or the company’s own figures. The first column is when the rate year begins, which can differ from the order date and from when new rates first appear on bills. Bill effects are as stated in the source, for the typical customer it describes.</p><div class="tablewrap"><table class="h" id="cases"></table></div><p><button class="chip" id="cases-more"></button></p></div>`;
   const ev = (R.events || []).filter(e => e.date);
-  if (ev.length) h += `<div style="margin-top:38px"><h3>Dated events</h3><p class="aside">Rate orders, plant closings, new lines and bill-relief actions that bear on city electricity and gas prices.</p><div class="why" id="events"></div></div>`;
+  if (ev.length) h += `<div style="margin-top:38px"><h3>Dated events</h3><p class="aside">Rate orders, plant closings, new lines and bill-relief actions that bear on city electricity and gas prices. Each is a documented event; the page does not measure its effect on prices. Entries stated as expectations are forecasts as of the source’s date.</p><div class="why" id="events"></div></div>`;
   box.innerHTML = h;
 
   if (prop.length && c3.length) {
@@ -497,7 +506,7 @@ function conedResearch(R) {
       s26g = share('property taxes as share of 2026-2028 gas increase (pct)'), mech = share('property tax recovery mechanism (2026-2028 plan)'), grt = share('how GRT is treated');
     if (s20) rows.push(['2020–22 plan', `Higher property taxes were more than 40% of the increased cost the commission allowed over the three years. ${L(s20.url, 'Source')}`]);
     if (s23) rows.push(['2023–25 plan', `Higher property taxes were more than 30% of the increased cost over the three years. ${L(s23.url, 'Source')}`]);
-    if (s26p) rows.push(['2026–28 plan', `Property taxes are about 26% of the electric revenue increase${s26 ? ` (${L(s26.url, '$' + fx(s26.amount_musd, 1) + ' million')} of $1.024 billion over three years)` : ''}${s26g ? ` and about 22% of the gas increase` : ''}. ${L(s26p.url, 'Source')}`]);
+    if (s26p) rows.push(['2026–28 plan', `The Department of Public Service’s summaries attribute approximately ${s26p.pct}% of the electric revenue increase to property taxes${s26g ? `, and approximately ${s26g.pct}% of the gas increase` : ''}. ${L(s26p.url, 'Electric summary')}${s26g ? ` · ${L(s26g.url, 'Gas summary')}` : ''}`]);
     if (mech) rows.push(['Since 2026', `If actual property taxes differ from the amount built into rates, the full difference is charged or credited to customers through a surcharge or credit. ${L(mech.url, 'Source')}`]);
     if (grt) rows.push(['Revenue taxes', `Gross receipts and other revenue taxes are generally recovered in the revenue requirement of each approved rate plan. ${L(grt.url, 'Source')}`]);
     $('#taxwhy').innerHTML = rows.map(r => `<div class="fy" style="font-size:15px">${r[0]}</div><div><p>${r[1]}</p></div>`).join('');
@@ -508,8 +517,8 @@ function conedResearch(R) {
     let showAll = false;
     const drawCases = () => {
     const vis = showAll ? cases : cases.filter(c => (c.effective || '') >= '2023');
-    $('#cases').innerHTML = `<thead><tr><th>Takes effect</th><th>Utility</th><th>Service</th><th>Case and order</th><th class="r">Delivery revenue increase</th><th>Bill effect as stated</th></tr></thead><tbody>` +
-      vis.map(c => `<tr><td>${c.effective ? dateTxt(c.effective.endsWith('-01') && c.effective.slice(5, 7) === '01' ? c.effective.slice(0, 4) : c.effective.slice(0, 7)) : c.rate_year}</td><td>${UN[c.utility] || c.utility}</td><td>${c.service}</td><td>${c.case ? c.case.replace(/ \(.*\)/, '') : '<span style="color:var(--fg2)">From annual report</span>'}${c.order_date ? `<br><small style="color:var(--fg2)">Order ${apDate(c.order_date)}</small>` : ''}</td><td class="r">${c.delivery_increase_musd != null ? L(c.url, '$' + fx(c.delivery_increase_musd, 1).replace(/\.0$/, '') + 'M') : '–'}${c.pct ? `<br><small style="color:var(--fg2)">${c.pct}</small>` : ''}</td><td><small>${c.bill_impact || ''}</small></td></tr>`).join('') + '</tbody>';
+    $('#cases').innerHTML = `<thead><tr><th>Rate year begins</th><th>Utility</th><th>Service</th><th>Case and order</th><th class="r">Delivery revenue increase</th><th>Bill effect as stated</th></tr></thead><tbody>` +
+      vis.map(c => `<tr><td>${c.effective ? dateTxt(c.effective.endsWith('-01') && c.effective.slice(5, 7) === '01' ? c.effective.slice(0, 4) : c.effective.slice(0, 7)) : c.rate_year}</td><td>${UN[c.utility] || c.utility}</td><td>${c.service}</td><td>${c.case ? c.case.replace(/ \(.*\)/, '') : '<span style="color:var(--fg2)">From annual report</span>'}${c.order_date ? `<br><small style="color:var(--fg2)">Order ${apDate(c.order_date)}</small>` : ''}</td><td class="r">${c.delivery_increase_musd != null ? L(c.url, '$' + fx(c.delivery_increase_musd, 1).replace(/\.0$/, '') + 'M') : '–'}${c.pct ? `<br><small style="color:var(--fg2)">${c.pct}</small>` : ''}</td><td><small>${c.bill_impact || ''}</small>${c.billing_note ? `<br><small style="color:var(--fg2)">${c.billing_note} ${L(c.billing_url || c.url, 'Source')}</small>` : ''}</td></tr>`).join('') + '</tbody>';
     $('#cases-more').textContent = showAll ? 'Show 2023 on only' : `Show all ${cases.length} steps back to 2010`;
     };
     drawCases();
@@ -518,6 +527,7 @@ function conedResearch(R) {
   if (ev.length) {
     ev.sort((a, b) => a.date.localeCompare(b.date));
     $('#events').innerHTML = ev.map(e => `<div class="fy">${e.date.slice(0, 4)}<small>${e.date.length > 4 ? dateTxt(e.date).replace(/, \d{4}$/, '').replace(/ \d{4}$/, '') : ''}</small></div><div><p>${e.event} ${L(e.url, 'Source')}</p></div>`).join('');
+    // Events document that something happened; the page does not estimate each one's effect on prices.
   }
 }
 
@@ -533,7 +543,7 @@ function water(D) {
   const lastInc = rates.filter(r => r.increase_pct != null).slice(-1)[0];
   const bills = (W.typical_bills || []).filter(b => b.single_family != null).sort((a, b) => a.fy - b.fy);
   const lb = bills[bills.length - 1];
-  $('#w-intro').innerHTML = `The NYC Water Board sets one citywide rate, billed by the Department of Environmental Protection on metered use; sewer charges are a fixed share of the water charge. The combined rate was ${L(last.url, usd(comb(last)) + ' per 100 cubic feet')} (748 gallons) in fiscal year ${last.fy}, against ${L(first.url, usd(comb(first)))} in fiscal ${first.fy}` +
+  $('#w-intro').innerHTML = `The NYC Water Board sets one citywide rate, billed by the Department of Environmental Protection on metered use; sewer charges are a fixed share of the water charge. Most renters never see this bill: it goes to the building owner and is folded into rent. The combined rate was ${L(last.url, usd(comb(last)) + ' per 100 cubic feet')} (748 gallons) in fiscal year ${last.fy}, against ${L(first.url, usd(comb(first)))} in fiscal ${first.fy}` +
     (b16 && last.fy > 2016 ? `, and ${L(SRC.m('water'), chgShort(pct(comb(last), comb(b16)), 0))} from fiscal 2016` : '') +
     (lastInc ? `. The fiscal ${lastInc.fy} increase was ${L(lastInc.increase_url || lastInc.url, fx(lastInc.increase_pct, 1) + '%')}${lastInc.adopted_date ? `, adopted ${apDate(lastInc.adopted_date)}` : ''}` : '') +
     (lb ? `. The board’s typical single-family bill for fiscal ${lb.fy} was ${L(lb.url, usd(lb.single_family, 0) + ' a year')}${lb.multifamily_unit != null ? `, and ${L(lb.url, usd(lb.multifamily_unit, 0))} for a typical apartment in a multifamily building` : ''}` : '') + '.';
@@ -556,7 +566,7 @@ function water(D) {
     h += `</div>`;
   }
   h += `<div style="margin-top:32px"><h3>Rate schedule by fiscal year</h3><div class="tablewrap"><table class="h"><thead><tr><th>Fiscal year</th><th class="r">Water</th><th class="r">Sewer</th><th class="r">Combined</th><th class="r">Increase</th><th>Adopted</th></tr></thead><tbody>${rates.slice().reverse().map(r => `<tr><td>${r.fy}</td><td class="r">${r.water_per_hcf != null ? usd(r.water_per_hcf) : '–'}</td><td class="r">${r.sewer_per_hcf != null ? usd(r.sewer_per_hcf) : '–'}</td><td class="r">${comb(r) != null ? L(r.url, usd(comb(r))) : '–'}</td><td class="r">${r.increase_pct != null ? L(r.increase_url || r.url, fx(r.increase_pct, 1) + '%') : '–'}</td><td>${r.adopted_date ? apDate(r.adopted_date) : ''}${NOTE_FY.includes(r.fy) && r.note ? `<br><small style="color:var(--fg2)">${r.note}</small>` : ''}</td></tr>`).join('')}</tbody></table></div>` +
-    `<p class="note">Per 100 cubic feet (748 gallons) of metered use. Water rates from FY1997 come from rate schedules and the system’s audited financial statements; the sewer charge has been 159% of the water charge throughout, and the sewer and combined figures here are calculated that way. Increases for FY1988–FY1996 are read from a Water Board chart.</p></div>` + ((W.assistance || []).length ? `<div style="margin-top:28px"><h3>Help with water bills</h3><div class="why">${W.assistance.filter(a => !/origin/i.test(a.program)).map(a => `<div class="fy" style="font-size:15px">${a.program.replace(/ \(.*\)/, '')}</div><div><p>${a.summary} ${L(a.url, 'Source')}</p></div>`).join('')}</div></div>` : '');
+    `<p class="note">Per 100 cubic feet (748 gallons) of metered use. Water rates from FY1997 come from rate schedules and the system’s audited financial statements; the adopted schedules control. The sewer charge has been 159% of the water charge in every year from FY1997, and the sewer and combined figures here are calculated that way (water rate × 2.59, rounded to the cent). The board’s ${L('https://www.nyc.gov/site/nycwaterboard/rates/rates-regulations.page', 'informational rate history')} prints a few combined rates a cent or two lower (for example, $13.07 for FY2026 against $13.08 here). Increases for FY1988–FY1996 are read from a Water Board chart; the sewer share varied before FY1993.</p></div>` + ((W.assistance || []).length ? `<div style="margin-top:28px"><h3>Help with water bills</h3><div class="why">${W.assistance.filter(a => !/origin/i.test(a.program)).map(a => `<div class="fy" style="font-size:15px">${a.program.replace(/ \(.*\)/, '')}</div><div><p>${a.summary} ${L(a.url, 'Source')}</p></div>`).join('')}</div></div>` : '');
   $('#water-body').innerHTML = h;
 
   // bars + line
