@@ -188,7 +188,7 @@ dl.f dd{margin:0}
   <div class="toolbar">
     <span class="grp" id="avBtns">
       <button class="chip" data-av="count" aria-pressed="true">Homes financed</button>
-      <button class="chip" data-av="share" aria-pressed="false">Share of homes completed</button>
+      <button class="chip" data-av="share" aria-pressed="false">Share of homes in new buildings</button>
     </span>
     <span class="grp" id="typeBtns">
       <button class="chip" data-ty="all" aria-pressed="true">New and preserved</button>
@@ -223,9 +223,9 @@ dl.f dd{margin:0}
   <p class="sub" id="rentAside"></p>
   <div class="toolbar">
     <span class="grp" id="rentBtns">
-      <button class="chip" data-r="occ_aff60" aria-pressed="true">Rents within reach at 60% of median income</button>
-      <button class="chip" data-r="occ_aff100" aria-pressed="false">At 100%</button>
-      <button class="chip" data-r="asked_aff60" aria-pressed="false">Vacant units, at 60%</button>
+      <button class="chip" data-r="occ_aff60" aria-pressed="true">2020-2024 rents, 60% threshold</button>
+      <button class="chip" data-r="occ_aff100" aria-pressed="false">100% threshold</button>
+      <button class="chip" data-r="asked_aff60" aria-pressed="false">2020-2024 asking rents, 60%</button>
       <button class="chip" data-r="burdened" aria-pressed="false">Renters paying 30%+ of income</button>
     </span>
   </div>
@@ -238,7 +238,7 @@ dl.f dd{margin:0}
 
 <footer class="foot">
   <p><b><a href="docs/how-i-built-this.html">How I built this</a></b>: every source, every calculation and every judgment call, with the checks run against the city's own totals. Data: <a href="https://data.cityofnewyork.us/d/br6q-ssj3">Housing Database, version <span id="ver"></span></a> (Department of City Planning); <a href="https://data.cityofnewyork.us/d/hg8x-zxpr">Affordable Housing Production by Building</a> (Department of Housing Preservation and Development); <a href="https://wherewelive.cityofnewyork.us/wp-content/uploads/2026/08/Fair-Housing-Growth-Strategy_Draft-Report.pdf#page=36">draft Fair Housing Growth Strategy, Aug. 19, 2026</a>; <a href="https://data.census.gov/table/ACSDT5Y2024.B19001">American Community Survey 2020-2024</a> and the 2020 census; <a href="https://council.nyc.gov/districts/">City Council district list</a>, read Oct. 22, 2026.</p>
-  <p>Inspired by A City That Works' <a href="https://housing.acitythatworks.org/">Chicago housing dashboard</a>. Built Oct. 22, 2026 by Josh Greenman with Claude.</p>
+  <p>Inspired by A City That Works' <a href="https://housing.acitythatworks.org/">Chicago housing dashboard</a>. Built Oct. 22, 2026, and revised Nov. 6, 2026, by Josh Greenman with Claude.</p>
 </footer>
 </div>
 
@@ -366,7 +366,7 @@ function opening(){
   const peakY=D.peaks.comp_year, rec=D.city.comp[peakY-F], perYr=M.target_city_5yr/5;
   const same=top.v.boro===bot.v.boro;
   document.getElementById('finding').innerHTML=`From 2016 through 2025, Council District ${top.id} in ${top.v.boro} added ${L(SRC.hdb,'<b>'+fmt(dec(top))+'</b> homes')}. District ${bot.id}, ${same?'also in '+bot.v.boro:'in '+bot.v.boro}, added ${L(SRC.hdb,'<b>'+fmt(dec(bot))+'</b>')}.`;
-  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,'<b>'+fmt(city)+'</b>')} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),'<b>'+pct(top10/city)+'</b>')} of them, and the 10 that built the least for ${L(HOW('calc'),'<b>'+pct(bottom10/city)+'</b>')}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','<b>350,000</b> homes')} in five years. The most finished in any year since 2010 was ${L(SRC.hdb,'<b>'+fmt(rec)+'</b>')}, in ${peakY}.`;
+  document.getElementById('lede').innerHTML=`New York City gained ${L(SRC.hdb,'<b>'+fmt(city)+'</b>')} homes over those 10 years, after subtracting demolitions. The 10 council districts that built the most account for ${L(HOW('calc'),'<b>'+pct(top10/city)+'</b>')} of them, and the 10 that built the least for ${L(HOW('calc'),'<b>'+pct(bottom10/city)+'</b>')}. In August the city proposed its first ${L(SRC.fhgs+'#page=28','targets for every community district')}: ${L(SRC.fhgs+'#page=28','<b>350,000</b> homes')} in five years. The most completed in any year since 2010 was ${L(SRC.hdb,'<b>'+fmt(rec)+'</b>')}, in ${peakY}.`;
   const cds=dists('cd'), behind=cds.filter(d=>sum(d.v.comp,2016,2025)/10<d.v.goal/5/2).length;
   const stat=(n,href,lbl)=>`<div class="stat"><div class="num"><a href="${href}">${n}</a></div><div class="lbl">${lbl}</div></div>`;
   document.getElementById('stats').innerHTML=
@@ -377,6 +377,10 @@ function opening(){
 }
 
 // ---------- section 1 ----------
+const WORD=['no','one','two','three','four','five','six','seven','eight','nine'];
+const nword=n=>n<10?WORD[n]:fmt(n);
+function partialNote(){const p=D.city.partial;if(!p.length)return '';const n=p.reduce((a,x)=>a+x.net,0);
+  return `City Planning lists ${L(HOW('partial'),nword(p.length)+' partly complete job'+(p.length===1?'':'s'))}, with ${L(HOW('partial'),fmt(n)+' net homes')} proposed; they are in neither the completed count nor the pipeline.`}
 function drawBuilt(){
   const pipe=S.m==='pipe', mlabel={comp:'completed',permit:'permitted',pipe:'in the pipeline'}[S.m];
   const per=S.p, val=d=>per==='rate'?rate(d):per==='stock'?growth(d):built(d);
@@ -398,7 +402,7 @@ function drawBuilt(){
   document.getElementById('rankCsv').onclick=()=>{const head=S.geo==='council'?['council_district','member','value','measure']:['community_district','name','value','measure'];
     const csv=[head.join(',')].concat(rk.map(r=>[r.d.id,`"${(S.geo==='council'?r.d.v.member:r.d.v.name)||''}"`,per==='total'?Math.round(r.v):r.v.toFixed(3),`"Net homes ${mlabel}, ${when}${unitT}"`].join(','))).join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`who-builds-new-york-${S.geo}-${S.m}-${S.y0}-${S.y1}.csv`;a.click()};
-  document.getElementById('builtNote').innerHTML=`Citywide, ${L(SRC.hdb,fmt(city)+' net homes')} ${mlabel}, ${when}. ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts account for half.${neg?` ${neg} ${S.m==='comp'?'lost more homes than they gained':S.m==='permit'?'permitted more demolitions than new homes':'have more demolition than construction permitted'}.`:''} ${S.m==='permit'?'Permitted counts every job that got a construction permit in the year, whether or not it has finished; jobs later withdrawn are left out.':pipe?'The pipeline is every job with a construction permit that has not been recorded as finished, whatever year it was permitted; some of these jobs have stalled.':'Completed counts homes in the year the job finished.'} Residents are the ${L(SRC.pop,'2020 census count')} and existing homes the ${L(SRC.units,'2020 census count of housing units')}. Not counted: illegal units, and the homes created without a Buildings Department job.`;
+  document.getElementById('builtNote').innerHTML=`Citywide, ${L(SRC.hdb,fmt(city)+' net homes')} ${mlabel}, ${when}. ${L(HOW('calc'),k+' of '+ds.length)} ${S.geo==='council'?'council':'community'} districts account for half.${neg?` ${neg} ${S.m==='comp'?'lost more homes than they gained':S.m==='permit'?'permitted more demolitions than new homes':'have more demolition than construction permitted'}.`:''} ${S.m==='permit'?'Permitted counts every job that got a construction permit in the year, whether or not it is complete; jobs later withdrawn are left out.':(pipe?'The pipeline is every job City Planning lists as permitted, with no certificate of occupancy yet, whatever year it was permitted; some of these jobs have stalled.':'Completed counts jobs City Planning classifies as complete, in the year of their first certificate of occupancy; in a large building, some homes can open later.')+' '+partialNote()} Residents are the ${L(SRC.pop,'2020 census count')} and existing homes the ${L(SRC.units,'2020 census count of housing units')}. Not counted: illegal units, and the homes created without a Buildings Department job.`;
 }
 
 // ---------- year chart ----------
@@ -469,12 +473,17 @@ function drawAfford(){
   const tooEarly=S.av!=='share'&&S.y1<M.hpd_first;
   document.getElementById('affMap').style.display=tooEarly?'none':'';
   if(S.av==='share'){
-    const sh=d=>{const g=sum(d.v.gain,S.y0,S.y1);return g>0?sum(d.v.afford_hdb,S.y0,S.y1)/g:null};
-    const cg=sum(D.city.gain,S.y0,S.y1), ca=sum(D.city.afford_hdb,S.y0,S.y1);
-    choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:sh,ink:'mint',label:(v,short)=>v==null?'no homes added':pct(v)+(short?'':' of homes added were income-restricted'),title:`Share of homes added in completed jobs that were HPD income-restricted, ${yrLabel()}`});
+    const N=(v,k)=>sum(v[k],S.y0,S.y1);
+    const sh=d=>{const g=N(d.v,'share_den');return g>0?N(d.v,'share_num')/g:null};
+    const cg=N(D.city,'share_den'), ca=N(D.city,'share_num'), oj=N(D.city,'share_out_jobs'), oa=N(D.city,'share_out_aff');
+    const when=S.y0===S.y1?'in '+yrLabel():'from '+S.y0+' to '+(S.y1===LAST?'June 2026':S.y1);
+    choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:sh,ink:'mint',label:(v,short)=>v==null?'no new buildings counted':pct(v)+(short?'':' of homes in new buildings were income-restricted'),
+      title:`Share of homes in completed new buildings that HPD counts as income-restricted, ${yrLabel()}`,
+      tipExtra:d=>`${fmt(N(d.v,'share_num'))} of ${fmt(N(d.v,'share_den'))} homes${N(d.v,'share_out_jobs')?`; ${fmt(N(d.v,'share_out_jobs'))} job${N(d.v,'share_out_jobs')===1?'':'s'} left out`:''}`});
     const top=ds.filter(d=>sh(d)!=null).sort((a,b)=>sh(b)-sh(a));
-    document.getElementById('affH').innerHTML=`${L(HOW('share'),pct(ca/cg))} of the homes added in jobs completed ${S.y0===S.y1?'in '+yrLabel():'from '+S.y0+' to '+(S.y1===LAST?'June 2026':S.y1)} were income-restricted; in ${name(top[0])} it was ${L(HOW('share'),pct(sh(top[0])))} and in ${name(top[top.length-1])}, ${L(HOW('share'),pct(sh(top[top.length-1])))}`;
-    document.getElementById('affAside').innerHTML=`This view uses the ${L(SRC.hdb,'Housing Database')}, which records for each completed job how many of its homes HPD counts as income-restricted, so the timing matches the completions above. Citywide, ${L(SRC.hdb,fmt(ca))} of the ${L(SRC.hdb,fmt(cg))} homes added in completed jobs, ${yrLabel()}, were income-restricted. Homes lost to demolition are not in the denominator. A district with a high share may have built little of anything.`;
+    const ex=d=>`${L(HOW('share'),pct(sh(d)))} (${fmt(N(d.v,'share_num'))} of ${fmt(N(d.v,'share_den'))})`;
+    document.getElementById('affH').innerHTML=cg>0&&top.length?`HPD counts ${L(HOW('share'),pct(ca/cg))} of the homes in new buildings completed ${when} as income-restricted; in ${name(top[0])} it was ${ex(top[0])} and in ${name(top[top.length-1])}, ${ex(top[top.length-1])}`:`No new buildings in this measure were completed ${when}`;
+    document.getElementById('affAside').innerHTML=`This view uses the ${L(SRC.hdb,'Housing Database')}, which lists the affordable homes HPD associates with each job, dated like the completions above. It counts only completed new buildings, where every permanent home is new, so the income-restricted homes are part of the homes counted: citywide, ${L(SRC.hdb,fmt(ca))} of ${L(SRC.hdb,fmt(cg))}, ${yrLabel()}. Left out of both sides are conversions, whose affordable count can include homes that were already there, and new buildings whose records do not line up: ${L(HOW('share'),fmt(oj)+' jobs')} in these years, carrying ${L(HOW('share'),fmt(oa)+' affordable homes')}. A district with a high share may have built little of anything.`;
   } else {
     choropleth('mapAff','rankAff','rampAff','rankAffTitle',{value:d=>by.get(d.id)||0,ink:'mint',
       label:(v,short)=>fmt(v)+(short?'':' income-restricted homes'),title:`Income-restricted homes ${ty} ${span}`});
@@ -535,18 +544,18 @@ function drawScatter(){
 
 // ---------- rents ----------
 function drawRents(){
-  const R={occ_aff60:['cyan',`Share of rented homes with a gross rent of ${money(M.rent60)} or less`,'rented homes affordable at 60% of median'],
-           occ_aff100:['cyan',`Share of rented homes with a gross rent of ${money(M.rent100)} or less`,'rented homes affordable at 100% of median'],
-           asked_aff60:['rose',`Share of vacant apartments for rent asking ${money(M.rent60)} or less`,'vacant for-rent units asking an affordable rent'],
-           burdened:['vermilion','Share of renter households paying 30% or more of income on rent','renter households rent-burdened']}[S.r];
-  choropleth('mapRent','rankRent','rampRent','rankRentTitle',{value:d=>d.v[S.r],ink:R[0],label:(v,short)=>v==null?'too few vacant units to say':pct(v)+(short?'':' of '+R[2]),title:R[1],
+  const R={occ_aff60:['cyan',`Share of 2020-2024 gross rents for occupied apartments at or below ${money(M.rent60)}, the 2026 threshold at 60% of median income`,'2020-2024 gross rents at or below the 2026 threshold at 60%'],
+           occ_aff100:['cyan',`Share of 2020-2024 gross rents for occupied apartments at or below ${money(M.rent100)}, the 2026 threshold at 100% of median income`,'2020-2024 gross rents at or below the 2026 threshold at 100%'],
+           asked_aff60:['rose',`Share of 2020-2024 asking rents for vacant apartments at or below ${money(M.rent60)}, the 2026 threshold at 60% of median income`,'2020-2024 asking rents at or below the 2026 threshold at 60%'],
+           burdened:['vermilion','Share of renter households paying 30% or more of income on rent, 2020-2024','renter households rent-burdened, 2020-2024']}[S.r];
+  choropleth('mapRent','rankRent','rampRent','rankRentTitle',{value:d=>d.v[S.r],ink:R[0],label:(v,short)=>v==null?'under 150 estimated vacant units; left blank':pct(v)+(short?'':' of '+R[2]),title:R[1],
     tipExtra:d=>`Median gross rent ${money(d.v.gross_rent_median)}${d.v.gross_rent_open?'+':''}${d.g==='cd'&&d.v.laa?'<br>The city counts this as a Limited Affordability Area':''}`});
   {const ds=dists(S.geo).filter(d=>d.v[S.r]!=null).sort((a,b)=>b.v[S.r]-a.v[S.r]), hi=ds[0], lo=ds[ds.length-1];
-   const what={occ_aff60:'of rented homes are within reach of a household at 60% of median income',occ_aff100:'of rented homes are within reach of a household at median income',asked_aff60:'of vacant apartments ask a rent a household at 60% of median income can pay',burdened:'of renters pay 30% or more of income on rent'}[S.r];
+   const what={occ_aff60:'of 2020-2024 gross rents were at or below the 2026 threshold for a household at 60% of median income',occ_aff100:'of 2020-2024 gross rents were at or below the 2026 threshold for a household at median income',asked_aff60:'of 2020-2024 asking rents for vacant apartments were at or below the 2026 threshold at 60% of median income',burdened:'of renters paid 30% or more of income on rent in 2020-2024'}[S.r];
    const src={occ_aff60:SRC.gr,occ_aff100:SRC.gr,asked_aff60:SRC.ra,burdened:SRC.bur}[S.r];
    document.getElementById('rentH').innerHTML=`In ${name(hi)}, ${L(src,pct(hi.v[S.r]))} ${what}; in ${name(lo)}, ${L(src,pct(lo.v[S.r]))}`;}
-  document.getElementById('rentAside').innerHTML=`The line for affordable is ${L(HOW('rents'),'30 percent of income')}, the standard the federal and city housing agencies use. For a two-person household at 60 percent of the ${L(SRC.ami,'2026 area median income')}, ${L(SRC.ami,money(M.ami2*.6))} a year, that is ${L(HOW('rents'),money(M.rent60)+' a month')}; at 100 percent, ${L(HOW('rents'),money(M.rent100))}. The first two views count what current tenants pay, ${L(SRC.gr,'rent plus utilities')}, including people in rent-stabilized apartments they have held for years. The vacant view uses the ${L(SRC.ra,'asking rent')} for apartments on the market when the census called, which is closer to what a newcomer faces; these estimates rest on small samples.`;
-  document.getElementById('rentNote').innerHTML=`Source: American Community Survey, 2020 to 2024, summed from tracts into districts by where people live. Five-year estimates trail the market, so they understate today's rents. In community district view, the tooltip notes the districts the city calls ${L(SRC.fhgs+'#page=31','Limited Affordability Areas')}, the ones with the fewest low-cost rentals on the market.`;
+  document.getElementById('rentAside').innerHTML=`These maps compare two periods. The threshold is ${L(HOW('rents'),'30 percent of income')}, the standard the federal and city housing agencies use, applied to HPD’s ${L(SRC.ami,'2026 area median income')}: for a two-person household at 60 percent, ${L(SRC.ami,money(M.ami2*.6))} a year, that is ${L(HOW('rents'),money(M.rent60)+' a month')}; at 100 percent, ${L(HOW('rents'),money(M.rent100))}. The rents are census survey estimates for 2020 to 2024, in 2024 dollars, not adjusted to 2026. The first two views use the gross rent of occupied apartments, ${L(SRC.gr,'rent plus utilities')}, including people in rent-stabilized apartments they have held for years. The vacant view uses the ${L(SRC.ra,'asking rent')}, which leaves out utilities, for apartments that were on the market when the survey reached them, at some point from 2020 to 2024; it does not show what is available now.`;
+  document.getElementById('rentNote').innerHTML=`Source: American Community Survey, 2020 to 2024, summed from tracts into districts by where people live. Five-year estimates trail the market, so they understate today's rents. Each figure is a survey estimate with a margin of error that this page does not carry through the split into districts, so small differences between districts may not be real; the vacant view rests on the fewest sampled homes (${L(HOW('rents'),'more')}). In community district view, the tooltip notes the districts the city calls ${L(SRC.fhgs+'#page=31','Limited Affordability Areas')}, the ones with the fewest low-cost rentals on the market.`;
 }
 
 // ---------- drawer ----------
@@ -562,18 +571,21 @@ function openDrawer(d){
   D.hpd.forEach(r=>{if(r[col]===d.id){const u=r[4]+r[5]+r[6]+r[7]+r[8]+r[9];aff+=u;if(r[3]===0)affN+=u;deep+=r[4]+r[5]}});
   document.getElementById('dLbl').textContent=d.g==='council'?(v.member?'Council Member '+v.member:''):`${v.boro} · ${v.cohort.toLowerCase()} growth cohort${v.laa?' · Limited Affordability Area':''}`;
   document.getElementById('dTitle').textContent=full(d);
-  let h=`<p class="dek">${L(SRC.hdb,fmt(dec)+' net homes')} completed from 2016 through 2025, ${rank===1?'the most':'ranked '+rank+' of '+all.length} among ${d.g==='council'?'council':'community'} districts and ${L(HOW('calc'),(dec/cityDec*100).toFixed(1)+'%')} of the city's total. ${L(SRC.hdb,fmt(sum(v.comp,LAST,LAST)))} more in the first half of 2026, and ${L(SRC.hdb,fmt(v.pipeline))} in jobs with permits that have not finished.</p>`;
+  let h=`<p class="dek">${L(SRC.hdb,fmt(dec)+' net homes')} completed from 2016 through 2025, ${rank===1?'the most':'ranked '+rank+' of '+all.length} among ${d.g==='council'?'council':'community'} districts and ${L(HOW('calc'),(dec/cityDec*100).toFixed(1)+'%')} of the city's total. ${L(SRC.hdb,fmt(sum(v.comp,LAST,LAST)))} more in the first half of 2026, and ${L(SRC.hdb,fmt(v.pipeline))} in permitted jobs with no certificate of occupancy yet.</p>`;
   h+=`<svg class="spark" id="dSpark"></svg>`;
   h+=`<dl class="f">`;
   if(d.g==='cd'){const tp=v.goal/5, pp=dec/10;h+=`<div><dt>2030 target</dt><dd>${L(SRC.fhgs+'#page=36',fmt(v.goal)+' homes')} over five years, ${fmt(Math.round(tp))} a year; past pace ${fmt(Math.round(pp))} a year, ${pct(pp/tp)} of it. Income-restricted target ${L(SRC.fhgs+'#page=36',fmt(v.goal_aff))}, ${L(SRC.fhgs+'#page=36',fmt(v.goal_deep))} of them for households at 60% of median income or less.</dd></div>`}
+  if(v.partial.length)h+=`<div><dt>Partly complete</dt><dd>${v.partial.map(p=>`${esc(p.addr)}: ${L(HOW('partial'),fmt(p.net)+' net homes')} proposed, first certificate of occupancy in ${p.year}`).join('; ')}. City Planning lists ${v.partial.length===1?'this job':'these jobs'} as partly complete, so ${v.partial.length===1?'it is':'they are'} in neither the completed count nor the pipeline.</dd></div>`;
   h+=`<div><dt>Homes added and lost</dt><dd>${L(SRC.hdb,fmt(sum(v.gain,2016,2025)))} added and ${L(SRC.hdb,fmt(sum(v.loss,2016,2025)))} lost in jobs completed 2016-2025</dd></div>`;
   h+=`<div><dt>Income-restricted</dt><dd>${L(SRC.hpd,fmt(aff)+' homes')} in HPD projects started 2014 to June 2026, ${L(SRC.hpd,fmt(affN))} of them newly built; ${L(SRC.hpd,fmt(deep))} for households at 50% of median income or less</dd></div>`;
   h+=`<div><dt>Residents</dt><dd>${L(SRC.pop,fmt(v.pop20))} in 2020, in ${L(SRC.units,fmt(v.units20))} homes; ${L(SRC.ten,pct(v.renter_share))} of households rent</dd></div>`;
   h+=`<div><dt>Median household income</dt><dd>${L(SRC.inc,money(v.medinc)+(v.medinc_open?' or more':''))}, 2020-2024${v.medinc_open?' (the median falls in the census\'s open top bracket)':''}</dd></div>`;
-  h+=`<div><dt>Rents</dt><dd>Median gross rent ${L(SRC.gr,money(v.gross_rent_median)+(v.gross_rent_open?' or more':''))}. ${L(SRC.gr,pct(v.occ_aff60))} of rented homes are within reach at 60% of median income; ${L(SRC.bur,pct(v.burdened))} of renters pay 30% or more of income.</dd></div>`;
+  h+=`<div><dt>Rents, 2020-2024</dt><dd>Median gross rent ${L(SRC.gr,money(v.gross_rent_median)+(v.gross_rent_open?' or more':''))}, in 2024 dollars. ${L(SRC.gr,pct(v.occ_aff60))} of gross rents were at or below ${money(M.rent60)}, the 2026 threshold at 60% of median income; ${L(SRC.bur,pct(v.burdened))} of renters paid 30% or more of income.</dd></div>`;
   h+=`</dl>`;
-  if(v.big.length)h+=`<h4>Largest completed jobs since 2010</h4><table class="h"><tr><th>Address</th><th>Year</th><th class="n">Net homes</th><th class="n">Income-restricted</th></tr>${v.big.map(b=>`<tr><td>${esc(b.addr)}</td><td>${b.year}</td><td class="n">${fmt(b.net)}</td><td class="n">${b.aff?fmt(b.aff):''}</td></tr>`).join('')}</table>`;
-  if(d.g==='council')h+=`<p class="note">Homes finished in these years were mostly approved and permitted years earlier, often under a previous Council member. The member named is the one serving now, per the ${L(SRC.members,'Council')}.</p>`;
+  if(v.big.length){const dag=v.big.filter(b=>b.aff&&!b.aff_ok).length;
+    h+=`<h4>Largest completed jobs since 2010</h4><table class="h"><tr><th>Address</th><th>Year</th><th class="n">Net homes</th><th class="n">Income-restricted</th></tr>${v.big.map(b=>`<tr><td>${esc(b.addr)}</td><td>${b.year}</td><td class="n">${fmt(b.net)}</td><td class="n">${b.aff?(b.aff_ok?fmt(b.aff):'n/a†'):''}</td></tr>`).join('')}</table>`;
+    if(dag)h+=`<p class="note">† HPD lists affordable homes for ${dag===1?'this job':'these jobs'}, but the count can include homes that were there before the job or are not permanent homes, so it is not shown next to net homes (${L(HOW('share'),'why')}).</p>`}
+  if(d.g==='council')h+=`<p class="note">Homes completed in these years were mostly approved and permitted years earlier, often under a previous Council member. The member named is the one serving now, per the ${L(SRC.members,'Council')}.</p>`;
   document.getElementById('dBody').innerHTML=h;
   // sparkline: net completions by year
   const svg=d3.select('#dSpark'),W=660,H=160,m={l:40,r:6,t:24,b:22};svg.attr('viewBox',`0 0 ${W} ${H}`);

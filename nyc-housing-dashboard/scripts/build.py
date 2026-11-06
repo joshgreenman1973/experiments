@@ -241,6 +241,13 @@ for level in ("council", "cd"):
             "severe": round(b[9] / computed, 3) if computed else None,
         }
     acsd[level] = out
+    # The 150 cutoff is on the weighted estimate of vacant units for rent, summed from tracts. It is
+    # not a count of survey responses and not a reliability test; margins of error are not carried
+    # through the tract split.
+    ra_tot = sorted((sum(ra[k]), k) for k in out)
+    blanked = sum(1 for t, _ in ra_tot if t < 150)
+    print(f"{level}: estimated vacant-for-rent units by district, lowest {ra_tot[0][0]:,.0f} (district {ra_tot[0][1]}); "
+          f"districts under the 150 cutoff: {blanked}")
 
 # Citywide check: median from all tracts' brackets vs the published city figure
 city_inc = [0.0] * len(INC_COLS)
@@ -263,8 +270,23 @@ def zero_series():
 
 def blank():
     return {"comp_net": zero_series(), "comp_gain": zero_series(), "comp_loss": zero_series(),
-            "permit_net": zero_series(), "pipeline": 0, "nb_units": zero_series(),
-            "afford_hdb": zero_series(), "big": []}
+            "permit_net": zero_series(), "pipeline": 0, "partial_net": zero_series(), "partial": [],
+            "share_den": zero_series(), "share_num": zero_series(),
+            "share_out_jobs": zero_series(), "share_out_aff": zero_series(), "big": []}
+
+
+# Income-restricted share (rebuilt Nov. 6, 2026). HPDAffrdbl is "affordable units associated with
+# a given project," not a count of new permanent homes, so it cannot be divided by net additions.
+# The share uses one universe: completed New Building jobs, where every Class A home is new
+# (ClassAInit is 0), and only those whose numbers line up: the affordable count does not exceed the
+# Class A count, and the certificate of occupancy lists no more homes than the Class A count (more
+# would mean Class B or hotel units the affordable count could include). Everything else is left
+# out of both sides of the share and counted in share_out_*.
+def share_ok(p):
+    if p.get("job_type") != "New Building":
+        return False
+    prop, aff, co = num(p.get("classaprop")), num(p.get("hpdaffrdbl")), num(p.get("units_co"))
+    return num(p.get("classainit")) == 0 and aff <= prop and co <= prop
 
 
 agg = {"council": defaultdict(blank), "cd": defaultdict(blank), "city": defaultdict(blank)}
@@ -298,13 +320,26 @@ for p in P:
                 a["comp_gain"][i] += net
             else:
                 a["comp_loss"][i] -= net
-            if p.get("job_type") == "New Building":
-                a["nb_units"][i] += num(p.get("classaprop"))
-            a["afford_hdb"][i] += num(p.get("hpdaffrdbl"))
+            ok = share_ok(p)
+            if ok:
+                a["share_den"][i] += num(p.get("classaprop"))
+                a["share_num"][i] += num(p.get("hpdaffrdbl"))
+            elif num(p.get("hpdaffrdbl")) > 0 or p.get("job_type") == "New Building":
+                a["share_out_jobs"][i] += 1
+                a["share_out_aff"][i] += num(p.get("hpdaffrdbl"))
             if lvl != "city" and net >= 50:
                 a["big"].append({"addr": f"{p.get('addressnum','')} {p.get('addressst','')}".strip().title(),
                                  "net": int(net), "year": cy, "type": p.get("job_type"),
-                                 "aff": int(num(p.get("hpdaffrdbl")))})
+                                 "aff": int(num(p.get("hpdaffrdbl"))), "aff_ok": ok})
+        # Partly complete (status 4): a temporary certificate of occupancy covers less than 80
+        # percent of the homes in a building of 20 or more. Kept out of both completions and the
+        # pipeline and shown as its own category, dated by the first certificate of occupancy.
+        if st.startswith("4") and cy and FIRST <= cy <= LAST:
+            a["partial_net"][cy - FIRST] += net
+            a["partial"].append({"job": p.get("job_number"),
+                                 "addr": f"{p.get('addressnum','')} {p.get('addressst','')}".strip().title(),
+                                 "net": int(net), "year": cy, "type": p.get("job_type"),
+                                 "units_co": int(num(p.get("units_co")))})
         if st[:1] in "345" and py and FIRST <= py <= LAST:
             a["permit_net"][py - FIRST] += net
         if st[:1] == "3":
@@ -313,20 +348,63 @@ for p in P:
 print(f"jobs with no council district: {missing_geo['council']}; no community district: {missing_geo['cd']} "
       f"({unmatched_cd} in parks or airports)")
 
-# Check against DCP's own summary tables
+# Check against DCP's own summary tables, district by district and year by year. DCP's summary
+# "comp" columns count partly complete jobs (status 4) in the year of their first certificate of
+# occupancy; this page keeps them separate. So completed + partly complete must match the summary.
+# Any district-year residual over RESIDUAL_MAX stops the build; smaller ones are printed and
+# described in the methodology (in 26Q2.1: 3 homes in 2010, Council District 35 and Brooklyn CD 8).
+RESIDUAL_MAX = 10
 for lvl, fname, key in [("council", "hdb_council.json", "councildst"), ("cd", "hdb_cd.json", "commntydst")]:
     off = load(fname)
-    worst = 0
+    seen, residuals = set(), []
     for s in off:
         k = int(num(s[key]))
-        if k not in agg[lvl]:
+        if k not in (council if lvl == "council" else cd):
             continue
-        mine = sum(agg[lvl][k]["comp_net"])
-        theirs = sum(num(s.get(f"comp{y}")) for y in range(FIRST, LAST + 1))
-        worst = max(worst, abs(mine - theirs))
-    print(f"{lvl}: worst district gap vs DCP summary, 2010-2026 net completions: {worst:,.0f}")
-    if worst > 2500:
-        fail(f"{lvl} completions drift from DCP's own summary by {worst:,.0f}")
+        seen.add(k)
+        a = agg[lvl][k]
+        for y in range(FIRST, LAST + 1):
+            i = y - FIRST
+            theirs = num(s.get(f"comp{y}"))
+            gap = theirs - a["comp_net"][i] - a["partial_net"][i]
+            if abs(gap) > 0.5:
+                residuals.append((k, y, round(gap)))
+    if len(seen) != len(council if lvl == "council" else cd):
+        fail(f"{lvl}: DCP summary is missing districts")
+    print(f"{lvl}: district-years where completed + partly complete differ from DCP's summary: {residuals or 'none'}")
+    big_gaps = [r for r in residuals if abs(r[2]) > RESIDUAL_MAX]
+    if big_gaps:
+        fail(f"{lvl} completions drift from DCP's own summary: {big_gaps}")
+city_partial = agg["city"][0]["partial"]
+print(f"partly complete jobs: {len(city_partial)}, {sum(x['net'] for x in city_partial):,} net homes proposed: "
+      + "; ".join(f"{x['job']} {x['addr']} {x['net']} ({x['year']})" for x in city_partial))
+
+
+# Income-restricted share: the numerator must never exceed the denominator, for any job, district,
+# or year range a reader can pick. Checked for every one of the year ranges in the selectors.
+def check_shares():
+    for p in P:
+        if p.get("job_status", "").startswith("5") and share_ok(p) and num(p.get("hpdaffrdbl")) > num(p.get("classaprop")):
+            fail(f"job {p.get('job_number')}: affordable count exceeds its Class A homes")
+    ranges = 0
+    for lvl in ("city", "council", "cd"):
+        for k, a in agg[lvl].items():
+            for y0 in range(FIRST, LAST + 1):
+                n_ = d_ = 0
+                for y1 in range(y0, LAST + 1):
+                    n_ += a["share_num"][y1 - FIRST]
+                    d_ += a["share_den"][y1 - FIRST]
+                    ranges += 1
+                    if n_ > d_ or (d_ > 0 and n_ / d_ > 1):
+                        fail(f"{lvl} {k} {y0}-{y1}: income-restricted share {n_:,.0f}/{d_:,.0f} exceeds 100%")
+    return ranges
+
+
+n_ranges = check_shares()
+c = agg["city"][0]
+print(f"income-restricted share: {n_ranges:,} district-range combinations checked, none over 100%. "
+      f"2010-2026 in the share: {sum(c['share_num']):,.0f} of {sum(c['share_den']):,.0f} new-building homes; "
+      f"left out: {sum(c['share_out_jobs']):,.0f} jobs carrying {sum(c['share_out_aff']):,.0f} affordable homes")
 
 # ---------- HPD Affordable Housing Production ----------
 H = load("hpd_buildings.json")
@@ -407,7 +485,11 @@ def pack(lvl, k):
     a["big"].sort(key=lambda b: -b["net"])
     d = {"comp": [round(x) for x in a["comp_net"]], "gain": [round(x) for x in a["comp_gain"]],
          "loss": [round(x) for x in a["comp_loss"]], "permit": [round(x) for x in a["permit_net"]],
-         "pipeline": round(a["pipeline"]), "afford_hdb": [round(x) for x in a["afford_hdb"]],
+         "pipeline": round(a["pipeline"]),
+         "partial_net": [round(x) for x in a["partial_net"]], "partial": a["partial"],
+         "share_num": [round(x) for x in a["share_num"]], "share_den": [round(x) for x in a["share_den"]],
+         "share_out_jobs": [round(x) for x in a["share_out_jobs"]],
+         "share_out_aff": [round(x) for x in a["share_out_aff"]],
          "big": a["big"][:5]}
     if lvl != "city":
         d["pop20"] = round(pop[lvl][k])
@@ -420,7 +502,7 @@ out = {
     "meta": {"hdb_version": HDB_VERSION, "first": FIRST, "last": LAST, "hpd_first": HPD_FIRST,
              "target_city_5yr": TARGET_CITY_5YR, "pop20": round(total_pop),
              "rent60": half_up(RENT60), "rent100": half_up(RENT100), "ami2": AMI2026[2],
-             "city_medinc_brackets": round(city_med), "units20": city_stock, "built": "2026-10-22"},
+             "city_medinc_brackets": round(city_med), "units20": city_stock, "built": "2026-10-22", "revised": "2026-11-06"},
     "city": pack("city", 0),
     "peaks": {"comp_year": FIRST + max(range(LAST - FIRST), key=lambda i: agg["city"][0]["comp_net"][i]),
               "permit_years": sorted(range(FIRST, LAST + 1), key=lambda y: -agg["city"][0]["permit_net"][y - FIRST])[:2]},
