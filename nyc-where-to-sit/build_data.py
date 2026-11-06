@@ -1,546 +1,484 @@
 #!/usr/bin/env python3
-"""Build data files for nyc-where-to-sit ("Where you can sit down").
+"""Build data for "Where you can sit down" (nyc-where-to-sit), version 2.
 
-Sources:
-  1. NYC DOT Seating Locations (NYC Open Data `esmy-s8q5`), 5,776 records fetched 2026-11-06.
-  2. NYC DCP Privately Owned Public Spaces (NYC Open Data `rvih-nhyn`), 392 records fetched 2026-11-06.
-  3. NYC DOT Pedestrian Plazas (NYC Open Data `5dck-9m6g`), 90 records fetched 2026-11-06.
-  4. NYC DCP 2020 Neighborhood Tabulation Areas (shoreline-clipped `nyc_nta_2020.geojson`)
-     and 2020 Decennial Census population (`populations.json`).
+Run:  python3 build_data.py          (uses raw/ files; add --fetch to re-download)
+
+Inputs (NYC Open Data, all fetched with the Socrata API):
+  esmy-s8q5  DOT Seating Locations (CityBench benches and leaning bars)
+  rvih-nhyn  DCP Privately Owned Public Spaces (POPS)
+  5dck-9m6g  DOT Pedestrian Plazas
+  t4f2-8md7  DOT Bus Stop Shelters
+  enfh-gkve  NYC Parks Properties (polygons)
+  raw/nta2020_clipped.geojson  2020 Neighborhood Tabulation Areas, shoreline-clipped,
+             with 2020 Census population (carried over from the v1 build)
+
+Outputs (data/):
+  walk.png        one RGBA raster, ~60 m cells, Web Mercator-regular rows.
+                  R = minutes x10 to the nearest street seat (DOT bench, POPS with
+                      required seating or DOT plaza; leaning bars excluded)
+                  G = minutes x10 to the nearest backed DOT bench
+                  B = minutes x10 to the nearest seat of any kind we can place
+                      (street seats + bus shelters + edge of a park likely to have benches)
+                  A = 255 on land, 0 on water. Values cap at 254 (25.4 minutes).
+  walk_meta.json  raster bounds and encoding
+  seats.json      points for the map and finder, plus all summary figures
+  ntas.geojson    simplified NTA polygons with per-neighborhood figures
+  parks.geojson   simplified park polygons used in the "any seat" layer
+  *.csv           flat downloads
 """
 import json
 import math
+import time
 import os
 import re
+import sys
+import urllib.request
 from collections import Counter, defaultdict
 
+import numpy as np
 import pandas as pd
-from shapely.geometry import Point, shape
-from shapely.prepared import prep
-
-RAW_DIR = "/Users/joshgreenman/Experiments/nyc-where-to-sit/raw"
-DOT_SEATING_JSON = os.path.join(RAW_DIR, "dot_seating_esmy_s8q5.json")
-POPS_JSON = os.path.join(RAW_DIR, "dcp_pops_rvih_nhyn.json")
-PLAZAS_JSON = os.path.join(RAW_DIR, "dot_plazas_5dck_9m6g.json")
-
-NTA_GEOJSON = "/Users/joshgreenman/Experiments/nyc-child-density/data/nyc_nta_2020.geojson"
-POP_JSON = "/Users/joshgreenman/Experiments/nyc-rat-map/data/populations.json"
+import shapely
+from PIL import Image
+from scipy.spatial import cKDTree
+from shapely.geometry import shape, mapping
+from shapely.ops import unary_union
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = os.path.join(HERE, "data")
-os.makedirs(OUT_DIR, exist_ok=True)
+RAW = os.path.join(HERE, "raw")
+OUT = os.path.join(HERE, "data")
+os.makedirs(RAW, exist_ok=True)
+os.makedirs(OUT, exist_ok=True)
+
+SOURCES = {
+    "seating_esmy.json": "https://data.cityofnewyork.us/resource/esmy-s8q5.json?$limit=50000",
+    "pops_rvih.json": "https://data.cityofnewyork.us/resource/rvih-nhyn.json?$limit=50000",
+    "plazas_5dck.json": "https://data.cityofnewyork.us/resource/5dck-9m6g.json?$limit=50000",
+    "shelters_t4f2.json": "https://data.cityofnewyork.us/resource/t4f2-8md7.json?$limit=50000",
+    "parks_enfh.json": "https://data.cityofnewyork.us/resource/enfh-gkve.json?$limit=50000"
+                       "&$select=gispropnum,signname,typecategory,acres,borough,multipolygon",
+}
+FETCHED = "2026-11-06"
+
+# Walking model: straight-line distance x 1.25 (street-grid detour) at 3 mph = 25 min per straight-line mile.
+ROUTE = 1.25
+MIN_PER_MILE = 20.0
+MIN_PER_M = ROUTE * MIN_PER_MILE / 1609.344
+
+# Park types where benches are near-certain. Gardens (often locked), nature areas, strips,
+# parkways, undeveloped land, cemeteries, lots and operations sites are left out.
+PARK_TYPES_WITH_SEATS = {
+    "Neighborhood Park", "Playground", "Jointly Operated Playground", "Community Park",
+    "Flagship Park", "Triangle/Plaza", "Mall", "Waterfront Facility", "Historic House Park",
+    "Recreational Field/Courts",
+}
+
+LAT0 = 40.70
+KX = 111320.0 * math.cos(math.radians(LAT0))
+KY = 110540.0
 
 
-def haversine_miles(lat1, lon1, lat2, lon2):
-    R = 3958.7613
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
+def fetch():
+    for fn, url in SOURCES.items():
+        print("fetching", fn)
+        urllib.request.urlretrieve(url, os.path.join(RAW, fn))
 
 
-def classify_subtype(raw_sub):
-    s = (raw_sub or "").strip().upper()
+def load(fn):
+    with open(os.path.join(RAW, fn)) as f:
+        return json.load(f)
+
+
+def xy(lon, lat):
+    return (np.asarray(lon) + 74.0) * KX, (np.asarray(lat) - LAT0) * KY
+
+
+def merc_y(lat):
+    return np.log(np.tan(np.pi / 4 + np.radians(lat) / 2))
+
+
+def inv_merc_y(y):
+    return np.degrees(2 * np.arctan(np.exp(y)) - np.pi / 2)
+
+
+def rgeo(g, tol):
+    """Simplify and round a geometry to 5 decimals for the browser."""
+    gj = json.loads(shapely.to_geojson(g.simplify(tol, preserve_topology=True)))
+
+    def rc(c):
+        if isinstance(c[0], (int, float)):
+            return [round(c[0], 5), round(c[1], 5)]
+        return [rc(x) for x in c]
+    gj["coordinates"] = rc(gj["coordinates"])
+    return gj
+
+
+def classify(sub):
+    s = (sub or "").strip().upper()
     if s in ("BACKED 1.0", "BACKED 2.0", "WORLDS FAIR"):
         return "backed"
     if s in ("BACKLESS 1.0", "BACKLESS 2.0"):
         return "backless"
     if s == "LEANING BAR":
-        return "leaning_bar"
+        return "bar"
     if s == "UNKNOWN BENCH":
-        return "unknown_bench"
-    return "untyped_recent"
+        return "unknown"
+    return "unrecorded"
 
 
 def main():
-    seating_raw = json.load(open(DOT_SEATING_JSON))
-    pops_raw = json.load(open(POPS_JSON))
-    plazas_raw = json.load(open(PLAZAS_JSON))
-    nta_fc = json.load(open(NTA_GEOJSON))
-    pops_lookup = json.load(open(POP_JSON))["nta"]
+    if "--fetch" in sys.argv:
+        fetch()
 
-    # Prepare NTA polygons (shoreline-clipped)
-    ntas = {}
-    for feat in nta_fc["features"]:
-        props = feat["properties"]
-        code = props["nta2020"]
-        geom = shape(feat["geometry"])
-        pop_entry = pops_lookup.get(code, {})
-        # Area in sq miles (shape_area is in sq feet)
-        area_sqmi = float(props.get("shape_area", 0)) / (5280.0 ** 2)
-        ntas[code] = {
-            "nta2020": code,
-            "name": props["ntaname"],
-            "boro": props["boroname"],
-            "cdta": props.get("cdta2020", ""),
-            "ntatype": str(props.get("ntatype", "0")),
-            "pop2020": int(pop_entry.get("pop2020", 0)),
-            "area_sqmi": round(area_sqmi, 3),
-            "geom": geom,
-            "prep": prep(geom),
-            "dot_total": 0,
-            "backed": 0,
-            "backless": 0,
-            "leaning_bar": 0,
-            "untyped": 0,
-            "bus_route_sites": 0,
-            "pops_total": 0,
-            "pops_seating": 0,
-            "pops_24h": 0,
-            "plazas": 0,
-        }
+    seating = load("seating_esmy.json")
+    pops = load("pops_rvih.json")
+    plazas = load("plazas_5dck.json")
+    shelters = load("shelters_t4f2.json")
+    parks_raw = load("parks_enfh.json")
+    nta_fc = load("nta2020_clipped.geojson")
 
-    def find_nta(lat, lon):
-        pt = Point(lon, lat)
-        for code, n in ntas.items():
-            if n["prep"].contains(pt):
-                return code
-        # Fallback: nearest NTA polygon within ~150m for shoreline edge points
-        best_code = None
-        best_d = 0.002
-        for code, n in ntas.items():
-            d = n["geom"].distance(pt)
-            if d < best_d:
-                best_d = d
-                best_code = code
-        return best_code
-
-    # 1. Process DOT Seating Locations (esmy-s8q5)
-    by_year = defaultdict(lambda: {"backed": 0, "backless": 0, "leaning_bar": 0, "unknown_bench": 0, "untyped_siteid_year": 0})
-    dot_points = []
-    subtype_counts = Counter()
-    category_counts = Counter()
-
-    for r in seating_raw:
-        lat = float(r["latitude"])
-        lon = float(r["longitude"])
+    # ---------------- DOT seating ----------------
+    dot = []
+    sub_counts = Counter()
+    for r in seating:
+        lat, lon = float(r["latitude"]), float(r["longitude"])
         sub = (r.get("asset_subtype") or "").strip().upper()
-        cat = classify_subtype(sub)
-        subtype_counts[sub or "(BLANK)"] += 1
-        category_counts[cat] += 1
+        sub_counts[sub or "(blank)"] += 1
+        m = re.match(r"^SEAT\.(\d{4})\.", r.get("siteid") or "")
+        sid_yr = int(m.group(1)) if m else None
+        inst = r.get("installation_date") or ""
+        inst_yr = int(inst[:4]) if inst[:4].isdigit() else None
+        # The site ID year matches the installation year (within one year) on 96% of records
+        # that carry both, and it is present on records with no installation date, so it is
+        # used as the installation year throughout. SEAT.1900.* placeholders are undated.
+        yr = sid_yr if (sid_yr and 2011 <= sid_yr <= 2026) else (inst_yr if inst_yr and 2011 <= inst_yr <= 2026 else None)
+        dot.append({
+            "id": r.get("siteid"), "lat": round(lat, 5), "lon": round(lon, 5),
+            "cat": classify(sub), "sub": sub, "yr": yr,
+            "addr": (r.get("nearest_add") or r.get("on_street") or "").strip(),
+            "on": (r.get("on_street") or "").strip(),
+            "boro": (r.get("boroname") or "").strip(),
+        })
 
-        inst = (r.get("installation_date") or "").strip()
-        yr = int(inst[:4]) if len(inst) >= 4 and inst[:4].isdigit() else None
-        siteid = (r.get("siteid") or "").strip()
-        siteid_yr = None
-        m = re.match(r"^SEAT\.(20\d\d)\.", siteid)
-        if m:
-            siteid_yr = int(m.group(1))
+    # Year-by-year
+    years = list(range(2011, 2027))
+    annual = {y: Counter() for y in years}
+    undated = Counter()
+    for p in dot:
+        (annual[p["yr"]] if p["yr"] else undated)[p["cat"]] += 1
+    annual_rows = []
+    for y in years:
+        c = annual[y]
+        typed = c["backed"] + c["backless"] + c["bar"]
+        annual_rows.append({
+            "year": y, "backed": c["backed"], "backless": c["backless"], "leaning_bar": c["bar"],
+            "unknown_bench": c["unknown"], "type_not_recorded": c["unrecorded"],
+            "total": sum(c.values()),
+            "pct_backed_of_typed": round(100 * c["backed"] / typed, 1) if typed else None,
+        })
 
-        if yr and 2011 <= yr <= 2026:
-            if cat in ("backed", "backless", "leaning_bar", "unknown_bench"):
-                by_year[yr][cat] += 1
-        elif siteid_yr and 2011 <= siteid_yr <= 2026:
-            by_year[siteid_yr]["untyped_siteid_year"] += 1
-
-        nta_code = find_nta(lat, lon)
-        if nta_code and nta_code in ntas:
-            n = ntas[nta_code]
-            n["dot_total"] += 1
-            if cat == "backed":
-                n["backed"] += 1
-            elif cat == "backless":
-                n["backless"] += 1
-            elif cat == "leaning_bar":
-                n["leaning_bar"] += 1
-            else:
-                n["untyped"] += 1
-
-        on_st = (r.get("on_street") or "").strip()
-        fr_st = (r.get("from_street") or "").strip()
-        to_st = (r.get("to_street") or "").strip()
-        cross = f"{fr_st} to {to_st}".strip(" to") if (fr_st or to_st) else ""
-        dot_points.append(
-            {
-                "id": siteid,
-                "lat": round(lat, 5),
-                "lon": round(lon, 5),
-                "cat": cat,
-                "sub": sub or "Unclassified (2023–2026)",
-                "yr": yr or siteid_yr,
-                "dated": yr is not None,
-                "boro": (r.get("boroname") or "").strip(),
-                "street": on_st,
-                "cross": cross,
-                "addr": (r.get("nearest_add") or on_st).strip(),
-                "nta": nta_code or "",
-                "nta_name": (r.get("ntaname") or "").strip(),
-            }
-        )
-
-    # 2. Process DCP Privately Owned Public Spaces (rvih-nhyn)
-    pops_points = []
-    pops_with_seating_count = 0
-    pops_24h_count = 0
-    pops_seating_24h_count = 0
-
-    for r in pops_raw:
-        lat_s = r.get("latitude")
-        lon_s = r.get("longitude")
-        if not lat_s or not lon_s:
-            continue
-        lat = float(lat_s)
-        lon = float(lon_s)
-        am = (r.get("amenities_required") or "").strip()
-        hr = (r.get("hour_of_access_required") or "").strip()
-        has_seat = any(k in am.lower() for k in ("seating", "table", "chair", "bench"))
-        is_24h = "24 hours" in hr.lower()
-        if has_seat:
-            pops_with_seating_count += 1
-        if is_24h:
-            pops_24h_count += 1
-        if has_seat and is_24h:
-            pops_seating_24h_count += 1
-
-        nta_code = find_nta(lat, lon)
-        if nta_code and nta_code in ntas:
-            n = ntas[nta_code]
-            n["pops_total"] += 1
-            if has_seat:
-                n["pops_seating"] += 1
-            if is_24h:
-                n["pops_24h"] += 1
-
-        pops_points.append(
-            {
-                "id": r.get("pops_number", ""),
-                "name": (r.get("building_name") or r.get("building_address_with_zip") or "").strip(),
-                "addr": (r.get("building_address_with_zip") or "").strip(),
-                "boro": (r.get("borough_name") or "").strip(),
-                "yr": int(float(r["year_completed"])) if (r.get("year_completed") or "").replace(".", "").isdigit() else None,
-                "type": (r.get("public_space_type") or "").strip().split(";")[0],
-                "has_seating": has_seat,
-                "is_24h": is_24h,
-                "hours": hr.split(";")[0] if hr else "Unknown",
-                "lat": round(lat, 5),
-                "lon": round(lon, 5),
-                "nta": nta_code or "",
-            }
-        )
-
-    # 3. Process DOT Pedestrian Plazas (5dck-9m6g)
-    plaza_points = []
-    B_MAP = {"1": "Manhattan", "2": "Bronx", "3": "Brooklyn", "4": "Queens", "5": "Staten Island", "M": "Manhattan", "X": "Bronx", "K": "Brooklyn", "Q": "Queens", "R": "Staten Island"}
-    for idx, r in enumerate(plazas_raw):
-        geom_raw = r.get("the_geom")
-        if not geom_raw:
-            continue
-        g = shape(geom_raw)
-        c = g.centroid
-        lat, lon = c.y, c.x
-        nta_code = find_nta(lat, lon)
-        if nta_code and nta_code in ntas:
-            ntas[nta_code]["plazas"] += 1
-        bcode = str(r.get("borocode") or "").strip()
-        plaza_points.append(
-            {
-                "id": f"PLAZA-{idx+1}",
-                "name": (r.get("plazaname") or "").strip(),
-                "street": f"{(r.get('onstreet') or '').strip()} ({(r.get('fromstreet') or '').strip()} to {(r.get('tostreet') or '').strip()})",
-                "partner": (r.get("partner") or "").strip(),
-                "boro": B_MAP.get(bcode, bcode),
-                "lat": round(lat, 5),
-                "lon": round(lon, 5),
-                "nta": nta_code or "",
-            }
-        )
-
-    # 4. Compute grid walk-distance across residential NTAs
-    # Build coordinate arrays for fast nearest-neighbor lookup:
-    #   - true_seats: DOT benches (excluding leaning_bar) + POPS with seating + DOT plazas
-    #   - backed_only: DOT backed benches only
-    #   - dot_benches_no_bars: DOT benches excluding leaning bars
-    true_seats_ll = (
-        [(p["lat"], p["lon"]) for p in dot_points if p["cat"] != "leaning_bar"]
-        + [(p["lat"], p["lon"]) for p in pops_points if p["has_seating"]]
-        + [(p["lat"], p["lon"]) for p in plaza_points]
-    )
-    backed_ll = [(p["lat"], p["lon"]) for p in dot_points if p["cat"] == "backed"]
-    all_dot_ll = [(p["lat"], p["lon"]) for p in dot_points]
-
-    # Spatial bucket index (~0.01 deg ~ 0.7 mi cells) for fast nearest distance
-    def build_grid_index(pts):
-        grid = defaultdict(list)
-        for lat, lon in pts:
-            grid[(int(lat * 50), int(lon * 50))].append((lat, lon))
-        return grid
-
-    idx_true = build_grid_index(true_seats_ll)
-    idx_backed = build_grid_index(backed_ll)
-
-    def min_dist_miles(lat, lon, grid, fallback_pts):
-        gx, gy = int(lat * 50), int(lon * 50)
-        best = 999.0
-        for r_ring in (1, 2, 4):
-            cand = []
-            for dx in range(-r_ring, r_ring + 1):
-                for dy in range(-r_ring, r_ring + 1):
-                    cand.extend(grid.get((gx + dx, gy + dy), ()))
-            if cand:
-                for p_lat, p_lon in cand:
-                    d = haversine_miles(lat, lon, p_lat, p_lon)
-                    if d < best:
-                        best = d
-                if best <= (r_ring * 0.8):
-                    return best
-        for p_lat, p_lon in fallback_pts:
-            d = haversine_miles(lat, lon, p_lat, p_lon)
-            if d < best:
-                best = d
-        return best
-
-    # Sample a regular grid (~0.0025 deg ~ 250m spacing) across NYC land in residential NTAs
-    # Walk distance = straight-line distance * 1.25 Manhattan-grid routing factor; walk time at 3.0 mph (20 min/mile)
-    ROUTING_FACTOR = 1.25
-    nta_list = []
-    city_sample_dists_seat = []
-    city_sample_dists_backed = []
-    boro_stats = defaultdict(lambda: {"pop": 0, "area_sqmi": 0.0, "dot_total": 0, "backed": 0, "backless": 0, "leaning_bar": 0, "untyped": 0, "pops_seating": 0, "plazas": 0, "samples": 0, "beyond_quarter_mi_walk": 0, "beyond_half_mi_walk": 0})
-
-    for code, n in sorted(ntas.items()):
-        geom = n["geom"]
-        minx, miny, maxx, maxy = geom.bounds
-        step = 0.0028
-        dists_seat = []
-        dists_backed = []
-        y = miny + step / 2
-        while y < maxy:
-            x = minx + step / 2
-            while x < maxx:
-                if n["prep"].contains(Point(x, y)):
-                    d_s = min_dist_miles(y, x, idx_true, true_seats_ll) * ROUTING_FACTOR
-                    d_b = min_dist_miles(y, x, idx_backed, backed_ll) * ROUTING_FACTOR
-                    dists_seat.append(d_s)
-                    dists_backed.append(d_b)
-                x += step
-            y += step
-
-        if not dists_seat:
-            c = geom.representative_point()
-            dists_seat = [min_dist_miles(c.y, c.x, idx_true, true_seats_ll) * ROUTING_FACTOR]
-            dists_backed = [min_dist_miles(c.y, c.x, idx_backed, backed_ll) * ROUTING_FACTOR]
-
-        dists_seat.sort()
-        dists_backed.sort()
-        med_walk_mi = dists_seat[len(dists_seat) // 2]
-        med_backed_mi = dists_backed[len(dists_backed) // 2]
-        pct_beyond_5min = 100.0 * sum(1 for d in dists_seat if d > 0.25) / len(dists_seat)
-        pct_beyond_10min = 100.0 * sum(1 for d in dists_seat if d > 0.50) / len(dists_seat)
-
-        if n["ntatype"] == "0" and n["pop2020"] > 0:
-            city_sample_dists_seat.extend(dists_seat)
-            city_sample_dists_backed.extend(dists_backed)
-            bs = boro_stats[n["boro"]]
-            bs["pop"] += n["pop2020"]
-            bs["area_sqmi"] += n["area_sqmi"]
-            bs["dot_total"] += n["dot_total"]
-            bs["backed"] += n["backed"]
-            bs["backless"] += n["backless"]
-            bs["leaning_bar"] += n["leaning_bar"]
-            bs["untyped"] += n["untyped"]
-            bs["pops_seating"] += n["pops_seating"]
-            bs["plazas"] += n["plazas"]
-            bs["samples"] += len(dists_seat)
-            bs["beyond_quarter_mi_walk"] += sum(1 for d in dists_seat if d > 0.25)
-            bs["beyond_half_mi_walk"] += sum(1 for d in dists_seat if d > 0.50)
-
-        true_seat_count = (n["dot_total"] - n["leaning_bar"]) + n["pops_seating"] + n["plazas"]
-        dot_bench_count = n["dot_total"] - n["leaning_bar"]
-        pop = n["pop2020"]
-        seats_per_10k_raw = (true_seat_count * 10000.0 / pop) if pop > 0 else 0.0
-        benches_per_10k_raw = (dot_bench_count * 10000.0 / pop) if pop > 0 else 0.0
-        backed_per_10k_raw = (n["backed"] * 10000.0 / pop) if pop > 0 else 0.0
-
-        nta_rec = {
-            "nta2020": code,
-            "name": n["name"],
-            "boro": n["boro"],
-            "cdta": n["cdta"],
-            "ntatype": n["ntatype"],
-            "pop2020": pop,
-            "area_sqmi": n["area_sqmi"],
-            "dot_total": n["dot_total"],
-            "dot_benches": dot_bench_count,
-            "backed": n["backed"],
-            "backless": n["backless"],
-            "leaning_bar": n["leaning_bar"],
-            "untyped": n["untyped"],
-            "bus_route_sites": n["bus_route_sites"],
-            "pops_total": n["pops_total"],
-            "pops_seating": n["pops_seating"],
-            "pops_24h": n["pops_24h"],
-            "plazas": n["plazas"],
-            "public_seat_sites": true_seat_count,
-            "seats_per_10k": round(seats_per_10k_raw, 2),
-            "seats_per_10k_raw": seats_per_10k_raw,
-            "benches_per_10k": round(benches_per_10k_raw, 2),
-            "backed_per_10k": round(backed_per_10k_raw, 2),
-            "median_walk_miles": round(med_walk_mi, 2),
-            "median_walk_mins": round(med_walk_mi * 20.0, 1),
-            "median_backed_walk_miles": round(med_backed_mi, 2),
-            "median_backed_walk_mins": round(med_backed_mi * 20.0, 1),
-            "pct_land_beyond_5min_walk": round(pct_beyond_5min, 1),
-            "pct_land_beyond_10min_walk": round(pct_beyond_10min, 1),
+    def era(y0, y1):
+        c = Counter()
+        for y in range(y0, y1 + 1):
+            c.update(annual[y])
+        typed = c["backed"] + c["backless"] + c["bar"]
+        return {
+            "years": f"{y0}-{y1}", "backed": c["backed"], "backless": c["backless"], "leaning_bar": c["bar"],
+            "unknown_bench": c["unknown"], "type_not_recorded": c["unrecorded"], "typed": typed,
+            "total": sum(c.values()),
+            "pct_backed_of_typed": round(100 * c["backed"] / typed, 1),
+            "pct_no_back_of_typed": round(100 * (c["backless"] + c["bar"]) / typed, 1),
+            # Upper bound: every unrecorded bench assumed backed
+            "pct_backed_if_all_unrecorded_backed": round(100 * (c["backed"] + c["unrecorded"]) / (typed + c["unrecorded"]), 1),
         }
-        nta_list.append(nta_rec)
 
-    # Update GeoJSON features with computed seating metrics and simplify geometry precision to 5 decimals
-    def round_coords(coords):
-        if isinstance(coords[0], (int, float)):
-            return [round(coords[0], 5), round(coords[1], 5)]
-        return [round_coords(c) for c in coords]
+    era_early = era(2012, 2016)
+    era_late = era(2023, 2026)
 
-    nta_by_code = {r["nta2020"]: r for r in nta_list}
-    out_features = []
-    for feat in nta_fc["features"]:
-        code = feat["properties"]["nta2020"]
-        rec = nta_by_code[code]
-        out_features.append(
-            {
-                "type": "Feature",
-                "properties": {k: v for k, v in rec.items() if k != "seats_per_10k_raw"},
-                "geometry": {
-                    "type": feat["geometry"]["type"],
-                    "coordinates": round_coords(feat["geometry"]["coordinates"]),
-                },
-            }
-        )
+    # ---------------- POPS ----------------
+    pops_pts = []
+    for r in pops:
+        if not r.get("latitude") or not r.get("longitude"):
+            continue
+        am = [a.strip() for a in (r.get("amenities_required") or "").split(";")]
+        hrs = r.get("hour_of_access_required") or ""
+        pops_pts.append({
+            "id": r.get("pops_number"), "lat": round(float(r["latitude"]), 5), "lon": round(float(r["longitude"]), 5),
+            "name": (r.get("building_name") or "").strip(), "addr": (r.get("building_address_with_zip") or "").strip(),
+            "boro": (r.get("borough_name") or "").strip(),
+            "seat": "Seating" in am, "tables": "Tables" in am,
+            "h24": hrs.strip() == "24 Hours" or hrs.startswith("24 Hours"),
+            "hours": hrs,
+            "type": (r.get("public_space_type") or "").split(";")[0].strip(),
+        })
+    pops_seat = [p for p in pops_pts if p["seat"]]
 
-    with open(os.path.join(OUT_DIR, "nta_seating.geojson"), "w") as f:
-        json.dump({"type": "FeatureCollection", "features": out_features}, f, separators=(",", ":"), ensure_ascii=False)
+    # ---------------- Plazas ----------------
+    B = {"1": "Manhattan", "2": "Bronx", "3": "Brooklyn", "4": "Queens", "5": "Staten Island"}
+    plaza_pts = []
+    for r in plazas:
+        g = shape(r["the_geom"])
+        c = g.representative_point()
+        plaza_pts.append({
+            "lat": round(c.y, 5), "lon": round(c.x, 5), "name": (r.get("plazaname") or "").strip(),
+            "on": (r.get("onstreet") or "").strip(), "partner": (r.get("partner") or "").strip(),
+            "boro": B.get(str(r.get("borocode") or "")[:1], ""),
+        })
 
-    # Year-by-year table (2011 to 2026)
-    annual_series = []
-    for yr in range(2011, 2027):
-        row = by_year[yr]
-        subtyped_total = row["backed"] + row["backless"] + row["leaning_bar"]
-        annual_series.append(
-            {
-                "year": yr,
-                "backed": row["backed"],
-                "backless": row["backless"],
-                "leaning_bar": row["leaning_bar"],
-                "unknown_bench": row["unknown_bench"],
-                "untyped_siteid_year": row["untyped_siteid_year"],
-                "dated_total": subtyped_total + row["unknown_bench"],
-                "all_total": subtyped_total + row["unknown_bench"] + row["untyped_siteid_year"],
-                "pct_backed_of_subtyped": round(100.0 * row["backed"] / subtyped_total, 1) if subtyped_total else None,
-                "pct_backless_or_bar_of_subtyped": round(100.0 * (row["backless"] + row["leaning_bar"]) / subtyped_total, 1) if subtyped_total else None,
-            }
-        )
+    # ---------------- Bus shelters ----------------
+    shelter_pts = []
+    for r in shelters:
+        try:
+            lat, lon = float(r["latitude"]), float(r["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        shelter_pts.append({
+            "id": r.get("shelter_id"), "lat": round(lat, 5), "lon": round(lon, 5),
+            "on": (r.get("on_street") or "").title(), "x": (r.get("cross_stre") or "").title(),
+            "boro": (r.get("boro_name") or "").title(),
+        })
 
-    # Borough table
-    borough_rows = []
-    for boro in ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"]:
-        bs = boro_stats[boro]
-        true_seats = (bs["dot_total"] - bs["leaning_bar"]) + bs["pops_seating"] + bs["plazas"]
-        borough_rows.append(
-            {
-                "boro": boro,
-                "pop2020": bs["pop"],
-                "area_sqmi": round(bs["area_sqmi"], 1),
-                "dot_total": bs["dot_total"],
-                "backed": bs["backed"],
-                "backless": bs["backless"],
-                "leaning_bar": bs["leaning_bar"],
-                "untyped": bs["untyped"],
-                "pops_seating": bs["pops_seating"],
-                "plazas": bs["plazas"],
-                "public_seat_sites": true_seats,
-                "seats_per_10k": round(true_seats * 10000.0 / bs["pop"], 2) if bs["pop"] else 0,
-                "backed_per_10k": round(bs["backed"] * 10000.0 / bs["pop"], 2) if bs["pop"] else 0,
-                "pct_land_beyond_5min_walk": round(100.0 * bs["beyond_quarter_mi_walk"] / bs["samples"], 1) if bs["samples"] else 0,
-                "pct_land_beyond_10min_walk": round(100.0 * bs["beyond_half_mi_walk"] / bs["samples"], 1) if bs["samples"] else 0,
-            }
-        )
+    # ---------------- Parks ----------------
+    park_geoms, park_props = [], []
+    park_type_counts = Counter()
+    for r in parks_raw:
+        t = r.get("typecategory")
+        park_type_counts[t] += 1
+        if t not in PARK_TYPES_WITH_SEATS or not r.get("multipolygon"):
+            continue
+        g = shapely.make_valid(shape(r["multipolygon"]))
+        park_geoms.append(g)
+        park_props.append({"name": r.get("signname") or "", "type": t, "acres": float(r.get("acres") or 0)})
 
-    city_sample_dists_seat.sort()
-    city_sample_dists_backed.sort()
-    res_ntas = [r for r in nta_list if r["ntatype"] == "0" and r["pop2020"] >= 5000]
-    res_ntas_sorted = sorted(res_ntas, key=lambda r: r["seats_per_10k_raw"])
+    # ---------------- Raster ----------------
+    lon0, lon1, lat0, lat1 = -74.2600, -73.6990, 40.4950, 40.9180
+    cell = 60.0  # metres, approx, at the city's latitude
+    nx = int(round((lon1 - lon0) * KX / cell))
+    my0, my1 = merc_y(lat0), merc_y(lat1)
+    ny_ = int(round((lat1 - lat0) * KY / cell))
+    lons = lon0 + (np.arange(nx) + 0.5) * (lon1 - lon0) / nx
+    mys = my1 - (np.arange(ny_) + 0.5) * (my1 - my0) / ny_  # top row first
+    lats = inv_merc_y(mys)
+    LON, LAT = np.meshgrid(lons, lats)
+    flat_lon, flat_lat = LON.ravel(), LAT.ravel()
+    print("raster", nx, "x", ny_)
 
-    # Era comparison: 2012-2016 vs 2023-2026
-    era1_backed = sum(r["backed"] for r in annual_series if 2012 <= r["year"] <= 2016)
-    era1_backless = sum(r["backless"] for r in annual_series if 2012 <= r["year"] <= 2016)
-    era1_bar = sum(r["leaning_bar"] for r in annual_series if 2012 <= r["year"] <= 2016)
-    era1_tot = era1_backed + era1_backless + era1_bar
+    nta_geoms = [shapely.make_valid(shape(f["geometry"])) for f in nta_fc["features"]]
+    t0 = time.time()
+    all_pts = shapely.points(flat_lon, flat_lat)
+    nta_tree = shapely.STRtree(nta_geoms)
+    ci, gi = nta_tree.query(all_pts, predicate="intersects")
+    cell_nta = np.full(len(flat_lon), -1)
+    cell_nta[ci] = gi
+    on_land = cell_nta >= 0
+    print("land mask", round(time.time() - t0, 1), "s", int(on_land.sum()), "land cells")
+    park_tree = shapely.STRtree(park_geoms)
+    pi_, _ = park_tree.query(all_pts, predicate="intersects")
+    in_park = np.zeros(len(flat_lon), bool)
+    in_park[pi_] = True
+    in_park &= on_land
+    print("park mask", round(time.time() - t0, 1), "s", int(in_park.sum()), "park cells")
 
-    era2_backed = sum(r["backed"] for r in annual_series if 2023 <= r["year"] <= 2026)
-    era2_backless = sum(r["backless"] for r in annual_series if 2023 <= r["year"] <= 2026)
-    era2_bar = sum(r["leaning_bar"] for r in annual_series if 2023 <= r["year"] <= 2026)
-    era2_tot = era2_backed + era2_backless + era2_bar
+    gx, gy = xy(flat_lon, flat_lat)
+    grid_xy = np.column_stack([gx, gy])
+    land_idx = np.where(on_land)[0]
+
+    def tree_of(pts):
+        a = np.array([[p["lon"], p["lat"]] for p in pts])
+        px, py = xy(a[:, 0], a[:, 1])
+        return cKDTree(np.column_stack([px, py]))
+
+    street = [p for p in dot if p["cat"] != "bar"] + pops_seat + plaza_pts
+    backed = [p for p in dot if p["cat"] == "backed"]
+
+    # Park edges sampled every ~25 m so distance-to-park is distance to the nearest edge
+    edge_pts = []
+    for g in park_geoms:
+        for poly in getattr(g, "geoms", [g]):
+            ring = poly.exterior
+            length_m = ring.length * (KX + KY) / 2
+            n = max(4, int(length_m / 25))
+            for i in range(n):
+                q = ring.interpolate(i / n, normalized=True)
+                edge_pts.append({"lon": q.x, "lat": q.y})
+
+    def minutes(pts, extra_zero=None):
+        t = tree_of(pts)
+        d, _ = t.query(grid_xy[land_idx], k=1, workers=-1)
+        m = d * MIN_PER_M
+        if extra_zero is not None:
+            m[extra_zero[land_idx]] = 0
+        out = np.full(grid_xy.shape[0], np.nan)
+        out[land_idx] = m
+        return out
+
+    print("edge points", len(edge_pts))
+    m_street = minutes(street)
+    m_backed = minutes(backed)
+    m_any = minutes(street + shelter_pts + edge_pts, extra_zero=in_park)
+
+    # ---------------- Neighborhood figures ----------------
+    # Only land outside park polygons counts as "where people are": park interiors are excluded
+    # from every land-share figure.
+    live = on_land & ~in_park
+
+    def assign(pts):
+        a = np.array([[p["lon"], p["lat"]] for p in pts])
+        res = np.full(len(pts), -1)
+        tree = shapely.STRtree(nta_geoms)
+        pidx, gidx = tree.query(shapely.points(a[:, 0], a[:, 1]), predicate="intersects")
+        res[pidx] = gidx
+        # shoreline stragglers: nearest polygon within ~150 m
+        miss = np.where(res < 0)[0]
+        if len(miss):
+            near = tree.query_nearest(shapely.points(a[miss, 0], a[miss, 1]), max_distance=0.002, all_matches=False)
+            res[miss[near[0]]] = near[1]
+        return res
+
+    for arr in (dot, pops_seat, plaza_pts, shelter_pts):
+        ix = assign(arr)
+        for p, i in zip(arr, ix):
+            p["_nta"] = int(i)
+
+    nta_rows = []
+    feats_out = []
+    for i, f in enumerate(nta_fc["features"]):
+        pr = f["properties"]
+        sel = (cell_nta == i) & live
+        if sel.sum() == 0:
+            sel = (cell_nta == i) & on_land
+        ms, mb, ma = m_street[sel], m_backed[sel], m_any[sel]
+        cnt = Counter(p["cat"] for p in dot if p["_nta"] == i)
+        row = {
+            "nta2020": pr["nta2020"], "name": pr["name"], "boro": pr["boro"], "ntatype": pr["ntatype"],
+            "pop2020": pr["pop2020"],
+            "backed": cnt["backed"], "backless": cnt["backless"], "leaning_bar": cnt["bar"],
+            "dot_type_not_recorded": cnt["unrecorded"] + cnt["unknown"],
+            "pops_seating": sum(1 for p in pops_seat if p["_nta"] == i),
+            "plazas": sum(1 for p in plaza_pts if p["_nta"] == i),
+            "bus_shelters": sum(1 for p in shelter_pts if p["_nta"] == i),
+            "cells": int(sel.sum()),
+        }
+        row["street_seats"] = row["backed"] + row["backless"] + row["dot_type_not_recorded"] + row["pops_seating"] + row["plazas"]
+        row["street_seats_per_10k"] = round(row["street_seats"] * 1e4 / row["pop2020"], 2) if row["pop2020"] else None
+        if len(ms):
+            row.update({
+                "median_min_street": round(float(np.median(ms)), 1),
+                "median_min_backed": round(float(np.median(mb)), 1),
+                "median_min_any": round(float(np.median(ma)), 1),
+                "pct_over5_street": round(100 * float((ms > 5).mean()), 1),
+                "pct_over5_backed": round(100 * float((mb > 5).mean()), 1),
+                "pct_over5_any": round(100 * float((ma > 5).mean()), 1),
+                "pct_over10_street": round(100 * float((ms > 10).mean()), 1),
+                "pct_over10_any": round(100 * float((ma > 10).mean()), 1),
+            })
+        nta_rows.append(row)
+        feats_out.append({"type": "Feature", "properties": {k: row.get(k) for k in (
+            "nta2020", "name", "boro", "ntatype", "pop2020", "median_min_street", "median_min_backed",
+            "median_min_any", "pct_over5_street", "pct_over5_any")}, "geometry": rgeo(shape(f["geometry"]), 0.00015)})
+
+    res = [r for r in nta_rows if r["ntatype"] == "0" and r["pop2020"] >= 5000 and "median_min_street" in r]
+
+    # Borough and city figures: share of lived-in land (outside parks, inside residential NTAs)
+    res_idx = {i for i, r in enumerate(nta_rows) if r["ntatype"] == "0" and r["pop2020"] > 0}
+    res_mask = live & np.isin(cell_nta, list(res_idx))
+    boro_of = np.array([nta_rows[i]["boro"] if i >= 0 else "" for i in range(len(nta_rows))] + [""])
+    cell_boro = np.where(cell_nta >= 0, boro_of[np.clip(cell_nta, 0, len(nta_rows) - 1)], "")
+
+    def shares(mask):
+        out = {}
+        for key, m in (("street", m_street), ("backed", m_backed), ("any", m_any)):
+            v = m[mask]
+            out[f"median_min_{key}"] = round(float(np.median(v)), 1)
+            out[f"pct_over5_{key}"] = round(100 * float((v > 5).mean()), 1)
+            out[f"pct_over10_{key}"] = round(100 * float((v > 10).mean()), 1)
+        return out
+
+    boros = []
+    for b in ["Manhattan", "Bronx", "Brooklyn", "Queens", "Staten Island"]:
+        rows_b = [r for r in nta_rows if r["boro"] == b]
+        rec = {"boro": b, "pop2020": sum(r["pop2020"] for r in rows_b if r["ntatype"] == "0"),
+               "backed": sum(r["backed"] for r in rows_b), "backless": sum(r["backless"] for r in rows_b),
+               "leaning_bar": sum(r["leaning_bar"] for r in rows_b),
+               "dot_type_not_recorded": sum(r["dot_type_not_recorded"] for r in rows_b),
+               "pops_seating": sum(r["pops_seating"] for r in rows_b), "plazas": sum(r["plazas"] for r in rows_b),
+               "bus_shelters": sum(r["bus_shelters"] for r in rows_b)}
+        rec.update(shares(res_mask & (cell_boro == b)))
+        boros.append(rec)
+    city = shares(res_mask)
+    def enc(m):
+        v = np.where(np.isnan(m), 0, np.clip(np.round(m * 10), 0, 254))
+        return v.astype(np.uint8).reshape(ny_, nx)
+
+    rgba = np.dstack([enc(m_street), enc(m_backed), enc(m_any),
+                      np.where(res_mask, 255, np.where(on_land, 160, 0)).astype(np.uint8).reshape(ny_, nx)])
+    Image.fromarray(rgba).save(os.path.join(OUT, "walk.png"), optimize=True)
+    json.dump({
+        "bounds": [lon0, lat0, lon1, lat1], "width": nx, "height": ny_, "cell_m": cell,
+        "rows": "Web Mercator-regular, top row = north",
+        "encoding": "value/10 = minutes, capped at 25.4; alpha 0 = water, 160 = parks and non-residential land, 255 = lived-in land (residential NTAs outside parks)",
+        "channels": {"r": "street seats", "g": "backed DOT benches", "b": "any seat incl. bus shelters and parks"},
+        "walk_model": "straight-line metres x 1.25 at 3 mph",
+    }, open(os.path.join(OUT, "walk_meta.json"), "w"), indent=1)
+
+
+    def strip(p):
+        return {k: v for k, v in p.items() if not k.startswith("_")}
 
     summary = {
-        "fetched": "2026-11-06",
-        "dot_total_sites": len(dot_points),
-        "dot_subtyped_sites": sum(1 for p in dot_points if p["cat"] != "untyped_recent"),
-        "dot_untyped_2023_2026_sites": sum(1 for p in dot_points if p["cat"] == "untyped_recent"),
-        "dot_backed": category_counts["backed"],
-        "dot_backless": category_counts["backless"],
-        "dot_leaning_bar": category_counts["leaning_bar"],
-        "dot_unknown_bench": category_counts["unknown_bench"],
-        "era_2012_2016": {
-            "backed": era1_backed,
-            "backless": era1_backless,
-            "leaning_bar": era1_bar,
-            "total_subtyped": era1_tot,
-            "pct_backed": round(100.0 * era1_backed / era1_tot, 1),
-            "pct_backless_or_bar": round(100.0 * (era1_backless + era1_bar) / era1_tot, 1),
-        },
-        "era_2023_2026": {
-            "backed": era2_backed,
-            "backless": era2_backless,
-            "leaning_bar": era2_bar,
-            "total_subtyped": era2_tot,
-            "pct_backed": round(100.0 * era2_backed / era2_tot, 1),
-            "pct_backless_or_bar": round(100.0 * (era2_backless + era2_bar) / era2_tot, 1),
-        },
-        "pops_total": len(pops_points),
-        "pops_with_seating": pops_with_seating_count,
-        "pops_24h": pops_24h_count,
-        "pops_seating_24h": pops_seating_24h_count,
-        "pops_manhattan_share_pct": round(100.0 * sum(1 for p in pops_points if p["boro"] == "Manhattan") / len(pops_points), 1),
-        "plazas_total": len(plaza_points),
-        "true_public_seat_sites_total": (len(dot_points) - category_counts["leaning_bar"]) + pops_with_seating_count + len(plaza_points),
-        "city_median_walk_miles": round(city_sample_dists_seat[len(city_sample_dists_seat) // 2], 2),
-        "city_median_walk_mins": round(city_sample_dists_seat[len(city_sample_dists_seat) // 2] * 20.0, 1),
-        "city_pct_land_beyond_5min_walk": round(100.0 * sum(1 for d in city_sample_dists_seat if d > 0.25) / len(city_sample_dists_seat), 1),
-        "city_pct_land_beyond_10min_walk": round(100.0 * sum(1 for d in city_sample_dists_seat if d > 0.50) / len(city_sample_dists_seat), 1),
-        "residential_ntas_zero_dot_seats": sum(1 for r in res_ntas if r["dot_benches"] == 0),
-        "residential_ntas_under_2_per_10k": sum(1 for r in res_ntas if r["seats_per_10k_raw"] < 2.0),
+        "fetched": FETCHED,
+        "dot_records": len(dot),
+        "dot_subtypes": dict(sub_counts),
+        "dot_by_cat": dict(Counter(p["cat"] for p in dot)),
+        "dot_undated": dict(undated),
+        "era_early": era_early, "era_late": era_late,
+        "pops_total": len(pops_pts), "pops_seating": len(pops_seat),
+        "pops_seating_24h": sum(1 for p in pops_seat if p["h24"]),
+        "pops_seating_manhattan": sum(1 for p in pops_seat if p["boro"] == "Manhattan"),
+        "plazas": len(plaza_pts), "bus_shelters": len(shelter_pts),
+        "parks_used": len(park_geoms), "park_type_counts": dict(park_type_counts),
+        "street_seat_sites": len(street),
+        "city": city,
+        "res_ntas": len(res),
     }
 
     payload = {
         "summary": summary,
-        "annual": annual_series,
-        "boroughs": borough_rows,
-        "neighborhoods": [{k: v for k, v in r.items() if k != "seats_per_10k_raw"} for r in sorted(res_ntas, key=lambda r: -r["seats_per_10k_raw"])],
-        "lowest_neighborhoods": [{k: v for k, v in r.items() if k != "seats_per_10k_raw"} for r in res_ntas_sorted[:15]],
-        "highest_neighborhoods": [{k: v for k, v in r.items() if k != "seats_per_10k_raw"} for r in res_ntas_sorted[-15:][::-1]],
-        "dot_seats": dot_points,
-        "pops": pops_points,
-        "plazas": plaza_points,
+        "annual": annual_rows,
+        "boroughs": boros,
+        "ntas": sorted(res, key=lambda r: -r["median_min_street"]),
+        # compact point arrays: [lon, lat, ...]
+        # type codes: B backed, L backless, R leaning bar, U unknown bench, X type not recorded
+        "dot": [[p["lon"], p["lat"], {"backed": "B", "backless": "L", "bar": "R", "unknown": "U", "unrecorded": "X"}[p["cat"]], p["yr"] or 0, p["addr"], p["sub"]] for p in dot],
+        "pops": [[p["lon"], p["lat"], p["name"] or p["addr"], p["addr"], 1 if p["h24"] else 0, p["type"]] for p in pops_seat],
+        "plazas": [[p["lon"], p["lat"], p["name"], p["on"], p["partner"]] for p in plaza_pts],
+        "shelters": [[p["lon"], p["lat"], p["on"], p["x"]] for p in shelter_pts],
     }
-
-    with open(os.path.join(OUT_DIR, "seating.json"), "w") as f:
+    with open(os.path.join(OUT, "seats.json"), "w") as f:
         json.dump(payload, f, separators=(",", ":"), ensure_ascii=False)
+    with open(os.path.join(OUT, "ntas.geojson"), "w") as f:
+        json.dump({"type": "FeatureCollection", "features": feats_out}, f, separators=(",", ":"), ensure_ascii=False)
 
-    # Write flat CSVs for download
-    pd.DataFrame(annual_series).to_csv(os.path.join(OUT_DIR, "dot_installations_by_year.csv"), index=False)
-    pd.DataFrame(borough_rows).to_csv(os.path.join(OUT_DIR, "seating_by_borough.csv"), index=False)
-    pd.DataFrame([{k: v for k, v in r.items() if k != "seats_per_10k_raw"} for r in res_ntas]).to_csv(
-        os.path.join(OUT_DIR, "seating_by_neighborhood_nta2020.csv"), index=False
-    )
+    pk = []
+    for g, pr in zip(park_geoms, park_props):
+        if g.is_empty or g.geom_type not in ("Polygon", "MultiPolygon"):
+            g = shapely.make_valid(g)
+            polys = [x for x in getattr(g, "geoms", [g]) if x.geom_type in ("Polygon", "MultiPolygon")]
+            if not polys:
+                continue
+            g = unary_union(polys)
+        pk.append({"type": "Feature", "properties": pr, "geometry": rgeo(g, 0.00008)})
+    with open(os.path.join(OUT, "parks.geojson"), "w") as f:
+        json.dump({"type": "FeatureCollection", "features": pk}, f, separators=(",", ":"), ensure_ascii=False)
 
-    print("Summary:", json.dumps(summary, indent=2))
-    print("Boroughs:", json.dumps(borough_rows, indent=2))
-    print("Bottom 8 residential NTAs (pop >= 5,000):")
-    for r in res_ntas_sorted[:8]:
-        print(" ", r["nta2020"], r["name"], f"({r['boro']}) pop={r['pop2020']}: {r['public_seat_sites']} sites ({r['seats_per_10k']}/10k), med walk={r['median_walk_mins']} min")
-    print("Top 8 residential NTAs (pop >= 5,000):")
-    for r in res_ntas_sorted[-8:][::-1]:
-        print(" ", r["nta2020"], r["name"], f"({r['boro']}) pop={r['pop2020']}: {r['public_seat_sites']} sites ({r['seats_per_10k']}/10k), med walk={r['median_walk_mins']} min")
+    pd.DataFrame(annual_rows).to_csv(os.path.join(OUT, "dot_installations_by_year.csv"), index=False)
+    pd.DataFrame(boros).to_csv(os.path.join(OUT, "seating_by_borough.csv"), index=False)
+    pd.DataFrame(sorted(res, key=lambda r: r["nta2020"])).to_csv(os.path.join(OUT, "seating_by_neighborhood_nta2020.csv"), index=False)
+
+    print(json.dumps(summary, indent=1))
+    print(json.dumps(boros, indent=1))
+    worst = sorted(res, key=lambda r: -r["median_min_any"])[:10]
+    for r in worst:
+        print(r["name"], r["boro"], r["median_min_street"], r["median_min_any"], r["pct_over5_any"])
 
 
 if __name__ == "__main__":

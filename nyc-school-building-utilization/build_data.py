@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Build data files for nyc-school-building-utilization ("The empty classroom and the crowded one").
 
+Version 2 (Nov. 6, 2026): building coordinates now come from each building's own address
+(DCP Facilities Database geocodes of LCGMS addresses, then the 2019-20 School Locations file,
+then NYC GeoSearch), never from a school's main site; each building gets the grade bands its
+schools serve (LCGMS "Grades Final"); each school's class-size counts are assigned to one
+building only; near pairs are reported by grade match; District 75 and District 79 programs
+are left out of the under-one-roof comparison.
+
 Sources (all on disk in nyc-schools-atlas/data/sources/):
   1. NYC School Construction Authority / NYC Public Schools "Enrollment, Capacity & Utilization Report"
      (the Blue Book), Target Calculation, via NYC Open Data dataset gkd7-3vk7:
@@ -25,6 +32,19 @@ LOC1920_CSV = os.path.join(ATLAS_ROOT, "data/sources/nyc_doe_school_locations_20
 SCHOOLS_JSON = os.path.join(ATLAS_ROOT, "data/schools.json")
 CAP_JSON = os.path.join(ATLAS_ROOT, "data/metrics/capacity.json")
 CS_JSON = os.path.join(ATLAS_ROOT, "data/metrics/class_size.json")
+FACDB_JSON = os.path.join(ATLAS_ROOT, "data/sources/facdb_doe_lcgms_2026-07.json")
+GEOSEARCH_JSON = os.path.join(ATLAS_ROOT, "data/sources/geosearch_cache_lcgms_2026-10.json")
+
+GRADE_BANDS = {"ES": {"PK", "0K", "01", "02", "03", "04", "05"}, "MS": {"06", "07", "08"}, "HS": {"09", "10", "11", "12"}}
+
+
+def bands_of(grades_final):
+    toks = set(re.findall(r"PK|0K|SE|\d\d", str(grades_final or "")))
+    return {k for k, v in GRADE_BANDS.items() if toks & v}
+
+
+def norm_addr(a):
+    return re.sub(r"\s+", " ", str(a).upper().strip())
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "data")
@@ -84,54 +104,69 @@ def main():
     cs_schools = json.load(open(CS_JSON))["schools"]
     cw_org_to_dbn = {v["org_id"]: dbn for dbn, v in cap_meta["crosswalk"].items()}
 
-    # Build Building ID -> coordinate & address lookup
-    bldg_coords = {}
+    # Building ID -> coordinates, from the building's own address. Order of preference:
+    #   1. DCP Facilities Database geocode of the LCGMS primary address for a location in that building
+    #   2. 2019-20 School Locations (wg9x-4ke6) row whose primary building code is that building
+    #   3. NYC GeoSearch geocode of the LCGMS address (cached)
+    # v1 fell back to a school's main-site coordinates for annexes, which put about 20 buildings
+    # more than 0.1 mile from where they are. That fallback is gone; such buildings stay unmapped.
+    fac = json.load(open(FACDB_JSON))
+    facll = {}
+    for f in fac:
+        try:
+            facll[(norm_addr(f["address"]), str(f["zipcode"])[:5])] = (float(f["latitude"]), float(f["longitude"]))
+        except (KeyError, ValueError, TypeError):
+            pass
+    geos = json.load(open(GEOSEARCH_JSON))
+    BORO_NAME = {"M": "Manhattan", "X": "Bronx", "K": "Brooklyn", "Q": "Queens", "R": "Staten Island"}
+    grades_by_loc = {}
+    loc_cat = {}
+    bldg_info = {}
     for _, r in lc.iterrows():
+        loc = str(r["Location Code"]).strip().upper()
+        grades_by_loc[loc] = str(r["Grades Final"])
+        loc_cat[loc] = str(r["Location Category Description"])
         bc = str(r["Building Code"]).strip().upper()
-        dbn = str(r["ATS System Code"]).strip().upper()
-        if bc and dbn in schools and schools[dbn].get("lat") and schools[dbn].get("lon"):
-            bldg_coords.setdefault(
-                bc,
-                {
-                    "lat": round(float(schools[dbn]["lat"]), 5),
-                    "lon": round(float(schools[dbn]["lon"]), 5),
-                    "address": str(r["Primary Address"]).strip() or schools[dbn].get("address", ""),
-                    "zip": str(r["Zip"]).strip() or schools[dbn].get("zip", ""),
-                    "nta": str(r["NTA_Name"]).strip() or schools[dbn].get("neighborhood", ""),
-                    "method": "lcgms",
-                },
-            )
-
+        if not bc or str(r["Primary Address"]).strip() in ("", "NOT AVAILABLE"):
+            continue
+        info = bldg_info.setdefault(bc, {"address": str(r["Primary Address"]).strip(), "zip": str(r["Zip"]).strip()[:5],
+                                         "nta": str(r["NTA_Name"]).strip(), "lat": None, "lon": None, "method": None})
+        k = (norm_addr(r["Primary Address"]), str(r["Zip"]).strip()[:5])
+        if info["lat"] is None and k in facll:
+            info["lat"], info["lon"] = facll[k]
+            info["method"] = "facdb_address"
     for _, r in loc1920.iterrows():
-        bc = str(r.get("building_code", "")).strip().upper()
-        lat, lon = r.get("latitude", "").strip(), r.get("longitude", "").strip()
-        if bc and bc not in bldg_coords and lat and lon:
+        bc = str(r.get("Primary_building_code", r.get("building_code", ""))).strip().upper()
+        lat, lon = str(r.get("LATITUDE", r.get("latitude", ""))).strip(), str(r.get("LONGITUDE", r.get("longitude", ""))).strip()
+        if not bc or lat in ("", "NULL"):
+            continue
+        info = bldg_info.setdefault(bc, {"address": str(r.get("primary_address_line_1", "")).strip(), "zip": "",
+                                         "nta": str(r.get("NTA_Name", r.get("nta_name", ""))).strip(), "lat": None, "lon": None, "method": None})
+        if info["lat"] is None:
             try:
-                bldg_coords[bc] = {
-                    "lat": round(float(lat), 5),
-                    "lon": round(float(lon), 5),
-                    "address": r.get("primary_address_line_1", "").strip(),
-                    "zip": r.get("zip", "").strip(),
-                    "nta": r.get("nta_name", "").strip(),
-                    "method": "loc1920",
-                }
+                info["lat"], info["lon"] = float(lat), float(lon)
+                info["method"] = "school_locations_2019_20"
             except ValueError:
                 pass
-
+    for bc, info in bldg_info.items():
+        if info["lat"] is None and info["address"]:
+            key = f"{info['address']}, {BORO_NAME.get(bc[0], '')} {info['zip']}"
+            g = geos.get(key)
+            if g and g.get("lat"):
+                info["lat"], info["lon"], info["method"] = g["lat"], g["lon"], "geosearch"
+    bldg_coords = {bc: {"lat": round(i["lat"], 5), "lon": round(i["lon"], 5), "address": i["address"], "zip": i["zip"],
+                        "nta": i["nta"], "method": i["method"]} for bc, i in bldg_info.items() if i["lat"] is not None}
     d26 = df[df["Data As Of"] == "09/09/2026"].copy()
+    # Last resort, for map display only: the coordinates of a school housed in the building. For an
+    # annex this can be the school's main site, so these buildings are drawn but left out of every
+    # distance comparison.
     for _, r in d26.iterrows():
         bc = r["Bldg ID"].upper()
-        oid = r["Org ID"].upper()
-        dbn = cw_org_to_dbn.get(oid)
+        dbn = cw_org_to_dbn.get(r["Org ID"].upper())
         if bc and bc not in bldg_coords and dbn and dbn in schools and schools[dbn].get("lat"):
-            bldg_coords[bc] = {
-                "lat": round(float(schools[dbn]["lat"]), 5),
-                "lon": round(float(schools[dbn]["lon"]), 5),
-                "address": schools[dbn].get("address", ""),
-                "zip": schools[dbn].get("zip", ""),
-                "nta": schools[dbn].get("neighborhood", ""),
-                "method": "org_crosswalk",
-            }
+            bldg_coords[bc] = {"lat": round(float(schools[dbn]["lat"]), 5), "lon": round(float(schools[dbn]["lon"]), 5),
+                               "address": "", "zip": schools[dbn].get("zip", ""), "nta": schools[dbn].get("neighborhood", ""),
+                               "method": "school_main_site"}
 
     # 1. Historical series across all 7 Blue Book editions in gkd7-3vk7
     history = []
@@ -177,6 +212,18 @@ def main():
     for _, r in d26.iterrows():
         if r["Bldg ID"]:
             b26_groups[r["Bldg ID"]].append(r)
+
+    # Each school's class-size counts belong to one building: the one holding most of its students.
+    primary_bldg = {}
+    best_e = {}
+    for _, r in d26.iterrows():
+        oid = r["Org ID"].upper()
+        dbn = cw_org_to_dbn.get(oid)
+        oe = to_int(r["Org Enroll"]) or 0
+        if dbn and r["Incl. Class"] == "" and oe > best_e.get(dbn, -1):
+            best_e[dbn] = oe
+            primary_bldg[dbn] = r["Bldg ID"]
+    loc_grades_1920 = {str(r["location_code"]).strip().upper(): str(r["Grades_final_text"]) for _, r in loc1920.iterrows()}
 
     buildings = []
     colocated_splits = []
@@ -224,11 +271,14 @@ def main():
                     has_charter = True
             else:
                 is_charter = False
+            is_d75 = bool(dbn and dbn.startswith("75")) or incl != ""
+            is_d79 = bool(dbn and dbn.startswith("79")) or oname.startswith("ALC ") or "PATHWAYS TO GRADUATION" in oname.upper()
             if dbn and dbn.startswith("75"):
                 has_d75 = True
+            grades = grades_by_loc.get(oid.upper()) or loc_grades_1920.get(oid.upper()) or ""
 
             # Class size compliance for this org if in District 1-32 Table C
-            cs = cs_schools.get(dbn) if dbn and incl == "" else None
+            cs = cs_schools.get(dbn) if dbn and incl == "" and primary_bldg.get(dbn) == bid else None
             if cs and cs.get("cap_n_nonexempt_classes") is not None:
                 ne = cs["cap_n_nonexempt_classes"] or 0
                 ov = cs["cap_n_over"] or 0
@@ -250,6 +300,9 @@ def main():
                 "util": ou,
                 "is_school": is_school_org,
                 "is_charter": is_charter,
+                "d75": is_d75,
+                "d79": is_d79,
+                "bands": sorted(bands_of(grades)),
                 "avg_class_size": cs.get("avg_class_size_overall") if cs else None,
                 "cap_pct": round(100 * cs["cap_pct_at_or_below"], 1) if cs and cs.get("cap_pct_at_or_below") is not None else None,
                 "cap_exempt_n": cs.get("cap_n_exempt_classes") if cs else None,
@@ -264,11 +317,29 @@ def main():
                 and oe
                 and oe >= 50
                 and ou is not None
-                and not oname.startswith("ALC ")
-                and "PATHWAYS TO GRADUATION" not in oname.upper()
+                and not is_d75
+                and not is_d79
             ):
                 school_orgs_with_cap.append(org_rec)
 
+        bands = set()
+        for o in orgs:
+            if o["is_school"] and not o["d75"] and not o["d79"] and (o["enroll"] or 0) >= max(1, 0.10 * (be or 0)):
+                bands |= set(o["bands"])
+        level = "+".join(x for x in ("ES", "MS", "HS") if x in bands) or "unknown"
+        crowded_side = [o for o in school_orgs_with_cap if o["util"] > 100]
+        under_side = [o for o in school_orgs_with_cap if o["util"] < 60]
+        if crowded_side and under_side:
+            cc, uc = any(o["is_charter"] for o in crowded_side), any(o["is_charter"] for o in under_side)
+            cd, ud = any(not o["is_charter"] for o in crowded_side), any(not o["is_charter"] for o in under_side)
+            if cc and not cd and ud and not uc:
+                split_kind = "charter_crowded"
+            elif cd and not cc and ud and not uc:
+                split_kind = "district_only"
+            else:
+                split_kind = "mixed"
+        else:
+            split_kind = None
         max_org_u = max((o["util"] for o in school_orgs_with_cap), default=None)
         min_org_u = min((o["util"] for o in school_orgs_with_cap), default=None)
         org_spread = (max_org_u - min_org_u) if (len(school_orgs_with_cap) >= 2 and max_org_u is not None and min_org_u is not None) else 0
@@ -297,6 +368,9 @@ def main():
             "org_spread": org_spread,
             "split_100_60": split_100_60,
             "split_100_75": split_100_75,
+            "split_kind": split_kind if split_100_60 else None,
+            "level": level,
+            "geo_method": coord["method"] if coord else None,
             "cap_nonexempt_classes": bldg_nonexempt_classes if bldg_nonexempt_classes > 0 else None,
             "cap_compliant_pct": round(100 * bldg_compliant_classes / bldg_nonexempt_classes, 1) if bldg_nonexempt_classes > 0 else None,
             "cap_over_classes": bldg_over_cap_classes if bldg_nonexempt_classes > 0 else None,
@@ -308,67 +382,63 @@ def main():
         if split_100_60:
             colocated_splits.append(b_rec)
 
-    # 3. Compute nearest underutilized (<60%, active enroll > 0) neighbor for every overcrowded (>100%) building
-    # Exclude pairs that share any school organization (e.g. a school's main building and its own annex/minischool)
-    # or that resolved to identical coordinates (campus buildings sharing a single address point).
-    over100 = [b for b in buildings if b["util"] > 100 and b["lat"] is not None]
-    under60_active = [b for b in buildings if b["util"] < 60 and b["enroll"] > 0 and b["lat"] is not None]
-    under60_all = [b for b in buildings if b["util"] < 60 and b["lat"] is not None]
+    # 3. For every overcrowded (>100%) building, the nearest active (<60%, enrollment > 0) building,
+    # three ways: any level; serving at least one of the same grade bands (ES = PK-5, MS = 6-8,
+    # HS = 9-12); and serving exactly the same bands. Pairs that share a school organization (a
+    # school's own annex) or sit on the same campus point (< 0.01 mile) are skipped.
+    placed = lambda b: b["lat"] is not None and b["geo_method"] != "school_main_site"
+    over100 = [b for b in buildings if b["util"] > 100 and placed(b)]
+    under60_active = [b for b in buildings if b["util"] < 60 and b["enroll"] > 0 and placed(b)]
+
+    def orgset(b):
+        return {o["org_id"] for o in b["orgs"] if o["is_school"]}
+
+    def bandset(b):
+        return set(b["level"].split("+")) if b["level"] != "unknown" else set()
 
     pairs = []
     for o in over100:
-        o_orgs = {org["org_id"] for org in o["orgs"] if org["is_school"]}
-        best = None
-        best_d = 999.0
-        best_same_dist = None
-        best_same_dist_d = 999.0
+        best = {"any": (999.0, None), "band": (999.0, None), "same": (999.0, None), "same_dist": (999.0, None)}
         for u in under60_active:
-            u_orgs = {org["org_id"] for org in u["orgs"] if org["is_school"]}
-            if not o_orgs.isdisjoint(u_orgs):
+            if orgset(o) & orgset(u):
                 continue
             d = haversine_miles(o["lat"], o["lon"], u["lat"], u["lon"])
             if d < 0.01:
                 continue
-            if d < best_d:
-                best_d = d
-                best = u
-            if u["district"] == o["district"] and d < best_same_dist_d:
-                best_same_dist_d = d
-                best_same_dist = u
-        o["nearest_under60_id"] = best["id"]
-        o["nearest_under60_name"] = best["name"]
-        o["nearest_under60_util"] = best["util"]
-        o["nearest_under60_empty_seats"] = best["empty_seats"]
-        o["nearest_under60_miles"] = round(best_d, 2)
-        o["nearest_under60_same_dist_miles"] = round(best_same_dist_d, 2) if best_same_dist else None
-        pairs.append(
-            {
-                "crowded_id": o["id"],
-                "crowded_name": o["name"],
-                "crowded_boro": o["boro"],
-                "crowded_district": o["district"],
-                "crowded_enroll": o["enroll"],
-                "crowded_cap": o["cap"],
-                "crowded_util": o["util"],
-                "crowded_over_seats": o["enroll"] - o["cap"],
-                "crowded_lat": o["lat"],
-                "crowded_lon": o["lon"],
-                "under_id": best["id"],
-                "under_name": best["name"],
-                "under_district": best["district"],
-                "under_enroll": best["enroll"],
-                "under_cap": best["cap"],
-                "under_util": best["util"],
-                "under_empty_seats": best["empty_seats"],
-                "under_lat": best["lat"],
-                "under_lon": best["lon"],
-                "miles": round(best_d, 2),
-                "same_district": o["district"] == best["district"],
-                "same_dist_miles": round(best_same_dist_d, 2) if best_same_dist else None,
-            }
-        )
+            if d < best["any"][0]:
+                best["any"] = (d, u)
+            if bandset(o) & bandset(u) and d < best["band"][0]:
+                best["band"] = (d, u)
+            if o["level"] != "unknown" and o["level"] == u["level"] and d < best["same"][0]:
+                best["same"] = (d, u)
+            if u["district"] == o["district"] and d < best["same_dist"][0]:
+                best["same_dist"] = (d, u)
+        for key in ("any", "band", "same"):
+            d, u = best[key]
+            if u is None:
+                continue
+            o[f"near_{key}"] = {"id": u["id"], "name": u["name"], "util": u["util"], "empty": u["empty_seats"],
+                                "level": u["level"], "miles": round(d, 3)}
+        d, u = best["band"] if best["band"][1] else best["any"]
+        u_any = best["any"][1]
+        pairs.append({
+            "crowded_id": o["id"], "crowded_name": o["name"], "crowded_boro": o["boro"], "crowded_district": o["district"],
+            "crowded_level": o["level"], "crowded_enroll": o["enroll"], "crowded_cap": o["cap"], "crowded_util": o["util"],
+            "crowded_lat": o["lat"], "crowded_lon": o["lon"],
+            "any_id": u_any["id"], "any_miles": round(best["any"][0], 3), "any_level": u_any["level"],
+            "under_id": u["id"] if u else None, "under_name": u["name"] if u else None,
+            "under_district": u["district"] if u else None, "under_level": u["level"] if u else None,
+            "under_enroll": u["enroll"] if u else None, "under_cap": u["cap"] if u else None,
+            "under_util": u["util"] if u else None, "under_empty_seats": u["empty_seats"] if u else None,
+            "under_lat": u["lat"] if u else None, "under_lon": u["lon"] if u else None,
+            "miles": round(d, 3) if u else None,
+            "grade_match": "same" if (best["same"][1] is not None and best["same"][1] is u) else ("overlap" if best["band"][1] else "none"),
+            "same_level_miles": round(best["same"][0], 3) if best["same"][1] else None,
+            "same_district": bool(u and u["district"] == o["district"]),
+            "same_dist_miles": round(best["same_dist"][0], 3) if best["same_dist"][1] else None,
+        })
 
-    pairs.sort(key=lambda x: (x["miles"], -x["crowded_util"]))
+    pairs.sort(key=lambda x: (x["miles"] if x["miles"] is not None else 99, -x["crowded_util"]))
 
     # 4. District summary (Districts 1-32)
     by_dist = []
@@ -449,13 +519,20 @@ def main():
         "overall_utilization_pct": round(100 * sum(b["enroll"] for b in buildings) / sum(b["cap"] for b in buildings), 1),
         "net_empty_seats": sum(b["cap"] - b["enroll"] for b in buildings),
         "under_60_all": sum(1 for b in buildings if b["util"] < 60),
-        "under_60_active": len(under60_active),
+        "under_60_active": sum(1 for b in buildings if b["util"] < 60 and b["enroll"] > 0),
+        "under_60_active_placed": len(under60_active),
+        "over_100_placed": len(over100),
         "under_60_zero_enroll": sum(1 for b in buildings if b["util"] < 60 and b["enroll"] == 0),
-        "over_100": len(over100),
+        "over_100": sum(1 for b in buildings if b["util"] > 100),
         "at_or_over_100": sum(1 for b in buildings if b["util"] >= 100),
-        "over_100_within_half_mile_of_under60_active": sum(1 for p in pairs if p["miles"] <= 0.5),
-        "over_100_within_half_mile_same_district": sum(1 for p in pairs if p["same_dist_miles"] is not None and p["same_dist_miles"] <= 0.5),
-        "over_100_within_one_mile_of_under60_active": sum(1 for p in pairs if p["miles"] <= 1.0),
+        "over_100_within_half_mile_any_level": sum(1 for p in pairs if p["any_miles"] < 0.5),
+        "over_100_within_half_mile_shared_band": sum(1 for p in pairs if p["miles"] is not None and p["miles"] < 0.5),
+        "over_100_within_half_mile_same_level": sum(1 for p in pairs if p["same_level_miles"] is not None and p["same_level_miles"] < 0.5),
+        "over_100_within_one_mile_any_level": sum(1 for p in pairs if p["any_miles"] < 1.0),
+        "over_100_within_one_mile_shared_band": sum(1 for p in pairs if p["miles"] is not None and p["miles"] < 1.0),
+        "geocode_methods": dict(Counter(b["geo_method"] for b in buildings)),
+        "split_kinds": dict(Counter(b["split_kind"] for b in colocated_splits)),
+        "levels": dict(Counter(b["level"] for b in buildings)),
         "colocated_buildings": sum(1 for b in buildings if b["n_orgs"] >= 2),
         "colocated_split_100_60": len(colocated_splits),
         "colocated_split_100_75": sum(1 for b in buildings if b["split_100_75"]),

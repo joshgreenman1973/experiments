@@ -3,940 +3,674 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Where you can sit down — Public street seating across New York City, 2011–2026</title>
-<meta name="description" content="Across 4,899 classified street seating sites installed by the New York City Department of Transportation since 2011, backed benches make up 44.1% — and from 2023 to 2026, 76.7% of classified installations were backless benches or leaning bars.">
+<title>Where you can sit down</title>
+<meta name="description" content="A walk-time map of every public seat New York City records: benches, bus shelters, plazas, privately owned public spaces and parks. 18 percent of the land where New Yorkers live is more than a five-minute walk from one.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <link rel="stylesheet" href="../house-style/house.css">
 <style>
-  .stat-strip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin: 28px 0 36px;
-    padding: 18px 0;
-    border-top: 2px solid var(--ink);
-    border-bottom: 1px solid var(--rule);
+  :root { --accent: var(--mint); }
+  .head .lede { max-width: 66ch; }
+  .lede + .lede { margin-top: 12px; }
+
+  /* the map */
+  .mapwrap { position: relative; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  #map { height: min(78vh, 760px); min-height: 460px; width: 100%; background: var(--bg); }
+  .maplibregl-ctrl-attrib { background: rgba(17,19,17,.75) !important; color: var(--fg2) !important; font-family: var(--sans); }
+  .maplibregl-ctrl-attrib a { color: var(--fg2) !important; }
+  .maplibregl-ctrl-group { border-radius: 0 !important; background: var(--bg2) !important; box-shadow: none !important; border: 1px solid var(--line); }
+  .maplibregl-ctrl-group button { filter: invert(1); }
+  .maplibregl-popup-content { background: var(--bg2); color: var(--fg); border-radius: 0; box-shadow: none; border: 1px solid var(--line); font-family: var(--sans); font-size: 14px; padding: 8px 11px; }
+  .maplibregl-popup-tip { display: none; }
+
+  .finder {
+    position: absolute; top: 12px; left: 12px; width: min(360px, calc(100% - 24px));
+    background: rgba(17,19,17,.93); border: 1px solid var(--line); padding: 14px 16px 12px; z-index: 5;
+    max-height: calc(100% - 24px); overflow: auto;
   }
-  .stat-cell .num {
-    font-family: var(--mono);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+  .finder h4 { margin: 0 0 2px; font-family: var(--display); font-variation-settings: 'wdth' 88; font-size: 1.15rem; line-height: 1.2; }
+  .finder .where { font-size: var(--t-small); color: var(--fg2); margin: 0 0 10px; }
+  .finder .row { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line2); }
+  .finder .row i { width: 10px; height: 10px; display: block; align-self: center; }
+  .finder .row b { display: block; font-size: 15px; }
+  .finder .row span { display: block; font-size: 13px; color: var(--fg2); line-height: 1.35; }
+  .finder .row u { text-decoration: none; font-family: var(--display); font-variation-settings: 'wdth' 85; font-weight: 650; font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .finder .hint { font-size: 13px; color: var(--fg2); margin-top: 8px; }
+  .finder .x { position: absolute; top: 8px; right: 8px; }
+  @media (max-width: 640px) {
+    .finder { position: static; width: auto; max-height: none; border: 0; border-top: 1px solid var(--line); background: var(--bg); }
+    #map { height: 62vh; }
   }
-  .stat-cell .lbl {
-    font-size: 12.5px;
-    color: var(--muted);
-    margin-top: 6px;
-    line-height: 1.4;
-  }
-  @media (max-width: 760px) {
-    .stat-strip { grid-template-columns: repeat(2, 1fr); }
-  }
-  .chart-head-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-  }
-  .pill-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-  }
-  .pill-btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 5px 10px;
-    border: 1px solid var(--rule);
-    background: var(--paper);
-    color: var(--muted);
-    cursor: pointer;
-    letter-spacing: 0.02em;
-  }
-  .pill-btn:hover {
-    border-color: var(--ink);
-    color: var(--ink);
-  }
-  .pill-btn.active {
-    background: var(--ink);
-    color: var(--paper);
-    border-color: var(--ink);
-  }
-  .map-shell {
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    border: 1px solid var(--ink);
-    background: var(--paper);
-    margin: 14px 0 12px;
-  }
-  #seat-map {
-    height: 600px;
-    width: 100%;
-    background: #0d0f12;
-  }
-  .map-inspector {
-    border-left: 1px solid var(--ink);
-    padding: 18px;
-    overflow-y: auto;
-    max-height: 600px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  @media (max-width: 900px) {
-    .map-shell { grid-template-columns: 1fr; }
-    .map-inspector { border-left: none; border-top: 1px solid var(--ink); max-height: none; }
-    #seat-map { height: 460px; }
-  }
-  .search-bar {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 12px 0;
-    position: relative;
-  }
-  .search-input {
-    font-family: var(--sans);
-    font-size: 13.5px;
-    padding: 7px 11px;
-    border: 1px solid var(--ink);
-    background: var(--paper);
-    color: var(--ink);
-    min-width: 240px;
-    flex: 1;
-  }
-  .select-input {
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 7px 10px;
-    border: 1px solid var(--rule);
-    background: var(--paper);
-    color: var(--ink);
-  }
-  .geo-suggestions {
-    position: absolute;
-    top: 38px;
-    left: 0;
-    right: 180px;
-    background: var(--paper);
-    border: 1px solid var(--ink);
-    z-index: 30;
-    max-height: 220px;
-    overflow-y: auto;
-    display: none;
-  }
-  .geo-item {
-    padding: 8px 11px;
-    font-size: 13px;
-    border-bottom: 1px solid var(--rule);
-    cursor: pointer;
-  }
-  .geo-item:hover {
-    background: var(--wash);
-  }
-  .near-card {
-    padding: 10px 12px;
-    border: 1px solid var(--rule);
-    border-left-width: 3px;
-    font-size: 12.5px;
-  }
-  .legend-dot {
-    display: inline-block;
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    margin-right: 5px;
-    vertical-align: middle;
-  }
-  .table-scroll {
-    overflow-x: auto;
-    max-height: 540px;
-    overflow-y: auto;
-    border-top: 2px solid var(--ink);
-    border-bottom: 1px solid var(--ink);
-  }
-  table.data th.sortable {
-    cursor: pointer;
-    user-select: none;
-  }
-  table.data th.sortable:hover {
-    color: var(--ink);
-  }
+
+  .mapctl { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding: 14px clamp(16px,4vw,48px); border-top: 1px solid var(--line2); }
+  .mapctl .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .mapctl .lbl { font-size: var(--t-small); color: var(--fg2); margin-right: 4px; }
+  .mapctl input[type=range] { width: 160px; accent-color: var(--sun); }
+  .mapctl .val { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 5.5em; }
+  .searchrow { display: flex; gap: 9px; padding: 0 clamp(16px,4vw,48px) 14px; position: relative; }
+  .sugg { position: absolute; top: 46px; left: clamp(16px,4vw,48px); right: clamp(16px,4vw,48px); background: var(--bg2); border: 1px solid var(--line); z-index: 20; display: none; }
+  .sugg div { padding: 9px 12px; font-size: 15px; cursor: pointer; border-bottom: 1px solid var(--line2); }
+  .sugg div:hover, .sugg div.on { background: var(--bg); }
+  .rampkey { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: var(--t-small); color: var(--fg2); }
+  .rampkey canvas { height: 12px; width: 220px; }
+  .bigread { padding: 18px clamp(16px,4vw,48px) 6px; font-family: var(--display); font-variation-settings: 'wdth' 88; font-size: var(--t-find); line-height: 1.3; max-width: 60ch; }
+  .bigread b { color: var(--sun); font-weight: 700; }
+
+  /* sections */
+  .prose { max-width: 66ch; color: var(--fg2); margin: 10px 0 0; }
+  .prose b { color: var(--fg); }
+  .prose + .prose { margin-top: 12px; }
+  svg text { font-family: var(--sans); }
+  .chartbox { margin-top: 18px; }
+  .tip { position: fixed; pointer-events: none; background: var(--bg2); border: 1px solid var(--line); padding: 7px 10px; font-size: 14px; z-index: 50; display: none; max-width: 280px; line-height: 1.4; }
+  .tip b { font-weight: 700; }
+
+  .nta-search { display: flex; gap: 9px; flex-wrap: wrap; margin: 18px 0 8px; }
+  details.all { margin-top: 22px; }
+  details.all summary { cursor: pointer; font-weight: 700; font-size: 15px; padding: 8px 0; }
+  .tablewrap { max-height: 560px; overflow: auto; border-top: 1.5px solid var(--fg); }
+  table.h th { position: sticky; top: 0; background: var(--bg); cursor: pointer; }
+  table.h tr.click { cursor: pointer; }
+  table.h tr.click:hover td { background: var(--bg2); }
+  .methods p { max-width: 72ch; color: var(--fg2); margin: 0 0 12px; font-size: 16px; }
+  .methods p b { color: var(--fg); }
+  .methods h3 { margin: 26px 0 8px; }
+  .dl a { margin-right: 14px; white-space: nowrap; }
 </style>
 </head>
 <body>
-<main class="page">
-  <div class="top">
-    <span>New York City Department of Transportation · Department of City Planning</span>
-    <span>2011 to 2026 · 6,258 public street sites</span>
+<div class="sheet">
+  <div class="strip">
+    <span>New York City Department of Transportation, City Planning and Parks data on NYC Open Data</span>
+    <span>Fetched Nov. 6, 2026</span>
   </div>
 
-  <h1>Where you can sit down</h1>
+  <header class="head">
+    <h1>Where you can sit down</h1>
+    <p class="finding" id="finding">Count every bench, bus shelter, plaza and park the city records, and 18 percent of the land where New Yorkers live is more than a five-minute walk from a place to sit. On Staten Island it is 47 percent.</p>
+    <p class="lede" id="lede1">Loading the seat inventory…</p>
+    <p class="lede" id="lede2"></p>
+  </header>
 
-  <p class="finding">
-    Across 4,899 classified street seating locations installed by the New York City Department of Transportation since 2011, backed benches make up less than half (2,160, or 44.1%) — matched one-for-one by backless benches (2,160) plus 558 leaning bars — and in 2023–2026, 76.7% of classified installations had no backrest at all.
-  </p>
-
-  <p class="lede">
-    Three city inventories record where a person can sit outside along New York City streets and plazas without buying anything: the Department of Transportation (DOT) <a href="https://data.cityofnewyork.us/Transportation/Seating-Locations/esmy-s8q5">Seating Locations</a> dataset (<span class="mono">esmy-s8q5</span>, 5,776 sidewalk and bus-stop installations), the Department of City Planning (DCP) <a href="https://data.cityofnewyork.us/Housing-Development/Privately-Owned-Public-Spaces-POPS-/rvih-nhyn">Privately Owned Public Spaces</a> database (<span class="mono">rvih-nhyn</span>, 392 sites, of which 217 explicitly require public seating or tables) and DOT’s 90 <a href="https://data.cityofnewyork.us/Transportation/Pedestrian-Plazas/5dck-9m6g">Pedestrian Plazas</a> (<span class="mono">5dck-9m6g</span>). (The Department of Parks and Recreation does not publish a citywide park-bench point inventory on NYC Open Data, so interior park benches are outside these street counts.) Together, the three street-level datasets show two distinct patterns: a sharp shift by DOT away from backed benches toward backless benches and standing-only leaning bars, and wide gaps across outer-borough residential neighborhoods where more than half of all land is farther than a five-minute walk from any mapped public street seat.
-  </p>
-
-  <div class="stat-strip">
-    <div class="stat-cell">
-      <div class="num" style="color:var(--cobalt)">2,160</div>
-      <div class="lbl">Backed DOT street benches (<span class="mono">BACKED 1.0</span>, <span class="mono">BACKED 2.0</span> and <span class="mono">WORLDS FAIR</span>) — exactly 44.1% of the 4,899 subtyped installations</div>
-    </div>
-    <div class="stat-cell">
-      <div class="num" style="color:#b88400">2,160</div>
-      <div class="lbl">Backless DOT street benches (<span class="mono">BACKLESS 1.0</span> and <span class="mono">BACKLESS 2.0</span>) — also 44.1% of subtyped installations</div>
-    </div>
-    <div class="stat-cell">
-      <div class="num" style="color:var(--vermilion)">558</div>
-      <div class="lbl">DOT <span class="mono">LEANING BAR</span> installations (11.4% of subtyped sites) — angled rails at bus stops where riders prop rather than sit</div>
-    </div>
-    <div class="stat-cell">
-      <div class="num" style="color:var(--emerald)">93.4%</div>
-      <div class="lbl">Share of all 392 Privately Owned Public Spaces (POPS) located in Manhattan (208 of the 217 POPS with required seating)</div>
-    </div>
-  </div>
-
-  <!-- SECTION 1: OPENING CHART ON BENCH DESIGN SHIFT -->
-  <section class="chart-block">
-    <div class="chart-head-row">
-      <div>
-        <div class="chart-title">From 2012–2016 to 2023–2026, DOT flipped from 69.0% backed benches to 76.7% backless benches and leaning bars</div>
-        <div class="chart-sub">Annual DOT street seating installations by recorded subtype (<span class="mono">esmy-s8q5</span>), 2011 to 2026 (plus 877 sites from 2023–2026 with blank subtype fields)</div>
+  <section class="fig" style="padding-left:0;padding-right:0;padding-bottom:0">
+    <div class="bigread" id="bigread"></div>
+    <div class="mapctl">
+      <div class="grp" role="group" aria-label="Which seats count">
+        <span class="lbl">Seats that count</span>
+        <button class="chip" data-measure="any" aria-pressed="true">Any seat</button>
+        <button class="chip" data-measure="street" aria-pressed="false">Street benches and plazas</button>
+        <button class="chip" data-measure="backed" aria-pressed="false">Benches with a back</button>
       </div>
-      <div class="pill-row" id="annual-mode-btns">
-        <button class="pill-btn active" data-amode="share">Share of classified installations (%)</button>
-        <button class="pill-btn" data-amode="counts">Annual installation counts (stacked)</button>
+      <div class="grp">
+        <span class="lbl">How far you can go</span>
+        <input type="range" id="limit" min="2" max="15" step="1" value="5" aria-label="Walking limit in minutes">
+        <span class="val" id="limitval">5 minutes</span>
+      </div>
+      <div class="grp" role="group" aria-label="Walking speed">
+        <span class="lbl">Walking speed</span>
+        <button class="chip" data-speed="3" aria-pressed="true">3 mph</button>
+        <button class="chip" data-speed="2" aria-pressed="false">2 mph, a slower walker</button>
       </div>
     </div>
-    <div class="chart-legend" style="margin-bottom:8px;">
-      <span><i class="legend-dot" style="background:#1e5aff"></i>Backed bench (2,160)</span>
-      <span><i class="legend-dot" style="background:#f5b700"></i>Backless bench (2,160)</span>
-      <span><i class="legend-dot" style="background:#ff4d1c"></i>Leaning bar (558)</span>
-      <span><i class="legend-dot" style="background:#9ca3af"></i>Unclassified 2023–2026 site ID (877)</span>
+    <div class="searchrow">
+      <input type="search" id="addr" placeholder="Type an address, or click anywhere on the map" autocomplete="off" aria-label="Address search">
+      <div class="sugg" id="sugg"></div>
     </div>
-    <div id="annual-chart-wrap" style="width:100%;overflow-x:auto;"></div>
-    <p class="source">
-      Source: DOT <a href="https://data.cityofnewyork.us/Transportation/Seating-Locations/esmy-s8q5">Seating Locations</a> (<span class="mono">esmy-s8q5</span>, fetched Nov. 6, 2026). Of 5,776 total records, 4,899 carry an <span class="mono">asset_subtype</span> and <span class="mono">installation_date</span> (2,160 backed, 2,160 backless, 558 leaning bars and 21 <span class="mono">UNKNOWN BENCH</span>); 877 records added under <span class="mono">SEAT.2023.*</span> through <span class="mono">SEAT.2026.*</span> have blank <span class="mono">asset_subtype</span> and <span class="mono">installation_date</span> fields and are grouped by their <span class="mono">siteid</span> year in the count view.
+    <div class="mapwrap">
+      <div id="map" aria-label="Map of walking time to the nearest public seat"></div>
+      <div class="finder" id="finder" hidden></div>
+    </div>
+    <div class="mapctl" style="border-top:0">
+      <div class="rampkey"><span>Within your limit</span><canvas id="rampcv" width="440" height="24"></canvas><span>Farther, up to 20+ minutes</span></div>
+      <div class="legend" id="dotkey" style="margin-top:0"></div>
+    </div>
+    <p class="src" style="padding:0 clamp(16px,4vw,48px)">Each square of color is about 60 meters on a side. Walking time is the straight-line distance times 1.25, to allow for the street grid. Dots appear when you zoom in.</p>
+  </section>
+
+  <section class="sec">
+    <h2>The backs are coming off</h2>
+    <p class="prose" id="backs1"></p>
+    <div class="chartbox" id="yearchart"></div>
+    <div class="legend" id="yearkey"></div>
+    <p class="prose" id="backs2"></p>
+    <p class="src">Source: DOT <a href="https://data.cityofnewyork.us/Transportation/Seating-Locations/esmy-s8q5">Seating Locations</a> (esmy-s8q5). The year comes from each record's site number (SEAT.2024.0001 and so on), which matches the installation date within a year on 96 percent of the records that have both and is filled in on records that have no date.</p>
+  </section>
+
+  <section class="sec">
+    <h2>Five boroughs, three ways of counting</h2>
+    <p class="prose" id="boro1"></p>
+    <div class="chartbox" id="borochart"></div>
+    <div class="legend" id="borokey"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Every neighborhood</h2>
+    <p class="prose" id="nta1"></p>
+    <div class="chartbox" id="ntachart"></div>
+    <div class="readout" id="ntaread">Hover over a dot to see the neighborhood. Click to go there on the map.</div>
+    <h3 style="margin-top:28px">The farthest from a seat</h3>
+    <div class="list" id="worst" style="margin-top:10px;max-width:760px"></div>
+    <details class="all">
+      <summary>All 197 residential neighborhoods</summary>
+      <div class="nta-search"><input type="search" id="ntaq" placeholder="Filter by neighborhood or borough" aria-label="Filter neighborhoods"></div>
+      <div class="tablewrap">
+        <table class="h" id="ntatable">
+          <thead><tr>
+            <th data-k="name">Neighborhood</th>
+            <th data-k="boro">Borough</th>
+            <th class="n" data-k="pop2020">2020 population</th>
+            <th class="n" data-k="median_min_any">Median minutes, any seat</th>
+            <th class="n" data-k="median_min_street">Street seats</th>
+            <th class="n" data-k="median_min_backed">Backed benches</th>
+            <th class="n" data-k="pct_over5_any">Land beyond 5 min, any seat</th>
+            <th class="n" data-k="bus_shelters">Bus shelters</th>
+            <th class="n" data-k="street_seats">Street seats</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="sec methods">
+    <h2>How this was done</h2>
+    <p id="m1"></p>
+    <p><b>Walking.</b> The city's land is cut into squares about 60 meters on a side. For each square, the page finds the straight-line distance to the nearest seat, multiplies it by 1.25 to allow for walking around blocks, and converts it to minutes at 3 miles an hour. Three miles an hour is a typical adult pace. Many older people walk closer to two, which is why the map has a slower setting; the federal traffic-signal manual (<a href="https://mutcd.fhwa.dot.gov/htm/2009/part4/part4e.htm">MUTCD section 4E.06</a>) times crosswalks for 3.5 feet a second, about 2.4 mph, and allows slower for places with many slower walkers. The 1.25 detour factor is an assumption, not a measured street-network distance.</p>
+    <p><b>Where people live.</b> Land-share figures count only squares inside the 197 residential Neighborhood Tabulation Areas and outside park property, so a big park does not count as a seatless place where people live. They are shares of land, not of people: a square of single-family houses counts the same as a square of towers.</p>
+    <p><b>Parks.</b> NYC Parks does not publish a bench inventory. The "any seat" measure treats being inside, or at the edge of, a park of a kind that nearly always has benches (neighborhood, community and flagship parks, playgrounds, sitting areas, malls and similar, 1,433 properties) as being at a seat. Community gardens, nature areas, strips, parkways and undeveloped land are left out. This is the most generous reading of the parks; inside a large park the nearest bench can be farther than its edge.</p>
+    <p><b>Bus shelters.</b> DOT says that "all of the city's bus shelters offer seating" (<a href="https://www.nyc.gov/html/dot/html/infrastructure/streetfurniture.shtml">street furniture page</a>). The shelter file (t4f2-8md7) has no bench field, so each of the 3,312 shelters is counted as a seat.</p>
+    <p><b>Leaning bars</b> are a rail to prop against, 8 feet long and about 2 feet 11 inches high, per the <a href="https://nycstreetdesign.info/furniture/leaning-bar">Street Design Manual</a>. They are counted in the backrest chart and shown on the map but never counted as a seat. <b>"World's Fair"</b> benches (28, all on Surf and Mermaid avenues in Coney Island) are treated as backed; the data dictionary does not define the type, and the style comes in versions with and without backs.</p>
+    <p><b>What the data can't tell you.</b> The DOT file has 5,776 records, but DOT's own seating page describes "over 2,600 benches and leaning bars"; the file may include removed or planned sites, and nothing in it says which. Privately owned public spaces are counted when their permits require seating, which is not the same as seating being out today, and 82 of the 217 list restricted hours for at least part of the space. Library steps, stoops, café chairs, Open Streets and seasonal Street Seats are not in any of the files used here.</p>
+    <h3>Changes from the first version of this page</h3>
+    <p>The first version, published earlier on Nov. 6, left out bus shelters and parks, which made most of Queens and Staten Island look far worse than they are; said 877 recent benches were missing both a type and a date when about 600 more had a type but no date, and drew those as unclassified; listed the wrong breakdown of the 877 by year; called 177 neighborhoods residential when there are 197; offered a "zero backed benches" filter that matched no neighborhood; gave the wrong mix of seats for Midtown–Times Square; and used three different citywide totals. All are corrected here.</p>
+    <h3>Data and code</h3>
+    <p class="dl">
+      <a href="data/seating_by_neighborhood_nta2020.csv">Neighborhoods (CSV)</a>
+      <a href="data/seating_by_borough.csv">Boroughs (CSV)</a>
+      <a href="data/dot_installations_by_year.csv">DOT installs by year (CSV)</a>
+      <a href="data/seats.json">All seats (JSON)</a>
+      <a href="data/walk.png">Walk-time raster (PNG)</a>
+      <a href="data/walk_meta.json">Raster key</a>
+      <a href="build_data.py">build_data.py</a>
+      <a href="METHODOLOGY.md">Methodology</a>
     </p>
   </section>
 
-  <!-- SECTION 2: INTERACTIVE MAP & CLICK-ANYWHERE NEAREST SEAT FINDER -->
-  <h2>1. Click anywhere — or search an address — to find the nearest place to sit</h2>
-  <p>
-    Click any point on the map below (or enter a street address in the search box) to measure the walking distance and estimated walk time (at 3.0 mph using a 1.25× street-grid routing factor) to four different types of street rest stops: the closest <strong>backed DOT bench</strong>, the closest <strong>backless DOT bench</strong>, the closest <strong>DOT leaning bar</strong> and the closest <strong>Privately Owned Public Space (POPS) with seating or DOT Pedestrian Plaza</strong>. Use the filter buttons to isolate backed benches, leaning bars or 24-hour POPS, or toggle neighborhood walk-time shading.
-  </p>
-
-  <div class="search-bar">
-    <div class="pill-row" id="seat-filter-btns">
-      <button class="pill-btn active" data-sfilter="all">All 6,083 sites</button>
-      <button class="pill-btn" data-sfilter="backed">Backed benches only (2,160)</button>
-      <button class="pill-btn" data-sfilter="backless">Backless benches (2,160)</button>
-      <button class="pill-btn" data-sfilter="leaning_bar">Leaning bars only (558)</button>
-      <button class="pill-btn" data-sfilter="pops_plazas">POPS w/ seating (217) &amp; Plazas (90)</button>
-    </div>
-    <button class="pill-btn active" id="toggle-nta-choro">Neighborhood walk-time shading: On</button>
-  </div>
-
-  <div class="search-bar">
-    <input type="text" id="addr-input" class="search-input" placeholder="Search any New York City street address or intersection (or click anywhere on the map)…">
-    <div class="geo-suggestions" id="geo-suggestions"></div>
-    <select id="boro-jump-select" class="select-input">
-      <option value="all">Zoom to borough…</option>
-      <option value="Manhattan">Manhattan</option>
-      <option value="Brooklyn">Brooklyn</option>
-      <option value="Queens">Queens</option>
-      <option value="Bronx">Bronx</option>
-      <option value="Staten Island">Staten Island</option>
-    </select>
-  </div>
-
-  <div class="chart-legend" style="margin-bottom:8px;">
-    <span><i class="legend-dot" style="background:#1e5aff"></i>DOT backed bench (2,160)</span>
-    <span><i class="legend-dot" style="background:#f5b700"></i>DOT backless bench (2,160)</span>
-    <span><i class="legend-dot" style="background:#ff4d1c"></i>DOT leaning bar (558)</span>
-    <span><i class="legend-dot" style="background:#9ca3af"></i>DOT unclassified 2023–26 (877)</span>
-    <span><i class="legend-dot" style="background:#00b87c"></i>DCP POPS w/ required seating (217)</span>
-    <span><i class="legend-dot" style="background:#0891b2"></i>DOT pedestrian plaza (90)</span>
-  </div>
-
-  <div class="map-shell">
-    <div id="seat-map"></div>
-    <div class="map-inspector">
-      <div class="kicker">Nearest seat finder</div>
-      <div id="finder-body"></div>
-    </div>
-  </div>
-  <p class="source">
-    Source: DOT Seating Locations (<span class="mono">esmy-s8q5</span>), DCP Privately Owned Public Spaces (<span class="mono">rvih-nhyn</span>), DOT Pedestrian Plazas (<span class="mono">5dck-9m6g</span>) and shoreline-clipped 2020 Neighborhood Tabulation Areas (<span class="mono">nyc_nta_2020.geojson</span>).
-  </p>
-
-  <!-- SECTION 3: BOROUGH & NEIGHBORHOOD BREAKDOWN -->
-  <h2>2. The borough divide and residential bench deserts</h2>
-  <p>
-    When leaning bars are excluded, New York City has <strong>5,525 mapped street and plaza seating sites</strong>: 5,218 DOT benches (2,160 backed, 2,160 backless, 21 unknown bench and 877 unclassified 2023–2026 installations), 217 POPS with required seating and 90 DOT pedestrian plazas. Because 208 of the 217 seating POPS and 35 of the 90 pedestrian plazas are in Manhattan, only <strong>6.0%</strong> of residential land in Manhattan is more than a five-minute street walk (0.25 miles) from a mapped public seat. In Queens, <strong>55.0%</strong> of residential land is beyond a five-minute walk; in Staten Island, <strong>76.6%</strong> is beyond five minutes and <strong>48.9%</strong> is beyond ten minutes.
-  </p>
-  <p>
-    Even where overall bench counts look high, the type of seat varies sharply by borough. The Bronx has the highest per-capita count of total public seat sites (9.40 per 10,000 residents), driven by a rapid 2023–2026 rollout, yet it has more backless benches (581) and leaning bars (172) than backed benches (380) among its classified installations.
-  </p>
-
-  <section class="chart-block">
-    <div class="chart-title">Public street seating by borough, 2026</div>
-    <div class="chart-sub">DOT street benches (by subtype), POPS with required seating, DOT pedestrian plazas and share of residential land beyond a 5- or 10-minute walk</div>
-    <div class="table-scroll" style="margin-top:12px;">
-      <table class="data" id="boro-table">
-        <thead>
-          <tr>
-            <th>Borough</th>
-            <th class="num">2020 pop.</th>
-            <th class="num">DOT backed</th>
-            <th class="num">DOT backless</th>
-            <th class="num">Leaning bars</th>
-            <th class="num">Untyped DOT</th>
-            <th class="num">POPS w/ seating</th>
-            <th class="num">DOT plazas</th>
-            <th class="num">Seat sites / 10k</th>
-            <th class="num">Backed / 10k</th>
-            <th class="num">Land &gt;5 min walk</th>
-          </tr>
-        </thead>
-        <tbody id="boro-tbody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <h2>3. Every residential neighborhood ranked</h2>
-  <p>
-    Across the 177 residential Neighborhood Tabulation Areas (NTAs) with at least 5,000 residents in the 2020 Census, public street seating ranges from <strong>40.66 sites per 10,000 residents</strong> in Midtown–Times Square (104 sites, including 64 POPS with required seating and 6 pedestrian plazas; median walk 1.1 minutes) down to <strong>0.83 sites per 10,000 residents</strong> in Kew Gardens Hills, Queens (3 sites for 36,009 residents; median walk 7.2 minutes) and <strong>0.86 per 10,000</strong> in Bay Terrace–Clearview, Queens (2 sites for 23,287 residents; median walk 10.9 minutes). Twenty-three residential neighborhoods have fewer than 2.0 public street seat sites per 10,000 residents. Click any neighborhood row to zoom the map to that neighborhood.
-  </p>
-
-  <div class="search-bar">
-    <div class="pill-row" id="nta-preset-btns">
-      <button class="pill-btn active" data-npreset="all">All 177 residential neighborhoods (pop ≥ 5,000)</button>
-      <button class="pill-btn" data-npreset="deserts">Bench deserts (&lt;2.0 sites / 10k, 23 NTAs)</button>
-      <button class="pill-btn" data-npreset="zero_backed">Zero backed benches (14 NTAs)</button>
-    </div>
-    <input type="text" id="nta-search" class="search-input" placeholder="Search neighborhood name or borough…">
-  </div>
-
-  <div class="table-scroll">
-    <table class="data" id="nta-table">
-      <thead>
-        <tr>
-          <th class="sortable" data-nsort="name">Neighborhood (2020 NTA)</th>
-          <th class="sortable" data-nsort="boro">Borough</th>
-          <th class="num sortable" data-nsort="pop2020">2020 pop.</th>
-          <th class="num sortable" data-nsort="public_seat_sites">Public seat sites</th>
-          <th class="num sortable" data-nsort="backed">DOT backed</th>
-          <th class="num sortable" data-nsort="backless">DOT backless</th>
-          <th class="num sortable" data-nsort="leaning_bar">Leaning bars</th>
-          <th class="num sortable" data-nsort="pops_seating">POPS + plazas</th>
-          <th class="num sortable" data-nsort="seats_per_10k">Sites / 10k ▲</th>
-          <th class="num sortable" data-nsort="median_walk_mins">Median walk</th>
-          <th class="num sortable" data-nsort="pct_land_beyond_5min_walk">Land &gt;5 min</th>
-        </tr>
-      </thead>
-      <tbody id="nta-tbody"></tbody>
-    </table>
-  </div>
-
-  <!-- SECTION 4: METHODOLOGY & DOWNLOADS -->
-  <section class="methods">
-    <h3>How this was done</h3>
-    <p>
-      <strong>Primary sources and record counts.</strong> Three municipal datasets were downloaded from NYC Open Data on Nov. 6, 2026:
-      (1) Department of Transportation (DOT) <a href="https://data.cityofnewyork.us/Transportation/Seating-Locations/esmy-s8q5">Seating Locations</a> (<span class="mono">esmy-s8q5</span>), containing <strong>5,776</strong> unique <span class="mono">siteid</span> records with valid coordinates;
-      (2) Department of City Planning (DCP) <a href="https://data.cityofnewyork.us/Housing-Development/Privately-Owned-Public-Spaces-POPS-/rvih-nhyn">Privately Owned Public Spaces (POPS)</a> (<span class="mono">rvih-nhyn</span>), containing <strong>392</strong> records, of which <strong>217</strong> explicitly list <span class="mono">Seating</span> or <span class="mono">Tables</span> in <span class="mono">amenities_required</span> (and 168 of those 217 require 24-hour public access); and
-      (3) DOT <a href="https://data.cityofnewyork.us/Transportation/Pedestrian-Plazas/5dck-9m6g">Pedestrian Plazas</a> (<span class="mono">5dck-9m6g</span>), containing <strong>90</strong> polygon records represented by their geometric centroids.
-    </p>
-    <p>
-      <strong>Classification of DOT street seating.</strong> In <span class="mono">esmy-s8q5</span>, 4,899 of the 5,776 rows carry an <span class="mono">asset_subtype</span> and an <span class="mono">installation_date</span>: <span class="mono">BACKLESS 2.0</span> (1,636), <span class="mono">BACKED 1.0</span> (1,194), <span class="mono">BACKED 2.0</span> (938), <span class="mono">LEANING BAR</span> (558), <span class="mono">BACKLESS 1.0</span> (524), <span class="mono">WORLDS FAIR</span> (28, backed wood-slat benches) and <span class="mono">UNKNOWN BENCH</span> (21). The remaining <strong>877 records</strong> carry site IDs from <span class="mono">SEAT.2023.*</span> (1), <span class="mono">SEAT.2024.*</span> (472), <span class="mono">SEAT.2025.*</span> (355) and <span class="mono">SEAT.2026.*</span> (49) with blank <span class="mono">asset_subtype</span>, <span class="mono">asset_id</span> and <span class="mono">installation_date</span> fields. Those 877 records are included in total DOT bench counts and nearest-seat lookups and are broken out separately in the annual chart and borough table rather than imputed to a subtype.
-    </p>
-    <p>
-      <strong>Walk-distance and neighborhood calculations.</strong> Every point was spatially joined using <span class="mono">shapely</span> to shoreline-clipped 2020 Neighborhood Tabulation Areas (<span class="mono">nyc_nta_2020.geojson</span>, 262 polygons) and matched to 2020 Decennial Census population counts (<span class="mono">populations.json</span>). To measure walk access across each neighborhood’s land area rather than just at its centroid, a regular grid of land points (~250-meter spacing) was sampled inside every shoreline-clipped NTA polygon. At each sample point, straight-line haversine distance to the nearest public seat site (DOT bench excluding leaning bars, POPS with required seating or DOT pedestrian plaza) was multiplied by a 1.25× Manhattan-grid street routing factor and converted to walking minutes at 3.0 mph (20 minutes per mile). Neighborhood rankings sort on unrounded per-capita rates before display formatting.
-    </p>
-    <p>
-      <strong>What is not in the data.</strong> The New York City Department of Parks and Recreation publishes a directory of park properties and Comfort Stations on NYC Open Data, but does not publish a citywide point inventory of interior park benches (Central Park, Prospect Park and other conservancies maintain separate donor-plaque maps). Consequently, all figures on this page measure <em>street, sidewalk, plaza and POPS seating</em> outside park interiors.
-    </p>
-    <p>
-      <strong>Download the data and code:</strong>
-      <a href="data/seating_by_neighborhood_nta2020.csv">seating_by_neighborhood_nta2020.csv</a> (177 residential NTAs) ·
-      <a href="data/seating_by_borough.csv">seating_by_borough.csv</a> (5 boroughs) ·
-      <a href="data/dot_installations_by_year.csv">dot_installations_by_year.csv</a> (2011–2026) ·
-      <a href="data/seating.json">seating.json</a> ·
-      <a href="data/nta_seating.geojson">nta_seating.geojson</a> ·
-      <a href="build_data.py">build_data.py</a> ·
-      <a href="METHODOLOGY.md">METHODOLOGY.md</a>
-    </p>
-  </section>
-
-  <aside class="ai-notice">
-    <strong>A note of caution.</strong> This page was generated from a prompt by an AI system, with minimal human oversight and review. While the system is instructed to pull from real databases and accurately relay what it finds, AI can make errors of all kinds. Verify important statistics against the primary source files linked above before citing.
-  </aside>
-
-  <footer>
-    <span>New York City public street seating · Data fetched Nov. 6, 2026</span>
-    <span><a href="../">← Back to all experiments</a></span>
+  <footer class="foot">
+    <p class="caution">And please read this AI caution. The idea and the choice of sources are the author's (a human). The data work, code and page were done by Anthropic's Claude Code under direction. Quality control on this project: every source was re-downloaded and its row counts checked against the first version; a second, independent rebuild of the walk-time grid reproduced the first version's borough figures exactly before shelters and parks were added; neighborhood populations were checked against the Department of City Planning's 2020 census tables; and the numbers in the text on this page are computed from the published data files. The risks of using AI remain, and red flags are welcome.</p>
+    <a href="../">← All experiments</a>
   </footer>
-</main>
+</div>
+<div class="tip" id="tip"></div>
 
 <script>
-(function() {
-  let DATA = null;
-  let NTA_GEO = null;
-  let map = null;
-  let annualMode = 'share';
-  let seatFilter = 'all';
-  let showNtaChoro = true;
-  let ntaPreset = 'all';
-  let ntaSortKey = 'seats_per_10k';
-  let ntaSortAsc = true;
-  let probeMarker = null;
+(function () {
+  const css = getComputedStyle(document.documentElement);
+  const T = n => css.getPropertyValue('--' + n).trim();
+  const C = {
+    backed: T('cobalt'), backless: T('sun'), bar: T('vermilion'), unrec: T('fg2'),
+    shelter: T('cyan'), pops: T('rose'), plaza: T('orange'), park: T('mint'),
+    any: T('mint'), street: T('lilac'), backedM: T('cobalt'),
+    fg: T('fg'), fg2: T('fg2'), line: T('line'), line2: T('line2'), bg: T('bg'), bg2: T('bg2'), grid: T('grid'),
+    sun: T('sun'), verm: T('vermilion'), mint: T('mint'), rose: T('rose')
+  };
+  const hex = h => { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; };
+  const fmt = n => Number(n).toLocaleString('en-US');
+  const pct = n => (Math.round(n) === n ? n : n.toFixed(0)) + ' percent';
+  const $ = id => document.getElementById(id);
+  const tip = $('tip');
+  function showTip(e, html) { tip.innerHTML = html; tip.style.display = 'block'; const x = Math.min(e.clientX + 14, innerWidth - 300); tip.style.left = x + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+  function hideTip() { tip.style.display = 'none'; }
+  const BORO_ORDER = ['Manhattan', 'Bronx', 'Brooklyn', 'Queens', 'Staten Island'];
+  const SPELL = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+  const words = n => n <= 10 ? SPELL[n] : fmt(n);
 
-  const fmtInt = (n) => (n === null || n === undefined || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US');
+  let D, META, NTAS, PARKS, RAW = null, W, H;
+  let measure = 'any', limit = 5, speed = 3;
+  let map, probe = null, lastProbe = null;
 
-  function haversineMiles(lat1, lon1, lat2, lon2) {
-    const R = 3958.7613;
-    const toRad = Math.PI / 180;
-    const p1 = lat1 * toRad, p2 = lat2 * toRad;
-    const dp = (lat2 - lat1) * toRad;
-    const dl = (lon2 - lon1) * toRad;
-    const a = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(a));
+  Promise.all([
+    fetch('data/seats.json').then(r => r.json()),
+    fetch('data/walk_meta.json').then(r => r.json()),
+    fetch('data/ntas.geojson').then(r => r.json()),
+    fetch('data/parks.geojson').then(r => r.json()),
+    loadRaster('data/walk.png')
+  ]).then(([d, meta, ntas, parks]) => {
+    D = d; META = meta; NTAS = ntas; PARKS = parks;
+    writeText();
+    drawYears();
+    drawBoroughs();
+    drawNtas();
+    listWorst();
+    fillTable();
+    initMap();
+  });
+
+  function loadRaster(url) {
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        W = img.width; H = img.height;
+        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        const cx = cv.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(img, 0, 0);
+        RAW = cx.getImageData(0, 0, W, H).data;
+        res();
+      };
+      img.src = url;
+    });
   }
 
-  function renderAnnualChart() {
-    const wrap = document.getElementById('annual-chart-wrap');
-    const series = DATA.annual;
-    const W = 900, H = 300;
-    const pad = { top: 24, right: 32, bottom: 42, left: 54 };
-    const plotW = W - pad.left - pad.right;
-    const plotH = H - pad.top - pad.bottom;
-    const bw = Math.floor(plotW / series.length) - 8;
+  // minutes at 3 mph -> at chosen speed
+  const sp = m => m * 3 / speed;
+  const CH = { street: 0, backed: 1, any: 2 };
 
-    let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;font-family:var(--mono);">`;
+  function shareBeyond(ch, lim) {
+    let n = 0, over = 0;
+    const lim3 = lim * speed / 3 * 10; // threshold in raster units at 3 mph
+    for (let i = 0; i < RAW.length; i += 4) {
+      if (RAW[i + 3] !== 255) continue;
+      n++;
+      if (RAW[i + ch] > lim3) over++;
+    }
+    return 100 * over / n;
+  }
 
-    if (annualMode === 'share') {
-      const ticks = [0, 25, 50, 75, 100];
-      ticks.forEach(t => {
-        const yy = pad.top + plotH - (t / 100) * plotH;
-        svg += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}" stroke="#e2e0dc" stroke-dasharray="${t === 0 || t === 100 ? 'none' : '3,3'}"/>`;
-        svg += `<text x="${pad.left - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#6b6b72">${t}%</text>`;
-      });
+  function writeText() {
+    const s = D.summary, c = s.city;
+    const si = D.boroughs.find(b => b.boro === 'Staten Island');
+    const qn = D.boroughs.find(b => b.boro === 'Queens');
+    const mn = D.boroughs.find(b => b.boro === 'Manhattan');
+    $('finding').textContent = `Count every bench, bus shelter, plaza and park the city records, and ${Math.round(c.pct_over5_any)} percent of the land where New Yorkers live is more than a five-minute walk from a place to sit. On Staten Island it is ${Math.round(si.pct_over5_any)} percent.`;
+    const dotSeats = s.dot_records - s.dot_by_cat.bar;
+    $('lede1').innerHTML = `New York City keeps no single list of places to sit. This page puts together the five it has: <b>${fmt(dotSeats)}</b> Department of Transportation (DOT) benches, <b>${fmt(s.bus_shelters)}</b> bus shelters, <b>${fmt(s.pops_seating)}</b> privately owned public spaces whose permits require seating, <b>${fmt(s.plazas)}</b> DOT pedestrian plazas and <b>${fmt(s.parks_used)}</b> parks and playgrounds of the kinds that nearly always have benches. Leave out the shelters and parks, as a city bench count would, and ${Math.round(c.pct_over5_street)} percent of the land where people live is beyond a five-minute walk. Count only benches with a back and it is ${Math.round(c.pct_over5_backed)} percent.`;
+    const el = s.era_early, la = s.era_late;
+    $('lede2').innerHTML = `Two other things stand out. Almost every public space with required seating, ${s.pops_seating_manhattan} of ${s.pops_seating}, is in Manhattan, where zoning bonuses for towers created them. And the benches DOT is adding now mostly have no back: ${Math.round(la.pct_no_back_of_typed)} percent of recent installs with a recorded type are backless benches or leaning bars, against ${Math.round(el.pct_no_back_of_typed)} percent in the program's first five years.`;
 
-      series.forEach((d, i) => {
-        const subTot = d.backed + d.backless + d.leaning_bar;
-        const xx = pad.left + i * (plotW / series.length) + 4;
-        if (subTot > 0) {
-          const pBacked = (d.backed / subTot) * 100;
-          const pBackless = (d.backless / subTot) * 100;
-          const pBar = (d.leaning_bar / subTot) * 100;
+    $('backs1').innerHTML = `DOT's bench program, CityBench, started in 2011 with federal transit money and a promise of 1,000 benches "at bus stops, in commercial districts and areas with a high concentration of seniors" (<a href="https://www.nyc.gov/html/dot/downloads/pdf/20111020_citybench-press-release.pdf">announcement</a>). In ${el.years.replace('-', ' to ')}, <b>${Math.round(el.pct_backed_of_typed)} percent</b> of the benches it put in had a back. In ${la.years.replace('-', ' to ')}, among installs with a recorded type, <b>${Math.round(la.pct_backed_of_typed)} percent</b> did. The rest were backless benches (${fmt(la.backless)}) and leaning bars (${fmt(la.leaning_bar)}), rails to prop against.`;
+    $('backs2').innerHTML = `${fmt(la.type_not_recorded)} of the ${fmt(la.total)} recent records have no type at all, and nothing else in the file hints at one. Even if every one of them were a backed bench, backed benches would be ${Math.round(la.pct_backed_if_all_unrecorded_backed)} percent of recent installs, still well under the early years. DOT says both of its bench designs are meant to work for older people, and the backless one has a handle at the end; a backrest is still what many people who tire easily look for.`;
 
-          const hBacked = (pBacked / 100) * plotH;
-          const hBackless = (pBackless / 100) * plotH;
-          const hBar = (pBar / 100) * plotH;
+    const order = D.boroughs.slice().sort((a, b) => b.pct_over5_any - a.pct_over5_any);
+    $('boro1').innerHTML = `Each row shows the share of a borough's lived-in land more than five minutes from a seat, at 3 mph, under three ways of counting. The gap between the dots is what bus shelters and parks add. In Queens the shelters and parks cut the share from ${Math.round(qn.pct_over5_street)} to ${Math.round(qn.pct_over5_any)} percent. Staten Island stays the outlier under every count: ${Math.round(si.pct_over5_any)} percent with everything included, ${Math.round(si.pct_over10_any)} percent beyond ten minutes.`;
 
-          const yBacked = pad.top + plotH - hBacked;
-          const yBackless = yBacked - hBackless;
-          const yBar = yBackless - hBar;
+    const res = D.ntas;
+    const far = res.filter(n => n.pct_over5_any >= 50).length;
+    const worst = res.slice().sort((a, b) => b.median_min_any - a.median_min_any)[0];
+    $('nta1').innerHTML = `Each dot is one of the ${res.length} residential neighborhoods, placed by the median walk from its lived-in land to the nearest seat. In ${words(far)} of them, half or more of that land is beyond five minutes even with shelters and parks counted. The farthest is ${worst.name}, on ${worst.boro === 'Staten Island' ? 'Staten Island' : 'in ' + worst.boro}, at a median of ${worst.median_min_any.toFixed(1)} minutes. Switch the count to see how the picture changes.`;
 
-          svg += `<rect x="${xx}" y="${yBacked}" width="${bw}" height="${hBacked}" fill="#1e5aff"><title>${d.year}: ${d.backed} backed (${pBacked.toFixed(1)}%)</title></rect>`;
-          svg += `<rect x="${xx}" y="${yBackless}" width="${bw}" height="${hBackless}" fill="#f5b700"><title>${d.year}: ${d.backless} backless (${pBackless.toFixed(1)}%)</title></rect>`;
-          svg += `<rect x="${xx}" y="${yBar}" width="${bw}" height="${hBar}" fill="#ff4d1c"><title>${d.year}: ${d.leaning_bar} leaning bars (${pBar.toFixed(1)}%)</title></rect>`;
+    $('m1').innerHTML = `<b>Sources.</b> Five NYC Open Data files, all fetched Nov. 6, 2026: DOT <a href="https://data.cityofnewyork.us/Transportation/Seating-Locations/esmy-s8q5">Seating Locations</a> (esmy-s8q5, ${fmt(s.dot_records)} records: ${fmt(s.dot_by_cat.backed)} backed benches, ${fmt(s.dot_by_cat.backless)} backless, ${fmt(s.dot_by_cat.bar)} leaning bars, ${s.dot_by_cat.unknown} marked "unknown bench" and ${fmt(s.dot_by_cat.unrecorded)} with no type); DOT <a href="https://data.cityofnewyork.us/Transportation/Bus-Stop-Shelters/t4f2-8md7">Bus Stop Shelters</a> (t4f2-8md7, ${fmt(s.bus_shelters)}); Department of City Planning <a href="https://data.cityofnewyork.us/Housing-Development/Privately-Owned-Public-Spaces-POPS-/rvih-nhyn">Privately Owned Public Spaces</a> (rvih-nhyn, ${s.pops_total} spaces, ${s.pops_seating} with seating listed among required amenities); DOT <a href="https://data.cityofnewyork.us/Transportation/Pedestrian-Plazas/5dck-9m6g">Pedestrian Plazas</a> (5dck-9m6g, ${s.plazas}); and NYC Parks <a href="https://data.cityofnewyork.us/Recreation/Parks-Properties/enfh-gkve">Parks Properties</a> (enfh-gkve). Neighborhoods are the 2020 Neighborhood Tabulation Areas, clipped to the shoreline, with 2020 census populations from the Department of City Planning.`;
+  }
 
-          if (pBacked >= 14) {
-            svg += `<text x="${xx + bw / 2}" y="${yBacked + hBacked / 2 + 4}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#ffffff">${Math.round(pBacked)}%</text>`;
-          }
+  /* ---------------- year chart: one square = 10 installs ---------------- */
+  function drawYears() {
+    const rows = D.annual.filter(r => r.year >= 2012);
+    const cats = [['backed', 'Backed bench', C.backed], ['backless', 'Backless bench', C.backless], ['leaning_bar', 'Leaning bar', C.bar], ['type_not_recorded', 'Type not recorded', null]];
+    const per = 10, colW = 5;
+    const box = $('yearchart');
+    const Wd = Math.min(box.clientWidth || 900, 1100);
+    const gap = Math.max(6, Wd / rows.length * 0.18);
+    const cw = (Wd - 40 - gap * (rows.length - 1)) / rows.length;
+    const sq = cw / colW;
+    const maxSq = Math.max(...rows.map(r => cats.reduce((a, c) => a + Math.round((r[c[0]] + (c[0] === 'type_not_recorded' ? r.unknown_bench : 0)) / per), 0)));
+    const Hh = Math.ceil(maxSq / colW) * sq + 40;
+    let svg = `<svg viewBox="0 0 ${Wd} ${Hh}" width="100%" role="img" aria-label="DOT seating installs by year and type">`;
+    rows.forEach((r, i) => {
+      const x0 = 40 + i * (cw + gap);
+      let k = 0;
+      cats.forEach(([key, label, col]) => {
+        const v = r[key] + (key === 'type_not_recorded' ? r.unknown_bench : 0);
+        const n = Math.round(v / per);
+        for (let j = 0; j < n; j++, k++) {
+          const cx = x0 + (k % colW) * sq, cy = Hh - 26 - (Math.floor(k / colW) + 1) * sq;
+          svg += col
+            ? `<rect x="${cx + 0.6}" y="${cy + 0.6}" width="${sq - 1.2}" height="${sq - 1.2}" fill="${col}" data-y="${r.year}"/>`
+            : `<rect x="${cx + 1.2}" y="${cy + 1.2}" width="${sq - 2.4}" height="${sq - 2.4}" fill="none" stroke="${C.fg2}" stroke-width="1" data-y="${r.year}"/>`;
         }
-        svg += `<text x="${xx + bw / 2}" y="${H - 14}" text-anchor="middle" font-size="10.5" fill="#0a0a0c">${String(d.year).slice(2)}’</text>`;
       });
-    } else {
-      const maxTot = Math.max(...series.map(d => d.all_total), 1000);
-      const maxY = Math.ceil(maxTot / 200) * 200;
-      const ticks = [0, Math.round(maxY * 0.25), Math.round(maxY * 0.5), Math.round(maxY * 0.75), maxY];
-      ticks.forEach(t => {
-        const yy = pad.top + plotH - (t / maxY) * plotH;
-        svg += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}" stroke="#e2e0dc" stroke-dasharray="${t === 0 ? 'none' : '3,3'}"/>`;
-        svg += `<text x="${pad.left - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#6b6b72">${fmtInt(t)}</text>`;
-      });
-
-      series.forEach((d, i) => {
-        const xx = pad.left + i * (plotW / series.length) + 4;
-        const hBacked = (d.backed / maxY) * plotH;
-        const hBackless = (d.backless / maxY) * plotH;
-        const hBar = (d.leaning_bar / maxY) * plotH;
-        const hUntyped = ((d.untyped_siteid_year + d.unknown_bench) / maxY) * plotH;
-
-        const yBacked = pad.top + plotH - hBacked;
-        const yBackless = yBacked - hBackless;
-        const yBar = yBackless - hBar;
-        const yUntyped = yBar - hUntyped;
-
-        svg += `<rect x="${xx}" y="${yBacked}" width="${bw}" height="${hBacked}" fill="#1e5aff"/>`;
-        svg += `<rect x="${xx}" y="${yBackless}" width="${bw}" height="${hBackless}" fill="#f5b700"/>`;
-        svg += `<rect x="${xx}" y="${yBar}" width="${bw}" height="${hBar}" fill="#ff4d1c"/>`;
-        svg += `<rect x="${xx}" y="${yUntyped}" width="${bw}" height="${hUntyped}" fill="#9ca3af"/>`;
-        svg += `<text x="${xx + bw / 2}" y="${yUntyped - 5}" text-anchor="middle" font-size="9.5" fill="#6b6b72">${d.all_total}</text>`;
-        svg += `<text x="${xx + bw / 2}" y="${H - 14}" text-anchor="middle" font-size="10.5" fill="#0a0a0c">${String(d.year).slice(2)}’</text>`;
-      });
-    }
-
+      svg += `<rect x="${x0}" y="0" width="${cw}" height="${Hh - 20}" fill="transparent" data-y="${r.year}"/>`;
+      svg += `<text x="${x0 + cw / 2}" y="${Hh - 8}" text-anchor="middle" font-size="13" fill="${C.fg2}">${i === 0 || r.year % 2 === 0 || Wd > 700 ? "'" + String(r.year).slice(2) : ''}</text>`;
+    });
     svg += `</svg>`;
-    wrap.innerHTML = svg;
+    box.innerHTML = svg;
+    $('yearkey').innerHTML = cats.map(([, l, c]) => `<span class="key"><i style="${c ? 'background:' + c : 'border:1px solid ' + C.fg2}"></i>${l}</span>`).join('') + `<span class="key" style="color:${C.fg2}">One square is 10 installs</span>`;
+    box.querySelectorAll('[data-y]').forEach(el => {
+      el.addEventListener('mousemove', e => {
+        const r = rows.find(q => q.year === +el.dataset.y);
+        const typed = r.backed + r.backless + r.leaning_bar;
+        showTip(e, `<b>${r.year}</b>: ${fmt(r.total)} installs<br>${fmt(r.backed)} backed, ${fmt(r.backless)} backless, ${fmt(r.leaning_bar)} leaning bars${r.type_not_recorded + r.unknown_bench ? `, ${fmt(r.type_not_recorded + r.unknown_bench)} type not recorded` : ''}${typed ? `<br>${Math.round(100 * r.backed / typed)} percent of typed installs had a back` : ''}`);
+      });
+      el.addEventListener('mouseleave', hideTip);
+    });
   }
 
-  function buildPointsGeoJSON() {
-    const features = [];
-    const catColors = {
-      backed: '#1e5aff',
-      backless: '#f5b700',
-      leaning_bar: '#ff4d1c',
-      unknown_bench: '#9ca3af',
-      untyped_recent: '#9ca3af'
-    };
-
-    if (seatFilter !== 'pops_plazas') {
-      DATA.dot_seats.forEach(p => {
-        if (seatFilter === 'backed' && p.cat !== 'backed') return;
-        if (seatFilter === 'backless' && p.cat !== 'backless') return;
-        if (seatFilter === 'leaning_bar' && p.cat !== 'leaning_bar') return;
-        features.push({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-          properties: {
-            id: p.id,
-            kind: 'DOT street site',
-            label: p.sub,
-            addr: p.addr || p.street,
-            cross: p.cross,
-            boro: p.boro,
-            yr: p.yr || '—',
-            color: catColors[p.cat] || '#9ca3af',
-            radius: 3.6
-          }
-        });
+  /* ---------------- borough dot strip ---------------- */
+  function drawBoroughs() {
+    const box = $('borochart');
+    const Wd = Math.min(box.clientWidth || 900, 1000);
+    const L = Wd < 560 ? 104 : 140, R = 20, rowH = 46, top = 26;
+    const Hh = top + rowH * 5 + 10;
+    const x = v => L + (Wd - L - R) * v / 100;
+    const ms = [['pct_over5_backed', 'Benches with a back', C.backedM], ['pct_over5_street', 'Street benches and plazas', C.street], ['pct_over5_any', 'Any seat', C.any]];
+    let svg = `<svg viewBox="0 0 ${Wd} ${Hh}" width="100%" role="img" aria-label="Share of lived-in land beyond five minutes from a seat, by borough">`;
+    [0, 25, 50, 75, 100].forEach(t => {
+      svg += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 8}" y2="${Hh - 6}" stroke="${C.grid}"/>`;
+      svg += `<text x="${x(t)}" y="${top - 12}" text-anchor="middle" font-size="12" fill="${C.fg2}">${t}%</text>`;
+    });
+    BORO_ORDER.forEach((b, i) => {
+      const r = D.boroughs.find(q => q.boro === b);
+      const y = top + i * rowH + rowH / 2;
+      const vals = ms.map(m => r[m[0]]);
+      svg += `<text x="0" y="${y + 5}" font-size="15" font-weight="700" fill="${C.fg}">${b}</text>`;
+      svg += `<line x1="${x(Math.min(...vals))}" x2="${x(Math.max(...vals))}" y1="${y}" y2="${y}" stroke="${C.line}" stroke-width="3"/>`;
+      ms.forEach(([k, l, c]) => {
+        svg += `<circle cx="${x(r[k])}" cy="${y}" r="8" fill="${c}" data-t="${b}: ${Math.round(r[k])} percent beyond five minutes, counting ${l.toLowerCase()}"/>`;
       });
-    }
-
-    if (seatFilter === 'all' || seatFilter === 'pops_plazas') {
-      DATA.pops.filter(p => p.has_seating).forEach(p => {
-        features.push({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-          properties: {
-            id: p.id,
-            kind: 'Privately Owned Public Space (POPS)',
-            label: `${p.type} (${p.is_24h ? '24 hours' : p.hours})`,
-            addr: p.name ? `${p.name} (${p.addr})` : p.addr,
-            cross: '',
-            boro: p.boro,
-            yr: p.yr || '—',
-            color: '#00b87c',
-            radius: 4.5
-          }
-        });
-      });
-
-      DATA.plazas.forEach(p => {
-        features.push({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-          properties: {
-            id: p.id,
-            kind: 'DOT Pedestrian Plaza',
-            label: p.name,
-            addr: p.street,
-            cross: p.partner ? `Partner: ${p.partner}` : '',
-            boro: p.boro,
-            yr: '—',
-            color: '#0891b2',
-            radius: 5.0
-          }
-        });
-      });
-    }
-
-    return { type: 'FeatureCollection', features };
+      svg += `<text x="${x(r.pct_over5_any)}" y="${y + 24}" text-anchor="middle" font-size="12" fill="${C.fg2}">${Math.round(r.pct_over5_any)}</text>`;
+      svg += `<text x="${x(r.pct_over5_backed)}" y="${y + 24}" text-anchor="middle" font-size="12" fill="${C.fg2}">${Math.round(r.pct_over5_backed)}</text>`;
+    });
+    svg += `</svg>`;
+    box.innerHTML = svg;
+    $('borokey').innerHTML = ms.slice().reverse().map(([, l, c]) => `<span class="key"><i style="background:${c};border-radius:50%"></i>${l}</span>`).join('') + `<span class="key" style="color:${C.fg2}">Share of lived-in land more than five minutes away, at 3 mph</span>`;
+    box.querySelectorAll('[data-t]').forEach(el => { el.addEventListener('mousemove', e => showTip(e, el.dataset.t)); el.addEventListener('mouseleave', hideTip); });
   }
 
-  function runSeatFinder(lat, lon, label = 'Selected point') {
-    if (!DATA) return;
-    const ROUTING = 1.25;
+  /* ---------------- neighborhood strip plot ---------------- */
+  const MKEY = { any: 'median_min_any', street: 'median_min_street', backed: 'median_min_backed' };
+  function drawNtas() {
+    const box = $('ntachart');
+    const Wd = Math.min(box.clientWidth || 900, 1100);
+    const L = Wd < 560 ? 104 : 140, R = 24, rowH = 70, top = 26;
+    const Hh = top + rowH * 5 + 8;
+    const key = MKEY[measure];
+    const maxV = Math.max(10, Math.min(30, Math.ceil(Math.max(...D.ntas.map(n => sp(n[key]))) / 5) * 5));
+    const x = v => L + (Wd - L - R) * Math.min(sp(v), maxV) / maxV;
+    const ticks = []; for (let t = 0; t <= maxV; t += 5) ticks.push(t);
+    const colr = { any: C.any, street: C.street, backed: C.backedM }[measure];
+    let svg = `<svg viewBox="0 0 ${Wd} ${Hh}" width="100%" role="img" aria-label="Median walking minutes to a seat for each residential neighborhood">`;
+    const xm = m => L + (Wd - L - R) * Math.min(m, maxV) / maxV; // m already at chosen speed
+    ticks.forEach(t => {
+      svg += `<line x1="${xm(t)}" x2="${xm(t)}" y1="${top - 8}" y2="${Hh - 4}" stroke="${C.grid}"/>`;
+      svg += `<text x="${xm(t)}" y="${top - 12}" text-anchor="middle" font-size="12" fill="${C.fg2}">${t === maxV ? t + ' min' : t}</text>`;
+    });
+    if (limit <= maxV) svg += `<line x1="${xm(limit)}" x2="${xm(limit)}" y1="${top - 8}" y2="${Hh - 4}" stroke="${C.sun}" stroke-dasharray="4 4"/><text x="${xm(limit) + 5}" y="${Hh - 8}" font-size="12" fill="${C.sun}">your limit</text>`;
+    // deterministic jitter so dots don't sit on one line
+    BORO_ORDER.forEach((b, i) => {
+      const yC = top + i * rowH + rowH / 2;
+      svg += `<text x="0" y="${yC + 5}" font-size="15" font-weight="700" fill="${C.fg}">${b}</text>`;
+      const list = D.ntas.filter(n => n.boro === b).sort((a, z) => a[key] - z[key]);
+      list.forEach((n, j) => {
+        const r = Math.max(3, Math.sqrt(n.pop2020) / 38);
+        const jit = ((j * 37) % 11 - 5) / 5 * (rowH / 2 - 10);
+        svg += `<circle cx="${x(n[key])}" cy="${yC + jit}" r="${r}" fill="${colr}" fill-opacity=".72" stroke="${C.bg}" stroke-width="1" data-n="${n.nta2020}"/>`;
+      });
+    });
+    svg += `</svg>`;
+    box.innerHTML = svg;
+    box.querySelectorAll('[data-n]').forEach(el => {
+      const n = D.ntas.find(q => q.nta2020 === el.dataset.n);
+      el.style.cursor = 'pointer';
+      el.addEventListener('mousemove', e => {
+        showTip(e, `<b>${n.name}</b>, ${n.boro}<br>Median walk: ${sp(n.median_min_any).toFixed(1)} min to any seat, ${sp(n.median_min_street).toFixed(1)} to a street seat, ${sp(n.median_min_backed).toFixed(1)} to a backed bench<br>${fmt(n.pop2020)} people · ${n.bus_shelters} shelters · ${n.street_seats} street seats`);
+      });
+      el.addEventListener('mouseleave', hideTip);
+      el.addEventListener('click', () => flyToNta(n.nta2020));
+    });
+  }
 
-    function closestOf(arr) {
-      let best = null, bestD = 999;
-      for (let i = 0; i < arr.length; i++) {
-        const d = haversineMiles(lat, lon, arr[i].lat, arr[i].lon);
-        if (d < bestD) { bestD = d; best = arr[i]; }
+  function listWorst() {
+    const list = D.ntas.slice().sort((a, b) => b.median_min_any - a.median_min_any).slice(0, 10);
+    $('worst').innerHTML = list.map(n => `<div class="row" style="cursor:pointer" data-n="${n.nta2020}">
+      <i class="sw" style="background:${n.median_min_any > 5 ? C.sun : C.any}"></i>
+      <div><span class="nm">${n.name}</span><span class="sub">${n.boro} · ${Math.round(n.pct_over5_any)} percent of lived-in land beyond five minutes · ${n.bus_shelters} bus shelters, ${n.street_seats} street seats for ${fmt(n.pop2020)} people</span></div>
+      <span class="num">${n.median_min_any.toFixed(1)} min</span></div>`).join('');
+    $('worst').querySelectorAll('[data-n]').forEach(el => el.addEventListener('click', () => flyToNta(el.dataset.n)));
+  }
+
+  let tSort = 'median_min_any', tAsc = false;
+  function fillTable() {
+    const q = ($('ntaq').value || '').toLowerCase();
+    let rows = D.ntas.filter(n => !q || n.name.toLowerCase().includes(q) || n.boro.toLowerCase().includes(q));
+    rows.sort((a, b) => { const va = a[tSort], vb = b[tSort]; return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * (tAsc ? 1 : -1); });
+    document.querySelector('#ntatable tbody').innerHTML = rows.map(n => `<tr class="click" data-n="${n.nta2020}">
+      <td>${n.name}</td><td>${n.boro}</td><td class="n">${fmt(n.pop2020)}</td>
+      <td class="n">${n.median_min_any.toFixed(1)}</td><td class="n">${n.median_min_street.toFixed(1)}</td><td class="n">${n.median_min_backed.toFixed(1)}</td>
+      <td class="n">${Math.round(n.pct_over5_any)}%</td><td class="n">${n.bus_shelters}</td><td class="n">${n.street_seats}</td></tr>`).join('');
+    document.querySelectorAll('#ntatable tbody tr').forEach(tr => tr.addEventListener('click', () => flyToNta(tr.dataset.n)));
+  }
+  $('ntaq').addEventListener('input', fillTable);
+  document.querySelectorAll('#ntatable th').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k; if (tSort === k) tAsc = !tAsc; else { tSort = k; tAsc = (k === 'name' || k === 'boro'); }
+    fillTable();
+  }));
+
+  /* ---------------- the map ---------------- */
+  const overlay = document.createElement('canvas');
+  function paintRaster() {
+    overlay.width = W; overlay.height = H;
+    const cx = overlay.getContext('2d');
+    const out = cx.createImageData(W, H);
+    const o = out.data, ch = CH[measure];
+    const lim3 = limit * speed / 3 * 10, far3 = 20 * speed / 3 * 10;
+    const near = hex(C.mint), mid = hex(C.sun), farc = hex(C.verm), deep = hex(C.rose);
+    for (let i = 0; i < RAW.length; i += 4) {
+      const a = RAW[i + 3];
+      if (a === 0) continue;
+      const v = RAW[i + ch];
+      let col, al;
+      if (v <= lim3) { col = near; al = 0.05 + 0.20 * (v / lim3); }
+      else {
+        const t = Math.min(1, (v - lim3) / Math.max(1, far3 - lim3));
+        col = t < 0.5 ? mix(mid, farc, t * 2) : mix(farc, deep, (t - 0.5) * 2);
+        al = 0.62 + 0.25 * t;
       }
-      const walkMi = bestD * ROUTING;
-      const walkMin = walkMi * 20;
-      return { item: best, straightMi: bestD, walkMi, walkMin };
+      if (a !== 255) al *= 0.45; // parks and non-residential land drawn quieter
+      o[i] = col[0]; o[i + 1] = col[1]; o[i + 2] = col[2]; o[i + 3] = Math.round(al * 255);
     }
-
-    const nearestBacked = closestOf(DATA.dot_seats.filter(p => p.cat === 'backed'));
-    const nearestBackless = closestOf(DATA.dot_seats.filter(p => p.cat === 'backless'));
-    const nearestBar = closestOf(DATA.dot_seats.filter(p => p.cat === 'leaning_bar'));
-    const popsPlazas = [
-      ...DATA.pops.filter(p => p.has_seating).map(p => ({ ...p, kindLabel: `POPS (${p.is_24h ? '24h' : p.hours})`, addrLabel: p.name || p.addr })),
-      ...DATA.plazas.map(p => ({ ...p, kindLabel: 'DOT Pedestrian Plaza', addrLabel: p.name }))
-    ];
-    const nearestPlaza = closestOf(popsPlazas);
-
-    const lineFeatures = [
-      { to: nearestBacked.item, color: '#1e5aff' },
-      { to: nearestBackless.item, color: '#f5b700' },
-      { to: nearestBar.item, color: '#ff4d1c' },
-      { to: nearestPlaza.item, color: '#00b87c' }
-    ].filter(x => x.to).map(x => ({
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates: [[lon, lat], [x.to.lon, x.to.lat]]
-      },
-      properties: { color: x.color }
-    }));
-
-    if (map && map.getSource('finder-lines')) {
-      map.getSource('finder-lines').setData({ type: 'FeatureCollection', features: lineFeatures });
+    cx.putImageData(out, 0, 0);
+    if (map && map.getSource('walk')) map.getSource('walk').updateImage({ url: overlay.toDataURL(), coordinates: coords() });
+    drawRamp();
+    const share = shareBeyond(ch, limit);
+    const label = { any: 'any seat we can place', street: 'a street bench, plaza or public space with seating', backed: 'a bench with a back' }[measure];
+    $('bigread').innerHTML = `Walking at ${speed} miles an hour, <b>${Math.round(share)} percent</b> of the land where New Yorkers live is more than ${limit} minute${limit === 1 ? '' : 's'} from ${label}.`;
+    if (lastProbe) runFinder(lastProbe[0], lastProbe[1], lastProbe[2], false);
+  }
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  function coords() { const [x0, y0, x1, y1] = META.bounds; return [[x0, y1], [x1, y1], [x1, y0], [x0, y0]]; }
+  function drawRamp() {
+    const cv = $('rampcv'), cx = cv.getContext('2d');
+    cx.clearRect(0, 0, cv.width, cv.height);
+    const near = hex(C.mint), mid = hex(C.sun), farc = hex(C.verm), deep = hex(C.rose);
+    const split = 0.28;
+    for (let x = 0; x < cv.width; x++) {
+      const f = x / cv.width; let col, al;
+      if (f < split) { col = near; al = 0.12 + 0.35 * f / split; }
+      else { const t = (f - split) / (1 - split); col = t < 0.5 ? mix(mid, farc, t * 2) : mix(farc, deep, (t - 0.5) * 2); al = 0.85; }
+      cx.fillStyle = `rgba(${col.map(Math.round).join(',')},${al})`; cx.fillRect(x, 0, 1, cv.height);
     }
-    if (map) {
-      if (!probeMarker) {
-        const el = document.createElement('div');
-        el.style.width = '14px';
-        el.style.height = '14px';
-        el.style.borderRadius = '50%';
-        el.style.background = '#ffffff';
-        el.style.border = '3px solid #0a0a0c';
-        el.style.boxShadow = '0 0 0 2px #ffffff';
-        probeMarker = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map);
-      } else {
-        probeMarker.setLngLat([lon, lat]);
-      }
-    }
-
-    const body = document.getElementById('finder-body');
-    body.innerHTML = `
-      <div>
-        <div class="mono" style="font-size:11.5px;color:var(--muted);">${lat.toFixed(4)}°N, ${Math.abs(lon).toFixed(4)}°W</div>
-        <div style="font-size:15.5px;font-weight:700;margin-top:2px;">${label}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Walking distance assumes a 1.25× street grid factor at 3.0 mph (20 min/mile).</div>
-      </div>
-
-      <div class="near-card" style="border-left-color:#1e5aff;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>Closest backed DOT bench</strong>
-          <span class="mono" style="font-weight:700;color:#1e5aff;">${nearestBacked.walkMin.toFixed(1)} min (${nearestBacked.walkMi.toFixed(2)} mi)</span>
-        </div>
-        <div style="color:var(--muted);margin-top:3px;">${nearestBacked.item.addr} (${nearestBacked.item.boro}) · <span class="mono">${nearestBacked.item.sub}</span></div>
-      </div>
-
-      <div class="near-card" style="border-left-color:#f5b700;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>Closest backless DOT bench</strong>
-          <span class="mono" style="font-weight:700;color:#b88400;">${nearestBackless.walkMin.toFixed(1)} min (${nearestBackless.walkMi.toFixed(2)} mi)</span>
-        </div>
-        <div style="color:var(--muted);margin-top:3px;">${nearestBackless.item.addr} (${nearestBackless.item.boro}) · <span class="mono">${nearestBackless.item.sub}</span></div>
-      </div>
-
-      <div class="near-card" style="border-left-color:#00b87c;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>Closest POPS or DOT plaza</strong>
-          <span class="mono" style="font-weight:700;color:#00b87c;">${nearestPlaza.walkMin.toFixed(1)} min (${nearestPlaza.walkMi.toFixed(2)} mi)</span>
-        </div>
-        <div style="color:var(--muted);margin-top:3px;">${nearestPlaza.item.addrLabel} (${nearestPlaza.item.boro}) · ${nearestPlaza.item.kindLabel}</div>
-      </div>
-
-      <div class="near-card" style="border-left-color:#ff4d1c;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <strong>Closest DOT leaning bar (no seat)</strong>
-          <span class="mono" style="font-weight:700;color:#ff4d1c;">${nearestBar.walkMin.toFixed(1)} min (${nearestBar.walkMi.toFixed(2)} mi)</span>
-        </div>
-        <div style="color:var(--muted);margin-top:3px;">${nearestBar.item.addr} (${nearestBar.item.boro}) · <span class="mono">LEANING BAR</span></div>
-      </div>
-    `;
   }
 
   function initMap() {
     map = new maplibregl.Map({
-      container: 'seat-map',
+      container: 'map',
       style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-      center: [-73.935, 40.73],
-      zoom: 10.4,
-      attributionControl: true
+      bounds: [[-74.20, 40.50], [-73.72, 40.91]], fitBoundsOptions: { padding: 10 }, minZoom: 9, maxZoom: 17,
+      maxBounds: [[-74.75, 40.25], [-73.25, 41.15]],
+      attributionControl: { compact: true }
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-
     map.on('load', () => {
-      map.addSource('ntas', { type: 'geojson', data: NTA_GEO });
-      map.addLayer({
-        id: 'nta-fill',
-        type: 'fill',
-        source: 'ntas',
-        filter: ['==', ['get', 'ntatype'], '0'],
-        paint: {
-          'fill-color': [
-            'interpolate', ['linear'], ['get', 'median_walk_mins'],
-            2, '#1e5aff',
-            5, '#1f2937',
-            9, '#f5b700',
-            14, '#ff4d1c'
-          ],
-          'fill-opacity': 0.24
-        }
-      });
-      map.addLayer({
-        id: 'nta-outline',
-        type: 'line',
-        source: 'ntas',
-        filter: ['==', ['get', 'ntatype'], '0'],
-        paint: {
-          'line-color': '#4b5563',
-          'line-width': 0.6,
-          'line-opacity': 0.55
-        }
-      });
+      map.fitBounds([[-74.20, 40.50], [-73.72, 40.91]], { padding: 16, duration: 0 });
+      const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol');
+      const before = firstSymbol ? firstSymbol.id : undefined;
+      paintRaster();
+      map.addSource('walk', { type: 'image', url: overlay.toDataURL(), coordinates: coords() });
+      map.addLayer({ id: 'walk', type: 'raster', source: 'walk', paint: { 'raster-opacity': 1, 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, before);
+      map.addSource('ntas', { type: 'geojson', data: NTAS });
+      map.addLayer({ id: 'nta-line', type: 'line', source: 'ntas', paint: { 'line-color': C.fg2, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.18, 13, 0.4], 'line-width': 0.7 } }, before);
+      map.addSource('parks', { type: 'geojson', data: PARKS });
+      map.addLayer({ id: 'park-line', type: 'line', source: 'parks', minzoom: 12.5, paint: { 'line-color': C.park, 'line-opacity': 0.55, 'line-width': 1 } }, before);
 
-      map.addSource('finder-lines', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] }
-      });
+      const feats = [];
+      D.dot.forEach(p => feats.push(pt(p[0], p[1], { t: p[2], a: p[4], s: p[5], y: p[3] })));
+      D.shelters.forEach(p => feats.push(pt(p[0], p[1], { t: 'S', a: `${p[2]} at ${p[3]}` })));
+      D.pops.forEach(p => feats.push(pt(p[0], p[1], { t: 'P', a: p[2], s: p[4] ? 'Open 24 hours' : 'Restricted hours' })));
+      D.plazas.forEach(p => feats.push(pt(p[0], p[1], { t: 'Z', a: p[2], s: p[3] })));
+      map.addSource('seats', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
       map.addLayer({
-        id: 'finder-lines-layer',
-        type: 'line',
-        source: 'finder-lines',
+        id: 'seats', type: 'circle', source: 'seats', minzoom: 12.3,
         paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 2.25,
-          'line-dasharray': [2, 2]
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 12.3, 2.2, 16, 6],
+          'circle-color': ['match', ['get', 't'], 'B', C.backed, 'L', C.backless, 'R', C.bar, 'S', C.shelter, 'P', C.pops, 'Z', C.plaza, C.unrec],
+          'circle-stroke-color': C.bg, 'circle-stroke-width': 1
         }
       });
+      map.addSource('probe-lines', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'probe-lines', type: 'line', source: 'probe-lines', paint: { 'line-color': ['get', 'c'], 'line-width': 2, 'line-dasharray': [2, 1.5] } });
 
-      map.addSource('seats', { type: 'geojson', data: buildPointsGeoJSON() });
-      map.addLayer({
-        id: 'seats-circle',
-        type: 'circle',
-        source: 'seats',
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            10, ['*', ['get', 'radius'], 0.75],
-            14, ['*', ['get', 'radius'], 1.45]
-          ],
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.88,
-          'circle-stroke-width': 0.7,
-          'circle-stroke-color': '#0a0a0c'
-        }
-      });
-
-      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
-      map.on('mouseenter', 'seats-circle', (e) => {
+      const pop = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+      const TN = { B: 'Backed bench', L: 'Backless bench', R: 'Leaning bar (no seat)', U: 'Bench, type unknown', X: 'Bench, type not recorded', S: 'Bus shelter', P: 'Privately owned public space with required seating', Z: 'DOT pedestrian plaza' };
+      map.on('mousemove', 'seats', e => {
         map.getCanvas().style.cursor = 'pointer';
         const p = e.features[0].properties;
-        popup.setLngLat(e.features[0].geometry.coordinates)
-          .setHTML(`<div style="font-family:var(--sans);color:#0a0a0c;font-size:12px;">
-            <strong>${p.kind}</strong> · <span class="mono">${p.label}</span><br>
-            ${p.addr} (${p.boro})${p.yr !== '—' ? ' · Installed ' + p.yr : ''}
-          </div>`)
-          .addTo(map);
+        pop.setLngLat(e.features[0].geometry.coordinates).setHTML(`<b>${TN[p.t]}</b><br>${p.a || ''}${p.s && p.t === 'P' ? '<br>' + p.s : ''}${p.y ? '<br>Installed ' + p.y : ''}`).addTo(map);
       });
-      map.on('mouseleave', 'seats-circle', () => {
-        map.getCanvas().style.cursor = '';
-        popup.remove();
-      });
+      map.on('mouseleave', 'seats', () => { map.getCanvas().style.cursor = ''; pop.remove(); });
+      map.on('click', e => runFinder(e.lngLat.lat, e.lngLat.lng, 'The spot you clicked', false));
 
-      map.on('click', (e) => {
-        runSeatFinder(e.lngLat.lat, e.lngLat.lng, 'Clicked map location');
-      });
+      $('dotkey').innerHTML = [['Backed bench', C.backed], ['Backless bench', C.backless], ['Leaning bar', C.bar], ['Bus shelter', C.shelter], ['Public space with seating', C.pops], ['Plaza', C.plaza], ['Park edge', C.park], ['Type not recorded', C.unrec]]
+        .map(([l, c]) => `<span class="key"><i style="background:${c};border-radius:50%"></i>${l}</span>`).join('');
 
-      runSeatFinder(40.7302, -73.8065, 'Kew Gardens Hills, Queens (73rd Ave. & 164th St.)');
+      const q = new URLSearchParams(location.search).get('at');
+      if (q) { const [la, lo] = q.split(',').map(Number); if (la && lo) runFinder(la, lo, 'Shared location', true); }
     });
   }
+  const pt = (lon, lat, props) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: props });
 
-  function renderBoroughTable() {
-    const tbody = document.getElementById('boro-tbody');
-    tbody.innerHTML = DATA.boroughs.map(b => `<tr>
-      <td><strong>${b.boro}</strong></td>
-      <td class="num">${fmtInt(b.pop2020)}</td>
-      <td class="num" style="color:var(--cobalt);font-weight:700;">${fmtInt(b.backed)}</td>
-      <td class="num">${fmtInt(b.backless)}</td>
-      <td class="num" style="color:var(--vermilion);">${fmtInt(b.leaning_bar)}</td>
-      <td class="num">${fmtInt(b.untyped)}</td>
-      <td class="num" style="color:var(--emerald);">${fmtInt(b.pops_seating)}</td>
-      <td class="num">${fmtInt(b.plazas)}</td>
-      <td class="num"><strong>${b.seats_per_10k.toFixed(2)}</strong></td>
-      <td class="num">${b.backed_per_10k.toFixed(2)}</td>
-      <td class="num" style="color:${b.pct_land_beyond_5min_walk > 40 ? 'var(--vermilion)' : 'var(--ink)'};font-weight:700;">${b.pct_land_beyond_5min_walk}%</td>
-    </tr>`).join('');
+  /* nearest-seat finder */
+  const KX = 111320 * Math.cos(40.7 * Math.PI / 180), KY = 110540;
+  const dm = (la1, lo1, la2, lo2) => Math.hypot((lo2 - lo1) * KX, (la2 - la1) * KY);
+  const mins = m => m * 1.25 / (speed * 1609.344 / 60);
+  function nearestOf(arr, lat, lon, test) {
+    let best = null, bd = Infinity;
+    for (const p of arr) { if (test && !test(p)) continue; const d = dm(lat, lon, p[1], p[0]); if (d < bd) { bd = d; best = p; } }
+    return best ? { p: best, d: bd } : null;
   }
-
-  function renderNtaTable() {
-    const q = (document.getElementById('nta-search').value || '').trim().toLowerCase();
-    let list = DATA.neighborhoods.filter(n => {
-      if (ntaPreset === 'deserts' && !(n.seats_per_10k < 2.0)) return false;
-      if (ntaPreset === 'zero_backed' && n.backed !== 0) return false;
-      if (!q) return true;
-      return n.name.toLowerCase().includes(q) || n.boro.toLowerCase().includes(q) || n.nta2020.toLowerCase().includes(q);
-    });
-
-    list.sort((a, z) => {
-      const va = a[ntaSortKey];
-      const vz = z[ntaSortKey];
-      if (typeof va === 'string') {
-        return ntaSortAsc ? va.localeCompare(vz) : vz.localeCompare(va);
+  const parkLabel = p => (p.name && p.name !== 'Park' ? p.name + ' · ' : '') + (p.type || 'Park').replace('Triangle/Plaza', 'sitting area');
+  function nearestPark(lat, lon) {
+    let best = Infinity, bp = null, name = '', inside = false;
+    const X = (lon) * KX, Y = lat * KY;
+    for (const f of PARKS.features) {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      for (const poly of polys) {
+        const ring = poly[0];
+        let inn = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+          if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inn = !inn;
+          const ax = xj * KX, ay = yj * KY, bx = xi * KX, by = yi * KY;
+          const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+          let t = L2 ? ((X - ax) * dx + (Y - ay) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+          const px = ax + t * dx, py = ay + t * dy, d = Math.hypot(X - px, Y - py);
+          if (d < best) { best = d; bp = [px / KX, py / KY]; name = parkLabel(f.properties); }
+        }
+        if (inn) { inside = true; best = 0; bp = [lon, lat]; name = parkLabel(f.properties); return { d: 0, at: bp, name, inside }; }
       }
-      return ntaSortAsc ? (va - vz) : (vz - va);
-    });
-
-    const tbody = document.getElementById('nta-tbody');
-    tbody.innerHTML = list.map(n => `<tr style="cursor:pointer;" data-nta="${n.nta2020}">
-      <td><strong>${n.name}</strong> <span class="mono" style="font-size:11px;color:var(--muted);">${n.nta2020}</span></td>
-      <td>${n.boro}</td>
-      <td class="num">${fmtInt(n.pop2020)}</td>
-      <td class="num"><strong>${fmtInt(n.public_seat_sites)}</strong></td>
-      <td class="num" style="color:var(--cobalt);">${fmtInt(n.backed)}</td>
-      <td class="num">${fmtInt(n.backless)}</td>
-      <td class="num" style="color:var(--vermilion);">${fmtInt(n.leaning_bar)}</td>
-      <td class="num">${fmtInt(n.pops_seating + n.plazas)}</td>
-      <td class="num"><strong>${n.seats_per_10k.toFixed(2)}</strong></td>
-      <td class="num">${n.median_walk_mins.toFixed(1)} min</td>
-      <td class="num" style="color:${n.pct_land_beyond_5min_walk >= 50 ? 'var(--vermilion)' : 'var(--ink)'};">${n.pct_land_beyond_5min_walk}%</td>
-    </tr>`).join('');
-
-    tbody.querySelectorAll('tr').forEach(tr => {
-      tr.addEventListener('click', () => {
-        const code = tr.getAttribute('data-nta');
-        const feat = NTA_GEO.features.find(f => f.properties.nta2020 === code);
-        if (!feat || !map) return;
-        const coords = feat.geometry.type === 'Polygon' ? feat.geometry.coordinates[0] : feat.geometry.coordinates[0][0];
-        let sumLon = 0, sumLat = 0;
-        coords.forEach(c => { sumLon += c[0]; sumLat += c[1]; });
-        const cLon = sumLon / coords.length, cLat = sumLat / coords.length;
-        map.flyTo({ center: [cLon, cLat], zoom: 13.5, essential: true });
-        runSeatFinder(cLat, cLon, `${feat.properties.name} (${feat.properties.boro})`);
-        document.getElementById('seat-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    });
+    }
+    return { d: best, at: bp, name, inside };
+  }
+  function runFinder(lat, lon, label, fly) {
+    lastProbe = [lat, lon, label];
+    const out = [];
+    const b = nearestOf(D.dot, lat, lon, p => p[2] === 'B');
+    const l = nearestOf(D.dot, lat, lon, p => p[2] === 'L' || p[2] === 'X' || p[2] === 'U');
+    const s = nearestOf(D.shelters, lat, lon);
+    const ps = nearestOf(D.pops, lat, lon);
+    const pz = nearestOf(D.plazas, lat, lon);
+    const pk = nearestPark(lat, lon);
+    const r = nearestOf(D.dot, lat, lon, p => p[2] === 'R');
+    if (b) out.push({ c: C.backed, t: 'Bench with a back', w: b.p[4], d: b.d, at: [b.p[0], b.p[1]] });
+    if (l) out.push({ c: C.backless, t: 'Other DOT bench', w: l.p[4], d: l.d, at: [l.p[0], l.p[1]] });
+    if (s) out.push({ c: C.shelter, t: 'Bus shelter', w: `${s.p[2]} at ${s.p[3]}`, d: s.d, at: [s.p[0], s.p[1]] });
+    if (pk && pk.at) out.push({ c: C.park, t: pk.inside ? 'You are in a park' : 'Edge of a park', w: pk.name, d: pk.d, at: pk.at });
+    const pp = (ps && pz) ? (ps.d < pz.d ? { ...ps, k: 'P' } : { ...pz, k: 'Z' }) : (ps ? { ...ps, k: 'P' } : { ...pz, k: 'Z' });
+    if (pp) out.push({ c: pp.k === 'P' ? C.pops : C.plaza, t: pp.k === 'P' ? 'Public space with seating' : 'Pedestrian plaza', w: pp.p[2], d: pp.d, at: [pp.p[0], pp.p[1]] });
+    out.sort((a, z) => a.d - z.d);
+    if (r) out.push({ c: C.bar, t: 'Leaning bar (no seat)', w: r.p[4], d: r.d, at: [r.p[0], r.p[1]] });
+    const fm = d => { const m = mins(d); return m < 1 ? 'under 1 min' : m > 60 ? 'over an hour' : m.toFixed(m < 10 ? 1 : 0) + ' min'; };
+    const f = $('finder');
+    f.hidden = false;
+    f.innerHTML = `<button class="xbtn x" aria-label="Close">×</button><h4>${label}</h4>
+      <p class="where">Nearest of each kind, walking at ${speed} mph</p>
+      ${out.map(o => `<div class="row"><i style="background:${o.c}"></i><div><b>${o.t}</b><span>${o.w || ''}</span></div><u>${fm(o.d)}</u></div>`).join('')}
+      <p class="hint"><a href="?at=${lat.toFixed(5)},${lon.toFixed(5)}" id="sharelink">Link to this spot</a></p>`;
+    f.querySelector('.x').onclick = () => { f.hidden = true; lastProbe = null; map.getSource('probe-lines').setData({ type: 'FeatureCollection', features: [] }); if (probe) { probe.remove(); probe = null; } };
+    map.getSource('probe-lines').setData({ type: 'FeatureCollection', features: out.filter(o => o.d > 0).map(o => ({ type: 'Feature', properties: { c: o.c }, geometry: { type: 'LineString', coordinates: [[lon, lat], o.at] } })) });
+    if (!probe) { const el = document.createElement('div'); el.style.cssText = `width:14px;height:14px;background:${C.fg};border:3px solid ${C.bg};box-sizing:content-box`; probe = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map); }
+    else probe.setLngLat([lon, lat]);
+    if (fly) map.flyTo({ center: [lon, lat], zoom: 15, essential: true });
   }
 
-  Promise.all([
-    fetch('data/seating.json').then(r => r.json()),
-    fetch('data/nta_seating.geojson').then(r => r.json())
-  ]).then(([data, ntaGeo]) => {
-    DATA = data;
-    NTA_GEO = ntaGeo;
-    renderAnnualChart();
-    renderBoroughTable();
-    renderNtaTable();
-    initMap();
+  function flyToNta(code) {
+    const f = NTAS.features.find(q => q.properties.nta2020 === code);
+    if (!f) return;
+    let mnx = 180, mny = 90, mxx = -180, mxy = -90;
+    const walk = c => typeof c[0] === 'number' ? (mnx = Math.min(mnx, c[0]), mxx = Math.max(mxx, c[0]), mny = Math.min(mny, c[1]), mxy = Math.max(mxy, c[1])) : c.forEach(walk);
+    walk(f.geometry.coordinates);
+    document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    map.fitBounds([[mnx, mny], [mxx, mxy]], { padding: 40, duration: 900 });
+  }
+
+  /* controls */
+  document.querySelectorAll('[data-measure]').forEach(b => b.addEventListener('click', () => {
+    measure = b.dataset.measure;
+    document.querySelectorAll('[data-measure]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    paintRaster(); drawNtas();
+  }));
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+    speed = +b.dataset.speed;
+    document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    paintRaster(); drawNtas();
+  }));
+  let rt = null;
+  $('limit').addEventListener('input', e => {
+    limit = +e.target.value; $('limitval').textContent = limit + ' minutes';
+    clearTimeout(rt); rt = setTimeout(() => { paintRaster(); drawNtas(); }, 60);
   });
 
-  document.getElementById('annual-mode-btns').addEventListener('click', (e) => {
-    const btn = e.target.closest('.pill-btn');
-    if (!btn) return;
-    annualMode = btn.getAttribute('data-amode');
-    document.querySelectorAll('#annual-mode-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
-    renderAnnualChart();
+  // address search (NYC Planning GeoSearch)
+  let gt = null, sel = -1;
+  const addr = $('addr'), sugg = $('sugg');
+  addr.addEventListener('input', () => {
+    clearTimeout(gt); const q = addr.value.trim();
+    if (q.length < 3) { sugg.style.display = 'none'; return; }
+    gt = setTimeout(() => fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?text=' + encodeURIComponent(q)).then(r => r.json()).then(res => {
+      const fs = (res.features || []).slice(0, 6);
+      if (!fs.length) { sugg.style.display = 'none'; return; }
+      sugg.innerHTML = fs.map((f, i) => `<div data-i="${i}">${f.properties.label}</div>`).join('');
+      sugg.style.display = 'block'; sel = -1;
+      sugg.querySelectorAll('div').forEach((el, i) => el.addEventListener('click', () => pick(fs[i])));
+      sugg._fs = fs;
+    }).catch(() => { sugg.style.display = 'none'; }), 200);
   });
-
-  document.getElementById('seat-filter-btns').addEventListener('click', (e) => {
-    const btn = e.target.closest('.pill-btn');
-    if (!btn) return;
-    seatFilter = btn.getAttribute('data-sfilter');
-    document.querySelectorAll('#seat-filter-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
-    if (map && map.getSource('seats')) {
-      map.getSource('seats').setData(buildPointsGeoJSON());
-    }
+  addr.addEventListener('keydown', e => {
+    const fs = sugg._fs || []; if (sugg.style.display !== 'block') return;
+    if (e.key === 'ArrowDown') { sel = Math.min(fs.length - 1, sel + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(fs[Math.max(0, sel)]); return; }
+    sugg.querySelectorAll('div').forEach((el, i) => el.classList.toggle('on', i === sel));
   });
-
-  document.getElementById('toggle-nta-choro').addEventListener('click', (e) => {
-    showNtaChoro = !showNtaChoro;
-    const btn = e.currentTarget;
-    btn.classList.toggle('active', showNtaChoro);
-    btn.textContent = `Neighborhood walk-time shading: ${showNtaChoro ? 'On' : 'Off'}`;
-    if (map && map.getLayer('nta-fill')) {
-      map.setLayoutProperty('nta-fill', 'visibility', showNtaChoro ? 'visible' : 'none');
-    }
-  });
-
-  const BORO_CENTERS = {
-    Manhattan: [-73.971, 40.776, 11.8],
-    Brooklyn: [-73.948, 40.645, 11.3],
-    Queens: [-73.82, 40.71, 11.0],
-    Bronx: [-73.875, 40.85, 11.6],
-    'Staten Island': [-74.15, 40.58, 11.3]
-  };
-  document.getElementById('boro-jump-select').addEventListener('change', (e) => {
-    const b = BORO_CENTERS[e.target.value];
-    if (b && map) map.flyTo({ center: [b[0], b[1]], zoom: b[2], essential: true });
-  });
-
-  // NYC Planning GeoSearch address autocomplete
-  let geoTimer = null;
-  const addrInput = document.getElementById('addr-input');
-  const geoBox = document.getElementById('geo-suggestions');
-  addrInput.addEventListener('input', () => {
-    const q = addrInput.value.trim();
-    clearTimeout(geoTimer);
-    if (q.length < 3) { geoBox.style.display = 'none'; return; }
-    geoTimer = setTimeout(() => {
-      fetch(`https://geosearch.planninglabs.nyc/v2/autocomplete?text=${encodeURIComponent(q)}`)
-        .then(r => r.json())
-        .then(res => {
-          const feats = (res && res.features) ? res.features.slice(0, 6) : [];
-          if (!feats.length) { geoBox.style.display = 'none'; return; }
-          geoBox.innerHTML = feats.map(f => `<div class="geo-item" data-lon="${f.geometry.coordinates[0]}" data-lat="${f.geometry.coordinates[1]}" data-lbl="${f.properties.label}">${f.properties.label}</div>`).join('');
-          geoBox.style.display = 'block';
-          geoBox.querySelectorAll('.geo-item').forEach(item => {
-            item.addEventListener('click', () => {
-              const lon = parseFloat(item.getAttribute('data-lon'));
-              const lat = parseFloat(item.getAttribute('data-lat'));
-              const lbl = item.getAttribute('data-lbl');
-              addrInput.value = lbl;
-              geoBox.style.display = 'none';
-              if (map) map.flyTo({ center: [lon, lat], zoom: 14.5, essential: true });
-              runSeatFinder(lat, lon, lbl);
-            });
-          });
-        })
-        .catch(() => { geoBox.style.display = 'none'; });
-    }, 220);
-  });
-
-  document.getElementById('nta-preset-btns').addEventListener('click', (e) => {
-    const btn = e.target.closest('.pill-btn');
-    if (!btn) return;
-    ntaPreset = btn.getAttribute('data-npreset');
-    document.querySelectorAll('#nta-preset-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
-    renderNtaTable();
-  });
-
-  document.getElementById('nta-search').addEventListener('input', renderNtaTable);
-
-  document.querySelectorAll('#nta-table th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-      const k = th.getAttribute('data-nsort');
-      if (ntaSortKey === k) {
-        ntaSortAsc = !ntaSortAsc;
-      } else {
-        ntaSortKey = k;
-        ntaSortAsc = (k === 'name' || k === 'boro' || k === 'seats_per_10k');
-      }
-      renderNtaTable();
-    });
-  });
+  function pick(f) {
+    if (!f) return;
+    addr.value = f.properties.label; sugg.style.display = 'none';
+    const [lo, la] = f.geometry.coordinates;
+    runFinder(la, lo, f.properties.label, true);
+  }
+  document.addEventListener('click', e => { if (!sugg.contains(e.target) && e.target !== addr) sugg.style.display = 'none'; });
+  let rz = null;
+  addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (D) { drawYears(); drawBoroughs(); drawNtas(); } }, 200); });
 })();
 </script>
 </body>
