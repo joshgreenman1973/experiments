@@ -14,7 +14,7 @@ c[['school_year', 'spring', 'schools', 'students', 'median_size', 'under_250', '
    'under_250_students', 'under_300_students', 'under_350_students',
    'schools_incl_transfer', 'under_250_incl_transfer', 'transfer_schools']].to_csv(OUT / 'counts.csv', index=False)
 
-s = pd.read_csv(ROOT / 'data/hs_spending_2024_25.csv', dtype={'beds': str})
+s = pd.read_csv(ROOT / 'data/hs_spending_2024_25.csv', dtype={'beds': str})  # suppressed need counts already blank
 f = pd.read_csv(ROOT / 'data/hs_functions_2024_25.csv', dtype={'beds': str})
 s = s.merge(f[['beds'] + [f'f{k}' for k in range(1, 13)] + ['total_pp']], on='beds', how='left')
 s['instruction_pp'] = s.f1 + s.f3
