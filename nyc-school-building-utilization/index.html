@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The empty classroom and the crowded one — New York City school building utilization, 2013–14 to 2025–26</title>
+<meta name="description" content="Across 1,350 New York City public school buildings in the 2025–26 Blue Book, 301 sit below 60% of target capacity while 337 run above 100% — including 109 crowded buildings within half a mile of an underused one and 46 shared buildings where both extremes operate under the same roof.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin: 28px 0 36px;
+    padding: 18px 0;
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--rule);
+  }
+  .stat-cell .num {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .stat-cell .lbl {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  @media (max-width: 760px) {
+    .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+  .chart-head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .pill-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .pill-btn:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .pill-btn.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .map-shell {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    margin: 18px 0 12px;
+  }
+  #bldg-map {
+    height: 600px;
+    width: 100%;
+    background: #0d0f12;
+  }
+  .map-inspector {
+    border-left: 1px solid var(--ink);
+    padding: 18px;
+    overflow-y: auto;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  @media (max-width: 900px) {
+    .map-shell { grid-template-columns: 1fr; }
+    .map-inspector { border-left: none; border-top: 1px solid var(--ink); max-height: none; }
+    #bldg-map { height: 460px; }
+  }
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+  .search-input {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    padding: 7px 11px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    min-width: 240px;
+    flex: 1;
+  }
+  .select-input {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .org-mini-row {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 12.5px;
+  }
+  .org-mini-row:last-child { border-bottom: none; }
+  .org-bar-track {
+    height: 6px;
+    background: var(--wash);
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .org-bar-fill {
+    height: 100%;
+  }
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid var(--rule);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .badge-crowded { color: var(--vermilion); border-color: var(--vermilion); }
+  .badge-under { color: var(--cobalt); border-color: var(--cobalt); }
+  .badge-charter { color: var(--magenta); border-color: var(--magenta); }
+  .badge-exempt { color: #b88400; border-color: var(--sun); }
+  .split-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 16px;
+    margin: 18px 0 28px;
+  }
+  .split-card {
+    border: 1px solid var(--rule);
+    padding: 14px 16px;
+    background: var(--paper);
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+  .split-card:hover {
+    border-color: var(--ink);
+  }
+  .table-scroll {
+    overflow-x: auto;
+    max-height: 540px;
+    overflow-y: auto;
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  table.data th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+  table.data th.sortable:hover {
+    color: var(--ink);
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="top">
+    <span>New York City School Construction Authority · Department of Education Blue Book</span>
+    <span>2013–14 to 2025–26 · Oct. 31, 2025 register</span>
+  </div>
+
+  <h1>The empty classroom and the crowded one</h1>
+
+  <p class="finding">
+    Across 1,350 New York City public school buildings with reported target capacity in 2025–26, 301 sit below 60% full while 337 run above 100% — including 109 overcrowded buildings within half a mile of an underused one and 46 shared buildings where a school over 100% capacity and a school below 60% operate under the same roof.
+  </p>
+
+  <p class="lede">
+    Since the 2015–16 school year, total enrollment across buildings tracked in the annual <a href="https://data.cityofnewyork.us/Education/Enrollment-Capacity-And-Utilization-Report/gkd7-3vk7">Enrollment, Capacity and Utilization Report</a> (known as the Blue Book), published jointly by the New York City School Construction Authority (SCA) and Department of Education (DOE), has fallen by 172,783 students, from 1,035,617 to 862,834, while target building capacity changed by less than 1% (from 1,082,219 seats to 1,076,362). Citywide building utilization now stands at 80.2%, leaving 213,528 net empty target seats. Yet those empty seats are not where the crowded classrooms are: every one of the city’s 32 community school districts contains both a building below 60% of target capacity and a building above 100%, and when building utilization is paired with the DOE’s Nov. 2025 <a href="https://infohub.nyced.org/reports/government-reports/class-size-reports">class-size compliance report</a> under New York State Education Law 211-d, only 52.1% of non-exempt classes in overcrowded buildings meet the state caps, compared with 80.1% in buildings below 60% full.
+  </p>
+
+  <div class="stat-strip">
+    <div class="stat-cell">
+      <div class="num" style="color:var(--cobalt)">301</div>
+      <div class="lbl">Buildings below 60% of target capacity in 2025–26 (285 active with students, 16 at zero enrollment), up from 113 in 2015–16</div>
+    </div>
+    <div class="stat-cell">
+      <div class="num" style="color:var(--vermilion)">337</div>
+      <div class="lbl">Buildings over 100% of target capacity in 2025–26 (349 at or above 100%), down from 639 in 2015–16</div>
+    </div>
+    <div class="stat-cell">
+      <div class="num">109</div>
+      <div class="lbl">Overcrowded buildings (&gt;100% full) located within 0.5 miles straight-line of an active building below 60% full (97 in the same district)</div>
+    </div>
+    <div class="stat-cell">
+      <div class="num" style="color:var(--magenta)">46</div>
+      <div class="lbl">Co-located buildings where an active school over 100% of its assigned capacity shares a roof with an active school below 60%</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: HISTORICAL CHART -->
+  <section class="chart-block">
+    <div class="chart-head-row">
+      <div>
+        <div class="chart-title">Overcrowded buildings fell by nearly half since 2015–16, while buildings below 60% capacity nearly tripled</div>
+        <div class="chart-sub">Number of New York City public school buildings by target utilization band across the seven Blue Book editions in NYC Open Data (<span class="mono">gkd7-3vk7</span>), 2013–14 to 2025–26</div>
+      </div>
+      <div class="pill-row" id="hist-mode-btns">
+        <button class="pill-btn active" data-mode="counts">Building counts (&gt;100% vs. &lt;60%)</button>
+        <button class="pill-btn" data-mode="seats">Total enrollment vs. target capacity</button>
+        <button class="pill-btn" data-mode="util">Citywide utilization (%)</button>
+        <button class="pill-btn" id="hist-zero-btn" style="display:none">Start y-axis at zero: On</button>
+      </div>
+    </div>
+    <div id="history-chart-wrap" style="width:100%;overflow-x:auto;"></div>
+    <p class="source">
+      Source: SCA and DOE <a href="https://data.cityofnewyork.us/Education/Enrollment-Capacity-And-Utilization-Report/gkd7-3vk7">Enrollment, Capacity and Utilization Report</a> (<span class="mono">gkd7-3vk7</span>), Target Calculation, across all seven complete historical snapshots in the dataset (1,304 buildings with positive capacity in 2013–14; 1,350 in 2025–26). School years are matched to the Oct. 31 audited register date of each edition.
+    </p>
+  </section>
+
+  <!-- SECTION 2: INTERACTIVE MAP -->
+  <h2>1. Every school building in 2025–26, and the crowded buildings blocks from half-empty ones</h2>
+  <p>
+    Of the 1,350 buildings with positive target capacity in the 2025–26 Blue Book, 1,344 (99.6%) match to building coordinates via the DOE Location Code Generation and Management System (LCGMS) directory and school locations file. Filtering the map to <strong>Half-mile pairs (109)</strong> draws a connecting line from each overcrowded building (&gt;100% target utilization) to its nearest active building below 60% full within 0.5 miles (excluding pairs that house the same school organization across a main building and annex). At 100 Amsterdam Ave. on the Upper West Side, for example, Fiorello H. LaGuardia High School (<span class="mono">M485</span>) runs at 110% of target capacity (2,365 students in 2,157 seats), while 0.05 miles across the street at 122 Amsterdam Ave., the Martin Luther King Jr. Educational Campus (<span class="mono">M490</span>) sits at 52% of target capacity (1,736 students in 3,314 seats, leaving 1,578 empty target seats).
+  </p>
+
+  <div class="search-bar">
+    <div class="pill-row" id="map-filter-btns">
+      <button class="pill-btn active" data-filter="all">All 1,344 buildings</button>
+      <button class="pill-btn" data-filter="extremes">Only &lt;60% (300) and &gt;100% (337)</button>
+      <button class="pill-btn" data-filter="pairs">Half-mile pairs: &gt;100% near &lt;60% (109)</button>
+      <button class="pill-btn" data-filter="splits">Co-located split under one roof (46)</button>
+      <button class="pill-btn" data-filter="exempt">State class-size space exemptions (95)</button>
+    </div>
+  </div>
+  <div class="search-bar">
+    <input type="text" id="map-search" class="search-input" placeholder="Search building code (M485, K002), school name, or street address…">
+    <select id="map-boro-select" class="select-input">
+      <option value="all">All boroughs</option>
+      <option value="Manhattan">Manhattan</option>
+      <option value="Bronx">Bronx</option>
+      <option value="Brooklyn">Brooklyn</option>
+      <option value="Queens">Queens</option>
+      <option value="Staten Island">Staten Island</option>
+    </select>
+    <select id="map-dist-select" class="select-input">
+      <option value="all">All 32 districts</option>
+    </select>
+  </div>
+
+  <div class="chart-legend" style="margin-bottom:8px;">
+    <span><i class="legend-dot" style="background:#1e5aff"></i>Under 60% full (301 buildings)</span>
+    <span><i class="legend-dot" style="background:#0891b2"></i>60% to 79% full (386)</span>
+    <span><i class="legend-dot" style="background:#9ca3af"></i>80% to 100% full (326)</span>
+    <span><i class="legend-dot" style="background:#f5b700"></i>101% to 119% full (226)</span>
+    <span><i class="legend-dot" style="background:#ff4d1c"></i>120% or more (111)</span>
+    <span><i class="legend-dot" style="background:#e0288a"></i>Co-located split (&gt;100% &amp; &lt;60% in same building)</span>
+  </div>
+
+  <div class="map-shell">
+    <div id="bldg-map"></div>
+    <div class="map-inspector" id="map-inspector">
+      <div class="kicker">Building inspector</div>
+      <div id="inspector-body">
+        <p style="font-size:13.5px;color:var(--muted);">Click any building circle on the map — or pick a building from the tables below — to inspect its enrollment, target capacity, every school organization housed inside, its nearest underused neighbor and its state class-size compliance.</p>
+      </div>
+    </div>
+  </div>
+  <p class="source">
+    Source: SCA/DOE 2025–26 Blue Book (<span class="mono">Data As Of = 09/09/2026</span>, Oct. 31, 2025 register) and DOE Nov. 2025 Class Size Report (Table C). Six of the 1,350 buildings with capacity lack coordinate matches in LCGMS and appear in the table below.
+  </p>
+
+  <!-- SECTION 3: CLASS SIZE COLLISION -->
+  <h2>2. Where the state class-size mandate collides with building utilization</h2>
+  <p>
+    New York State Education Law 211-d requires the DOE to phase in hard caps on K–12 class sizes — 20 students in grades K–3, 23 in grades 4–8 and 25 in high school — across all non-exempt classes by 2027–28. Matching the DOE’s Nov. 15, 2025 school-level compliance report (covering 120,035 non-exempt classes and 22,527 exempted classes as of Oct. 31, 2025) to the buildings where those schools sit shows that class-size compliance tracks building utilization directly.
+  </p>
+  <p>
+    In the 301 buildings operating below 60% of target capacity, <strong>80.1%</strong> of non-exempt classes (20,268 of 25,301) already meet the state caps, and the DOE claimed <strong>zero</strong> space exemptions. In the 337 buildings above 100% of target capacity, only <strong>52.1%</strong> of non-exempt classes (19,448 of 37,317) meet the caps — and the DOE exempted another <strong>9,209 classes</strong> across 79 of those overcrowded buildings on the grounds that physical classroom space does not exist in the building.
+  </p>
+
+  <section class="chart-block">
+    <div class="chart-title">Class-size compliance drops from 80.1% in buildings below 60% full to 52.1% in buildings over 100% full</div>
+    <div class="chart-sub">Share of non-exempt classes at or below New York State Education Law 211-d caps, and number of exempted classes, by building target utilization band (Oct. 31, 2025)</div>
+    <div id="class-size-chart-wrap" style="margin-top:14px;"></div>
+    <p class="source">
+      Source: DOE <a href="https://infohub.nyced.org/reports/government-reports/class-size-reports">2025–26 Class Size Report</a> (Table C, Nov. 15, 2025, data as of Oct. 31, 2025) matched by school DBN and Organization ID to primary buildings in the 2025–26 Blue Book. District 75 special education organizations and charter schools are not subject to Table C reporting.
+    </p>
+  </section>
+
+  <!-- SECTION 4: CO-LOCATION SPLITS UNDER ONE ROOF -->
+  <h2>3. Crowded on one floor, half-empty on another: 46 co-located buildings</h2>
+  <p>
+    In 404 New York City public school buildings, two or more active K–12 schools (each with at least 50 enrolled students and 50 assigned target seats, excluding District 79 alternative programs and Alternate Learning Centers) share the same physical structure. Because the DOE allocates specific rooms and footprints to each co-located organization, a building whose overall utilization looks moderate on paper can house one school bursting past 100% of its assigned capacity alongside another school sitting below 60%.
+  </p>
+  <p>
+    That split occurs in <strong>46 shared buildings</strong> in 2025–26 (and in 73 buildings if the lower threshold is 75% capacity). In 24 of the 46 buildings, the overcrowded organization is a co-located charter school while the underutilized organization is a district school; in the other 22 buildings, both the crowded school and the underused school are DOE district schools. Click any card below to focus the map and building inspector on that campus.
+  </p>
+
+  <div class="pill-row" id="split-filter-btns" style="margin-bottom:12px;">
+    <button class="pill-btn active" data-split="all">Top 12 widest splits</button>
+    <button class="pill-btn" data-split="all46">All 46 buildings (&gt;100% &amp; &lt;60%)</button>
+    <button class="pill-btn" data-split="charter">Charter + district splits (24)</button>
+    <button class="pill-btn" data-split="district">District-only splits (22)</button>
+  </div>
+  <div class="split-grid" id="split-cards-grid"></div>
+
+  <!-- SECTION 5: CLOSEST OVERCROWDED-TO-UNDERUSED PAIRS -->
+  <h2>4. Overcrowded buildings with an underused building down the block</h2>
+  <p>
+    Across the 337 geocoded buildings operating over 100% of target capacity, <strong>109 (32.3%)</strong> sit within half a mile straight-line distance of an active building operating below 60% of target capacity, and <strong>228 (67.7%)</strong> sit within one mile. In 97 of the 109 half-mile pairs, both buildings are in the same community school district. Below are the closest pairs citywide; click any row to highlight both buildings and the line connecting them on the map.
+  </p>
+
+  <div class="pill-row" id="pair-filter-btns" style="margin-bottom:10px;">
+    <button class="pill-btn active" data-pair="same">Same district &amp; Cap ≥ 250 (top 25)</button>
+    <button class="pill-btn" data-pair="half">All 109 pairs within 0.5 miles</button>
+  </div>
+  <div class="table-scroll">
+    <table class="data" id="pairs-table">
+      <thead>
+        <tr>
+          <th>Dist.</th>
+          <th>Overcrowded building (&gt;100%)</th>
+          <th class="num">Enroll / Cap</th>
+          <th class="num">Util.</th>
+          <th>Nearest active &lt;60% building</th>
+          <th class="num">Enroll / Cap</th>
+          <th class="num">Util.</th>
+          <th class="num">Empty seats</th>
+          <th class="num">Distance</th>
+        </tr>
+      </thead>
+      <tbody id="pairs-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 6: FULL BUILDING & DISTRICT EXPLORER -->
+  <h2>5. Search all 1,350 buildings and 32 community school districts</h2>
+  <p>
+    Every one of New York City’s 32 geographic community school districts has at least one building below 60% of target capacity and at least one building above 100% in 2025–26. Use the toggle below to switch between the 32-district summary and the complete searchable table of all 1,350 buildings.
+  </p>
+
+  <div class="search-bar">
+    <div class="pill-row" id="table-mode-btns">
+      <button class="pill-btn active" data-tmode="buildings">All 1,350 buildings</button>
+      <button class="pill-btn" data-tmode="districts">32 community school districts</button>
+    </div>
+    <input type="text" id="tbl-search" class="search-input" placeholder="Filter table by building ID, name, borough, neighborhood or school…">
+    <select id="tbl-band-select" class="select-input">
+      <option value="all">All utilization bands (1,350)</option>
+      <option value="u60">Under 60% full (301)</option>
+      <option value="60_100">60% to 100% full (712)</option>
+      <option value="o100">Over 100% full (337)</option>
+      <option value="split">Co-located split &gt;100% &amp; &lt;60% (46)</option>
+    </select>
+  </div>
+
+  <div class="table-scroll" id="buildings-table-wrap">
+    <table class="data" id="buildings-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="id">Bldg ID</th>
+          <th class="sortable" data-sort="name">Building name &amp; neighborhood</th>
+          <th class="sortable" data-sort="district">Dist.</th>
+          <th class="num sortable" data-sort="enroll">Enrollment</th>
+          <th class="num sortable" data-sort="cap">Target cap.</th>
+          <th class="num sortable" data-sort="util">Util. ▼</th>
+          <th class="num sortable" data-sort="empty_seats">Empty / (over) seats</th>
+          <th class="num sortable" data-sort="n_orgs">Schools</th>
+          <th class="num sortable" data-sort="cap_compliant_pct">Class cap %</th>
+          <th class="num sortable" data-sort="nearest_under60_miles">Nearest &lt;60%</th>
+        </tr>
+      </thead>
+      <tbody id="buildings-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="table-scroll" id="districts-table-wrap" style="display:none;">
+    <table class="data" id="districts-table">
+      <thead>
+        <tr>
+          <th>District</th>
+          <th>Borough</th>
+          <th class="num">Buildings</th>
+          <th class="num">Enrollment</th>
+          <th class="num">Target capacity</th>
+          <th class="num">Overall util.</th>
+          <th class="num">Net empty seats</th>
+          <th class="num">Bldgs &lt;60%</th>
+          <th class="num">Bldgs &gt;100%</th>
+          <th class="num">Classes meeting cap</th>
+          <th class="num">Exempt classes</th>
+        </tr>
+      </thead>
+      <tbody id="districts-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 7: METHODOLOGY & DOWNLOADS -->
+  <section class="methods">
+    <h3>How this was done</h3>
+    <p>
+      <strong>Primary sources and record counts.</strong> Building enrollment, target capacity and target utilization come from the New York City School Construction Authority (SCA) and Department of Education (DOE) <a href="https://data.cityofnewyork.us/Education/Enrollment-Capacity-And-Utilization-Report/gkd7-3vk7">Enrollment, Capacity and Utilization Report</a> (the Blue Book), Target Calculation, published on NYC Open Data (<span class="mono">gkd7-3vk7</span>). The multi-vintage archive contains 20,754 rows across eight <span class="mono">Data As Of</span> snapshots. One snapshot (<span class="mono">02/28/2026</span>) contains only 6 rows and is excluded; the remaining seven complete editions cover the 2013–14 through 2025–26 school years (matched by comparing edition enrollment totals against New York State Education Department Oct. 31 audited registers).
+    </p>
+    <p>
+      In the 2025–26 edition (<span class="mono">Data As Of = 09/09/2026</span>, reflecting the Oct. 31, 2025 audited register), there are 3,132 organization-by-building rows across 1,384 distinct <span class="mono">Bldg ID</span> codes. Each row repeats building-level totals (<span class="mono">Bldg Enroll</span>, <span class="mono">Target Bldg Cap</span>, <span class="mono">Target Bldg Util</span>) alongside organization-level figures (<span class="mono">Org Enroll</span>, <span class="mono">Org Target Cap</span>, <span class="mono">Org Target Util</span>) and an <span class="mono">Incl. Class</span> flag for District 75 special education inclusion programs housed inside host buildings. Deduplicating by <span class="mono">Bldg ID</span> and dropping 34 administrative or unrated building codes with zero or blank <span class="mono">Target Bldg Cap</span> yields <strong>1,350 buildings</strong> (1,334 with positive student enrollment and 16 with zero enrollment in 2025–26).
+    </p>
+    <p>
+      <strong>Geocoding and proximity pairs.</strong> Building codes were matched to coordinates using the DOE Location Code Generation and Management System (LCGMS) school directory (fetched Oct. 7, 2026), the DOE 2019–20 School Locations dataset (<span class="mono">wg9x-4ke6</span>) and the Organization-ID-to-DBN crosswalk from the Blue Book, geocoding <strong>1,344 of 1,350 buildings (99.6%)</strong>. For each of the 337 geocoded buildings over 100% of target capacity, straight-line haversine distance was computed to every active building (enrollment &gt; 0) below 60% of target capacity. Pairs that share any school organization (such as a school’s main building and its annex) or sit at identical campus coordinates (&lt;0.01 miles) are excluded from the proximity count.
+    </p>
+    <p>
+      <strong>Co-location splits and state class-size compliance.</strong> A building is counted as a co-located split if it houses at least two active K–12 school organizations (matching pattern <span class="mono">^[MXKQR]\d{3}$</span>, <span class="mono">Incl. Class = ""</span>, with at least 50 enrolled students and 50 target seats, excluding Alternate Learning Centers and citywide Pathways to Graduation programs) where at least one organization exceeds 100% of its assigned target capacity and another is below 60%. Class-size compliance figures come from the DOE’s Nov. 15, 2025 <a href="https://infohub.nyced.org/reports/government-reports/class-size-reports">Class Size Report</a> (Table C, data as of Oct. 31, 2025) under New York State Education Law 211-d, joined by DBN to each school’s primary building.
+    </p>
+    <p>
+      <strong>Limitations.</strong> Blue Book target capacity reflects the SCA’s formula for standard K–12 class sizes, specialty rooms and cluster rooms; physical room reassignments between co-located schools require Community Education Council review under New York State Education Law 2590-h. Proximity distances between buildings are straight-line miles and do not account for grade-span mismatches (for example, an overcrowded elementary school near an underused high school campus) or highway barriers, though building names and housed organizations are shown for every pair so readers can inspect grade compatibility directly.
+    </p>
+    <p>
+      <strong>Download the data and code:</strong>
+      <a href="data/buildings_2025_26.csv">buildings_2025_26.csv</a> (1,350 buildings) ·
+      <a href="data/overcrowded_nearest_under60_2025_26.csv">overcrowded_nearest_under60_2025_26.csv</a> (337 pairs) ·
+      <a href="data/districts_2025_26.csv">districts_2025_26.csv</a> (32 districts) ·
+      <a href="data/history_by_edition.csv">history_by_edition.csv</a> (7 editions) ·
+      <a href="data/utilization.json">utilization.json</a> ·
+      <a href="build_data.py">build_data.py</a> ·
+      <a href="METHODOLOGY.md">METHODOLOGY.md</a>
+    </p>
+  </section>
+
+  <aside class="ai-notice">
+    <strong>A note of caution.</strong> This page was generated from a prompt by an AI system, with minimal human oversight and review. While the system is instructed to pull from real databases and accurately relay what it finds, AI can make errors of all kinds. Verify important statistics against the primary source files linked above before citing.
+  </aside>
+
+  <footer>
+    <span>New York City school building utilization · Data as of Oct. 31, 2025 (2025–26 Blue Book)</span>
+    <span><a href="../">← Back to all experiments</a></span>
+  </footer>
+</main>
+
+<script>
+(function() {
+  let DATA = null;
+  let map = null;
+  let currentMapFilter = 'all';
+  let currentBoro = 'all';
+  let currentDist = 'all';
+  let selectedBldgId = null;
+  let histMode = 'counts';
+  let histStartZero = true;
+  let tableSortKey = 'util';
+  let tableSortAsc = false;
+
+  const fmtInt = (n) => (n === null || n === undefined || isNaN(n)) ? '—' : Number(n).toLocaleString('en-US');
+  const fmtPct = (n) => (n === null || n === undefined || isNaN(n)) ? '—' : `${n}%`;
+
+  function utilColor(u) {
+    if (u < 60) return '#1e5aff';
+    if (u < 80) return '#0891b2';
+    if (u <= 100) return '#9ca3af';
+    if (u < 120) return '#f5b700';
+    return '#ff4d1c';
+  }
+
+  function renderHistoryChart() {
+    const wrap = document.getElementById('history-chart-wrap');
+    const zeroBtn = document.getElementById('hist-zero-btn');
+    const hist = DATA.history;
+    const W = 900, H = 300;
+    const pad = { top: 28, right: 110, bottom: 42, left: 64 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+
+    const x = (i) => pad.left + (i / (hist.length - 1)) * plotW;
+
+    if (histMode === 'counts') {
+      zeroBtn.style.display = 'none';
+      const maxY = 700;
+      const y = (v) => pad.top + plotH - (v / maxY) * plotH;
+      const ticks = [0, 150, 300, 450, 600];
+
+      const overPts = hist.map((d, i) => `${x(i)},${y(d.over_100)}`).join(' ');
+      const underPts = hist.map((d, i) => `${x(i)},${y(d.under_60)}`).join(' ');
+
+      let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;font-family:var(--mono);">`;
+      ticks.forEach(t => {
+        const yy = y(t);
+        svg += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}" stroke="#e2e0dc" stroke-dasharray="${t === 0 ? 'none' : '3,3'}"/>`;
+        svg += `<text x="${pad.left - 10}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#6b6b72">${fmtInt(t)}</text>`;
+      });
+
+      svg += `<polyline fill="none" stroke="#ff4d1c" stroke-width="2.75" points="${overPts}"/>`;
+      svg += `<polyline fill="none" stroke="#1e5aff" stroke-width="2.75" points="${underPts}"/>`;
+
+      hist.forEach((d, i) => {
+        const xx = x(i);
+        const yo = y(d.over_100);
+        const yu = y(d.under_60);
+        svg += `<circle cx="${xx}" cy="${yo}" r="4.5" fill="#ff4d1c"/>`;
+        svg += `<circle cx="${xx}" cy="${yu}" r="4.5" fill="#1e5aff"/>`;
+        svg += `<text x="${xx}" y="${yo - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="#ff4d1c">${d.over_100}</text>`;
+        svg += `<text x="${xx}" y="${yu + 16}" text-anchor="middle" font-size="11" font-weight="700" fill="#1e5aff">${d.under_60}</text>`;
+        svg += `<text x="${xx}" y="${H - 14}" text-anchor="middle" font-size="11" fill="#0a0a0c">${d.school_year}</text>`;
+      });
+
+      const last = hist[hist.length - 1];
+      svg += `<text x="${x(hist.length - 1) + 10}" y="${y(last.over_100) + 4}" font-size="11.5" font-weight="700" fill="#ff4d1c">&gt;100% full</text>`;
+      svg += `<text x="${x(hist.length - 1) + 10}" y="${y(last.under_60) + 4}" font-size="11.5" font-weight="700" fill="#1e5aff">&lt;60% full</text>`;
+      svg += `</svg>`;
+      wrap.innerHTML = svg;
+    } else if (histMode === 'seats') {
+      zeroBtn.style.display = 'inline-block';
+      zeroBtn.textContent = `Start y-axis at zero: ${histStartZero ? 'On' : 'Off'}`;
+      const minY = histStartZero ? 0 : 750000;
+      const maxY = 1150000;
+      const y = (v) => pad.top + plotH - ((v - minY) / (maxY - minY)) * plotH;
+      const ticks = histStartZero ? [0, 300000, 600000, 900000, 1100000] : [750000, 850000, 950000, 1050000, 1150000];
+
+      const capPts = hist.map((d, i) => `${x(i)},${y(d.capacity)}`).join(' ');
+      const enrPts = hist.map((d, i) => `${x(i)},${y(d.enrollment)}`).join(' ');
+
+      let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;font-family:var(--mono);">`;
+      ticks.forEach(t => {
+        const yy = y(t);
+        svg += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}" stroke="#e2e0dc" stroke-dasharray="${t === minY ? 'none' : '3,3'}"/>`;
+        svg += `<text x="${pad.left - 8}" y="${yy + 4}" text-anchor="end" font-size="10.5" fill="#6b6b72">${(t / 1000000).toFixed(2)}M</text>`;
+      });
+
+      svg += `<polyline fill="none" stroke="#0a0a0c" stroke-width="2.5" stroke-dasharray="5,4" points="${capPts}"/>`;
+      svg += `<polyline fill="none" stroke="#1e5aff" stroke-width="2.75" points="${enrPts}"/>`;
+
+      hist.forEach((d, i) => {
+        const xx = x(i);
+        svg += `<circle cx="${xx}" cy="${y(d.capacity)}" r="4" fill="#0a0a0c"/>`;
+        svg += `<circle cx="${xx}" cy="${y(d.enrollment)}" r="4.5" fill="#1e5aff"/>`;
+        svg += `<text x="${xx}" y="${y(d.enrollment) + 17}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1e5aff">${Math.round(d.enrollment / 1000)}k</text>`;
+        svg += `<text x="${xx}" y="${H - 14}" text-anchor="middle" font-size="11" fill="#0a0a0c">${d.school_year}</text>`;
+      });
+      const last = hist[hist.length - 1];
+      svg += `<text x="${x(hist.length - 1) + 10}" y="${y(last.capacity) + 4}" font-size="11" font-weight="700" fill="#0a0a0c">Capacity (1.08M)</text>`;
+      svg += `<text x="${x(hist.length - 1) + 10}" y="${y(last.enrollment) + 4}" font-size="11" font-weight="700" fill="#1e5aff">Enrollment (863k)</text>`;
+      svg += `</svg>`;
+      wrap.innerHTML = svg;
+    } else {
+      zeroBtn.style.display = 'inline-block';
+      zeroBtn.textContent = `Start y-axis at zero: ${histStartZero ? 'On' : 'Off'}`;
+      const minY = histStartZero ? 0 : 70;
+      const maxY = 105;
+      const y = (v) => pad.top + plotH - ((v - minY) / (maxY - minY)) * plotH;
+      const ticks = histStartZero ? [0, 25, 50, 75, 100] : [70, 80, 90, 100];
+
+      const uPts = hist.map((d, i) => `${x(i)},${y(d.overall_util_pct)}`).join(' ');
+      let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;font-family:var(--mono);">`;
+      ticks.forEach(t => {
+        const yy = y(t);
+        svg += `<line x1="${pad.left}" y1="${yy}" x2="${W - pad.right}" y2="${yy}" stroke="#e2e0dc" stroke-dasharray="${t === minY ? 'none' : '3,3'}"/>`;
+        svg += `<text x="${pad.left - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#6b6b72">${t}%</text>`;
+      });
+      svg += `<polyline fill="none" stroke="#0a0a0c" stroke-width="2.75" points="${uPts}"/>`;
+      hist.forEach((d, i) => {
+        const xx = x(i);
+        const yy = y(d.overall_util_pct);
+        svg += `<circle cx="${xx}" cy="${yy}" r="4.5" fill="#0a0a0c"/>`;
+        svg += `<text x="${xx}" y="${yy - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="#0a0a0c">${d.overall_util_pct}%</text>`;
+        svg += `<text x="${xx}" y="${H - 14}" text-anchor="middle" font-size="11" fill="#0a0a0c">${d.school_year}</text>`;
+      });
+      svg += `</svg>`;
+      wrap.innerHTML = svg;
+    }
+  }
+
+  function renderClassSizeChart() {
+    const wrap = document.getElementById('class-size-chart-wrap');
+    const rows = DATA.class_size_by_band.filter(r => r.band !== '100% or more');
+    let html = `<table class="data"><thead><tr>
+      <th>Building utilization band</th>
+      <th class="num">Buildings</th>
+      <th class="num">Enrollment</th>
+      <th class="num">Non-exempt classes</th>
+      <th class="num">Classes meeting state cap</th>
+      <th style="width:220px;">Share within cap</th>
+      <th class="num">Space-exempt classes</th>
+      <th class="num">Bldgs w/ space exemption</th>
+    </tr></thead><tbody>`;
+
+    rows.forEach(r => {
+      const barColor = r.pct_within_cap >= 75 ? 'var(--cobalt)' : (r.pct_within_cap < 60 ? 'var(--vermilion)' : '#6b6b72');
+      html += `<tr>
+        <td><strong>${r.band}</strong></td>
+        <td class="num">${fmtInt(r.buildings)}</td>
+        <td class="num">${fmtInt(r.enrollment)}</td>
+        <td class="num">${fmtInt(r.nonexempt_classes)}</td>
+        <td class="num">${fmtInt(r.classes_within_cap)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:10px;background:var(--wash);">
+              <div style="width:${r.pct_within_cap}%;height:100%;background:${barColor};"></div>
+            </div>
+            <span class="mono" style="font-size:12px;font-weight:700;min-width:44px;text-align:right;">${r.pct_within_cap}%</span>
+          </div>
+        </td>
+        <td class="num" style="color:${r.exempt_classes > 0 ? 'var(--vermilion)' : 'var(--muted)'};font-weight:${r.exempt_classes > 0 ? '700' : '400'};">${fmtInt(r.exempt_classes)}</td>
+        <td class="num">${fmtInt(r.buildings_with_space_exemption)}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+  }
+
+  function inspectBuilding(bid, fly = false) {
+    const b = DATA.buildings.find(x => x.id === bid);
+    if (!b) return;
+    selectedBldgId = b.id;
+    const url = new URL(window.location.href);
+    url.searchParams.set('bldg', b.id);
+    window.history.replaceState({}, '', url);
+
+    if (fly && map && b.lat && b.lon) {
+      map.flyTo({ center: [b.lon, b.lat], zoom: 14.5, essential: true });
+    }
+
+    const activeOrgs = b.orgs.filter(o => o.is_school && o.incl === '' && (o.enroll > 0 || o.cap > 0));
+    const d75Orgs = b.orgs.filter(o => o.incl !== '');
+
+    let badges = '';
+    if (b.util > 100) badges += `<span class="badge badge-crowded">&gt;100% Crowded</span> `;
+    if (b.util < 60) badges += `<span class="badge badge-under">&lt;60% Underused</span> `;
+    if (b.split_100_60) badges += `<span class="badge badge-charter">Co-located split</span> `;
+    if (b.space_exempt) badges += `<span class="badge badge-exempt">Space exemption</span>`;
+
+    let html = `
+      <div>
+        <div class="mono" style="font-size:12px;color:var(--muted);">${b.id} · District ${b.district} · ${b.boro}</div>
+        <div style="font-size:17px;font-weight:700;margin:3px 0;">${b.name}</div>
+        <div style="font-size:12.5px;color:var(--muted);">${b.address || ''}${b.nta ? ' · ' + b.nta : ''}</div>
+        <div style="margin-top:6px;">${badges}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);">
+        <div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:${utilColor(b.util)}">${b.util}%</div>
+          <div style="font-size:11px;color:var(--muted);">Building util.</div>
+        </div>
+        <div>
+          <div class="mono" style="font-size:18px;font-weight:700;">${fmtInt(b.enroll)}</div>
+          <div style="font-size:11px;color:var(--muted);">Students</div>
+        </div>
+        <div>
+          <div class="mono" style="font-size:18px;font-weight:700;">${fmtInt(b.cap)}</div>
+          <div style="font-size:11px;color:var(--muted);">Target seats</div>
+        </div>
+      </div>
+    `;
+
+    if (b.nearest_under60_id) {
+      html += `<div style="padding:8px 10px;background:var(--wash);border-left:3px solid var(--cobalt);font-size:12.5px;">
+        <strong>Nearest active &lt;60% building:</strong>
+        <a href="#bldg-map" data-jump="${b.nearest_under60_id}" style="font-weight:600;">${b.nearest_under60_id} (${b.nearest_under60_name})</a>
+        — <strong>${b.nearest_under60_miles} mi</strong> away, sitting at <strong>${b.nearest_under60_util}%</strong> full (${fmtInt(b.nearest_under60_empty_seats)} empty target seats).
+      </div>`;
+    }
+
+    if (b.cap_nonexempt_classes) {
+      html += `<div style="font-size:12.5px;">
+        <strong>State class-size law (Table C):</strong> <span class="mono">${b.cap_compliant_pct}%</span> of ${fmtInt(b.cap_nonexempt_classes)} non-exempt classes meet caps (${fmtInt(b.cap_over_classes)} over cap; ${fmtInt(b.cap_exempt_classes || 0)} exempt).
+      </div>`;
+    }
+
+    html += `<div><div class="kicker" style="margin-bottom:6px;">Schools in this building (${activeOrgs.length})</div>`;
+    activeOrgs.forEach(o => {
+      const u = o.util !== null ? o.util : 0;
+      const w = Math.min(100, Math.round((u / 160) * 100));
+      const c = u > 100 ? 'var(--vermilion)' : (u < 60 ? 'var(--cobalt)' : '#6b6b72');
+      html += `<div class="org-mini-row">
+        <div style="display:flex;justify-content:space-between;gap:8px;">
+          <span><strong>${o.org_id}</strong> ${o.name} ${o.is_charter ? '<span class="badge badge-charter">Charter</span>' : ''}</span>
+          <span class="mono" style="font-weight:700;color:${c}">${o.util !== null ? o.util + '%' : '—'}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">
+          ${fmtInt(o.enroll)} students / ${fmtInt(o.cap)} target seats
+          ${o.cap_pct !== null ? ` · Class cap compliance: ${o.cap_pct}%` : ''}
+        </div>
+        <div class="org-bar-track"><div class="org-bar-fill" style="width:${w}%;background:${c}"></div></div>
+      </div>`;
+    });
+    if (d75Orgs.length > 0) {
+      html += `<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">Plus ${d75Orgs.length} District 75 special education inclusion organization(s).</div>`;
+    }
+    html += `</div>`;
+
+    const body = document.getElementById('inspector-body');
+    body.innerHTML = html;
+    body.querySelectorAll('[data-jump]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        inspectBuilding(el.getAttribute('data-jump'), true);
+      });
+    });
+  }
+
+  function buildGeoJSON() {
+    const halfMileUnderIds = new Set(
+      DATA.closest_pairs.filter(p => p.miles <= 0.5).map(p => p.under_id)
+    );
+    const features = [];
+    DATA.buildings.forEach(b => {
+      if (b.lat === null || b.lon === null) return;
+      if (currentBoro !== 'all' && b.boro !== currentBoro) return;
+      if (currentDist !== 'all' && String(b.district) !== String(currentDist)) return;
+
+      if (currentMapFilter === 'extremes' && !(b.util < 60 || b.util > 100)) return;
+      if (currentMapFilter === 'pairs') {
+        const inPair = (b.util > 100 && b.nearest_under60_miles !== undefined && b.nearest_under60_miles <= 0.5) || halfMileUnderIds.has(b.id);
+        if (!inPair) return;
+      }
+      if (currentMapFilter === 'splits' && !b.split_100_60) return;
+      if (currentMapFilter === 'exempt' && !(b.cap_exempt_classes && b.cap_exempt_classes > 0)) return;
+
+      const color = currentMapFilter === 'splits' ? '#e0288a' : utilColor(b.util);
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [b.lon, b.lat] },
+        properties: {
+          id: b.id,
+          name: b.name,
+          util: b.util,
+          enroll: b.enroll,
+          cap: b.cap,
+          color: color,
+          radius: Math.max(4, Math.min(11, 3.5 + Math.sqrt(b.cap / 220)))
+        }
+      });
+    });
+
+    const lineFeatures = [];
+    if (currentMapFilter === 'pairs') {
+      DATA.closest_pairs.filter(p => p.miles <= 0.5).forEach(p => {
+        if (currentBoro !== 'all' && p.crowded_boro !== currentBoro) return;
+        if (currentDist !== 'all' && String(p.crowded_district) !== String(currentDist)) return;
+        lineFeatures.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [[p.crowded_lon, p.crowded_lat], [p.under_lon, p.under_lat]]
+          },
+          properties: { miles: p.miles }
+        });
+      });
+    }
+
+    return {
+      points: { type: 'FeatureCollection', features },
+      lines: { type: 'FeatureCollection', features: lineFeatures }
+    };
+  }
+
+  function updateMapSources() {
+    if (!map || !map.getSource('buildings')) return;
+    const { points, lines } = buildGeoJSON();
+    map.getSource('buildings').setData(points);
+    map.getSource('pair-lines').setData(lines);
+  }
+
+  function initMap() {
+    map = new maplibregl.Map({
+      container: 'bldg-map',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [-73.94, 40.73],
+      zoom: 10.3,
+      attributionControl: true
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+    map.on('load', () => {
+      const { points, lines } = buildGeoJSON();
+      map.addSource('pair-lines', { type: 'geojson', data: lines });
+      map.addLayer({
+        id: 'pair-lines-layer',
+        type: 'line',
+        source: 'pair-lines',
+        paint: {
+          'line-color': '#f5b700',
+          'line-width': 2,
+          'line-opacity': 0.85
+        }
+      });
+
+      map.addSource('buildings', { type: 'geojson', data: points });
+      map.addLayer({
+        id: 'buildings-circle',
+        type: 'circle',
+        source: 'buildings',
+        paint: {
+          'circle-radius': ['get', 'radius'],
+          'circle-color': ['get', 'color'],
+          'circle-opacity': 0.88,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#0a0a0c'
+        }
+      });
+
+      const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+      map.on('mouseenter', 'buildings-circle', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const p = e.features[0].properties;
+        popup.setLngLat(e.features[0].geometry.coordinates)
+          .setHTML(`<div style="font-family:var(--sans);color:#0a0a0c;font-size:12px;">
+            <strong>${p.id} · ${p.name}</strong><br>
+            Utilization: <strong>${p.util}%</strong> (${fmtInt(p.enroll)} / ${fmtInt(p.cap)} seats)
+          </div>`)
+          .addTo(map);
+      });
+      map.on('mouseleave', 'buildings-circle', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
+      });
+      map.on('click', 'buildings-circle', (e) => {
+        const p = e.features[0].properties;
+        inspectBuilding(p.id, false);
+      });
+    });
+  }
+
+  function renderSplitCards(mode = 'all') {
+    const grid = document.getElementById('split-cards-grid');
+    let list = DATA.colocated_splits.slice();
+    if (mode === 'charter') {
+      list = list.filter(b => b.has_charter);
+    } else if (mode === 'district') {
+      list = list.filter(b => !b.has_charter);
+    } else if (mode === 'all') {
+      list = list.slice(0, 12);
+    }
+
+    grid.innerHTML = list.map(b => {
+      const schools = b.orgs.filter(o => o.is_school && o.incl === '' && o.enroll >= 50 && o.cap >= 50 && !o.name.startsWith('ALC ') && !o.name.toUpperCase().includes('PATHWAYS TO GRADUATION'));
+      schools.sort((a, z) => (z.util || 0) - (a.util || 0));
+      const rowsHtml = schools.map(o => {
+        const c = o.util > 100 ? 'var(--vermilion)' : (o.util < 60 ? 'var(--cobalt)' : '#6b6b72');
+        const w = Math.min(100, Math.round((o.util / 170) * 100));
+        return `<div style="margin-top:7px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;gap:6px;">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>${o.org_id}</strong> ${o.name} ${o.is_charter ? '<span class="badge badge-charter">Charter</span>' : ''}</span>
+            <span class="mono" style="font-weight:700;color:${c};">${o.util}%</span>
+          </div>
+          <div class="org-bar-track"><div class="org-bar-fill" style="width:${w}%;background:${c};"></div></div>
+        </div>`;
+      }).join('');
+
+      return `<div class="split-card" data-bldg="${b.id}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span class="mono" style="font-size:11.5px;color:var(--muted);">${b.id} · Dist. ${b.district} · ${b.boro}</span>
+          <span class="mono" style="font-size:12px;font-weight:700;">Bldg overall: ${b.util}%</span>
+        </div>
+        <div style="font-weight:700;font-size:14px;margin:3px 0 6px;">${b.name}</div>
+        ${rowsHtml}
+      </div>`;
+    }).join('');
+
+    grid.querySelectorAll('.split-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const bid = card.getAttribute('data-bldg');
+        inspectBuilding(bid, true);
+        document.getElementById('bldg-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+
+  function renderPairsTable(mode = 'same') {
+    const tbody = document.getElementById('pairs-tbody');
+    let list = DATA.closest_pairs.filter(p => p.miles <= 0.5);
+    if (mode === 'same') {
+      list = list.filter(p => p.same_district && p.crowded_cap >= 250 && p.under_cap >= 250).slice(0, 25);
+    }
+    tbody.innerHTML = list.map(p => `<tr style="cursor:pointer;" data-crowded="${p.crowded_id}">
+      <td class="mono">D${p.crowded_district}${p.same_district ? '' : '→D' + p.under_district}</td>
+      <td><strong>${p.crowded_id}</strong> · ${p.crowded_name} <span style="color:var(--muted);font-size:12px;">(${p.crowded_boro})</span></td>
+      <td class="num">${fmtInt(p.crowded_enroll)} / ${fmtInt(p.crowded_cap)}</td>
+      <td class="num" style="color:var(--vermilion);font-weight:700;">${p.crowded_util}%</td>
+      <td><strong>${p.under_id}</strong> · ${p.under_name}</td>
+      <td class="num">${fmtInt(p.under_enroll)} / ${fmtInt(p.under_cap)}</td>
+      <td class="num" style="color:var(--cobalt);font-weight:700;">${p.under_util}%</td>
+      <td class="num">${fmtInt(p.under_empty_seats)}</td>
+      <td class="num"><strong>${p.miles.toFixed(2)} mi</strong></td>
+    </tr>`).join('');
+
+    tbody.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        inspectBuilding(tr.getAttribute('data-crowded'), true);
+        document.getElementById('bldg-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+
+  function renderBuildingsTable() {
+    const q = (document.getElementById('tbl-search').value || '').trim().toLowerCase();
+    const band = document.getElementById('tbl-band-select').value;
+    let list = DATA.buildings.filter(b => {
+      if (band === 'u60' && !(b.util < 60)) return false;
+      if (band === '60_100' && !(b.util >= 60 && b.util <= 100)) return false;
+      if (band === 'o100' && !(b.util > 100)) return false;
+      if (band === 'split' && !b.split_100_60) return false;
+      if (!q) return true;
+      const orgNames = b.orgs.map(o => `${o.org_id} ${o.name}`).join(' ').toLowerCase();
+      return (
+        b.id.toLowerCase().includes(q) ||
+        b.name.toLowerCase().includes(q) ||
+        b.boro.toLowerCase().includes(q) ||
+        (b.nta || '').toLowerCase().includes(q) ||
+        (b.address || '').toLowerCase().includes(q) ||
+        orgNames.includes(q)
+      );
+    });
+
+    list.sort((a, z) => {
+      const va = a[tableSortKey] ?? -999999;
+      const vz = z[tableSortKey] ?? -999999;
+      if (typeof va === 'string') {
+        return tableSortAsc ? va.localeCompare(vz) : vz.localeCompare(va);
+      }
+      return tableSortAsc ? (va - vz) : (vz - va);
+    });
+
+    const tbody = document.getElementById('buildings-tbody');
+    tbody.innerHTML = list.slice(0, 400).map(b => {
+      const uCol = b.util > 100 ? 'var(--vermilion)' : (b.util < 60 ? 'var(--cobalt)' : 'var(--ink)');
+      return `<tr style="cursor:pointer;" data-bid="${b.id}">
+        <td class="mono"><strong>${b.id}</strong></td>
+        <td><strong>${b.name}</strong><div style="font-size:11.5px;color:var(--muted);">${b.boro}${b.nta ? ' · ' + b.nta : ''}${b.split_100_60 ? ' · <span style="color:var(--magenta);font-weight:600;">Co-located split</span>' : ''}</div></td>
+        <td class="mono">D${b.district}</td>
+        <td class="num">${fmtInt(b.enroll)}</td>
+        <td class="num">${fmtInt(b.cap)}</td>
+        <td class="num" style="color:${uCol};font-weight:700;">${b.util}%</td>
+        <td class="num">${b.empty_seats >= 0 ? fmtInt(b.empty_seats) : '(' + fmtInt(Math.abs(b.empty_seats)) + ')'}</td>
+        <td class="num">${b.n_orgs}</td>
+        <td class="num">${b.cap_compliant_pct !== null ? b.cap_compliant_pct + '%' : '—'}</td>
+        <td class="num">${b.nearest_under60_miles !== undefined ? b.nearest_under60_miles + ' mi' : '—'}</td>
+      </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        inspectBuilding(tr.getAttribute('data-bid'), true);
+        document.getElementById('bldg-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+
+  function renderDistrictsTable() {
+    const tbody = document.getElementById('districts-tbody');
+    tbody.innerHTML = DATA.districts.map(d => `<tr>
+      <td class="mono"><strong>District ${d.district}</strong></td>
+      <td>${d.boro}</td>
+      <td class="num">${fmtInt(d.buildings)}</td>
+      <td class="num">${fmtInt(d.enrollment)}</td>
+      <td class="num">${fmtInt(d.capacity)}</td>
+      <td class="num"><strong>${d.util_pct}%</strong></td>
+      <td class="num">${fmtInt(d.empty_seats_net)}</td>
+      <td class="num" style="color:var(--cobalt);font-weight:700;">${d.under_60}</td>
+      <td class="num" style="color:var(--vermilion);font-weight:700;">${d.over_100}</td>
+      <td class="num">${d.cap_compliant_pct !== null ? d.cap_compliant_pct + '%' : '—'}</td>
+      <td class="num">${fmtInt(d.cap_exempt_classes)}</td>
+    </tr>`).join('');
+  }
+
+  fetch('data/utilization.json')
+    .then(r => r.json())
+    .then(data => {
+      DATA = data;
+      const distSel = document.getElementById('map-dist-select');
+      DATA.districts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.district;
+        opt.textContent = `District ${d.district} (${d.boro})`;
+        distSel.appendChild(opt);
+      });
+
+      renderHistoryChart();
+      renderClassSizeChart();
+      renderSplitCards('all');
+      renderPairsTable('same');
+      renderBuildingsTable();
+      renderDistrictsTable();
+      initMap();
+
+      const params = new URLSearchParams(window.location.search);
+      const initBldg = params.get('bldg') || 'M485';
+      inspectBuilding(initBldg, false);
+    });
+
+  // Event listeners
+  document.getElementById('hist-mode-btns').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    if (btn.id === 'hist-zero-btn') {
+      histStartZero = !histStartZero;
+      renderHistoryChart();
+      return;
+    }
+    const mode = btn.getAttribute('data-mode');
+    if (!mode) return;
+    histMode = mode;
+    document.querySelectorAll('#hist-mode-btns [data-mode]').forEach(b => b.classList.toggle('active', b === btn));
+    renderHistoryChart();
+  });
+
+  document.getElementById('map-filter-btns').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    currentMapFilter = btn.getAttribute('data-filter');
+    document.querySelectorAll('#map-filter-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
+    updateMapSources();
+  });
+
+  document.getElementById('map-boro-select').addEventListener('change', (e) => {
+    currentBoro = e.target.value;
+    updateMapSources();
+  });
+
+  document.getElementById('map-dist-select').addEventListener('change', (e) => {
+    currentDist = e.target.value;
+    updateMapSources();
+  });
+
+  document.getElementById('map-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    if (q.length < 2 || !DATA) return;
+    const hit = DATA.buildings.find(b =>
+      b.id.toLowerCase() === q ||
+      b.name.toLowerCase().includes(q) ||
+      (b.address || '').toLowerCase().includes(q) ||
+      b.orgs.some(o => o.name.toLowerCase().includes(q))
+    );
+    if (hit) inspectBuilding(hit.id, true);
+  });
+
+  document.getElementById('split-filter-btns').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    document.querySelectorAll('#split-filter-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderSplitCards(btn.getAttribute('data-split'));
+  });
+
+  document.getElementById('pair-filter-btns').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    document.querySelectorAll('#pair-filter-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderPairsTable(btn.getAttribute('data-pair'));
+  });
+
+  document.getElementById('table-mode-btns').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    const mode = btn.getAttribute('data-tmode');
+    document.querySelectorAll('#table-mode-btns .pill-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('buildings-table-wrap').style.display = mode === 'buildings' ? 'block' : 'none';
+    document.getElementById('districts-table-wrap').style.display = mode === 'districts' ? 'block' : 'none';
+  });
+
+  document.getElementById('tbl-search').addEventListener('input', renderBuildingsTable);
+  document.getElementById('tbl-band-select').addEventListener('change', renderBuildingsTable);
+
+  document.querySelectorAll('#buildings-table th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.getAttribute('data-sort');
+      if (tableSortKey === k) {
+        tableSortAsc = !tableSortAsc;
+      } else {
+        tableSortKey = k;
+        tableSortAsc = (k === 'id' || k === 'name' || k === 'district');
+      }
+      renderBuildingsTable();
+    });
+  });
+})();
+</script>
+</body>
+</html>
