@@ -42,14 +42,13 @@
   const trShare = CL && diff > 0 ? (tr.contrib - trLY.contrib) / diff : 0;
   const V = D.context.vehicles, noCar = Math.round(V.nyc.no_vehicle / V.nyc.households * 100);
   const pub = tr.parts[2];
-  const noCarCalc = v => calc(p1(v), 'whose', 'all items without private transportation, from BLS indexes and December weights');
+  const noCarCalc = v => calc(p1(v), 'whose', 'calculated scenario: the index basket without private transportation, from BLS indexes and December weights');
   $('finding').innerHTML =
     `Prices in the New York area ${chg(C.total, SA0, SA0t)} from ${span}` +
     (CL ? `, against ${cite(p1(CL.total), SA0, SA0t)} from ${spanLY}. ` : '. ') +
     (trShare > 0.6 ? `Gasoline and fares for planes, trains and buses account for ${cite(trShare > 1 ? 'more than all of the difference' : 'most of the difference', '#table-sec', 'See the transportation rows in the table below')}. ` : '') +
-    `Without car costs, prices rose ${noCarCalc(C.without_car_costs)} this year` +
-    (CL ? ` and ${noCarCalc(CL.without_car_costs)} last year` : '') +
-    `. ${cite(noCar + ' percent', V.url, `Census Bureau, ${V.source}`)} of New York City households had no car in ${V.year}.`;
+    `With car costs taken out of the index basket, a calculated scenario, the rise would be ${noCarCalc(C.without_car_costs)} this year` +
+    (CL ? ` and ${noCarCalc(CL.without_car_costs)} last year` : '') + '.';
   const rent = D.lines.find(l => l.key === 'rent'), groc = D.lines.find(l => l.key === 'groceries');
   const fare = D.administered.items.find(i => i.id === 'subway'), fs = fare.steps, [fd, fv] = fs[fs.length - 1], fp = fs[fs.length - 2][1];
   const s = (l, t) => [blsUrl(l.id), `BLS, ${t} (${l.id})`];
@@ -83,7 +82,8 @@
   for (let v = lo; v <= hi + 1e-9; v += 0.5) ax += `<span style="left:${X(v)}%">${v === 0 ? '0' : pts(v, 1).replace('+', '')}</span>`;
   $('contrib-axis').innerHTML = ax;
   $('contrib-key').innerHTML = order.map(code => `<span class="key"><i style="background:var(--${INK[code]})"></i>${esc(byCode(C, code).name)}</span>`).join('');
-  $('contrib-note').innerHTML = `Each segment is a category's weight in the New York-area price index, as of the December before, times that category's price change. The segments add up to the all-items change, and seasonal patterns that recur every year show up in both bars. Weights: <a href="${riUrl(D.base.slice(0, 4))}">BLS relative importance, December ${D.base.slice(0, 4)}</a> and <a href="${riUrl(D.base_ly.slice(0, 4))}">December ${D.base_ly.slice(0, 4)}</a>. Price changes: the BLS series linked in each row of the table below. <a href="methodology.html#december">How the calculation works</a>.`;
+  $('contrib-note').innerHTML = `<p class="note">Each segment is a category's weight in the New York-area price index, as of the December before, times that category's price change. The segments add up to the all-items change, and seasonal patterns that recur every year show up in both bars. Weights: <a href="${riUrl(D.base.slice(0, 4))}">BLS relative importance, December ${D.base.slice(0, 4)}</a> and <a href="${riUrl(D.base_ly.slice(0, 4))}">December ${D.base_ly.slice(0, 4)}</a>. Price changes: the BLS series linked in each row of the table below. <a href="methodology.html#december">How the calculation works</a>.</p>
+    <p class="note">The weights describe the whole 25-county metro area, where cars count for more than in the city: ${cite(noCar + ' percent', V.url, `Census Bureau, ${V.source}`)} of New York City households had no car in ${V.year}. The figure without car costs removes private transportation from the metro basket and rescales the rest. It is a calculated scenario, not the inflation New Yorkers without cars experienced; they also spend differently on rent, food and everything else.</p>`;
 
   $('wdate').textContent = `December ${D.base.slice(0, 4)}`;
   // ---- category table --------------------------------------------------------
@@ -98,7 +98,7 @@
   const wCell = v => W('$' + v.toFixed(2), riUrl(D.base.slice(0, 4)), `BLS relative importance, New York-Newark-Jersey City, December ${D.base.slice(0, 4)}`);
   const chCell = (v, part) => v == null ? '' : part && part.code ? cite(sign(v), blsUrl('CUURS12A' + part.code), `BLS series CUURS12A${part.code}`)
     : calc(sign(v), part && part.remainder ? 'december' : 'whose', 'from published BLS indexes and weights');
-  let t = `<thead><tr><th>Category</th><th>Of every $100</th><th>Change<br>${mshort(D.base)} ${D.base.slice(0, 4)} to ${mshort(D.ref)} ${D.ref.slice(0, 4)}</th><th>Same months a year earlier<br>${mshort(D.base_ly)} ${D.base_ly.slice(0, 4)} to ${mshort(D.ref_ly)} ${D.ref_ly.slice(0, 4)}</th><th>Points of the<br>${C.total.toFixed(1)}% total</th></tr></thead><tbody>`;
+  let t = `<thead><tr><th>Category</th><th>Weight per $100<br>of index</th><th>Change<br>${mshort(D.base)} ${D.base.slice(0, 4)} to ${mshort(D.ref)} ${D.ref.slice(0, 4)}</th><th>Same months a year earlier<br>${mshort(D.base_ly)} ${D.base_ly.slice(0, 4)} to ${mshort(D.ref_ly)} ${D.ref_ly.slice(0, 4)}</th><th>Points of the<br>${C.total.toFixed(1)}% total</th></tr></thead><tbody>`;
   C.groups.forEach(g => {
     const ly = lyFor(g.code);
     t += `<tr><td class="nm"><span class="sw" style="background:var(--${INK[g.code]})"></span>${esc(g.name)}</td><td>${wCell(g.weight)}</td><td class="${cls(g.change)}">${chCell(g.change, g)}</td><td>${ly ? chCell(ly.change, g) : 'n/a'}</td><td>${cbox(g.contrib, INK[g.code])}</td></tr>`;

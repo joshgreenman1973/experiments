@@ -208,7 +208,7 @@ def main():
                     "latest": BLS["APUS12A74714"]["obs"][REF], "series": series("APUS12A74714", BASE_LY)},
         "pay": pay(),
         "administered": administered(),
-        "rent_rules": ADMIN["rent_rules"],
+        "rent_rules": rent_rules(),
         "con_ed_plan": ADMIN["con_ed_plan"],
         "zori": monthly_block(EXTRA["zori"], lambda v: v),
         "energy": energy(),
@@ -217,6 +217,20 @@ def main():
     }
     (ROOT / "data/dashboard.json").write_text(json.dumps(d, indent=1))
     print("built", REF, "all items since Dec:", d["contrib"]["total"], "same span last year:", (d["contrib_ly"] or {}).get("total", "n/a (no BLS index for " + REF_LY + ")"))
+
+
+def rent_rules():
+    """Rent rules from administered.json, with the Census median contract rent (B25058)
+    for the last three ACS years taken from data/acs.json, so the price page and the
+    pay page read the same Census pull."""
+    r = json.loads(json.dumps(ADMIN["rent_rules"]))
+    acs = json.loads((ROOT / "data/acs.json").read_text())["years"]
+    ys = sorted(y for y in acs if acs[y].get("median_contract_rent"))[-3:]
+    if not ys:
+        raise SystemExit("data/acs.json has no median contract rent; rerun scripts/fetch_acs.py")
+    r["acs"]["years"] = {y: int(acs[y]["median_contract_rent"]) for y in ys}
+    r["acs"]["moe"] = {y: int(acs[y]["median_contract_rent_moe"]) for y in ys}
+    return r
 
 
 def monthly_block(src, val, ref=None):
@@ -233,6 +247,7 @@ def energy():
     # The current month is incomplete until its last weekly reading; use the CPI month.
     g = monthly_block(gas, lambda v: v["v"], REF)
     g["last_week"] = gas["last_week"]
+    g["fetched"] = EXTRA.get("fetched")  # date the weekly EIA readings were pulled
     ce = EXTRA["coned"]
     c = monthly_block(ce, lambda v: v["v"])
     c["preliminary"] = ce["monthly"][c["ref"]]["service"]
@@ -241,7 +256,7 @@ def energy():
     oref = max(om)
     lw = oil["last_week"]
     ya = lw.get("year_ago")
-    o = {"source": oil["source"], "url": oil["url"], "unit": "$/gal", "last_week": lw,
+    o = {"source": oil["source"], "url": oil["url"], "unit": "$/gal", "last_week": lw, "fetched": EXTRA.get("fetched"),
          "yoy_week": pct(lw["v"], ya["v"]) if ya else None,
          "series": [[k, v] for k, v in om.items() if k >= "2024-10"]}
     ne = {k: {"id": s_, **spans(BLS[s_]["obs"]), "series": series(s_, BASE_LY)} for k, s_ in

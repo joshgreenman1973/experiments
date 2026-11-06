@@ -6,7 +6,7 @@ Each series is stored as monthly (or quarterly) values keyed "YYYY-MM" ("YYYY-Qn
 plus the source URL. A source that fails to download stops the script: an empty
 or partial pull is never written over good data.
 """
-import csv, io, json, pathlib, sys, urllib.request
+import csv, datetime, io, json, pathlib, sys, urllib.request
 from collections import defaultdict
 
 import openpyxl
@@ -99,6 +99,7 @@ def main():
     gas, gas_last = eia_weekly("https://www.eia.gov/dnav/pet/hist_xls/EMM_EPMR_PTE_Y35NY_DPGw.xls", "eia_gas_nyc.xls")
     oil, oil_last = eia_weekly("https://www.eia.gov/dnav/pet/hist_xls/W_EPD2F_PRS_SNY_DPGw.xls", "eia_heating_oil_ny.xls")
     out = {
+        "fetched": datetime.date.today().isoformat(),  # the page dates the weekly EIA readings by this
         "gas_nyc": {"source": "EIA, New York City regular gasoline retail price, weekly (EMM_EPMR_PTE_Y35NY_DPG); monthly = average of the weeks",
                     "url": "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_Y35NY_DPG&f=W",
                     "unit": "$/gal", "monthly": {k: v for k, v in gas.items() if k >= "2023-12"}, "last_week": gas_last},
@@ -114,6 +115,8 @@ def main():
     }
     (ROOT / "data/other_series.json").write_text(json.dumps(out, indent=1))
     for k, v in out.items():
+        if not isinstance(v, dict):
+            continue
         m = v.get("monthly") or v.get("purchase_only_nsa")
         print(k, "latest", max(m), "n", len(m))
 

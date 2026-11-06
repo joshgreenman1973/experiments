@@ -54,6 +54,30 @@ for item in pay["shelf"]:
         bad.append(f"shelf item {item.get('name')} missing its publication date or data year")
 if not pay["comptroller"].get("span") or not pay["comptroller"].get("published"):
     bad.append("Comptroller figures missing their span or publication date")
+# Wages: every OEWS year names its area, and no change is computed across a change of area.
+W = pay["wages"]
+for r in W["years"]:
+    if not r.get("area_title") or not r.get("counties"):
+        bad.append(f"OEWS {r['year']} missing its area")
+    if r.get("comparable_with_prior") is False and (r.get("median_yoy") is not None or r.get("mean_yoy") is not None):
+        bad.append(f"OEWS {r['year']}: wage change computed across a change of area")
+for sg in W["segments"]:
+    if len({r["area_title"] for r in W["years"] if sg["from"] <= r["year"] <= sg["to"]}) != 1:
+        bad.append(f"OEWS segment {sg['from']}-{sg['to']} mixes areas")
+if any(k.endswith("_since_first") for r in W["years"] for k in r):
+    bad.append("OEWS change since the first year spans the area change")
+# Census: the price page's contract rent and the pay page read the same, latest ACS pull.
+acs_last = max(pay["acs"]["years"])
+if max(d["rent_rules"]["acs"]["years"]) != acs_last:
+    bad.append(f"price page contract rent ends {max(d['rent_rules']['acs']['years'])}, ACS file ends {acs_last}")
+if "2020" in pay["acs"]["years"]:
+    bad.append("ACS 2020 present; Census published no standard 1-year data for 2020")
+# No stale "coming soon" notices for a release that is out.
+for f in ("index.html", "pay.html", "methodology.html", "app.js", "sections.js", "pay.js", "README.md"):
+    t = (ROOT / f).read_text()
+    for pat in (r"(scheduled for|is due|are due) Oct\. 29", rf"{acs_last} figures?(</a>)? (is|are) (due|scheduled)"):
+        if re.search(pat, t):
+            bad.append(f"{f}: future-release notice for an ACS year that is out")
 # 5. The page's scripts must parse.
 for f in ("app.js", "sections.js", "pay.js"):
     r = subprocess.run(["node", "--check", str(ROOT / f)], capture_output=True, text=True)
