@@ -1,5 +1,9 @@
 # What New York Costs
 
+**Moved Nov. 9, 2026** to https://vitalcity-nyc.github.io/nyc-affordability-index/
+(repo vitalcity-nyc/nyc-affordability-index). The pages here only forward; the data
+and scripts in this folder are no longer refreshed.
+
 Prices in New York City and its metro area since the start of the year, compared
 with the same months of the year before. Government sources throughout, except
 Zillow's asking-rent index (labeled private) and Citi Bike's own posted price.
