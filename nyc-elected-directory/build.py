@@ -89,7 +89,8 @@ SECTION_BY_FILE = {
     "staff_council_a.json": ["City Council"], "staff_council_b.json": ["City Council"],
     "staff_exec.json": ["Statewide", "Citywide", "Borough presidents", "District attorneys"],
 }
-RANK = [r"communications|press|media|spokes", r"chief of staff", r"district director|constituent|community",
+RANK = [r"^(?!.*deputy chief)(?!.*assistant to).*(communications|press|media|spokes|public affairs|public relations)", r"^chief of staff|^co-chief of staff",
+        r"deputy chief of staff|campaign manager|senior advis", r"district director|constituent|community",
         r"schedul", r"legislative|counsel|policy"]
 
 
@@ -327,6 +328,67 @@ for p in P:
     if p["id"] in GB_STALE:
         p["staff"] = [x for x in p["staff"] if x.get("kind") != "greenbook"]
         p["links"].pop("direct_line", None)
+# ------------------------------------------------- the Legislature's payroll
+# Official records that tie staff to a member's office: the Assembly's Expenditure Report and the
+# Senate's biweekly Payroll Report (scrape/payroll.py). They give a name and a job title, no contact.
+ppath = os.path.join(DATA, "payroll_staff.json")
+n_payroll = 0
+if os.path.exists(ppath):
+    PAY = json.load(open(ppath))
+    LABEL = {"assembly": f"Assembly payroll record, through {PAY['sources']['assembly']['through']}",
+             "senate": f"Senate payroll, period ending {PAY['sources']['senate']['through']}"}
+    DOUBT = re.compile(r"not confirmed|several years old|Not found in 2026|From a 20\d\d|inference|not seen|Named at an", re.I)
+
+    def same_staffer(a, b):
+        ta = [t for t in name_tokens(a) if t not in ("md", "dr", "esq")]
+        tb = [t for t in name_tokens(b) if t not in ("md", "dr", "esq")]
+        if not ta or not tb:
+            return False
+        if set(ta) <= set(tb) or set(tb) <= set(ta):
+            return True
+        la, lb = ta[-1].replace("-", ""), tb[-1].replace("-", "")
+        last_ok = la == lb or (len(la) > 5 and la in lb) or (len(lb) > 5 and lb in la) or ta[-1] in tb or tb[-1] in ta
+        init_ok = ta[0][0] in {t[0] for t in tb} or tb[0][0] in {t[0] for t in ta}
+        return last_ok and init_ok
+
+    for chamber, section in (("assembly", "State Assembly"), ("senate", "State Senate")):
+        for dist, rec in PAY[chamber].items():
+            q = next((x for x in P if x["section"] == section and x["status"] == "sitting" and str(x["district"]) == dist), None)
+            if not q:
+                continue
+            src = PAY["sources"][chamber]["page"]
+            former = PAY.get("former", {}).get(q["id"], [])
+            # someone the record shows left the office comes off the page
+            for ex in list(q["staff"]):
+                if ex.get("kind") == "greenbook" or "campaign" in (ex.get("title") or "").lower():
+                    continue
+                on_now = any(same_staffer(ex["name"], n) for n in rec["all"])
+                gone = next((f for f in former if same_staffer(ex["name"], f["name"])), None)
+                if gone and not on_now:
+                    q["staff"].remove(ex)
+                    continue
+                if on_now:
+                    ex["payroll"] = LABEL[chamber]
+                    if DOUBT.search(ex.get("caveat") or ""):
+                        ex["caveat"] = ""
+                elif chamber == "senate" and ex.get("name"):
+                    ex["caveat"] = ((ex.get("caveat") or "") + " Not on this office’s Senate payroll for the period ending "
+                                    + PAY["sources"]["senate"]["through"] + ".").strip()
+                elif DOUBT.search(ex.get("caveat") or ""):
+                    q["staff"].remove(ex)      # an old listing, and not on the office's payroll: no longer there
+            for row in rec["staff"]:
+                ex = next((x for x in q["staff"] if x.get("name") and same_staffer(x["name"], row["name"])), None)
+                if ex:
+                    ex["payroll"] = LABEL[chamber]
+                    ex["payroll_title"] = row["title"]
+                    if not ex.get("title") or re.search(r"contact|not given|^$", ex["title"], re.I):
+                        ex["title"] = row["title"]
+                    continue
+                q["staff"].append(dict(name=row["name"], title=row["title"], email="", phone="", src=src,
+                                       src_label=LABEL[chamber], date="", kind="payroll", checked=True, caveat=""))
+                n_payroll += 1
+    print(f"  payroll: {n_payroll} names added from the Legislature's records")
+
 # ----------------------------------------------- names from press coverage
 # For offices that publish no staff contact: the person news coverage most recently named as
 # speaking for the official. Each article is downloaded again and must contain the name.
@@ -395,6 +457,8 @@ for (off, who_), why in SUPERSEDED.items():
                 q_["staff"].remove(x)
                 press_dropped.append((off, who_, why))
 for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(os.path.join(DATA, "hard_*.json"))):
+    if f.endswith("hard_records.json"):
+        continue
     for r in json.load(open(f)):
         nm = (r.get("person_name") or "").strip()
         if not nm:
@@ -540,7 +604,8 @@ for p in P:
 for p in P:
     seen = set()
     out = []
-    for s in sorted(p["staff"], key=lambda s: (not (s.get("email") or s.get("phone")), rank(s["title"]), s["name"])):
+    for s in sorted(p["staff"], key=lambda s: (rank(s["title"]) if rank(s["title"]) <= 1 else 2,
+                                               not (s.get("email") or s.get("phone")), rank(s["title"]), s["name"])):
         prev = next((o for o in out if strict_same(o["name"], s["name"])), None) if s["name"] else None
         if prev:
             prev["phone"] = prev.get("phone") or s.get("phone", "")
@@ -673,6 +738,10 @@ for p in P:
         pass
     for src in p["sources"]:
         src["label"] = src["label"].replace("November ", "Nov. ").replace("October ", "Oct. ")
+for p in P:
+    for o in p["offices"]:
+        if re.match(r"Email Address", o["label"]) and o.get("addr") and re.search(r"Office$", o["addr"][0]):
+            o["label"] = o["addr"].pop(0).replace("Office", "office")
 # de-duplicate sources per person
 for p in P:
     seen, out = set(), []
@@ -725,6 +794,12 @@ n_press = sum(1 for _, s in staff_all if s.get("kind") == "press")
 n_press_off = sum(1 for p in P if any(s.get("kind") == "press" for s in p["staff"]))
 LEDE_PRESS = (f"Where an office publishes little or nothing about its staff, the page gives the name of the person news coverage "
               f"most recently identified as speaking for the official: {n_press} names across {n_press_off} offices and campaigns, each linked to the article.")
+TOPJOB = re.compile(r"communications|press|spokes|media|chief of staff|public affairs|public relations", re.I)
+n_top = sum(1 for p in P if p["status"] == "sitting" and any(s.get("name") and TOPJOB.search(s.get("title") or "") for s in p["staff"]))
+n_pay = sum(1 for _, s in staff_all if s.get("kind") == "payroll")
+LEDE_PRESS = (f"{n_top} of the {n_sit} offices have a named chief of staff, press secretary or communications director. "
+              f"Where an office does not publish one, the name comes from the Legislature’s payroll records ({n_pay} names) "
+              f"or from the news coverage that most recently identified who speaks for the official ({n_press} names), each linked to its source.")
 LEDE2 = (f"{num(n_new).capitalize()} people won seats on Nov. 3, 2026 that they do not hold yet"
          + (f", and {num(n_lead)} more {'leads a race' if n_lead == 1 else 'lead races'} too close to treat as settled" if n_lead else "")
          + ". They appear beside the officials they are set to replace in January.")
@@ -736,6 +811,7 @@ SOURCES_HTML = """
 <li>City Council: the Council’s <a href="https://council.nyc.gov/districts/">district roster</a> and each member’s page.</li>
 <li>Statewide, citywide and borough offices: each office’s own contact page, linked in its row.</li>
 <li>Direct lines for senior staff in city offices: the city’s Green Book, by way of <a href="https://joshgreenman1973.github.io/nyc-green-book/">the Greener Book</a>. The Green Book can lag after staff changes.</li>
+<li>Chiefs of staff and communications staff for state legislators: the Assembly’s <a href="https://nyassembly.gov/expenditure/">Expenditure Report</a> (staff on each member’s payroll through March 11, 2026) and the Senate’s <a href="https://www.nysenate.gov/open-data/payroll-report-end-date-110426">Payroll Report</a> for the period ending Nov. 4, 2026. They give a name and job title, no contact. The Assembly record is eight months old.</li>
 <li>Other named staff: staff pages, press releases and newsletters the offices published. For Congress, also the invitee lists attached to House Clerk travel filings, the Senate Radio-TV Gallery’s press secretary list and an archive of the offices’ own emailed releases. Each entry links to the page it was read from.</li>
 </ul>"""
 RULE_HTML = f"""

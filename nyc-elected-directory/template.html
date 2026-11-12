@@ -282,7 +282,12 @@ function staff(s) {
   if (s.phone) w += phoneLinks(s.phone);
   if (s.email) w += ` <a class="em" href="mailto:${esc(s.email)}">${hl(s.email)}</a>${s.shared ? ' <span class="k">shared inbox</span>' : ''}`;
   const conf = s.confirmed ? `<span class="sr">Named in ${esc(s.confirmed.outlet)}${s.confirmed.date ? ', ' + esc(s.confirmed.date) : ''} <a href="${esc(s.confirmed.url)}" target="_blank" rel="noopener">↗</a></span> ` : '';
-  const cav = (s.caveat ? `<span class="sr">${esc(s.caveat)}</span> ` : '') + conf;
+  const pay = s.payroll ? `<span class="sr">On the ${esc(s.payroll)}.</span> ` : '';
+  const cav = (s.caveat ? `<span class="sr">${esc(s.caveat)}</span> ` : '') + conf + pay;
+  if (s.kind === 'payroll') {
+    return `<div class="st"><b>${hl(s.name)}</b><span class="t">${hl(s.title || '')}</span>` +
+      `<span class="sr">${esc(s.src_label)} <a href="${esc(s.src)}" target="_blank" rel="noopener">↗</a></span></div>`;
+  }
   if (s.kind === 'press') {
     return `<div class="st"><b>${hl(s.name)}</b><span class="t">${hl(s.title || '')}</span>` + (w ? `<span class="w">${w}</span>` : '') +
       (s.caveat ? `<span class="sr">${esc(s.caveat)}</span> ` : '') + `<span class="sr">${esc(s.src_label)}${s.date ? ', ' + esc(s.date) : ''} <a href="${esc(s.src)}" target="_blank" rel="noopener">↗</a></span></div>`;
@@ -333,6 +338,7 @@ function row(p) {
   if (L.direct_email) reach += `<div class="c"><span class="l">${esc(p.name)}’s own address</span><a class="em" href="mailto:${esc(L.direct_email)}">${hl(L.direct_email)}</a></div>`;
   if (p.email) reach += `<div class="c"><span class="l">Email${p.email_kind && p.email_kind !== 'member' ? ' (' + esc(p.email_kind) + ')' : ''}</span><a class="em" href="mailto:${esc(p.email)}">${hl(p.email)}</a></div>`;
   [['press_email', 'Press inbox (shared)'], ['scheduling_email', 'Scheduling inbox (shared)'], ['constituent_email', 'Constituent services inbox (shared)']].forEach(([k, lab]) => {
+    if (L[k] && k === 'press_email' && !/^(press|media|info|pio|pressoffice|press\.office|\w*press\w*|\w*communications\w*|\w*inquir\w*)@/i.test(L[k])) lab = 'Press contact';
     if (L[k]) reach += `<div class="c"><span class="l">${lab}</span><a class="em" href="mailto:${esc(L[k])}">${esc(L[k])}</a></div>`;
   });
   (p.offices || []).forEach(o => { reach += office(o); });
