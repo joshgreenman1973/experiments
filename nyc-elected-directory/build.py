@@ -452,6 +452,12 @@ def norm_role(role, side):
         role = "Campaign " + role[:1].lower() + role[1:]
     return role[:1].upper() + role[1:]
 press_rows, press_dropped = [], []
+# Cautions for individual names, written after reading the research notes.
+PRESS_CAVEATS = {
+    "Yael Heller": "Her firm’s page names the client only as the Democratic nominee for Assembly District 73; campaign filings show the firm was paid.",
+    "Courtney Curd": "Campaign filings show her firm was paid only through the June primary.",
+    "Tyquana Rivers": "An outside consultant, quoted in February 2026.",
+}
 # Held by the directory as name-only, shown by later coverage to have left the job.
 SUPERSEDED = {("Rodneyse Bichotte Hermelyn", "James Christopher"): "called the Brooklyn Democratic Party’s former spokesperson in 2025 and 2026 coverage"}
 for (off, who_), why in SUPERSEDED.items():
@@ -468,6 +474,8 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         if not nm:
             continue
         nm = re.sub(r"\s*\([^)]*\)", "", nm).strip()
+        if len(name_tokens(nm)) < 2:
+            continue                     # a first name and an initial is not a name anyone can use
         who = re.sub(r"^(Gov\.|Lt\. Gov\.|Attorney General|Mayor|Speaker|District Attorney|Sen\.|Rep\.|Assembly ?member|Council ?Member)\s+", "", r.get("official") or "")
         cands = [q for q in P if strict_same(q["name"], who)] or [q for q in P if same_person(q["name"], who)]
         seat_n = re.search(r"\d+", r.get("seat") or "")
@@ -548,6 +556,10 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         yy = re.findall(r"20\d\d", r.get("article_date") or "")
         old_note = "Not found in 2026 coverage." if yy and int(yy[0]) < 2026 else ""
         label = "Listed on the candidate’s Citizens Union questionnaire" if "Citizens Union" in outlet else f"Named in {outlet}"
+        if "Board of Elections" in outlet:
+            label = "Listed in the campaign’s state finance filings"
+        if nm in PRESS_CAVEATS:
+            old_note = (old_note + " " if old_note else "") + PRESS_CAVEATS[nm]
         kind = "press"
         site_host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", q.get("website") or "").split("/")[0])
         url_host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", url).split("/")[0])
@@ -727,7 +739,8 @@ for p in P:
         src_p = next(x for x in P if x["id"] == cur)
         have = {slug(x["name"]) for x in p["staff"]}
         for s_ in src_p["staff"]:
-            if s_.get("name") and TOPJOB0.search(s_.get("title") or "") and "campaign" not in s_["title"].lower() and slug(s_["name"]) not in have:
+            if s_.get("name") and TOPJOB0.search(s_.get("title") or "") and "campaign" not in s_["title"].lower() and slug(s_["name"]) not in have \
+                    and not any(x.get("name") and same_staffer(x["name"], s_["name"]) for x in p["staff"]):
                 c = dict(s_)
                 c["title"] = s_["title"] + ", current " + ("Assembly" if src_p["section"] == "State Assembly" else src_p["section"]) + " office"
                 p["staff"].append(c)
