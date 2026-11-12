@@ -356,8 +356,44 @@ def on_page(url, name):
     return bool(re.search(re.escape(toks[0]) + r"\W+(?:\S+\W+){0,2}" + re.escape(toks[-1]), hay))
 
 
-OUTLET_FIX = {"amNY": "amNewYork", "amny": "amNewYork", "QNS": "QNS", "NY1": "NY1"}
+OUTLET_FIX = {"amNY": "amNewYork", "amny": "amNewYork", "City & State New York": "City & State",
+              "Spectrum News NY1": "NY1", "Spectrum News": "Spectrum News"}
+
+
+def norm_role(role, side):
+    """The article's wording, trimmed to the job: 'Bragg's spokesperson' -> 'Spokesperson'."""
+    raw = role
+    role = re.sub(r"\s*\([^)]*\)", "", role)
+    role = re.sub(r"^(her|his|their)\s+", "", role, flags=re.I)
+    if side == "campaign":
+        low = role.lower()
+        for pat, lab in ((r"manager", "Campaign manager"), (r"communications director", "Campaign communications director"),
+                         (r"spokes", "Campaign spokesperson"), (r"strateg|\bled\b", "Campaign strategist"),
+                         (r"poll", "Campaign pollster"), (r"consult|advis", "Campaign consultant")):
+            if re.search(pat, low):
+                return lab
+    role = re.sub(r"^[A-Z][\w.\-]+(?: [A-Z][\w.\-]+)?['’]s\s+", "", role)           # "Bragg's spokesperson"
+    role = re.sub(r"^(DA|District attorney|Mayor|Governor|Senator|Speaker)\s+(?=spokes)", "", role, flags=re.I)
+    role = re.sub(r"\b(spokesman|spokeswoman)\b", "spokesperson", role, flags=re.I)
+    role = re.sub(r"^(a|an|the)\s+", "", role, flags=re.I)
+    role = re.sub(r"^[A-Z][\w.\-]+\s+(?=spokesperson)", "", role)                      # "Lasher spokesperson"
+    role = re.sub(r"\s+(for|to|at|with)\s+(?!communications|policy|public|operations|external|intergovernmental|legislat|strateg|budget|press|media).*$", "", role, flags=re.I)
+    role = re.sub(r"\s+of (the )?(attorney general|governor|mayor|speaker|district attorney|council|senat|assembl).*$", "", role, flags=re.I)
+    role = re.sub(r",\s*(Office of|office of).*$", "", role)
+    role = re.sub(r"^[A-Z][\w.\-]+ campaign ", "Campaign ", role)
+    role = role.strip(" ,;.")
+    if (side == "campaign" or "campaign" in raw.lower()) and "campaign" not in role.lower():
+        role = "Campaign " + role[:1].lower() + role[1:]
+    return role[:1].upper() + role[1:]
 press_rows, press_dropped = [], []
+# Held by the directory as name-only, shown by later coverage to have left the job.
+SUPERSEDED = {("Rodneyse Bichotte Hermelyn", "James Christopher"): "called the Brooklyn Democratic Party’s former spokesperson in 2025 and 2026 coverage"}
+for (off, who_), why in SUPERSEDED.items():
+    for q_ in P:
+        if q_["name"] == off:
+            for x in [x for x in q_["staff"] if x["name"] == who_]:
+                q_["staff"].remove(x)
+                press_dropped.append((off, who_, why))
 for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json"))):
     for r in json.load(open(f)):
         nm = (r.get("person_name") or "").strip()
@@ -376,32 +412,93 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json"))):
             press_dropped.append((who, nm, "no single match in the directory"))
             continue
         q = cands[0]
+        if side == "campaign" and q["links"].get("next_id"):
+            q = next(x for x in P if x["id"] == q["links"]["next_id"])     # campaign staff belong with the seat just won
         url = r.get("url") or ""
         if not on_page(url, nm):
             url = r.get("second_url") or ""
             if not on_page(url, nm):
                 press_dropped.append((q["name"], nm, "name not found on the article as downloaded"))
                 continue
-        if any(strict_same(x["name"], nm) for x in q["staff"]):
-            ex = next(x for x in q["staff"] if strict_same(x["name"], nm))
-            ex["confirmed"] = dict(outlet=OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or ""),
-                                   date=fmt_date(r.get("article_date") or ""), url=url)
+        def near(a, b):
+            ta, tb = name_tokens(a), name_tokens(b)
+            if not ta or not tb:
+                return False
+            d = lambda x, y: sum(c1 != c2 for c1, c2 in zip(x, y)) + abs(len(x) - len(y))
+            return d(ta[0], tb[0]) <= 1 and d(ta[-1], tb[-1]) <= 1
+        is_2026 = "2026" in (r.get("article_date") or "")
+        cos = re.search(r"^chief of staff", (r.get("role_as_described") or ""), re.I)
+        clash = next((x for x in q["staff"] if cos and re.match(r"chief of staff", x["title"], re.I) and (x.get("email") or x.get("phone"))
+                      and name_tokens(x["name"])[:1] == name_tokens(nm)[:1] and not strict_same(x["name"], nm) and not near(x["name"], nm)), None)
+        if clash:
+            clash["caveat"] = f"{OUTLET_FIX.get(r.get('outlet') or '', r.get('outlet') or '')} named the chief of staff as {nm} on {fmt_date(r.get('article_date') or '')}."
+            continue
+        if any(strict_same(x["name"], nm) or near(x["name"], nm) for x in q["staff"]):
+            ex = next(x for x in q["staff"] if strict_same(x["name"], nm) or near(x["name"], nm))
+            host = lambda u: re.sub(r"^www\.", "", re.sub(r"^https?://", "", u or "").split("/")[0])
+            if url != ex.get("src") and is_2026 and host(url) != host(ex.get("src")):
+                ex["confirmed"] = dict(outlet=OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or ""),
+                                       date=fmt_date(r.get("article_date") or ""), url=url)
+                if "2026" in (r.get("article_date") or "") and "not confirmed since" in (ex.get("caveat") or ""):
+                    ex["caveat"] = ""
+            if re.search(r"^CONFLICT|previously served", r.get("notes") or ""):
+                ex["caveat"] = "Coverage conflicts on whether this person still holds the job."
+                ex.pop("confirmed", None)
+            ph0 = (r.get("phone") or "").strip()
+            mains0 = {digits(x) for o in q["offices"] for x in re.split(r" or ", o.get("phone") or "")}
+            if ph0 and not ex.get("phone") and digits(ph0) not in mains0 and V.check(url, "", ph0)[1]:
+                ex["phone"] = ph0
             role_now = (r.get("role_as_described") or "").strip()
             if role_now and not ex.get("title"):
                 ex["title"] = role_now[:1].upper() + role_now[1:]
             continue
-        role = (r.get("role_as_described") or "").strip().rstrip(".")
-        role = role[:1].upper() + role[1:]
-        if side == "campaign" and "campaign" not in role.lower():
-            role += ", campaign"
+        nts0 = r.get("notes") or ""
+        if re.search(r"\bleft for\b|flagged as stale|has left the office|row is stale", nts0, re.I):
+            press_dropped.append((q["name"], nm, "coverage says this person has left"))
+            continue
+        if re.search(r"^WEAK|\bWEAK:|tie is to the firm|Vendor-level|CAMPAIGN IS OVER", nts0):
+            press_dropped.append((q["name"], nm, "weak tie, or a campaign that has ended"))
+            continue
+        if not re.search(r"spokes|chief|director|manager|secretary|advis|strateg|consult|communications|press|counsel|liaison|deputy|poll|led", r.get("role_as_described") or "", re.I):
+            press_dropped.append((q["name"], nm, "no job title in the article"))
+            continue
+        raw_role = (r.get("role_as_described") or "").strip()
+        yy0 = re.findall(r"20\d\d", r.get("article_date") or "")
+        if re.search(r"\b(former|formerly|previous|previously|ex-)", raw_role, re.I) or (yy0 and int(yy0[0]) < 2025):
+            press_dropped.append((q["name"], nm, "a former aide, or coverage from before 2025"))
+            continue
+        role = norm_role(raw_role, side)
         em, ph = (r.get("email") or "").strip(), (r.get("phone") or "").strip()
-        if em and not V.check(url, em, "")[0]:
-            em = ""
-        if ph and not V.check(url, "", ph)[1]:
+        alt = r.get("second_url") or ""
+        if em and (not (V.check(url, em, "")[0] or V.check(alt, em, "")[0]) or em.lower() == (q["email"] or "").lower()):
+            em = ""            # unconfirmed, or just the general inbox already in the row
+        if ph and (not (V.check(url, "", ph)[1] or V.check(alt, "", ph)[1]) or digits(ph) in {digits(x) for o in q["offices"] for x in re.split(r" or ", o.get("phone") or "")}):
             ph = ""
         outlet = OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or src_label(url, ""))
-        q["staff"].append(dict(name=nm, title=role, email=em, phone=ph, src=url, src_label=f"Named in {outlet}",
-                               date=fmt_date(r.get("article_date") or ""), kind="press", checked=True, caveat=""))
+        yy = re.findall(r"20\d\d", r.get("article_date") or "")
+        old_note = "Not found in 2026 coverage." if yy and int(yy[0]) < 2026 else ""
+        label = "Listed on the candidate’s Citizens Union questionnaire" if "Citizens Union" in outlet else f"Named in {outlet}"
+        kind = "press"
+        site_host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", q.get("website") or "").split("/")[0])
+        url_host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", url).split("/")[0])
+        if re.search(r"press release|leadership page|team page|staff page|\boffice\b", outlet, re.I) or (site_host and url_host == site_host):
+            kind, label = "research", url_host            # the office's own page, shown like any other office source
+        if re.search(r"previously served|conflict", nts0, re.I):
+            old_note = (old_note + " " if old_note else "") + "Coverage conflicts on whether this person still holds the job."
+        if re.search(r"2025 (re-?election )?(campaign|race)|successful .* bid|win reelection", (r.get("role_as_described") or "") + " " + nts0, re.I) and side == "campaign":
+            old_note = (old_note + " " if old_note else "") + "Worked on the 2025 campaign."
+        nts = r.get("notes") or ""
+        if re.search(r"\bmoved on\b|has since (left|moved)|may no longer speak for|now (leads|runs|heads)|left the campaign", nts, re.I):
+            old_note = (old_note + " " if old_note else "") + "Later coverage says this person has moved on."
+        elif re.search(r"through the primary|not seen in coverage after", nts, re.I):
+            old_note = (old_note + " " if old_note else "") + "Quoted during the primary; not seen in coverage since."
+        # a newer chief of staff in coverage replaces an older name the directory held without a contact
+        if re.fullmatch(r"chief of staff", role, re.I):
+            for ex in [x for x in q["staff"] if re.fullmatch(r"chief of staff", x["title"], re.I) and not (x.get("email") or x.get("phone")) and x.get("kind") != "press"]:
+                q["staff"].remove(ex)
+                press_dropped.append((q["name"], ex["name"], f"replaced by {nm}, named chief of staff in newer coverage"))
+        q["staff"].append(dict(name=nm, title=role, email=em, phone=ph, src=url, src_label=label,
+                               date=fmt_date(r.get("article_date") or ""), kind=kind, checked=True, caveat=old_note))
         press_rows.append((q["name"], nm, role, outlet))
 if press_dropped:
     print("  press names left out:", press_dropped)
@@ -553,6 +650,9 @@ if stale_dropped:
     print("  left out as too old (2022 or earlier):", stale_dropped)
 
 for p in P:
+    for s_ in p["staff"]:
+        if s_.get("email") and p["email"] and s_["email"].lower() == p["email"].lower() and s_.get("kind") == "press":
+            s_["email"] = ""        # the general inbox, already in the row
     for src in p["sources"]:
         src["label"] = src["label"].replace("November ", "Nov. ").replace("October ", "Oct. ")
 # de-duplicate sources per person
@@ -602,6 +702,10 @@ LEDE = (f"Phone numbers, emails and office addresses for the {n_sit} people elec
         f"For {n_off_with} of those offices the page also names staff members and gives a direct line or address "
         f"that the office has published for them: {n_staff_contact} people in all, {n_staff_email} with an email address "
         f"and {n_staff_phone} with a phone number of their own.")
+n_press = sum(1 for _, s in staff_all if s.get("kind") == "press")
+n_press_off = sum(1 for p in P if any(s.get("kind") == "press" for s in p["staff"]))
+LEDE_PRESS = (f"Where an office publishes little or nothing about its staff, the page gives the name of the person news coverage "
+              f"most recently identified as speaking for the official: {n_press} names across {n_press_off} offices and campaigns, each linked to the article.")
 LEDE2 = (f"{num(n_new).capitalize()} people won seats on Nov. 3, 2026 that they do not hold yet"
          + (f", and {num(n_lead)} more {'leads a race' if n_lead == 1 else 'lead races'} too close to treat as settled" if n_lead else "")
          + ". They appear beside the officials they are set to replace in January.")
@@ -618,6 +722,7 @@ SOURCES_HTML = """
 RULE_HTML = f"""
 <p>An address or number appears here only if a page published it. None was built from a naming pattern, even where the pattern is plain.</p>
 <p>Staff contacts were gathered by searching the web, which can return an address that only looks right. So each one was checked a second way: the cited page was downloaded again and searched for the same characters. Contacts that failed that check were left out. {n_staff_research} researched staff contacts passed it.</p>
+<p>Entries marked “Named in” come from news coverage, not from the office. Each article was downloaded and checked for the person’s name. They carry no contact unless the article prints one, and a spokesperson quoted last month may have moved on.</p>
 <p>Members of Congress, the governor and the mayor publish no personal email address. Their rows give the web form and the people around them.</p>
 <p>Press secretaries change jobs often. Check the date beside a staff entry before relying on it.</p>"""
 RESULTS_HTML = f"""
@@ -640,7 +745,7 @@ turn_note = (f"{num(n_new).capitalize()} seats that represent the city will have
 payload = dict(people=P, sections=sections, turn_title=turn_title, turn_note=turn_note)
 tpl = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
 rep = {"{{DATA}}": json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"),
-       "{{BUILT}}": BUILT, "{{LEDE}}": LEDE, "{{LEDE2}}": LEDE2, "{{SOURCES_HTML}}": SOURCES_HTML,
+       "{{BUILT}}": BUILT, "{{LEDE}}": LEDE, "{{LEDE2}}": LEDE2, "{{LEDE_PRESS}}": LEDE_PRESS, "{{SOURCES_HTML}}": SOURCES_HTML,
        "{{RULE_HTML}}": RULE_HTML, "{{RESULTS_HTML}}": RESULTS_HTML, "{{CAUTION}}": CAUTION,
        "{{N_SITTING}}": str(n_sit), "{{N_NEW}}": str(n_new)}
 for k, v in rep.items():
