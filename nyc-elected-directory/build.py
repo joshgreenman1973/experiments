@@ -457,7 +457,10 @@ PRESS_CAVEATS = {
     "Yael Heller": "Her firm’s page names the client only as the Democratic nominee for Assembly District 73; campaign filings show the firm was paid.",
     "Courtney Curd": "Campaign filings show her firm was paid only through the June primary.",
     "Tyquana Rivers": "An outside consultant, quoted in February 2026.",
+    "Joey Cohen-Saban": "Won the 45th Assembly District seat on Nov. 3 and is not on the Senate’s payroll for the period ending Nov. 4, 2026.",
+    "Chris McCreight": "Won the 46th Assembly District seat on Nov. 3.",
 }
+PRESS_TITLES = {"Dalton Robinson": "District office manager"}
 # Held by the directory as name-only, shown by later coverage to have left the job.
 SUPERSEDED = {("Rodneyse Bichotte Hermelyn", "James Christopher"): "called the Brooklyn Democratic Party’s former spokesperson in 2025 and 2026 coverage"}
 for (off, who_), why in SUPERSEDED.items():
@@ -543,7 +546,7 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         if re.search(r"\b(former|formerly|previous|previously|ex-)", raw_role, re.I) or (yy0 and int(yy0[0]) < 2025):
             press_dropped.append((q["name"], nm, "a former aide, or coverage from before 2025"))
             continue
-        role = norm_role(raw_role, side)
+        role = PRESS_TITLES.get(nm) or norm_role(raw_role, side)
         em, ph = (r.get("email") or "").strip(), (r.get("phone") or "").strip()
         alt = r.get("second_url") or ""
         if em and (not (V.check(url, em, "")[0] or V.check(alt, em, "")[0]) or em.lower() == (q["email"] or "").lower()):
