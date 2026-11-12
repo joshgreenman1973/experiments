@@ -328,6 +328,19 @@ for p in P:
     if p["id"] in GB_STALE:
         p["staff"] = [x for x in p["staff"] if x.get("kind") != "greenbook"]
         p["links"].pop("direct_line", None)
+def same_staffer(a, b):
+    ta = [t for t in name_tokens(a) if t not in ("md", "dr", "esq")]
+    tb = [t for t in name_tokens(b) if t not in ("md", "dr", "esq")]
+    if not ta or not tb:
+        return False
+    if set(ta) <= set(tb) or set(tb) <= set(ta):
+        return True
+    la, lb = ta[-1].replace("-", ""), tb[-1].replace("-", "")
+    last_ok = la == lb or (len(la) > 5 and la in lb) or (len(lb) > 5 and lb in la) or ta[-1] in tb or tb[-1] in ta
+    init_ok = ta[0][0] in {t[0] for t in tb} or tb[0][0] in {t[0] for t in ta}
+    return last_ok and init_ok
+
+
 # ------------------------------------------------- the Legislature's payroll
 # Official records that tie staff to a member's office: the Assembly's Expenditure Report and the
 # Senate's biweekly Payroll Report (scrape/payroll.py). They give a name and a job title, no contact.
@@ -338,18 +351,6 @@ if os.path.exists(ppath):
     LABEL = {"assembly": f"Assembly payroll record, through {PAY['sources']['assembly']['through']}",
              "senate": f"Senate payroll, period ending {PAY['sources']['senate']['through']}"}
     DOUBT = re.compile(r"not confirmed|several years old|Not found in 2026|From a 20\d\d|inference|not seen|Named at an", re.I)
-
-    def same_staffer(a, b):
-        ta = [t for t in name_tokens(a) if t not in ("md", "dr", "esq")]
-        tb = [t for t in name_tokens(b) if t not in ("md", "dr", "esq")]
-        if not ta or not tb:
-            return False
-        if set(ta) <= set(tb) or set(tb) <= set(ta):
-            return True
-        la, lb = ta[-1].replace("-", ""), tb[-1].replace("-", "")
-        last_ok = la == lb or (len(la) > 5 and la in lb) or (len(lb) > 5 and lb in la) or ta[-1] in tb or tb[-1] in ta
-        init_ok = ta[0][0] in {t[0] for t in tb} or tb[0][0] in {t[0] for t in ta}
-        return last_ok and init_ok
 
     for chamber, section in (("assembly", "State Assembly"), ("senate", "State Senate")):
         for dist, rec in PAY[chamber].items():
@@ -497,13 +498,13 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         if clash:
             clash["caveat"] = f"{OUTLET_FIX.get(r.get('outlet') or '', r.get('outlet') or '')} named the chief of staff as {nm} on {fmt_date(r.get('article_date') or '')}."
             continue
-        if any(strict_same(x["name"], nm) or near(x["name"], nm) for x in q["staff"]):
-            ex = next(x for x in q["staff"] if strict_same(x["name"], nm) or near(x["name"], nm))
+        if any(x.get("name") and (strict_same(x["name"], nm) or near(x["name"], nm) or same_staffer(x["name"], nm)) for x in q["staff"]):
+            ex = next(x for x in q["staff"] if x.get("name") and (strict_same(x["name"], nm) or near(x["name"], nm) or same_staffer(x["name"], nm)))
             host = lambda u: re.sub(r"^www\.", "", re.sub(r"^https?://", "", u or "").split("/")[0])
             if url != ex.get("src") and is_2026 and host(url) != host(ex.get("src")):
-                ex["confirmed"] = dict(outlet=OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or ""),
+                ex["confirmed"] = dict(outlet=("a City Council hearing transcript" if "hearing transcript" in (r.get("outlet") or "") else OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or "")),
                                        date=fmt_date(r.get("article_date") or ""), url=url)
-                if "2026" in (r.get("article_date") or "") and "not confirmed since" in (ex.get("caveat") or ""):
+                if "2026" in (r.get("article_date") or "") and "not confirmed" in (ex.get("caveat") or ""):
                     ex["caveat"] = ""
             if re.search(r"^CONFLICT|previously served", r.get("notes") or ""):
                 ex["caveat"] = "Coverage conflicts on whether this person still holds the job."
@@ -520,7 +521,7 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         if re.search(r"\bleft for\b|flagged as stale|has left the office|row is stale", nts0, re.I):
             press_dropped.append((q["name"], nm, "coverage says this person has left"))
             continue
-        if re.search(r"^WEAK|\bWEAK:|tie is to the firm|Vendor-level|CAMPAIGN IS OVER", nts0):
+        if re.search(r"^WEAK|\bWEAK:|tie is to the firm|Vendor-level|CAMPAIGN IS OVER|Do not publish|probably not current", nts0 + " " + (r.get("role_as_described") or "")):
             press_dropped.append((q["name"], nm, "weak tie, or a campaign that has ended"))
             continue
         if not re.search(r"spokes|chief|director|manager|secretary|advis|strateg|consult|communications|press|counsel|liaison|deputy|poll|led", r.get("role_as_described") or "", re.I):
@@ -539,6 +540,8 @@ for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(
         if ph and (not (V.check(url, "", ph)[1] or V.check(alt, "", ph)[1]) or digits(ph) in {digits(x) for o in q["offices"] for x in re.split(r" or ", o.get("phone") or "")}):
             ph = ""
         outlet = OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or src_label(url, ""))
+        if "hearing transcript" in outlet:
+            outlet = "a City Council hearing transcript"
         yy = re.findall(r"20\d\d", r.get("article_date") or "")
         old_note = "Not found in 2026 coverage." if yy and int(yy[0]) < 2026 else ""
         label = "Listed on the candidate’s Citizens Union questionnaire" if "Citizens Union" in outlet else f"Named in {outlet}"
@@ -713,6 +716,18 @@ if unmatched:
     print("  UNMATCHED research rows:", unmatched)
 if stale_dropped:
     print("  left out as too old (2022 or earlier):", stale_dropped)
+
+TOPJOB0 = re.compile(r"communications|press|spokes|media|chief of staff|public affairs", re.I)
+for p in P:
+    cur = p["links"].get("current_id")
+    if p["status"] != "sitting" and cur:
+        src_p = next(x for x in P if x["id"] == cur)
+        have = {slug(x["name"]) for x in p["staff"]}
+        for s_ in src_p["staff"]:
+            if s_.get("name") and TOPJOB0.search(s_.get("title") or "") and "campaign" not in s_["title"].lower() and slug(s_["name"]) not in have:
+                c = dict(s_)
+                c["title"] = s_["title"] + ", current " + ("Assembly" if src_p["section"] == "State Assembly" else src_p["section"]) + " office"
+                p["staff"].append(c)
 
 # A shared inbox (press@, info@, scheduling@) reaches an office, not a person. It is shown and labelled,
 # and it does not count as a staff member's own contact.
