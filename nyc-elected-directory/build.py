@@ -327,6 +327,86 @@ for p in P:
     if p["id"] in GB_STALE:
         p["staff"] = [x for x in p["staff"] if x.get("kind") != "greenbook"]
         p["links"].pop("direct_line", None)
+# ----------------------------------------------- names from press coverage
+# For offices that publish no staff contact: the person news coverage most recently named as
+# speaking for the official. Each article is downloaded again and must contain the name.
+import glob
+import unicodedata
+
+
+def plain(t):
+    t = unicodedata.normalize("NFKD", t)
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t)).lower()
+
+
+def on_page(url, name):
+    if not url or not url.startswith("http"):
+        return False
+    text = V.fetch(url)
+    if not text or text == "__BLOCKED__":
+        return False
+    hay, toks = plain(text), [t for t in name_tokens(name)]
+    if not toks:
+        return False
+    full = plain(name)
+    if full in hay:
+        return True
+    # first and last name within a few words of each other (middle initials, nicknames)
+    return bool(re.search(re.escape(toks[0]) + r"\W+(?:\S+\W+){0,2}" + re.escape(toks[-1]), hay))
+
+
+OUTLET_FIX = {"amNY": "amNewYork", "amny": "amNewYork", "QNS": "QNS", "NY1": "NY1"}
+press_rows, press_dropped = [], []
+for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json"))):
+    for r in json.load(open(f)):
+        nm = (r.get("person_name") or "").strip()
+        if not nm:
+            continue
+        nm = re.sub(r"\s*\([^)]*\)", "", nm).strip()
+        who = re.sub(r"^(Gov\.|Lt\. Gov\.|Attorney General|Mayor|Speaker|District Attorney|Sen\.|Rep\.|Assembly ?member|Council ?Member)\s+", "", r.get("official") or "")
+        cands = [q for q in P if strict_same(q["name"], who)] or [q for q in P if same_person(q["name"], who)]
+        seat_n = re.search(r"\d+", r.get("seat") or "")
+        if len(cands) > 1 and seat_n:
+            cands = [q for q in cands if q["district"] == int(seat_n.group())] or cands
+        side = (r.get("side") or "").lower()
+        if len(cands) > 1:
+            cands = [q for q in cands if (q["status"] != "sitting") == (side == "campaign")] or cands
+        if len(cands) != 1:
+            press_dropped.append((who, nm, "no single match in the directory"))
+            continue
+        q = cands[0]
+        url = r.get("url") or ""
+        if not on_page(url, nm):
+            url = r.get("second_url") or ""
+            if not on_page(url, nm):
+                press_dropped.append((q["name"], nm, "name not found on the article as downloaded"))
+                continue
+        if any(strict_same(x["name"], nm) for x in q["staff"]):
+            ex = next(x for x in q["staff"] if strict_same(x["name"], nm))
+            ex["confirmed"] = dict(outlet=OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or ""),
+                                   date=fmt_date(r.get("article_date") or ""), url=url)
+            role_now = (r.get("role_as_described") or "").strip()
+            if role_now and not ex.get("title"):
+                ex["title"] = role_now[:1].upper() + role_now[1:]
+            continue
+        role = (r.get("role_as_described") or "").strip().rstrip(".")
+        role = role[:1].upper() + role[1:]
+        if side == "campaign" and "campaign" not in role.lower():
+            role += ", campaign"
+        em, ph = (r.get("email") or "").strip(), (r.get("phone") or "").strip()
+        if em and not V.check(url, em, "")[0]:
+            em = ""
+        if ph and not V.check(url, "", ph)[1]:
+            ph = ""
+        outlet = OUTLET_FIX.get(r.get("outlet") or "", r.get("outlet") or src_label(url, ""))
+        q["staff"].append(dict(name=nm, title=role, email=em, phone=ph, src=url, src_label=f"Named in {outlet}",
+                               date=fmt_date(r.get("article_date") or ""), kind="press", checked=True, caveat=""))
+        press_rows.append((q["name"], nm, role, outlet))
+if press_dropped:
+    print("  press names left out:", press_dropped)
+print(f"  press names added: {len(press_rows)}")
+
 MAYOR_KEEP = re.compile(r"chief of staff|communications|press|spokes|intergovernmental|legislative affairs|first deputy mayor", re.I)
 for p in P:
     main = {digits(x) for o in p["offices"] for x in re.split(r" or ", o.get("phone") or "")}
@@ -554,7 +634,7 @@ CAUTION = ("The idea for this directory, who belongs in it and how it should loo
            "Please flag anything that looks wrong.")
 
 turn_title = "Changing hands in January"
-turn_note = (f"{num(n_new).capitalize()} seats that represent the city will have a new occupant, by the unofficial count"
+turn_note = (f"{num(n_new).capitalize()} seats that represent the city will have a new occupant"
              + (f"; {num(n_lead)} more {'is' if n_lead == 1 else 'are'} close" if n_lead else "") + ". Each name links to its row below.")
 
 payload = dict(people=P, sections=sections, turn_title=turn_title, turn_note=turn_note)

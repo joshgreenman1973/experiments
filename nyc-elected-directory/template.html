@@ -186,6 +186,7 @@ footer h3{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:7
     <div class="deck">
       <p>{{LEDE}}</p>
       <p class="sub">{{LEDE2}}</p>
+      <p class="sub">This page covers elected offices. Deputy mayors, commissioners and other appointed officials are in <a href="../mamdani-org-chart/">the Mamdani administration org chart</a>.</p>
       <p class="sub">Download the whole thing: <a href="data/directory.csv" download>officials (CSV)</a> · <a href="data/staff.csv" download>named staff (CSV)</a></p>
     </div>
   </header>
@@ -278,7 +279,12 @@ function staff(s) {
   let w = '';
   if (s.phone) w += phoneLinks(s.phone);
   if (s.email) w += ` <a class="em" href="mailto:${esc(s.email)}">${hl(s.email)}</a>`;
-  const cav = s.caveat ? `<span class="sr">${esc(s.caveat)}</span> ` : '';
+  const conf = s.confirmed ? `<span class="sr">Named in ${esc(s.confirmed.outlet)}${s.confirmed.date ? ', ' + esc(s.confirmed.date) : ''} <a href="${esc(s.confirmed.url)}" target="_blank" rel="noopener">↗</a></span> ` : '';
+  const cav = (s.caveat ? `<span class="sr">${esc(s.caveat)}</span> ` : '') + conf;
+  if (s.kind === 'press') {
+    return `<div class="st"><b>${hl(s.name)}</b><span class="t">${hl(s.title || '')}</span>` + (w ? `<span class="w">${w}</span>` : '') +
+      `<span class="sr">${esc(s.src_label)}${s.date ? ', ' + esc(s.date) : ''} <a href="${esc(s.src)}" target="_blank" rel="noopener">↗</a></span></div>`;
+  }
   const src = cav + (s.src ? `<span class="sr">${s.src_label ? esc(s.src_label) : 'Source'}${s.date && !/Green Book/.test(s.src_label || '') ? ', ' + esc(s.date) : ''} <a href="${esc(s.src)}" target="_blank" rel="noopener">↗</a></span>` : '');
   return `<div class="st"><b>${s.name ? hl(s.name) : '<span class="none">Name not published</span>'}</b>` +
     `<span class="t">${hl(s.title || '')}</span>` + (w ? `<span class="w">${w}</span>` : '') + src + '</div>';
@@ -307,7 +313,7 @@ function row(p) {
     if (L.next_id) notes += `<div class="rnote">Won another seat Nov. 3: <a href="#${L.next_id}">${esc(L.next_role)}</a>.</div>`;
   }
   if (L.see_also) notes += `<div class="rnote">${esc(L.see_also.text)} <a href="${esc(L.see_also.url)}">${esc(L.see_also.label)}</a>.</div>`;
-  if (p.race && (p.status !== 'sitting' || p.race.close)) {
+  if (p.race && p.race.close && p.race.outcome !== 'elected' && p.race.outcome !== 'leaving') {
     const r = p.race;
     notes += `<div class="rnote">${esc(r.leader)} ${r.pct}%${r.second ? ', ' + esc(r.second) + ' ' + r.second_pct + '%' : ''} in the city Board of Elections’ unofficial election night count${r.city_portion_only ? ' (city portion of the district only)' : ''}. <a href="${esc(r.url)}" target="_blank" rel="noopener">source</a></div>`;
   }
@@ -377,11 +383,11 @@ function render() {
 
 function turnover() {
   const rows = P.filter(p => p.status !== 'sitting');
-  let h = `<h2>${D.turn_title}</h2><p class="note">${D.turn_note}</p><table><thead><tr><th>Seat</th><th>Leaving</th><th>Arriving</th><th>Unofficial count</th></tr></thead><tbody>`;
+  let h = `<h2>${D.turn_title}</h2><p class="note">${D.turn_note}</p><table><thead><tr><th>Seat</th><th>Leaving</th><th>Arriving</th></tr></thead><tbody>`;
   rows.forEach(p => {
     const L = p.links || {}, r = p.race;
     const out = L.succeeds_id ? `<a href="#${L.succeeds_id}">${esc(L.succeeds)}</a>` : esc(L.succeeds_short || 'Vacant');
-    h += `<tr><td class="s">${esc(p.seat_short)}</td><td>${out}</td><td class="in"><a href="#${p.id}">${esc(p.name)}</a>${p.status === 'leading' ? ' <span class="q">leads, not final</span>' : ''}</td><td class="n">${r ? r.pct + '%' + (r.second_pct ? ' to ' + r.second_pct + '%' : '') : ''}</td></tr>`;
+    h += `<tr><td class="s">${esc(p.seat_short)}</td><td>${out}</td><td class="in"><a href="#${p.id}">${esc(p.name)}</a>${p.status === 'leading' ? ' <span class="q">leads, not final</span>' : ''}</td></tr>`;
   });
   $('#turn').innerHTML = h + '</tbody></table>';
 }
