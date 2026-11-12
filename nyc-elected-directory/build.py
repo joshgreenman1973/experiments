@@ -349,11 +349,12 @@ n_payroll = 0
 if os.path.exists(ppath):
     PAY = json.load(open(ppath))
     LABEL = {"assembly": f"Assembly payroll record, through {PAY['sources']['assembly']['through']}",
-             "senate": f"Senate payroll, period ending {PAY['sources']['senate']['through']}"}
+             "senate": f"Senate payroll, period ending {PAY['sources']['senate']['through']}",
+             "house": "House payroll record, April to June 2026"}
     DOUBT = re.compile(r"not confirmed|several years old|Not found in 2026|From a 20\d\d|inference|not seen|Named at an", re.I)
 
-    for chamber, section in (("assembly", "State Assembly"), ("senate", "State Senate")):
-        for dist, rec in PAY[chamber].items():
+    for chamber, section in (("assembly", "State Assembly"), ("senate", "State Senate"), ("house", "U.S. House")):
+        for dist, rec in PAY.get(chamber, {}).items():
             q = next((x for x in P if x["section"] == section and x["status"] == "sitting" and str(x["district"]) == dist), None)
             if not q:
                 continue
@@ -382,7 +383,9 @@ if os.path.exists(ppath):
                 if ex:
                     ex["payroll"] = LABEL[chamber]
                     ex["payroll_title"] = row["title"]
-                    if not ex.get("title") or re.search(r"contact|not given|^$", ex["title"], re.I):
+                    top_now = re.search(r"chief of staff", row["title"], re.I) and not re.search(r"deputy|assistant to", row["title"], re.I)
+                    top_was = re.search(r"chief of staff", ex.get("title") or "", re.I) and not re.search(r"deputy", ex.get("title") or "", re.I)
+                    if not ex.get("title") or re.search(r"contact|not given|^$", ex["title"], re.I) or (top_now and not top_was):
                         ex["title"] = row["title"]
                     continue
                 q["staff"].append(dict(name=row["name"], title=row["title"], email="", phone="", src=src,
@@ -813,7 +816,7 @@ TOPJOB = re.compile(r"communications|press|spokes|media|chief of staff|public af
 n_top = sum(1 for p in P if p["status"] == "sitting" and any(s.get("name") and TOPJOB.search(s.get("title") or "") for s in p["staff"]))
 n_pay = sum(1 for _, s in staff_all if s.get("kind") == "payroll")
 LEDE_PRESS = (f"{n_top} of the {n_sit} offices have a named chief of staff, press secretary or communications director. "
-              f"Where an office does not publish one, the name comes from the Legislature’s payroll records ({n_pay} names) "
+              f"Where an office does not publish one, the name comes from official payroll records of the Assembly, State Senate and U.S. House ({n_pay} names) "
               f"or from the news coverage that most recently identified who speaks for the official ({n_press} names), each linked to its source.")
 LEDE2 = (f"{num(n_new).capitalize()} people won seats on Nov. 3, 2026 that they do not hold yet"
          + (f", and {num(n_lead)} more {'leads a race' if n_lead == 1 else 'lead races'} too close to treat as settled" if n_lead else "")
@@ -826,6 +829,7 @@ SOURCES_HTML = """
 <li>City Council: the Council’s <a href="https://council.nyc.gov/districts/">district roster</a> and each member’s page.</li>
 <li>Statewide, citywide and borough offices: each office’s own contact page, linked in its row.</li>
 <li>Direct lines for senior staff in city offices: the city’s Green Book, by way of <a href="https://joshgreenman1973.github.io/nyc-green-book/">the Greener Book</a>. The Green Book can lag after staff changes.</li>
+<li>Chiefs of staff and communications staff for House members: the House’s <a href="https://www.house.gov/the-house-explained/open-government/statement-of-disbursements">Statement of Disbursements</a> for April to June 2026, which lists each office’s staff by name and title.</li>
 <li>Chiefs of staff and communications staff for state legislators: the Assembly’s <a href="https://nyassembly.gov/expenditure/">Expenditure Report</a> (staff on each member’s payroll through March 11, 2026) and the Senate’s <a href="https://www.nysenate.gov/open-data/payroll-report-end-date-110426">Payroll Report</a> for the period ending Nov. 4, 2026. They give a name and job title, no contact. The Assembly record is eight months old.</li>
 <li>Other named staff: staff pages, press releases and newsletters the offices published. For Congress, also the invitee lists attached to House Clerk travel filings, the Senate Radio-TV Gallery’s press secretary list and an archive of the offices’ own emailed releases. Each entry links to the page it was read from.</li>
 </ul>"""

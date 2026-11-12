@@ -40,6 +40,14 @@ SENATE = dict(
     through="Nov. 4, 2026",
 )
 
+HOUSE = dict(
+    file="house_sod_2026q2_detail.csv",
+    url="https://www.house.gov/sites/default/files/2026-08/grids/APRIL-JUNE%202026%20SOD%20DETAIL%20GRID-FINAL.csv",
+    page="https://www.house.gov/the-house-explained/open-government/statement-of-disbursements",
+    name="House Statement of Disbursements, April to June 2026",
+    through="June 30, 2026", last_period_end="30-Jun-26",
+)
+
 SMALL = {"of", "and", "for", "the", "to", "in", "on"}
 FIX_TITLE = {"Director Communications": "Director of communications", "Director Public Affairs": "Director of public affairs",
              "Director Constituent/support Services": "Director of constituent services"}
@@ -66,10 +74,16 @@ def title(t, limit=0):
         t = re.sub(r"\s+\S*$", "", t)
         t = re.sub(r"(\s+(&|AND|FOR|OF|TO|THE))+$", "", t)
     t = re.sub(r"\bLEG DIR\b", "LEGISLATIVE DIRECTOR", t)
+    t = re.sub(r"\bDIR OF\b", "DIRECTOR OF", t)
+    t = re.sub(r"\bCOS\b", "CHIEF OF STAFF", t)
+    t = re.sub(r"\bNY\b", "New York", t).replace("New York", "NEW YORK")
+    t = re.sub(r"\bDC\b", "WASHINGTON", t)
     words = t.lower().split()
     out = " ".join(w if (i and w in SMALL) else w for i, w in enumerate(words))
     out = out[:1].upper() + out[1:]
     out = re.sub(r"\bchf\b", "chief", out)
+    out = out.replace("new york", "New York").replace("washington", "Washington").replace("albany", "Albany")
+    out = out[:1].upper() + out[1:]
     out = FIX_TITLE.get(out.title() if out.title() in FIX_TITLE else out, out)
     for k, v in FIX_TITLE.items():
         if out.lower() == k.lower():
@@ -79,7 +93,7 @@ def title(t, limit=0):
 
 def rank(t):
     t = t.lower()
-    if re.match(r"chief of staff", t):
+    if re.search(r"chief of staff", t) and not re.search(r"deputy|assistant to", t):
         return 0
     if re.search(r"communicat|press|media|public affairs|public relations|spokes", t):
         return 1
@@ -161,8 +175,50 @@ def main():
                      city=r["CITY"].title(), pay=float(r["BIWEEKLY/HOURLY_RATE"] or 0)) for r in offices[cands[0]]]
         out["senate"][str(m["district"])] = dict(member=m["name"], unit=cands[0], staff=pick(recs), all=[a["name"] for a in recs])
 
+    # ---- U.S. House: the Statement of Disbursements lists each office's staff pay by name and title
+    out["house"] = {}
+    out["sources"]["house"] = HOUSE
+    hpath = os.path.join(RAW, HOUSE["file"])
+    if os.path.exists(hpath):
+        orgs = {}
+        for r in csv.DictReader(open(hpath, encoding="latin-1", newline="")):
+            r = {k.strip(): v for k, v in r.items() if k}
+            if r["SORT SUBTOTAL DESCRIPTION"].strip().upper() != "PERSONNEL COMPENSATION":
+                continue
+            if r["PERFORM END DT"].strip() != HOUSE["last_period_end"] or "OTHER COMPENSATION" in r["DESCRIPTION"].upper():
+                continue          # on the payroll on June 30, 2026, the last day the record covers
+            orgs.setdefault(r["ORGANIZATION"].strip(), []).append(r)
+
+        def hperson(v):
+            # "NORIEGA-MAY EMILY J." -> "Emily J. Noriega-May"; the record prints the surname first, no comma
+            parts = v.strip().split()
+            return person(parts[0] + ", " + " ".join(parts[1:])) if len(parts) > 1 else v.title()
+
+        for m in [p for p in base if p["section"] == "U.S. House" and p["status"] == "sitting"]:
+            cands = [o for o in orgs if " HON. " in o and same_person(m["name"], o.split(" HON. ")[1].title())
+                     and name_tokens(o.split(" HON. ")[1])[0][:3] == name_tokens(m["name"])[0][:3]]
+            if len(cands) != 1:
+                print(f"  ! House office not matched for {m['name']}: {cands}")
+                continue
+            rows_ = list(orgs[cands[0]])
+            if "Jeffries" in m["name"]:
+                # the Democratic leader's own leadership office
+                rows_ += [dict(r, DESCRIPTION=r["DESCRIPTION"] + " (LEADER'S OFFICE)") for r in orgs.get("2026 OFFICE OF THE MINORITY LEADER", [])
+                          if re.match(r"CHIEF OF STAFF$|COMMUNICATIONS DIRECTOR$|PRESS SECRETARY", r["DESCRIPTION"].strip())]
+            recs, seen = [], set()
+            for r in rows_:
+                nm = hperson(r["VENDOR NAME"])
+                raw_t = r["DESCRIPTION"].strip()
+                lead = raw_t.endswith("(LEADER'S OFFICE)")
+                t = title(raw_t.replace(" (LEADER'S OFFICE)", ""), 30) + (", Democratic leader’s office" if lead else "")
+                if nm in seen:
+                    continue
+                seen.add(nm)
+                recs.append(dict(name=nm, printed=r["VENDOR NAME"].strip(), title=t, pay=float(r["AMOUNT"].replace(",", "") or 0)))
+            out["house"][str(m["district"])] = dict(member=m["name"], unit=cands[0], staff=pick(recs), all=[a["name"] for a in recs])
+
     json.dump(out, open(os.path.join(DATA, "payroll_staff.json"), "w"), indent=1, ensure_ascii=False)
-    for ch in ("assembly", "senate"):
+    for ch in ("assembly", "senate", "house"):
         d = out[ch]
         cos = sum(1 for v in d.values() if any(rank(s["title"]) == 0 for s in v["staff"]))
         com = sum(1 for v in d.values() if any(rank(s["title"]) == 1 for s in v["staff"]))
