@@ -394,7 +394,7 @@ for (off, who_), why in SUPERSEDED.items():
             for x in [x for x in q_["staff"] if x["name"] == who_]:
                 q_["staff"].remove(x)
                 press_dropped.append((off, who_, why))
-for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json"))):
+for f in sorted(glob.glob(os.path.join(DATA, "press_names_*.json")) + glob.glob(os.path.join(DATA, "hard_*.json"))):
     for r in json.load(open(f)):
         nm = (r.get("person_name") or "").strip()
         if not nm:
@@ -649,10 +649,28 @@ if unmatched:
 if stale_dropped:
     print("  left out as too old (2022 or earlier):", stale_dropped)
 
+# A shared inbox (press@, info@, scheduling@) reaches an office, not a person. It is shown and labelled,
+# and it does not count as a staff member's own contact.
+SHARED = re.compile(r"^(press|media|info|contact|office|team|hello|schedul\w*|communications|comms|pressoffice|press\.office|webmail|"
+                    r"gethelp|action|district\d+|d\d+[a-z]*|\w*schedul\w*|\w*press\w*|\w*inquir\w*|ask\w*|lgny)$", re.I)
+for p in P:
+    keep = []
+    for s_ in p["staff"]:
+        em = s_.get("email") or ""
+        if em and p["email"] and em.lower() == p["email"].lower():
+            s_["email"] = em = ""                       # the general inbox, already in the row
+        if em and SHARED.match(em.split("@")[0]):
+            s_["shared"] = True
+            if not s_.get("name") and not s_.get("phone"):
+                # an inbox with no person attached belongs with the office's contacts, not under "Named staff"
+                lab = "scheduling_email" if "schedul" in (s_.get("title") or em).lower() else "press_email"
+                p["links"].setdefault(lab, em)
+                continue
+        keep.append(s_)
+    p["staff"] = keep
 for p in P:
     for s_ in p["staff"]:
-        if s_.get("email") and p["email"] and s_["email"].lower() == p["email"].lower() and s_.get("kind") == "press":
-            s_["email"] = ""        # the general inbox, already in the row
+        pass
     for src in p["sources"]:
         src["label"] = src["label"].replace("November ", "Nov. ").replace("October ", "Oct. ")
 # de-duplicate sources per person
@@ -685,10 +703,11 @@ n_new = sum(1 for p in P if p["status"] == "elect")
 n_lead = sum(1 for p in P if p["status"] == "leading")
 staff_all = [(p, s) for p in P for s in p["staff"]]
 n_staff = len(staff_all)
-n_staff_contact = sum(1 for _, s in staff_all if s.get("phone") or s.get("email"))
-n_staff_email = sum(1 for _, s in staff_all if s.get("email"))
-n_staff_research = sum(1 for _, s in staff_all if s.get("kind") == "research" and (s.get("phone") or s.get("email")))
-n_off_with = sum(1 for p in P if p["status"] == "sitting" and any(s.get("phone") or s.get("email") for s in p["staff"]))
+own = lambda s: bool(s.get("phone") or (s.get("email") and not s.get("shared")))
+n_staff_contact = sum(1 for _, s in staff_all if own(s))
+n_staff_email = sum(1 for _, s in staff_all if s.get("email") and not s.get("shared"))
+n_staff_research = sum(1 for _, s in staff_all if s.get("kind") == "research" and own(s))
+n_off_with = sum(1 for p in P if p["status"] == "sitting" and any(own(s) for s in p["staff"]))
 n_member_email = sum(1 for p in P if p["status"] == "sitting" and p["email"])
 
 def num(n):
@@ -700,8 +719,8 @@ n_staff_phone = sum(1 for _, s in staff_all if s.get("phone"))
 LEDE = (f"Phone numbers, emails and office addresses for the {n_sit} people elected to represent the five boroughs "
         f"in Washington, Albany and City Hall, from the two U.S. senators down to the 51 City Council members. "
         f"For {n_off_with} of those offices the page also names staff members and gives a direct line or address "
-        f"that the office has published for them: {n_staff_contact} people in all, {n_staff_email} with an email address "
-        f"and {n_staff_phone} with a phone number of their own.")
+        f"that the office has published for them: {n_staff_contact} people in all, {n_staff_email} with an email address of their own "
+        f"and {n_staff_phone} with a phone number of their own. Shared inboxes such as press@ are shown but not counted.")
 n_press = sum(1 for _, s in staff_all if s.get("kind") == "press")
 n_press_off = sum(1 for p in P if any(s.get("kind") == "press" for s in p["staff"]))
 LEDE_PRESS = (f"Where an office publishes little or nothing about its staff, the page gives the name of the person news coverage "
@@ -770,14 +789,15 @@ with open(os.path.join(DATA, "directory.csv"), "w", newline="", encoding="utf-8"
                     p["party"], status, p["email"], p["email_kind"] if p["email"] else "", p["links"].get("press_email", ""),
                     next((o["phone"] for o in offs if o.get("phone")), ""), fmt(offs[0]) if offs else "",
                     " | ".join(fmt(o) for o in offs[1:]), p["website"], p["form"],
-                    sum(1 for s in p["staff"] if s.get("phone") or s.get("email")),
+                    sum(1 for s in p["staff"] if s.get("phone") or (s.get("email") and not s.get("shared"))),
                     p["sources"][0]["url"] if p["sources"] else "", BUILT])
 with open(os.path.join(DATA, "staff.csv"), "w", newline="", encoding="utf-8") as fh:
     w = csv.writer(fh)
-    w.writerow(["Staff name", "Title", "Works for", "Office", "District", "Email", "Phone", "Source page", "Source date"])
+    w.writerow(["Staff name", "Title", "Works for", "Office", "District", "Email", "Shared inbox?", "Phone", "How we know", "Source page", "Source date", "Caution"])
     for p, s in staff_all:
-        w.writerow([s["name"], s["title"], p["name"], p["role"], p["seat"], s.get("email", ""), s.get("phone", ""),
-                    s.get("src", ""), s.get("date", "")])
+        how = "named in press coverage" if s.get("kind") == "press" else "city Green Book" if s.get("kind") == "greenbook" else "office's own page or release"
+        w.writerow([s["name"], s["title"], p["name"], p["role"], p["seat"], s.get("email", ""), "yes" if s.get("shared") else "",
+                    s.get("phone", ""), how, s.get("src", ""), s.get("date", ""), s.get("caveat", "")])
 
 print(f"  {len(P)} people: {n_sit} sitting, {n_new} elected, {n_lead} leading")
 print(f"  staff: {n_staff} named, {n_staff_contact} with a contact ({n_staff_email} emails); "
