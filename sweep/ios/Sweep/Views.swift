@@ -45,6 +45,7 @@ struct ParkView: View {
     @State private var pick: PickRequest?
     @State private var problem: String?
     @State private var showMap = false
+    @State private var showLesson = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -80,10 +81,13 @@ struct ParkView: View {
             Button("Map of cleaning days") { showMap = true }
                 .buttonStyle(SquareButton(fill: nil))
                 .disabled(store.data == nil)
+            Button("How to parallel park") { showLesson = true }
+                .buttonStyle(SquareButton(fill: nil))
         }
         .padding(16)
         .fullScreenCover(item: $pick) { req in PickView(request: req).environmentObject(store) }
         .fullScreenCover(isPresented: $showMap) { BlocksMapView(center: Self.lastKnown()).environmentObject(store) }
+        .fullScreenCover(isPresented: $showLesson) { ParkingLessonView() }
         .onAppear(perform: debugHooks)
     }
 
@@ -123,6 +127,7 @@ struct ParkView: View {
             if p.count == 2 { pick = PickRequest(start: Coord(p[0], p[1]), accuracy: 12, fromGPS: true) }
         }
         if args.contains("-sweepMap") { showMap = true }
+        if args.contains("-sweepLesson") { showLesson = true }
         if let i = args.firstIndex(of: "-sweepDemoParked"), i + 1 < args.count {
             let p = args[i + 1].split(separator: ",").compactMap { Double($0) }
             if p.count == 2 {
@@ -290,6 +295,7 @@ struct ParkedView: View {
     @State private var showSettings = false
     @State private var confirmMoved = false
     @State private var showMap = false
+    @State private var showLesson = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { ctx in
@@ -297,6 +303,7 @@ struct ParkedView: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView().environmentObject(store) }
         .fullScreenCover(isPresented: $showMap) { BlocksMapView(center: parked.car).environmentObject(store) }
+        .fullScreenCover(isPresented: $showLesson) { ParkingLessonView() }
         .confirmationDialog("Clear the parked car?", isPresented: $confirmMoved, titleVisibility: .visible) {
             Button("I moved the car", role: .destructive) { store.moved() }
         } message: { Text("This cancels its reminders.") }
@@ -371,6 +378,7 @@ struct ParkedView: View {
                 }
 
                 Button("Map of cleaning days") { showMap = true }.buttonStyle(SquareButton(fill: nil))
+                Button("How to parallel park") { showLesson = true }.buttonStyle(SquareButton(fill: nil))
                 Button("Walk to my car") { walk() }.buttonStyle(SquareButton(fill: nil))
                 Button("I moved the car") { confirmMoved = true }.buttonStyle(SquareButton())
 

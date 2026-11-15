@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>How to parallel park</title>
+<style>
+/* Ported from the "Parallel parking two Kias" artifact (Oct 2026): the lesson only, any car, Seltos by default.
+   Runs offline inside the app: fonts come from the app bundle next to this file. */
+@font-face{font-family:'Archivo';src:url('Archivo.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%}
+@font-face{font-family:'Karla';src:url('Karla.woff2') format('woff2');font-weight:200 800}
+:root{
+  color-scheme:dark;
+  --bg:#111311; --bg2:#1b1e1b; --fg:#f2f3ef; --fg2:#a2a8a1; --line:#3a3f3a; --line2:#262a26;
+  --cobalt:#5b86ff; --vermilion:#ff6a45; --sun:#ffd23f;
+  --asphalt:#1c1f1c; --walk:#2d312d; --parked:#555b54; --glass:#0c0d0c;
+  --car:var(--cobalt); --mark:var(--sun);
+  --sans:'Karla',system-ui,-apple-system,sans-serif;
+  --display:'Archivo','Arial Narrow',system-ui,sans-serif;
+  --gut:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.5;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;
+  padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button,input,select{font-family:inherit}
+:focus-visible{outline:2px solid var(--sun);outline-offset:2px}
+h2,h3{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;margin:0;text-wrap:balance}
+.pad{padding:0 var(--gut)}
+.carrow{padding:14px var(--gut) 0}
+.carrow label{display:block;font-size:14px;color:var(--fg2);margin-bottom:6px}
+select{width:100%;font-size:17px;font-weight:700;color:var(--fg);background:var(--bg2);border:1.5px solid var(--line);border-radius:0;padding:10px 12px;
+  -webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--fg2) 50%),linear-gradient(135deg,var(--fg2) 50%,transparent 50%);
+  background-position:calc(100% - 20px) 55%,calc(100% - 14px) 55%;background-size:6px 6px;background-repeat:no-repeat}
+.specs{font-size:14px;color:var(--fg2);margin:8px 0 0}
+.custom{display:grid;gap:4px 0;margin-top:10px}
+.custom[hidden]{display:none}
+.slab{display:flex;justify-content:space-between;font-size:15px;color:var(--fg2)}
+.slab b{color:var(--fg);font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent;margin:0 0 6px;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--fg2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;background:var(--sun);border:0;margin-top:-9.5px}
+.fig{padding:16px var(--gut) 0}
+.cv{display:block;max-width:100%}
+.stepcopy{padding:16px var(--gut) 0;min-height:11.5em}
+.stepno{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:600;font-size:15px;color:var(--sun);margin:0 0 4px}
+.stepcopy h3{font-size:1.45rem;line-height:1.15}
+.stepcopy p#stepBody{margin:8px 0 0;font-size:18px;line-height:1.45}
+.dash{display:flex;gap:24px;align-items:center;padding:6px var(--gut) 0}
+.wheelbox{margin:0;text-align:center;width:104px}
+.wheel{width:84px;height:84px;color:var(--fg);display:block;margin:0 auto}
+.wheel .notch{fill:var(--sun)} .wheel .rim{fill:none;stroke:currentColor;stroke-width:10} .wheel .solid{fill:currentColor}
+.wheelbox figcaption,.gearcap{font-size:14px;color:var(--fg2);margin-top:4px;min-height:1.3em}
+.gears{display:flex;gap:4px}
+.gears span{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:1.4rem;width:36px;height:42px;display:flex;align-items:center;justify-content:center;color:var(--line);border:1.5px solid var(--line)}
+.gears span.on{color:var(--bg);background:var(--fg);border-color:var(--fg)}
+.gearcap{text-align:center}
+.steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;padding:18px var(--gut) 0}
+.stepbtn{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:17px;height:40px;border:1.5px solid var(--line);background:transparent;color:var(--fg2);border-radius:0}
+.stepbtn[aria-current=step]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.navbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px var(--gut) 0}
+.btn{font-size:16px;font-weight:700;height:46px;border:1.5px solid var(--fg);background:transparent;color:var(--fg);border-radius:0}
+.btn:active{background:var(--fg);color:var(--bg)}
+.notes{padding:26px var(--gut) 0;color:var(--fg2);font-size:15px}
+.notes p{margin:0 0 10px;max-width:62ch}
+.notes b{color:var(--fg)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<div class="carrow">
+  <label for="carSel">Your car</label>
+  <select id="carSel">
+    <option value="seltos">2027 Kia Seltos</option>
+    <option value="compact">Compact car</option>
+    <option value="sedan">Midsize sedan</option>
+    <option value="suv">Midsize SUV</option>
+    <option value="big">Large SUV or pickup</option>
+    <option value="custom">My own numbers</option>
+  </select>
+  <p class="specs" id="specs"></p>
+  <div class="custom" id="custom" hidden>
+    <div class="slab"><span>Length</span><b id="lenVal"></b></div>
+    <input type="range" id="lenIn" min="150" max="230" step="1" value="180" aria-label="Car length in inches">
+    <div class="slab"><span>Turning circle (in the owner's manual)</span><b id="turnVal"></b></div>
+    <input type="range" id="turnIn" min="32" max="45" step="0.5" value="37" aria-label="Turning circle in feet">
+  </div>
+</div>
+
+<div class="fig"><canvas class="cv" id="cv" aria-label="Animated parking lesson"></canvas></div>
+
+<div class="stepcopy" aria-live="polite">
+  <p class="stepno" id="stepNo">Step 1 of 6</p>
+  <h3 id="stepTitle">Find a space</h3>
+  <p id="stepBody"></p>
+</div>
+
+<div class="dash">
+  <figure class="wheelbox">
+    <svg class="wheel" viewBox="0 0 120 120" aria-hidden="true">
+      <g id="wheelG">
+        <circle class="rim" cx="60" cy="60" r="45"/>
+        <rect class="solid" x="16" y="55" width="32" height="10"/>
+        <rect class="solid" x="72" y="55" width="32" height="10"/>
+        <rect class="solid" x="55" y="70" width="10" height="35"/>
+        <circle class="solid" cx="60" cy="60" r="14"/>
+        <rect class="notch" x="54" y="9" width="12" height="13"/>
+      </g>
+    </svg>
+    <figcaption id="wheelCap">Wheel straight</figcaption>
+  </figure>
+  <div>
+    <div class="gears" id="gears"><span data-g="P">P</span><span data-g="R">R</span><span data-g="N">N</span><span data-g="D">D</span></div>
+    <div class="gearcap" id="gearCap">Drive</div>
+  </div>
+</div>
+
+<div class="steps" id="steps" role="group" aria-label="Steps"></div>
+<div class="navbtns">
+  <button class="btn" id="prev" type="button">Back</button>
+  <button class="btn" id="play" type="button">Pause</button>
+  <button class="btn" id="next" type="button">Next</button>
+</div>
+
+<div class="notes">
+  <p id="minLine"></p>
+  <p>The curb is on your right. Every turn here is made with the wheel all the way over, and the car's turning circle sets how tight that is. The tightest gap assumes a perfect driver who starts 3 feet out and ends 8 inches from the curb; real parking needs slack, which is why the lesson uses one and a half car lengths.</p>
+  <p id="srcLine"></p>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* Units are inches. Curb at y=0, street is +y, cars face +x. */
+var CURB_GAP=8, PARKED_W=72, PARKED_L=180, LANE_CLEAR=36, REAR_CUSHION=6;
+var reduce=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+function mkCar(o){
+  var c=Object.assign({},o);
+  c.f=c.b=(c.L-c.l)/2;                       // overhangs aren't published: split evenly
+  var r=c.turnFt*6;                            // curb-to-curb radius
+  c.R=Math.sqrt(Math.max(1,r*r-c.l*c.l))-c.W/2; // rear-axle midpoint radius at full lock
+  c.delta=Math.atan(c.l/c.R);
+  return c;
+}
+/* The Seltos figures are the 2027 Seltos specs used in the original artifact (Cars.com, Guide Auto).
+   The size classes are rough typical figures, rounded, for people who don't drive a Seltos. */
+var PRESETS={
+  seltos:{name:'2027 Kia Seltos',the:'the Seltos',L:174.4,W:72.0,l:105.9,turnFt:35.0,
+    src:'Seltos figures: 174.4 in long, 72.0 in wide, 105.9 in wheelbase (Guide Auto), 35-ft turning circle (Cars.com, 2027 Seltos EX).'},
+  compact:{name:'Compact car',the:'a compact car',L:180,W:71,l:106,turnFt:36,src:'Compact car: rounded typical figures, not a specific model.'},
+  sedan:{name:'Midsize sedan',the:'a midsize sedan',L:193,W:73,l:111,turnFt:38,src:'Midsize sedan: rounded typical figures, not a specific model.'},
+  suv:{name:'Midsize SUV',the:'a midsize SUV',L:192,W:76,l:113,turnFt:39,src:'Midsize SUV: rounded typical figures, not a specific model.'},
+  big:{name:'Large SUV or pickup',the:'a large SUV or pickup',L:220,W:80,l:132,turnFt:43,src:'Large SUV or pickup: rounded typical figures, not a specific model.'}
+};
+var PARKED=mkCar({L:180,W:72,l:106,turnFt:36});
+
+function adv(p,k,u){
+  if(Math.abs(k)<1e-12) return {x:p.x+u*Math.cos(p.h),y:p.y+u*Math.sin(p.h),h:p.h};
+  var h1=p.h+k*u;
+  return {x:p.x+(Math.sin(h1)-Math.sin(p.h))/k,y:p.y-(Math.cos(h1)-Math.cos(p.h))/k,h:h1};
+}
+function addSeg(car,path,s){
+  var i0=path.pts.length-1,p=path.pts[i0],k=s.steer/car.R,n=Math.max(1,Math.ceil(s.len));
+  for(var j=1;j<=n;j++) path.pts.push(adv(p,k,s.dir*s.len*j/n));
+  path.bounds.push([i0,path.pts.length-1]);
+}
+function buildPath(car,start,segs){
+  var path={pts:[{x:start.x,y:start.y,h:start.h}],bounds:[]};
+  segs.forEach(function(s){addSeg(car,path,s);});
+  return path;
+}
+function corners(car,p){
+  var c=Math.cos(p.h),s=Math.sin(p.h),F=car.l+car.f,B=-car.b,hw=car.W/2;
+  return [[B,-hw],[F,-hw],[F,hw],[B,hw]].map(function(q){return {x:p.x+q[0]*c-q[1]*s,y:p.y+q[0]*s+q[1]*c};});
+}
+function rectPoly(x0,y0,x1,y1){return [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];}
+function overlap(A,B){
+  var polys=[A,B];
+  for(var pi=0;pi<2;pi++){var P=polys[pi];
+    for(var i=0;i<P.length;i++){
+      var a=P[i],b=P[(i+1)%P.length],nx=b.y-a.y,ny=a.x-b.x;
+      var amin=1e9,amax=-1e9,bmin=1e9,bmax=-1e9,j,v;
+      for(j=0;j<A.length;j++){v=A[j].x*nx+A[j].y*ny;if(v<amin)amin=v;if(v>amax)amax=v;}
+      for(j=0;j<B.length;j++){v=B[j].x*nx+B[j].y*ny;if(v<bmin)bmin=v;if(v>bmax)bmax=v;}
+      if(amax<=bmin||bmax<=amin) return false;
+    }}
+  return true;
+}
+function firstHit(car,pts,G){
+  var front=rectPoly(G,CURB_GAP,G+PARKED_L,CURB_GAP+PARKED_W),rear=rectPoly(-PARKED_L,CURB_GAP,0,CURB_GAP+PARKED_W);
+  for(var i=0;i<pts.length;i++){
+    var P=corners(car,pts[i]);
+    if(overlap(P,front)||overlap(P,rear))return {i:i};
+    for(var j=0;j<4;j++)if(P[j].y<0)return {i:i};
+  }
+  return null;
+}
+function twoArc(car){
+  var yE=CURB_GAP+car.W/2,yS=CURB_GAP+PARKED_W+LANE_CLEAR+car.W/2;
+  var th=Math.acos(Math.max(-1,1-(yS-yE)/(2*car.R)));
+  var segs=[{dir:-1,steer:-1,len:car.R*th},{dir:-1,steer:1,len:car.R*th}];
+  var path=buildPath(car,{x:0,y:yS,h:0},segs);
+  var dx=REAR_CUSHION+car.b-path.pts[path.pts.length-1].x;
+  path.pts.forEach(function(p){p.x+=dx;});
+  return path;
+}
+function minGap(car){
+  var path=twoArc(car),lo=car.L,hi=car.L+300;
+  for(var k=0;k<34;k++){var m=(lo+hi)/2;if(firstHit(car,path.pts,m))lo=m;else hi=m;}
+  return hi;
+}
+
+function ftin(x){var t=Math.round(x),f=Math.floor(t/12),i=t-f*12;return {f:f,i:i};}
+function fmt(x){var a=ftin(x);return a.f+' ft '+a.i+' in';}
+function fmtLong(x){var a=ftin(x);return a.f+' feet'+(a.i?(' '+a.i+(a.i===1?' inch':' inches')):'');}
+function fmtAmt(x){var t=Math.max(1,Math.round(x));if(t<12)return t+(t===1?' inch':' inches');return fmt(t);}
+
+/* drawing */
+var T={};
+function readTokens(){
+  var cs=getComputedStyle(document.documentElement),g=function(n){return cs.getPropertyValue('--'+n).trim();};
+  ['bg','fg','fg2','line','asphalt','walk','parked','glass','car','mark','vermilion'].forEach(function(n){T[n]=g(n);});
+}
+function makeView(canvas,xmin,xmax,ymin,ymax,maxH){
+  var par=canvas.parentElement,pcs=getComputedStyle(par);
+  var w=Math.max(260,par.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight)),ww=xmax-xmin,wh=ymax-ymin;
+  var s=Math.min(w/ww,maxH/wh),h=Math.round(wh*s),extra=(w/s-ww)/2;
+  var dpr=Math.min(3,window.devicePixelRatio||1);
+  canvas.style.width=w+'px';canvas.style.height=h+'px';
+  canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+  return {s:s,dpr:dpr,w:w,h:h,ox:-(xmin-extra)*s,oy:ymax*s};
+}
+function scr(v,x,y){return [v.ox+v.s*x,v.oy-v.s*y];}
+function flat(ctx,v){ctx.setTransform(v.dpr,0,0,v.dpr,0,0);}
+function drawCar(ctx,v,car,pose,o){
+  var s=v.s,d=v.dpr,c=Math.cos(pose.h),sn=Math.sin(pose.h),X=v.ox+s*pose.x,Y=v.oy-s*pose.y;
+  ctx.setTransform(d*s*c,-d*s*sn,-d*s*sn,-d*s*c,d*X,d*Y);
+  var F=car.l+car.f,B=-car.b,hw=car.W/2,ch=7;
+  function body(){ctx.beginPath();ctx.moveTo(B+ch*.6,-hw);ctx.lineTo(F-ch*1.5,-hw);ctx.lineTo(F,-hw+ch*1.5);ctx.lineTo(F,hw-ch*1.5);
+    ctx.lineTo(F-ch*1.5,hw);ctx.lineTo(B+ch*.6,hw);ctx.lineTo(B,hw-ch*.6);ctx.lineTo(B,-hw+ch*.6);ctx.closePath();}
+  function quad(a){ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(a[2],a[3]);ctx.lineTo(a[4],a[5]);ctx.lineTo(a[6],a[7]);ctx.closePath();ctx.fill();}
+  if(o.ghost){body();ctx.setLineDash([9,7]);ctx.lineWidth=1.6/s;ctx.strokeStyle=o.ink;ctx.globalAlpha=.75;ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;return;}
+  var wsB=F-.25*car.L,wsT=F-.37*car.L,rwT=B+.2*car.L,rwB=B+.075*car.L;
+  ctx.fillStyle=o.ink;
+  ctx.fillRect(wsB-7,-hw-5,6,5);ctx.fillRect(wsB-7,hw,6,5);
+  body();ctx.fill();
+  ctx.fillStyle=T.glass;
+  quad([wsB,-hw+6,wsB,hw-6,wsT,hw-9,wsT,-hw+9]);
+  quad([rwT,-hw+9,rwT,hw-9,rwB,hw-7,rwB,-hw+7]);
+  if(o.parked) return;
+  var tw=26,tt=9,wy=hw-tt/2-2,a=(o.steer||0)*car.delta;
+  ctx.fillStyle=T.glass;
+  ctx.fillRect(-tw/2,-wy-tt/2,tw,tt);ctx.fillRect(-tw/2,wy-tt/2,tw,tt);
+  [-wy,wy].forEach(function(y){ctx.save();ctx.translate(car.l,y);ctx.rotate(a);ctx.fillRect(-tw/2,-tt/2,tw,tt);ctx.restore();});
+  ctx.fillStyle=T.fg;ctx.fillRect(F-3,-hw+5,3,13);ctx.fillRect(F-3,hw-18,3,13);
+  ctx.fillStyle=T.vermilion;ctx.fillRect(B,-hw+5,3,12);ctx.fillRect(B,hw-17,3,12);
+  if(o.reverse){ctx.fillStyle=T.fg;ctx.fillRect(B,-10,3,7);ctx.fillRect(B,3,3,7);}
+  if(o.signal){ctx.fillStyle=T.mark;ctx.fillRect(F-5,-hw,5,10);ctx.fillRect(B,-hw,5,10);ctx.fillRect(wsB-7,-hw-5,6,5);}
+}
+function drawStreet(ctx,v,G,o){
+  flat(ctx,v);
+  ctx.fillStyle=T.asphalt;ctx.fillRect(0,0,v.w,v.h);
+  var yc=v.oy;
+  ctx.fillStyle=T.walk;ctx.fillRect(0,yc,v.w,v.h-yc);
+  ctx.fillStyle=T.fg2;ctx.fillRect(0,yc-1.5,v.w,3);
+  var yl=v.oy-v.s*96;ctx.fillStyle=T.line;ctx.fillRect(0,yl-1,v.w,2);
+  var yd=v.oy-v.s*228;
+  if(yd>3){ctx.strokeStyle=T.line;ctx.lineWidth=2;ctx.setLineDash([v.s*120,v.s*120]);ctx.beginPath();ctx.moveTo(0,yd);ctx.lineTo(v.w,yd);ctx.stroke();ctx.setLineDash([]);}
+  var col=o.hi?T.mark:T.fg2,X0=v.ox,X1=v.ox+v.s*G;
+  ctx.fillStyle=col;
+  for(var x=12;x<G-6;x+=12){var X=v.ox+v.s*x;ctx.fillRect(X-.5,yc+2,1,x%60===0?6:3.5);}
+  ctx.fillRect(X0-1,yc+2,2,10);ctx.fillRect(X1-1,yc+2,2,10);
+  ctx.font='700 12px Karla, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  ctx.fillText(o.label,(X0+X1)/2,Math.min(v.h-4,yc+25));
+  var y=CURB_GAP+PARKED_W/2;
+  [-PARKED_L-26-PARKED_L,-PARKED_L,G,G+PARKED_L+30].forEach(function(rb){
+    drawCar(ctx,v,PARKED,{x:rb+PARKED.b,y:y,h:0},{ink:T.parked,parked:true});
+  });
+  flat(ctx,v);
+}
+function polyline(ctx,v,pts,i0,i1,fn){
+  ctx.beginPath();var first=true;
+  for(var i=Math.floor(i0);i<=i1;i+=2){var q=fn(pts[i]),P=scr(v,q.x,q.y);if(first){ctx.moveTo(P[0],P[1]);first=false;}else ctx.lineTo(P[0],P[1]);}
+  var qe=fn(pts[Math.floor(i1)]),Pe=scr(v,qe.x,qe.y);ctx.lineTo(Pe[0],Pe[1]);
+  ctx.stroke();
+}
+function label(ctx,text,X,Y,align,color){
+  ctx.font='700 13px Karla, system-ui, sans-serif';ctx.textAlign=align||'center';ctx.textBaseline='middle';
+  ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle=T.asphalt;ctx.strokeText(text,X,Y);
+  ctx.fillStyle=color||T.mark;ctx.fillText(text,X,Y);
+}
+function ease(u){return u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;}
+function sampleTL(tl,pts,t){
+  var cur=tl.ph[tl.ph.length-1],u=1;
+  for(var k=0;k<tl.ph.length;k++){var p=tl.ph[k];if(t<p.t0+p.dur){cur=p;u=p.dur?Math.max(0,(t-p.t0)/p.dur):1;break;}}
+  var fi=cur.kind==='move'?cur.i0+ease(u)*(cur.i1-cur.i0):cur.idx,steer=cur.steer;
+  if(cur.kind==='steer')steer=cur.from+(cur.to-cur.from)*ease(u);
+  var i=Math.floor(fi),j=Math.min(pts.length-1,i+1),f=fi-i,a=pts[i],b=pts[j];
+  return {pose:{x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,h:a.h+(b.h-a.h)*f},idx:fi,steer:steer,dir:cur.dir,kind:cur.kind,u:u,done:t>=tl.total};
+}
+
+/* lesson */
+var STEPS=[
+  {title:'Find a space',gear:'D',signal:true,
+   body:function(c,p){return 'Look for a gap about one and a half times your car’s length. For '+c.the+', that’s about '+Math.round(p.G/12)+' feet. Turn on your right signal.';}},
+  {title:'Pull up next to the car ahead',gear:'D',gearEnd:'R',signal:true,
+   body:function(c,p){
+     var e=-p.e,where=e<=6?'about even with its back bumper':e<=15?'about a foot behind its back bumper':e<=24?'a foot and a half to two feet behind its back bumper':'about '+Math.round(e/12)+' feet behind its back bumper';
+     if(p.e>3)where='a few inches past its back bumper';
+     return 'Stay about 3 feet out from it. Stop when your back bumper is '+where+'. Shift into reverse.';}},
+  {title:'Turn the wheel all the way right, then back up',gear:'R',signal:true,
+   body:function(c,p){return 'Go slowly. Stop when your car sits at about a '+Math.round(p.th*180/Math.PI/5)*5+'-degree angle to the curb.';}},
+  {title:'Straighten the wheel and keep backing',gear:'R',
+   body:function(c,p){var d=p.straight<18?'about a foot':'about '+Math.round(p.straight/12)+' feet';return 'Back up straight, slowly, for '+d+'.';}},
+  {title:'Turn the wheel all the way left and keep backing',gear:'R',
+   body:function(){return 'The front of the car swings in toward the curb. Stop when you’re straight, before you touch the car behind.';}},
+  {title:'Straighten up and center',gear:'D',gearEnd:'P',
+   body:function(){return 'Turn the wheel back to straight. Shift into drive and roll forward to split the space. Shift into park. You’re about 8 inches from the curb.';}}
+];
+var GEARNAME={P:'Park',R:'Reverse',N:'Neutral',D:'Drive'};
+/* The lesson aims for a gap of 1.5 car lengths, starting with the back bumper a foot behind the car ahead's.
+   Not every car clears that cleanly, so try other stopping points, then slightly longer gaps, until nothing touches. */
+function planLesson(car){
+  var base=1.5*car.L,offs=[-12,-6,-18,0,-24,-30,-36,6,-42,-48],angles=[45,40,35,30],best=null;
+  for(var extra=0;extra<=120;extra+=6){
+    for(var a=0;a<angles.length;a++){
+      for(var i=0;i<offs.length;i++){
+        var p=planLessonAt(car,Math.round(base+extra),offs[i],angles[a]*Math.PI/180);
+        if(!p.hit)return p;
+        if(!best)best=p;
+      }
+    }
+  }
+  return best;
+}
+function planLessonAt(car,G,e,th){
+  var yE=CURB_GAP+car.W/2,yS=CURB_GAP+PARKED_W+LANE_CLEAR+car.W/2;
+  // a car that turns wide would drop past the curb on two 45-degree arcs: use a shallower angle instead
+  if(2*car.R*(1-Math.cos(th))>yS-yE)th=Math.acos(1-(yS-yE)/(2*car.R));
+  var s=Math.max(0,(yS-yE-2*car.R*(1-Math.cos(th)))/Math.sin(th));
+  var startRB=G+e,rb1=G-car.L-50,rb0=-760;
+  var segs=[{dir:1,steer:0,len:rb1-rb0},{dir:1,steer:0,len:startRB-rb1},
+            {dir:-1,steer:-1,len:car.R*th},{dir:-1,steer:0,len:Math.max(1,s)},{dir:-1,steer:1,len:car.R*th}];
+  var path=buildPath(car,{x:rb0+car.b,y:yS,h:0},segs);
+  var endRB=path.pts[path.pts.length-1].x-car.b,f={dir:1,steer:0,len:Math.max(1,(G-car.L)/2-endRB)};
+  segs.push(f);addSeg(car,path,f);
+  var plan={car:car,G:G,segs:segs,pts:path.pts,bounds:path.bounds,straight:s,yS:yS,th:th,e:e};
+  plan.hit=firstHit(car,plan.pts,G);
+  return plan;
+}
+function lessonTL(plan,k){
+  var seg=plan.segs[k],i0=plan.bounds[k][0],i1=plan.bounds[k][1],prev=k?plan.segs[k-1].steer:0;
+  var ph=[],t=0;function push(o){o.t0=t;t+=o.dur;ph.push(o);}
+  if(prev!==seg.steer)push({kind:'steer',dur:reduce?0:.9,from:prev,to:seg.steer,idx:i0,steer:seg.steer,dir:seg.dir});
+  push({kind:'move',dur:reduce?0:Math.max(1.5,(i1-i0)/(seg.dir<0?26:150)),i0:i0,i1:i1,steer:seg.steer,dir:seg.dir});
+  push({kind:'hold',dur:k===5?3.6:2.4,idx:i1,steer:seg.steer,dir:seg.dir});
+  return {ph:ph,total:t};
+}
+
+var LX0=-130,LX1=510,Y0=-58,Y1=250;
+var L={cv:document.getElementById('cv'),step:0,auto:!reduce,paused:false,pauseAt:0,t0:0};
+L.ctx=L.cv.getContext('2d');
+var stepsEl=document.getElementById('steps');
+STEPS.forEach(function(st,k){
+  var b=document.createElement('button');b.type='button';b.className='stepbtn';b.textContent=k+1;
+  b.setAttribute('aria-label','Step '+(k+1)+': '+st.title);
+  b.addEventListener('click',function(){L.auto=false;goStep(k);});
+  stepsEl.appendChild(b);
+});
+var playBtn=document.getElementById('play');
+function setPlayLabel(){playBtn.textContent=(L.auto&&!L.paused)?'Pause':'Play';}
+function goStep(k){
+  L.step=k;L.tl=lessonTL(L.plan,k);L.t0=performance.now();L.paused=false;L.pauseAt=0;
+  var st=STEPS[k];
+  document.getElementById('stepNo').textContent='Step '+(k+1)+' of 6';
+  document.getElementById('stepTitle').textContent=st.title;
+  document.getElementById('stepBody').textContent=st.body(L.car,L.plan);
+  stepsEl.querySelectorAll('.stepbtn').forEach(function(b,i){if(i===k)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');});
+  setPlayLabel();kick();
+}
+document.getElementById('prev').addEventListener('click',function(){L.auto=false;goStep(Math.max(0,L.step-1));});
+document.getElementById('next').addEventListener('click',function(){L.auto=false;goStep((L.step+1)%6);});
+playBtn.addEventListener('click',function(){
+  var now=performance.now();
+  if(L.auto&&!L.paused){L.paused=true;L.pauseAt=(now-L.t0)/1000;}
+  else if(L.auto&&L.paused){L.paused=false;L.t0=now-L.pauseAt*1000;}
+  else{L.auto=true;L.paused=false;if((now-L.t0)/1000>=L.tl.total)goStep((L.step+1)%6);}
+  setPlayLabel();kick();
+});
+
+var wheelG=document.getElementById('wheelG'),lastDeg=null,lastGear=null,lastCap=null;
+function updateDash(sm,st){
+  var deg=Math.round(-sm.steer*450);
+  if(deg!==lastDeg){wheelG.setAttribute('transform','rotate('+deg+' 60 60)');lastDeg=deg;}
+  var a=sm.steer;
+  var cap=Math.abs(a)<.02?'Wheel straight':(a<0?(a<-.98?'All the way right':'Turning right'):(a>.98?'All the way left':'Turning left'));
+  if(cap!==lastCap){document.getElementById('wheelCap').textContent=cap;lastCap=cap;}
+  var g=(st.gearEnd&&sm.kind==='hold')?st.gearEnd:st.gear;
+  if(g!==lastGear){
+    document.querySelectorAll('#gears span').forEach(function(s){s.classList.toggle('on',s.getAttribute('data-g')===g);});
+    document.getElementById('gearCap').textContent=GEARNAME[g];lastGear=g;
+  }
+}
+function drawLesson(now){
+  var v=L.view,ctx=L.ctx,p=L.plan,car=L.car,ink=T.car,k=L.step,st=STEPS[k];
+  var t=L.paused?L.pauseAt:(now-L.t0)/1000,sm=sampleTL(L.tl,p.pts,t);
+  var late=sm.kind==='hold'||(sm.kind==='move'&&sm.u>.75);
+  drawStreet(ctx,v,p.G,{label:fmt(p.G)+' gap',hi:k<=1});
+  if(k>=1&&k<=4)drawCar(ctx,v,car,p.pts[p.pts.length-1],{ghost:true,ink:ink});
+  flat(ctx,v);
+  if(k>=2&&sm.idx>p.bounds[2][0]+1){
+    ctx.strokeStyle=ink;ctx.globalAlpha=.6;ctx.lineWidth=2;
+    polyline(ctx,v,p.pts,p.bounds[2][0],sm.idx,function(q){return q;});ctx.globalAlpha=1;
+  }
+  var blink=Math.floor(now/380)%2===0;
+  drawCar(ctx,v,car,sm.pose,{ink:ink,steer:sm.steer,signal:!!st.signal&&blink,reverse:st.gear==='R'||(st.gearEnd==='R'&&sm.kind==='hold')});
+  flat(ctx,v);
+  var C=corners(car,sm.pose),P,Q;
+  if(k===0&&late){P=scr(v,p.G/2,CURB_GAP+PARKED_W/2);label(ctx,'about 1½ car lengths',P[0],P[1]);}
+  if(k===1&&late){
+    var top=scr(v,p.G+p.e,p.yS+car.W/2+16),bot=scr(v,p.G,CURB_GAP);
+    ctx.strokeStyle=T.mark;ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(top[0],top[1]);ctx.lineTo(bot[0],bot[1]);ctx.stroke();ctx.setLineDash([]);
+    label(ctx,Math.abs(p.e)<=6?'back bumpers about even':'line up here',top[0],top[1]-10);
+    var xd=p.G+car.L*.55;P=scr(v,xd,CURB_GAP+PARKED_W);Q=scr(v,xd,p.yS-car.W/2);
+    ctx.beginPath();ctx.moveTo(P[0],P[1]);ctx.lineTo(Q[0],Q[1]);ctx.moveTo(P[0]-5,P[1]);ctx.lineTo(P[0]+5,P[1]);ctx.moveTo(Q[0]-5,Q[1]);ctx.lineTo(Q[0]+5,Q[1]);ctx.stroke();
+    label(ctx,'3 ft',P[0]+10,(P[1]+Q[1])/2,'left');
+  }
+  if(k===2){
+    var ax=scr(v,sm.pose.x,sm.pose.y),r=Math.max(30,v.s*60),h=sm.pose.h;
+    ctx.strokeStyle=T.mark;ctx.lineWidth=2;
+    ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(ax[0],ax[1]);ctx.lineTo(ax[0]+r*1.25,ax[1]);ctx.stroke();ctx.setLineDash([]);
+    if(h>.01){ctx.beginPath();ctx.arc(ax[0],ax[1],r,-h,0,false);ctx.stroke();}
+    label(ctx,Math.round(h*180/Math.PI)+'°',ax[0]+(r+20)*Math.cos(-h/2),ax[1]+(r+20)*Math.sin(-h/2));
+  }
+  if(k===4||k===5){
+    var mnx=Math.min(C[0].x,C[3].x),cy=C[0].x<C[3].x?C[0].y:C[3].y;
+    if(k===4&&mnx<140){
+      P=scr(v,0,Math.min(cy,CURB_GAP+PARKED_W-6));Q=scr(v,mnx,Math.min(cy,CURB_GAP+PARKED_W-6));
+      ctx.strokeStyle=T.mark;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(P[0],P[1]);ctx.lineTo(Q[0],Q[1]);ctx.stroke();
+      label(ctx,fmtAmt(mnx)+' to the car behind',(P[0]+Q[0])/2,scr(v,0,CURB_GAP+PARKED_W+16)[1]);
+    }
+    if(k===5&&late){
+      var mxx=Math.max(C[1].x,C[2].x),yy=scr(v,0,CURB_GAP+PARKED_W+16)[1];
+      P=scr(v,mnx/2,0);Q=scr(v,(mxx+p.G)/2,0);
+      label(ctx,fmt(mnx),P[0],yy);label(ctx,fmt(p.G-mxx),Q[0],yy);
+    }
+  }
+  updateDash(sm,st);
+  if(!L.paused&&L.auto&&t>=L.tl.total){goStep((L.step+1)%6);return false;}
+  return L.paused||(!L.auto&&t>=L.tl.total);
+}
+function sizeLesson(){L.view=makeView(L.cv,LX0,LX1,Y0,Y1,420);}
+
+/* car choice: Seltos unless the person picked something else (remembered on this phone) */
+var sel=document.getElementById('carSel'),lenIn=document.getElementById('lenIn'),turnIn=document.getElementById('turnIn');
+function store(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function recall(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function currentCar(){
+  var key=sel.value;
+  if(key!=='custom') return mkCar(PRESETS[key]);
+  var Ln=+lenIn.value,turn=+turnIn.value;
+  // with only length and turning circle known, estimate the rest from typical proportions
+  return mkCar({name:'Your car',the:'your car',L:Ln,W:Math.round(Math.min(80,Math.max(66,Ln*0.4))),l:Math.round(Ln*0.6),turnFt:turn,
+    src:'Your numbers. Width and wheelbase are estimated from the length, which can shift the tightest gap by an inch or two.'});
+}
+function setCar(){
+  var c=currentCar();
+  document.getElementById('custom').hidden=sel.value!=='custom';
+  document.getElementById('lenVal').textContent=fmt(+lenIn.value);
+  document.getElementById('turnVal').textContent=(+turnIn.value).toFixed(1).replace(/\.0$/,'')+' ft';
+  document.getElementById('specs').textContent=(sel.value==='custom'?'':fmt(c.L)+' long, '+Math.round(c.turnFt*10)/10+'-ft turning circle.');
+  L.car=c;L.plan=planLesson(c);
+  if(L.plan.hit&&window.console)console.warn('lesson path touches something',c.name);
+  var m=minGap(c);
+  document.getElementById('minLine').innerHTML='Tightest gap for one smooth move with '+c.the+': <b>'+fmtLong(m)+'</b>. The lesson uses about <b>'+fmtLong(L.plan.G)+'</b>.';
+  document.getElementById('srcLine').textContent=c.src;
+  store('sweep.park.car',sel.value);store('sweep.park.len',lenIn.value);store('sweep.park.turn',turnIn.value);
+  if(L.view)goStep(L.step);
+}
+var saved=recall('sweep.park.car');
+if(saved&&(PRESETS[saved]||saved==='custom'))sel.value=saved;
+if(recall('sweep.park.len'))lenIn.value=recall('sweep.park.len');
+if(recall('sweep.park.turn'))turnIn.value=recall('sweep.park.turn');
+sel.addEventListener('change',setCar);
+lenIn.addEventListener('input',setCar);
+turnIn.addEventListener('input',setCar);
+
+var raf=0;
+function frame(now){
+  raf=0;var idle=drawLesson(now);
+  if(!idle||L.step<=2)raf=requestAnimationFrame(frame);
+}
+function kick(){if(!raf)raf=requestAnimationFrame(frame);}
+function layout(){sizeLesson();kick();}
+
+readTokens();
+setCar();
+sizeLesson();
+goStep(0);
+var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(layout,120);});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){layout();});
+})();
+</script>
+</body></html>

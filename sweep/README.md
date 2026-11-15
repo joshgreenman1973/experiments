@@ -10,6 +10,12 @@ times can be changed in the app. Grew out of the private "Street cleaning near 1
 applies to: colored by weekday, by one chosen day, or by how soon the next cleaning is if you
 park now (holiday suspensions skipped). Tap a line to see both sides and park there.
 
+"How to parallel park" is the six-step lesson from the "Parallel parking two Kias" artifact
+(`ios/Sweep/Web/parking.html`, shown in a web view, offline). It defaults to the 2027 Kia Seltos;
+anyone can pick a typical compact, midsize sedan, midsize SUV or large SUV/pickup, or enter their
+own length and turning circle. For each car it searches for a stopping point, angle and gap that
+clear the parked cars, so the drawn path never touches anything.
+
 TestFlight only, internal group "Me". App Store Connect app 6834559962, bundle id
 `com.joshgreenman.sweep`. Never submit to the public App Store without asking Josh.
 
