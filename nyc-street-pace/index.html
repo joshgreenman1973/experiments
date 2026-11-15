@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Street pace</title>
+<meta name="description" content="How fast traffic moves on 351 New York City street segments, hour by hour, from the city's E-ZPass readers, before and after congestion pricing.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+:root{--accent:var(--sun)}
+.stage{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+@media(max-width:900px){.stage{grid-template-columns:1fr}}
+.mapwrap{position:relative;height:min(80vh,780px);min-height:440px;background:#0b0c0b}
+@media(max-width:900px){.mapwrap{height:64vh}}
+#map{position:absolute;inset:0}
+#flow{position:absolute;inset:0;pointer-events:none}
+.mapbtns{position:absolute;left:10px;top:10px;display:flex;gap:6px;z-index:3}
+.mapbtns .chip{background:rgba(17,19,17,.88)}
+.side{padding:20px clamp(16px,3vw,34px) 26px;border-left:1px solid var(--line2);min-width:0}
+@media(max-width:900px){.side{border-left:0;border-top:1px solid var(--line2)}}
+.ctl{margin:0 0 14px}
+.ctl .lbl{font-size:var(--t-small);color:var(--fg2);margin-bottom:6px;display:block}
+.row6{display:flex;flex-wrap:wrap;gap:6px}
+.hourline{display:flex;align-items:center;gap:10px}
+.hourline output{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:1.5rem;min-width:5.2em}
+input[type=range]{flex:1;accent-color:var(--sun)}
+.play{font-size:var(--t-small);font-weight:700;border:1px solid var(--fg);background:transparent;color:var(--fg);padding:7px 12px;cursor:pointer}
+.play[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.ramp{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:var(--t-small);color:var(--fg2);margin:4px 0 0}
+.ramp i{width:18px;height:4px;display:inline-block;vertical-align:3px;margin-right:5px}
+.readout{font-size:1rem;line-height:1.5;margin:14px 0 0;max-width:48ch;color:var(--fg2)}
+.readout b{color:var(--fg)}
+.pick{margin-top:18px;border-top:1px solid var(--line2);padding-top:14px;min-height:120px}
+.pick h3{margin:0 0 2px}
+.pick .meta{font-size:var(--t-small);color:var(--fg2)}
+.race{margin-top:12px}
+.race .lane{display:grid;grid-template-columns:3.6em 1fr 5.4em;gap:8px;align-items:center;font-size:var(--t-small);margin:5px 0}
+.race .track{height:14px;border-bottom:1px solid var(--line);position:relative}
+.race .car{position:absolute;top:2px;width:10px;height:10px;margin-left:-5px}
+.race .lane b{font-variant-numeric:tabular-nums;text-align:right}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:var(--fg2);font-family:var(--sans);font-size:12px}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px 44px}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.method p{max-width:72ch;margin:0 0 12px;color:var(--fg2);font-size:.98rem}
+.method p b{color:var(--fg)}
+.maplibregl-ctrl-attrib{background:rgba(17,19,17,.8)!important;color:var(--fg2)}
+.maplibregl-ctrl-attrib a{color:var(--fg2)!important}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span>Source: <a href="https://data.cityofnewyork.us/browse?Data-Collection_Data-Collection=DOT+EZ+Pass+Readers">Department of Transportation E-ZPass readers</a>, via NYC Open Data</span><span id="range">April 2021 to November 2026</span></div>
+
+  <header class="head">
+    <h1>Street pace</h1>
+    <p class="finding" id="finding"></p>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="stage">
+    <div class="mapwrap">
+      <div id="map" role="img" aria-label="Map of measured street segments, colored and animated by average traffic speed"></div>
+      <canvas id="flow"></canvas>
+      <div class="mapbtns"><button class="chip" id="vMid">Midtown</button><button class="chip" id="vAll">All 351 segments</button></div>
+    </div>
+    <div class="side">
+      <div class="ctl">
+        <span class="lbl">Hour of the day</span>
+        <div class="hourline"><output id="hourOut">8 a.m.</output><input type="range" id="hour" min="0" max="23" value="8" aria-label="Hour of the day"><button class="play" id="play" aria-pressed="false">Play</button></div>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Feb. 1 to Oct. 31 of</span>
+        <div class="row6" id="years"></div>
+      </div>
+      <div class="ctl">
+        <div class="row6">
+          <button class="chip" data-dt="wd" aria-pressed="true">Weekdays</button>
+          <button class="chip" data-dt="we" aria-pressed="false">Weekends</button>
+          <span style="width:10px"></span>
+          <button class="chip" id="cmp" aria-pressed="false">Color by change from 2024</button>
+        </div>
+      </div>
+      <div class="ramp" id="ramp"></div>
+      <p class="readout" id="readout"></p>
+      <div class="pick" id="pick"><p class="meta">Click a street segment on the map to see its day and race its 2024 speed against later years.</p></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="two">
+      <div>
+        <h2>Month by month</h2>
+        <p class="aside" id="mcap"></p>
+        <svg class="chart" id="mchart" viewBox="0 0 640 300"></svg>
+      </div>
+      <div>
+        <h2>Hour by hour, inside the zone</h2>
+        <p class="aside">Average weekday speed on the zone's segments, Feb. 1 to Oct. 31 of each year.</p>
+        <svg class="chart" id="hchart" viewBox="0 0 420 300"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Segments inside the zone</h2>
+    <p class="aside" id="lcap"></p>
+    <div class="split">
+      <div><h3>Most faster</h3><div class="list" id="lfast"></div></div>
+      <div><h3>Most slower</h3><div class="list" id="lslow"></div></div>
+    </div>
+  </section>
+
+  <section class="sec method">
+    <h2>How this was made</h2>
+    <p><b>The readers.</b> The Department of Transportation reads E-ZPass tags at fixed points and times the same tags between pairs of readers. Each pair is a "link," usually one direction of a few blocks. The city publishes a rolling 15-minute median travel time and speed for each of 351 links, recomputed about once a minute, in one Open Data file per year. Most links are in Midtown Manhattan, where the readers were installed for the Midtown in Motion signal program; the rest are on parkways, bridges and arterials in Queens, Brooklyn, Staten Island and upper Manhattan. Only vehicles with E-ZPass tags are timed.</p>
+    <p><b>Clock change.</b> Through May 16, 2025, the city stamped readings in Coordinated Universal Time; when the feed came back on June 30, 2025, after a six-week outage, it stamped them in New York time. The fastest hour of the night shows it: before the outage it falls at 8 or 9 UTC depending on daylight saving, and after it at 4 every month. The earlier readings were converted to New York time; the later ones were used as published.</p>
+    <p><b>What was kept.</b> Rows with a full 15-minute window and at least three timed vehicles, at speeds above zero and under 100 feet per second (68 mph). About 45% of raw rows carry no reading at all and were dropped. Each link's speed for an hour of a day is the average of the medians in that hour; each link-hour-day counts once.</p>
+    <p><b>Periods.</b> Congestion pricing began Jan. 5, 2025, in Manhattan south of 60th Street. To compare like seasons, each year on the map runs Feb. 1 to Oct. 31. The city's file has no readings at all from May 16 to June 30, 2025, so those same weeks are left out of every year. Weekdays exclude federal holidays, the day after Thanksgiving and Christmas Eve. A link's hourly value needs at least 20 days behind it. The "zone" is every link whose midpoint falls inside the MTA's published Central Business District geofence. Year-to-year comparisons use only links with weekday daytime (7 a.m. to 7 p.m.) values in 2024, 2025 and 2026. The monthly chart uses a fixed set of links reporting in at least 90% of months.</p>
+    <p><b>What this cannot tell you.</b> Speeds changed for many reasons at once: tolls, signal timing, bus and bike lanes, construction, deliveries and the economy. The comparison to segments outside the zone helps but does not isolate the toll's effect. Full notes and code: <a href="methodology.html">methodology</a>.</p>
+  </section>
+
+  <footer class="foot">
+    <p class="caution">This page was built with the help of an AI model. The figures come from public city data and the steps above; check them against the source before citing.</p>
+    Basemap © <a href="https://carto.com/attributions">CARTO</a>, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Zone boundary: <a href="https://data.ny.gov/d/srxy-5nxn">MTA Central Business District Geofence</a>.
+  </footer>
+</div>
+
+<script>
+const YEARS=[2022,2023,2024,2025,2026];
+const css=getComputedStyle(document.documentElement), tok=n=>css.getPropertyValue('--'+n).trim();
+const RAMP=[[5,'vermilion','under 5'],[8,'orange','5–8'],[12,'sun','8–12'],[18,'mint','12–18'],[25,'cyan','18–25'],[999,'cobalt','25+']];
+const CRAMP=[[-10,'vermilion','10%+ slower'],[-3,'orange','3–10% slower'],[3,'fg2','within 3%'],[10,'mint','3–10% faster'],[999,'cyan','10%+ faster']];
+const YC={2022:'lilac',2023:'rose',2024:'fg2',2025:'cobalt',2026:'sun'};
+const hourName=h=>h===0?'midnight':h===12?'noon':h<12?`${h} a.m.`:`${h-12} p.m.`;
+const f1=x=>x==null?'n/a':x.toFixed(1);
+let L=[],P={},S=null,M=null,byId={};
+let st={hour:8,year:2025,dt:'wd',cmp:false,sel:null,playing:false};
+
+// ---------- polyline ----------
+function decode(s){let i=0,lat=0,lon=0,out=[];while(i<s.length){const v=[];for(let k=0;k<2;k++){let sh=0,r=0,b;do{b=s.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5}while(b>=32);v.push(r&1?~(r>>1):r>>1)}lat+=v[0];lon+=v[1];out.push([lon/1e5,lat/1e5])}return out}
+const FT=(a,b)=>{const R=20902231,la=(a[1]+b[1])/2*Math.PI/180,dx=(b[0]-a[0])*Math.PI/180*Math.cos(la)*R,dy=(b[1]-a[1])*Math.PI/180*R;return Math.hypot(dx,dy)};
+
+function speed(l,y=st.year,dt=st.dt,h=st.hour){const r=P[l.id]&&P[l.id][y+dt];return r?r[h]:null}
+function colorFor(l){
+  const v=speed(l); if(v==null)return null;
+  if(st.cmp){const b=speed(l,2024);if(b==null)return null;const c=(v/b-1)*100;return tok(CRAMP.find(r=>c<=r[0]||r[0]===999)[1]);}
+  return tok(RAMP.find(r=>v<r[0])[1]);
+}
+
+// ---------- map ----------
+const map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center:[-73.983,40.752],zoom:13.1,minZoom:9,maxZoom:17,attributionControl:{compact:true}});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+let mapReady=false;
+function geo(){return{type:'FeatureCollection',features:L.map(l=>({type:'Feature',id:l.id,properties:{id:l.id,c:colorFor(l)||tok('line'),dead:colorFor(l)?0:1,sel:st.sel===l.id?1:0},geometry:{type:'LineString',coordinates:l.pts}}))}}
+map.on('load',()=>{
+  const firstSym=(map.getStyle().layers.find(l=>l.type==='symbol')||{}).id;
+  map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'links-hit',type:'line',source:'links',paint:{'line-width':14,'line-opacity':0,'line-offset':3}});
+  map.addLayer({id:'links',type:'line',source:'links',layout:{'line-cap':'butt'},paint:{
+    'line-color':['get','c'],'line-offset':['interpolate',['linear'],['zoom'],11,1.5,15,4],
+    'line-width':['interpolate',['linear'],['zoom'],10,['case',['==',['get','sel'],1],4,1.6],15,['case',['==',['get','sel'],1],7,3.2]],
+    'line-opacity':['case',['==',['get','dead'],1],.35,.55]}},firstSym);
+  map.on('click','links-hit',e=>{select(e.features[0].properties.id)});
+  map.on('mouseenter','links-hit',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','links-hit',()=>map.getCanvas().style.cursor='');
+  mapReady=true; if(L.length)redraw();
+});
+document.getElementById('vMid').onclick=()=>map.flyTo({center:[-73.983,40.752],zoom:13.1});
+document.getElementById('vAll').onclick=()=>{const b=new maplibregl.LngLatBounds();L.forEach(l=>l.pts.forEach(p=>b.extend(p)));map.fitBounds(b,{padding:30});};
+
+// ---------- flowing traffic ----------
+// Each dot moves along its segment at the measured speed, sped up 24 times. Dots are spaced every 240 feet.
+const cv=document.getElementById('flow'), cx=cv.getContext('2d'); const SCALE=24;
+function sizeCanvas(){const r=cv.parentNode.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;cv.style.width=r.width+'px';cv.style.height=r.height+'px';cx.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',sizeCanvas);
+let t0=performance.now();
+function pointAt(l,frac){let d=frac*l.len;for(let i=1;i<l.pts.length;i++){const s=l.seg[i-1];if(d<=s||i===l.pts.length-1){const k=s?Math.min(1,d/s):0,a=l.pts[i-1],b=l.pts[i];return[[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k],a,b]}d-=s}}
+function frame(now){
+  const W=cv.width/(devicePixelRatio||1),H=cv.height/(devicePixelRatio||1);cx.clearRect(0,0,W,H);
+  if(mapReady&&L.length){
+    const t=(now-t0)/1000, z=map.getZoom(), off=z<11?1.5:z>15?4:1.5+(z-11)*.625, r=z<12?1.3:z<14?1.8:2.4;
+    const bounds=map.getBounds();
+    for(const l of L){
+      const v=speed(l); const c=colorFor(l); if(v==null||!c)continue;
+      if(!bounds.contains(l.pts[0])&&!bounds.contains(l.pts[l.pts.length-1]))continue;
+      const n=Math.max(2,Math.round(l.len/240)), adv=(v*1.4667*SCALE*t)/l.len;
+      cx.fillStyle=c;
+      for(let i=0;i<n;i++){
+        const fr=((i/n)+adv)%1; const [p,a,b]=pointAt(l,fr);
+        const P0=map.project(p),A=map.project(a),B=map.project(b); let dx=B.x-A.x,dy=B.y-A.y; const m=Math.hypot(dx,dy)||1;
+        // offset to the right of travel, matching the line offset
+        cx.beginPath();cx.arc(P0.x-dy/m*off,P0.y+dx/m*off,r,0,6.283);cx.fill();
+      }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+const hr=document.getElementById('hour'), ho=document.getElementById('hourOut');
+hr.oninput=()=>{st.hour=+hr.value;redraw()};
+let playT=null;
+document.getElementById('play').onclick=e=>{st.playing=!st.playing;e.target.setAttribute('aria-pressed',st.playing);e.target.textContent=st.playing?'Pause':'Play';
+  clearInterval(playT);if(st.playing)playT=setInterval(()=>{st.hour=(st.hour+1)%24;hr.value=st.hour;redraw()},1400);};
+document.getElementById('years').innerHTML=YEARS.map(y=>`<button class="chip" data-y="${y}" aria-pressed="${y===st.year}">${y}</button>`).join('');
+document.querySelectorAll('#years .chip').forEach(b=>b.onclick=()=>{st.year=+b.dataset.y;redraw()});
+document.querySelectorAll('[data-dt]').forEach(b=>b.onclick=()=>{st.dt=b.dataset.dt;redraw()});
+document.getElementById('cmp').onclick=()=>{st.cmp=!st.cmp;redraw()};
+
+function zoneAvg(y,dt,h){const xs=L.filter(l=>l.zone&&l.panel).map(l=>speed(l,y,dt,h)).filter(v=>v!=null);return xs.length?xs.reduce((a,b)=>a+b)/xs.length:null}
+function redraw(){
+  ho.textContent=hourName(st.hour);
+  document.querySelectorAll('#years .chip').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.y===st.year));
+  document.querySelectorAll('[data-dt]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.dt===st.dt));
+  document.getElementById('cmp').setAttribute('aria-pressed',st.cmp);
+  document.getElementById('ramp').innerHTML=(st.cmp?CRAMP:RAMP).map(r=>`<span><i style="background:var(--${r[1]})"></i>${r[2]}${st.cmp?'':' mph'}</span>`).join('')+'<span><i style="background:var(--line)"></i>no reading</span>';
+  if(mapReady)map.getSource('links').setData(geo());
+  const z=zoneAvg(st.year,st.dt,st.hour), z24=zoneAvg(2024,st.dt,st.hour);
+  const day=st.dt==='wd'?'weekdays':'weekends';
+  let s=`On ${day} at <b>${hourName(st.hour)}</b>, Feb. to Oct. ${st.year}, traffic on the zone's segments averaged <b>${f1(z)} mph</b>`;
+  if(st.year!==2024&&z!=null&&z24!=null){const c=(z/z24-1)*100;s+=`, ${Math.abs(c)<0.5?'about the same as':Math.abs(c).toFixed(0)+'% '+(c>0?'faster than':'slower than')} the same hour in 2024 (${f1(z24)} mph)`;}
+  document.getElementById('readout').innerHTML=s+'.';
+  if(st.sel)renderPick();
+}
+
+// ---------- one segment ----------
+function select(id){st.sel=id;redraw();}
+let raceT=null;
+function renderPick(){
+  const l=byId[st.sel]; if(!l)return;
+  const ys=[2024,2025,2026];
+  const v=ys.map(y=>speed(l,y));
+  const dayw=st.dt==='wd'?'weekdays':'weekends';
+  // 24-hour chart
+  const W=380,H=150,m={l:30,r:6,t:10,b:22}, all=ys.flatMap(y=>P[l.id][y+st.dt]).filter(x=>x!=null), mx=Math.max(10,Math.ceil(Math.max(...all,0)/5)*5);
+  const x=h=>m.l+h/23*(W-m.l-m.r), yv=s=>H-m.b-s/mx*(H-m.t-m.b);
+  let g='';
+  for(const s of [0,mx/2,mx])g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${yv(s)}" y2="${yv(s)}" stroke="${tok('grid')}"/><text x="${m.l-5}" y="${yv(s)+4}" text-anchor="end">${s}</text>`;
+  for(const h of [0,6,12,18])g+=`<text x="${x(h)}" y="${H-5}" text-anchor="middle">${hourName(h)}</text>`;
+  g+=`<line x1="${x(st.hour)}" x2="${x(st.hour)}" y1="${m.t}" y2="${H-m.b}" stroke="${tok('line')}"/>`;
+  for(const y of ys){const r=P[l.id][y+st.dt];let d='';r.forEach((s,h)=>{if(s==null)return;d+=(d&&r[h-1]!=null?'L':'M')+x(h).toFixed(1)+','+yv(s).toFixed(1)});g+=`<path d="${d}" fill="none" stroke="${tok(YC[y])}" stroke-width="2"/>`;}
+  const race=ys.map((y,i)=>`<div class="lane"><span style="color:var(--${YC[y]})">${y}</span><div class="track"><i class="car" data-v="${v[i]??''}" style="background:var(--${YC[y]})"></i></div><b>${f1(v[i])} mph</b></div>`).join('');
+  document.getElementById('pick').innerHTML=`<h3>${l.name}</h3><div class="meta">${l.boro}, ${Math.round(l.ft).toLocaleString()} feet, ${l.zone?'inside':'outside'} the congestion zone. ${dayw[0].toUpperCase()+dayw.slice(1)}, Feb. to Oct.; mph by hour.</div>
+    <svg class="chart" viewBox="0 0 ${W} ${H}" style="margin-top:8px">${g}</svg>
+    <div class="race"><div class="meta">One trip down the segment at ${hourName(st.hour)}, run 24 times faster than life:</div>${race}</div>`;
+  clearInterval(raceT); const cars=[...document.querySelectorAll('.race .car')], start=performance.now();
+  raceT=setInterval(()=>{const t=(performance.now()-start)/1000;let done=true;
+    cars.forEach(c=>{const s=+c.dataset.v;if(!s){c.style.display='none';return}const fr=Math.min(1,s*1.4667*SCALE*t/l.ft);if(fr<1)done=false;c.style.left=(fr*100)+'%'});
+    if(done&&t>1)setTimeout(()=>{if(st.sel===l.id)renderPick()},1600),clearInterval(raceT);},40);
+}
+
+// ---------- charts ----------
+function mchart(){
+  const svg=document.getElementById('mchart'),W=640,H=300,m={l:34,r:10,t:14,b:26};
+  const mo=S.months, n=mo.length, x=i=>m.l+i/(n-1)*(W-m.l-m.r);
+  const ser=[['zone','sun','Inside the zone'],['mn_out','lilac','Manhattan outside the zone'],['other','cyan','Queens, Brooklyn and Staten Island']];
+  const vals=ser.flatMap(s=>S.series[s[0]].mph).filter(v=>v!=null), lo=Math.floor(Math.min(...vals)/2)*2-2, hi=Math.ceil(Math.max(...vals)/2)*2+2;
+  const y=v=>H-m.b-(v-lo)/(hi-lo)*(H-m.t-m.b);
+  let g='';
+  for(let v=lo;v<=hi;v+=4)g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="${tok('grid')}"/><text x="${m.l-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;
+  mo.forEach((k,i)=>{if(k.endsWith('-01'))g+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${k.slice(0,4)}</text><line x1="${x(i)}" x2="${x(i)}" y1="${H-m.b}" y2="${H-m.b+4}" stroke="${tok('line')}"/>`});
+  const ip=mo.indexOf('2025-01');
+  if(ip>=0)g+=`<line x1="${x(ip)}" x2="${x(ip)}" y1="${m.t}" y2="${H-m.b}" stroke="${tok('fg')}" stroke-dasharray="3 3"/><text x="${x(ip)+5}" y="${m.t+10}" style="fill:${tok('fg')}">Tolls start Jan. 5, 2025</text>`;
+  for(const [k,c,lab] of ser){const v=S.series[k].mph;let d='';v.forEach((s,i)=>{if(s==null)return;d+=(d&&v[i-1]!=null?'L':'M')+x(i).toFixed(1)+','+y(s).toFixed(1)});
+    g+=`<path d="${d}" fill="none" stroke="${tok(c)}" stroke-width="2.2"/>`;
+    const li=v.map((s,i)=>s==null?-1:i).filter(i=>i>=0).pop();}
+  g+=ser.map(([k,c,lab],i)=>`<g transform="translate(${m.l+8},${H-m.b-50+i*16})"><rect width="12" height="3" y="-4" fill="${tok(c)}"/><text x="18" y="0" style="fill:${tok(c)}">${lab} (${S.series[k].n})</text></g>`).join('');
+  g+=`<text x="${m.l}" y="${m.t-2}">mph</text>`;
+  svg.innerHTML=g;
+  document.getElementById('mcap').textContent=`Average weekday speed, 7 a.m. to 7 p.m., by month, across segments that reported in at least 90% of months. Numbers in parentheses are segment counts.`;
+}
+function hchart(){
+  const svg=document.getElementById('hchart'),W=420,H=300,m={l:30,r:8,t:14,b:26},c=S.compare.zone;
+  const ys=[2024,2025,2026], vals=ys.flatMap(y=>c['hours'+y]), hi=Math.ceil(Math.max(...vals)/4)*4;
+  const x=h=>m.l+h/23*(W-m.l-m.r), y=v=>H-m.b-v/hi*(H-m.t-m.b);
+  let g='';
+  for(let v=0;v<=hi;v+=4)g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="${tok('grid')}"/><text x="${m.l-5}" y="${y(v)+4}" text-anchor="end">${v}</text>`;
+  for(const h of [0,6,12,18,23])g+=`<text x="${x(h)}" y="${H-6}" text-anchor="middle">${hourName(h)}</text>`;
+  for(const yy of ys){const r=c['hours'+yy];g+=`<path d="${r.map((s,h)=>(h?'L':'M')+x(h).toFixed(1)+','+y(s).toFixed(1)).join('')}" fill="none" stroke="${tok(YC[yy])}" stroke-width="2.2"/>`;}
+  g+=ys.map((yy,i)=>`<g transform="translate(${W-m.r-60},${m.t+8+i*16})"><rect width="12" height="3" y="-4" fill="${tok(YC[yy])}"/><text x="18" y="0" style="fill:${tok(YC[yy])}">${yy}</text></g>`).join('');
+  g+=`<text x="${m.l}" y="${m.t-2}">mph</text>`;
+  svg.innerHTML=g;
+}
+function lists(){
+  const rows=S.per_link.filter(r=>byId[r.id]&&byId[r.id].zone&&r.d24!=null&&r.d25!=null&&r.d26!=null).map(r=>({...r,c:(r.d25/r.d24-1)*100})).sort((a,b)=>b.c-a.c);
+  const item=r=>`<div class="row"><i class="sw" style="background:var(--${r.c>=0?'cyan':'vermilion'})"></i><div><span class="nm" style="cursor:pointer" data-id="${r.id}">${byId[r.id].name}</span><span class="sub">${f1(r.d24)} mph in 2024, ${f1(r.d25)} in 2025, ${f1(r.d26)} in 2026</span></div><div class="num">${r.c>=0?'+':''}${r.c.toFixed(0)}%</div></div>`;
+  document.getElementById('lfast').innerHTML=rows.slice(0,8).map(item).join('');
+  document.getElementById('lslow').innerHTML=rows.slice(-8).reverse().map(item).join('');
+  const faster=rows.filter(r=>r.c>0).length;
+  document.getElementById('lcap').textContent=`Weekday speed from 7 a.m. to 7 p.m., Feb. to Oct. 2025 against the same months of 2024. Of the ${rows.length} segments in the zone with readings in all three years, ${faster} got faster. Swings this large on a single block can come from construction, lane changes or a reader problem as well as from traffic. Click a name to find it on the map.`;
+  document.querySelectorAll('.list .nm[data-id]').forEach(e=>e.onclick=()=>{const l=byId[+e.dataset.id];select(l.id);
+    const b=new maplibregl.LngLatBounds();l.pts.forEach(p=>b.extend(p));map.fitBounds(b,{padding:120,maxZoom:15.5});document.querySelector('.stage').scrollIntoView({behavior:'smooth'});});
+}
+
+// ---------- boot ----------
+Promise.all(['links','profiles','summary'].map(n=>fetch(`data/${n}.json`).then(r=>r.json()))).then(([l,p,s])=>{
+  P=p;S=s;
+  L=l.map(x=>{const pts=decode(x.poly),seg=[];for(let i=1;i<pts.length;i++)seg.push(FT(pts[i-1],pts[i]));return{...x,pts,seg,len:seg.reduce((a,b)=>a+b,0)||x.ft}});
+  const okIds=new Set(S.per_link.filter(r=>r.d24!=null&&r.d25!=null&&r.d26!=null).map(r=>r.id));
+  L.forEach(x=>{x.panel=okIds.has(x.id);byId[x.id]=x});
+  fill();sizeCanvas();redraw();mchart();hchart();lists();requestAnimationFrame(frame);
+});
+function fill(){
+  const z=S.compare.zone,o=S.compare.mn_out,ot=S.compare.other;
+  const pc=(a,b)=>((b/a-1)*100);
+  const zc=pc(z.y24,z.y25), oc=pc(ot.y24,ot.y25);
+  document.getElementById('finding').textContent=FINDING(z,ot,zc,oc);
+  document.getElementById('lede').innerHTML=LEDE(z,o,ot,zc,oc);
+  const ld=new Date(S.last_day+'T12:00:00');
+  document.getElementById('range').textContent=`April 2021 to ${ld.toLocaleString('en-US',{month:'long'})} ${ld.getFullYear()}`;
+}
+// Copy is filled from the data so the numbers on the page always match data/summary.json.
+const pct=(a,b)=>{const c=(b/a-1)*100;return `${Math.abs(c).toFixed(Math.abs(c)<10?1:0)}% ${c>=0?'faster':'slower'}`};
+function FINDING(z,ot,zc,oc){
+  const yrs=YEARS.map(y=>z[String(y)]), lowest=Math.min(...yrs)===z['2026'];
+  return `Weekday traffic on the measured Midtown streets in the toll zone ran ${pct(z.y24,z.y25)} in 2025 than in 2024, then ${z.y26<z.y24?'fell':'moved'} to ${f1(z.y26)} mph in 2026${lowest?', the slowest of the five years compared':''}.`;
+}
+function LEDE(z,o,ot,zc,oc){
+  const fell=z['2022']>z['2023']&&z['2023']>z['2024'];
+  return `The city times E-ZPass tags between pairs of readers on <b>${S.links} street segments</b> and publishes a median speed about once a minute. Of those, ${S.zone_links} are inside the toll zone, all in Midtown between 14th and 57th streets. Comparing weekdays from 7 a.m. to 7 p.m. between February and October, ${z.links_faster_25} of the ${z.n} zone segments with readings in 2024, 2025 and 2026 got faster in 2025. ${fell?`The zone's average had dropped every year before that, from <b>${f1(z['2022'])} mph</b> in 2022 to <b>${f1(z['2024'])}</b> in 2024. `:''}Over the same months of 2025, segments in Queens, Brooklyn and Staten Island moved ${pct(ot.y24,ot.y25)} than in 2024, and Manhattan segments outside the zone, mostly the Henry Hudson Parkway, the Williamsburg Bridge and Upper East and West Side streets, moved ${pct(o.y24,o.y25)}.`;
+}
+</script>
+</body>
+</html>
