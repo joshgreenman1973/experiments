@@ -1,0 +1,133 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The tide line: methodology</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>.doc{max-width:860px;padding:30px clamp(16px,4vw,48px) 60px}.doc p,.doc li{color:var(--fg2)}.doc strong{color:var(--fg)}
+.doc table{border-collapse:collapse;width:100%;font-size:.92rem;margin:10px 0 20px;display:block;overflow-x:auto}.doc th{text-align:left;border-bottom:1.5px solid var(--fg);padding:6px 10px 6px 0}
+.doc td{border-bottom:1px solid var(--line2);padding:6px 10px 6px 0;vertical-align:top}.doc h2{margin-top:28px}code{font-size:.9em;background:var(--bg2);padding:1px 4px}</style>
+</head><body><div class="sheet"><div class="strip"><a href="./">Back to the page</a><span></span></div><div class="doc"><h1>The tide line: methodology</h1>
+<p>Built Nov. 15, 2026.</p>
+<h2>Sources</h2>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Future high tide layers, 2030s–2150s</td>
+<td>NYC Open Data <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">xbxf-ev5m</a>, file <code>nyc_future_high_tide_sea_level_rise.gdb.zip</code></td>
+<td>Mayor's Office of Climate and Environmental Justice (MOCEJ). Posted Sept. 21, 2026; marked public Nov. 13, 2026. Five layers.</td>
+</tr>
+<tr>
+<td>Future floodplain layers, 2030s–2150s</td>
+<td>NYC Open Data <a href="https://data.cityofnewyork.us/d/29fz-v4rp">29fz-v4rp</a>, file <code>nyc_future_floodplain_sea_level_rise.gdb.zip</code></td>
+<td>Same office and dates. Ten layers: 1% and 0.2% annual chance storms for five decades.</td>
+</tr>
+<tr>
+<td>Methodology documents</td>
+<td>Attachments on the two datasets above</td>
+<td>Quoted below.</td>
+</tr>
+<tr>
+<td>Tax lots and housing units</td>
+<td>PLUTO, NYC Open Data <a href="https://data.cityofnewyork.us/d/64uk-42ks">64uk-42ks</a>, version 26v2</td>
+<td>Fields used: <code>bbl</code>, <code>borough</code>, <code>unitsres</code>, <code>xcoord</code>, <code>ycoord</code>.</td>
+</tr>
+<tr>
+<td>Neighborhoods</td>
+<td>2020 Neighborhood Tabulation Areas, <a href="https://data.cityofnewyork.us/d/9nt8-h7nd">9nt8-h7nd</a></td>
+<td>City Planning, clipped to the shoreline.</td>
+</tr>
+<tr>
+<td>City line</td>
+<td>Borough Boundaries (water areas included), <a href="https://data.cityofnewyork.us/d/wh2p-dxnf">wh2p-dxnf</a></td>
+<td>Used to clip the flood layers, which extend into New Jersey in places.</td>
+</tr>
+</tbody>
+</table>
+<h2>What the layers assume</h2>
+<p>From the city's methodology documents:</p>
+<ul>
+<li>Sea-level rise is the 90th-percentile projection of the fourth New York City Panel on Climate Change (NPCC4, April 2024): <strong>13 inches for the 2030s, 23 for the 2050s, 45 for the 2080s, 65 for the 2100s and 177 for the 2150s.</strong> These are high-end values; the panel's central estimates are lower.</li>
+<li><strong>High tide</strong> is mean higher high water (MHHW) for the 1992 tidal epoch from NOAA's VDatum 4.5.1, raised to 2014 using the observed local rate of rise, then raised again by the projected rise. MHHW is the average height of the higher of each day's two high tides.</li>
+<li><strong>Storm floodplains</strong> start from base flood elevations in FEMA's 2015 preliminary flood insurance rate map (PFIRM), plus the projected rise. The 1% layer includes wave effects; the 0.2% layer uses stillwater elevation only.</li>
+<li>Ground elevation is FEMA Region 2's 10-foot digital elevation model from the NY/NJ Coastal Restudy.</li>
+<li>The method is a static "bathtub": water fills any land connected to the shoreline that sits below the water level. Low inland pockets with no connection to the shore are left dry.</li>
+<li>The city lists what the model leaves out: erosion, land subsidence, groundwater, rainfall and drainage, future construction and defenses. Piers and wharves missing from the elevation model can appear flooded. The city says the layers are for information only and lack the precision for site-level planning.</li>
+</ul>
+<h2>Steps</h2>
+<ol>
+<li>Download both geodatabases, PLUTO (<code>$select=bbl,address,borough,unitsres,unitstotal,bldgclass,landuse,xcoord,ycoord,yearbuilt,version</code>, paged 50,000 rows at a time), the NTA GeoJSON and the borough boundaries. Raw files live outside the repo in <code>~/.vital-city/flood-dl/</code>.</li>
+<li><code>build/build_lots.py</code></li>
+<li>Each layer is one multipolygon in EPSG:6539 (high tide in 2263). Reproject to EPSG:2263, repair with <code>make_valid</code>, clip to the five boroughs.</li>
+<li>Area in square miles = polygon area in square feet / 27,878,400.</li>
+<li>Make a point for every PLUTO lot from <code>xcoord</code>/<code>ycoord</code> (857,347 of 858,284 lots have them) and test which layers contain it.</li>
+<li>For each lot and each line (high tide, 100-year, 500-year), record the first decade whose layer contains it.</li>
+<li>Homes = sum of <code>unitsres</code> over lots inside a layer.</li>
+<li>Spatially join lots to 2020 NTAs for the neighborhood list.</li>
+<li>Check that layers nest. A handful of lots fall inside an earlier decade but not the next one (2 for high tide, 12 for the 100-year, 10 for the 500-year), from tiny differences in polygon edges. They are left as the source has them.</li>
+<li>Writes <code>data/summary.json</code> and <code>data/lots/{1-5}.json</code>. Each lot file maps BBL to a three-digit code: high-tide decade, 100-year decade, 500-year decade, each as 1–5 for the 2030s–2150s and 0 for never.</li>
+<li><code>build/build_tiles.py</code> simplifies each clipped layer to 6 feet, reprojects to WGS84 and runs tippecanoe (zooms 9–14) into <code>data/flood.pmtiles</code>. Simplification affects only the map, not the counts.</li>
+</ol>
+<h2>Headline numbers (from <code>data/summary.json</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Decade</th>
+<th>Rise</th>
+<th>High tide: sq mi / homes</th>
+<th>100-year: sq mi / homes</th>
+<th>500-year: sq mi / homes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2030s</td>
+<td>13 in.</td>
+<td>5.3 / 844</td>
+<td>54.9 / 278,220</td>
+<td>72.7 / 448,740</td>
+</tr>
+<tr>
+<td>2050s</td>
+<td>23 in.</td>
+<td>6.9 / 1,218</td>
+<td>61.4 / 320,253</td>
+<td>78.0 / 503,002</td>
+</tr>
+<tr>
+<td>2080s</td>
+<td>45 in.</td>
+<td>12.2 / 13,151</td>
+<td>73.7 / 445,904</td>
+<td>86.6 / 589,820</td>
+</tr>
+<tr>
+<td>2100s</td>
+<td>65 in.</td>
+<td>21.4 / 62,987</td>
+<td>82.4 / 537,313</td>
+<td>93.5 / 683,506</td>
+</tr>
+<tr>
+<td>2150s</td>
+<td>177 in.</td>
+<td>85.0 / 602,457</td>
+<td>117.8 / 1,020,119</td>
+<td>126.1 / 1,156,328</td>
+</tr>
+</tbody>
+</table>
+<p>PLUTO 26v2 counts 3,735,269 residential units citywide, so the 2150s high-tide figure is 16.1%.</p>
+<h2>Limitations</h2>
+<ul>
+<li><strong>Lot centers, not buildings.</strong> A lot counts in full if its center point is inside a line and not at all if only its edge is. Large waterfront lots can count early because their centers sit on a bulkhead or pier; one Williamsburg lot with 333 units counts from the 2030s high-tide layer on that basis.</li>
+<li><strong>Homes are units, not people.</strong> PLUTO <code>unitsres</code> counts residential units of any kind, occupied or not.</li>
+<li><strong>Today's buildings.</strong> The counts put today's housing under future water. They do not model what gets built, raised, protected or abandoned.</li>
+<li><strong>No present-day baseline.</strong> The city did not publish a current-sea-level layer in this set, so the page compares future decades to one another.</li>
+<li><strong>Address lookup.</strong> NYC GeoSearch returns the address point and its BBL. The page reports the earliest decade from either the lot file or the map polygons at that point. Condominium units may carry a BBL that differs from the PLUTO lot.</li>
+</ul></div></div></body></html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The tide line</title>
+<meta name="description" content="Where New York City's new sea-level-rise maps put the daily high tide and the 100-year flood, decade by decade, and how many homes sit inside each line.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
+<style>
+:root{--accent:var(--cobalt)}
+.stage{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2)}
+@media(max-width:900px){.stage{grid-template-columns:1fr}}
+#map{height:min(78vh,760px);min-height:420px;background:#0b0c0b}
+@media(max-width:900px){#map{height:62vh}}
+.side{padding:22px clamp(16px,3vw,36px) 26px;border-left:1px solid var(--line2);min-width:0}
+@media(max-width:900px){.side{border-left:0;border-top:1px solid var(--line2)}}
+.decs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px}
+.decs .chip{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;padding:7px 10px}
+.decs .chip small{font-weight:500;font-size:12px;opacity:.8}
+#stair{width:100%;height:auto;display:block;overflow:visible}
+#stair text{fill:var(--fg2);font-family:var(--sans);font-size:12px}
+#stair .lab{fill:var(--fg);font-weight:600}
+.now{font-size:1.02rem;line-height:1.5;margin:12px 0 0;max-width:46ch}
+.now b{color:var(--fg)}
+.look{margin-top:22px;position:relative}
+.look label{display:block;font-size:var(--t-small);color:var(--fg2);margin-bottom:6px}
+.look input{width:100%}
+.sugg{position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--bg2);border:1px solid var(--line);border-top:0;display:none}
+.sugg button{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line2);color:var(--fg);padding:9px 12px;font-size:15px;cursor:pointer}
+.sugg button:hover,.sugg button.hi{background:var(--bg)}
+.answer{margin-top:12px;font-size:1rem;line-height:1.5;min-height:1.5em}
+.answer .addr{font-weight:700;display:block;margin-bottom:4px}
+.answer i{font-style:normal;display:inline-block;width:10px;height:10px;margin-right:6px}
+.kinds{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.mkey{display:flex;flex-wrap:wrap;gap:4px 14px;padding:10px clamp(16px,4vw,48px);font-size:var(--t-small);color:var(--fg2)}
+.mkey i{width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:6px}
+.nlist .row .num small{display:block;font-family:var(--sans);font-weight:500;font-size:12px;color:var(--fg2)}
+.bar{height:6px;background:var(--line2);margin-top:6px;position:relative}
+.bar span{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+.method p{max-width:72ch;margin:0 0 12px;color:var(--fg2);font-size:.98rem}
+.method p b{color:var(--fg)}
+.maplibregl-ctrl-attrib{background:rgba(17,19,17,.8)!important;color:var(--fg2)}
+.maplibregl-ctrl-attrib a{color:var(--fg2)!important}
+.pin{width:16px;height:16px;border:3px solid var(--sun);background:transparent;transform:rotate(45deg)}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip"><span>Source: <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Mayor's Office of Climate and Environmental Justice</a>, via NYC Open Data; homes from <a href="https://data.cityofnewyork.us/d/64uk-42ks">PLUTO 26v2</a></span><span>Projections for the 2030s through the 2150s</span></div>
+
+  <header class="head">
+    <h1>The tide line</h1>
+    <p class="finding" id="finding">Under the high-end sea-level projection used in the city's new maps, the average daily high tide would cover land holding about 63,000 homes by the 2100s, up from about 1,200 in the 2050s.</p>
+    <p class="lede" id="lede">The city published new maps of future flooding on Nov. 13. They show, for five future decades, the land the average daily high tide would cover and the land a 100-year or 500-year coastal storm would flood. The 100-year storm floodplain covers <b>55 square miles</b> and lots holding <b>278,000 homes</b> in the 2030s map, and <b>82 square miles</b> and <b>537,000 homes</b> in the 2100s map. The 2150s map assumes 177 inches of sea-level rise. In it, the daily high tide alone covers 85 square miles, with about 602,000 homes, about one in six in the city.</p>
+  </header>
+
+  <div class="mkey">
+    <span><i style="background:var(--cobalt)"></i>Average daily high tide</span>
+    <span><i style="background:var(--cyan);opacity:.55"></i>100-year storm (1% chance each year)</span>
+    <span><i style="background:var(--lilac);opacity:.35"></i>500-year storm (0.2% chance each year)</span>
+  </div>
+  <section class="stage">
+    <div id="map" role="img" aria-label="Map of New York City showing projected high tide and storm flood zones for the selected decade"></div>
+    <div class="side">
+      <h2>Pick a decade</h2>
+      <div class="decs" id="decs"></div>
+      <svg id="stair" viewBox="0 0 420 250" aria-label="Homes inside each projected line, by inches of sea-level rise"></svg>
+      <p class="now" id="now"></p>
+      <div class="look">
+        <label for="addr">Look up an address</label>
+        <input type="text" id="addr" placeholder="e.g. 2 Rector Street, Manhattan" autocomplete="off">
+        <div class="sugg" id="sugg"></div>
+        <div class="answer" id="answer"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Neighborhoods</h2>
+    <p class="aside" id="nhead"></p>
+    <div class="kinds">
+      <button class="chip" data-kind="ht" aria-pressed="true">Daily high tide</button>
+      <button class="chip" data-kind="fp100" aria-pressed="false">100-year storm</button>
+    </div>
+    <div class="list nlist" id="nlist"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Boroughs</h2>
+    <p class="aside">Homes on lots inside each line, by projected decade. Each column assumes the rise shown under it.</p>
+    <div class="kinds" id="bkinds">
+      <button class="chip" data-kind="ht" aria-pressed="true">Daily high tide</button>
+      <button class="chip" data-kind="fp100" aria-pressed="false">100-year storm</button>
+      <button class="chip" data-kind="fp500" aria-pressed="false">500-year storm</button>
+    </div>
+    <div style="overflow-x:auto"><table class="h" id="btable"></table></div>
+  </section>
+
+  <section class="sec method" id="method">
+    <h2>How this was made</h2>
+    <p><b>The maps.</b> The Mayor's Office of Climate and Environmental Justice built the layers and posted them to NYC Open Data as <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Future High Tides</a> and <a href="https://data.cityofnewyork.us/d/29fz-v4rp">Future Floodplains</a>, made public Nov. 13, 2026. Both use the 90th-percentile sea-level-rise projections from the fourth New York City Panel on Climate Change (2024): 13 inches for the 2030s, 23 for the 2050s, 45 for the 2080s, 65 for the 2100s and 177 for the 2150s. The panel puts roughly a 1-in-10 chance on the sea rising more than that, so these are high-end scenarios.</p>
+    <p><b>What the lines mean.</b> The high-tide line is mean higher high water, the average height of the higher of each day's two high tides, raised by the projected rise. Land below it would be under water on a typical day's higher tide. The storm floodplains start from FEMA's 2015 preliminary flood maps and add the same rise. All of it is a "bathtub" model on a 10-foot elevation grid: water spreads to any land connected to the shoreline that sits below the water level. The city's own documents say the model ignores sea walls and other future defenses, erosion, sinking land, groundwater, rain and drainage, and that piers and wharves missing from the elevation grid can look flooded. The city says the layers are for information and not precise enough for site-level planning.</p>
+    <p><b>Homes.</b> Counts are residential units from the city's PLUTO tax-lot file (version 26v2), counted for every lot whose center point falls inside a line. A large lot whose center sits on a flooded edge counts in full, and a lot that floods only at its edge does not count at all. The address lookup uses the same lot test, plus a check of the exact address point against the map.</p>
+    <p><b>Map.</b> Polygons were simplified to 6 feet (the source grid is 10 feet) for the web map. Lot counts use the full-detail polygons.</p>
+    <p>Full notes and the build scripts: <a href="methodology.html">methodology</a>.</p>
+  </section>
+
+  <footer class="foot">
+    <p class="caution">This page was built with the help of an AI model. The counts come from public city files and the steps above; check them against the source before citing.</p>
+    Basemap © <a href="https://carto.com/attributions">CARTO</a>, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Address search by <a href="https://geosearch.planninglabs.nyc/">NYC GeoSearch</a>.
+  </footer>
+</div>
+
+<script>
+const DEC=[2030,2050,2080,2100,2150], INCH=[13,23,45,65,177];
+const KN={ht:'average daily high tide',fp100:'100-year storm floodplain',fp500:'500-year storm floodplain'};
+const BORO={MN:'Manhattan',BX:'Bronx',BK:'Brooklyn',QN:'Queens',SI:'Staten Island'};
+const css=getComputedStyle(document.documentElement), tok=n=>css.getPropertyValue('--'+n).trim();
+const fmt=n=>n.toLocaleString('en-US');
+const about=n=>n>=10000?fmt(Math.round(n/1000)*1000):n>=1000?fmt(Math.round(n/100)*100):fmt(n);
+let S=null, cur=3, nkind='ht', bkind='ht', map=null;
+
+// ---------- map ----------
+const protocol=new pmtiles.Protocol();
+maplibregl.addProtocol('pmtiles',protocol.tile);
+map=new maplibregl.Map({container:'map',style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center:[-73.94,40.67],zoom:10.1,minZoom:9,maxZoom:16.5,attributionControl:{compact:true}});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+map.on('load',()=>{
+  const firstSym=(map.getStyle().layers.find(l=>l.type==='symbol')||{}).id;
+  map.addSource('flood',{type:'vector',url:'pmtiles://'+new URL('data/flood.pmtiles',location.href).href});
+  const add=(id,k,color,op)=>map.addLayer({id,type:'fill',source:'flood','source-layer':'flood',
+    filter:['all',['==',['get','k'],k],['==',['get','d'],DEC[cur]]],paint:{'fill-color':color,'fill-opacity':op}},firstSym);
+  add('fp500','fp500',tok('lilac'),.30);
+  add('fp100','fp100',tok('cyan'),.42);
+  add('ht','ht',tok('cobalt'),.92);
+  map.addLayer({id:'probe',type:'fill',source:'flood','source-layer':'flood',paint:{'fill-opacity':0}},firstSym);
+});
+function setMap(){
+  if(!map||!map.getLayer('ht'))return;
+  for(const k of ['ht','fp100','fp500'])map.setFilter(k,['all',['==',['get','k'],k],['==',['get','d'],DEC[cur]]]);
+}
+
+// ---------- decade chips + staircase ----------
+function decChips(){
+  const el=document.getElementById('decs');
+  el.innerHTML=DEC.map((d,i)=>`<button class="chip" data-i="${i}" aria-pressed="${i===cur}">${d}s<small>${INCH[i]} in. of rise</small></button>`).join('');
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>select(+b.dataset.i));
+}
+function stair(){
+  const svg=document.getElementById('stair'), W=420,H=250, m={l:46,r:14,t:16,b:34};
+  const x=v=>m.l+v/180*(W-m.l-m.r), max=1200000, y=v=>H-m.b-v/max*(H-m.t-m.b);
+  let s='';
+  for(const v of [0,400000,800000,1200000]){s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="${tok('grid')}"/><text x="${m.l-6}" y="${y(v)+4}" text-anchor="end">${v?v/1e6+'M':'0'}</text>`}
+  INCH.forEach((v,i)=>{s+=`<g style="cursor:pointer" data-i="${i}"><rect x="${x(v)-12}" y="${m.t}" width="24" height="${H-m.t-m.b}" fill="${i===cur?tok('line2'):'transparent'}"/>`+
+    `<text x="${x(v)}" y="${H-m.b+16}" text-anchor="middle" class="${i===cur?'lab':''}">${v}"</text></g>`});
+  s+=`<text x="${W-m.r}" y="${H-4}" text-anchor="end">Inches of sea-level rise</text>`;
+  const ser=[['fp500','lilac'],['fp100','cyan'],['ht','cobalt']];
+  for(const [k,c] of ser){
+    const pts=S.by_decade[k].map((r,i)=>[x(INCH[i]),y(r.units)]);
+    s+=`<polyline fill="none" stroke="${tok(c)}" stroke-width="2" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+    pts.forEach((p,i)=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="${i===cur?5:3}" fill="${tok(c)}"/>`);
+  }
+  const lastI=4;
+  s+=`<text x="${x(INCH[lastI])-8}" y="${y(S.by_decade.fp500[lastI].units)-8}" text-anchor="end" style="fill:${tok('lilac')}">500-year</text>`;
+  s+=`<text x="${x(INCH[lastI])-8}" y="${y(S.by_decade.fp100[lastI].units)+16}" text-anchor="end" style="fill:${tok('cyan')}">100-year</text>`;
+  s+=`<text x="${x(INCH[lastI])-8}" y="${y(S.by_decade.ht[lastI].units)+16}" text-anchor="end" style="fill:${tok('cobalt')}">High tide</text>`;
+  s+=`<text x="${m.l}" y="${m.t-4}">Homes inside the line</text>`;
+  svg.innerHTML=s;
+  svg.querySelectorAll('g[data-i]').forEach(g=>g.onclick=()=>select(+g.dataset.i));
+}
+function nowText(){
+  const i=cur, d=DEC[i], h=S.by_decade.ht[i], f=S.by_decade.fp100[i], f5=S.by_decade.fp500[i], a={};
+  for(const k in S.area_sqmi){const v=S.area_sqmi[k];a[k]=v>=10?Math.round(v):v.toFixed(1);}
+  document.getElementById('now').innerHTML=`In the <b>${d}s</b> map, with ${INCH[i]} inches of rise, the daily high tide covers ${a['ht_'+d]} square miles of land and lots with <b>${about(h.units)} homes</b>. The 100-year storm reaches ${a['fp100_'+d]} square miles and <b>${about(f.units)} homes</b>; the 500-year storm, ${a['fp500_'+d]} square miles and ${about(f5.units)} homes.`;
+}
+function select(i){cur=i;decChips();stair();nowText();setMap();nlist();}
+
+// ---------- neighborhoods ----------
+function nlist(){
+  const k=nkind, i=cur;
+  const rows=S.nta.filter(r=>r.units>0&&r[k][i]>0).sort((a,b)=>b[k][i]-a[k][i]);
+  const tot=rows.reduce((s,r)=>s+r[k][i],0);
+  document.getElementById('nhead').textContent=`${rows.length} neighborhoods have homes inside the ${KN[k]} in the ${DEC[i]}s map. The ${Math.min(15,rows.length)} with the most are below, with the share of each neighborhood's homes.`;
+  const color=k==='ht'?'cobalt':'cyan';
+  document.getElementById('nlist').innerHTML=rows.slice(0,15).map(r=>{
+    const sh=r[k][i]/r.units;
+    return `<div class="row"><i class="sw" style="background:var(--${color})"></i><div><span class="nm">${r.name}</span><span class="sub">${r.boro}</span><div class="bar"><span style="width:${(sh*100).toFixed(1)}%;background:var(--${color})"></span></div></div><div class="num">${fmt(r[k][i])}<small>${sh>=.995?'all':Math.round(sh*100)+'%'} of ${fmt(r.units)}</small></div></div>`;
+  }).join('')||'<p class="aside">None.</p>';
+}
+document.querySelectorAll('.sec .kinds:not(#bkinds) .chip').forEach(b=>b.onclick=()=>{nkind=b.dataset.kind;
+  b.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));nlist();});
+
+// ---------- boroughs ----------
+function btable(){
+  const k=bkind, rows=Object.keys(BORO).map(b=>[BORO[b],S.by_boro[k][b]]);
+  const tot=DEC.map((d,i)=>S.by_decade[k][i].units);
+  document.getElementById('btable').innerHTML=`<tr><th>Borough</th>${DEC.map((d,i)=>`<th class="n">${d}s<br><span style="font-weight:500">${INCH[i]} in.</span></th>`).join('')}</tr>`+
+    rows.map(([n,v])=>`<tr><td>${n}</td>${v.map(x=>`<td class="n">${fmt(x)}</td>`).join('')}</tr>`).join('')+
+    `<tr><td><b>City</b></td>${tot.map(x=>`<td class="n"><b>${fmt(x)}</b></td>`).join('')}</tr>`;
+}
+document.querySelectorAll('#bkinds .chip').forEach(b=>b.onclick=()=>{bkind=b.dataset.kind;
+  b.parentNode.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));btable();});
+
+// ---------- address lookup ----------
+const lotCache={};
+async function lots(boro){if(!lotCache[boro])lotCache[boro]=fetch(`data/lots/${boro}.json`).then(r=>r.json());return lotCache[boro];}
+const inp=document.getElementById('addr'), sugg=document.getElementById('sugg'), ans=document.getElementById('answer');
+let tmr=null, feats=[], hi=-1, marker=null;
+inp.addEventListener('input',()=>{clearTimeout(tmr);const t=inp.value.trim();if(t.length<3){sugg.style.display='none';return;}
+  tmr=setTimeout(async()=>{
+    try{const r=await fetch('https://geosearch.planninglabs.nyc/v2/autocomplete?text='+encodeURIComponent(t));const j=await r.json();
+      feats=(j.features||[]).slice(0,6);hi=-1;
+      sugg.innerHTML=feats.map((f,i)=>`<button data-i="${i}">${f.properties.label}</button>`).join('');
+      sugg.style.display=feats.length?'block':'none';
+      sugg.querySelectorAll('button').forEach(b=>b.onclick=()=>pick(feats[+b.dataset.i]));
+    }catch(e){sugg.style.display='none';}
+  },220);});
+inp.addEventListener('keydown',e=>{
+  const bs=[...sugg.querySelectorAll('button')]; if(!bs.length)return;
+  if(e.key==='ArrowDown'){hi=Math.min(bs.length-1,hi+1);e.preventDefault();}
+  else if(e.key==='ArrowUp'){hi=Math.max(0,hi-1);e.preventDefault();}
+  else if(e.key==='Enter'){pick(feats[Math.max(0,hi)]);e.preventDefault();return;}
+  bs.forEach((b,i)=>b.classList.toggle('hi',i===hi));});
+document.addEventListener('click',e=>{if(!e.target.closest('.look'))sugg.style.display='none';});
+
+async function pick(f){
+  if(!f)return; sugg.style.display='none'; inp.value=f.properties.label;
+  ans.innerHTML='Checking…';
+  const [lon,lat]=f.geometry.coordinates;
+  const bbl=(((f.properties.addendum||{}).pad||{}).bbl||'')+'';
+  // lot test
+  let code=0;
+  if(/^\d{10}$/.test(bbl)){try{const m=await lots(bbl[0]);code=m[bbl]||0;}catch(e){}}
+  const first={ht:Math.floor(code/100)%10,fp100:Math.floor(code/10)%10,fp500:code%10}; // 1-based decade index, 0 = never
+  // point test against the map
+  if(!marker){const el=document.createElement('div');el.className='pin';marker=new maplibregl.Marker({element:el});}
+  marker.setLngLat([lon,lat]).addTo(map);
+  const line=(k,c)=>first[k]?`<span><i style="background:var(--${c})"></i>The ${KN[k]} reaches it in the <b>${DEC[first[k]-1]}s</b> map (${INCH[first[k]-1]} inches of rise).</span><br>`:'';
+  const render=()=>{const any=first.ht||first.fp100||first.fp500;
+    ans.innerHTML=`<span class="addr">${f.properties.label}</span>`+(any?line('fp100','cyan')+line('fp500','lilac')+line('ht','cobalt')+
+      (!first.ht?'The daily high tide does not reach it in any of the five maps, through the 2150s.':''):
+      'Outside all fifteen lines, including the 2150s maps with 177 inches of rise.');};
+  render();
+  map.flyTo({center:[lon,lat],zoom:15,speed:1.6});
+  await new Promise(r=>{map.once('idle',r);setTimeout(r,6000);});
+  const p=map.project([lon,lat]);
+  for(const ft of map.queryRenderedFeatures(p,{layers:['probe']})){
+    const k=ft.properties.k, i=DEC.indexOf(+ft.properties.d)+1;
+    if(i>0&&(!first[k]||i<first[k]))first[k]=i;
+  }
+  if(inp.value===f.properties.label)render();
+}
+
+// ---------- boot ----------
+fetch('data/summary.json').then(r=>r.json()).then(j=>{S=j;select(cur);btable();});
+</script>
+</body>
+</html>
