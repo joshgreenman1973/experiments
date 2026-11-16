@@ -14,8 +14,13 @@ const CONFIG = {
   // per-key by MTA). Override via URL param ?key=XXX to use a different one.
   apiKey: new URLSearchParams(window.location.search).get('key')
     || '5ecc401b-fc5b-4048-91bc-df104885f171',
-  // Refresh interval in ms (30s minimum per API rules)
-  refreshInterval: 30000,
+  // Refresh interval in ms (30s minimum per API rules). Each poll is about
+  // 2.3 MB uncompressed, so phones poll half as often.
+  refreshInterval: window.matchMedia('(max-width: 767px)').matches ? 60000 : 30000,
+  // A poll that hasn't answered by then is abandoned.
+  fetchTimeout: 45000,
+  // With no good poll for this long, the page stops calling itself live.
+  staleAfter: 150000,
   // Map tile source
   tileUrl: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 };
@@ -25,6 +30,13 @@ let map;
 let currentSnapshot = null;
 let previousSnapshot = null; // for speed calculation
 let isLive = true;
+// Feed health: the last poll that returned vehicles, the reason the latest
+// one failed, and how many in a row have failed (for backoff).
+let lastGoodPoll = 0;
+let lastFeedError = '';
+let feedFailures = 0;
+let pollInFlight = false;
+let pollTimer = null;
 let routeShapes = null;
 let routeShapeIndex = null; // routeId → GeoJSON feature (built once on shape load)
 let selectedRoute = null;
@@ -138,6 +150,7 @@ async function init() {
     if (prefetchedData) {
       processLiveData(prefetchedData);
       cacheLiveData(prefetchedData);
+      lastGoodPoll = Date.now();
     } else if (!cached) {
       await fetchLiveData(); // fallback only if no cache either
     }
@@ -159,10 +172,9 @@ async function init() {
       requestAnimationFrame(() => title.classList.add('animate'));
     }
 
-    // Start auto-refresh
-    setInterval(() => {
-      if (isLive) fetchLiveData();
-    }, CONFIG.refreshInterval);
+    // Start auto-refresh: one poll at a time, paused while the tab is hidden,
+    // backing off when the feed fails.
+    startPolling();
 
     // Set up bus click handler
     setupBusClickHandler();
@@ -219,13 +231,21 @@ async function prefetchLiveData() {
     // version=2 as a query param makes the endpoint return an XML error page
     // instead of JSON.
     const url = `${CONFIG.apiBase}?key=${CONFIG.apiKey}&VehicleMonitoringDetailLevel=basic`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const data = await res.json();
+    const res = await fetch(url, { signal: AbortSignal.timeout(CONFIG.fetchTimeout) });
+    if (res.status === 429) throw new Error('the MTA feed is limiting requests (HTTP 429)');
+    if (!res.ok) throw new Error(`the MTA feed answered HTTP ${res.status}`);
+    const text = await res.text();
+    if (text.trimStart().startsWith('<')) throw new Error('the MTA feed sent an error page instead of data');
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('the MTA feed sent an incomplete response'); }
     const delivery = data?.Siri?.ServiceDelivery?.VehicleMonitoringDelivery;
-    if (!delivery?.[0]?.VehicleActivity) throw new Error('No vehicle data');
+    if (!delivery?.[0]?.VehicleActivity?.length) throw new Error('the MTA feed returned no buses');
+    lastFeedError = '';
     return delivery[0].VehicleActivity;
   } catch (e) {
+    lastFeedError = e.name === 'TimeoutError' || e.name === 'AbortError'
+      ? `the MTA feed did not answer within ${CONFIG.fetchTimeout / 1000} seconds`
+      : e instanceof TypeError ? 'the MTA feed could not be reached' : e.message;
     console.error('Prefetch failed:', e);
     return null;
   }
@@ -325,16 +345,72 @@ function processLiveData(vehicleActivity, isCached = false) {
 }
 
 async function fetchLiveData() {
+  if (pollInFlight) return;
+  pollInFlight = true;
   try {
     const activity = await prefetchLiveData();
-    if (!activity) throw new Error('No data');
+    if (!activity) throw new Error(lastFeedError || 'no data');
     processLiveData(activity);
     cacheLiveData(activity);
+    lastGoodPoll = Date.now();
+    feedFailures = 0;
   } catch (e) {
+    feedFailures++;
     console.error('Fetch failed:', e);
-    dom['status-text'].textContent = `Error: ${e.message}`;
     hideLoading();
+  } finally {
+    pollInFlight = false;
+    updateFeedState();
   }
+}
+
+// ═══ POLLING ═══
+// The next poll is scheduled only after the last one finishes, so slow
+// answers can't pile up or land out of order. Failures back off (30 s, 1, 2,
+// 4 min, capped at 5). Hidden tabs don't poll; coming back polls at once if
+// the data is old.
+function nextPollDelay() {
+  return feedFailures ? Math.min(CONFIG.refreshInterval * 2 ** (feedFailures - 1), 300000) : CONFIG.refreshInterval;
+}
+function schedulePoll(delay = nextPollDelay()) {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    if (document.hidden || !isLive) return; // resumed by visibilitychange
+    await fetchLiveData();
+    schedulePoll();
+  }, delay);
+}
+function startPolling() {
+  if (lastGoodPoll === 0 && currentSnapshot) lastGoodPoll = Date.now();
+  updateFeedState();
+  schedulePoll();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { clearTimeout(pollTimer); return; }
+    schedulePoll(Date.now() - lastGoodPoll >= CONFIG.refreshInterval ? 0 : CONFIG.refreshInterval - (Date.now() - lastGoodPoll));
+  });
+  // Re-check staleness between polls, so a feed that goes quiet is shown as
+  // quiet even while the next attempt is backed off.
+  setInterval(updateFeedState, 15000);
+}
+
+// Live badge, status line and speed card follow the feed: after
+// CONFIG.staleAfter without a good poll the page stops saying "Live" and
+// greys the speed rather than showing an old figure as current.
+function updateFeedState() {
+  const stale = !lastGoodPoll || Date.now() - lastGoodPoll > CONFIG.staleAfter;
+  const badge = dom['live-badge'], status = dom['status-text'];
+  if (badge) {
+    badge.classList.toggle('stale', stale);
+    if (badge.lastChild?.nodeType === Node.TEXT_NODE) badge.lastChild.textContent = stale ? ' Not live' : ' Live';
+  }
+  document.body.classList.toggle('feed-stale', stale);
+  if (!status) return;
+  if (!stale && !feedFailures) return; // processLiveData wrote "Updated …"
+  const since = lastGoodPoll ? `; last update ${formatTime(new Date(lastGoodPoll))}` : '';
+  const retry = Math.round(nextPollDelay() / 1000);
+  status.textContent = stale
+    ? `Not live: ${lastFeedError || 'no answer from the MTA feed'}${since}. Trying again in ${retry < 60 ? `${retry} seconds` : `${Math.round(retry / 60)} min`}.`
+    : `Last poll failed (${lastFeedError}); showing ${formatTime(new Date(lastGoodPoll))}.`;
 }
 
 function parseVehicles(activities) {

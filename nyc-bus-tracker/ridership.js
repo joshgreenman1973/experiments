@@ -252,8 +252,14 @@ async function toggleLayer(name) {
     // deserts only make sense against the subway map — bring it with us
     layers.subway = true;
   }
-  if (layers.subway) await ensureSubwayLayers();
-  if (layers.crz) await ensureCrzLayer();
+  // A layer whose data fails to load is switched back off, so the button
+  // never claims a layer that isn't on the map.
+  if (layers.subway) {
+    try { await ensureSubwayLayers(); } catch (e) { console.error('subway layer failed:', e); layers.subway = false; layers.desert = false; }
+  }
+  if (layers.crz) {
+    try { await ensureCrzLayer(); } catch (e) { console.error('congestion zone layer failed:', e); layers.crz = false; }
+  }
   const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
   vis('subway-lines', layers.subway);
   vis('subway-stations', layers.subway);
@@ -507,20 +513,38 @@ async function boot() {
   // fires as soon as the style itself is ready for addSource/addLayer. Init on
   // whichever comes first, with a retrying poll as backstop (addSource throws
   // if the style genuinely isn't ready yet — the catch resets and retries).
-  let inited = false;
+  // A failed stops.json download is final: say so instead of retrying behind
+  // the spinner forever. Style-not-ready errors still retry.
+  let inited = false, failed = false;
+  const fail = (msg) => {
+    if (failed) return;
+    failed = true;
+    clearInterval(readyPoll);
+    clearTimeout(giveUp);
+    $('loading-overlay').querySelector('.loading-spinner')?.remove();
+    $('loading-text').textContent = msg;
+  };
+  dataPromise.catch((e) => {
+    console.error('stops data failed:', e);
+    fail('The bus stop data didn\u2019t load. Check your connection and reload the page.');
+  });
+  const giveUp = setTimeout(() => {
+    if (!$('loading-overlay').classList.contains('hidden')) fail('The map is taking too long to load. Reload the page to try again.');
+  }, 45000);
   const initLayers = async () => {
-    if (inited) return;
+    if (inited || failed) return;
     inited = true;
     await dataPromise;
 
-    map.addSource('stops', { type: 'geojson', data: fc[daytype] });
+    // A retry after a partial init must not add the source twice.
+    if (!map.getSource('stops')) map.addSource('stops', { type: 'geojson', data: fc[daytype] });
     // ghost layer: every stop, barely there, so quiet hours still show the network
-    map.addLayer({
+    if (!map.getLayer('stops-ghost')) map.addLayer({
       id: 'stops-ghost', type: 'circle', source: 'stops',
       paint: { 'circle-radius': 0.8, 'circle-color': 'rgba(255,255,255,0.14)' },
     });
     const p = paintFor(hour, hour, 0);
-    map.addLayer({
+    if (!map.getLayer('boardings')) map.addLayer({
       id: 'boardings', type: 'circle', source: 'stops',
       paint: {
         'circle-radius': p.radius,
@@ -534,6 +558,7 @@ async function boot() {
     drawCurve(); updateClock(); updateLeaders();
     bindMapInteractions();
     $('loading-overlay').classList.add('hidden');
+    clearTimeout(giveUp);
   };
   const tryInit = () => initLayers().catch(() => { inited = false; });
   map.on('style.load', tryInit);
