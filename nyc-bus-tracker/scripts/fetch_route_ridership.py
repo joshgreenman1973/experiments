@@ -565,6 +565,9 @@ out = {
     'routeIdChanges': dict(sorted(renamed.items())),
     'tapsUnmatched': dict(sorted((k, v) for k, v in tap_unmatched.items() if v > 0)),
 }
+sys.path.insert(0, HERE)
+from ridership_flags import add_flags  # noqa: E402  (same folder)
+add_flags(out)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 json.dump(out, open(OUT, 'w'), separators=(',', ':'))
 li = N - 1

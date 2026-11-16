@@ -106,7 +106,7 @@
     try { renderHealth(health); } catch (e) { console.error(e); }
     try { renderCards(compWd, compWe); } catch (e) { console.error(e); }
     try { renderBoroughs(compWd, wroutes); } catch (e) { console.error(e); }
-    try { renderRidership(rider, names); } catch (e) { console.error(e); }
+    try { renderRidership(rider, names, wroutes); } catch (e) { console.error(e); }
     try { renderGeo(compWd, wroutes, classes); } catch (e) { console.error(e); }
     try { renderTable(periods); } catch (e) { console.error(e); }
     try { renderEvents(events, periods); } catch (e) { console.error(e); }
@@ -216,57 +216,104 @@
       ['Rest of the city', 'never enter the CBD', c => c.cbd === 'Outside CBD'],
     ];
     host.innerHTML = groups.map(([label, sub, test]) => {
-      const n = Object.values(cls).filter(test).length;
+      // Count only the routes the average can use: local, limited and SBS.
+      const n = Object.entries(cls).filter(([r, c]) => test(c) && PANEL.has(wroutes?.meta?.[r]?.kind)).length;
       return mini(label, groupSeries(comp, wroutes, r => cls[r] && test(cls[r])), `${sub} · ${n} routes`);
     }).join('');
   }
 
-  function renderRidership(d, names) {
+  function renderRidership(d, names, wroutes) {
     const host = $('tray-ridership');
     if (!host || !d?.months?.length) return;
     const li = d.months.length - 1;
+    const latest = d.months[li];
+    // Months whose estimate moved far out of line with fare taps (see
+    // scripts/ridership_flags.py). A flag anywhere in a comparison window
+    // suppresses that change; a flag on the latest month keeps the route out
+    // of the ranking.
+    const isFlagged = rec => (rec.flags || []).includes(latest);
     // Two comparisons for the latest three months: the twelve months before
     // (recent trend) and the same three months a year earlier (fair to the
     // season). Either is suppressed when a network redesign changed the route
     // inside its window.
     const win = (from, to) => d.months.slice(Math.max(0, from), to);
-    const cmp = (arr, breaks, from, to) => {
+    const cmp = (arr, breaks, from, to, flags) => {
       if (!arr || from < 0) return null;
       if ((breaks || []).some(m => win(from, li + 1).includes(m))) return 'break';
+      if ((flags || []).some(m => win(from, li + 1).includes(m))) return 'flag';
       const a = mean(arr.slice(li - 2, li + 1)), b = mean(arr.slice(from, to));
       return a && b ? a / b - 1 : null;
     };
-    const recentVsYear = (arr, breaks) => cmp(arr, breaks, li - 14, li - 2);
-    const sameMonths = (arr, breaks) => cmp(arr, breaks, li - 14, li - 11);
+    const recentVsYear = (arr, breaks, flags) => cmp(arr, breaks, li - 14, li - 2, flags);
+    const sameMonths = (arr, breaks, flags) => cmp(arr, breaks, li - 14, li - 11, flags);
     const span = `${monthName(d.months[li - 2]).split(' ')[0].slice(0, 3)}.–${monthName(d.months[li]).split(' ')[0].slice(0, 3)}.`;
     const chg = x => (x === 'break' ? '<span class="rid-break" title="A network redesign changed this route inside the comparison window">route changed</span>'
+      : x === 'flag' ? '<span class="rid-break" title="The MTA estimate moved far out of line with fare taps inside the comparison window, most likely a change in counters or scaling, not riders">estimate unstable</span>'
       : x == null ? '—' : `<span class="${x > 0.005 ? 'rid-up' : x < -0.005 ? 'rid-down' : ''}">${x > 0 ? '+' : ''}${(100 * x).toFixed(1)}%</span>`);
-    const tile = (label, rec, href) => {
-      const c = recentVsYear(rec.wdAvg, rec.breakMonths);
+    const tile = (label, rec, href, flags = rec.flags) => {
+      const c = recentVsYear(rec.wdAvg, rec.breakMonths, flags);
       const taps = rec.tapsWdAvg?.[li];
       return `<div class="mini-trend">
         <div class="mini-label">${href ? `<a class="route-link" href="${href}">${esc(label)}</a>` : esc(label)}</div>
         <div class="mini-value">${num(rec.wdAvg[li])}<span class="mini-unit">boardings/wkday</span></div>
-        <div class="trend-change flat">${span} vs. a year earlier: ${chg(sameMonths(rec.wdAvg, rec.breakMonths))}</div>
+        <div class="trend-change flat">${span} vs. a year earlier: ${chg(sameMonths(rec.wdAvg, rec.breakMonths, flags))}</div>
         <div class="trend-change flat">vs. the 12 months before: ${chg(c)}</div>
         ${taps ? `<div class="trend-change flat">fare taps ${num(taps)} · estimate/taps ${(rec.wdAvg[li] / taps).toFixed(2)}</div>` : ''}
         ${spark(rec.wdAvg.map(x => x || null), true)}
       </div>`;
     };
-    const tiles = [tile('All NYC buses', d.system)];
+    const tiles = [tile('All NYC buses', d.system, null, d.systemFlags)];
     for (const b of WATCH) for (const r of b.routes) if (d.routes[r]) tiles.push(tile(r, d.routes[r], `route.html?r=${encodeURIComponent(r)}`));
-    const ranked = Object.entries(d.routes).map(([r, rec]) => ({ r, rec, now: rec.wdAvg[li] })).filter(x => x.now > 0)
-      .sort((a, b) => b.now - a.now).slice(0, 15);
+    const all = Object.entries(d.routes).map(([r, rec]) => ({ r, rec, now: rec.wdAvg[li] })).filter(x => x.now > 0)
+      .sort((a, b) => b.now - a.now);
+    const ranked = all.filter(x => !isFlagged(x.rec)).slice(0, 15);
+    // Flagged routes that would otherwise have made the list.
+    const cutoff = ranked.length ? ranked[ranked.length - 1].now : 0;
+    const leftOut = all.filter(x => isFlagged(x.rec) && x.now >= cutoff).map(x => x.r);
     const rows = ranked.map((x, i) => {
       const taps = x.rec.tapsWdAvg?.[li];
       return `<tr><td class="num">${i + 1}</td><td>${routeLink(x.r)}</td><td class="rid-name">${esc(names[x.r]?.long || '')}</td>
         <td class="num">${num(x.now)}</td><td class="num">${num(taps)}</td><td class="num">${taps ? (x.now / taps).toFixed(2) : '—'}</td>
-        <td class="num">${chg(sameMonths(x.rec.wdAvg, x.rec.breakMonths))}</td><td class="num">${chg(recentVsYear(x.rec.wdAvg, x.rec.breakMonths))}</td></tr>`;
+        <td class="num">${chg(sameMonths(x.rec.wdAvg, x.rec.breakMonths, x.rec.flags))}</td><td class="num">${chg(recentVsYear(x.rec.wdAvg, x.rec.breakMonths, x.rec.flags))}</td></tr>`;
     }).join('');
     host.innerHTML = `<div class="boro-trend rid-tiles">${tiles.join('')}</div>
       <div class="rid-board"><div class="rid-board-title">Busiest routes, ${monthName(d.months[li])}: average weekday boardings</div>
       <table class="tray-table rid-table"><thead><tr><th class="num">#</th><th>Route</th><th>Name</th><th class="num">Counters</th><th class="num">Fare taps</th><th class="num">Ratio</th><th class="num">${span} vs. year earlier</th><th class="num">vs. 12 months before</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>`;
+      <tbody>${rows}</tbody></table>
+      ${leftOut.length ? `<div class="tray-table-note">Left out of this list because their ${monthName(latest)} estimates moved far out of line with fare taps: ${leftOut.map(esc).join(', ')}. Their counter figures are on their route pages.</div>` : ''}</div>`;
+    renderRidershipNote(d, wroutes, li);
+  }
+
+  // The sentence on how far estimates run above taps, built from the file so
+  // it moves with each month the MTA publishes.
+  function renderRidershipNote(d, wroutes, li) {
+    const host = $('tray-rid-ratio');
+    if (!host) return;
+    const pctAbove = r => `${Math.round(100 * (r - 1))}%`;
+    const last3 = [li - 2, li - 1, li].filter(i => i >= 0 && d.system.ratio?.[i]);
+    const sys = last3.map(i => d.system.ratio[i]);
+    const latest = d.months[li];
+    const med = a => { const v = [...a].sort((x, y) => x - y); return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : null; };
+    const local = Object.entries(d.routes)
+      .filter(([r, rec]) => PANEL.has(wroutes?.meta?.[r]?.kind) && !(rec.flags || []).includes(latest) && rec.ratio?.[li])
+      .map(([, rec]) => rec.ratio[li]);
+    const mLocal = med(local);
+    const mon = i => monthName(d.months[i]).split(' ')[0];
+    let t = '';
+    if (sys.length) {
+      const lo = Math.min(...sys), hi = Math.max(...sys);
+      t += `The estimates run well above taps: systemwide by ${lo === hi ? pctAbove(lo) : `${pctAbove(lo)} to ${pctAbove(hi)}`} from ${mon(last3[0])} to ${monthName(d.months[last3[last3.length - 1]])}`;
+      t += mLocal ? `, and on the typical local route by about ${pctAbove(mLocal)} in ${mon(li)}, leaving out routes whose estimate is unstable. ` : '. ';
+    }
+    const flaggedNow = Object.entries(d.routes).filter(([, rec]) => (rec.flags || []).includes(latest)).map(([r]) => r);
+    if (flaggedNow.length) {
+      const bx = flaggedNow.filter(r => /^BX(?!M)/.test(r)).length;
+      t += `In ${monthName(latest)} the estimates for ${flaggedNow.length} routes${bx > flaggedNow.length / 3 ? `, ${bx} of them in the Bronx,` : ''} moved far out of line with fare taps (more than 40% away from each route's own ratio over the year before), which points to a change in the MTA's counters or scaling on those routes rather than in riders. Their changes are not shown, marked &ldquo;estimate unstable,&rdquo; and they are left out of the ranking. `;
+    }
+    if ((d.systemFlags || []).includes(latest)) {
+      t += `The systemwide estimate moved out of line with taps that month too, so read its rise with care. `;
+    }
+    host.innerHTML = t;
   }
 
   function renderTable(periods) {

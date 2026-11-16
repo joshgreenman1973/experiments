@@ -190,7 +190,7 @@ function assignDayTypes(days) {
       const full = Math.max(...near);
       if (sched[d.date] < LIGHT_TIMETABLE_RATIO * full) {
         d.dayType = 'holiday';
-        d.typeReason = `Lighter weekday timetable (${Math.round(1000 * sched[d.date] / full) / 10}% of the standard weekday's scheduled trips), as on days public schools are closed`;
+        d.typeReason = `Lighter weekday timetable: ${Math.round(1000 * sched[d.date] / full) / 10}% of the standard weekday's scheduled trips, as when public schools are closed`;
         continue;
       }
     }
