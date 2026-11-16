@@ -68,9 +68,11 @@ export const isPanelRoute = id => ['local', 'sbs', 'limited'].includes(routeKind
 export const isRegularRoute = id => ['local', 'sbs', 'limited', 'express'].includes(routeKind(id));
 
 // ── calendar ────────────────────────────────────────────────────────────────
-// Public holidays. "major" days run holiday (Sunday-style) bus service and are
-// kept out of the weekday series outright; rollup.js also drops any weekday
-// whose route count says service was cut, which catches the rest.
+// Public holidays and school-closed weekdays. "major" days run holiday
+// (Sunday-style) bus service; "minor" and "school" days run a lighter weekday
+// timetable. rollup.js keeps every listed weekday out of the weekday series,
+// and also drops any weekday whose timetable is lighter than the standard
+// weekday's or whose route count says service was cut, which catches the rest.
 export const HOLIDAYS = {
   '2026-01-01': ['New Year\'s Day', 'major'],
   '2026-01-19': ['Martin Luther King Jr. Day', 'minor'],
@@ -79,7 +81,9 @@ export const HOLIDAYS = {
   '2026-06-19': ['Juneteenth', 'major'],
   '2026-07-03': ['Independence Day (observed)', 'major'],
   '2026-09-07': ['Labor Day', 'major'],
+  '2026-09-21': ['Yom Kippur (public schools closed)', 'school'],
   '2026-10-12': ['Columbus Day / Indigenous Peoples\' Day', 'minor'],
+  '2026-11-03': ['Election Day (public schools closed)', 'school'],
   '2026-11-11': ['Veterans Day', 'minor'],
   '2026-11-26': ['Thanksgiving', 'major'],
   '2026-11-27': ['Day after Thanksgiving', 'minor'],

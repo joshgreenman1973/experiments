@@ -26,9 +26,13 @@
  *   5/7 weekday + 2/7 weekend. A week is comparable when it has 7 days and
  *   both day types are complete.
  *
- *   Holidays and service cuts. Major holidays, and any weekday whose midday
- *   route count falls below 85% of nearby weekdays, are typed "holiday" and
- *   left out of both series.
+ *   Holidays, school-closed days and service cuts. A weekday is typed
+ *   "holiday" and left out of both series when it is a listed holiday (major
+ *   or minor), when the MTA's timetable for that date schedules fewer trips
+ *   than its standard weekday timetable nearby (the MTA runs lighter
+ *   timetables on days public schools are closed, such as Yom Kippur and
+ *   Election Day), or when its midday route count falls below 85% of nearby
+ *   weekdays.
  *
  * Outputs (data/summary/): days.json, weekly.json, monthly.json,
  * weekly-routes.json, monthly-routes.json, latest.json, health.json; and one
@@ -40,12 +44,13 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { routeKind, routeGroup, isoWeek, WINDOW_HOURS, BANDS, etParts } from './routes.js';
+import { routeKind, routeGroup, isoWeek, WINDOW_HOURS, BANDS, etParts, holidayOf } from './routes.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DAILY_DIR = join(ROOT, 'data', 'daily');
 const SUMMARY_DIR = join(ROOT, 'data', 'summary');
 const HISTORY_DIR = join(ROOT, 'data', 'route-history');
+const SCHEDULE_FILE = join(ROOT, 'data', 'gtfs', 'scheduled-service.json');
 
 export const METHOD_VERSION = 2;
 // MIN_HOUR_SNAPS and MAX_FILLED_HOURS are exported so the data dictionary
@@ -57,6 +62,11 @@ const MIN_MOV_READINGS = 3;
 const MIN_ROUTE_TIME_S = 120;
 const MPS_TO_MPH = 2.2369363;
 const REDUCED_SERVICE_RATIO = 0.85;
+// A weekday whose timetable schedules less than this share of the standard
+// weekday timetable's trips (6 a.m. to 10:59 p.m.) is a non-standard weekday.
+// The MTA's school-closed weekday timetable runs about 98.8% of the standard
+// one; its holiday-reduced weekday timetable about 90%.
+const LIGHT_TIMETABLE_RATIO = 0.995;
 const HEALTH_MIN_HOURS = 12;       // the last full day with fewer collected hours trips the alert
 const MIN_CELL_DAYS = { week: { weekday: 3, weekend: 1 }, month: { weekday: 8, weekend: 3 } };
 const MIDDAY = [10, 11, 12, 13, 14, 15];
@@ -147,14 +157,45 @@ function deriveDay(day) {
 }
 
 // ── day types ───────────────────────────────────────────────────────────────
+// Scheduled trips under way, summed over the 17 window hours, for each date
+// the timetable file covers. Empty when the file is missing.
+function scheduledTripsByDate() {
+  if (!existsSync(SCHEDULE_FILE)) return {};
+  const s = JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8'));
+  const totals = {};
+  for (const [id, routes] of Object.entries(s.patterns || {})) {
+    let sum = 0;
+    for (const hours of Object.values(routes)) for (const h of WINDOW_HOURS) sum += hours[h] || 0;
+    totals[id] = sum;
+  }
+  const out = {};
+  for (const [date, id] of Object.entries(s.dates || {})) if (totals[id] != null) out[date] = totals[id];
+  return out;
+}
+
 function assignDayTypes(days) {
   const t = d => Date.parse(d.date + 'T00:00:00Z');
+  const sched = scheduledTripsByDate();
+  const isWd = d => d.weekday >= 1 && d.weekday <= 5;
   for (const d of days) {
+    // The holiday list can grow after a day was processed, so read it fresh.
+    d.holiday = holidayOf(d.date) || d.holiday || null;
     if (d.weekday === 0 || d.weekday === 6) { d.dayType = 'weekend'; continue; }
     d.dayType = 'weekday';
-    if (d.holiday?.type === 'major') { d.dayType = 'holiday'; d.typeReason = d.holiday.name; continue; }
+    if (d.holiday) { d.dayType = 'holiday'; d.typeReason = d.holiday.name; continue; }
+    if (sched[d.date] != null) {
+      // Standard weekday timetable: the fullest weekday timetable within two weeks.
+      const near = days.filter(o => isWd(o) && sched[o.date] != null && Math.abs(t(o) - t(d)) <= 14 * 86400000)
+        .map(o => sched[o.date]);
+      const full = Math.max(...near);
+      if (sched[d.date] < LIGHT_TIMETABLE_RATIO * full) {
+        d.dayType = 'holiday';
+        d.typeReason = `Lighter weekday timetable (${Math.round(1000 * sched[d.date] / full) / 10}% of the standard weekday's scheduled trips), as on days public schools are closed`;
+        continue;
+      }
+    }
     if (d.middayCovered < 3) continue;
-    const peers = days.filter(o => o !== d && o.weekday >= 1 && o.weekday <= 5 && o.holiday?.type !== 'major'
+    const peers = days.filter(o => o !== d && isWd(o) && !o.holiday
       && o.middayCovered >= 3 && Math.abs(t(o) - t(d)) <= 14 * 86400000).map(o => o.middayRoutes).sort((a, b) => a - b);
     if (peers.length >= 3) {
       const med = peers[Math.floor(peers.length / 2)];
