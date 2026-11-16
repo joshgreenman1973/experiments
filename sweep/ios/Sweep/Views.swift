@@ -528,6 +528,19 @@ struct SettingsView: View {
                     .disabled(!store.settings.eveningOn)
                     Text("For a sign that starts at midnight, “the evening before” is the evening before that midnight.")
                         .font(Theme.body(15)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+                    Rectangle().fill(Theme.line).frame(height: 1)
+                    Toggle(isOn: $store.calendarOn) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Add to my calendar").font(Theme.display(20, 700))
+                            Text("Each cleaning for the parked car goes on your calendar, about four weeks ahead, skipping holidays. Sweep takes them off when you move the car.")
+                                .font(Theme.body(15)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .tint(Theme.sun)
+                    if store.calendarOn && store.calendarAccess == .denied {
+                        Text("Calendar access is off for Sweep. Turn it on in Settings, Apps, Sweep, Calendars, “Full Access.”")
+                            .font(Theme.body(15, 600)).foregroundStyle(Theme.vermilion).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(16)
             }

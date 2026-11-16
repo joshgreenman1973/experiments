@@ -19,6 +19,11 @@ final class Store: ObservableObject {
     @Published var holidays = HolidayCalendar() { didSet { save() } }
     @Published var notificationsAllowed: Bool? = nil
     @Published var scheduled: [Schedule.Alert] = []
+    /// Put each cleaning window on the phone's calendar. Kept apart from ReminderSettings so older saved settings still load.
+    @Published var calendarOn: Bool = UserDefaults.standard.object(forKey: "calendarOn") as? Bool ?? true {
+        didSet { defaults.set(calendarOn, forKey: "calendarOn"); syncCalendar(ask: calendarOn) }
+    }
+    @Published var calendarAccess: CalendarSync.Access = CalendarSync.shared.access
 
     private let defaults = UserDefaults.standard
     private var loading = false
@@ -106,7 +111,17 @@ final class Store: ObservableObject {
         }
     }
 
+    func syncCalendar(ask: Bool) {
+        let spot = calendarOn ? parked?.spot : nil
+        let w = (calendarOn && spot?.primary != nil) ? windows() : []
+        Task {
+            await CalendarSync.shared.sync(spot: spot, windows: w, ask: ask)
+            calendarAccess = CalendarSync.shared.access
+        }
+    }
+
     func reschedule() {
+        syncCalendar(ask: false)
         let c = UNUserNotificationCenter.current()
         c.removeAllPendingNotificationRequests()
         guard let p = parked, p.spot.primary != nil else { scheduled = []; return }
@@ -145,7 +160,10 @@ final class Store: ObservableObject {
 
     func park(_ spot: Spot, at car: Coord) {
         parked = ParkedCar(car: car, spot: spot, parkedAt: Date())
-        Task { await requestNotifications() }
+        Task {
+            await requestNotifications()
+            syncCalendar(ask: true)   // after the notification prompt, so the two don't collide
+        }
     }
 
     func moved() { parked = nil }
