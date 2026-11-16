@@ -395,7 +395,7 @@
     } else {
       const parts = [];
       if (prevMonth) parts.push(`${prevMonth.mph > L.mph ? 'down' : prevMonth.mph < L.mph ? 'up' : 'unchanged'} from ${f2(prevMonth.mph)} in ${apMonth(prevMonth.month).split(' ')[0]}`);
-      if (val(yearAgo) != null) parts.push(`against ${f2(val(yearAgo))} in ${apMonth(yearAgo)}`);
+      if (val(yearAgo) != null) parts.push(`${val(yearAgo) > L.mph ? 'below' : val(yearAgo) < L.mph ? 'above' : 'level with'} ${f2(val(yearAgo))} in ${apMonth(yearAgo)}`);
       copy += parts.length ? `, ${parts.join(' and ')}. ` : '. ';
     }
     // The August note belongs with an August figure only.
