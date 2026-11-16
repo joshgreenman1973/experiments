@@ -50,4 +50,9 @@ jobs:
             exit 0
           fi
           git commit -m "Bus tracker: refresh route ridership ($(date -u '+%Y-%m-%d'))"
-          git push origin main
+          # The run takes 10 to 20 minutes; other jobs often push to main meanwhile.
+          for i in 1 2 3; do
+            git push origin main && exit 0
+            git pull --rebase -X theirs origin main
+          done
+          exit 1
