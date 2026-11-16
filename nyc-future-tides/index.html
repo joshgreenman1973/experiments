@@ -47,30 +47,58 @@
 .maplibregl-ctrl-attrib{background:rgba(17,19,17,.8)!important;color:var(--fg2)}
 .maplibregl-ctrl-attrib a{color:var(--fg2)!important}
 .pin{width:16px;height:16px;border:3px solid var(--sun);background:transparent;transform:rotate(45deg)}
+.mkey[hidden]{display:none}
+.modes{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+.slide{display:flex;align-items:center;gap:14px;margin:6px 0 4px}
+.slide input{flex:1;accent-color:var(--cobalt)}
+.slide output{font-family:var(--display);font-weight:800;font-size:1.6rem;min-width:4.2ch;text-align:right}
+.grid td,.grid th{padding:6px 8px}
+.grid td.n{cursor:pointer}
+.grid td.on{background:color-mix(in srgb,var(--cobalt) 38%,transparent);color:var(--fg)}
+.grid td.sel{outline:2px solid var(--sun);outline-offset:-2px}
+.grid td small{display:block;font-size:11px;color:var(--fg2)}
 </style>
 </head>
 <body>
 <div class="sheet">
-  <div class="strip"><span>Source: <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Mayor's Office of Climate and Environmental Justice</a>, via NYC Open Data; homes from <a href="https://data.cityofnewyork.us/d/64uk-42ks">PLUTO 26v2</a></span><span>Projections for the 2030s through the 2150s</span></div>
+  <div class="strip"><span>Source: <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Mayor's Office of Climate and Environmental Justice</a>, via NYC Open Data; <a href="https://coast.noaa.gov/slr/">NOAA</a>; homes from <a href="https://data.cityofnewyork.us/d/64uk-42ks">PLUTO 26v2</a></span><span>Projections for the 2030s through 2150</span></div>
 
   <header class="head">
     <h1>The tide line</h1>
-    <p class="finding" id="finding">Under the high-end sea-level projection used in the city's new maps, the average daily high tide would cover land holding about 63,000 homes by the 2100s, up from about 1,200 in the 2050s.</p>
-    <p class="lede" id="lede">The city published new maps of future flooding on Nov. 13. They show, for five future decades, the land the average daily high tide would cover and the land a 100-year or 500-year coastal storm would flood. The 100-year storm floodplain covers <b>55 square miles</b> and lots holding <b>278,000 homes</b> in the 2030s map, and <b>82 square miles</b> and <b>537,000 homes</b> in the 2100s map. The 2150s map assumes 177 inches of sea-level rise. In it, the daily high tide alone covers 85 square miles, with about 602,000 homes, about one in six in the city.</p>
+    <p class="finding" id="finding">Under the high-end sea-level projection used in the city's new maps, the average daily high tide would cover land holding about 63,000 homes by 2100, up from about 1,200 in the 2050s. Half of that 2050s figure is two large waterfront lots.</p>
+    <p class="lede" id="lede">The city published new maps of future flooding on Nov. 13. They show, for five future decades, the land the average daily high tide would cover and the land a 100-year or 500-year coastal storm would flood. The 100-year storm floodplain covers <b>55 square miles</b> and lots holding <b>278,000 homes</b> in the 2030s map, and <b>82 square miles</b> and <b>537,000 homes</b> in the 2100 map. The 2150 map assumes 177 inches of sea-level rise. In it, the daily high tide alone covers 85 square miles, with about 602,000 homes, about one in six in the city. Those maps use only the high-end projection from the city's climate panel; under its lower projections, the same water levels arrive decades later, or not by 2150. The "Pick a projection" tab below shows them on NOAA's sea-level maps.</p>
   </header>
 
-  <div class="mkey">
+  <div class="mkey" id="ckey">
     <span><i style="background:var(--cobalt)"></i>Average daily high tide</span>
     <span><i style="background:var(--cyan);opacity:.55"></i>100-year storm (1% chance each year)</span>
     <span><i style="background:var(--lilac);opacity:.35"></i>500-year storm (0.2% chance each year)</span>
   </div>
+  <div class="mkey" id="nkey" hidden>
+    <span><i style="background:var(--cobalt)"></i>Average daily high tide at the chosen rise (NOAA)</span>
+    <span><i style="background:var(--fg2);opacity:.55"></i>Already under today's daily high tide</span>
+  </div>
   <section class="stage">
     <div id="map" role="img" aria-label="Map of New York City showing projected high tide and storm flood zones for the selected decade"></div>
     <div class="side">
-      <h2>Pick a decade</h2>
-      <div class="decs" id="decs"></div>
-      <svg id="stair" viewBox="0 0 420 250" aria-label="Homes inside each projected line, by inches of sea-level rise"></svg>
-      <p class="now" id="now"></p>
+      <div class="modes" role="tablist">
+        <button class="chip" role="tab" data-mode="city" aria-pressed="true">The city's maps</button>
+        <button class="chip" role="tab" data-mode="noaa" aria-pressed="false">Pick a projection</button>
+      </div>
+      <div id="citypanel">
+        <h2>Pick a decade</h2>
+        <div class="decs" id="decs"></div>
+        <svg id="stair" viewBox="0 0 420 250" aria-label="Homes inside each projected line, by inches of sea-level rise"></svg>
+        <p class="now" id="now"></p>
+      </div>
+      <div id="noaapanel" hidden>
+        <h2>Feet of rise</h2>
+        <div class="slide"><input type="range" id="ft" min="0" max="10" step="1" value="3" aria-label="Feet of sea-level rise above today's average daily high tide"><output id="ftout"></output></div>
+        <p class="now" id="nnow"></p>
+        <p class="aside" style="margin:14px 0 6px">When the panel's projections reach that level. Pick a cell to set the slider to it.</p>
+        <div style="overflow-x:auto"><table class="h grid" id="pgrid"></table></div>
+        <p class="aside" id="pnote" style="margin-top:8px"></p>
+      </div>
       <div class="look">
         <label for="addr">Look up an address</label>
         <input type="text" id="addr" placeholder="e.g. 2 Rector Street, Manhattan" autocomplete="off">
@@ -103,9 +131,10 @@
 
   <section class="sec method" id="method">
     <h2>How this was made</h2>
-    <p><b>The maps.</b> The Mayor's Office of Climate and Environmental Justice built the layers and posted them to NYC Open Data as <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Future High Tides</a> and <a href="https://data.cityofnewyork.us/d/29fz-v4rp">Future Floodplains</a>, made public Nov. 13, 2026. Both use the 90th-percentile sea-level-rise projections from the fourth New York City Panel on Climate Change (2024): 13 inches for the 2030s, 23 for the 2050s, 45 for the 2080s, 65 for the 2100s and 177 for the 2150s. The panel puts roughly a 1-in-10 chance on the sea rising more than that, so these are high-end scenarios.</p>
-    <p><b>What the lines mean.</b> The high-tide line is mean higher high water, the average height of the higher of each day's two high tides, raised by the projected rise. Land below it would be under water on a typical day's higher tide. The storm floodplains start from FEMA's 2015 preliminary flood maps and add the same rise. All of it is a "bathtub" model on a 10-foot elevation grid: water spreads to any land connected to the shoreline that sits below the water level. The city's own documents say the model ignores sea walls and other future defenses, erosion, sinking land, groundwater, rain and drainage, and that piers and wharves missing from the elevation grid can look flooded. The city says the layers are for information and not precise enough for site-level planning.</p>
-    <p><b>Homes.</b> Counts are residential units from the city's PLUTO tax-lot file (version 26v2), counted for every lot whose center point falls inside a line. A large lot whose center sits on a flooded edge counts in full, and a lot that floods only at its edge does not count at all. The address lookup uses the same lot test, plus a check of the exact address point against the map.</p>
+    <p><b>The maps.</b> The Mayor's Office of Climate and Environmental Justice built the layers and posted them to NYC Open Data as <a href="https://data.cityofnewyork.us/d/xbxf-ev5m">Future High Tides</a> and <a href="https://data.cityofnewyork.us/d/29fz-v4rp">Future Floodplains</a>, made public Nov. 13, 2026. Both use the 90th-percentile sea-level-rise projections from the fourth New York City Panel on Climate Change (2024): 13 inches for the 2030s, 23 for the 2050s, 45 for the 2080s, 65 for 2100 and 177 for 2150. The 90th percentile is the panel's high estimate across the climate scenarios it pooled; it does not assign odds to it. (The city's files label the last two the 2100s and 2150s; the panel's figures are for those years.)</p>
+    <p><b>What the lines mean.</b> The high-tide line is mean higher high water, the average height of the higher of each day's two high tides, raised by the projected rise. Land below it would be under water on a typical day's higher tide. The storm floodplains start from FEMA's 2015 preliminary flood maps and add the same rise. All of it is a "bathtub" model on a 10-foot elevation grid: water spreads to any land connected to the shoreline that sits below the water level. The city's documents say the shoreline includes existing coastal structures, and that the model leaves out erosion, sinking land, groundwater, rainfall, and future construction or changes in land use. Piers and wharves missing from the elevation grid can look flooded. The 100-year layer includes wave effects and the 500-year layer does not, so a few lots fall inside the 100-year line but outside the 500-year one. The city says the layers are for information and not precise enough for site-level planning.</p>
+    <p><b>Homes.</b> Counts are residential units from the city's PLUTO tax-lot file (version 26v2), counted for every lot whose center point falls inside a line. A large lot whose center sits on a flooded edge counts in full, and a lot that floods only at its edge does not count at all. Two waterfront lots, 184 Kent Avenue in Williamsburg (333 units) and 70 New Lane on Staten Island (277), count from the 2030s map because their center points sit within 55 feet of the shore; they are 72% of the 2030s high-tide count and half of the 2050s count. The address lookup reports the earlier of two tests, the lot's center point and the exact address point, in both tabs.</p>
+    <p><b>Other projections.</b> The city mapped only the panel's 90th-percentile projection. The "Pick a projection" tab uses NOAA's <a href="https://coast.noaa.gov/slr/">sea-level rise maps</a> instead, which show the daily high tide at each foot of rise from 0 to 10 feet, and the panel's own table of projections at the 10th, 25th, 75th and 90th percentiles (<a href="https://data.cityofnewyork.us/d/38ps-fnsg">NYC Open Data</a>; the table has no median). NOAA measures from the average high tide of 1983–2001 and the panel from 1995–2014, so the page adds 2.3 inches, the observed rise in average higher high water at the Battery between those periods, before matching a projection to the nearest whole foot. Rounding to whole feet can move a projection by up to about 6 inches, which can change the home count a lot; picking a cell shows the counts on both sides. NOAA's maps and the city's also draw the shoreline and the elevation differently, so at the same rise the two lines and counts differ. NOAA has no storm floodplains, so that tab shows the daily high tide only.</p>
     <p><b>Map.</b> Polygons were simplified to 6 feet (the source grid is 10 feet) for the web map. Lot counts use the full-detail polygons.</p>
     <p>Full notes and the build scripts: <a href="methodology.html">methodology</a>.</p>
   </section>
@@ -118,6 +147,7 @@
 
 <script>
 const DEC=[2030,2050,2080,2100,2150], INCH=[13,23,45,65,177];
+const LB=['2030s','2050s','2080s','2100','2150']; // the panel's projections are for decades through the 2080s, then single years
 const KN={ht:'average daily high tide',fp100:'100-year storm floodplain',fp500:'500-year storm floodplain'};
 const BORO={MN:'Manhattan',BX:'Bronx',BK:'Brooklyn',QN:'Queens',SI:'Staten Island'};
 const css=getComputedStyle(document.documentElement), tok=n=>css.getPropertyValue('--'+n).trim();
@@ -140,16 +170,64 @@ map.on('load',()=>{
   add('fp100','fp100',tok('cyan'),.42);
   add('ht','ht',tok('cobalt'),.92);
   map.addLayer({id:'probe',type:'fill',source:'flood','source-layer':'flood',paint:{'fill-opacity':0}},firstSym);
+  map.addSource('noaa',{type:'vector',url:'pmtiles://'+new URL('data/noaa.pmtiles',location.href).href});
+  map.addLayer({id:'noaa',type:'fill',source:'noaa','source-layer':'noaa',filter:['==',['get','f'],ft],
+    layout:{visibility:'none'},paint:{'fill-color':tok('cobalt'),'fill-opacity':.9}},firstSym);
+  map.addLayer({id:'nprobe',type:'fill',source:'noaa','source-layer':'noaa',paint:{'fill-opacity':0}},firstSym);
+  map.addLayer({id:'noaa0',type:'fill',source:'noaa','source-layer':'noaa',filter:['==',['get','f'],0],
+    layout:{visibility:'none'},paint:{'fill-color':tok('fg2'),'fill-opacity':.55}},firstSym);
+  setMap();
 });
 function setMap(){
-  if(!map||!map.getLayer('ht'))return;
-  for(const k of ['ht','fp100','fp500'])map.setFilter(k,['all',['==',['get','k'],k],['==',['get','d'],DEC[cur]]]);
+  if(!map||!map.getLayer('ht')||!map.getLayer('noaa'))return;
+  for(const k of ['ht','fp100','fp500']){map.setFilter(k,['all',['==',['get','k'],k],['==',['get','d'],DEC[cur]]]);
+    map.setLayoutProperty(k,'visibility',mode==='city'?'visible':'none');}
+  map.setFilter('noaa',['==',['get','f'],ft]);
+  map.setLayoutProperty('noaa','visibility',mode==='noaa'?'visible':'none');
+  map.setLayoutProperty('noaa0','visibility',mode==='noaa'?'visible':'none');
 }
+
+// ---------- projection picker (NOAA layers, panel's projections) ----------
+// NYC Panel on Climate Change (2024) sea-level rise, inches, NYC Open Data 38ps-fnsg
+const PER=['2030s','2050s','2080s','2100','2150'];
+const PROJ=[['10th',[6,12,21,25,38]],['25th',[7,14,25,30,47]],['75th',[11,19,39,50,89]],['90th',[13,23,45,65,177]]];
+// NOAA's 0 ft is mean higher high water for the 1983-2001 tidal epoch. The panel measures rise from 1995-2014
+// (NPCC4, Braneon et al. 2024, App. C.3). Battery monthly mean higher high water averaged 2.29 in. higher in
+// 1995-2014 than in 1983-2001 (NOAA CO-OPS 8518750); add 2.3 in. Any value from 1.5 to 2.9 in. gives the same feet.
+const OFF=2.3, toFt=i=>Math.round((i+OFF)/12);
+let mode='city', ft=3, pick_=null;
+function noaaPanel(){
+  document.getElementById('ftout').textContent=ft+' ft';
+  const u=N.units[ft], a=N.sqmi[ft], low=N.low_units[ft];
+  const base=ft===0?`NOAA's map of today's average daily high tide (its 1983–2001 average) covers <b>${a>=10?Math.round(a):a.toFixed(1)} square miles</b> of city land, mostly marsh and parkland shoreline, and lots holding ${about(u)} homes, most of them on lots whose center point sits within 25 feet of the shoreline.`
+    :`At <b>${ft} ${ft===1?'foot':'feet'}</b> above today's average daily high tide, water connected to the harbor would cover <b>${Math.round(a)} square miles</b> of city land and lots holding <b>${about(u)} homes</b>, ${u/N.units_total<.001?'less than 0.1%':(u/N.units_total*100).toFixed(u/N.units_total<.01?1:0)+'%'} of the city's.`;
+  document.getElementById('nnow').innerHTML=base+(low>0?` Another ${about(low)} homes sit in low spots below that level with no surface connection to the water in NOAA's model. NOAA maps them separately, noting that drains and culverts it does not model could connect them; they are not counted here.`:'');
+  const g=document.getElementById('pgrid');
+  g.innerHTML=`<tr><th>Percentile</th>${PER.map(p=>`<th class="n">${p}</th>`).join('')}</tr>`+
+    PROJ.map(([p,v],r)=>`<tr><td>${p}</td>${v.map((x,c)=>{const f=toFt(x), on=f>=ft&&ft>0, sel=pick_&&pick_[0]===r&&pick_[1]===c;
+      return `<td class="n${on?' on':''}${sel?' sel':''}" data-r="${r}" data-c="${c}">${x} in.<small>${f>10?'over 10 ft':'≈'+f+' ft'}</small></td>`}).join('')}</tr>`).join('');
+  g.querySelectorAll('td[data-r]').forEach(td=>td.onclick=()=>{const r=+td.dataset.r,c=+td.dataset.c;pick_=[r,c];setFt(Math.min(10,toFt(PROJ[r][1][c])),true);});
+  let note='Shaded cells reach at least the slider\'s level, to the nearest foot. NOAA\'s maps come in whole feet, so each projection is shown at its nearest foot.';
+  if(pick_){const [r,c]=pick_, x=PROJ[r][1][c], f=toFt(x), adj=x+OFF, lo=Math.floor(adj/12), hi=lo+1;
+    let t=`Showing the ${PROJ[r][0]}-percentile projection for ${PER[c]}: ${x} inches of rise, or ${adj.toFixed(1)} inches above NOAA's baseline. `;
+    if(f>10)t+='That is beyond NOAA\'s 10-foot maps, so the map stops at 10 feet. ';
+    else t+=`That falls between NOAA's ${lo}-foot layer (${about(N.units[lo])} homes) and ${hi}-foot layer (${about(N.units[hi])} homes); the map shows the nearer, ${f} ${f===1?'foot':'feet'}. `;
+    if(r===3&&S)t+=`The city's own map for this projection counts ${about(S.by_decade.ht[c].units)} homes. `;
+    note=t+note;}
+  document.getElementById('pnote').textContent=note;
+}
+function setFt(v,keep){ft=v;if(!keep)pick_=null;document.getElementById('ft').value=v;noaaPanel();setMap();}
+document.getElementById('ft').addEventListener('input',e=>setFt(+e.target.value));
+document.querySelectorAll('.modes .chip').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;
+  document.querySelectorAll('.modes .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));
+  document.getElementById('citypanel').hidden=mode!=='city';document.getElementById('noaapanel').hidden=mode!=='noaa';
+  document.getElementById('ckey').hidden=mode!=='city';document.getElementById('nkey').hidden=mode!=='noaa';
+  setMap();});
 
 // ---------- decade chips + staircase ----------
 function decChips(){
   const el=document.getElementById('decs');
-  el.innerHTML=DEC.map((d,i)=>`<button class="chip" data-i="${i}" aria-pressed="${i===cur}">${d}s<small>${INCH[i]} in. of rise</small></button>`).join('');
+  el.innerHTML=DEC.map((d,i)=>`<button class="chip" data-i="${i}" aria-pressed="${i===cur}">${LB[i]}<small>${INCH[i]} in. of rise</small></button>`).join('');
   el.querySelectorAll('button').forEach(b=>b.onclick=()=>select(+b.dataset.i));
 }
 function stair(){
@@ -177,7 +255,7 @@ function stair(){
 function nowText(){
   const i=cur, d=DEC[i], h=S.by_decade.ht[i], f=S.by_decade.fp100[i], f5=S.by_decade.fp500[i], a={};
   for(const k in S.area_sqmi){const v=S.area_sqmi[k];a[k]=v>=10?Math.round(v):v.toFixed(1);}
-  document.getElementById('now').innerHTML=`In the <b>${d}s</b> map, with ${INCH[i]} inches of rise, the daily high tide covers ${a['ht_'+d]} square miles of land and lots with <b>${about(h.units)} homes</b>. The 100-year storm reaches ${a['fp100_'+d]} square miles and <b>${about(f.units)} homes</b>; the 500-year storm, ${a['fp500_'+d]} square miles and ${about(f5.units)} homes.`;
+  document.getElementById('now').innerHTML=`In the <b>${LB[i]}</b> map, with ${INCH[i]} inches of rise, the daily high tide covers ${a['ht_'+d]} square miles and lots with <b>${about(h.units)} homes</b>. The 100-year storm reaches ${a['fp100_'+d]} square miles and <b>${about(f.units)} homes</b>; the 500-year storm, ${a['fp500_'+d]} square miles and ${about(f5.units)} homes.`;
 }
 function select(i){cur=i;decChips();stair();nowText();setMap();nlist();}
 
@@ -186,7 +264,7 @@ function nlist(){
   const k=nkind, i=cur;
   const rows=S.nta.filter(r=>r.units>0&&r[k][i]>0).sort((a,b)=>b[k][i]-a[k][i]);
   const tot=rows.reduce((s,r)=>s+r[k][i],0);
-  document.getElementById('nhead').textContent=`${rows.length} neighborhoods have homes inside the ${KN[k]} in the ${DEC[i]}s map. The ${Math.min(15,rows.length)} with the most are below, with the share of each neighborhood's homes.`;
+  document.getElementById('nhead').textContent=`${rows.length} neighborhoods have homes inside the ${KN[k]} in the ${LB[i]} map. ${rows.length<=15?(rows.length===1?'It is':'All '+rows.length+' are')+' below':'The 15 with the most are below'}, with the share of each neighborhood's homes.`;
   const color=k==='ht'?'cobalt':'cyan';
   document.getElementById('nlist').innerHTML=rows.slice(0,15).map(r=>{
     const sh=r[k][i]/r.units;
@@ -200,7 +278,7 @@ document.querySelectorAll('.sec .kinds:not(#bkinds) .chip').forEach(b=>b.onclick
 function btable(){
   const k=bkind, rows=Object.keys(BORO).map(b=>[BORO[b],S.by_boro[k][b]]);
   const tot=DEC.map((d,i)=>S.by_decade[k][i].units);
-  document.getElementById('btable').innerHTML=`<tr><th>Borough</th>${DEC.map((d,i)=>`<th class="n">${d}s<br><span style="font-weight:500">${INCH[i]} in.</span></th>`).join('')}</tr>`+
+  document.getElementById('btable').innerHTML=`<tr><th>Borough</th>${DEC.map((d,i)=>`<th class="n">${LB[i]}<br><span style="font-weight:500">${INCH[i]} in.</span></th>`).join('')}</tr>`+
     rows.map(([n,v])=>`<tr><td>${n}</td>${v.map(x=>`<td class="n">${fmt(x)}</td>`).join('')}</tr>`).join('')+
     `<tr><td><b>City</b></td>${tot.map(x=>`<td class="n"><b>${fmt(x)}</b></td>`).join('')}</tr>`;
 }
@@ -210,6 +288,8 @@ document.querySelectorAll('#bkinds .chip').forEach(b=>b.onclick=()=>{bkind=b.dat
 // ---------- address lookup ----------
 const lotCache={};
 async function lots(boro){if(!lotCache[boro])lotCache[boro]=fetch(`data/lots/${boro}.json`).then(r=>r.json());return lotCache[boro];}
+const nlotCache={};
+async function nlots(boro){if(!nlotCache[boro])nlotCache[boro]=fetch(`data/noaa_lots/${boro}.json`).then(r=>r.json());return nlotCache[boro];}
 const inp=document.getElementById('addr'), sugg=document.getElementById('sugg'), ans=document.getElementById('answer');
 let tmr=null, feats=[], hi=-1, marker=null;
 inp.addEventListener('input',()=>{clearTimeout(tmr);const t=inp.value.trim();if(t.length<3){sugg.style.display='none';return;}
@@ -238,27 +318,37 @@ async function pick(f){
   let code=0;
   if(/^\d{10}$/.test(bbl)){try{const m=await lots(bbl[0]);code=m[bbl]||0;}catch(e){}}
   const first={ht:Math.floor(code/100)%10,fp100:Math.floor(code/10)%10,fp500:code%10}; // 1-based decade index, 0 = never
+  let nf=-1; // first NOAA foot at which the lot center is under the daily high tide, -1 = not within 10 ft
+  if(/^\d{10}$/.test(bbl)){try{const m=await nlots(bbl[0]);if(bbl in m)nf=m[bbl];}catch(e){}}
   // point test against the map
   if(!marker){const el=document.createElement('div');el.className='pin';marker=new maplibregl.Marker({element:el});}
   marker.setLngLat([lon,lat]).addTo(map);
-  const line=(k,c)=>first[k]?`<span><i style="background:var(--${c})"></i>The ${KN[k]} reaches it in the <b>${DEC[first[k]-1]}s</b> map (${INCH[first[k]-1]} inches of rise).</span><br>`:'';
+  const line=(k,c)=>first[k]?`<span><i style="background:var(--${c})"></i>The ${KN[k]} reaches it in the <b>${LB[first[k]-1]}</b> map (${INCH[first[k]-1]} inches of rise).</span><br>`:'';
+  const nline=()=>{if(nf<0)return 'In NOAA\'s maps, the daily high tide does not reach it with up to 10 feet of rise.';
+    if(nf===0)return 'In NOAA\'s maps, today\'s daily high tide already reaches it.';
+    const by=PROJ.map(([p,v])=>{const c=v.findIndex(x=>toFt(x)>=nf);return c<0?null:`${PER[c]} (${p})`;}).filter(Boolean);
+    return `In NOAA's maps, the daily high tide reaches it with <b>${nf} ${nf===1?'foot':'feet'}</b> of rise`+(by.length?`, first reached, to the nearest foot, by percentile: ${by.join(', ')}.`:', more than any of the panel\'s projections through 2150.');};
   const render=()=>{const any=first.ht||first.fp100||first.fp500;
     ans.innerHTML=`<span class="addr">${f.properties.label}</span>`+(any?line('fp100','cyan')+line('fp500','lilac')+line('ht','cobalt')+
-      (!first.ht?'The daily high tide does not reach it in any of the five maps, through the 2150s.':''):
-      'Outside all fifteen lines, including the 2150s maps with 177 inches of rise.');};
+      (!first.ht?'The daily high tide does not reach it in any of the five city maps, through 2150.':''):
+      'Outside all fifteen city lines, including the 2150 maps with 177 inches of rise.');
+    if(!ans.innerHTML.endsWith('<br>'))ans.innerHTML+='<br>'; ans.innerHTML+=nline();};
   render();
   map.flyTo({center:[lon,lat],zoom:15,speed:1.6});
   await new Promise(r=>{map.once('idle',r);setTimeout(r,6000);});
   const p=map.project([lon,lat]);
-  for(const ft of map.queryRenderedFeatures(p,{layers:['probe']})){
+  for(const ft of (map.getLayer('probe')?map.queryRenderedFeatures(p,{layers:['probe']}):[])){
     const k=ft.properties.k, i=DEC.indexOf(+ft.properties.d)+1;
     if(i>0&&(!first[k]||i<first[k]))first[k]=i;
   }
+  for(const q of (map.getLayer('nprobe')?map.queryRenderedFeatures(p,{layers:['nprobe']}):[])){const v=+q.properties.f;if(nf<0||v<nf)nf=v;}
   if(inp.value===f.properties.label)render();
 }
 
 // ---------- boot ----------
+let N=null;
 fetch('data/summary.json').then(r=>r.json()).then(j=>{S=j;select(cur);btable();});
+fetch('data/noaa.json').then(r=>r.json()).then(j=>{N=j;noaaPanel();});
 </script>
 </body>
 </html>

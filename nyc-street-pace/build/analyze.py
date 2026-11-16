@@ -16,6 +16,9 @@ import datetime as dt, glob, json, os, statistics
 from collections import defaultdict
 from zoneinfo import ZoneInfo
 from shapely.geometry import LineString, shape, Point
+from shapely.ops import transform, unary_union
+from pyproj import Transformer
+TO_FT = Transformer.from_crs(4326, 2263, always_xy=True).transform
 
 HOME = os.path.expanduser('~/.vital-city/street-pace')
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
@@ -55,15 +58,22 @@ def holidays(y):
 HOL = set().union(*[holidays(y) for y in range(2020, 2028)])
 
 # ---------- links ----------
-cbd = shape(json.load(open(os.path.join(HOME, 'links', 'cbd.geojson')))['features'][0]['geometry'])
+# All polygons of the geofence (the first is Manhattan; the rest are small waterfront pieces)
+cbd = unary_union([shape(f['geometry']) for f in json.load(open(os.path.join(HOME, 'links', 'cbd.geojson')))['features']])
+cbd_ft = transform(TO_FT, cbd)
 raw_links = json.load(open(os.path.join(HOME, 'links', 'links_2026-11-12.json')))
 links = {}
 for r in raw_links:
     pts = decode(r['polyline'])
     line = LineString([(lon, lat) for lat, lon in pts])
     mid = line.interpolate(0.5, normalized=True)
+    lf = transform(TO_FT, line)
+    inside = lf.intersection(cbd_ft).length / lf.length if lf.length else 0
+    zone = bool(cbd.contains(mid))
     links[int(r['sid'])] = {'id': int(r['sid']), 'name': r['link_name'].strip(), 'boro': r['borough'],
-                            'ft': round(float(r['link_length_ft'])), 'zone': bool(cbd.contains(mid)), 'poly': r['polyline']}
+                            'ft': round(float(r['link_length_ft'])), 'zone': zone, 'poly': r['polyline'],
+                            # 'edge': midpoint outside the zone but 5% or more of the length inside it (bridge approaches, 72nd-to-57th runs)
+                            'edge': (not zone) and inside >= 0.05, 'inside': round(inside, 3)}
 
 # ---------- accumulate ----------
 PERIODS = {y: (dt.date(y, 2, 1), dt.date(y, 10, 31)) for y in (2022, 2023, 2024, 2025, 2026)}
@@ -72,6 +82,8 @@ PERIODS = {y: (dt.date(y, 2, 1), dt.date(y, 10, 31)) for y in (2022, 2023, 2024,
 def in_gap(d):
     return (d.month, d.day) >= (5, 16) and (d.month, d.day) <= (6, 30)
 prof = defaultdict(lambda: [0.0, 0])      # (sid, year, daytype, hour) -> [sum mph, cells]
+sprof = defaultdict(lambda: [0.0, 0])     # (sid, year, season, hour) weekdays; season 'spr' Feb 1-May 15, 'fal' Jul 1-Oct 31
+SEASON = lambda d: 'spr' if (2, 1) <= (d.month, d.day) <= (5, 15) else ('fal' if (7, 1) <= (d.month, d.day) <= (10, 31) else None)
 month = defaultdict(lambda: [0.0, 0])     # (sid, 'YYYY-MM') -> weekday 7am-7pm
 mdays = defaultdict(set)                  # (sid, month) -> local dates with data
 dayzone = defaultdict(lambda: [0.0, 0])   # (local date, zone flag) -> weekday 7am-7pm, for the daily series
@@ -90,12 +102,21 @@ for f in files:
         for y, (a, b) in PERIODS.items():
             if a <= ld <= b and dtype != 'hol' and not in_gap(ld):
                 c = prof[(sid, y, dtype, lh)]; c[0] += mph; c[1] += 1
+                if dtype == 'wd' and SEASON(ld):
+                    c = sprof[(sid, y, SEASON(ld), lh)]; c[0] += mph; c[1] += 1
         if dtype == 'wd' and 7 <= lh < 19:
             k = (sid, ld.strftime('%Y-%m')); c = month[k]; c[0] += mph; c[1] += 1; mdays[k].add(ld)
 last_day = dt.date.fromisoformat(os.path.basename(files[-1])[:10])
 
 # ---------- profiles: per link, per period, per daytype, 24 hourly mph ----------
 profiles = {}
+raw = {}   # unrounded hourly means, used for all comparisons
+for sid in links:
+    for y in PERIODS:
+        for t in ('wd', 'we'):
+            raw[(sid, y, t)] = [(lambda c: c[0] / c[1] if c[1] >= 20 else None)(prof.get((sid, y, t, h), (0, 0))) for h in range(24)]
+        for t in ('spr', 'fal'):
+            raw[(sid, y, t)] = [(lambda c: c[0] / c[1] if c[1] >= 20 else None)(sprof.get((sid, y, t, h), (0, 0))) for h in range(24)]
 for sid in links:
     p = {}
     for y in PERIODS:
@@ -115,8 +136,32 @@ def mean(xs):
     xs = [x for x in xs if x is not None]
     return statistics.fmean(xs) if xs else None
 
+# ---------- suspect links ----------
+# A reader fault shows up as a long step in a link's own series. Flag a link when its monthly weekday-daytime speed
+# sits at a third or less, or three times or more, of its own median month for six or more consecutive months
+# (defaults; SUS_LO and SUS_RUN override them for the sensitivity table in the methodology).
+# Also flag links where 10% or more of full-window readings on sampled days are at or above the 100 fps cap
+# (build/fetch_overcap.py): the cap truncates those links instead of cleaning them.
+LO, RUN = float(os.environ.get('SUS_LO', 0.33)), int(os.environ.get('SUS_RUN', 6))
+over = json.load(open(os.path.join(HOME, 'overcap.json')))
+suspect = {}
+for sid in links:
+    v = monthly[sid]; vals = [x for x in v if x is not None]
+    why = []
+    if len(vals) >= 6:
+        med = statistics.median(vals); run = best = 0
+        for x in v:
+            run = run + 1 if x is not None and (x < LO * med or x > med / LO) else (run if x is None else 0)
+            best = max(best, run)
+        if best >= RUN: why.append(f'speed far off its usual level for {best} months running')
+    n, h = over.get(str(sid), (0, 0))
+    if n and h / n >= 0.10: why.append(f'{round(100 * h / n)}% of sampled readings at the 68 mph cap')
+    if why: suspect[sid] = '; '.join(why)
+for sid in links: links[sid]['suspect'] = suspect.get(sid)
+print('suspect links', len(suspect))
+
 # Fixed panel: links with a monthly value in at least 90% of months, so the mix of streets stays constant
-panel = [s for s in links if sum(v is not None for v in monthly[s]) >= 0.9 * len(months)]
+panel = [s for s in links if sum(v is not None for v in monthly[s]) >= 0.9 * len(months) and s not in suspect and not links[s]['edge']]
 series = {}
 for g, test in (('zone', lambda s: links[s]['zone']), ('mn_out', lambda s: not links[s]['zone'] and links[s]['boro'] == 'Manhattan'),
                 ('other', lambda s: links[s]['boro'] != 'Manhattan')):
@@ -124,14 +169,25 @@ for g, test in (('zone', lambda s: links[s]['zone']), ('mn_out', lambda s: not l
     series[g] = {'n': len(ids), 'mph': [None if (m := mean([monthly[s][i] for s in ids])) is None else round(m, 2) for i in range(len(months))]}
 
 # ---------- before / after (Feb-Oct weekdays, 7am-7pm) ----------
-def daytime(sid, y):
-    vals = [profiles[sid][f'{y}wd'][h] for h in range(7, 19)]
+def daytime(sid, y, t='wd'):
+    vals = raw[(sid, y, t)][7:19]
     return None if any(v is None for v in vals) else statistics.fmean(vals)
+GROUPS = (('zone', lambda s: links[s]['zone']), ('mn_out', lambda s: not links[s]['zone'] and not links[s]['edge'] and links[s]['boro'] == 'Manhattan'),
+          ('other', lambda s: links[s]['boro'] != 'Manhattan'), ('all', lambda s: not links[s]['edge']))
 cmp = {}
-for g, test in (('zone', lambda s: links[s]['zone']), ('mn_out', lambda s: not links[s]['zone'] and links[s]['boro'] == 'Manhattan'),
-                ('other', lambda s: links[s]['boro'] != 'Manhattan'), ('all', lambda s: True)):
-    ids = [s for s in links if test(s) and all(daytime(s, y) is not None for y in (2024, 2025, 2026))]
-    r = {'n': len(ids)}
+for g, test in GROUPS:
+    every = [s for s in links if test(s) and all(daytime(s, y) is not None for y in (2024, 2025, 2026))]
+    ids = [s for s in every if s not in suspect]
+    r = {'n': len(ids), 'n_suspect_dropped': len(every) - len(ids)}
+    # same figure with suspect links left in, for the methodology
+    r['with_suspect'] = {k: round(statistics.fmean([daytime(s, y) for s in every]), 3) for k, y in (('y24', 2024), ('y25', 2025), ('y26', 2026))} if every else None
+    ch = [daytime(s, 2025) / daytime(s, 2024) - 1 for s in ids]
+    r['median_link_change_25'] = round(statistics.median(ch) * 100, 2) if ch else None
+    r['median_link_change_26'] = round(statistics.median([daytime(s, 2026) / daytime(s, 2024) - 1 for s in ids]) * 100, 2) if ids else None
+    # seasons: links with all 12 daytime hours in that season in all three years
+    for t in ('spr', 'fal'):
+        sid_t = [s for s in ids if all(daytime(s, y, t) is not None for y in (2024, 2025, 2026))]
+        r[t] = {'n': len(sid_t), **{f'y{y % 100}': round(statistics.fmean([daytime(s, y, t) for s in sid_t]), 3) for y in (2024, 2025, 2026)}} if sid_t else None
     for y in PERIODS:
         r[str(y)] = round(statistics.fmean([daytime(s, y) for s in ids if daytime(s, y) is not None]), 2) if ids else None
     r['y24'] = round(statistics.fmean([daytime(s, 2024) for s in ids]), 3)
@@ -141,12 +197,13 @@ for g, test in (('zone', lambda s: links[s]['zone']), ('mn_out', lambda s: not l
     cmp[g] = r
     # by hour, weekday, panel of these ids
     for y in (2024, 2025, 2026):
-        r[f'hours{y}'] = [round(statistics.fmean([profiles[s][f'{y}wd'][h] for s in ids if profiles[s][f'{y}wd'][h] is not None]), 2) for h in range(24)]
+        r[f'hours{y}'] = [round(statistics.fmean([raw[(s, y, 'wd')][h] for s in ids if raw[(s, y, 'wd')][h] is not None]), 2) for h in range(24)]
 
 per_link = []
 for s in links:
     a, b, c = daytime(s, 2024), daytime(s, 2025), daytime(s, 2026)
-    per_link.append({'id': s, 'd24': None if a is None else round(a, 2), 'd25': None if b is None else round(b, 2), 'd26': None if c is None else round(c, 2)})
+    per_link.append({'id': s, 'd24': None if a is None else round(a, 3), 'd25': None if b is None else round(b, 3), 'd26': None if c is None else round(c, 3),
+                     'suspect': suspect.get(s), 'edge': links[s]['edge']})
 
 os.makedirs(OUT, exist_ok=True)
 json.dump(list(links.values()), open(os.path.join(OUT, 'links.json'), 'w'), separators=(',', ':'))
@@ -154,9 +211,11 @@ json.dump(profiles, open(os.path.join(OUT, 'profiles.json'), 'w'), separators=('
 json.dump({'months': months, 'links': monthly}, open(os.path.join(OUT, 'monthly.json'), 'w'), separators=(',', ':'))
 json.dump({'first_day': os.path.basename(files[0])[:10], 'last_day': str(last_day), 'days': len(files),
            'links': len(links), 'zone_links': sum(l['zone'] for l in links.values()), 'panel_links': len(panel),
+           'edge_links': [l['id'] for l in links.values() if l['edge']], 'suspect': {str(k): v for k, v in suspect.items()},
            'months': months, 'series': series, 'compare': cmp, 'per_link': per_link,
            'boro_counts': {b: sum(1 for l in links.values() if l['boro'] == b) for b in sorted({l['boro'] for l in links.values()})}},
           open(os.path.join(OUT, 'summary.json'), 'w'), separators=(',', ':'))
 print('days', len(files), 'links', len(links), 'zone', sum(l['zone'] for l in links.values()), 'panel', len(panel))
 for g, r in cmp.items():
-    print(g, r['n'], {k: r[k] for k in ('2022', '2023', '2024', '2025', '2026')}, 'faster25', r['links_faster_25'])
+    print(g, r['n'], {k: r[k] for k in ('2022', '2023', '2024', '2025', '2026')}, 'faster25', r['links_faster_25'], 'dropped', r['n_suspect_dropped'],
+          'median', r['median_link_change_25'], r['median_link_change_26'], 'spr', r['spr'], 'fal', r['fal'], 'with_suspect', r['with_suspect'])

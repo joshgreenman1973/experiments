@@ -117,10 +117,11 @@ svg.chart text{fill:var(--fg2);font-family:var(--sans);font-size:12px}
 
   <section class="sec method">
     <h2>How this was made</h2>
-    <p><b>The readers.</b> The Department of Transportation reads E-ZPass tags at fixed points and times the same tags between pairs of readers. Each pair is a "link," usually one direction of a few blocks. The city publishes a rolling 15-minute median travel time and speed for each of 351 links, recomputed about once a minute, in one Open Data file per year. Most links are in Midtown Manhattan, where the readers were installed for the Midtown in Motion signal program; the rest are on parkways, bridges and arterials in Queens, Brooklyn, Staten Island and upper Manhattan. Only vehicles with E-ZPass tags are timed.</p>
+    <p><b>The readers.</b> The Department of Transportation reads E-ZPass tags at fixed points and times the same tags between pairs of readers. Each pair is a "link," usually one direction of a few blocks. The city publishes a rolling 15-minute median travel time and speed for each of 351 links, recomputed about once a minute, in one Open Data file per year. Manhattan has 180 links: 152 inside the zone between 14th and 57th streets, plus the Upper East and West Sides, the Henry Hudson Parkway, the Williamsburg Bridge and the Battery Park Underpass. The other 171 are on parkways and arterials in Queens, Brooklyn and Staten Island. Only vehicles with E-ZPass tags are timed.</p>
     <p><b>Clock change.</b> Through May 16, 2025, the city stamped readings in Coordinated Universal Time; when the feed came back on June 30, 2025, after a six-week outage, it stamped them in New York time. The fastest hour of the night shows it: before the outage it falls at 8 or 9 UTC depending on daylight saving, and after it at 4 every month. The earlier readings were converted to New York time; the later ones were used as published.</p>
-    <p><b>What was kept.</b> Rows with a full 15-minute window and at least three timed vehicles, at speeds above zero and under 100 feet per second (68 mph). About 45% of raw rows carry no reading at all and were dropped. Each link's speed for an hour of a day is the average of the medians in that hour; each link-hour-day counts once.</p>
-    <p><b>Periods.</b> Congestion pricing began Jan. 5, 2025, in Manhattan south of 60th Street. To compare like seasons, each year on the map runs Feb. 1 to Oct. 31. The city's file has no readings at all from May 16 to June 30, 2025, so those same weeks are left out of every year. Weekdays exclude federal holidays, the day after Thanksgiving and Christmas Eve. A link's hourly value needs at least 20 days behind it. The "zone" is every link whose midpoint falls inside the MTA's published Central Business District geofence. Year-to-year comparisons use only links with weekday daytime (7 a.m. to 7 p.m.) values in 2024, 2025 and 2026. The monthly chart uses a fixed set of links reporting in at least 90% of months.</p>
+    <p><b>What was kept.</b> Rows with a full 15-minute window and at least three timed vehicles, at speeds above zero and under 100 feet per second (68 mph). Rows with no reading were dropped; they were 20% of rows on a sample day in October 2022, 30% in October 2024 and 44% to 47% in October 2026. Each link's speed for an hour of a day is the average of the medians in that hour; each link-hour-day counts once.</p>
+    <p><b>Periods.</b> Congestion pricing began Jan. 5, 2025, in Manhattan south of and including 60th Street. To compare like seasons, each year on the map runs Feb. 1 to Oct. 31. The city's file has no readings at all from May 16 to June 30, 2025, so those same weeks are left out of every year. Weekdays exclude federal holidays, the day after Thanksgiving and Christmas Eve. A link's hourly value needs at least 20 days behind it. The "zone" is every link whose midpoint falls inside the MTA's published Central Business District geofence. Links whose midpoint is outside but 5% or more of whose length is inside, such as the Williamsburg Bridge and the avenues running from 72nd to 57th Street, count on neither side. Year-to-year comparisons use only links with weekday daytime (7 a.m. to 7 p.m.) values in 2024, 2025 and 2026. The monthly chart uses a fixed set of links reporting in at least 90% of months.</p>
+    <p><b>Faulty readings.</b> Some links show long steps that look like reader faults: Woodhaven Boulevard northbound falls from about 12 mph to about 1 and stays there; a stretch of the Belt Parkway drops from about 40 mph to about 10 for a year and then returns. A link is set aside when its monthly weekday speed sits at a third or less, or three times or more, of its own typical month for six months running, or when 10% or more of its readings on sampled days hit the 68 mph cap, which then cuts off its fast readings instead of cleaning out bad ones. That sets aside 29 links. Averages of a few hundred links are still pulled by single links, so the page reports the change on the typical (median) link alongside averages. The methodology shows the results with looser and stricter rules.</p>
     <p><b>What this cannot tell you.</b> Speeds changed for many reasons at once: tolls, signal timing, bus and bike lanes, construction, deliveries and the economy. The comparison to segments outside the zone helps but does not isolate the toll's effect. Full notes and code: <a href="methodology.html">methodology</a>.</p>
   </section>
 
@@ -246,7 +247,7 @@ function renderPick(){
   g+=`<line x1="${x(st.hour)}" x2="${x(st.hour)}" y1="${m.t}" y2="${H-m.b}" stroke="${tok('line')}"/>`;
   for(const y of ys){const r=P[l.id][y+st.dt];let d='';r.forEach((s,h)=>{if(s==null)return;d+=(d&&r[h-1]!=null?'L':'M')+x(h).toFixed(1)+','+yv(s).toFixed(1)});g+=`<path d="${d}" fill="none" stroke="${tok(YC[y])}" stroke-width="2"/>`;}
   const race=ys.map((y,i)=>`<div class="lane"><span style="color:var(--${YC[y]})">${y}</span><div class="track"><i class="car" data-v="${v[i]??''}" style="background:var(--${YC[y]})"></i></div><b>${f1(v[i])} mph</b></div>`).join('');
-  document.getElementById('pick').innerHTML=`<h3>${l.name}</h3><div class="meta">${l.boro}, ${Math.round(l.ft).toLocaleString()} feet, ${l.zone?'inside':'outside'} the congestion zone. ${dayw[0].toUpperCase()+dayw.slice(1)}, Feb. to Oct.; mph by hour.</div>
+  document.getElementById('pick').innerHTML=`<h3>${l.name}</h3><div class="meta">${l.boro}, ${Math.round(l.ft).toLocaleString()} feet, ${l.zone?'inside':l.edge?'crossing into':'outside'} the congestion zone. ${dayw[0].toUpperCase()+dayw.slice(1)}, Feb. to Oct.; mph by hour.</div>${l.suspect?`<div class="meta" style="color:var(--sun);margin-top:6px">Readings look faulty (${l.suspect}), so this segment is left out of the averages.</div>`:l.edge?`<div class="meta" style="margin-top:6px">Part of this segment lies inside the zone line, so it is left out of both the inside and outside averages.</div>`:''}
     <svg class="chart" viewBox="0 0 ${W} ${H}" style="margin-top:8px">${g}</svg>
     <div class="race"><div class="meta">One trip down the segment at ${hourName(st.hour)}, run 24 times faster than life:</div>${race}</div>`;
   clearInterval(raceT); const cars=[...document.querySelectorAll('.race .car')], start=performance.now();
@@ -288,12 +289,12 @@ function hchart(){
   svg.innerHTML=g;
 }
 function lists(){
-  const rows=S.per_link.filter(r=>byId[r.id]&&byId[r.id].zone&&r.d24!=null&&r.d25!=null&&r.d26!=null).map(r=>({...r,c:(r.d25/r.d24-1)*100})).sort((a,b)=>b.c-a.c);
+  const rows=S.per_link.filter(r=>byId[r.id]&&byId[r.id].zone&&r.d24!=null&&r.d25!=null&&r.d26!=null&&!r.suspect).map(r=>({...r,c:(r.d25/r.d24-1)*100})).sort((a,b)=>b.c-a.c);
   const item=r=>`<div class="row"><i class="sw" style="background:var(--${r.c>=0?'cyan':'vermilion'})"></i><div><span class="nm" style="cursor:pointer" data-id="${r.id}">${byId[r.id].name}</span><span class="sub">${f1(r.d24)} mph in 2024, ${f1(r.d25)} in 2025, ${f1(r.d26)} in 2026</span></div><div class="num">${r.c>=0?'+':''}${r.c.toFixed(0)}%</div></div>`;
   document.getElementById('lfast').innerHTML=rows.slice(0,8).map(item).join('');
   document.getElementById('lslow').innerHTML=rows.slice(-8).reverse().map(item).join('');
-  const faster=rows.filter(r=>r.c>0).length;
-  document.getElementById('lcap').textContent=`Weekday speed from 7 a.m. to 7 p.m., Feb. to Oct. 2025 against the same months of 2024. Of the ${rows.length} segments in the zone with readings in all three years, ${faster} got faster. Swings this large on a single block can come from construction, lane changes or a reader problem as well as from traffic. Click a name to find it on the map.`;
+  const faster=S.compare.zone.links_faster_25; // computed from unrounded values in analyze.py
+  document.getElementById('lcap').textContent=`Weekday speed from 7 a.m. to 7 p.m., Feb. to Oct. 2025 against the same months of 2024. Of the ${rows.length} segments in the zone with readings in all three years and no sign of faulty readings, ${faster} got faster. Swings this large on a single block can still come from construction, lane changes or a reader problem as well as from traffic; check a segment's monthly history before citing it. Click a name to find it on the map.`;
   document.querySelectorAll('.list .nm[data-id]').forEach(e=>e.onclick=()=>{const l=byId[+e.dataset.id];select(l.id);
     const b=new maplibregl.LngLatBounds();l.pts.forEach(p=>b.extend(p));map.fitBounds(b,{padding:120,maxZoom:15.5});document.querySelector('.stage').scrollIntoView({behavior:'smooth'});});
 }
@@ -302,8 +303,9 @@ function lists(){
 Promise.all(['links','profiles','summary'].map(n=>fetch(`data/${n}.json`).then(r=>r.json()))).then(([l,p,s])=>{
   P=p;S=s;
   L=l.map(x=>{const pts=decode(x.poly),seg=[];for(let i=1;i<pts.length;i++)seg.push(FT(pts[i-1],pts[i]));return{...x,pts,seg,len:seg.reduce((a,b)=>a+b,0)||x.ft}});
-  const okIds=new Set(S.per_link.filter(r=>r.d24!=null&&r.d25!=null&&r.d26!=null).map(r=>r.id));
-  L.forEach(x=>{x.panel=okIds.has(x.id);byId[x.id]=x});
+  const okIds=new Set(S.per_link.filter(r=>r.d24!=null&&r.d25!=null&&r.d26!=null&&!r.suspect&&!r.edge).map(r=>r.id));
+  const pl=Object.fromEntries(S.per_link.map(r=>[r.id,r]));
+  L.forEach(x=>{x.panel=okIds.has(x.id);x.suspect=(pl[x.id]||{}).suspect;byId[x.id]=x});
   fill();sizeCanvas();redraw();mchart();hchart();lists();requestAnimationFrame(frame);
 });
 function fill(){
@@ -319,11 +321,15 @@ function fill(){
 const pct=(a,b)=>{const c=(b/a-1)*100;return `${Math.abs(c).toFixed(Math.abs(c)<10?1:0)}% ${c>=0?'faster':'slower'}`};
 function FINDING(z,ot,zc,oc){
   const yrs=YEARS.map(y=>z[String(y)]), lowest=Math.min(...yrs)===z['2026'];
-  return `Weekday traffic on the measured Midtown streets in the toll zone ran ${pct(z.y24,z.y25)} in 2025 than in 2024, then ${z.y26<z.y24?'fell':'moved'} to ${f1(z.y26)} mph in 2026${lowest?', the slowest of the five years compared':''}.`;
+  const sp=(z.spr.y25/z.spr.y24-1), fa=(z.fal.y25/z.fal.y24-1), spring=sp>0&&sp>2*Math.max(fa,0);
+  return `Weekday traffic on the measured streets in the toll zone ran ${pct(z.y24,z.y25)} on average in 2025 than in 2024${spring?', with most of the gain from February to mid-May':''}. In 2026 it averaged ${f1(z.y26)} mph${lowest?', the slowest of the five years compared':''}.`;
 }
+const mp=v=>`${Math.abs(v).toFixed(1)}% ${v>=0?'faster':'slower'}`;
 function LEDE(z,o,ot,zc,oc){
   const fell=z['2022']>z['2023']&&z['2023']>z['2024'];
-  return `The city times E-ZPass tags between pairs of readers on <b>${S.links} street segments</b> and publishes a median speed about once a minute. Of those, ${S.zone_links} are inside the toll zone, all in Midtown between 14th and 57th streets. Comparing weekdays from 7 a.m. to 7 p.m. between February and October, ${z.links_faster_25} of the ${z.n} zone segments with readings in 2024, 2025 and 2026 got faster in 2025. ${fell?`The zone's average had dropped every year before that, from <b>${f1(z['2022'])} mph</b> in 2022 to <b>${f1(z['2024'])}</b> in 2024. `:''}Over the same months of 2025, segments in Queens, Brooklyn and Staten Island moved ${pct(ot.y24,ot.y25)} than in 2024, and Manhattan segments outside the zone, mostly the Henry Hudson Parkway, the Williamsburg Bridge and Upper East and West Side streets, moved ${pct(o.y24,o.y25)}.`;
+  const sp=z.spr, fa=z.fal, nsus=Object.keys(S.suspect).length;
+  const wb=S.per_link.find(r=>r.id===197195);
+  return `The city times E-ZPass tags between pairs of readers on <b>${S.links} street segments</b> and publishes a median speed about once a minute. Of those, ${S.zone_links} are inside the toll zone, all between 14th and 57th streets. Comparing weekdays from 7 a.m. to 7 p.m., February through October, the typical zone segment got <b>${mp(z.median_link_change_25)}</b> in 2025, and ${z.links_faster_25} of ${z.n} sped up. The gain was mostly in spring: ${pct(sp.y24,sp.y25)} from February to mid-May, ${pct(fa.y24,fa.y25)} from July through October. ${fell?`The zone's average had dropped every year before that, from <b>${f1(z['2022'])} mph</b> in 2022 to <b>${f1(z['2024'])}</b> in 2024. `:''}Outside the zone in 2025, the typical segment in Queens, Brooklyn and Staten Island got ${mp(ot.median_link_change_25)}, and the typical one of the ${o.n} measured Upper East and West Side segments got ${mp(o.median_link_change_25)}. Segments that cross the zone line are left out of both sides; the westbound Williamsburg Bridge, which ends at a toll entry, went from ${f1(wb.d24)} to ${f1(wb.d25)} mph. So are ${nsus} segments whose readings look faulty.`;
 }
 </script>
 </body>
