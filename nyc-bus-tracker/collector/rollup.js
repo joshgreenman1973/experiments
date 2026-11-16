@@ -67,7 +67,9 @@ const REDUCED_SERVICE_RATIO = 0.85;
 // The MTA's school-closed weekday timetable runs about 98.8% of the standard
 // one; its holiday-reduced weekday timetable about 90%.
 const LIGHT_TIMETABLE_RATIO = 0.995;
-const HEALTH_MIN_HOURS = 12;       // the last full day with fewer collected hours trips the alert
+const HEALTH_MIN_HOURS = 12;       // a recent full day with fewer collected hours trips the alert
+const HEALTH_ALERT_DAYS = 3;       // how many of the most recent complete days the alert covers
+const SHUTTLE_ALERT_BUSES = 8;     // an unlisted route running this many buses is probably a real route
 const MIN_CELL_DAYS = { week: { weekday: 3, weekend: 1 }, month: { weekday: 8, weekend: 3 } };
 const MIDDAY = [10, 11, 12, 13, 14, 15];
 
@@ -516,18 +518,61 @@ function main() {
   write('weekly-routes.json', { ...stamp, meta, routes: weeklyRoutes });
   write('monthly-routes.json', { ...stamp, meta, routes: monthlyRoutes });
 
-  // Collection health: the alert the old pipeline never had.
+  // Collection health. Every calendar day in the window gets a row, so a day
+  // with no daily file at all (the collector died, or never pushed) shows as
+  // zero hours instead of silently dropping out. The alert covers the last
+  // HEALTH_ALERT_DAYS complete days, and the page also checks lastDay against
+  // the date, so a pipeline that stops writing this file is caught too.
   const todayET = etParts(Date.now()).date;
-  const recent = dayRows.filter(d => d.date < todayET).slice(-21);
-  const thin = recent.slice(-1).filter(d => d.hoursCollected < HEALTH_MIN_HOURS);
+  const addDays = (d, k) => new Date(Date.parse(d + 'T00:00:00Z') + k * 86400000).toISOString().slice(0, 10);
+  const yesterdayET = addDays(todayET, -1);
+  const byDate = Object.fromEntries(dayRows.map(d => [d.date, d]));
+  const window = Array.from({ length: 21 }, (_, i) => addDays(yesterdayET, i - 20));
+  const healthDays = window.map(date => {
+    const d = byDate[date];
+    return d ? { date, hours: d.hoursCollected, snapshots: d.snapshots, dayType: d.dayType }
+      : { date, hours: 0, snapshots: 0, dayType: null, missing: true };
+  });
+  const lastCollected = [...dayRows].reverse().find(d => d.date < todayET && d.hoursCollected > 0)?.date || null;
+  const thin = healthDays.slice(-HEALTH_ALERT_DAYS).filter(d => d.hours < HEALTH_MIN_HOURS);
+  // Timetable coverage: the scheduled-trips column and the school-closed test
+  // both need it. Warn two weeks ahead; alert once it lapses.
+  let scheduleThrough = null;
+  if (existsSync(SCHEDULE_FILE)) {
+    const ds = Object.keys(JSON.parse(readFileSync(SCHEDULE_FILE, 'utf8')).dates || {}).sort();
+    scheduleThrough = ds[ds.length - 1] || null;
+  }
+  const warnings = [];
+  if (!scheduleThrough || scheduleThrough < todayET) {
+    warnings.push(`The MTA timetable file ends ${scheduleThrough ? apDate(scheduleThrough) : 'nowhere'}; scheduled trips and school-closed days can't be read for later dates. Run the GTFS Refresh workflow.`);
+  } else if (scheduleThrough < addDays(todayET, 14)) {
+    warnings.push(`The MTA timetable file ends ${apDate(scheduleThrough)}, within two weeks.`);
+  }
+  // A route missing from the route table is classed a shuttle and left out of
+  // the index. Flag any that ran a real route's worth of buses yesterday.
+  const lastDerived = days.filter(d => d.date < todayET).slice(-1)[0];
+  const strays = lastDerived ? Object.entries(lastDerived.routes)
+    .filter(([route, r]) => r.kind === 'shuttle' && !/^T\d/i.test(route)) // T routes are subway-replacement shuttles
+    .map(([route, r]) => [route, Math.max(0, ...Object.values(r.h).map(c => c.buses || 0))])
+    .filter(([, b]) => b >= SHUTTLE_ALERT_BUSES) : [];
+  if (strays.length) {
+    warnings.push(`Not in the route table, so left out of the index as shuttles: ${strays.map(([r, b]) => `${r} (up to ${Math.round(b)} buses an hour)`).join(', ')}. Run the GTFS Refresh workflow or add them to route-table.json.`);
+  }
+  const missingThin = thin.filter(d => d.missing), lowThin = thin.filter(d => !d.missing);
   const health = {
     ...stamp,
     minHours: HEALTH_MIN_HOURS,
-    lastDay: recent.length ? recent[recent.length - 1].date : null,
-    days: recent.map(d => ({ date: d.date, hours: d.hoursCollected, snapshots: d.snapshots, dayType: d.dayType })),
+    alertDays: HEALTH_ALERT_DAYS,
+    lastDay: yesterdayET,
+    lastCollectedDay: lastCollected,
+    scheduleThrough,
+    days: healthDays,
     alert: thin.length > 0,
+    warnings,
     message: thin.length
-      ? `Collection was thin on ${thin.map(d => `${apDate(d.date)} (${d.hoursCollected} of 17 hours)`).join(', ')}.`
+      ? [missingThin.length ? `Nothing was collected on ${missingThin.map(d => apDate(d.date)).join(', ')}.` : '',
+         lowThin.length ? `Collection was thin on ${lowThin.map(d => `${apDate(d.date)} (${d.hours} of 17 hours)`).join(', ')}.` : '']
+        .filter(Boolean).join(' ')
       : 'Collection is running normally.',
   };
   write('health.json', health);

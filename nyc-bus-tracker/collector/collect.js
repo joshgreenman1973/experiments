@@ -73,8 +73,11 @@ async function fetchAllVehicles() {
 async function main() {
   const vehicles = await fetchAllVehicles();
   if (vehicles.length === 0) {
-    console.log('No vehicles returned (service may be offline). Skipping.');
-    return;
+    // Buses always run in the collection window, so an empty list means the
+    // feed answered with an error or nothing usable. Fail so loop.py counts
+    // the burst as lost and raises its three-in-a-row alarm.
+    console.error('No vehicles returned: the feed answered with an empty or error response.');
+    process.exit(2);
   }
 
   const now = new Date();

@@ -112,11 +112,21 @@
     try { renderEvents(events, periods); } catch (e) { console.error(e); }
   }
 
+  // The pipeline can stop writing health.json altogether, so check its date
+  // against today's: more than two days behind means nothing new is landing.
+  const todayET = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const daysBehind = h => {
+    if (!h?.lastDay) return null;
+    return Math.round((Date.parse(todayET() + 'T00:00:00Z') - Date.parse(h.lastDay + 'T00:00:00Z')) / 86400000);
+  };
+  const isStale = h => (daysBehind(h) ?? 0) > 2;
+
   function renderSummaryLine(wd, we, health) {
     const el = $('tray-summary');
     if (!el) return;
     const L = wd[wd.length - 1], E = we[we.length - 1];
-    const warn = health?.alert ? ' · ⚠ collection thin lately' : '';
+    const warn = isStale(health) ? ` · ⚠ no new data since ${apDate(health.lastDay)}`
+      : health?.alert ? ' · ⚠ collection thin lately' : '';
     el.textContent = L
       ? `Weekdays, week of ${apDate(L.weekStart)}: ${f1(L.wd.all)} mph with stops${E ? ` · weekends, week of ${apDate(E.weekStart)}: ${f1(E.we.all)}` : ''}${warn}`
       : `No comparable week yet${warn}`;
@@ -128,10 +138,12 @@
     const bars = h.days.map(d => {
       const hgt = Math.max(2, Math.round((d.hours / 17) * 26));
       const cls = d.hours < h.minHours ? 'bad' : '';
-      return `<span class="hb ${cls}" style="height:${hgt}px" title="${apDate(d.date)}: ${d.hours} of 17 hours collected"></span>`;
+      return `<span class="hb ${cls}" style="height:${hgt}px" title="${apDate(d.date)}: ${d.missing ? 'nothing collected' : `${d.hours} of 17 hours collected`}"></span>`;
     }).join('');
+    const stale = isStale(h);
+    const msg = stale ? `No new data has been processed since ${apDate(h.lastDay)}, ${daysBehind(h)} days ago; the figures below stop there.` : h.message;
     el.innerHTML = `<div class="health-bars" aria-hidden="true">${bars}</div>
-      <div class="health-text ${h.alert ? 'alert' : ''}"><strong>Collection, last ${h.days.length} days:</strong> ${esc(h.message)}
+      <div class="health-text ${h.alert || stale ? 'alert' : ''}"><strong>Collection, last ${h.days.length} days:</strong> ${esc(msg)}
       Each bar is one day's hours collected, out of 17; red is under ${h.minHours}.</div>`;
   }
 

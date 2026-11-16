@@ -9,8 +9,11 @@ name: Process Daily Summary
 # processes yesterday plus any day in the last two weeks that has snapshots but
 # no current daily file, so a missed run heals itself.
 #
-# Ends red (after committing) when collection was thin on any of the last three
-# days, so a collapse like Oct. 1-6, 2026, can't pass unnoticed again.
+# Ends red (after committing) when collection was thin or missing on any of the
+# last three days, so a collapse like Oct. 1-6, 2026, can't pass unnoticed
+# again. A day with no snapshots at all counts as missing, not skipped. The
+# timetable running out and unlisted routes running real service show as
+# warnings on the run.
 on:
   schedule:
     - cron: '17 11 * * *'
@@ -110,6 +113,8 @@ jobs:
           import json, sys
           h = json.load(open('nyc-bus-tracker/data/summary/health.json'))
           print(h['message'])
+          for w in h.get('warnings', []):
+              print(f"::warning::{w}")
           if h['alert']:
               print(f"::error::{h['message']} Check the Collect Bus Data workflow.")
               sys.exit(1)
