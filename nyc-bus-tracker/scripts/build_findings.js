@@ -69,6 +69,8 @@ const summarize = ws => ({
   weeks: ws.map(w => w.period), start: ws[0].weekStart, end: ws[ws.length - 1].weekEnd,
   speed: r1(mean(ws.map(w => w.wd.all))), moving: r1(mean(ws.map(w => w.wd.mov))), weekend: r1(mean(ws.map(w => w.we.all))),
   buses: Math.round(mean(ws.map(w => w.wd.buses))),
+  // unrounded, for differences
+  speedRaw: mean(ws.map(w => w.wd.all)), movingRaw: mean(ws.map(w => w.wd.mov)),
 });
 function isoWeekIndex(label) { const [y, w] = label.split('-W').map(Number); return y * 53 + w; }
 function slopePerWeek(ws, get) {
@@ -120,13 +122,13 @@ for (const [route, ps] of Object.entries(wr.routes)) {
   const ride = ridership.routes[rideKey[canon(route)]];
   routes.push({
     route, borough: m.group, kind: m.kind,
-    speed: r1(mean(rs.map(p => p.wd.all))), moving: r1(mean(rs.map(p => p.wd.mov))), stop: r2(mean(rs.map(p => p.wd.stop))),
+    speed: r1(mean(rs.map(p => p.wd.all))), speedRaw: mean(rs.map(p => p.wd.all)), moving: r1(mean(rs.map(p => p.wd.mov))), stop: r2(mean(rs.map(p => p.wd.stop))),
     buses: r1(buses), busLaneShare: classes[route]?.busLaneShare ?? null,
     riders: ride ? ride.wdAvg[li] || null : null,
   });
 }
 if (routes.length < 50) die(`only ${routes.length} routes qualified`);
-routes.sort((a, b) => a.speed - b.speed);
+routes.sort((a, b) => a.speedRaw - b.speedRaw);
 
 // Ridership: system counters and taps by month.
 const sys = ridership.system;
@@ -160,6 +162,18 @@ const seasonNote = recent.some(w => w.weekStart.slice(5, 7) === '09' || w.weekEn
   : '';
 const amBand = mean(recent.map(w => w.wd.bands?.am?.all));
 
+// A baseline set in summer, when schools are out and buses run faster, read
+// against fall weeks: give the MTA's own change over the same months, built
+// the same way, so a seasonal drop isn't read as a trend.
+const summer = w => ['07', '08'].includes(w.weekStart.slice(5, 7));
+const matched = official?.numbers?.mtaLocalMatched || {};
+const baseMonth = baseline[0].weekStart.slice(0, 7);
+const mtaMonths = Object.keys(matched).sort();
+const mtaLast = mtaMonths[mtaMonths.length - 1];
+const summerNote = baseline.every(summer) && !recent.some(summer) && matched[baseMonth] != null && mtaLast > baseMonth
+  ? ` The first weeks fall in summer, when schools are out and buses usually run faster. The MTA's own figure, built the same way, ${matched[mtaLast] < matched[baseMonth] ? 'fell' : 'rose'} ${Math.abs(matched[mtaLast] - matched[baseMonth]).toFixed(2)} mph from ${monthName(baseMonth).split(' ')[0]} to ${monthName(mtaLast)}, so much of any drop since then is the season.`
+  : '';
+
 // Sensitivity: the same first-versus-recent comparison using only comparable
 // weeks in which no weekday hour had to be filled in.
 const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
@@ -171,12 +185,20 @@ const sensitivity = observedOnly.length >= 2 * N && observedOnly.length < compar
   ? { weeks: observedOnly.map(w => w.period), changeAll: r2(change(comparable)), changeObserved: r2(change(observedOnly)) }
   : null;
 const sensitivityNote = sensitivity
-  ? ` Counting only the ${numWord(observedOnly.length)} comparable weeks in which no weekday hour had to be filled in (the first began ${apDate(observedOnly[0].weekStart)}), the change from the first ${numWord(N)} weeks to the last ${numWord(N)} is ${changeWords(sensitivity.changeObserved)}, against ${changeWords(sensitivity.changeAll)} counting every comparable week.`
+  ? ` Counting only the ${numWord(observedOnly.length)} comparable weeks in which no weekday hour had to be filled in, the first ${numWord(N)} of them (starting ${apDate(observedOnly[0].weekStart)}, later than the baseline above) and the last ${numWord(N)} show ${changeWords(sensitivity.changeObserved)}; every comparable week shows ${changeWords(sensitivity.changeAll)}. The two use different starting weeks, so the gap between them is not the effect of the filled-in hours alone.`
   : '';
 const fe = official?.fareEvasion;
 const pctOf = x => `${(100 * x).toFixed(1)}%`;
 const evasionNote = ` These two independently constructed series differ substantially. Their ratio is not an estimate of fare evasion. For evasion, use the MTA's <a href="${fe?.url || 'https://data.ny.gov/Transportation/MTA-Bus-Fare-Evasion-Beginning-2019/uv5h-dfhp'}" target="_blank" rel="noopener">separately published measure</a>`
   + (fe?.local != null && fe.quarterName ? `, which put evasion on local and limited buses at ${pctOf(fe.local)} in the ${fe.quarterName}${fe.express != null ? ` (${pctOf(fe.express)} on express buses)` : ''}.` : '.');
+// Months whose estimates moved far out of line with fare taps
+// (scripts/ridership_flags.py): say so before quoting the rise.
+const flaggedRecent = (ridership.systemFlags || []).filter(m => months.slice(-3).includes(m));
+const flaggedRoutesNow = Object.entries(ridership.routes).filter(([, r]) => (r.flags || []).includes(months[li])).map(([k]) => k);
+const bxFlagged = flaggedRoutesNow.filter(r => /^BX(?!M)/.test(r)).length;
+const riderFlagNote = flaggedRecent.length
+  ? ` Read the latest rise with care: in ${flaggedRecent.map(monthName).join(' and ')} the systemwide estimate climbed far faster than fare taps, and the estimates for ${flaggedRoutesNow.length} routes${bxFlagged > flaggedRoutesNow.length / 3 ? `, ${bxFlagged} of them in the Bronx,` : ''} moved out of line with their own taps. That points to a change in the MTA's counters or scaling rather than in riders.`
+  : '';
 const learned = [
   {
     head: 'Speed',
@@ -184,6 +206,7 @@ const learned = [
       + dir(net, 0.2, `The trend across all ${comparable.length} comparable weeks points up, about ${r1(net)} mph end to end.`, `The trend across all ${comparable.length} comparable weeks points down, about ${r1(Math.abs(net))} mph end to end.`,
         `Across all ${comparable.length} comparable weeks the trend is flat, moving less than a fifth of a mph end to end.`)
       + seasonNote
+      + summerNote
       + sensitivityNote
       + ` Weekends ran faster, ${rc.weekend?.toFixed(1)} mph recently.`,
   },
@@ -194,17 +217,17 @@ const learned = [
   },
   {
     head: 'Boroughs',
-    text: `Among local routes, ${recentBoro[0].name} is the fastest at ${recentBoro[0].speed} mph and ${recentBoro[recentBoro.length - 1].name} the slowest at ${recentBoro[recentBoro.length - 1].speed} mph. The slowest busy route is the ${routes[0].route} at ${routes[0].speed} mph.`,
+    text: `Among local, limited and Select Bus Service routes, ${recentBoro[0].name} is the fastest at ${recentBoro[0].speed.toFixed(1)} mph and ${recentBoro[recentBoro.length - 1].name} the slowest at ${recentBoro[recentBoro.length - 1].speed.toFixed(1)} mph. ${(() => { const tied = routes.filter(r => r.speed === routes[0].speed).map(r => r.route); return tied.length > 1 ? `The slowest busy routes are the ${tied.slice(0, -1).join(', ')} and ${tied[tied.length - 1]}, tied at ${routes[0].speed.toFixed(1)} mph.` : `The slowest busy route is the ${routes[0].route} at ${routes[0].speed.toFixed(1)} mph.`; })()}`,
   },
   {
     head: 'Riders',
     text: prior12
-      ? `Weekday boardings, as estimated by the MTA from its passenger counters, averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. Those estimates ran ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months.${evasionNote}`
+      ? `Weekday boardings, as estimated by the MTA from its passenger counters, averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}, against ${(prior12 / 1e6).toFixed(2)} million in the twelve months before${yearAgo3 ? ` and ${(yearAgo3 / 1e6).toFixed(2)} million in the same three months a year earlier` : ''}. Those estimates ran ${Math.round((mean(sys.ratio.slice(-3)) - 1) * 100)}% above paid fare taps in those three months.${riderFlagNote}${evasionNote}`
       : `Weekday boardings averaged ${(last3 / 1e6).toFixed(2)} million over the three months through ${monthName(months[li])}.`,
   },
   {
     head: 'A change of method',
-    text: `Until October 2026 this page reported moving speed, which leaves out time stopped at stops and lights. Recently that measure read ${rc.moving} mph on weekdays, about ${r1(rc.moving - rc.speed)} mph above speed with stops. Every week was recomputed the new way, so the charts compare like with like.`,
+    text: `Until October 2026 this page reported moving speed, which leaves out time stopped at stops and lights. Recently that measure read ${rc.moving} mph on weekdays, about ${r1(rc.movingRaw - rc.speedRaw)} mph above speed with stops. Every week was recomputed the new way, so the charts compare like with like.`,
   },
 ];
 if (official?.numbers?.localPctWithStops != null) {

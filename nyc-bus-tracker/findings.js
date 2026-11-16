@@ -381,17 +381,42 @@
     const S = D.official?.season;
     if (!S || !S.monthly?.length) return;
     document.getElementById('season-block').hidden = false;
-    const L = S.latest, av = S.augVsYear?.[S.augVsYear.length - 1];
-    const sinceTxt = L.highestSince
-      ? `the fastest month in ${L.monthsSince} months, since ${apMonth(L.highestSince)}`
-      : 'the fastest month in this series';
-    document.getElementById('season-copy').innerHTML =
-      `The MTA reported ${f2(L.mph)} mph for ${apMonth(L.month)}, ${sinceTxt}. `
-      + (av ? `But August is always the quick month: it has run ${f2(av.delta)} mph above its own year's average, and in ${apMonth(L.month).split(' ')[1]} the year so far averages ${f2(av.yearMean)} mph. ` : '')
-      + 'Check a record set in August against the September that follows it.';
+    const L = S.latest, M = S.monthly;
+    const val = ym => M.find(p => p.month === ym)?.mph;
+    const li = M.findIndex(p => p.month === L.month);
+    const prevMonth = li > 0 ? M[li - 1] : null;
+    const yearAgo = `${+L.month.slice(0, 4) - 1}${L.month.slice(4)}`;
+    // A record only when the month beat every one of the twelve before it.
+    // monthsSince counts back to the last month that was strictly faster.
+    const isRecord = L.highestSince ? L.monthsSince >= 12 : li >= 12;
+    let copy = `The MTA reported ${f2(L.mph)} mph for ${apMonth(L.month)}`;
+    if (isRecord) {
+      copy += L.highestSince ? `, the fastest month since ${apMonth(L.highestSince)}, ${L.monthsSince} months earlier. ` : ', the fastest month in this series. ';
+    } else {
+      const parts = [];
+      if (prevMonth) parts.push(`${prevMonth.mph > L.mph ? 'down' : prevMonth.mph < L.mph ? 'up' : 'unchanged'} from ${f2(prevMonth.mph)} in ${apMonth(prevMonth.month).split(' ')[0]}`);
+      if (val(yearAgo) != null) parts.push(`against ${f2(val(yearAgo))} in ${apMonth(yearAgo)}`);
+      copy += parts.length ? `, ${parts.join(' and ')}. ` : '. ';
+    }
+    // The August note belongs with an August figure only.
+    const av = S.augVsYear || [];
+    if (L.month.endsWith('-08') && av.length) {
+      const faster = av.filter(r => r.delta > 0).length;
+      copy += `August is usually a quick month: in ${faster} of the ${av.length} years shown it ran above its own year's average. Check a record set in August against the September that follows it.`;
+    }
+    document.getElementById('season-copy').innerHTML = copy;
     const ours = S.oursAugSep;
+    const yr = ours ? ours.sepEnd?.slice(0, 4) || L.month.slice(0, 4) : null;
+    const mtaYear = ours ? (S.augSep || []).find(r => String(r.year) === yr) : null;
+    // The MTA series built the way the tracker's is (route-equal, 6 a.m. to 11 p.m.).
+    const SS = D.official?.speedSeries;
+    const mAt = ym => { const i = SS?.months?.indexOf(ym) ?? -1; return i > -1 ? SS.mta[i] : null; };
+    const mAug = yr ? mAt(`${yr}-08`) : null, mSep = yr ? mAt(`${yr}-09`) : null;
     document.getElementById('augsep-note').innerHTML = ours
-      ? `The tracker's own August-to-September change is ${ours.delta > 0 ? '+' : ''}${f1(ours.delta)} mph (${f1(ours.aug)} to ${f1(ours.sep)}), through ${apDate(ours.sepEnd)}${ours.partial ? ', with September still running' : ''}. The MTA will not publish its September figure for about six weeks.`
+      ? `The tracker's own August-to-September change is ${ours.delta > 0 ? '+' : ''}${f1(ours.delta)} mph (${f1(ours.aug)} to ${f1(ours.sep)}), through ${apDate(ours.sepEnd)}${ours.partial ? ', with September still running' : ''}. `
+        + (mtaYear
+          ? (mAug != null && mSep != null ? `The MTA's figure built the same way changed ${mSep - mAug > 0 ? '+' : ''}${(mSep - mAug).toFixed(2)} mph (${f2(mAug)} to ${f2(mSep)}); the bars show its headline figure, which weights routes by the miles they run.` : '')
+          : 'The MTA has not yet published its September figure.')
       : '';
     renders.push(seasonChart, augSepChart);
     seasonChart(); augSepChart();
@@ -436,7 +461,7 @@
     if (!host) return;
     const S = D.official.season;
     const bars = S.augSep.map(r => ({ label: String(r.year), v: r.delta, col: COL.mta, r }));
-    if (S.oursAugSep) bars.push({ label: String(S.latest.month.slice(0, 4)), v: S.oursAugSep.delta, col: COL.ours, ours: true });
+    if (S.oursAugSep) bars.push({ label: String((S.oursAugSep.sepEnd || S.latest.month).slice(0, 4)), v: S.oursAugSep.delta, col: COL.ours, ours: true });
     const { svg, w, h } = frame(host, +host.dataset.h);
     const m = { t: 34, r: 16, b: 38, l: 42 };
     const lo = Math.min(-0.45, ...bars.map(b => b.v)) * 1.15, hi = Math.max(0.15, ...bars.map(b => b.v)) * 1.15;
@@ -461,7 +486,7 @@
         + row('August', f1(b.ours ? S.oursAugSep.aug : b.r.aug) + ' mph')
         + row('September', f1(b.ours ? S.oursAugSep.sep : b.r.sep) + ' mph')
         + row('Change', (b.v > 0 ? '+' : '') + f1(b.v) + ' mph')
-        + (b.ours ? '<div class="t-n">The tracker reads higher than the MTA; compare the change, not the level.</div>' : ''));
+        + (b.ours ? '<div class="t-n">The tracker reads lower than the MTA; compare the change, not the level.</div>' : ''));
       return { x: m.l + step * (i + 0.5), noGuide: true };
     });
   }

@@ -273,13 +273,17 @@ lastR = shared[-1] if shared else None
 
 pct = lambda x: f'{round(abs(x - 1) * 100)}%'
 f1 = lambda x: f'{x:.1f}'
-fd = lambda x: f'{x:+.1f}'
+def fd(x, unit='mph'):
+    r = round(x, 2)
+    if abs(r) < 0.005:
+        return 'did not move'
+    return f"{'rose' if r > 0 else 'fell'} {abs(r):.2f} {unit}"
 side = lambda x: 'faster' if x > 1 else 'slower'
 
 metrics = [
     {'label': 'Local routes, whole system', 'period': month_name(P),
      'ours': f"{f1(ours[P]['idx']['all'])} mph", 'mta': f"{f1(mta_local[P])} mph",
-     'why': "Built the same way on both sides: local, limited and Select Bus Service routes each count once; every hour from 6 a.m. to 11 p.m. counts equally; weekdays and weekends are averaged separately and blended 5 to 2. The tracker's figure includes time stopped and reads below the MTA's; the next two rows say why. "
+     'why': "Built the same way on both sides: local, limited and Select Bus Service routes each count once; every hour from 6 a.m. to 11 p.m. counts equally; weekdays and weekends are averaged separately and blended 5 to 2. Both include time stopped at stops and lights. The tracker's figure reads below the MTA's mainly because it measures straight lines between GPS fixes, which cut corners; the next two rows say more. "
             f"The MTA's headline figure, which weights routes by the miles they run and covers all hours, was {f1(head[P])} mph."},
     {'label': 'Typical local route, speed with stops', 'period': month_name(P),
      'ours': f'{pct(ratio_all)} {side(ratio_all)}', 'mta': 'baseline',
@@ -318,7 +322,7 @@ if prev_paired:
     d_ours = ours[P]['idx']['all'] - ours[a]['idx']['all']
     d_mta = mta_local[P] - mta_local[a]
     flags.append({'head': 'Month to month, the two move together',
-                  'text': f'From {month_name(a)} to {month_name(P)} the tracker moved {fd(d_ours)} mph and the MTA, built the same way, {fd(d_mta)} mph.',
+                  'text': f'From {month_name(a)} to {month_name(P)} the tracker {fd(d_ours)} and the MTA, built the same way, {fd(d_mta)}.',
                   'detail': 'Moves of a tenth or two are within the noise of either source.'})
 if ratios:
     flags.append({'head': 'The MTA\'s two ridership counts disagree',
@@ -384,7 +388,7 @@ for f in log['forecasts']:
 # ── seasons ─────────────────────────────────────────────────────────────────
 season_months = sorted(full)
 lv = full[LAST]
-earlier = [m for m in season_months if m < LAST and full[m] >= lv]
+earlier = [m for m in season_months if m < LAST and full[m] > lv]  # strictly faster
 highest_since = earlier[-1] if earlier else None
 aug_sep, aug_vs_year = [], []
 for y in range(int(SEASON_START[:4]), int(LAST[:4]) + 1):
@@ -416,7 +420,7 @@ for m in sorted(ours):
         series_months.append(m)
 out = {
     'fetchedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-    'intro': f'The tracker makes its own estimates from GPS positions. Here they are set beside what the MTA publishes, which runs about six weeks behind. The latest month both sources cover is {month_name(P)}.',
+    'intro': f'The tracker makes its own estimates from GPS positions. Here they are set beside what the MTA publishes, which comes out about two weeks after a month ends. The latest month both sources cover is {month_name(P)}.',
     'pairedMonth': P,
     'speedSeries': {
         'title': 'Local routes, built the same way',
