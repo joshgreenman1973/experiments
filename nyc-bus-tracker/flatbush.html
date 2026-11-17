@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Up and Down Flatbush &mdash; bus speeds on the new center lanes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Bus speeds on Flatbush Avenue in Brooklyn before, during and after the center-running bus lanes between Livingston Street and Grand Army Plaza opened in November 2026, from GPS positions of every bus in the MTA feed and the MTA's own segment speeds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="findings.css?v=5" />
+  <link rel="stylesheet" href="route.css?v=2" />
+  <style>
+    .sw.south { border-color: var(--ours); }
+    .sw.north { border-color: var(--b-Q); }
+    .sw.mta { border-color: var(--mta); }
+    .rb td { background: rgba(221,228,76,0.05); }
+    .cmp-table td.up { color: var(--ours); }
+    .cmp-table td.down { color: var(--rose); }
+    .cmp-table td small { display: block; font-weight: 500; color: var(--ink-3); font-size: 11.5px; }
+    .cmp-table tfoot td { font-weight: 700; color: var(--ink); }
+    .stats.big .stat .v { font-size: 34px; }
+    .src { font-size: 12.5px; color: var(--ink-3); margin-top: 10px; }
+    .src a { color: var(--ink-2); }
+    @media (max-width: 600px) { .stats.big .stat .v { font-size: 26px; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <nav class="crumbs">
+      <a href="index.html">&larr; All Through the Town <span>live map</span></a>
+      <a href="findings.html">Round and Round <span>weekly charts</span></a>
+      <a href="route.html?r=B41">Route by Route <span>the B41&rsquo;s history</span></a>
+    </nav>
+    <h1 class="title">Up and <span>Down</span></h1>
+    <p class="dek">Bus speeds on Flatbush Avenue in Brooklyn before, during and after the center-running bus lanes between Livingston Street and Grand Army Plaza opened in November 2026.</p>
+    <p class="edition" id="edition"></p>
+  </header>
+
+  <section class="block learned">
+    <div class="side">
+      <h2>The first week</h2>
+      <p>Figures are for weekdays, 7 a.m. to 7 p.m. The lanes are new, so these are early readings from one week of service.</p>
+    </div>
+    <ul class="learned-list" id="learned"></ul>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Day by day</h2>
+      <p>B41 speed on the rebuilt mile, Livingston Street to Grand Army Plaza, from GPS positions of buses in the MTA feed. Speeds include time at stops and lights. Each day&rsquo;s 12 hours from 7 a.m. to 7 p.m. count equally.</p>
+      <p class="legend">
+        <span><i class="sw south"></i><b>Southbound, toward Kings Plaza</b></span>
+        <span><i class="sw north"></i><b>Northbound, toward Downtown Brooklyn</b></span>
+      </p>
+      <p class="note">The shaded area is construction, which ran from April 28 to Nov. 6. Hollow points are weekends and days when schools were closed. The tracker&rsquo;s archive begins April 28, 2026, the day the second phase of construction started, but it caught too few hours of most days before July to plot. The lower chart is the rest of Flatbush, Grand Army Plaza to Kings Plaza.</p>
+    </div>
+    <div class="main">
+      <div class="chart-head"><label class="zero"><input type="checkbox" data-zero="daily" /> Start y-axes at zero</label></div>
+      <div class="chart" id="chart-daily" data-h="300"></div>
+      <div class="chart" id="chart-rest" data-h="220"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Against the years before construction</h2>
+      <p id="mta-copy"></p>
+      <p class="legend">
+        <span><i class="sw mta"></i><b>MTA monthly segment speed</b></span>
+        <span><i class="sw south"></i><b>Tracker, adjusted to the MTA&rsquo;s level</b></span>
+      </p>
+      <p class="note" id="mta-note"></p>
+    </div>
+    <div class="main">
+      <div class="chart-head"><label class="zero"><input type="checkbox" data-zero="mta" /> Start y-axes at zero</label></div>
+      <div class="chart" id="chart-mta-s" data-h="240"></div>
+      <div class="chart" id="chart-mta-n" data-h="240"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Stretch by stretch</h2>
+      <p>The whole B41 run along Flatbush, from Livingston Street to Kings Plaza, cut at the MTA&rsquo;s timing points. The first two rows are the rebuilt mile. &ldquo;Before&rdquo; is the last four weeks of construction, Oct. 13 to Nov. 6; &ldquo;after&rdquo; is the first week of the lanes, Nov. 9 to 16.</p>
+      <p class="note">The range under each change is a 90% interval from resampling the days in each period. A range that crosses zero is within day-to-day noise. Over the same weeks, other busy Brooklyn routes changed by <span id="ctrl-range"></span>.</p>
+    </div>
+    <div class="main">
+      <table class="cmp-table" id="stretch-table"></table>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Hour by hour</h2>
+      <p>B41 speed on the rebuilt mile by hour of the day, Eastern time: the last four weeks of construction against the first week of the lanes.</p>
+      <p class="legend">
+        <span><i class="sw south"></i><b>First week of the lanes</b></span>
+        <span><i class="sw base"></i><b>Last four weeks of construction</b></span>
+      </p>
+    </div>
+    <div class="main">
+      <div class="chart" id="chart-hour-s" data-h="220"></div>
+      <div class="chart" id="chart-hour-n" data-h="220"></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="side">
+      <h2>Other routes on the rebuilt mile</h2>
+      <p>The B67 runs on Flatbush between Seventh Avenue and Livingston Street; the B45 uses it between Atlantic Avenue and Livingston Street. Both have far fewer buses on the stretch than the B41, so their figures rest on fewer observations.</p>
+    </div>
+    <div class="main">
+      <table class="cmp-table" id="other-table"></table>
+    </div>
+  </section>
+
+  <section class="block" id="lanes-block" hidden>
+    <div class="side">
+      <h2>Other bus lane projects</h2>
+      <p id="lanes-copy"></p>
+      <p class="note" id="lanes-note"></p>
+    </div>
+    <div class="main">
+      <table class="cmp-table" id="lanes-table"></table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <details class="method">
+      <summary>How these numbers are made</summary>
+      <div class="method-body" id="method"></div>
+    </details>
+    <div class="caution-wrap">
+      <button class="ai-caution-btn" id="ai-caution-btn" type="button">AI caution</button>
+      <div class="ai-caution-pop" id="ai-caution-pop" hidden>
+        <p>The concept, the choice of data and the layout of this page came from its author, a human. The code was written mainly by Anthropic&rsquo;s Claude, under close direction. The tracker&rsquo;s speeds on the stretch were checked month by month against the MTA&rsquo;s own segment speeds. Speeds are estimates made from GPS positions, not official MTA numbers, and AI-built pipelines can still go wrong. Please flag anything that looks off.</p>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<div class="tip" id="tip" hidden></div>
+<script src="charts.js?v=2"></script>
+<script src="flatbush.js?v=1"></script>
+</body>
+</html>
