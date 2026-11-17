@@ -147,13 +147,13 @@
     $('lanes-note').innerHTML = L.note || '';
     const rows = L.projects.map(p => {
       const cl = p.diff_in_diff_mph == null ? '' : p.diff_in_diff_mph > 0.05 ? 'up' : p.diff_in_diff_mph < -0.05 ? 'down' : '';
-      return `<tr><td><b>${esc(p.name)}</b><small>${esc(p.borough)} · opened ${esc(p.openedLabel)} · ${esc(p.routes.join(', '))}</small></td>
-        <td class="num">${f1(p.before_mph)} &rarr; ${f1(p.after_mph)}<small>${p.change_pct > 0 ? '+' : ''}${p.change_pct}%</small></td>
-        <td class="num">${p.control_change_mph == null ? '–' : sgn(p.control_change_mph)}</td>
-        <td class="num ${cl}">${p.diff_in_diff_mph == null ? '–' : sgn(p.diff_in_diff_mph)}</td>
+      return `<tr><td><b>${esc(p.name)}</b><small>${esc(p.borough)} · opened ${esc(p.openedLabel)} · ${esc(p.routes.join(', '))}${p.months ? ` · ${num(p.months)} months compared` : ''}</small></td>
+        <td class="num">${p.before_mph.toFixed(2)} &rarr; ${p.after_mph.toFixed(2)}<small>${sgn(p.change_pct)}%</small></td>
+        <td class="num">${p.control_change_mph == null ? '–' : sgn2(p.control_change_mph)}</td>
+        <td class="num ${cl}">${p.diff_in_diff_mph == null ? '–' : sgn2(p.diff_in_diff_mph)}</td>
         <td class="why">${esc(p.cityClaim || '')}${p.flags?.length ? `<small>${esc(p.flags.join(' '))}</small>` : ''}</td></tr>`;
     }).join('');
-    $('lanes-table').innerHTML = `<thead><tr><th>Project</th><th>Before &rarr; after, mph</th><th>Same routes elsewhere</th><th>Net change</th><th>City&rsquo;s claim, notes</th></tr></thead><tbody>${rows}</tbody>`;
+    $('lanes-table').innerHTML = `<thead><tr><th>Project</th><th>Before &rarr; after, mph</th><th>Same routes elsewhere, mph</th><th>Net change, mph</th><th>City&rsquo;s claim, notes</th></tr></thead><tbody>${rows}</tbody>`;
   }
 
   function method() {
@@ -177,7 +177,7 @@
 
   Promise.all([
     fetch('data/spotlight/flatbush.json?v=1').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-    fetch('data/spotlight/other-lanes.json?v=1').then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('data/spotlight/other-lanes.json?v=2').then(r => (r.ok ? r.json() : null)).catch(() => null),
   ]).then(([d, l]) => {
     D = d; L = l;
     $('edition').innerHTML = `Tracker data through <b>${ap(D.daily[D.daily.length - 1].d, true)}</b>. MTA segment speeds through <b>${monthName(D.mta.months[D.mta.months.length - 1])}</b>.`;

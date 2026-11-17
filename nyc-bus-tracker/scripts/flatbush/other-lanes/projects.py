@@ -1,0 +1,95 @@
+"""Project definitions. Dates are from the research pass in the brief.
+
+corridor:
+  ('dot', [(street, open_dates_substring), ...]) -> NYC DOT bus lane features (buslanes.csv) whose
+       Street matches and whose Open_dates contains the substring; feature Direction is kept.
+  ('gtfs', feed, route_ids, [(start(lat,lon), end(lat,lon), direction), ...]) -> for each piece, the
+       GTFS shape of those routes that passes within 40 m of both points (start before end), clipped between them.
+direction '' = either direction counts (two-way treatment, or a one-way street).
+"""
+
+PROJECTS = [
+    dict(id=1, name='Northern Blvd, Broadway to 114th St', borough='Queens',
+         opened='2023-08-08', constructionStart=None,
+         routes=['Q66', 'QM2', 'QM20', 'QM32'],
+         corridor=('dot', [('NORTHERN BOULEVARD', '8/8/2023')])),
+    dict(id=2, name='E Gun Hill Rd, Bainbridge Ave to Bartow Ave', borough='Bronx',
+         opened='2023-10-31', constructionStart='2023-05-17',
+         routes=['BX28', 'BX38'],
+         corridor=('dot', [('EAST GUN HILL ROAD', '10/31/2023')])),
+    dict(id=3, name='3rd Ave, E 59th to E 96th St (northbound)', borough='Manhattan',
+         opened='2023-12-07', constructionStart='2023-07-24',
+         routes=['M98', 'M101', 'M102', 'M103'],
+         corridor=('dot', [('3 AVENUE', '12/8/2023')]),
+         cityClaim='DOT: up to 14% faster in the PM peak'),
+    dict(id=4, name='Livingston St, Boerum Pl to Flatbush Ave', borough='Brooklyn',
+         opened='2024-01-10', constructionStart='2023-11-01',
+         routes=['B41', 'B45', 'B67', 'B103'],
+         corridor=('dot', [('LIVINGSTON STREET', '11/14/23')]),
+         notes=['Opening taken as the Jan 10, 2024 completion announcement; DOT data shows a Nov 14, 2023 change, '
+                'so before-months from Nov 2023 on are treated as construction (the construction start itself is not known).']),
+    dict(id=5, name='University Ave (north segment)', borough='Bronx',
+         opened='2023-12-01', constructionStart=None,
+         routes=['BX3'],
+         corridor=('dot', [('UNIVERSITY AVENUE', '12/1/2023')])),
+    dict(id=6, name='Pelham Pkwy, Boston Rd to Stillwell Ave (westbound)', borough='Bronx',
+         opened='2023-12-27', constructionStart=None,
+         routes=['BX12+', 'BX12'],
+         notes=['Only the BX12 local can be measured; the BX12 SBS timepoint segments are too long to put half their length '
+                'on the corridor.'],
+         corridor=('dot', [('PELHAM PARKWAY', '12/27/2023')])),
+    dict(id=7, name='2nd Ave, E 59th St to Houston St (southbound)', borough='Manhattan',
+         opened='2024-12-05', constructionStart='2024-06-04',
+         routes=['M15', 'M15+'],
+         notes=['Confounder: congestion pricing began Jan 5, 2025. Every after month is post-pricing and every before month is '
+                'pre-pricing; the corridor lies entirely inside the pricing zone, while much of the M15 control mileage '
+                '(north of 60th St) does not.'],
+         corridor=('dot', [('2 AVENUE', '/24'), ('2 AVENUE', '7/01/25')])),
+    dict(id=8, name='96th St, West End Ave to CPW and Madison Ave to 2nd Ave', borough='Manhattan',
+         opened='2024-11-27', constructionStart='2024-09-30',
+         routes=['M96', 'M106'],
+         corridor=('dot', [('EAST 96 STREET', '11/27/2024'), ('WEST 96 STREET', '11/27/2024')])),
+    dict(id=9, name='3rd Ave, E 96th to E 128th St (northbound)', borough='Manhattan',
+         opened='2025-08-04', constructionStart=None,
+         routes=['M98', 'M101', 'M102', 'M103'],
+         corridor=('dot', [('3 AVENUE', '8/4/2025')])),
+    dict(id=10, name='Hillside Ave, 139th St to Springfield Blvd', borough='Queens',
+         opened='2025-09-15', constructionStart='2025-07-08',
+         routes=['Q1', 'Q2', 'Q3', 'Q17', 'Q36', 'Q43', 'Q76', 'Q77', 'Q82', 'QM68'],
+         corridor=('dot', [('HILLSIDE AVENUE', '9/15/2025')]),
+         cityClaim='DOT/MTA: up to 28% faster',
+         notes=['Confounder: the Queens bus network redesign re-cut these routes and their stops in summer 2025 (new timepoint '
+                'patterns appear in the MTA data from June 2025), so every after month is post-redesign and most before months '
+                'are pre-redesign. Stop changes alone can raise speeds; the same-route control absorbs only the network-wide part.']),
+    dict(id=11, name='Flatbush Ave phase 1, Livingston St to State St', borough='Brooklyn',
+         opened='2025-10-02', constructionStart='2025-09-25',
+         routes=['B41', 'B67', 'B45', 'B103'],
+         corridor=('dot', [('FLATBUSH AVENUE', '10/2/2025')])),
+    dict(id=12, name='Madison Ave, E 23rd to E 42nd St (double bus lanes)', borough='Manhattan',
+         opened='2026-07-07', constructionStart='2026-04-24',
+         routes=['M1', 'M2', 'M3', 'M4', 'X27', 'X28', 'X37', 'X38', 'SIM4C', 'SIM33C', 'BXM18', 'BXM6', 'BXM7',
+                 'BXM8', 'BXM9', 'BXM10', 'QM63', 'QM64'],
+         corridor=('gtfs', 'b', ['X27', 'X28', 'X37', 'X38'],
+                   [((40.74117, -73.98769), (40.75334, -73.97876), '')]),
+         cityClaim='Comparable claim: Fifth Ave double bus lanes, 6-12% faster for local buses',
+         notes=['Brief says southbound; Madison Ave is one-way northbound, so the corridor is direction-free.']),
+    dict(id=13, name='Lexington Ave, E 52nd to E 60th St (southbound)', borough='Manhattan',
+         opened='2026-07-07', constructionStart='2026-05-15',
+         routes=['M101', 'M102', 'M103'],
+         corridor=('gtfs', 'm', ['M101', 'M102', 'M103'],
+                   [((40.76260, -73.96800), (40.75760, -73.97170), 'SB')]),
+         cityClaim='Comparable claim: Lexington Ave 2019 bus lanes, 26% faster'),
+    dict(id=14, name='Broadway, 69th St to Roosevelt Ave (eastbound center lane)', borough='Queens',
+         opened='2026-06-30', constructionStart='2026-06-01',
+         routes=['Q70+'],
+         corridor=('gtfs', 'busco', ['Q70+'],
+                   [((40.74860, -73.89580), (40.74664, -73.89118), 'EB')]),
+         notes=['Installed "June 2026" (exact date unknown): opening taken as June 30, construction as June 1.']),
+    dict(id=15, name='Tremont Ave busway (EB Third Ave-Southern Blvd, WB Southern Blvd-Belmont Ave)', borough='Bronx',
+         opened='2026-09-19', constructionStart='2026-08-12',
+         routes=['BX36'],
+         corridor=('gtfs', 'bx', ['BX36'],
+                   [((40.84655, -73.89580), (40.84273, -73.88590), 'EB'),
+                    ((40.84273, -73.88590), (40.84610, -73.89220), 'WB')]),
+         notes=['Only October 2026 is fully after; an early read.']),
+]
