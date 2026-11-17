@@ -32,6 +32,7 @@ PEER_UNITS = {
     'murders': ('per 100,000 residents', 'dec1'),
     'overdose_deaths': ('deaths per 100,000 residents', 'dec1'),
     'transit_ridership': ('percent of 2019 ridership', 'dec1'),
+    'population': ('percent change in population since July 2020', 'pct1'),
 }
 # Series with a break in definition: score only the comparable stretch from this year on.
 BREAKS = {
@@ -243,6 +244,7 @@ def load_measures():
             ALLOW.add(DROP_PEERS[m['id']])
         if m['id'] in PEER_UNITS and ind.get('peers'):
             ind['peers']['units'], ind['peers']['format'] = PEER_UNITS[m['id']]
+            ALLOW.add(PEER_UNITS[m['id']][0])
         # descriptive text written by the fetchers (names, definitions, notes) may contain digits
         # that are labels, not figures ("grades 3 to 8", "PM2.5"); they are allowed as whole strings
         for t in [ind.get('name'), ind.get('definition'), ind.get('status_reason'), (ind.get('latest_extra') or {}).get('note'),
@@ -577,7 +579,8 @@ def measure_block(m):
         rk = ''
         if pr['rank']:
             rk = (f'New York ranks {count(pr["rank"])} of {count(pr["n"])} '
-                  + ('(1 = best)' if pr['order'] == 'best' else '(1 = highest)') + f' in {yr(p.get("period", ""))}. ')
+                  + ('(1 = best)' if pr['order'] == 'best' else '(1 = highest)')
+                  + (f' on {esc(p["units"])}' if p.get('units') else '') + f' in {yr(p.get("period", ""))}. ')
             LEDGER.add('1')
         named_bits = []
         pu = p.get('units') or u
@@ -625,6 +628,8 @@ def summary_row(m):
     pr = m['_pr']
     if pr and pr['rank']:
         sub += f'; ranks {count(pr["rank"])} of {count(pr["n"])} among the largest cities'
+        if m['peers'].get('units'):
+            sub += f' ({esc(m["peers"]["units"])})'
     return (f'<div class="row"><i class="sw {cls}"></i><span><a class="nm" href="#{m["id"]}">{esc(m["name"])}</a>'
             f'<span class="sub">{sub}</span></span><span class="num {cls}">{esc(sc["call"])}</span></div>')
 
@@ -699,11 +704,13 @@ def build():
             pr, p = m['_pr'], m['peers']
             psrc = (p.get('source') or {}).get('url')
             best = pr['vals'][0]
-            cells = ''.join(f'<td class="n">{num(next((x["value"] for x in pr["vals"] if x["city"] == c), None), m["format"], psrc) if any(x["city"] == c for x in pr["vals"]) else ""}</td>' for c in ['New York'] + NAMED)
-            rows.append(f'<tr><td><a href="#{m["id"]}">{esc(m["name"])}</a> <span class="dim">{yr(p.get("period", ""))}</span></td>'
+            pf = p.get('format') or m['format']
+            cells = ''.join(f'<td class="n">{num(next((x["value"] for x in pr["vals"] if x["city"] == c), None), pf, psrc) if any(x["city"] == c for x in pr["vals"]) else ""}</td>' for c in ['New York'] + NAMED)
+            ulab = f'<br><span class="dim">{esc(p["units"])}</span>' if p.get('units') else ''
+            rows.append(f'<tr><td><a href="#{m["id"]}">{esc(m["name"])}</a> <span class="dim">{yr(p.get("period", ""))}</span>{ulab}</td>'
                         f'<td class="n">{count(pr["rank"])} of {count(pr["n"])}</td><td>{esc(best["city"])}</td>{cells}</tr>')
         H.append('<section class="sec"><h2>Where New York ranks among the largest cities</h2>'
-                 f'<p class="aside">Rank 1 is the best value among the {count(len(PEER_NAMES))} largest U.S. cities (for measures with no better direction, the highest). Some comparisons use counties or metro areas; each measure says which.</p>'
+                 f'<p class="aside">Rank 1 is the best value among the {count(len(PEER_NAMES))} largest U.S. cities (for measures with no better direction, the highest). Every comparison is a rate, share, average or median, never a total, so New York’s size does not decide its rank; where the New York line is a count, the comparison is per resident, as labeled. Some comparisons use counties or metro areas; each measure says which.</p>'
                  '<div class="tw"><table class="h"><tr><th>Measure</th><th class="n">New York’s rank</th><th>Top city</th>'
                  + ''.join(f'<th class="n">{esc(c)}</th>' for c in ['New York'] + NAMED) + '</tr>' + ''.join(rows) + '</table></div></section>')
 
@@ -764,7 +771,9 @@ def write_methods(ms, asof):
              + '; '.join(f'{esc(NAME[k])}, because {esc(v)}' for k, v in NO_TREND.items()) + '.</p>'
              f'<p>Peer comparisons use the {count(len(PEER_NAMES), None)} largest U.S. cities by the Census Bureau’s July 2025 population estimates: '
              + esc(', '.join(PEER_NAMES)) + '. Los Angeles, Chicago, Houston and Philadelphia are shown by name throughout. '
-             'Where a source reports counties, metro areas, school districts or transit agencies rather than cities, the measure says so.</p>'
+             'Where a source reports counties, metro areas, school districts or transit agencies rather than cities, the measure says so. '
+             'Cities are never ranked on totals, which would put New York first on size alone. Counts are compared per resident '
+             '(murders, traffic deaths and overdose deaths per 100,000, for example), and population is compared on its percent change since July 2020.</p>'
              '<p>Every number on the site is written by the build script from the data files. After building, the script checks every number in the page text against the list of values it printed and stops if it finds one it can’t account for.</p></section>')
     H.append('<section class="sec narr"><h2>Each measure</h2>')
     for m in ms:

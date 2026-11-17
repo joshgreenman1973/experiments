@@ -554,7 +554,9 @@ def population():
         r = s25.get((c["state_fips"], c["place_fips"]))
         if r is None or r["NAME"] != c["census_name"]:
             raise FetchError("population peer mismatch: " + c["name"])
-        pvals.append({"city": c["name"], "value": int(r["POPESTIMATE2025"]), "moe": None,
+        p20, p25 = int(r["POPESTIMATE2020"]), int(r["POPESTIMATE2025"])
+        pvals.append({"city": c["name"], "value": round((p25 - p20) / p20 * 100, 2), "moe": None,
+                      "pop_2020": p20, "pop_2025": p25,
                       "geo_name": "%s, %s" % (r["NAME"], r["STNAME"])})
     peer_series = {}
     for name in NAMED:
@@ -597,8 +599,10 @@ def population():
                            "(2020-2025) and 2010-2020 intercensal city and town estimates (2010-2019)",
                    "url": "https://www.census.gov/data/tables/time-series/demo/popest/2020s-total-cities-and-towns.html",
                    "endpoint": URL_SUB2025 + " ; " + URL_SUBINT, "fetched": TODAY},
-        "peers": {"period": "2025", "geography": "city",
-                  "note": "Incorporated-place estimates. Indianapolis and Nashville are the balance of their consolidated governments.",
+        "peers": {"period": "2020-2025", "geography": "city",
+                  "note": "Percent change in population from July 1, 2020, to July 1, 2025, so that cities of different sizes "
+                          "can be compared; each value also carries both totals. Incorporated-place estimates. "
+                          "Indianapolis and Nashville are the balance of their consolidated governments.",
                   "source": {"name": "Census Bureau, Vintage 2025 city and town population estimates",
                              "url": "https://www.census.gov/data/tables/time-series/demo/popest/2020s-total-cities-and-towns.html",
                              "endpoint": URL_SUB2025, "fetched": TODAY},
@@ -609,7 +613,8 @@ def population():
         "method": "City total for New York city (place 3651000), July 1 of each year. 2010-2019 from the 2010-2020 "
                   "intercensal estimates; 2020-2025 from Vintage 2025. Each series point carries a 'vintage' field "
                   "naming its file. Borough figures are the Vintage 2025 county estimates for the five counties "
-                  "(Bronx, Kings, New York, Queens, Richmond). Peer cities are the same Vintage 2025 place file.",
+                  "(Bronx, Kings, New York, Queens, Richmond). Peer cities come from the same Vintage 2025 place file and are "
+                  "compared on growth, (July 1, 2025 estimate - July 1, 2020 estimate) / July 1, 2020 estimate x 100, not on size.",
         "caveats": caveats,
     })
 
