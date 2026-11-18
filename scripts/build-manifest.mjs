@@ -102,6 +102,8 @@ function applyOverrides(record) {
   if (o.title) record.title = o.title;
   if (o.description) record.description = o.description;
   if (o.status) record.status = o.status;
+  // One line saying why a project is deprecated; shown on its grayed-out card.
+  if (o.statusNote) record.statusNote = o.statusNote;
   if (o.audience) record.audience = o.audience;
   if (o.subcategory) record.subcategory = o.subcategory;
   if (o.polish) record.polish = o.polish;

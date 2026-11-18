@@ -1299,14 +1299,18 @@ function updateBreaksMap() {
 // ===== Water quality =====
 async function loadQualityData() {
   try {
-    const url = 'https://data.cityofnewyork.us/resource/bkwf-xfky.json?$limit=50000&$order=sample_date DESC';
-    qualityData = await fetchJSON(url);
+    // Since its November 2026 update, bkwf-xfky has one row per measurement (analyte + final) and mixes
+    // upstate reservoir samples in with the city's distribution samples. Pull the last 12 months of the five
+    // measurements this tab charts, from distribution sites only, and fold them back into one record per sample.
+    const since = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+    const where = "system='Distribution' AND sampledatetime > '" + since + "' AND analyte in ('Turbidity','Chlorine - Free Residual','Total Coliform','E. Coli (Enumeration)','Fluoride')";
+    const url = 'https://data.cityofnewyork.us/resource/bkwf-xfky.json?$select=sampleid,sampledatetime,analyte,final&$where=' + encodeURIComponent(where) + '&$order=sampledatetime DESC&$limit=100000';
+    qualityData = wqBySample(await fetchJSON(url));
     document.getElementById('quality-loading').style.display = 'none';
-    // As of October 2026 this dataset holds watershed wastewater plant samples, not distribution samples. Draw the charts only if the distribution fields come back.
-    if (!qualityData.some(d => 'turbidity_ntu' in d || 'residual_free_chlorine_mg_l' in d)) {
+    if (!qualityData.length) {
       const el = document.getElementById('quality-error');
       el.style.display = '';
-      el.innerHTML = 'No current data. This tab reads the city dataset bkwf-xfky on NYC Open Data, which used to hold samples from sampling sites in New York City&rsquo;s water mains. As of its October 2026 update it holds a copy of the Department of Environmental Protection&rsquo;s samples from wastewater treatment plants in the upstate watershed, which are not drinking water. No other dataset on NYC Open Data carries the distribution samples. Yearly results are in the department&rsquo;s <a href="https://www.nyc.gov/site/dep/about/drinking-water-supply-quality-report.page" target="_blank" rel="noopener">Drinking Water Supply and Quality Report</a>.';
+      el.innerHTML = 'No samples from the last 12 months came back from the city dataset bkwf-xfky on NYC Open Data. Yearly results are in the Department of Environmental Protection&rsquo;s <a href="https://www.nyc.gov/site/dep/about/drinking-water-supply-quality-report.page" target="_blank" rel="noopener">Drinking Water Supply and Quality Report</a>.';
       return;
     }
     document.getElementById('quality-content').style.display = '';
@@ -1317,6 +1321,20 @@ async function loadQualityData() {
     el.style.display = '';
     el.textContent = 'Failed to load water quality data. Please try again later. (' + err.message + ')';
   }
+}
+
+function wqBySample(rows) {
+  const FIELD = { 'Turbidity': 'turbidity_ntu', 'Chlorine - Free Residual': 'residual_free_chlorine_mg_l',
+    'Total Coliform': 'coliform_quanti_tray_mpn_100ml', 'E. Coli (Enumeration)': 'e_coli_quanti_tray_mpn_100ml', 'Fluoride': 'fluoride_mg_l' };
+  const bySample = new Map();
+  rows.forEach(r => {
+    const f = FIELD[r.analyte];
+    if (!f) return;
+    let rec = bySample.get(r.sampleid);
+    if (!rec) { rec = { sample_date: r.sampledatetime }; bySample.set(r.sampleid, rec); }
+    rec[f] = r.final;
+  });
+  return [...bySample.values()];
 }
 
 function parseWQValue(val) {

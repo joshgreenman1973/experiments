@@ -15,7 +15,9 @@ import time
 import urllib.parse
 import urllib.request
 
-DATASET = 'pvqr-7yc4'          # Parking Violations Issued - Fiscal Year 2026
+# Parking Violations Issued - Fiscal Year 2026. The city moved FY2026 here in fall 2026 and reuses
+# pvqr-7yc4 for the current fiscal year (FY2027 as of November 2026).
+DATASET = '9mwx-gamw'
 BASE = 'https://data.cityofnewyork.us/resource/%s.json?' % DATASET
 CODES = {'36': 'speed', '7': 'redlight', '5': 'buslane'}
 

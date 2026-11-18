@@ -472,6 +472,16 @@
   .card.dropped .card-title { text-decoration: line-through; text-decoration-thickness: 1px; }
   .card.dropped .thumb { filter: grayscale(1) contrast(.85); }
 
+  /* Deprecated: still listed and still opens, but grayed out and sorted last
+     in its section, with a one-line reason. Revived projects drop the status. */
+  .card.deprecated .thumb { filter: grayscale(1) contrast(.8); opacity: .6; }
+  .card.deprecated .card-title a, .card.deprecated .card-title,
+  .card.deprecated .card-desc, .card.deprecated .meta dd { color: var(--mute); }
+  .card.deprecated .swatch { background: var(--line) !important; }
+  .card.deprecated .flag { color: var(--mute); border-color: var(--line); background: none; }
+  .flag.deprecated { border-style: dashed; color: var(--mute); }
+  .card-note { font: 14px/1.45 var(--sans); color: var(--mute); margin: 6px 0 0; }
+
   /* ---- Compact "Buttons" view: one button per experiment ---- */
   .grid.compact { display: block; padding: 0 40px 80px; }
   .compact-view .index-rail,
@@ -492,6 +502,8 @@
   .pill::before { content: ""; width: 8px; height: 8px; flex: none; background: var(--section, var(--accent)); }
   .pill:hover { border-color: var(--section, var(--fg)); background: var(--bg-2); }
   .pill.dropped { opacity: .5; text-decoration: line-through; }
+  .pill.deprecated { opacity: .5; }
+  .pill.deprecated::before { background: var(--line); }
   .pill.no-link { cursor: default; opacity: .6; }
   .pill.no-link:hover { border-color: var(--line); background: var(--bg); }
 
@@ -644,6 +656,8 @@
         <option value="cadence">Updates on its own</option>
         <option value="all">All including dropped</option>
         <option value="dropped">Dropped only</option>
+        <option value="deprecated">Deprecated only</option>
+        <option value="nodeprecated">Hide deprecated</option>
         <option value="hasIndex">With preview</option>
         <option value="ownRepo">Own repo</option>
         <option value="loose">At root only</option>
@@ -1057,7 +1071,7 @@ function render() {
   // The landing view: Gallery tab, no search or filters, grouped by section.
   // That's where the "Updating on their own" panel and "Start here" appear.
   const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner && show === 'active' && sort === 'category';
-  const running = isDefaultView ? source.filter(p => CADENCES[p.cadence] && p.status !== 'dropped') : [];
+  const running = isDefaultView ? source.filter(p => CADENCES[p.cadence] && !isRetired(p)) : [];
 
   renderIndexRail(list, sort, running.length);
 
@@ -1093,7 +1107,7 @@ function render() {
   const featuredShown = new Set();
   if (running.length) renderRunning(grid, running);
   if (isDefaultView) {
-    const featured = source.filter(p => p.featured && p.status !== 'dropped');
+    const featured = source.filter(p => p.featured && !isRetired(p));
     if (featured.length) {
       const heading = document.createElement('div');
       heading.className = 'group-heading featured-heading';
@@ -1191,7 +1205,7 @@ function renderRunning(grid, running) {
 // "Open one at random": any public project with a live page, in a new tab.
 function openRandom() {
   const pool = (UNLOCKED[ACTIVE_TAB] || UNLOCKED.general || [])
-    .filter(p => p.status !== 'dropped' && (p.livePagesUrl || p.indexUrl));
+    .filter(p => !isRetired(p) && (p.livePagesUrl || p.indexUrl));
   if (!pool.length) return;
   const p = pool[Math.floor(Math.random() * pool.length)];
   window.open(p.livePagesUrl || p.indexUrl, '_blank', 'noopener');
@@ -1280,7 +1294,7 @@ function renderSectionBar(sections) {
 function pill(p) {
   const url = p.livePagesUrl || p.indexUrl;
   const el = document.createElement(url ? 'a' : 'span');
-  el.className = 'pill' + (p.status === 'dropped' ? ' dropped' : '') + (url ? '' : ' no-link');
+  el.className = 'pill' + (p.status === 'dropped' ? ' dropped' : '') + (p.status === 'deprecated' ? ' deprecated' : '') + (url ? '' : ' no-link');
   el.style.setProperty('--section', sectionVar(p.subcategory));
   if (url) { el.href = encodeURI(url); el.target = '_blank'; el.rel = 'noopener'; }
   el.textContent = p.title || p.name;
@@ -1371,8 +1385,11 @@ function matchesFilters(p, term, cat, owner, show) {
   if (cat && p.category !== cat) return false;
   if (owner && p.githubOwner !== owner) return false;
   if ((show === 'active' || show === 'cadence') && p.status === 'dropped') return false;
+  if (show === 'cadence' && p.status === 'deprecated') return false;
   if (show === 'cadence' && !CADENCES[p.cadence]) return false;
   if (show === 'dropped' && p.status !== 'dropped') return false;
+  if (show === 'deprecated' && p.status !== 'deprecated') return false;
+  if (show === 'nodeprecated' && (p.status === 'deprecated' || p.status === 'dropped')) return false;
   if (show === 'hasIndex' && !p.previewUrl) return false;
   if (show === 'ownRepo' && !p.isNestedRepo) return false;
   if (show === 'loose' && p.category !== 'root') return false;
@@ -1383,6 +1400,12 @@ function matchesFilters(p, term, cat, owner, show) {
 }
 
 function sortList(list, sort) {
+  _sortList(list, sort);
+  // Deprecated projects go to the end of whatever order was chosen. Array sort
+  // is stable, so everything else keeps its place.
+  list.sort((a, b) => (a.status === 'deprecated') - (b.status === 'deprecated'));
+}
+function _sortList(list, sort) {
   if (sort === 'name' || sort === 'category') {
     list.sort((a,b) => (a.title || a.name).localeCompare(b.title || b.name));
   } else if (sort === 'frequency') {
@@ -1454,9 +1477,13 @@ function sectionVar(subcat) {
   return SECTION_META[subcat]?.color || 'var(--accent)';
 }
 
+// Dropped projects are hidden by default; deprecated ones stay visible but
+// grayed. Neither belongs in Start here, the running panel or the random pick.
+function isRetired(p) { return p.status === 'dropped' || p.status === 'deprecated'; }
+
 function card(p, i, isFeatured) {
   const d = document.createElement('article');
-  d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '') + (isFeatured ? ' featured' : '');
+  d.className = 'card' + (p.status === 'dropped' ? ' dropped' : '') + (p.status === 'deprecated' ? ' deprecated' : '') + (isFeatured ? ' featured' : '');
   d.style.setProperty('--section', sectionVar(p.subcategory));
 
   const catDisplay = p.subcategory || (p.category === 'root' ? 'general' : p.category);
@@ -1504,7 +1531,8 @@ function card(p, i, isFeatured) {
 
   const flags = [];
   if (p.status === 'dropped') flags.push('<span class="flag dropped">dropped</span>');
-  if (CADENCES[p.cadence]) flags.push(`<span class="flag cadence">${CADENCES[p.cadence].flag}</span>`);
+  if (p.status === 'deprecated') flags.push('<span class="flag deprecated">deprecated</span>');
+  if (CADENCES[p.cadence] && p.status !== 'deprecated') flags.push(`<span class="flag cadence">${CADENCES[p.cadence].flag}</span>`);
   if (p.polish) flags.push(`<span class="flag polish ${p.polish}">${escapeHtml(p.polish)}</span>`);
   if (p.isNestedRepo) flags.push('<span class="flag nested">own repo</span>');
   if (p.isLooseFile) flags.push('<span class="flag loose">loose</span>');
@@ -1518,6 +1546,7 @@ function card(p, i, isFeatured) {
     ${thumb}
     <h3 class="card-title">${titleHtml}</h3>
     ${p.description ? `<p class="card-desc">${escapeHtml(p.description)}</p>` : ''}
+    ${p.status === 'deprecated' && p.statusNote ? `<p class="card-note">${escapeHtml(p.statusNote)}</p>` : ''}
     <div class="meta-rule"></div>
     <dl class="meta">
       ${slugRow}

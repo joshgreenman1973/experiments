@@ -23,9 +23,9 @@ TOP_N = 500
 PER_FY_N = 400
 # Fiscal-year datasets (same list as the frontend FY_DATASETS). The union of
 # each FY's top PER_FY_N intersections gives us a geo cache that covers both
-# the FY2026 and the all-years map view.
+# the current-year (FY2027) and the all-years map view.
 FY_DATASETS = {
-    2026: "pvqr-7yc4", 2025: "m5vz-tzqv", 2024: "8zf9-spf8",
+    2027: "pvqr-7yc4", 2026: "9mwx-gamw", 2025: "m5vz-tzqv", 2024: "8zf9-spf8",
     2023: "869v-vr48", 2022: "7mxj-7a6y", 2021: "kvfd-bves",
     2020: "p7t3-5i9s", 2019: "faiq-9dfq", 2018: "a5td-mswe",
     2017: "2bnn-yakx", 2016: "kiv2-tbus", 2015: "c284-tqph",
