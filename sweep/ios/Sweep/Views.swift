@@ -83,6 +83,7 @@ struct ParkView: View {
                 .disabled(store.data == nil)
             Button("How to parallel park") { showLesson = true }
                 .buttonStyle(SquareButton(fill: nil))
+            ShareRow()
         }
         .padding(16)
         .fullScreenCover(item: $pick) { req in PickView(request: req).environmentObject(store) }
@@ -377,6 +378,7 @@ struct ParkedView: View {
                     }
                 }
 
+                ShareRow()
                 Button("Map of cleaning days") { showMap = true }.buttonStyle(SquareButton(fill: nil))
                 Button("How to parallel park") { showLesson = true }.buttonStyle(SquareButton(fill: nil))
                 Button("Walk to my car") { walk() }.buttonStyle(SquareButton(fill: nil))

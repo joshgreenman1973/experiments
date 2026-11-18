@@ -16,7 +16,15 @@ anyone can pick a typical compact, midsize sedan, midsize SUV or large SUV/picku
 own length and turning circle. For each car it searches for a stopping point, angle and gap that
 clear the parked cars, so the drawn path never touches anything.
 
-TestFlight only, internal group "Me". App Store Connect app 6834559962, bundle id
+"Share the car with someone" shares the parked car between two phones through iCloud (CloudKit,
+container `iCloud.com.joshgreenman.sweep`, `ios/Sweep/CarShare.swift`). The first person's phone
+makes a private zone ("Car") holding one record ("car": the parked spot as JSON in `payload`, and
+`changedAt`) and shares the whole zone; the invitation goes out by Messages or Mail, and the other
+person taps it once. Either phone can park or mark the car moved; the newest change wins. A silent
+push tells the other phone to fetch, so its reminders and calendar events move too. The record type
+is deployed to Production in the CloudKit console. Not available in the Mac preview (unsigned).
+
+TestFlight only: internal group "Me" and external group "Friends" (add each new build to "Friends" by hand). App Store Connect app 6834559962, bundle id
 `com.joshgreenman.sweep`. Never submit to the public App Store without asking Josh.
 
 ## Data
@@ -26,6 +34,12 @@ TestFlight only, internal group "Me". App Store Connect app 6834559962, bundle i
   and writes `ios/Sweep/Data/faces.json` + `points.bin`, about 56,600 block faces. About 2,100 faces
   have no sign with coordinates and are left out. Where a face's signs disagree (about 740), the app
   uses the most common rule and says that another sign reads differently.
+- **Block geometry:** signs only stand along part of a block, and a side with one sign would draw
+  as a dot. So the build matches each face to NYC Street Centerline (`inkn-q76z`, cached in
+  `tools/cache/centerline.json`) by street name and distance, follows that street to the corners,
+  trims a few meters at each end and pushes the line out to the curb on the side the signs are on.
+  About 93 percent of faces get a full block this way; the rest (no same-name street within 25 m,
+  mostly named plazas, ramps and service roads) keep the sign points.
 - **Holidays:** DOT's suspension calendar file,
   `https://www.nyc.gov/html/dot/downloads/misc/<year>-alternate-side.ics`. 2026 ships in the app;
   the app downloads this year and next each time it opens. nyc.gov returns 403 to curl's default

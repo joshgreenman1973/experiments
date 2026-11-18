@@ -24,6 +24,24 @@ final class Store: ObservableObject {
         didSet { defaults.set(calendarOn, forKey: "calendarOn"); syncCalendar(ask: calendarOn) }
     }
     @Published var calendarAccess: CalendarSync.Access = CalendarSync.shared.access
+    /// When the parked car last changed on any phone sharing it (newest change wins).
+    private(set) var changedAt: Date = UserDefaults.standard.object(forKey: "changedAt") as? Date ?? .distantPast {
+        didSet { defaults.set(changedAt, forKey: "changedAt") }
+    }
+
+    /// A change that arrived from the other phone: apply it here without sending it back.
+    func applyShared(_ car: ParkedCar?, stamp: Date) {
+        guard stamp > changedAt else { return }
+        changedAt = stamp
+        if car != parked { parked = car }
+    }
+
+    private func shareChange() {
+        let now = Date()
+        changedAt = now
+        let car = parked
+        Task { try? await CarShare.shared.push(car, stamp: now) }
+    }
 
     private let defaults = UserDefaults.standard
     private var loading = false
@@ -160,11 +178,12 @@ final class Store: ObservableObject {
 
     func park(_ spot: Spot, at car: Coord) {
         parked = ParkedCar(car: car, spot: spot, parkedAt: Date())
+        shareChange()
         Task {
             await requestNotifications()
             syncCalendar(ask: true)   // after the notification prompt, so the two don't collide
         }
     }
 
-    func moved() { parked = nil }
+    func moved() { parked = nil; shareChange() }
 }
