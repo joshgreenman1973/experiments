@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the tax levers work</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+  :root{--accent:var(--sun)}
+  .testband{--band:#ffd23f;padding:14px clamp(16px,4vw,48px);font-size:15px}
+  .doc{max-width:780px}
+  .doc h2{margin-top:34px}
+  .doc p,.doc li{max-width:70ch}
+  .doc li{margin:0 0 8px}
+  .doc code{font-size:.92em}
+  .doc table.h td{padding:7px 10px 7px 0;border-bottom:1px solid var(--line2);vertical-align:top}
+</style>
+</head>
+<body>
+<div class="sheet">
+<div class="g-ink testband" role="note"><b>Test version. Not ready for primetime.</b> Unedited and not fact-checked. Please don't cite these numbers yet.</div>
+<div class="strip"><a href="index.html">Back to the calculator</a><span>Tax year 2026</span></div>
+<main class="sec doc">
+<h1>How the tax levers work</h1>
+
+<h2>Where the rules come from</h2>
+<p>Every rate, bracket, threshold and credit formula on the calculator comes from <a href="https://github.com/PolicyEngine/policyengine-us">PolicyEngine US</a>, the open-source model of American tax and benefit rules built by <a href="https://www.policyengine.org">PolicyEngine</a>. The calculator uses version 2.145.7 of the Python package, with the rules in force for tax year 2026. PolicyEngine's New York files cite the state Tax Law, the city's Administrative Code and the state's tax forms and instructions for each value.</p>
+<p>PolicyEngine itself runs in Python. To make the sliders respond instantly in a browser, the calculator uses a JavaScript translation of the parts of PolicyEngine that apply to the households it covers (<a href="engine.js">engine.js</a>). The numbers are not copied by hand: a script (<a href="scripts/dump_params.py">scripts/dump_params.py</a>) exports PolicyEngine's own 2026 values to <a href="params-2026.json">params-2026.json</a>, and the JavaScript reads that file.</p>
+
+<h2>How the translation was checked</h2>
+<p id="checkline">A second script (<a href="scripts/check_engine.py">scripts/check_engine.py</a>) builds random New York City households, varying marriage, wages from $0 to about $50 million and children by age, plus households sitting exactly on bracket and phase-out edges. It scores each one in PolicyEngine under current law and under several reforms, and <a href="scripts/check_engine.mjs">scripts/check_engine.mjs</a> scores the same households with the JavaScript. Every line is compared: the federal earned income credit, state taxable income, the state's main tax and its benefit recapture, each state and city credit, and the final state and city tax.</p>
+<p>The last run, on Nov. 18, 2026, compared 217,840 values: 1,556 households under 10 scenarios (current law; Mamdani's tax at 2 percent over $1 million and at 3 percent over $500,000; a larger Empire State Child Credit; a 45 percent state earned income credit; a 30 percent city earned income credit; no city income tax elimination credit; the child credit's 2028 fallback; and S9077's 2029 and 2030 amounts). Every value agreed within $1, or within one part in a million of the household's wages for very high earners. The largest gap was $4, on an income over $30 million, and comes from PolicyEngine doing its arithmetic with about seven significant digits.</p>
+<p>Three levers rest on parts of the bills PolicyEngine doesn't model: the higher top rates, the Working Families Tax Credit and the "all income" reading of Mamdani's tax. Those were checked by hand against the bill text instead. For example, with the Senate's rates a single filer with $6 million in wages pays $29,960 more, exactly 0.5 percent of their $5,992,000 in taxable income.</p>
+
+<h2>Who it covers</h2>
+<ul>
+  <li>Residents of the five boroughs for the full year.</li>
+  <li>Income from wages only. No self-employment, investment, retirement or Social Security income.</li>
+  <li>The standard deduction. Someone who itemizes on the state return (large mortgage interest or charitable gifts, typically at higher incomes) would owe somewhat less than shown.</li>
+  <li>Married couples filing jointly; unmarried people with children filing as head of household; everyone else filing as single.</li>
+  <li>Every child counted is a dependent with a Social Security number or other taxpayer ID, living at home all year. Adults are assumed to be 25 to 64, the ages at which people without children can get the federal earned income credit.</li>
+  <li>No child care costs, rent or property tax credits, college tuition credits or other credits that depend on spending.</li>
+</ul>
+
+<h2>What it adds up</h2>
+<p>"State income tax" is New York State personal income tax after all of the credits above, including refundable credits, so it can be negative (a refund). "City income tax" is the same for New York City's personal income tax. The city's school tax credit is legally a state credit but is claimed against city tax on the same return; the calculator counts it with the city, as PolicyEngine does. Federal income tax is not shown. It would change slightly for people who itemize on their federal return, because state and local taxes are partly deductible; that effect is left out.</p>
+
+<h2>The levers</h2>
+<p>The list was assembled on Nov. 18, 2026 from bill pages on nysenate.gov, the state's tax law, governor's office and mayor's office releases, and reporting by NY Focus, City &amp; State, Spectrum News and EY's tax news service. Bills from the 2025-26 session die on Dec. 31, 2026, so any that come back in 2027 will have new numbers. Each lever is applied to 2026 rules and incomes, even where the proposal would start later, so the effects are in today's dollars.</p>
+
+<h3>Higher state rates above $5 million</h3>
+<p>Senate version (Senate budget bill S.9009-B, Part FF): 10.8 percent on taxable income from $5 million to $25 million and 11.4 percent above $25 million, half a point above today's 10.3 and 10.9 percent. Assembly version (A.10009-B, Part AA): 10.5 percent from $5 million to $10 million, 10.75 percent from $10 million to $25 million, 11.75 percent from $25 million to $100 million and 12 percent above $100 million. Both were in each house's March 2026 budget proposal and neither is in the enacted budget. Sources: <a href="https://taxnews.ey.com/news/2026-0679-new-york-budget-negotiations-continue-as-assembly-and-senate-bills-are-introduced">EY, March 19, 2026</a>; <a href="https://nysfocus.com/2026/03/10/senate-assembly-mamdani-tax-hikes">NY Focus, March 10, 2026</a>; <a href="https://fiscalpolicy.org/wp-content/uploads/2026/05/2026.05.29-FY27-NYS-Enacted-Budget.pptx.pdf">Fiscal Policy Institute, May 29, 2026</a>.</p>
+<p>How it's modeled: New York's "benefit recapture" means a filer whose income is well past the start of a top bracket pays that bracket's rate on all of their taxable income. The calculator confirms this in today's law (a $6 million earner's state tax is exactly 10.3 percent of taxable income). It applies the proposed rates the same way: the new rate on all taxable income once income is $50,000 past the bracket's start (at once, above $25 million, as today), phasing in over that $50,000. The proposals' own recapture tables weren't available, so this is the calculator's reading, not the bills' text.</p>
+
+<h3>Empire State Child Credit after 2027</h3>
+<p>Current law for 2026 and 2027 is $1,000 per child under 4 and $500 per child 4 to 16, reduced by $16.50 per $1,000 of federal adjusted gross income over $110,000 for couples and $75,000 for others. From 2028 the credit returns to its old formula: the greater of $100 per child (for filers under the old federal phase-out threshold) or 33 percent of the federal child credit figured with its 2017 rules, $1,000 per child under 17. That federal credit is limited by the filer's 2026 federal income tax plus the refundable part, exactly as PolicyEngine computes it. S9077 (Gounardes) would instead pay $1,500 per child under 4 and $1,250 per child 4 to 17 in 2029, and $1,500 per child under 18 in 2030. The bill doesn't say whether the phase-out still applies; the calculator assumes it does. Sources: <a href="https://www.nysenate.gov/legislation/laws/TAX/606">Tax Law 606(c-1)</a>; <a href="https://www.tax.ny.gov/legal/2025/pit-corp-changes.htm">Department of Taxation and Finance, Jan. 15, 2026</a>; <a href="https://www.nysenate.gov/legislation/bills/2025/S9077">S9077</a>.</p>
+
+<h3>Bigger state earned income credit</h3>
+<p>New York's credit is 30 percent of the federal credit, reduced by the state household credit. S4425 (Fahy) would make it 35 percent in 2027 and 40 percent after; A5661 (Barclay) would make it 45 percent. The slider changes only the match. S4425's other changes (eligibility for some filers without children and advance payments) are not modeled. Sources: <a href="https://www.nysenate.gov/legislation/bills/2025/S4425">S4425</a>; <a href="https://www.nysenate.gov/legislation/bills/2025/A5661">A5661</a>.</p>
+
+<h3>Working Families Tax Credit</h3>
+<p>S2082 (Gounardes; A3474, Hevesi) as it would stand in its fifth year and after: $1,600 per child through age 17, reduced by $20 for each full $1,000 of New York adjusted gross income over $25,000 ($50,000 for married couples), never below $100 per child, and refundable. For filers with children it ends the Empire State Child Credit, the state earned income credit and the $1,000 dependent exemption. Because city taxable income starts from state taxable income, losing the exemption also raises city tax slightly. The bill indexes its amounts and thresholds to inflation from 2023, which this calculator does not do, so it understates the credit somewhat. The bill doesn't name head of household filers; they are treated as single. Earlier years of the phase-in (smaller credits, a partial earned income credit) are not modeled. Source: <a href="https://www.nysenate.gov/legislation/bills/2025/S2082">S2082</a>.</p>
+
+<h3>Mamdani's tax on incomes over $1 million</h3>
+<p>The Fair Share Act (S8577, Liu; A8953, Souffrant Forrest) would let the city impose "an additional tax of two percent on the annual city taxable income" of residents with returns over $1 million, for tax years after 2026. The text doesn't settle whether that means only income over $1 million or all of it. The Senate sponsor's memo describes income "exceeding $1 million"; Mayor Mamdani's own example, $20,000 more from someone earning $1 million, matches 2 percent of all of it. The calculator offers both. The first reading is the one PolicyEngine models, and the calculator matches it exactly. The threshold is the same for every filing status, as in the bill. Sources: <a href="https://www.nysenate.gov/legislation/bills/2025/S8577">S8577</a>; <a href="https://www.nyc.gov/mayors-office/news/2026/02/mayor-mamdani-s-prepared-remarks-at-the-2026-joint-legislative-b.html">Mamdani's budget testimony, Feb. 11, 2026</a>; <a href="https://nysfocus.com/2026/06/17/mamdani-hochul-nyc-budget-gaps">NY Focus, June 17, 2026</a>.</p>
+
+<h3>Looked at and left out</h3>
+<ul>
+  <li>The state's middle-class rate cuts for 2027 through 2032 (3.8 to 5.8 percent on the first brackets) are already law, so they aren't a lever. The Assembly's deeper cuts were dropped and their full schedule couldn't be confirmed.</li>
+  <li>The new refundable state child care credit (enacted for 2026) and the city's child care credit depend on what a family spends on care, which the calculator doesn't ask.</li>
+  <li>Renters' credit bills (S6342, S5808) are in committee with no visible backing, and they depend on rent paid.</li>
+  <li>The state's new exclusion of up to $25,000 in tips, the one-time energy rebate checks and the proposed cut to the city's pass-through entity tax credit don't apply to the wage earners this calculator covers.</li>
+  <li>The state's top brackets are now set to last through 2032, and the city's rates through 2029, so neither sunset is a live question for 2027.</li>
+</ul>
+
+<h2>Known limits</h2>
+<ul>
+  <li>The calculator measures what a change does to one household's bill. It does not estimate what a change would cost or raise citywide; that needs tax return data, which the city's Independent Budget Office and the state's Department of Taxation and Finance have and this page doesn't.</li>
+  <li>It assumes nobody changes their behavior in response, for example by moving or shifting income.</li>
+  <li>Proposals are modeled as described in their sources. Where a proposal's details weren't spelled out, the lever's note says what was assumed.</li>
+</ul>
+
+<h2>Credit and license</h2>
+<p>The tax rules are PolicyEngine's work. Any mistakes in the translation, the choice of levers or their descriptions belong to this page. PolicyEngine US is licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">GNU Affero General Public License 3.0</a>; the calculator's code is released under the same license (<a href="LICENSE.md">LICENSE.md</a>). Research and code were done with Anthropic's Claude Code under the author's direction.</p>
+</main>
+</div>
+</body>
+</html>
