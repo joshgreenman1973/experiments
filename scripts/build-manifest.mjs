@@ -27,29 +27,29 @@ try {
 // browsable. classifySubcategory is a first-match keyword pass; Josh refines
 // individual projects with a `subcategory` override in project-overrides.json.
 const SUBCATEGORY_ORDER = [
-  'People & population', 'Housing & buildings', 'Transit & streets',
-  'Crime & safety', 'Money & budget', 'Government & politics',
-  'Schools & families', 'Health & environment', 'Arts & culture',
-  'Maps & city data', 'The wider world', 'Tools & feeds', 'Fun stuff',
+  'Look things up', 'Curiosities', 'Government & politics', 'Money & budget',
+  'Crime & safety', 'Transit & streets', 'Housing & buildings',
+  'People & neighborhoods', 'Schools & families', 'Health & environment',
+  'Arts & history', 'Beyond New York',
 ];
 function classifySubcategory(p) {
   const t = [p.name, p.title, p.description].filter(Boolean).join(' ').toLowerCase();
   const any = (...kw) => kw.some(k => t.includes(k));
   // Pull-outs first: automated feeds/tools, personal fun, and non-NYC work.
-  if (any('register-daily','record-daily','record digest','scanner','data finder','data-finder','story finder','news engine','news-engine','open data weekly','foil tracker','compstat scraper','content catalogue','citywide performance','data pulse','data diary','evidence radar','evidence-radar','design system','mockups','assembly line','special issue','algorithmic city')) return 'Tools & feeds';
-  if (any('midnight','talent show','knit','animal adventure','lola','library','gino','bagel','donut','family dinner','family tree','good time','when the lights went out','menu','portfolio','dinner cost')) return 'Fun stuff';
-  if (any('world','global','federal','scotus','america','national','nationwide','countries','paris','france','tokyo','london','seoul','sernin','nvdrs','supreme court','captive','wildlife','gun violence','cornwall','highlands','hudson','nba','lottery','multi-city','13 large','other cities','metro area','waymo','world cup','young-child','young child','showdown')) return 'The wider world';
+  if (any('register-daily','record-daily','record digest','scanner','data finder','data-finder','story finder','news engine','news-engine','open data weekly','foil tracker','compstat scraper','content catalogue','citywide performance','data pulse','data diary','evidence radar','evidence-radar','design system','mockups','assembly line','special issue','algorithmic city')) return 'Look things up';
+  if (any('midnight','talent show','knit','animal adventure','lola','library','gino','bagel','donut','family dinner','family tree','good time','when the lights went out','menu','portfolio','dinner cost')) return 'Curiosities';
+  if (any('world','global','federal','scotus','america','national','nationwide','countries','paris','france','tokyo','london','seoul','sernin','nvdrs','supreme court','captive','wildlife','gun violence','cornwall','highlands','hudson','nba','lottery','multi-city','13 large','other cities','metro area','waymo','world cup','young-child','young child','showdown')) return 'Beyond New York';
   // NYC topic sections (Schools before People so "schools" wins over "density").
   if (any('school','student','k-12','enrollment','instructional','per-pupil','teacher','college','childcare','summer job','summer youth','syep','education','playground')) return 'Schools & families';
-  if (any('population','demographic','density','who lives','came from','a century of new york','residential turnover','middle class','immigrant','foreign-born','people vs','three eras','in every language','languages')) return 'People & population';
+  if (any('population','demographic','density','who lives','came from','a century of new york','residential turnover','middle class','immigrant','foreign-born','people vs','three eras','in every language','languages')) return 'People & neighborhoods';
   if (any('building','housing','apartment','rent ','rents',' rent','stabiliz','landlord','who owns','parcel','own land','sidewalk shed','permit','construction','water tower','rooftop','solar','pied','combinations','topograph','arm vs','15-year fixed','refi')) return 'Housing & buildings';
   if (any('bus ','buses','transit','subway','traffic','parking','pedestrian','walk','45-minute','harbor','boat','helicopter','rotor','speed map','collision','crash','commute','block pulse')) return 'Transit & streets';
   if (any('crime','shooting','gunfire','homicide','assault','felony','misdemeanor','compstat','nypd','police','precinct','911','super speeder','speeding','darkness','dark-spot','dark spot','long retreat','violence','street lighting','streetlight','street light','fire & medical','disorder')) return 'Crime & safety';
   if (any('budget','payroll','salary','salaries','pay and benefit','pay gap','pay and benefits','wage','labor','union contract','municipal labor','municipal union','settlement','settle','special education','affordab','price watch','economy','income','wealth','billion','fiscal','pension','restaurant math')) return 'Money & budget';
   if (any('charter','government map','government performance','governance','agency decision','foil','records request','testimony','commission','mamdani','prediction market','policy calendar','press feed','jail','in-custody','appointee','personnel tracker','consent','decisions','graveyard')) return 'Government & politics';
   if (any('water infrastructure','flood','grid pulse','electric','energy','injury','hospitaliz','reservoir','pipes','senior density','older residents')) return 'Health & environment';
-  if (any('art','museum','gallery','cultural','theater','worship','cemeter','permanent residents','on screen','landmark','day trip','restaurant','cuisine','film')) return 'Arts & culture';
-  return 'Maps & city data';
+  if (any('art','museum','gallery','cultural','theater','worship','cemeter','permanent residents','on screen','landmark','day trip','restaurant','cuisine','film')) return 'Arts & history';
+  return 'People & neighborhoods';
 }
 
 // Polish level — rough first pass from whether the project has a real
@@ -106,6 +106,10 @@ function applyOverrides(record) {
   if (o.subcategory) record.subcategory = o.subcategory;
   if (o.polish) record.polish = o.polish;
   if (o.featured) record.featured = true;
+  // How often the project refreshes itself on a schedule ('15min', 'hourly',
+  // '6h', 'daily', 'weekly', 'monthly'). Drives the gallery's
+  // "Updating on their own" panel and the small cadence flag on cards.
+  if (o.cadence) record.cadence = o.cadence;
   return record;
 }
 const CATEGORY_DIRS = new Set(['nyc-data', 'vital-city-tools', 'personal', '_archive', 'world']);

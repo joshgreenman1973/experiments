@@ -255,6 +255,59 @@
   .group-heading .blurb { font: .95rem/1.45 var(--serif); color: var(--mute); margin: 0; max-width: 62ch; }
   .group-heading .count { margin-left: auto; }
 
+  /* ---- "Updating on their own": the projects that refresh on a schedule.
+     Rows, not cards, so all of them fit above the fold-ish and none get
+     buried in a topic section. Grouped by how often each one refreshes. ---- */
+  .running {
+    grid-column: 1 / -1;
+    padding: 18px 0 4px;
+    scroll-margin-top: calc(var(--controls-h) + 14px);
+  }
+  .running-head {
+    display: flex; align-items: flex-end; gap: 6px 16px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line-strong);
+  }
+  .running-head h3 { font: 600 1.35rem/1.2 var(--sans); margin: 0; }
+  .running-head .blurb { font: .95rem/1.45 var(--serif); color: var(--mute); margin: 3px 0 0; max-width: 62ch; }
+  .running-head .count { margin-left: auto; }
+  .running-cols {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0 28px; padding-top: 14px;
+  }
+  .running-col h4 {
+    font: 600 13px var(--sans); color: var(--mute);
+    margin: 0 0 4px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+  }
+  .running-row {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 5px 0; border-bottom: 1px solid var(--line);
+  }
+  .running-row a {
+    font: 15px/1.3 var(--serif); text-decoration: none; min-width: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .running-row a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+  .running-row .when {
+    margin-left: auto; flex: none;
+    font: 12.5px var(--sans); color: var(--mute); font-variant-numeric: tabular-nums;
+  }
+  .running-row .when.stale { color: var(--accent); }
+  @media (max-width: 1100px) { .running-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; } }
+  @media (max-width: 700px) {
+    .running-cols { grid-template-columns: minmax(0, 1fr); }
+    .running-head { flex-wrap: wrap; }
+    .running-head .count { margin-left: 0; flex-basis: 100%; }
+  }
+  .grid.compact .running { padding-top: 22px; }
+
+  .stats .shuffle {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font: inherit; color: var(--fg);
+    text-decoration: underline; text-decoration-color: var(--line);
+    text-decoration-thickness: 1px; text-underline-offset: .2em;
+  }
+  .stats .shuffle:hover { text-decoration-color: var(--fg); }
+
   /* ---- Side index rail: every name, straight to its live page ---- */
   .index-rail {
     flex: 0 0 270px; width: 270px;
@@ -407,6 +460,8 @@
   .flag.polish { color: var(--fg); border-color: var(--mute); }
   .flag.polish.beta { color: var(--c-schools); border-color: currentColor; }
   .flag.polish.alpha { color: var(--accent); border-color: currentColor; }
+
+  .flag.cadence { color: var(--fg); border-color: var(--mute); }
 
   /* "Start here" picks sit first; same card, nothing louder */
   .card.featured .card-title { font-size: 1.2rem; }
@@ -586,6 +641,7 @@
       <label>Show</label>
       <select id="show">
         <option value="active">Active only</option>
+        <option value="cadence">Updates on its own</option>
         <option value="all">All including dropped</option>
         <option value="dropped">Dropped only</option>
         <option value="hasIndex">With preview</option>
@@ -651,19 +707,50 @@ const $ = (id) => document.getElementById(id);
 // the heading kicker/blurb. Used by the grid, the index rail and the sticky
 // section bar so they never drift apart. Keys match project `subcategory`.
 const SECTIONS = [
-  { key: 'People & population',   color: 'var(--c-people)',  blurb: 'Who New Yorkers are and where they live: density, demographics and change over time.' },
-  { key: 'Housing & buildings',   color: 'var(--c-housing)', blurb: 'Homes, towers, land and rent: how the city is built and who owns it.' },
-  { key: 'Transit & streets',     color: 'var(--c-transit)', blurb: 'Getting around: buses, traffic, parking, walking and the harbor and skies.' },
-  { key: 'Crime & safety',        color: 'var(--c-crime)',   blurb: 'Crime, policing, traffic danger and the emergency response, plus street lighting.' },
-  { key: 'Money & budget',        color: 'var(--c-money)',   blurb: 'The city budget, payroll, labor contracts, settlements and the cost of living.' },
-  { key: 'Government & politics',  color: 'var(--c-govt)',    blurb: 'How the city is run and held to account: the charter, agencies, Mamdani and watchdogs.' },
-  { key: 'Schools & families',    color: 'var(--c-schools)', blurb: 'Schools, enrollment, spending, childcare and programs for kids and families.' },
-  { key: 'Health & environment',  color: 'var(--c-health)',  blurb: 'Water, floods, energy and injuries: the city’s health and infrastructure.' },
-  { key: 'Arts & culture',        color: 'var(--c-arts)',    blurb: 'Museums, public art, houses of worship, restaurants and places worth a visit.' },
-  { key: 'Maps & city data',      color: 'var(--c-maps)',    blurb: 'Point-and-look civic maps and 311 trackers across the five boroughs.' },
-  { key: 'The wider world',       color: 'var(--c-world)',   blurb: 'National and global data, beyond the five boroughs.' },
-  { key: 'Tools & feeds',         color: 'var(--c-tools)',   blurb: 'Scrapers, daily digests and research tools that run on their own.' },
-  { key: 'Fun stuff',             color: 'var(--c-fun)',     blurb: 'Food, history, oddities and things made for the joy of it.' },
+  { key: 'Look things up',         color: 'var(--c-tools)',   blurb: 'Search tools and directories: officials, agency decisions, hearings, transcripts, the City Record and the city’s open data.' },
+  { key: 'Curiosities',            color: 'var(--c-fun)',     blurb: 'Toys, odd questions and one-off finds.' },
+  { key: 'Government & politics',  color: 'var(--c-govt)',    blurb: 'How the city is run and held to account: the charter, agencies, Mamdani, polls and watchdogs.' },
+  { key: 'Money & budget',         color: 'var(--c-money)',   blurb: 'The city budget, payroll, contracts, settlements, pensions and public pay.' },
+  { key: 'Crime & safety',         color: 'var(--c-crime)',   blurb: 'Crime, policing, traffic danger, cameras and the emergency response.' },
+  { key: 'Transit & streets',      color: 'var(--c-transit)', blurb: 'Getting around: buses, traffic, street speeds and the harbor and skies.' },
+  { key: 'Housing & buildings',    color: 'var(--c-housing)', blurb: 'Homes, towers, land and rent: how the city is built and what it costs to live in.' },
+  { key: 'People & neighborhoods', color: 'var(--c-people)',  blurb: 'Who New Yorkers are and where they live, neighborhood by neighborhood.' },
+  { key: 'Schools & families',     color: 'var(--c-schools)', blurb: 'Schools, enrollment, spending, childcare and places for kids.' },
+  { key: 'Health & environment',   color: 'var(--c-health)',  blurb: 'Energy, sensors, floods, tides, water and injuries.' },
+  { key: 'Arts & history',         color: 'var(--c-arts)',    blurb: 'History, landmarks, public art, houses of worship, film and food.' },
+  { key: 'Beyond New York',        color: 'var(--c-world)',   blurb: 'National and global data, beyond the five boroughs.' },
+];
+// Section names before the November 2026 reshuffle. A manifest built by the
+// old script still carries them; map them so nothing lands in an orphan group.
+const LEGACY_SECTIONS = {
+  'People & population': 'People & neighborhoods', 'Arts & culture': 'Arts & history',
+  'Tools & feeds': 'Look things up', 'The wider world': 'Beyond New York',
+  'Fun stuff': 'Curiosities', 'Maps & city data': 'People & neighborhoods',
+};
+function normalizeSections(list) {
+  for (const p of list || []) if (LEGACY_SECTIONS[p.subcategory]) p.subcategory = LEGACY_SECTIONS[p.subcategory];
+  return list;
+}
+// How often a project refreshes itself (the `cadence` override). Columns of
+// the "Updating on their own" panel, fastest first. `stale` is how old the
+// last update can be before the row says so in red; the manifest itself is
+// rebuilt every four hours, so ages can run a few hours behind.
+const CADENCES = {
+  // The 15-minute and hourly jobs are scheduled that often, but GitHub runs
+  // them every few hours in practice, so they share one honest column.
+  '15min':  { col: 'fast',    flag: 'updates several times a day', stale: 24 * 3600 },
+  'hourly': { col: 'fast',    flag: 'updates several times a day', stale: 24 * 3600 },
+  '6h':     { col: 'fast',    flag: 'updates several times a day', stale: 36 * 3600 },
+  'daily':  { col: 'daily',   flag: 'updates daily',   stale: 3 * 86400 },
+  'weekly': { col: 'weekly',  flag: 'updates weekly',  stale: 17 * 86400 },
+  'monthly':{ col: 'monthly', flag: 'updates monthly', stale: 70 * 86400 },
+};
+const CADENCE_ORDER = Object.keys(CADENCES);
+const RUNNING_COLS = [
+  { key: 'fast',    title: 'Several times a day' },
+  { key: 'daily',   title: 'Daily' },
+  { key: 'weekly',  title: 'Weekly' },
+  { key: 'monthly', title: 'Monthly' },
 ];
 const GROUP_ORDER = SECTIONS.map(s => s.key);
 const SECTION_META = {};
@@ -681,10 +768,15 @@ async function load() {
     return;
   }
 
-  $('stats').innerHTML = `<span>${DATA.count}</span> projects · <span>${DATA.categories.length}</span> categories${DATA.generatedAt ? ' · built ' + timeAgo(DATA.generatedAt) : ''}`;
-
   // General projects are public — load them immediately
-  UNLOCKED.general = DATA.projects;
+  UNLOCKED.general = normalizeSections(DATA.projects);
+
+  const pub = DATA.projects.filter(p => p.status !== 'dropped');
+  const nRunning = pub.filter(p => CADENCES[p.cadence]).length;
+  $('stats').innerHTML = `<span>${pub.length}</span> public projects` +
+    (nRunning ? ` · <span>${nRunning}</span> update on their own` : '') +
+    ` · <button type="button" class="shuffle" id="shuffle">Open one at random</button>`;
+  $('shuffle').addEventListener('click', openRandom);
 
   // Tab counts. The visible "Personal / In development" tab shows the
   // professional/in-development count; the personal group has its own count
@@ -760,7 +852,8 @@ async function load() {
   }
   $('indexRailToggle').addEventListener('click', () => setRail(true));
   $('indexShow').addEventListener('click', () => setRail(false));
-  setRail(localStorage.getItem(RAIL_KEY) === '1');
+  let railPref = null; try { railPref = localStorage.getItem(RAIL_KEY); } catch {}
+  setRail(railPref === '1');
 
   // Cards / Buttons view toggle (preference remembered per device).
   const VIEW_KEY = 'experiments-view';
@@ -776,7 +869,8 @@ async function load() {
   for (const b of $('viewToggle').querySelectorAll('button')) {
     b.addEventListener('click', () => setView(b.dataset.view));
   }
-  setView(localStorage.getItem(VIEW_KEY) || 'cards');
+  let viewPref = null; try { viewPref = localStorage.getItem(VIEW_KEY); } catch {}
+  setView(viewPref || 'cards');
 
   // Auto-unlock private tab if the user previously chose to stay unlocked.
   await tryRememberedUnlock();
@@ -944,7 +1038,7 @@ async function decryptGroup(blob, password) {
     ['decrypt']
   );
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ctAndTag);
-  return JSON.parse(new TextDecoder().decode(plaintext));
+  return normalizeSections(JSON.parse(new TextDecoder().decode(plaintext)));
 }
 
 function render() {
@@ -960,7 +1054,12 @@ function render() {
 
   $('count').innerHTML = `<b>${list.length}</b> of ${source.length}`;
 
-  renderIndexRail(list, sort);
+  // The landing view: Gallery tab, no search or filters, grouped by section.
+  // That's where the "Updating on their own" panel and "Start here" appear.
+  const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner && show === 'active' && sort === 'category';
+  const running = isDefaultView ? source.filter(p => CADENCES[p.cadence] && p.status !== 'dropped') : [];
+
+  renderIndexRail(list, sort, running.length);
 
   const grid = $('grid');
   grid.innerHTML = '';
@@ -978,7 +1077,8 @@ function render() {
   // Compact "Buttons" view: skip the featured hero and render every project as
   // a small color-coded pill, grouped by section, so they're all visible at once.
   if (VIEW === 'compact') {
-    renderCompact(grid, list, sort);
+    if (running.length) renderRunning(grid, running);
+    renderCompact(grid, list, sort, running.length);
     if (ACTIVE_TAB === 'professional' && DATA.locked?.personal) {
       renderPersonalAppendix(grid, term, cat, owner, show, sort);
     }
@@ -990,8 +1090,8 @@ function render() {
   // Once you sort (by recency, frequency, etc.) you want the real ranking,
   // so the hero gets out of the way.
   let featIdx = 0;
-  const isDefaultView = ACTIVE_TAB === 'general' && !term && !cat && !owner && sort === 'category';
   const featuredShown = new Set();
+  if (running.length) renderRunning(grid, running);
   if (isDefaultView) {
     const featured = source.filter(p => p.featured && p.status !== 'dropped');
     if (featured.length) {
@@ -1016,7 +1116,7 @@ function render() {
     for (const p of below) (groups[p.subcategory || 'Other'] ||= []).push(p);
     const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()];
     let idx = 0;
-    const renderedSections = [];
+    const renderedSections = running.length ? [RUNNING_SECTION(running.length)] : [];
     for (const key of ordered) {
       if (!groups[key]) continue;
       renderedSections.push({ key, slug: slugify(key), n: groups[key].length });
@@ -1050,6 +1150,53 @@ function render() {
   observeThumbnails();
 }
 
+const RUNNING_SECTION = (n) => ({ key: 'Updating on their own', slug: 'updating', n });
+
+// "Updating on their own": every project with a refresh schedule, as rows in
+// four columns by cadence. Each row says when it last updated; a row whose
+// last update is overdue for its schedule says so in red.
+function renderRunning(grid, running) {
+  const wrap = document.createElement('section');
+  wrap.className = 'running';
+  wrap.id = 'sec-updating';
+  const byCol = {};
+  const sorted = running.slice().sort((a, b) =>
+    CADENCE_ORDER.indexOf(a.cadence) - CADENCE_ORDER.indexOf(b.cadence) ||
+    (a.title || a.name).localeCompare(b.title || b.name));
+  for (const p of sorted) (byCol[CADENCES[p.cadence].col] ||= []).push(p);
+  const now = Date.now();
+  const row = (p) => {
+    const c = CADENCES[p.cadence];
+    const url = p.livePagesUrl || p.indexUrl;
+    const name = escapeHtml(p.title || p.name);
+    const link = url ? `<a href="${encodeURI(url)}" target="_blank" rel="noopener" title="${escapeHtml(p.description || '')}">${name}</a>` : `<span>${name}</span>`;
+    const t = p.lastCommit || p.lastModified;
+    const age = t ? (now - new Date(t).getTime()) / 1000 : null;
+    let when;
+    if (age != null && age > c.stale) when = `<span class="when stale" title="Overdue for its ${escapeHtml(c.flag.replace('updates ', ''))} refresh">last ${shortDate(t)}</span>`;
+    else when = t ? `<span class="when" title="${shortDate(t)}">${timeAgo(t)}</span>` : '';
+    return `<div class="running-row">${link}${when}</div>`;
+  };
+  wrap.innerHTML =
+    `<div class="running-head"><div><h3>Updating on their own</h3>` +
+    `<p class="blurb">These pull in fresh data on a schedule, from several times a day to once a month.</p></div>` +
+    `<span class="count">${running.length} projects</span></div>` +
+    `<div class="running-cols">` +
+    RUNNING_COLS.filter(c => byCol[c.key]).map(c =>
+      `<div class="running-col"><h4>${c.title}</h4>${byCol[c.key].map(row).join('')}</div>`
+    ).join('') + `</div>`;
+  grid.appendChild(wrap);
+}
+
+// "Open one at random": any public project with a live page, in a new tab.
+function openRandom() {
+  const pool = (UNLOCKED[ACTIVE_TAB] || UNLOCKED.general || [])
+    .filter(p => p.status !== 'dropped' && (p.livePagesUrl || p.indexUrl));
+  if (!pool.length) return;
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  window.open(p.livePagesUrl || p.indexUrl, '_blank', 'noopener');
+}
+
 function slugify(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
@@ -1058,7 +1205,7 @@ function slugify(s) {
 // Pages link. Mirrors the current tab's filtered/sorted list. Grouped by
 // section when sorting "By category" — and there the section headers double
 // as jump links that scroll the grid to that section, with quick chips up top.
-function renderIndexRail(list, sort) {
+function renderIndexRail(list, sort, nRunning) {
   const nav = $('indexList');
   nav.innerHTML = '';
   if (!list.length) {
@@ -1079,7 +1226,8 @@ function renderIndexRail(list, sort) {
       .filter(k => groups[k]);
     // Quick-jump chips across the top, one per section.
     if (ordered.length > 1) {
-      const chips = ordered.map(key =>
+      const chips = (nRunning ? `<button type="button" class="index-chip" data-jump="updating">Updating on their own</button>` : '') +
+        ordered.map(key =>
         `<button type="button" class="index-chip" data-jump="${slugify(key)}" style="--section:${sectionVar(key)}">${escapeHtml(key)}</button>`
       ).join('');
       nav.insertAdjacentHTML('beforeend', `<div class="index-chips">${chips}</div>`);
@@ -1140,7 +1288,7 @@ function pill(p) {
   return el;
 }
 
-function renderCompact(grid, list, sort) {
+function renderCompact(grid, list, sort, nRunning) {
   // When the user has picked a real ranking (recency, frequency, A–Z), show a
   // single flat run of pills in that order — grouping would fight the sort.
   // Pills stay section-colored either way.
@@ -1157,7 +1305,7 @@ function renderCompact(grid, list, sort) {
   for (const p of list) (groups[p.subcategory || 'Other'] ||= []).push(p);
   const ordered = [...GROUP_ORDER, ...Object.keys(groups).filter(k => !GROUP_ORDER.includes(k)).sort()]
     .filter(k => groups[k]);
-  const renderedSections = [];
+  const renderedSections = nRunning ? [RUNNING_SECTION(nRunning)] : [];
   for (const key of ordered) {
     renderedSections.push({ key, slug: slugify(key), n: groups[key].length });
     const heading = document.createElement('div');
@@ -1222,13 +1370,14 @@ function setupScrollSpy(sections) {
 function matchesFilters(p, term, cat, owner, show) {
   if (cat && p.category !== cat) return false;
   if (owner && p.githubOwner !== owner) return false;
-  if (show === 'active' && p.status === 'dropped') return false;
+  if ((show === 'active' || show === 'cadence') && p.status === 'dropped') return false;
+  if (show === 'cadence' && !CADENCES[p.cadence]) return false;
   if (show === 'dropped' && p.status !== 'dropped') return false;
   if (show === 'hasIndex' && !p.previewUrl) return false;
   if (show === 'ownRepo' && !p.isNestedRepo) return false;
   if (show === 'loose' && p.category !== 'root') return false;
   if (!term) return true;
-  const hay = [p.name, p.title, p.description, p.category, p.lastCommitMsg, p.gitRemote]
+  const hay = [p.name, p.title, p.description, p.subcategory, p.category, p.lastCommitMsg, p.gitRemote]
     .filter(Boolean).join(' ').toLowerCase();
   return hay.includes(term);
 }
@@ -1355,6 +1504,7 @@ function card(p, i, isFeatured) {
 
   const flags = [];
   if (p.status === 'dropped') flags.push('<span class="flag dropped">dropped</span>');
+  if (CADENCES[p.cadence]) flags.push(`<span class="flag cadence">${CADENCES[p.cadence].flag}</span>`);
   if (p.polish) flags.push(`<span class="flag polish ${p.polish}">${escapeHtml(p.polish)}</span>`);
   if (p.isNestedRepo) flags.push('<span class="flag nested">own repo</span>');
   if (p.isLooseFile) flags.push('<span class="flag loose">loose</span>');
