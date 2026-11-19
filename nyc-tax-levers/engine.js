@@ -35,18 +35,32 @@
     return idx < 0 ? 0 : scale.amounts[idx];
   }
 
+  // A two-bracket reduction scale (0 below the threshold, a rate above it), as
+  // PolicyEngine applies it, or, with whole=true, in whole $1,000 steps.
+  function reduce(scale, x, whole) {
+    if (!whole) return marginal(scale, x);
+    const t = num(scale.thresholds[1]), r = scale.rates[1];
+    return Math.floor(Math.max(0, x - t) / 1000) * 1000 * r;
+  }
+
   const STATUS_KEY = { SINGLE: "single", JOINT: "joint", HEAD_OF_HOUSEHOLD: "head_of_household" };
 
   /* Household:
    *   married: boolean (married couples file jointly)
    *   wages: total wages for the tax unit
-   *   kidsUnder4, kids4to16, kids17to18: dependent children by age
-   * Parameters: the params-2026.json object, optionally edited by levers, plus
-   *   P.extra (levers PolicyEngine does not model as parameters; see below).
+   *   kidsUnder1, kids1to3, kids4to16, kids17: dependent children by age
+   * Parameters: the params-2026.json object, optionally edited by levers. That
+   *   includes P.contrib, PolicyEngine's own parameters for its New York bill
+   *   reforms, and P.extra, for levers PolicyEngine does not model (see below).
    */
   function compute(h, P) {
     const ny = P.ny, nyc = P.nyc, fed = P.eitc, ex = P.extra || {};
-    const kids = (h.kidsUnder4 || 0) + (h.kids4to16 || 0) + (h.kids17to18 || 0);
+    const C = P.contrib || { ny: {}, nyc: { stc: {} } };
+    const k0 = h.kidsUnder1 || 0;
+    const k1 = h.kids1to3 != null ? h.kids1to3 : h.kidsUnder4 || 0; // older links used kidsUnder4
+    const k4 = h.kids4to16 || 0;
+    const k17 = h.kids17 != null ? h.kids17 : h.kids17to18 || 0;
+    const kids = k0 + k1 + k4 + k17;
     const status = h.married ? "JOINT" : kids > 0 ? "HEAD_OF_HOUSEHOLD" : "SINGLE";
     const sk = STATUS_KEY[status];
     const people = (h.married ? 2 : 1) + kids; // exemptions_count
@@ -63,18 +77,24 @@
     // Childless filers must be 25 to 64; adults here are assumed to be.
     const fedEitc = Math.min(phasedIn, Math.max(0, eMax - reduction));
 
-    // Lever not in PolicyEngine: the Working Families Tax Credit (S2082), fully
-    // phased in. It replaces the Empire State Child Credit, ends the state EITC
-    // and the dependent exemption for filers with children through age 17, and
-    // pays one credit per child. All children here are 17 or younger.
-    const wftc = ex.wftc && kids > 0 ? ex.wftc : null;
+    // PolicyEngine reform ny_working_families_tax_credit (S2082; S277C in
+    // 2023). It neutralizes the Empire State Child Credit, pays a credit per
+    // child at or under child_age_threshold, cuts the state EITC match for
+    // families whose children are all that young, and drops their $1,000
+    // dependent exemption.
+    const W = C.ny.wftc && C.ny.wftc.in_effect ? C.ny.wftc : null;
+    const wftcKids = W ? k0 + k1 + k4 + (W.child_age_threshold >= 17 ? k17 : 0) : 0;
+    const olderKids = kids - wftcKids;
 
     // ---- New York State
     // ny_taxable_income = ny_agi - standard deduction - $1,000 per dependent
-    const exemptKids = wftc ? 0 : kids;
+    const exemptKids = W && W.exemptions.in_effect ? olderKids : kids;
     const nyTI = Math.max(0, agi - ny.deductions.standard.amount[status] - ny.exemptions.dependent * exemptKids);
+    const S9110 = C.ny.s9110 && C.ny.s9110.in_effect ? C.ny.s9110 : null;
     const mainScale = ny.main[sk];
-    const nyMain = marginal(mainScale, nyTI); // ny_main_income_tax
+    // ny_main_income_tax; PolicyEngine reform ny_s9110 swaps in the bill's
+    // rate table and repeals the benefit recapture (ny_supplemental_tax).
+    const nyMain = marginal(S9110 ? S9110.rates[sk] : mainScale, nyTI);
 
     // ny_supplemental_tax (the "tax benefit recapture")
     const s = ny.supplemental;
@@ -86,7 +106,9 @@
     const highAgiThreshold = finite[finite.length - 1];
     const topRate = th[th.length - 1] === INF ? mainScale.rates[mainScale.rates.length - 2] : mainScale.rates[mainScale.rates.length - 1];
     let nySupp;
-    if (agi > highAgiThreshold) {
+    if (S9110) {
+      nySupp = 0;
+    } else if (agi > highAgiThreshold) {
       nySupp = nyTI * topRate - nyMain;
     } else if (s.in_effect) {
       const applicable = Math.max(0, agi - Math.max(prevThreshold, s.min_agi));
@@ -105,7 +127,7 @@
     const top = ex.nyTop || [];
     let b = -1;
     for (let i = 0; i < top.length; i++) if (nyTI >= top[i].t) b = i;
-    if (b >= 0) {
+    if (b >= 0 && !S9110) {
       const tb = top[b].t, db = top[b].d, dprev = b > 0 ? top[b - 1].d : 0;
       const f = tb >= highAgiThreshold ? (agi > tb ? 1 : 0) : Math.min(1, Math.max(0, agi - tb) / s.phase_in_length);
       nySurcharge = db * (nyTI - tb) + (f * db + (1 - f) * dprev) * tb;
@@ -121,17 +143,25 @@
     const nyHousehold = Math.min(hcPot, Math.max(nyBeforeCredits, 0));
     const nyBeforeRefundable = Math.max(nyBeforeCredits - nyHousehold, 0);
 
-    // ny_eitc: match of the federal credit, less the household credit
-    const nyEitc = wftc ? 0 : Math.max(0, fedEitc * ny.credits.eitc.match - Math.min(nyBeforeCredits, nyHousehold));
+    // ny_eitc: match of the federal credit, less the household credit. Under
+    // the WFTC reform, families whose children all qualify for the WFTC get
+    // W.eitc.match instead (PolicyEngine's younger_eitc); others keep today's
+    // match (older_eitc). With every child counted, both equal the federal EITC.
+    const match = W && wftcKids > 0 && olderKids === 0 ? W.eitc.match : ny.credits.eitc.match;
+    const nyEitc = Math.max(0, fedEitc * match - (W ? nyHousehold : Math.min(nyBeforeCredits, nyHousehold)));
 
     // ny_ctc_post_2024 (Empire State Child Credit, 2025-2027 rules)
     const ctc = ny.credits.ctc.post_2024;
     let escc = 0;
-    if (wftc) {
+    if (W) {
       escc = 0;
     } else if (ctc.in_effect) {
       const perU4 = single(ctc.amount, 0, false), per4 = single(ctc.amount, 4, false), per17 = single(ctc.amount, 17, false);
-      const base = (h.kidsUnder4 || 0) * perU4 + (h.kids4to16 || 0) * per4 + (h.kids17to18 || 0) * per17;
+      // PolicyEngine reform ny_a04038_enhanced_escc_infants multiplies the
+      // credit for children under 1 (by 2).
+      const A = C.ny.a04038 && C.ny.a04038.in_effect ? C.ny.a04038 : null;
+      const infant = A ? single(A.multiplier, 0, false) : 1;
+      const base = k0 * perU4 * infant + k1 * perU4 + k4 * per4 + k17 * per17;
       if (base > 0) {
         const excess = Math.max(agi - ctc.phase_out.threshold[status], 0);
         const po = ctc.phase_out.rate > 0 ? Math.floor(excess / ctc.phase_out.increment) * ctc.phase_out.rate : 0;
@@ -142,7 +172,7 @@
       // of $100 per child under 17 (below the old federal phase-out start) or
       // 33% of the federal child credit figured with its 2017 parameters,
       // limited by 2026 federal income tax plus the refundable portion.
-      const n = (h.kidsUnder4 || 0) + (h.kids4to16 || 0);
+      const n = k0 + k1 + k4;
       if (n > 0) {
         const c17 = P.ctc2017, fb = P.fed.bracket;
         const fedTI = Math.max(0, wages - P.fed.standard[status]);
@@ -166,13 +196,21 @@
         escc = Math.max(minimum, claimed * cc.percent);
       }
     }
+    // ny_working_families_tax_credit. PolicyEngine reduces it continuously (2%
+    // of income over the threshold); the bill says $20 "for each one thousand
+    // dollars", which the page reads in whole $1,000 steps (ex.wholeThousands).
     let wftcCredit = 0;
-    if (wftc) {
-      const thr = h.married ? wftc.thrJoint : wftc.thrSingle;
-      const red = Math.floor(Math.max(0, agi - thr) / 1000) * wftc.per1000;
-      wftcCredit = Math.max(wftc.floor * kids, wftc.amount * kids - red);
+    if (W) {
+      const sc = h.married ? W.reduction.married : W.reduction.single;
+      const red = reduce(sc, agi, ex.wholeThousands);
+      wftcCredit = Math.max(W.amount.min * wftcKids, W.amount.max * wftcKids - red);
     }
-    const nyRefundable = nyEitc + escc + wftcCredit;
+    // ny_s04487_newborn_credit: refundable, per child born this year or last
+    // who hasn't been claimed before. PolicyEngine counts every child 1 or
+    // under; since a child can be claimed only once, the page counts babies under 1.
+    const NB = C.ny.s04487 && C.ny.s04487.in_effect ? C.ny.s04487 : null;
+    const newborn = NB ? NB.amount * k0 : 0;
+    const nyRefundable = nyEitc + escc + wftcCredit + newborn;
     const nyTax = nyBeforeRefundable - nyRefundable; // ny_income_tax
 
     // ---- New York City
@@ -205,7 +243,12 @@
       const t = ra.threshold[status];
       rate = nycTI > t ? ra.base[status] + ra.excess_rate * (nycTI - t) : ra.first_band_rate * nycTI;
     }
-    const nycSchool = fixed + rate;
+    // PolicyEngine reform nyc_school_tax_credit_with_phase_out (S2238).
+    // PolicyEngine's rate is 5%; the bill's is $20 per $1,000 (2%), which the
+    // lever sets.
+    const PO = C.nyc.stc && C.nyc.stc.phase_out && C.nyc.stc.phase_out.in_effect ? C.nyc.stc.phase_out : null;
+    const schoolPhaseOut = PO ? reduce(h.married ? PO.rate.joint_and_surviving_spouse : PO.rate.other, agi, ex.wholeThousands) : 0;
+    const nycSchool = Math.max(0, fixed + rate - schoolPhaseOut);
 
     // nyc_income_tax_elimination_credit
     const el = nyc.credits.income_tax_elimination;
@@ -219,15 +262,25 @@
       }
     }
 
-    const nycRefundable = nycEitc + nycSchool + nycElim;
+    // Lever not in PolicyEngine: S2238's other half, a refundable city child
+    // credit per child under 18, less a fixed amount per $1,000 of income over
+    // a threshold (the bill sets none for single filers; filers with children
+    // here are heads of household or couples).
+    let nycChild = 0;
+    const cc = ex.nycChildCredit;
+    if (cc && kids > 0) {
+      const thr = h.married ? cc.thrJoint : cc.thrOther;
+      nycChild = Math.max(0, cc.amount * kids - Math.floor(Math.max(0, agi - thr) / 1000) * cc.per1000);
+    }
+    const nycRefundable = nycEitc + nycSchool + nycElim + nycChild;
     const nycTax = nycBeforeRefundable - nycRefundable; // nyc_income_tax
 
     return {
       status, agi, fedEitc,
       ny: { taxable: nyTI, main: nyMain, supplemental: nySupp, surcharge: nySurcharge, beforeCredits: nyBeforeCredits,
-            householdCredit: nyHousehold, eitc: nyEitc, escc, wftc: wftcCredit, tax: nyTax },
+            householdCredit: nyHousehold, eitc: nyEitc, escc, wftc: wftcCredit, newborn, tax: nyTax },
       nyc: { taxable: nycTI, regular: nycRegular, mamdani: nycMamdani, beforeCredits: nycBeforeCredits,
-             householdCredit: nycHousehold, eitc: nycEitc, school: nycSchool, elimination: nycElim, tax: nycTax },
+             householdCredit: nycHousehold, eitc: nycEitc, school: nycSchool, elimination: nycElim, childCredit: nycChild, tax: nycTax },
       total: nyTax + nycTax,
     };
   }

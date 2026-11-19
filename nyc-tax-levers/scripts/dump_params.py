@@ -23,6 +23,10 @@ p = tbs.parameters
 roots = {"ny": p.gov.states.ny.tax.income, "nyc": p.gov.local.ny.nyc.tax.income, "mamdani": p.gov.local.ny.mamdani_income_tax,
          "eitc": p.gov.irs.credits.eitc}
 out = {k: ser(v) for k, v in roots.items()}
+# PolicyEngine's contributed reforms for New York bills (switched off by default).
+out["contrib"] = {"ny": ser(p.gov.contrib.states.ny), "nyc": ser(p.gov.contrib.local.nyc)}
+# S9110's rate tables once fully phased in (2035).
+out["contrib"]["ny"]["s9110_2035"] = ser(p.gov.contrib.states.ny.s9110.rates, "2035-01-01")
 # Federal income tax before credits (2026), used only for the old Empire State
 # Child Credit formula, which matches 33% of the federal child credit computed
 # with the federal credit's 2017 (pre-TCJA) parameters.

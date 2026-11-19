@@ -13,10 +13,12 @@ function applyReform(P, reform) {
   const Q = structuredClone(P);
   for (const [path, value] of Object.entries(reform || {})) {
     let parts = path.split(".");
-    const rootMap = { "gov.states.ny.tax.income": "ny", "gov.local.ny.nyc.tax.income": "nyc", "gov.local.ny.mamdani_income_tax": "mamdani" };
+    const rootMap = { "gov.states.ny.tax.income": (Q) => Q.ny, "gov.local.ny.nyc.tax.income": (Q) => Q.nyc,
+      "gov.local.ny.mamdani_income_tax": (Q) => Q.mamdani, "gov.contrib.states.ny": (Q) => Q.contrib.ny,
+      "gov.contrib.local.nyc": (Q) => Q.contrib.nyc };
     let node = null, rest = null;
-    for (const [pre, key] of Object.entries(rootMap)) {
-      if (path.startsWith(pre + ".")) { node = Q[key]; rest = path.slice(pre.length + 1); }
+    for (const [pre, get] of Object.entries(rootMap)) {
+      if (path.startsWith(pre + ".")) { node = get(Q); rest = path.slice(pre.length + 1); }
     }
     if (!node) throw new Error("unmapped " + path);
     parts = rest.split(".");

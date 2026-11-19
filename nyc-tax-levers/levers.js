@@ -1,6 +1,7 @@
-/* The levers. Each one edits a copy of the PolicyEngine parameters, or, where
+/* The levers. Each one edits a copy of the PolicyEngine parameters (P.contrib
+ * holds the switches for PolicyEngine's own New York bill reforms), or, where
  * PolicyEngine has no parameter for the idea, P.extra, which engine.js reads.
- * Statuses were checked Nov. 18, 2026; the sources are linked on each lever
+ * Statuses were checked Nov. 18-19, 2026; the sources are linked on each lever
  * and summarized on methodology.html. */
 const TOP_PLANS = [
   // Senate one-house budget, March 2026: 10.8% from $5M to $25M, 11.4% above $25M.
@@ -13,17 +14,31 @@ const ESCC = "gov.states.ny.tax.income.credits.ctc.post_2024";
 
 const LEVERS = [
   {
-    id: "toprates", level: "state",
+    id: "toprates", level: "state", pe: false,
     title: "Higher state rates above $5 million",
     what: "The state's top rates are now 10.3 percent on taxable income from $5 million to $25 million and 10.9 percent above $25 million. The Senate proposed 10.8 and 11.4 percent. The Assembly proposed 10.5 percent up to $10 million, 10.75 percent up to $25 million, 11.75 percent up to $100 million and 12 percent above that.",
     status: "Both passed only as part of each house's March 2026 budget proposal and were dropped from the final budget. Gov. Kathy Hochul has opposed raising income taxes but in November left room for new revenue for child care",
-    note: "As under today's law, a filer well past a bracket's start pays that bracket's rate on all taxable income, not just the part above it.",
+    note: "As under today's law, a filer well past a bracket's start pays that bracket's rate on all taxable income, not just the part above it. If the S9110 rate cut is also on, its rates replace these.",
     sources: [["EY, March 19, 2026", "https://taxnews.ey.com/news/2026-0679-new-york-budget-negotiations-continue-as-assembly-and-senate-bills-are-introduced"], ["NY Focus, March 10, 2026", "https://nysfocus.com/2026/03/10/senate-assembly-mamdani-tax-hikes"], ["Spectrum News, Nov. 7, 2026", "https://nystateofpolitics.com/state-of-politics/new-york/politics/2026/11/07/hochul-does-not-rule-out-new-taxes-to-help-fund-programs-like-universal-childcare"]],
     controls: [{ k: "plan", type: "choice", label: "Version", value: 0, options: [[0, "Senate"], [1, "Assembly"]] }],
     apply(P, v) { P.extra.nyTop = TOP_PLANS[v.plan]; },
   },
   {
-    id: "escc", level: "state",
+    id: "s9110", level: "state", pe: true,
+    title: "A Republican rate cut with a zero bracket",
+    what: "S9110, from Sen. Steve Rhoads and 13 other Senate Republicans, would rewrite the state's rate tables. In 2026, couples would pay nothing on their first $10,000 of taxable income ($7,500 for heads of household, $5,000 for single filers), 4 percent up to $500,000 ($300,000; $250,000) and 5 percent up to $2.16 million ($1.62 million; $1.08 million). The 9.65, 10.3 and 10.9 percent rates above that stay. Each year the zero bracket grows, reaching $100,000 for couples in 2035, and from 2033 the three top rates become one rate of 8.82 percent. It also ends the benefit recapture, so high earners pay each rate only on the income in its bracket.",
+    status: "In the Senate Budget and Revenue Committee; the Assembly version, A11253 from Assemblymember Robert Smullen, is in Ways and Means. Neither has had a vote. The sponsor's memo puts the cost at roughly $35 billion a year once fully in place and names no way to pay for it",
+    note: "The 2035 option applies the final tables to 2026 incomes, to show the bill fully in place. The bill doesn't adjust its brackets for inflation.",
+    sources: [["S9110", "https://www.nysenate.gov/legislation/bills/2025/S9110"], ["A11253", "https://nyassembly.gov/leg/?default_fld=&leg_video=&bn=A11253&term=2025&Summary=Y&Actions=Y"]],
+    controls: [{ k: "year", type: "choice", label: "Rate table", value: 0, options: [[0, "2026, the first year"], [1, "2035, fully phased in"]] }],
+    apply(P, v) {
+      const s = P.contrib.ny.s9110;
+      s.in_effect = true;
+      if (v.year === 1) s.rates = P.contrib.ny.s9110_2035;
+    },
+  },
+  {
+    id: "escc", level: "state", pe: true,
     title: "Empire State Child Credit after 2027",
     what: "Today the state pays $1,000 per child under 4 and $500 per child 4 to 16. That expansion ends after 2027, when the credit falls back to the old formula: 33 percent of a 2017-style federal child credit, or $100 per child if that's more. A bill from Sen. Andrew Gounardes, S9077, would instead raise it over several years.",
     status: "The fallback is current law for 2028. S9077 is in committee",
@@ -37,7 +52,27 @@ const LEVERS = [
     },
   },
   {
-    id: "nyeitc", level: "state",
+    id: "infant", level: "state", pe: true,
+    title: "Double child credit for babies",
+    what: "A4038, from Assemblymember Yudelka Tapia, would double the Empire State Child Credit for a child under 1, from $1,000 to $2,000 under today's amounts, starting with 2026.",
+    status: "In the Assembly Ways and Means Committee since January 2026. It has no Senate version",
+    note: "It doubles whatever the child credit would otherwise be, so with the S9077 option on, a baby's credit is $3,000. It does nothing if the child credit lapses to the 2028 formula or the Working Families Tax Credit replaces it.",
+    sources: [["A4038", "https://nyassembly.gov/leg/?default_fld=&leg_video=&bn=A04038&term=2025&Summary=Y&Actions=Y&Text=Y"]],
+    controls: [],
+    apply(P) { P.contrib.ny.a04038.in_effect = true; },
+  },
+  {
+    id: "newborn", level: "state", pe: true,
+    title: "$1,000 credit for a newborn",
+    what: "S4487, from Sen. Jake Ashby and 15 cosponsors, would add a one-time, refundable $1,000 credit for each newborn, starting with 2026, on top of the Empire State Child Credit.",
+    status: "In the Senate Budget and Revenue Committee. It has no Assembly version",
+    note: "The bill counts a child born in the tax year or the year before who hasn't been claimed already. The calculator counts children under 1.",
+    sources: [["S4487", "https://www.nysenate.gov/legislation/bills/2025/S4487"]],
+    controls: [],
+    apply(P) { P.contrib.ny.s04487.in_effect = true; },
+  },
+  {
+    id: "nyeitc", level: "state", pe: true,
     title: "Bigger state earned income credit",
     what: "New York adds 30 percent of the federal earned income credit. S4425, from Sen. Patricia Fahy, would raise that to 35 percent in 2027 and 40 percent after. A5661, from Assembly Republican leader Will Barclay, would make it 45 percent.",
     status: "Both bills are in committee",
@@ -47,17 +82,24 @@ const LEVERS = [
     apply(P, v) { P.ny.credits.eitc.match = v.match; },
   },
   {
-    id: "wftc", level: "state",
+    id: "wftc", level: "state", pe: true,
     title: "Working Families Tax Credit",
     what: "S2082, from Gounardes and Assemblymember Andrew Hevesi, would replace the Empire State Child Credit with one refundable credit per child. For families with children it would also end the state earned income credit and the $1,000 dependent exemption. Fully phased in, it pays $1,600 per child through age 17, less $20 per $1,000 of income over $25,000 ($50,000 for couples), and never less than $100 per child.",
     status: "Cleared the Senate budget committee in February 2025 and is back in committee. If both this and the child credit lever are on, this one replaces the child credit",
-    note: "This is the bill's fifth year and after. Its amounts and thresholds rise with inflation from 2023; the calculator uses the dollar figures in the bill. The bill doesn't name head of household filers; they're treated like single filers.",
+    note: "This is the bill's fifth year and after. Its amounts and thresholds rise with inflation from 2023; the calculator uses the dollar figures in the bill. The bill doesn't name head of household filers; they're treated like single filers. PolicyEngine takes 2 percent of income over the threshold; the page cuts $20 per whole $1,000, as the bill reads.",
     sources: [["S2082", "https://www.nysenate.gov/legislation/bills/2025/S2082"]],
     controls: [],
-    apply(P) { P.extra.wftc = { amount: 1600, floor: 100, per1000: 20, thrSingle: 25000, thrJoint: 50000 }; },
+    apply(P) {
+      // PolicyEngine's ny_working_families_tax_credit reform, set to the bill's fifth year.
+      const w = P.contrib.ny.wftc;
+      w.in_effect = true; w.amount.max = 1600; w.amount.min = 100; w.child_age_threshold = 17;
+      w.eitc.match = 0; w.exemptions.in_effect = true;
+      w.reduction.single.thresholds[1] = 25000; w.reduction.married.thresholds[1] = 50000;
+      P.extra.wholeThousands = true;
+    },
   },
   {
-    id: "fairshare", level: "city",
+    id: "fairshare", level: "city", pe: "part",
     title: "Mamdani's tax on incomes over $1 million",
     what: "Mayor Zohran Mamdani's Fair Share Act would add 2 percent to the city income tax on city taxable income over $1 million, on top of today's top city rate of 3.876 percent. The bill (S8577, Sen. John Liu; A8953, Assemblymember Phara Souffrant Forrest) needs a state law and would start no earlier than 2027.",
     status: "In committee all of 2026 and left out of the state budget. Mamdani's allies say they will try again in 2027",
@@ -71,6 +113,21 @@ const LEVERS = [
     apply(P, v) {
       P.mamdani.in_effect = true; P.mamdani.rate.rates[1] = v.rate; P.mamdani.rate.thresholds[1] = v.threshold;
       P.extra.fairShareAllIncome = v.base === 1;
+    },
+  },
+  {
+    id: "stc", level: "city", pe: "part",
+    title: "A child credit paid for by trimming the school tax credit",
+    what: "S2238, from Gounardes and Assemblymember Grace Lee (A8176), has two parts. It would phase out the city school tax credit, $63 to $125 for most filers plus a small rate cut, by $20 per $1,000 of income over $75,000 ($150,000 for couples). And it would add a refundable city child credit of $300 per child under 18, less $10 per $1,000 of income over $160,000 for heads of household ($320,000 for couples).",
+    status: "In the Senate Budget and Revenue Committee. The sponsor's memo calls it revenue neutral",
+    note: "PolicyEngine models only the phase-out, and at 5 percent of income over the threshold; the bill's $20 per $1,000 is 2 percent, which the page uses. The child credit isn't in PolicyEngine and was checked by hand.",
+    sources: [["S2238", "https://www.nysenate.gov/legislation/bills/2025/S2238"], ["Bill text", "https://nyassembly.gov/leg/?default_fld=&leg_video=&bn=S02238&term=2025&Summary=Y&Actions=Y&Text=Y"]],
+    controls: [{ k: "part", type: "choice", label: "Parts", value: 0, options: [[0, "Both parts of the bill"], [1, "Phase-out only"]] }],
+    apply(P, v) {
+      const po = P.contrib.nyc.stc.phase_out;
+      po.in_effect = true; po.rate.joint_and_surviving_spouse.rates[1] = 0.02; po.rate.other.rates[1] = 0.02;
+      P.extra.wholeThousands = true;
+      if (v.part === 0) P.extra.nycChildCredit = { amount: 300, per1000: 10, thrJoint: 320000, thrOther: 160000 };
     },
   },
 ];
