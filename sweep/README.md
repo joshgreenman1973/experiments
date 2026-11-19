@@ -24,6 +24,22 @@ person taps it once. Either phone can park or mark the car moved; the newest cha
 push tells the other phone to fetch, so its reminders and calendar events move too. The record type
 is deployed to Production in the CloudKit console. Not available in the Mac preview (unsigned).
 
+**In the car and on the lock screen** (no CarPlay app; that needs Apple's parking entitlement):
+- Siri, also through CarPlay: "I parked with Sweep" parks on the nearest block side with a broom
+  sign; "When do I move the car with Sweep"; "I moved the car with Sweep" (`ios/Sweep/Intents.swift`).
+- The "Move by" widget (`ios/SweepWidget/`), small, lock-screen rectangle and inline. iOS 26 and later
+  show small widgets in CarPlay too. The widget has no sign data: the app writes the next four
+  weeks of windows into the app group `group.com.joshgreenman.sweep` (`ios/SweepShared/CarSnapshot.swift`)
+  each time the car or schedule changes, so it says "Open Sweep to update" if the app goes unopened
+  for a month.
+- A live card (lock screen, Dynamic Island, CarPlay dashboard) when cleaning starts within eight
+  hours. Apple caps a live card at eight hours and lets an app start one only while it's open or
+  from Siri, so it appears when you open Sweep or park by voice on cleaning day.
+
+The widget is its own target with its own bundle id (`com.joshgreenman.sweep.widget`) and profile
+(`ios/widget_profile_uuid.txt`, `python3 tools/asc_setup.py widget`). `release.sh` gives the app
+and widget the same build number.
+
 TestFlight only: internal group "Me" and external group "Friends" (add each new build to "Friends" by hand). App Store Connect app 6834559962, bundle id
 `com.joshgreenman.sweep`. Never submit to the public App Store without asking Josh.
 

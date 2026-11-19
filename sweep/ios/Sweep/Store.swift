@@ -140,6 +140,7 @@ final class Store: ObservableObject {
 
     func reschedule() {
         syncCalendar(ask: false)
+        Glance.update(parked, windows: parked?.spot.primary != nil ? windows() : [])
         let c = UNUserNotificationCenter.current()
         c.removeAllPendingNotificationRequests()
         guard let p = parked, p.spot.primary != nil else { scheduled = []; return }

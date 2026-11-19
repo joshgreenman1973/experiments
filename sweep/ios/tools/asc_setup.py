@@ -3,6 +3,8 @@
 
   python3 tools/asc_setup.py profile   register the bundle id if needed, mint (or reuse) the
                                        App Store profile, install it, write profile_uuid.txt
+  python3 tools/asc_setup.py widget    the same for the widget extension (com.joshgreenman.sweep.widget),
+                                       written to widget_profile_uuid.txt
   python3 tools/asc_setup.py app       print the App Store Connect app id (the record itself
                                        has to be made in the web UI; the API can't create it)
 
@@ -17,16 +19,16 @@ NAME = "Sweep"
 HERE = pathlib.Path(__file__).resolve().parent.parent
 
 
-def bundle_record():
-    s, b = call("GET", f"/v1/bundleIds?filter[identifier]={BUNDLE_ID}&limit=5")
+def bundle_record(ident=BUNDLE_ID, name=NAME):
+    s, b = call("GET", f"/v1/bundleIds?filter[identifier]={ident}&limit=5")
     for r in b.get("data", []):
-        if r["attributes"]["identifier"] == BUNDLE_ID:
+        if r["attributes"]["identifier"] == ident:
             return r["id"]
     s, b = call("POST", "/v1/bundleIds", {"data": {"type": "bundleIds", "attributes": {
-        "identifier": BUNDLE_ID, "name": NAME, "platform": "IOS"}}})
+        "identifier": ident, "name": name, "platform": "IOS"}}})
     if s != 201:
         sys.exit(f"bundle id create failed: {s} {b}")
-    print("registered bundle id", BUNDLE_ID)
+    print("registered bundle id", ident)
     return b["data"]["id"]
 
 
@@ -43,14 +45,16 @@ def dist_cert():
     sys.exit("no distribution certificate found")
 
 
-def profile():
-    bid = bundle_record()
+def profile(ident=BUNDLE_ID, name=NAME, out="profile_uuid.txt"):
+    # App Groups (group.com.joshgreenman.sweep) and iCloud are assigned to the ids in the developer
+    # website; the API can't. Changing capabilities there makes old profiles INVALID, and this mints new ones.
+    bid = bundle_record(ident, name)
     s, b = call("GET", f"/v1/bundleIds/{bid}/profiles?limit=50")
     prof = next((p for p in b.get("data", []) if p["attributes"]["profileType"] == "IOS_APP_STORE"
                  and p["attributes"]["profileState"] == "ACTIVE"), None)
     if prof is None:
         s, b = call("POST", "/v1/profiles", {"data": {"type": "profiles",
-            "attributes": {"name": f"{NAME} App Store", "profileType": "IOS_APP_STORE"},
+            "attributes": {"name": f"{name} App Store {__import__('datetime').date.today()}", "profileType": "IOS_APP_STORE"},
             "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bid}},
                               "certificates": {"data": [{"type": "certificates", "id": dist_cert()}]}}}})
         if s != 201:
@@ -61,7 +65,7 @@ def profile():
     dest = pathlib.Path.home() / "Library/MobileDevice/Provisioning Profiles" / f"{a['uuid']}.mobileprovision"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(base64.b64decode(a["profileContent"]))
-    (HERE / "profile_uuid.txt").write_text(a["uuid"] + "\n")
+    (HERE / out).write_text(a["uuid"] + "\n")
     print("profile", a["name"], a["uuid"], "expires", a["expirationDate"])
 
 
@@ -73,4 +77,5 @@ def app():
 
 
 if __name__ == "__main__":
-    {"profile": profile, "app": app}[sys.argv[1] if len(sys.argv) > 1 else "profile"]()
+    {"profile": profile, "app": app,
+     "widget": lambda: profile("com.joshgreenman.sweep.widget", "Sweep Widget", "widget_profile_uuid.txt")}[sys.argv[1] if len(sys.argv) > 1 else "profile"]()
