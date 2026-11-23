@@ -1,6 +1,9 @@
 import sys, json, os
 src, out = sys.argv[1], sys.argv[2]
-Y0, Y1, TOP = 1880, 2024, 50
+import re
+yrs = sorted(int(m.group(1)) for f in os.listdir(src) if (m := re.match(r'yob(\d{4})\.txt$', f)))
+Y0, Y1, TOP = yrs[0], yrs[-1], 50
+assert yrs == list(range(Y0, Y1 + 1)), 'missing years'
 data = {'F': {}, 'M': {}}   # sex -> name -> {year: (rank, count)}
 totals = {'F': {}, 'M': {}}
 tail = {'F': {}, 'M': {}}
