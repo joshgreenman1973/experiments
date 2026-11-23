@@ -11,6 +11,11 @@ N = int(sys.argv[2]) if len(sys.argv) > 2 else 1500
 random.seed(7)
 FOREVER = "2026-01-01.2100-12-31"
 INF = float("inf")
+# OUTSIDE_NYC=1 scores the households as Albany County residents instead (no
+# city income tax), to check the state side for the rest of New York.
+import os
+OUTSIDE = os.environ.get("OUTSIDE_NYC") == "1"
+COUNTY = "ALBANY_COUNTY_NY" if OUTSIDE else "KINGS_COUNTY_NY"
 
 REFORMS = {
     "baseline": None,
@@ -86,7 +91,7 @@ def situation(hs):
         S["tax_units"][f"t{i}"] = {"members": members}
         S["families"][f"f{i}"] = {"members": members}
         S["spm_units"][f"s{i}"] = {"members": members}
-        S["households"][f"h{i}"] = {"members": members, "state_code": {Y: "NY"}, "county_str": {Y: "KINGS_COUNTY_NY"}}
+        S["households"][f"h{i}"] = {"members": members, "state_code": {Y: "NY"}, "county_str": {Y: COUNTY}}
         if h["married"]:
             S["marital_units"][f"m{i}"] = {"members": [f"h{i}a0", f"h{i}a1"]}
         else:
@@ -106,6 +111,8 @@ for w in [0, 1, 25_000, 50_000, 75_000, 75_999, 107_650, 150_000, 150_500, 157_6
         hs.append({"married": married, "wages": w, "kidsUnder1": 0, "kids1to3": 0, "kids4to16": 0, "kids17": 0})
 
 # JSON has no infinity; check_engine.mjs reads "inf" as the engine does.
+if OUTSIDE:
+    for h in hs: h["inNYC"] = False
 out = {"households": hs, "reforms": {k: ({p: ("inf" if v == INF else v) for p, v in r.items()} if r else r) for k, r in REFORMS.items()}, "results": {}}
 # Optional third argument: a comma-separated list of scenarios to run (so runs
 # can be split across processes and merged).

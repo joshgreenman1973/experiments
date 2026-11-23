@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tax proposals and you (test)</title>
+<meta name="description" content="Test version. Describe your household and see what each New York State and New York City income tax proposal would do to your family's 2026 bill. Tax rules from PolicyEngine US.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+  :root{--accent:var(--cobalt)}
+  .testband{--band:#ffd23f;padding:14px clamp(16px,4vw,48px);font-size:15px;line-height:1.45}
+  .testband b{font-weight:700}
+  .testband a{color:var(--fg)}
+
+  /* The household, as one sentence with blanks in it */
+  .you{font-family:var(--display);font-variation-settings:'wdth' 90;font-weight:400;font-size:clamp(1.35rem,2.6vw,1.9rem);line-height:1.75;max-width:40ch;margin:18px 0 0;text-wrap:pretty}
+  .you select,.you input{font:inherit;font-variation-settings:inherit;color:var(--fg);background:transparent;border:0;border-bottom:2px solid var(--accent);border-radius:0;padding:0 2px;margin:0 2px;line-height:1.2}
+  .you select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:18px;background-image:linear-gradient(45deg,transparent 50%,var(--accent) 50%),linear-gradient(-45deg,transparent 50%,var(--accent) 50%);background-position:right 7px top 55%,right 1px top 55%;background-size:6px 6px;background-repeat:no-repeat}
+  .you select option{background:var(--bg);color:var(--fg)}
+  .you input{width:6.2em}
+  .you select:focus-visible,.you input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .now{font-size:var(--t-body,17px);color:var(--fg2);margin:16px 0 0;max-width:62ch}
+  .now b{color:var(--fg);font-weight:700}
+
+  /* The ledger: one row per proposal, bars run left (pay less) or right (pay more) from zero */
+  .ledger{margin-top:8px;border-top:1.5px solid var(--fg)}
+  .lhead{display:grid;grid-template-columns:minmax(0,1.25fr) 8.5em minmax(0,1fr);gap:0 18px;font-size:var(--t-small);color:var(--fg2);padding:10px 0 8px;border-bottom:1px solid var(--line)}
+  .lhead .z{display:flex;justify-content:space-between}
+  .row{border-bottom:1px solid var(--line2)}
+  .rbtn{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1.25fr) 8.5em minmax(0,1fr);gap:0 18px;align-items:center;width:100%;padding:13px 0;cursor:pointer}
+  .rbtn:hover .rt{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
+  .rbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .rt{font-family:var(--display);font-variation-settings:'wdth' 86;font-weight:600;font-size:1.08rem;line-height:1.25}
+  .rt .tw{display:inline-block;width:1.1em;color:var(--fg2);font-weight:400}
+  .rs{display:block;font-family:var(--sans);font-size:var(--t-small);color:var(--fg2);font-weight:400;margin-top:3px;padding-left:1.1em}
+  .amt{font-weight:700;font-variant-numeric:tabular-nums;text-align:right;font-size:1.05rem}
+  .amt small{display:block;font-weight:400;color:var(--fg2);font-size:var(--t-micro)}
+  .up{color:var(--vermilion)} .down{color:var(--mint)}
+  .track{position:relative;height:22px}
+  .track::before{content:"";position:absolute;left:50%;top:-6px;bottom:-6px;width:1px;background:var(--fg2)}
+  .bar{position:absolute;top:3px;height:16px}
+  .bar.up{background:var(--vermilion);left:50%}
+  .bar.down{background:var(--mint);right:50%}
+  .zeros .rbtn{padding:9px 0}
+  .zeros .rt{font-weight:500;font-size:1rem;color:var(--fg2)}
+  .zeros .amt{color:var(--fg2);font-weight:500;font-size:.95rem}
+  .zh{font-size:var(--t-small);color:var(--fg2);margin:26px 0 0;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  @media(max-width:700px){
+    .lhead{display:none}
+    .rbtn{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}
+    .track{grid-column:1/-1}
+  }
+
+  /* The drawer under an opened row */
+  .pdet{display:none;padding:4px 0 22px 1.1em;max-width:78ch}
+  .row.open .pdet{display:block}
+  .pdet p{margin:8px 0 0;font-size:15px;color:var(--fg2)}
+  .pdet p.what{color:var(--fg)}
+  .pdet a{color:var(--fg2)}
+  .pdet .alts{margin:12px 0 0;padding:0;list-style:none;font-size:15px}
+  .pdet .alts li{padding:6px 0;border-top:1px solid var(--line2);display:flex;justify-content:space-between;gap:16px}
+  .pdet .alts b{font-variant-numeric:tabular-nums}
+  .pdet .mini{margin-top:14px}
+  .pdet .mini .cap{font-size:var(--t-small);color:var(--fg2)}
+  .pdet svg{width:100%;height:150px;display:block;margin-top:6px}
+  .pdet svg text{font-family:var(--sans);font-size:11px;fill:var(--fg2)}
+  .pdet .go{display:inline-block;margin-top:12px;font-size:var(--t-small);font-weight:600;color:var(--fg)}
+  .pe{font-size:var(--t-small);margin-top:10px;padding-left:10px;border-left:3px solid var(--line)}
+  .pe.yes{border-left-color:var(--accent)}
+
+  .foot{font-size:var(--t-small);color:var(--fg2);border-top:1px solid var(--line);margin-top:20px}
+  .foot p{max-width:78ch;margin:0 0 10px}
+  .foot a{color:var(--fg2)}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="g-ink testband" role="note">
+  <b>Test version. Not ready for primetime.</b> The tax math has been checked against PolicyEngine, but this page hasn't been edited or fact-checked, and some proposals are simplified. Please don't cite or share these numbers yet.
+</div>
+
+<div class="strip">
+  <span>Tax rules from <a href="https://www.policyengine.org/us">PolicyEngine US</a>, an open-source model</span>
+  <span>Tax year 2026</span>
+</div>
+
+<header class="head">
+  <h1>Tax proposals and you</h1>
+  <p class="finding" id="finding" aria-live="polite">&nbsp;</p>
+  <p class="lede" id="lede">Describe your household and the page runs it through the <span id="nprops">ten</span> state and city income tax proposals we found in New York, then lines them up by what each would do to your family's bill. The tax rules come from <a href="https://github.com/PolicyEngine/policyengine-us">PolicyEngine US</a>, the open-source tax and benefit model built by <a href="https://www.policyengine.org">PolicyEngine</a>, whose model can run <span id="npe">most</span> of them directly. It covers full-year New York State residents whose income is wages and who take the standard deduction, in the city or elsewhere in the state. Two of the proposals change only New York City's income tax, so they matter only to city residents.</p>
+</header>
+
+<section class="sec" aria-labelledby="you-h">
+  <h2 id="you-h">Your household</h2>
+  <form class="you" id="you" onsubmit="return false">
+    We're
+    <select id="f-married" aria-label="Filing">
+      <option value="0">one adult filing alone</option>
+      <option value="1">a married couple filing jointly</option>
+    </select>
+    living
+    <select id="f-city" aria-label="Where you live">
+      <option value="1">in New York City</option>
+      <option value="0">elsewhere in New York State</option>
+    </select>,
+    with
+    <input id="f-wages" inputmode="numeric" autocomplete="off" aria-label="Wages for the year" value="$85,000">
+    in wages this year. Our children:
+    <select id="f-k0" aria-label="Babies under 1"></select> under 1,
+    <select id="f-k1" aria-label="Children 1 to 3"></select> aged 1 to 3,
+    <select id="f-k2" aria-label="Children 4 to 16"></select> aged 4 to 16 and
+    <select id="f-k3" aria-label="Children aged 17"></select> aged 17.
+  </form>
+  <p class="now" id="now" aria-live="polite"></p>
+</section>
+
+<section class="sec" aria-labelledby="led-h">
+  <h2 id="led-h">What each proposal would do to your bill</h2>
+  <p class="aside">Each one is measured on its own against current law, for 2026 incomes, even where it would start later. Open a row for what it does, where it stands, other versions and how it would hit families like yours at other incomes.</p>
+  <div class="ledger" id="ledger" role="list"></div>
+  <div class="zeros" id="zeros"></div>
+</section>
+
+<footer class="sec foot">
+  <p><b>Credit.</b> Every tax rule, rate, threshold and credit formula on this page comes from <a href="https://github.com/PolicyEngine/policyengine-us">PolicyEngine US</a> (version 2.145.7), built by <a href="https://www.policyengine.org">PolicyEngine</a>. PolicyEngine runs in Python, so this page uses a JavaScript translation of the parts that apply to New York wage earners, shared with the <a href="../nyc-tax-levers/">tax levers calculator</a>. The translation was run side by side with PolicyEngine on 1,620 made-up households under 19 scenarios, including each of PolicyEngine's New York bill reforms, and all 430,920 values agreed within a dollar, apart from rounding of a few dollars at incomes in the tens of millions. Where a proposal goes beyond what PolicyEngine models, its row says so. Any mistakes are this page's, not PolicyEngine's. The tax code is licensed under the <a href="https://www.gnu.org/licenses/agpl-3.0.html">GNU AGPL 3.0</a>, like PolicyEngine US (<a href="../nyc-tax-levers/LICENSE.md">license</a>).</p>
+  <p><a href="../nyc-tax-levers/methodology.html">How it works</a>, including who it covers and what's left out · <a href="../nyc-tax-levers/">Combine proposals and adjust their numbers</a> · <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-tax-check">Source code</a> · Test version, November 2026</p>
+</footer>
+</div>
+
+<script src="../nyc-tax-levers/engine.js?v=20261123"></script>
+<script src="../nyc-tax-levers/levers.js?v=20261123"></script>
+<script>
+(function(){
+"use strict";
+const $ = (s, el) => (el || document).querySelector(s);
+const usd = (n) => "$" + Math.round(Math.abs(n)).toLocaleString("en-US");
+const signed = (n) => (Math.round(n) > 0 ? "+" : Math.round(n) < 0 ? "−" : "") + usd(n);
+const L = Object.fromEntries(LEVERS.map((l) => [l.id, l]));
+
+/* One row per proposal. Each points at a lever in levers.js and the setting
+   that stands for the proposal; "alts" are its other versions. "pe" says how
+   far PolicyEngine models it (true, "part" or false). */
+const ROWS = [
+  { id: "fairshare", lever: "fairshare", level: "City", pe: true,
+    title: "Mamdani's 2 percent city tax on income over $1 million", bill: "Fair Share Act, S8577",
+    v: { base: 0, rate: 0.02, threshold: 1e6 },
+    alts: [["If the 2 percent applies to all income once it passes $1 million (not modeled by PolicyEngine)", { base: 1, rate: 0.02, threshold: 1e6 }]] },
+  { id: "toprates", lever: "toprates", level: "State", pe: false,
+    title: "Higher state rates above $5 million", bill: "Senate budget plan, March 2026",
+    v: { plan: 0 }, alts: [["Assembly budget plan", { plan: 1 }]] },
+  { id: "s9110", lever: "s9110", level: "State", pe: true,
+    title: "A Republican rate cut with a zero bracket", bill: "S9110",
+    v: { year: 0 }, alts: [["2035 rate tables, fully phased in", { year: 1 }]] },
+  { id: "lapse", lever: "escc", level: "State", pe: true, law: true,
+    title: "The child credit expansion runs out after 2027", bill: "Already law for 2028 unless Albany acts",
+    v: { plan: 0 }, alts: [] },
+  { id: "s9077", lever: "escc", level: "State", pe: true,
+    title: "A bigger Empire State Child Credit", bill: "S9077, in its 2030 form",
+    v: { plan: 2 }, alts: [["2029 step: $1,500 under 4, $1,250 ages 4 to 17", { plan: 1 }]] },
+  { id: "infant", lever: "infant", level: "State", pe: true,
+    title: "A double child credit for babies", bill: "A4038", v: {}, alts: [] },
+  { id: "newborn", lever: "newborn", level: "State", pe: true,
+    title: "A $1,000 credit for each newborn", bill: "S4487", v: {}, alts: [] },
+  { id: "nyeitc", lever: "nyeitc", level: "State", pe: true,
+    title: "A bigger state earned income credit", bill: "S4425: 40 percent of the federal credit",
+    v: { match: 0.40 }, alts: [["A5661: 45 percent", { match: 0.45 }]] },
+  { id: "wftc", lever: "wftc", level: "State", pe: true,
+    title: "The Working Families Tax Credit", bill: "S2082, fully phased in", v: {}, alts: [] },
+  { id: "stc", lever: "stc", level: "City", pe: "part",
+    title: "A city child credit, paid for by trimming the school tax credit", bill: "S2238",
+    v: { part: 0 }, alts: [["The school tax credit phase-out alone", { part: 1 }]] },
+];
+const PE_NOTE = {
+  true: "Modeled in PolicyEngine. This page's numbers match PolicyEngine's for this proposal.",
+  part: "Partly modeled in PolicyEngine; the rest was worked out from the bill and checked by hand.",
+  false: "Not modeled in PolicyEngine. Worked out from the proposal and checked by hand.",
+};
+
+let BASE = null;
+const H = { inNYC: true, married: false, wages: 85000, kidsUnder1: 0, kids1to3: 0, kids4to16: 2, kids17: 0 };
+const KIDS = ["kidsUnder1", "kids1to3", "kids4to16", "kids17"];
+const open = new Set();
+
+function params(lever, v) {
+  const P = structuredClone(BASE); P.extra = {};
+  if (lever) L[lever].apply(P, v);
+  return P;
+}
+// Memoize the parameter sets; the household changes far more often than they do.
+const PCACHE = new Map();
+function P(lever, v) {
+  const key = lever + JSON.stringify(v || {});
+  if (!PCACHE.has(key)) PCACHE.set(key, params(lever, v));
+  return PCACHE.get(key);
+}
+const effect = (h, lever, v) => NYTax.compute(h, P(lever, v)).total - NYTax.compute(h, P(null)).total;
+
+/* ---- household form ---- */
+function fillForm() {
+  KIDS.forEach((k, i) => {
+    const s = $("#f-k" + i);
+    s.innerHTML = Array.from({ length: 7 }, (_, n) => `<option value="${n}">${n === 0 ? "none" : n}</option>`).join("");
+  });
+}
+function syncForm() {
+  $("#f-married").value = H.married ? "1" : "0";
+  $("#f-city").value = H.inNYC ? "1" : "0";
+  KIDS.forEach((k, i) => $("#f-k" + i).value = String(H[k]));
+  const w = $("#f-wages"); if (document.activeElement !== w) w.value = usd(H.wages);
+}
+function readHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.has("m")) H.married = q.get("m") === "1";
+  if (q.has("c")) H.inNYC = q.get("c") !== "0";
+  if (q.has("w")) H.wages = Math.min(1e9, Math.max(0, +q.get("w") || 0));
+  KIDS.forEach((k, i) => { const v = q.get("k" + i); if (v !== null) H[k] = Math.min(6, Math.max(0, +v || 0)); });
+  if (q.has("open")) q.get("open").split(",").forEach((id) => id && open.add(id));
+}
+function writeHash() {
+  const q = new URLSearchParams();
+  q.set("c", H.inNYC ? "1" : "0"); q.set("m", H.married ? "1" : "0"); q.set("w", H.wages);
+  KIDS.forEach((k, i) => q.set("k" + i, H[k]));
+  if (open.size) q.set("open", [...open].join(","));
+  history.replaceState(null, "", "#" + q.toString());
+}
+function wire() {
+  $("#f-married").addEventListener("change", (e) => { H.married = e.target.value === "1"; update(); });
+  $("#f-city").addEventListener("change", (e) => { H.inNYC = e.target.value === "1"; update(); });
+  KIDS.forEach((k, i) => $("#f-k" + i).addEventListener("change", (e) => { H[k] = +e.target.value; update(); }));
+  const w = $("#f-wages");
+  w.addEventListener("input", () => { const v = +w.value.replace(/[^0-9.]/g, ""); if (isFinite(v)) { H.wages = Math.min(1e9, Math.round(v)); update(); } });
+  w.addEventListener("blur", () => syncForm());
+  w.addEventListener("focus", () => w.select());
+  let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(update, 150); });
+}
+
+/* ---- words ---- */
+function nKids() { return KIDS.reduce((n, k) => n + H[k], 0); }
+function who() {
+  const k = nKids();
+  const base = H.married ? "a married couple" : k ? "a single parent" : "a single filer";
+  return base + (k ? ` with ${k} ${k === 1 ? "child" : "children"}` : "") + (H.inNYC ? " in New York City" : " outside New York City");
+}
+
+/* ---- the ledger ---- */
+function render() {
+  const r0 = NYTax.compute(H, P(null));
+  const st = r0.ny.tax < 0 ? "no state income tax, and get " + usd(r0.ny.tax) + " back" : usd(r0.ny.tax) + " to the state";
+  const ct = r0.nyc.tax < 0 ? "no city income tax, and get " + usd(r0.nyc.tax) + " back" : usd(r0.nyc.tax) + " to the city";
+  $("#now").innerHTML = `Under current law, ${who()} earning ${usd(H.wages)} would owe <b>${st}</b>${H.inNYC ? ` and <b>${ct}</b>` : ""} for 2026, after credits.${r0.status === "HEAD_OF_HOUSEHOLD" ? " Unmarried with children, you'd file as head of household." : ""}${H.inNYC ? "" : " Outside New York City there's no city income tax. (Yonkers residents pay a city surcharge on their state tax, which this page leaves out.)"}`;
+
+  const rows = ROWS.map((R) => ({ R, d: effect(H, R.lever, R.v) }));
+  const moving = rows.filter((x) => Math.round(x.d) !== 0).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  const still = rows.filter((x) => Math.round(x.d) === 0);
+  const max = Math.max(1, ...moving.map((x) => Math.abs(x.d)));
+
+  // the finding: one plain sentence about this household
+  if (!moving.length) $("#finding").textContent = `None of the ${ROWS.length} proposals would change the 2026 state and city income tax for ${who()} earning ${usd(H.wages)}.`;
+  else {
+    const top = moving[0], name = top.R.bill.split(/[:,]/)[0], by = `${top.d < 0 ? "cut it by" : "raise it by"} ${usd(top.d)} a year`;
+    const W = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const n = moving.length < 10 ? W[moving.length] : String(moving.length);
+    $("#finding").textContent = moving.length === 1
+      ? `Only one of the ${ROWS.length} proposals would change the bill for ${who()} earning ${usd(H.wages)}: ${name} would ${by}.`
+      : `${n[0].toUpperCase() + n.slice(1)} of the ${ROWS.length} proposals would change the bill for ${who()} earning ${usd(H.wages)}. The biggest, ${name}, would ${by}.`;
+  }
+
+  const led = $("#ledger");
+  led.innerHTML = moving.length
+    ? `<div class="lhead" aria-hidden="true"><span>Proposal</span><span style="text-align:right">For you, a year</span><span class="z"><span>Pay less</span><span>Pay more</span></span></div>` + moving.map((x) => rowHTML(x, max)).join("")
+    : "";
+  $("#zeros").innerHTML = still.length
+    ? `<p class="zh">${moving.length ? "These wouldn't change your bill" : "No proposal would change your bill"}</p>` + still.map((x) => rowHTML(x, max, true)).join("")
+    : "";
+  document.querySelectorAll(".row").forEach((el) => {
+    $(".rbtn", el).addEventListener("click", () => { const id = el.dataset.id; open.has(id) ? open.delete(id) : open.add(id); writeHash(); render(); });
+    if (el.classList.contains("open")) drawMini(el);
+  });
+}
+
+function rowHTML({ R, d }, max, zero) {
+  const lev = L[R.lever], isOpen = open.has(R.id);
+  const pct = (Math.abs(d) / max) * 50;
+  const dir = d > 0 ? "up" : "down";
+  const amt = zero ? (R.level === "City" && !H.inNYC ? "No change outside the city" : "No change") : `<span class="${dir}">${signed(d)}</span><small>${d > 0 ? "more" : "less"}</small>`;
+  const src = lev.sources.map((s) => `<a href="${s[1]}">${s[0]}</a>`).join(", ");
+  const alts = R.alts.map(([label, v]) => {
+    const e = effect(H, R.lever, v);
+    return `<li><span>${label}</span><b class="${Math.round(e) > 0 ? "up" : Math.round(e) < 0 ? "down" : ""}">${Math.round(e) ? signed(e) : "No change"}</b></li>`;
+  }).join("");
+  const calc = new URLSearchParams({ m: H.married ? "1" : "0", w: H.wages });
+  KIDS.forEach((k, i) => calc.set("k" + i, H[k]));
+  calc.set(R.lever, lev.controls.map((c) => (R.v[c.k] !== undefined ? R.v[c.k] : c.value)).join(","));
+  return `<div class="row${isOpen ? " open" : ""}" role="listitem" data-id="${R.id}">
+    <button class="rbtn" aria-expanded="${isOpen}">
+      <span class="rt"><span class="tw" aria-hidden="true">${isOpen ? "–" : "+"}</span>${R.title}<span class="rs">${R.level === "City" ? "New York City residents only" : "Statewide"} · ${R.bill}</span></span>
+      <span class="amt">${amt}</span>
+      ${zero ? "<span></span>" : `<span class="track" aria-hidden="true"><span class="bar ${dir}" style="width:${pct.toFixed(2)}%"></span></span>`}
+    </button>
+    <div class="pdet">
+      <p class="what">${lev.what}</p>
+      <p>${lev.status}.${src ? (lev.sources.length > 1 ? " Sources: " : " Source: ") + src + "." : ""}</p>
+      ${lev.note ? `<p>${lev.note}</p>` : ""}
+      ${alts ? `<ul class="alts"><li><span>This version, as shown above</span><b class="${zero ? "" : dir}">${zero ? "No change" : signed(d)}</b></li>${alts}</ul>` : ""}
+      <div class="mini"><span class="cap">What it would do to ${who()} at every wage level, $5,000 to $10 million</span><svg role="img" aria-label="Chart of the change in tax by wage level for this proposal"></svg></div>
+      <p class="pe${R.pe === true ? " yes" : ""}">${PE_NOTE[R.pe]}</p>
+      ${H.inNYC ? `<a class="go" href="../nyc-tax-levers/#${calc.toString()}">Adjust it or combine it with others in the full calculator</a>` : ""}
+    </div>
+  </div>`;
+}
+
+/* ---- small chart in an open drawer: change in tax across wages ---- */
+function drawMini(el) {
+  const R = ROWS.find((r) => r.id === el.dataset.id), svg = $("svg", el);
+  const W = svg.clientWidth || 600, Hh = 150, m = { l: 58, r: 8, t: 10, b: 22 }, iw = W - m.l - m.r, ih = Hh - m.t - m.b;
+  const cs = getComputedStyle(document.documentElement), tok = (n) => cs.getPropertyValue("--" + n).trim();
+  const lo = Math.log10(5000), hi = Math.log10(1e7), N = 160, pts = [];
+  for (let i = 0; i <= N; i++) { const w = Math.pow(10, lo + (hi - lo) * i / N); pts.push([w, effect(Object.assign({}, H, { wages: w }), R.lever, R.v)]); }
+  let y0 = Math.min(0, ...pts.map((p) => p[1])), y1 = Math.max(0, ...pts.map((p) => p[1]));
+  if (y1 - y0 < 1) { y0 = -100; y1 = 100; }
+  const pad = (y1 - y0) * 0.08; if (y0 < 0) y0 -= pad; if (y1 > 0) y1 += pad;
+  const x = (w) => m.l + (Math.log10(w) - lo) / (hi - lo) * iw, y = (v) => m.t + (y1 - v) / (y1 - y0) * ih;
+  const raw = (y1 - y0) / 3, p10 = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 2.5, 5, 10].map((k) => k * p10).find((s) => s >= raw);
+  let g = "";
+  for (let v = Math.ceil(y0 / step) * step; v <= y1; v += step)
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="${Math.abs(v) < 1e-9 ? tok("fg2") : tok("grid")}"/><text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${Math.abs(v) < 1e-9 ? "$0" : signed(v)}</text>`;
+  for (const [w, lab] of [[1e4, "$10K"], [1e5, "$100K"], [1e6, "$1M"], [1e7, "$10M"]])
+    g += `<text x="${Math.min(x(w), W - m.r - 14)}" y="${Hh - 5}" text-anchor="middle">${lab}</text>`;
+  const z = y(0);
+  const area = (s) => "M" + pts.map((p) => `${x(p[0]).toFixed(1)},${y(s > 0 ? Math.max(0, p[1]) : Math.min(0, p[1])).toFixed(1)}`).join("L") + `L${x(1e7)},${z}L${x(5000)},${z}Z`;
+  g += `<path d="${area(1)}" fill="${tok("vermilion")}" opacity=".9"/><path d="${area(-1)}" fill="${tok("mint")}" opacity=".9"/>`;
+  if (H.wages >= 5000 && H.wages <= 1e7) g += `<line x1="${x(H.wages)}" x2="${x(H.wages)}" y1="${m.t}" y2="${m.t + ih}" stroke="${tok("accent")}" stroke-width="2"/><text x="${Math.min(x(H.wages) + 5, W - m.r - 60)}" y="${m.t + 10}" style="fill:${tok("accent")}">Your wages</text>`;
+  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  svg.innerHTML = g;
+}
+
+function update() { writeHash(); syncForm(); render(); }
+
+fetch("../nyc-tax-levers/params-2026.json?v=20261123").then((r) => r.json()).then((p) => {
+  BASE = p;
+  const words = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "11", "12", "13", "14", "15"];
+  $("#nprops").textContent = words[ROWS.length];
+  const npe = ROWS.filter((r) => r.pe === true).length;
+  $("#npe").textContent = words[npe];
+  fillForm(); readHash(); wire(); update();
+}).catch((err) => { $("#finding").textContent = "The tax rules failed to load. Try reloading the page."; console.error(err); });
+})();
+</script>
+</body>
+</html>

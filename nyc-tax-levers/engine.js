@@ -49,6 +49,9 @@
    *   married: boolean (married couples file jointly)
    *   wages: total wages for the tax unit
    *   kidsUnder1, kids1to3, kids4to16, kids17: dependent children by age
+   *   inNYC: false for New York State residents outside the city, who owe no
+   *     city income tax and get none of its credits (default true). Yonkers'
+   *     resident surcharge is not modeled.
    * Parameters: the params-2026.json object, optionally edited by levers. That
    *   includes P.contrib, PolicyEngine's own parameters for its New York bill
    *   reforms, and P.extra, for levers PolicyEngine does not model (see below).
@@ -275,13 +278,16 @@
     const nycRefundable = nycEitc + nycSchool + nycElim + nycChild;
     const nycTax = nycBeforeRefundable - nycRefundable; // nyc_income_tax
 
+    const city = h.inNYC === false
+      ? { taxable: 0, regular: 0, mamdani: 0, beforeCredits: 0, householdCredit: 0, eitc: 0, school: 0, elimination: 0, childCredit: 0, tax: 0 }
+      : { taxable: nycTI, regular: nycRegular, mamdani: nycMamdani, beforeCredits: nycBeforeCredits,
+          householdCredit: nycHousehold, eitc: nycEitc, school: nycSchool, elimination: nycElim, childCredit: nycChild, tax: nycTax };
     return {
       status, agi, fedEitc,
       ny: { taxable: nyTI, main: nyMain, supplemental: nySupp, surcharge: nySurcharge, beforeCredits: nyBeforeCredits,
             householdCredit: nyHousehold, eitc: nyEitc, escc, wftc: wftcCredit, newborn, tax: nyTax },
-      nyc: { taxable: nycTI, regular: nycRegular, mamdani: nycMamdani, beforeCredits: nycBeforeCredits,
-             householdCredit: nycHousehold, eitc: nycEitc, school: nycSchool, elimination: nycElim, childCredit: nycChild, tax: nycTax },
-      total: nyTax + nycTax,
+      nyc: city,
+      total: nyTax + city.tax,
     };
   }
 
