@@ -43,9 +43,9 @@ FEEDS = {
     # the only transit link between Staten Island and Manhattan, so leaving it
     # out silently strands the borough.
     "siferry": "https://data.cityofnewyork.us/download/b57i-ri22/application%2Fzip",
-    # NYC Ferry (Astoria, East River, South Brooklyn, Rockaway, Soundview,
-    # Governors Island, St. George). A different operator again, published
-    # through its own vendor feed.
+    # NYC Ferry (Astoria, East River, South Brooklyn, Rockaway-Soundview,
+    # St. George; summer adds the Governors Island shuttle and the Rockaway
+    # Rocket). A different operator again, published through its own vendor feed.
     "nycferry": "https://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx",
     # PATH -- Port Authority Trans-Hudson. Included where the commuter
     # railroads are not, because it behaves like a subway: see METHODOLOGY.md.
@@ -121,10 +121,16 @@ def gtfs_secs(t):
 
 def pick_service_dates(zf):
     """Choose a representative weekday / saturday / sunday inside the feed's
-    validity window. Dates carrying calendar_dates exceptions are holiday or
-    diversion schedules — a rebuild the week before Christmas must not bake
-    holiday headways into every weekday band — so exception dates are skipped
-    unless nothing else is available."""
+    validity window.
+
+    "Representative" is measured, not assumed: for each day kind we look at the
+    same weekday across the next eight weeks, count the scheduled trips on each,
+    and take the first date whose count equals the most common one. Holidays
+    and holiday weeks (Dec. 30 runs about 12% fewer buses than a normal
+    Wednesday) fall out because their count differs from the usual one. An
+    earlier rule skipped any date with a calendar_dates entry, but the MTA bus
+    feeds carry a few routine additions on nearly every weekday, so that rule
+    skipped every ordinary Wednesday and landed on the holiday week."""
     cal = read_csv(zf, "calendar.txt")
     if not cal:
         return {}
@@ -133,30 +139,32 @@ def pick_service_dates(zf):
     lo = max(min(starts), date.today().strftime("%Y%m%d"))
     hi = max(ends)
 
-    exception_dates = {e["date"] for e in read_csv(zf, "calendar_dates.txt") if e.get("date")}
+    from collections import Counter
+    trips_by_service = Counter(t["service_id"] for t in read_csv(zf, "trips.txt"))
 
     def d(s):
         return date(int(s[:4]), int(s[4:6]), int(s[6:8]))
 
     lo_d, hi_d = d(lo), d(hi)
-    if lo_d > hi_d:
+    if lo_d > hi_d:  # expired feed (PATH): use its own window
         lo_d = d(min(starts))
     want = {"weekday": 2, "saturday": 5, "sunday": 6}  # Wed, Sat, Sun
     out = {}
     for kind, wd in want.items():
-        fallback = None
+        counts = []
         cur = lo_d
-        while cur <= hi_d and cur <= lo_d + timedelta(days=60):
+        while cur <= hi_d and cur <= lo_d + timedelta(days=56):
             if cur.weekday() == wd:
                 s = cur.strftime("%Y%m%d")
-                if s not in exception_dates:
-                    out[kind] = s
-                    break
-                if fallback is None:
-                    fallback = s
+                n = sum(trips_by_service[x] for x in active_services(zf, s))
+                if n:
+                    counts.append((s, n))
             cur += timedelta(days=1)
-        if kind not in out and fallback:
-            out[kind] = fallback
+        if not counts:
+            continue
+        freq = Counter(n for _, n in counts)
+        usual = max(freq, key=lambda n: (freq[n], n))
+        out[kind] = next(s for s, n in counts if n == usual)
     return out
 
 

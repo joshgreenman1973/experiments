@@ -14,7 +14,7 @@ three are fixed here, and the fixes are the reason for the rebuild.
 
 | Old | New |
 |---|---|
-| Bus times were wrong, then multiplied by a hardcoded `2.5` to "reflect real-world speeds". Implied speeds reached 64 mph. | Bus times come from the MTA bus GTFS feeds. Median implied speed is 7.4 mph. No correction applied, and none needed. |
+| Bus times were wrong, then multiplied by a hardcoded `2.5` to "reflect real-world speeds". Implied speeds reached 64 mph. | Bus times come from the MTA bus GTFS feeds. Median implied speed is 7.3 mph. No blanket correction; four plainly wrong timetable rows are held to 60 mph (see Validation). |
 | Walking assumed a flat `GRID_FACTOR = 1.4` detour over straight-line distance. | Walking and cycling are routed on the city's real street network (331,310 nodes, 427,613 segments, including the New Jersey PATH corridor). |
 | No wait times at all. | Waits are computed per stop, route, direction and time of day from scheduled departures. |
 | `transitScore()` produced an invented 0–100 index from arbitrary weights. | Removed. The map reports measured quantities only: kilometres of street, stations and stops reached. |
@@ -30,10 +30,10 @@ applies no factor; the measurement is kept only as a reference in
 
 | Input | Source |
 |---|---|
-| Subway schedules | MTA GTFS static, `gtfs_subway.zip` (downloaded July 16, 2026) |
-| Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
+| Subway schedules | MTA GTFS static, `gtfs_subway.zip` (downloaded November 23, 2026; service of the week of November 25) |
+| Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company (downloaded November 23, 2026; fall 2026 schedules) |
 | Staten Island Ferry | NYC DOT GTFS, NYC Open Data `b57i-ri22` (feed version 18, valid 2026-01-01 to 2028-01-17) |
-| NYC Ferry | Operator GTFS via Connexionz (feed version 20260707, the July 2026 summer schedule) |
+| NYC Ferry | Operator GTFS via Connexionz (feed version 20261112, the fall and winter 2026 schedule) |
 | PATH | Port Authority Trans-Hudson GTFS via Trillium (see the staleness note below) |
 | New Jersey streets | OpenStreetMap via Overpass, PATH corridor only (Newark, Harrison, Jersey City, Hoboken) |
 | Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
@@ -59,16 +59,15 @@ speed, since track and street distance always exceed straight-line distance.
 
 | Mode | p10 | Median | p90 | Max |
 |---|---|---|---|---|
-| Bus (weekday AM peak) | 5.0 | **7.4** | 12.7 | 44.5 mph |
-| Subway (weekday AM peak) | 10.8 | **15.1** | 20.8 | 32.7 mph |
+| Bus (weekday AM peak) | 5.0 | **7.3** | 12.7 | 44.5 mph |
+| Subway (weekday AM peak) | 10.7 | **15.0** | 20.9 | 32.7 mph |
 
 New York City buses average roughly 7 to 8 mph citywide, so the bus figure lands
 where it should. Four segments on the Q19 at the evening rush imply 112 to 142 mph (571 m in
 9 seconds) — timetable errors. The router holds every bus segment to at most
-60 mph over the straight-line distance, which changes only those four; no other
-bus segment in any band implies more than 49 mph.
+60 mph over the straight-line distance, which changes only those four; no other bus segment in any band implies more than 54 mph.
 
-Late-night buses come out faster than peak buses (10.7 mph against 7.4). That is
+Late-night buses come out faster than peak buses (10.7 mph against 7.3). That is
 congestion showing up in the schedule, and nothing in the build put it there.
 
 Run `pipeline/validate.py` to reproduce this table.
@@ -85,7 +84,7 @@ Two points about them:
 
 - **They run mostly at the peak.** The schedule bears this out — express stops
   see about 7,500 scheduled departures an hour in the weekday morning rush,
-  2,700 midday and 700 overnight — so a midday or late-night isochrone
+  2,600 midday and 700 overnight — so a midday or late-night isochrone
   correctly includes far less express service than a rush-hour one. A route that does not run in a band contributes nothing
   to it.
 - **They cost more than double.** The express-bus fare is $7.25, against $3.00
@@ -126,13 +125,13 @@ Weekday AM peak headways, per direction:
 | 7 | 5.2 min |
 | A | 6.7 min |
 | G | 7.5 min |
-| B41 | 8.6 min |
+| B41 | 7.8 min |
 | M104 | 12.8 min |
 
 The 6 train reads 6.9 minutes rather than the 2 to 4 minutes riders experience.
 At 86 St in the peak direction the schedule has 26
-route `6` departures in three hours and a further 27 on route `6X`, the Pelham Bay
-express, which runs peak-direction only. Together they are a train every 3.4
+route `6` departures in three hours and a further 26 on route `6X`, the Pelham Bay
+express, which runs peak-direction only. Together they are a train every 3.5
 minutes. The map counts them separately, so it is conservative here. See
 "common lines" below.
 
@@ -212,9 +211,9 @@ train runs on its schedule regardless of traffic. Territory each side wins:
 
 | Traffic | Train wins | Cab is faster | Only a cab reaches | Tie |
 |---|---|---|---|---|
-| Light | 66 km | 2,216 | 3,926 | 236 |
-| Typical | 543 km | 1,475 | 1,150 | 499 |
-| Heavy | **1,343 km** | 580 | 276 | 594 |
+| Light | 65 km | 2,216 | 3,930 | 232 |
+| Typical | 532 km | 1,479 | 1,150 | 501 |
+| Heavy | **1,340 km** | 574 | 273 | 599 |
 
 Territory is counted on drivable streets inside the city, and a street counts
 for a mode only when both its ends are reached in time — the same rule as the
@@ -299,7 +298,7 @@ Default speeds are 3.1 mph walking and 8.9 mph cycling. Both are exposed as
 sliders, so you can set your own.
 
 Transit stops are snapped to the nearest street node: median distance 20.6 m, 45.2 m
-at the ninety-fifth percentile. Seventy-three stops of 14,898 sit more than 200 m
+at the ninety-fifth percentile. Seventy-three stops of 14,994 sit more than 200 m
 from any street node, and 20 of those — bus stops on routes that run past the
 city line into Nassau County, Yonkers and Bayonne — have no street within reach
 at all. Buses ride through those 20 normally;
@@ -329,20 +328,22 @@ review caught it.)
 Three operators, three feeds, and none of them is the Metropolitan Transportation Authority (MTA) — which is why an
 earlier build of this map had no boats at all.
 
-**NYC Ferry** contributes seven boat routes across 25 landings: Astoria, East
-River, South Brooklyn, Rockaway-Soundview and St. George, which run all year,
-and two summer-only weekend boats, the Governors Island shuttle and the
-Rockaway Rocket express. The feed used is the July 2026 schedule, so those two
-appear in the Saturday and Sunday bands even out of season. Its feed also carries two `route_type=3`
-routes — the free Rockaway shuttle *buses* — so route kind is read from each
-route's GTFS `route_type` rather than assumed from the feed. Labelling by feed
-would have called 17 bus stops on Rockaway Beach Boulevard "ferry landings".
+**NYC Ferry** contributes five boat routes across 25 landings: Astoria, East
+River, South Brooklyn (which also calls at Governors Island), Rockaway-Soundview
+and St. George. Two summer-only boats, the Governors Island shuttle and the
+Rockaway Rocket express, are not in the fall schedule used here, so a summer
+weekend map would show a little more ferry reach than this one. The feed also
+carries two `route_type=3` routes — the free Rockaway East and Rockaway West
+shuttle *buses* — so route kind is read from each route's GTFS `route_type`
+rather than assumed from the feed. Labelling by feed would have called 25 bus
+stops on the Rockaway peninsula "ferry landings".
 
 Validation against the timetables: the East River route runs Wall St to Dumbo in
 8 minutes and Dumbo to South Williamsburg in 10, on 12-to-26-minute headways at
-the morning peak; Astoria runs every 36 to 45.
+the morning peak; Astoria runs every 36 to 45 and South Brooklyn every 45 to 60.
 The outer routes' headways are long: from Red Hook, the ferry reaches Wall
-Street in 41 minutes, most of which is the wait for a boat every 45.
+Street in 36 minutes, 20 of them (the capped wait) spent waiting for a boat that
+comes every 45.
 
 **The Staten Island Railway** was already present — it arrives inside the MTA
 subway feed as route `SIR`, all 21 stations from Tottenville to St George, and
@@ -377,7 +378,7 @@ midday and evening, and 30 minutes overnight and at weekends. The published
 timetable runs boats every 15 minutes at the height of the rush; the band
 average includes its shoulders. A trip from St George works out as: walk to the terminal, wait 9
 minutes (half of the 18-minute headway), cross for 25, reach Whitehall at 34
-minutes, South Ferry station at 39, Times Square at 60.
+minutes, South Ferry station at 39, Times Square at 56.
 
 Both terminals are fully accessible, so the ferry stays available in
 accessibility mode. The ferry is also free, which this map does not model
@@ -446,7 +447,7 @@ Three smaller reasons point the same way:
 
 Seven routes, 13 stations, and the west bank of the Hudson: Newark, Harrison,
 Journal Square, Grove Street, Exchange Place, Newport and Hoboken join the map.
-From Hoboken at the morning rush, the World Trade Center is 21 minutes away,
+From Hoboken at the morning rush, the World Trade Center is 15 minutes away,
 Times Square 26, Newark 35.
 
 Walking still cannot cross the Hudson — from Hoboken the walk network reaches
@@ -616,6 +617,15 @@ Total payload is 16.0 MB across twelve files, covering all seven time bands.
 Service dates are chosen inside each feed's validity window (PATH's has expired;
 see above): a representative
 Wednesday, Saturday and Sunday, with `calendar_dates.txt` exceptions honoured.
+"Representative" is measured: for each day kind the build counts scheduled trips
+on that weekday across the next eight weeks and takes the first date with the
+most common count, so a holiday or a holiday week is never chosen. This build
+uses November 25, 28 and 29, 2026 for most feeds (December 2 for Brooklyn
+weekday buses and December 5 for NYC Ferry's Saturday, where Thanksgiving week
+differs). An earlier rule skipped any date with a calendar exception, but the
+MTA bus feeds add a few trips on nearly every weekday, so it skipped every
+ordinary Wednesday and would have landed on December 30, which runs about 12%
+fewer buses.
 
 ## A note on the AI caution label
 
