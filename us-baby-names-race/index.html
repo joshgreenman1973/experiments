@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The baby name horserace</title>
+<meta name="description" content="Every name that has been in the top 50 for American boys or girls since 1880, raced year by year from Social Security records.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../house-style/house.css">
+<style>
+  :root{--accent:var(--sun)}
+  .bar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line2);border-top:1px solid var(--line2);
+    display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:10px clamp(16px,4vw,48px);margin-top:22px}
+  .play{font-family:var(--sans);font-size:15px;font-weight:700;background:var(--fg);color:var(--bg);border:1px solid var(--fg);
+    padding:9px 16px;cursor:pointer;border-radius:0;min-width:92px}
+  .play:hover{background:var(--sun);border-color:var(--sun)}
+  .yr{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:700;font-size:2rem;line-height:1;
+    font-variant-numeric:tabular-nums;min-width:3.1ch}
+  .slide{flex:1 1 240px;display:flex;align-items:center}
+  input[type=range]{width:100%;accent-color:var(--sun);height:22px;cursor:pointer}
+  .leaders{font-size:var(--t-small);color:var(--fg2);min-width:15ch}
+  .leaders b{color:var(--fg)}
+  .bar input[type=search]{flex:0 1 210px;padding:8px 11px}
+  @media(max-width:640px){.bar{gap:8px 12px}.yr{font-size:1.6rem}.leaders{flex:1 1 auto}.bar input[type=search]{flex:1 1 130px}}
+  .eras{padding:16px clamp(16px,4vw,48px) 0;font-size:var(--t-small);color:var(--fg2);display:flex;flex-wrap:wrap;gap:4px 0}
+  .eras .lbl{margin-right:12px}
+  .eras .key i{height:3px;width:18px}
+  .chart{padding:20px clamp(16px,4vw,48px) 4px}
+  .chart h2{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:1.35rem;margin:0}
+  .chart .figcap{margin:4px 0 10px}
+  .chart canvas{width:100%}
+  .chart canvas.race{cursor:crosshair;touch-action:pan-y}
+  .tailcap{font-size:var(--t-small);color:var(--fg2);margin:14px 0 2px}
+  .readout{color:var(--fg2);max-width:90ch}
+  .readout b{color:var(--fg)}
+  .readout .x{background:none;border:0;color:var(--fg2);text-decoration:underline;cursor:pointer;font-size:inherit;padding:0 0 0 6px}
+  .method{padding:30px clamp(16px,4vw,48px) 10px;max-width:78ch}
+  .method h2{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:1.35rem;margin:0 0 10px}
+  .method h3{font-size:1rem;margin:22px 0 6px}
+  .method p,.method li{color:var(--fg2);font-size:1rem;line-height:1.6}
+  .method p b,.method li b{color:var(--fg)}
+  .method ul{padding-left:20px}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip">
+    <span><a href="https://www.ssa.gov/oact/babynames/limits.html">Social Security Administration</a>, names on card applications</span>
+    <span>1880 to 2024</span>
+  </div>
+
+  <header class="head">
+    <h1>The baby name horserace</h1>
+    <p class="finding">Of the 50 most common boys’ names in 1880, <a href="#m-findings">12</a> were still in the top 50 in 2024. For girls, <a href="#m-findings">5</a> were.</p>
+    <p class="lede">Since 1880, <a href="#m-findings"><b>206</b> boys’ names</a> and <a href="#m-findings"><b>314</b> girls’ names</a> have spent at least one year in the top 50. Five boys’ names never left it: John, James, William, Joseph and David. Among girls, only Elizabeth has stayed the whole way.</p>
+    <p class="lede">The field has also spread out. In 1880 the top 50 names went to <a href="#m-findings"><b>70 percent</b></a> of boys and <a href="#m-findings"><b>58 percent</b></a> of girls. In 2024 they went to <a href="#m-findings"><b>25 percent</b></a> and <a href="#m-findings"><b>21 percent</b></a>, while the number of girls’ names in use grew from <a href="#m-findings">942</a> to <a href="#m-findings">17,661</a>. The No. 1 girls’ name, Mary, went to <a href="#m-findings">7.8 percent</a> of girls in 1880; Olivia went to <a href="#m-findings">0.9 percent</a> in 2024. Each name in the race shows its share, and the strip under each chart tracks how much of the whole field the top 50 covered. Press play to run the race from 1880, or drag the year.</p>
+  </header>
+
+  <div class="bar" role="group" aria-label="Race controls">
+    <button class="play" id="play" type="button">Play</button>
+    <span class="yr" id="yr">2024</span>
+    <span class="slide"><input type="range" id="slider" min="1880" max="2024" step="1" value="2024" aria-label="Year"></span>
+    <span class="leaders" id="leaders"></span>
+    <input type="search" id="find" placeholder="Find a name" list="allnames" aria-label="Find a name">
+    <datalist id="allnames"></datalist>
+  </div>
+
+  <div class="eras" id="eras"><span class="lbl">Line colour shows when a name first reached the top 50:</span></div>
+
+  <section class="chart" id="c-girls">
+    <h2>Girls</h2>
+    <div class="figcap"><span>Rank among girls’ names each year, top 50 only. Lines drop off the bottom when a name falls out.</span></div>
+    <canvas class="race" aria-label="Rank of each top-50 girls’ name by year, 1880 to 2024"></canvas>
+    <div class="tailcap">Share of all girls recorded who got one of that year’s top 50 names</div>
+    <canvas class="tail" aria-label="Share of girls given a top-50 name, by year"></canvas>
+    <div class="readout" aria-live="polite"></div>
+  </section>
+
+  <section class="chart" id="c-boys">
+    <h2>Boys</h2>
+    <div class="figcap"><span>Rank among boys’ names each year, top 50 only.</span></div>
+    <canvas class="race" aria-label="Rank of each top-50 boys’ name by year, 1880 to 2024"></canvas>
+    <div class="tailcap">Share of all boys recorded who got one of that year’s top 50 names</div>
+    <canvas class="tail" aria-label="Share of boys given a top-50 name, by year"></canvas>
+    <div class="readout" aria-live="polite"></div>
+  </section>
+
+  <section class="method" id="method">
+    <h2>How this was made</h2>
+    <h3>The data</h3>
+    <p>The counts are the Social Security Administration’s <a href="https://www.ssa.gov/oact/babynames/limits.html">national baby names file</a>: for every year since 1880, each first name given to at least five babies of one sex, with the number of Social Security card applications that carried it. The agency’s site refuses automated downloads, so the yearly files were taken from <a href="https://github.com/dcadata/name-finder/tree/main/data/names">a copy on GitHub</a> (1880 through 2024) and spot-checked against the agency’s published figures: 7,065 Marys in 1880, and Liam (22,164) and Olivia (14,718) at the top in 2024.</p>
+    <p>The race starts in 1880 because that is where Social Security’s records start. There is no national count of baby names before then.</p>
+    <h3>How ranks were calculated</h3>
+    <p>Within each year and sex, names are ranked by count, highest first. Ties are broken alphabetically, which can put a name one place off the agency’s own lists in rare ties near the bottom of the top 50. Spellings count separately, so Catherine and Katherine are different names, as they are in the source.</p>
+    <p>The share next to each name (and in each name’s description) divides the name’s count by the total of all names listed for that sex that year. Names given to fewer than five babies are not in the file, so the true share is slightly lower.</p>
+    <p>Line colour groups names by the first year they reached the top 50. Names already there in 1880 get their own colour because the data cannot say when they arrived.</p>
+    <h3 id="m-findings">The figures at the top</h3>
+    <ul>
+      <li><b>12 boys’ names and 5 girls’ names</b> were in the top 50 in both 1880 and 2024. Boys: Benjamin, Daniel, David, Henry, Jacob, James, John, Joseph, Michael, Samuel, Thomas and William. Girls: Elizabeth, Ella, Emma, Grace and Lucy.</li>
+      <li><b>206 boys’ names and 314 girls’ names</b> ranked 50th or better in at least one year from 1880 to 2024.</li>
+      <li><b>Top-50 coverage:</b> the counts of that year’s 50 highest-ranked names added up, divided by all names listed for that sex. 1880: 70.3 percent of boys, 58.4 percent of girls. 2024: 25.1 percent of boys, 21.1 percent of girls. Both hit their lowest point in 2023, at 25.05 and 21.13 percent.</li>
+      <li><b>Names in use</b> is the number of distinct names in the file for that sex and year, so it counts only names given to five or more babies. Girls: 942 in 1880, 17,661 in 2024. Boys: 1,058 and 14,243. The early counts are also held down by the undercount of early births described below.</li>
+      <li><b>No. 1 shares:</b> Mary, 7,065 of 90,994 girls listed in 1880 (7.8 percent); Olivia, 14,718 of 1,613,188 in 2024 (0.9 percent).</li>
+      <li><b>John, James, William, Joseph and David</b> ranked in the boys’ top 50 in all 145 years. Elizabeth is the only girls’ name that did.</li>
+    </ul>
+    <h3>Limits</h3>
+    <ul>
+      <li>Social Security cards became common only after 1937. Most records for people born earlier come from applications filed years later, so the early years undercount births and lean toward people who lived long enough to apply.</li>
+      <li>The file records sex as listed on the application, female or male.</li>
+      <li>2024 is the latest year in this copy of the data.</li>
+    </ul>
+    <p>The idea came from the Institute for Family Studies’ <a href="https://ifstudies.org/resources-and-tools/us-baby-name-browser">U.S. baby name browser</a>. A longer note is in <a href="methodology.md">methodology.md</a>.</p>
+  </section>
+
+  <footer class="foot">Data: <a href="https://www.ssa.gov/oact/babynames/limits.html">Social Security Administration</a>, 1880 to 2024.</footer>
+</div>
+
+<script>
+(async function(){
+  const DATA = await fetch('names.json').then(r => r.json());
+  const Y0 = DATA.years[0], Y1 = DATA.years[1], NY = Y1 - Y0 + 1, TOP = DATA.top;
+  const ERAS = [
+    {to:1880, ink:'cobalt',    label:'In 1880'},
+    {to:1919, ink:'lilac',     label:'1881 to 1919'},
+    {to:1944, ink:'cyan',      label:'1920 to 1944'},
+    {to:1969, ink:'mint',      label:'1945 to 1969'},
+    {to:1989, ink:'sun',       label:'1970 to 1989'},
+    {to:2009, ink:'orange',    label:'1990 to 2009'},
+    {to:2024, ink:'vermilion', label:'2010 to 2024'}
+  ];
+  const css = getComputedStyle(document.body), tok = n => css.getPropertyValue('--' + n).trim();
+  const C = {fg:tok('fg'), fg2:tok('fg2'), grid:tok('grid'), line:tok('line'), bg:tok('bg'), blend:tok('blend') || 'screen'};
+  ERAS.forEach(e => e.color = tok(e.ink));
+
+  const keyEl = document.getElementById('eras');
+  ERAS.forEach(e => { const s = document.createElement('span'); s.className = 'key';
+    s.innerHTML = '<i style="background:' + e.color + '"></i>' + e.label; keyEl.appendChild(s); });
+
+  let cursor = Y1, playing = false, last = 0;
+  const SPEED = 7; // years per second
+  const yrEl = document.getElementById('yr'), slider = document.getElementById('slider'),
+        playBtn = document.getElementById('play'), leadersEl = document.getElementById('leaders'),
+        findEl = document.getElementById('find');
+
+  const fmt = n => n.toLocaleString('en-US');
+  const pct = v => (v >= 1 ? v.toFixed(1) : v.toFixed(2)) + '%';
+  function ranges(years){ // [1947,1948,1950] -> "1947 to 1948 and 1950"
+    const out = []; let a = null, b = null;
+    years.forEach(y => { if (a === null) { a = b = y; } else if (y === b + 1) { b = y; } else { out.push([a,b]); a = b = y; } });
+    if (a !== null) out.push([a,b]);
+    const parts = out.map(([s,e]) => s === e ? '' + s : s + ' to ' + e);
+    return parts.length < 2 ? parts.join('') : parts.slice(0,-1).join(', ') + ' and ' + parts[parts.length-1];
+  }
+
+  function makeChart(key, root, noun){
+    const names = DATA.sexes[key].names;
+    names.forEach(n => n.era = ERAS.findIndex(e => n.first <= e.to));
+    const byYear = []; // byYear[i][rank] = name record
+    for (let i = 0; i < NY; i++) byYear.push([]);
+    names.forEach(n => n.r.forEach((r, i) => { if (r > 0 && r <= TOP) byYear[i][r] = n; }));
+    const byName = new Map(names.map(n => [n.n.toLowerCase(), n]));
+    const canvas = root.querySelector('canvas.race'), ctx = canvas.getContext('2d'), out = root.querySelector('.readout');
+    const tcv = root.querySelector('canvas.tail'), tctx = tcv.getContext('2d'), TH = 96, tShare = DATA.sexes[key].top50pct, tCount = DATA.sexes[key].distinct;
+    let W = 0, H = 0, rowH = 15, L = 30, R = 128, T = 24, B = 10, hover = null, pin = null;
+
+    function size(){
+      W = canvas.clientWidth; rowH = W < 640 ? 12 : 15; R = W < 640 ? 104 : 140; L = W < 640 ? 36 : 42;
+      H = T + rowH * TOP + B; canvas.style.height = H + 'px';
+      const d = window.devicePixelRatio || 1; canvas.width = Math.round(W * d); canvas.height = Math.round(H * d);
+      ctx.setTransform(d, 0, 0, d, 0, 0);
+      tcv.style.height = TH + 'px'; tcv.width = Math.round(W * d); tcv.height = Math.round(TH * d); tctx.setTransform(d, 0, 0, d, 0, 0);
+      draw();
+    }
+    const xOf = i => L + i / (NY - 1) * (W - L - R);
+    const yOf = r => T + (r - 0.5) * rowH;
+    const rk = (n, i) => { const r = n.r[i]; return r > 0 && r <= TOP ? r : TOP + 6; };
+
+    const base = document.createElement('canvas'), bctx = base.getContext('2d'); let baseKey = '';
+    function trace(g, n, ci){ // the finished part of a name's line, years 0..ci
+      let pen = false;
+      for (let i = 0; i <= ci; i++) {
+        const r = rk(n, i), prevOff = i === 0 || rk(n, i - 1) > TOP;
+        if (r > TOP && prevOff) { pen = false; continue; }
+        if (!pen) { if (i > 0 && r <= TOP) g.moveTo(xOf(i - 1), yOf(rk(n, i - 1))); else g.moveTo(xOf(i), yOf(r)); pen = true; }
+        g.lineTo(xOf(i), yOf(r));
+      }
+    }
+    function tail(g, n, ci, frac){ // the moving tip, from year ci part way to ci+1
+      if (frac <= 0 || ci + 1 >= NY) return;
+      const a = rk(n, ci), b = rk(n, ci + 1);
+      if (a <= TOP || b <= TOP) { g.moveTo(xOf(ci), yOf(a)); g.lineTo(xOf(ci + frac), yOf(a + (b - a) * frac)); }
+    }
+    function strokeLines(g, focus, each){
+      g.save(); g.beginPath(); g.rect(0, T - rowH / 2, W, rowH * TOP + 1); g.clip();
+      g.globalCompositeOperation = C.blend; g.lineJoin = 'round';
+      ERAS.forEach((e, ei) => {
+        g.beginPath(); names.forEach(n => { if (n.era === ei && n !== focus) each(n); });
+        g.strokeStyle = e.color; g.globalAlpha = focus ? 0.16 : 0.72; g.lineWidth = 1.5; g.stroke();
+      });
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      if (focus) { g.beginPath(); each(focus); g.strokeStyle = ERAS[focus.era].color; g.lineWidth = 3.5; g.stroke(); }
+      g.restore();
+    }
+    function drawBase(ci, focus){ // grid plus every finished line, redrawn only when the year or highlight changes
+      const d = window.devicePixelRatio || 1, bottom = T + rowH * TOP;
+      base.width = canvas.width; base.height = canvas.height; bctx.setTransform(d, 0, 0, d, 0, 0);
+      bctx.font = '500 12px Karla, system-ui, sans-serif'; bctx.textBaseline = 'middle';
+      bctx.fillStyle = C.fg2; bctx.strokeStyle = C.grid; bctx.lineWidth = 1; bctx.textAlign = 'right';
+      [1,10,20,30,40,50].forEach(r => { bctx.beginPath(); bctx.moveTo(L, yOf(r)); bctx.lineTo(W - R, yOf(r)); bctx.stroke(); bctx.fillText(r, L - 7, yOf(r)); });
+      bctx.textAlign = 'center';
+      for (let y = 1880; y <= Y1; y += (W < 640 ? 40 : 20)) {
+        const x = xOf(y - Y0); bctx.beginPath(); bctx.moveTo(x, T - 4); bctx.lineTo(x, bottom); bctx.stroke(); bctx.fillText(y, x, T - 13);
+      }
+      strokeLines(bctx, focus, n => trace(bctx, n, ci));
+    }
+
+    function draw(){
+      if (!W) return;
+      const ci = Math.min(NY - 1, Math.floor(cursor - Y0)), frac = (cursor - Y0) - ci;
+      const focus = pin || hover, bottom = T + rowH * TOP;
+      const key = ci + '|' + (focus ? focus.n : '') + '|' + canvas.width + 'x' + canvas.height;
+      if (key !== baseKey) { drawBase(ci, focus); baseKey = key; }
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(base, 0, 0, W, H);
+      if (frac > 0) strokeLines(ctx, focus, n => tail(ctx, n, ci, frac));
+      ctx.textBaseline = 'middle';
+      // cursor line
+      const hx = xOf(ci + frac);
+      if (ci < NY - 1 || frac > 0) { ctx.strokeStyle = C.line; ctx.beginPath(); ctx.moveTo(hx, T - 4); ctx.lineTo(hx, bottom); ctx.stroke(); }
+      // head labels
+      ctx.textAlign = 'left';
+      const shown = Math.round(cursor) - Y0;
+      names.forEach(n => {
+        const a = rk(n, ci), b = ci + 1 < NY ? rk(n, ci + 1) : a, r = a + (b - a) * frac;
+        if (r > TOP + 0.5) return;
+        const y = yOf(r), dim = focus && n !== focus;
+        ctx.globalAlpha = dim ? 0.35 : 1;
+        ctx.fillStyle = ERAS[n.era].color; ctx.fillRect(hx - 2, y - 2, 4, 4);
+        const inTop = n.r[shown] > 0 && n.r[shown] <= TOP;
+        const label = (inTop ? n.r[shown] + ' ' : '') + n.n + (inTop ? '  ' + pct(n.p[shown] / 10) : '');
+        ctx.fillStyle = n === focus ? C.fg : (dim ? C.fg2 : C.fg);
+        ctx.font = (n === focus ? '700 ' : '500 ') + (W < 640 ? 11 : 12) + 'px Karla, system-ui, sans-serif';
+        ctx.fillText(label, hx + 6, y);
+      });
+      ctx.globalAlpha = 1;
+      drawTail(ci, frac);
+    }
+
+    function drawTail(ci, frac){
+      const g = tctx, t = 8, b = TH - 8, yv = v => b - v / 100 * (b - t), at = (arr, i, f) => arr[i] + ((i + 1 < NY ? arr[i + 1] : arr[i]) - arr[i]) * f;
+      g.clearRect(0, 0, W, TH); g.font = '500 12px Karla, system-ui, sans-serif'; g.textBaseline = 'middle';
+      g.strokeStyle = C.grid; g.fillStyle = C.fg2; g.lineWidth = 1; g.textAlign = 'right';
+      [0, 50, 100].forEach(v => { g.beginPath(); g.moveTo(L, yv(v)); g.lineTo(W - R, yv(v)); g.stroke(); g.fillText(v + '%', L - 7, yv(v)); });
+      const hx = xOf(ci + frac), hv = at(tShare, ci, frac);
+      g.beginPath(); g.moveTo(xOf(0), yv(0));
+      for (let i = 0; i <= ci; i++) g.lineTo(xOf(i), yv(tShare[i]));
+      g.lineTo(hx, yv(hv)); g.lineTo(hx, yv(0)); g.closePath(); g.fillStyle = C.grid; g.fill();
+      g.beginPath(); for (let i = 0; i <= ci; i++) (i ? g.lineTo : g.moveTo).call(g, xOf(i), yv(tShare[i])); g.lineTo(hx, yv(hv));
+      g.strokeStyle = C.fg; g.lineWidth = 2; g.stroke();
+      const y = Math.round(cursor) - Y0; g.textAlign = 'left'; g.fillStyle = C.fg;
+      g.font = '700 12px Karla, system-ui, sans-serif'; g.fillText(Math.round(tShare[y]) + '% in the top 50', hx + 6, Math.min(b - 14, Math.max(t + 6, yv(hv))));
+      g.font = '500 12px Karla, system-ui, sans-serif'; g.fillStyle = C.fg2; g.fillText(fmt(tCount[y]) + ' names in use', hx + 6, Math.min(b - 14, Math.max(t + 6, yv(hv))) + 15);
+    }
+
+    function describe(n){
+      if (!n) { out.innerHTML = 'Point at a line or a name to follow it. Click to keep it highlighted.'; return; }
+      const topYrs = [], oneYrs = []; let pk = 0, pkY = 0;
+      n.r.forEach((r, i) => { if (r > 0 && r <= TOP) topYrs.push(Y0 + i); if (r === 1) oneYrs.push(Y0 + i); if (n.p[i] > pk) { pk = n.p[i]; pkY = Y0 + i; } });
+      const now = n.r[NY - 1];
+      const span = ys => ys.length === 1 ? 'in ' + ys[0] : 'for ' + ys.length + ' years (' + ranges(ys) + ')';
+      let s = '<b>' + n.n + '</b>: in the top 50 ' + span(topYrs) + '. ';
+      s += oneYrs.length ? 'No. 1 ' + span(oneYrs) + '. ' : 'Best rank No. ' + n.best + ' in ' + n.bestYr + '. ';
+      s += 'At its peak in ' + pkY + ', ' + pct(pk / 10) + ' of ' + noun + ' recorded got the name. ';
+      s += 'In ' + Y1 + ': ' + (now > 0 ? 'No. ' + fmt(now) + ', ' + pct(n.p[NY - 1] / 10) : 'not in the top 1,000') + '.';
+      if (pin) s += '<button class="x" type="button">Clear</button>';
+      out.innerHTML = s;
+      const x = out.querySelector('.x'); if (x) x.onclick = () => { pin = null; hover = null; describe(null); draw(); };
+    }
+
+    function pick(ev){
+      const rect = canvas.getBoundingClientRect(), mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+      const ci = Math.min(NY - 1, Math.round(cursor - Y0));
+      let i = Math.round((mx - L) / (W - L - R) * (NY - 1)); i = Math.max(0, Math.min(ci, i));
+      const r = Math.round((my - T) / rowH + 0.5);
+      if (r < 1 || r > TOP) return null;
+      return byYear[i][r] || null;
+    }
+    canvas.addEventListener('mousemove', ev => { const n = pick(ev); if (n !== hover) { hover = n; if (!pin) describe(n); draw(); } });
+    canvas.addEventListener('mouseleave', () => { hover = null; if (!pin) describe(null); draw(); });
+    canvas.addEventListener('click', ev => { const n = pick(ev); pin = (n && n !== pin) ? n : null; describe(pin || n); draw(); });
+
+    new ResizeObserver(size).observe(canvas);
+    describe(null);
+    return {
+      draw, size, names, byName,
+      leader(){ const i = Math.round(cursor) - Y0, n = byYear[i][1]; return n ? '<b>' + n.n + '</b> ' + pct(n.p[i] / 10) : ''; },
+      setPin(n){ pin = n; describe(n); draw(); }
+    };
+  }
+
+  const girls = makeChart('girls', document.getElementById('c-girls'), 'girls');
+  const boys  = makeChart('boys',  document.getElementById('c-boys'),  'boys');
+  const charts = [girls, boys];
+
+  const all = new Set(); charts.forEach(c => c.names.forEach(n => all.add(n.n)));
+  document.getElementById('allnames').innerHTML = [...all].sort().map(n => '<option value="' + n + '">').join('');
+
+  function render(){
+    const y = Math.round(cursor);
+    yrEl.textContent = y; slider.value = y;
+    leadersEl.innerHTML = 'No. 1: ' + girls.leader() + ' and ' + boys.leader();
+    charts.forEach(c => c.draw());
+  }
+  function tick(t){
+    if (!playing) return;
+    const dt = last ? (t - last) / 1000 : 0; last = t;
+    cursor = Math.min(Y1, cursor + dt * SPEED);
+    render();
+    if (cursor >= Y1) { stop(); return; }
+    requestAnimationFrame(tick);
+  }
+  function start(){ if (cursor >= Y1) cursor = Y0; playing = true; last = 0; playBtn.textContent = 'Pause'; requestAnimationFrame(tick); }
+  function stop(){ playing = false; cursor = Math.round(cursor); render(); playBtn.textContent = cursor >= Y1 ? 'Replay' : 'Play'; }
+  playBtn.addEventListener('click', () => playing ? stop() : start());
+  slider.addEventListener('input', () => { if (playing) stop(); cursor = +slider.value; playBtn.textContent = cursor >= Y1 ? 'Replay' : 'Play'; render(); });
+  findEl.addEventListener('change', () => {
+    const q = findEl.value.trim().toLowerCase(); if (!q) return;
+    let hit = false;
+    charts.forEach(c => { const n = c.byName.get(q); if (n) { c.setPin(n); hit = true; } });
+    if (!hit) { girls.setPin(null); boys.setPin(null);
+      girls.names.length && (document.querySelector('#c-girls .readout').innerHTML = '<b>' + findEl.value.trim() + '</b> never reached the top 50 for girls or boys between ' + Y0 + ' and ' + Y1 + '.'); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { charts.forEach(c => c.setPin(null)); } });
+
+  await document.fonts.ready;
+  charts.forEach(c => c.size());
+  render();
+})();
+</script>
+</body>
+</html>
