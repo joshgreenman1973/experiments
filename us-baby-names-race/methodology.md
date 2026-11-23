@@ -43,6 +43,24 @@ Output: `names.json` (`years`, `top`, then `sexes.boys` and `sexes.girls`, each 
 - Names in use: girls 942 (1880) and 17,297 (2025); boys 1,058 and 13,930. Only names given to five or more babies count, and early years are held down by the early-birth undercount.
 - No. 1 shares: Mary, 7,065 of 90,994 girls listed in 1880 (7.8 percent); Olivia, 13,544 of 1,607,267 in 2025 (0.8 percent).
 
+## Comebacks and all-time totals (national only)
+
+Done by `analyze.py` (`python3 analyze.py <folder of yobYYYY.txt> analysis.json`), ranking every name in each year's file (not just the top 1,000), ties alphabetical.
+
+- A **stretch** is a run of consecutive years at or above the cutoff (50th or 100th). More than one stretch = fell out and came back. Categories: never left (one stretch, 1880 to 2025); arrived and stayed (one stretch, began after 1880, in the list in 2025); left once, never came back (one stretch, out in 2025); left, came back, in now / gone again (two or more stretches, in or out in 2025). Names in the list in 1880 count as arriving in 1880.
+- **Longest time away:** years between the end of one stretch and the start of the next.
+- **Fastest arrivals:** years from the last year a name ranked below 1,000th (or was absent from the file) to its first year in the list. Limited to names first reaching the list after 1920; the 1880s files list so few names that "below 1,000th" is nearly meaningless then.
+- **One year and done:** one stretch, one year long, before 2025.
+- Repeat comebacks are often names hovering at the cutoff (Herman: eight stretches in the boys' top 50, 1880 to 1912). They are counted as they are.
+
+Top 50, 1880 to 2025:
+- Girls: 316 names ever; 266 first arrived after 1880; 215 left once and never came back; 60 came back at least once, 11 of them two or more times; 9 comebacks in now; 40 arrived and stayed; Elizabeth never left. Longest away: Lucy, 132 years (out after 1886, back 2019). Fastest arrival: Ailany, No. 1,055 in 2022 to No. 14 in 2025.
+- Boys: 209 names ever; 159 after 1880; 122 left once for good; 51 came back, 17 of them two or more times; 14 comebacks in now; 31 arrived and stayed; 5 never left. Longest away: Theodore, 109 years (out after 1908, back 2018).
+
+Top 100: girls 509 names ever, 126 came back at least once; boys 394, 95 came back; 12 boys' names and 1 girls' name never left.
+
+**All-time totals:** each name's counts summed over 1880 to 2025. "Girls and boys together" adds both sexes' counts for the same spelling (James: 5,250,638 boys and 23,882 girls = 5,274,520). Shares divide by all babies listed: 375,362,447 (185,559,287 girls, 189,803,160 boys). Top 10 boys' names = 19.8 percent of all boys listed; top 10 girls' names = 8.8 percent of all girls. Pre-1937 undercounting understates names that peaked early.
+
 ## Limits
 
 - Ties are broken alphabetically. SSA's own rank lists can differ by a place in rare ties.
