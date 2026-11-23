@@ -15,6 +15,14 @@ Checks: Mary (7,065) and John (9,655) are No. 1 in 1880; Olivia (13,544) and Lia
 
 The data starts in 1880 because SSA's records do. There is no national count of baby names before 1880.
 
+## States
+
+Source: SSA's state file, `namesbystate.zip`, from the same page, downloaded by hand Nov. 23, 2026. One file per state plus D.C. (`XX.TXT`, rows `ST,sex,year,name,count`), 1910 through 2025, counted by the state where the card application was filed. Same five-baby cutoff, applied within each state.
+
+`python3 build.py states <folder of XX.TXT> states/` writes `states/XX.json` in the same format as `names.json`, ranked within each state.
+
+Small states are thin. Wyoming, 2025: the 50th-ranked name went to 7 girls and 9 boys. Wyoming, 1910: only 23 girls' names and 14 boys' names cleared five babies. The page shows a warning above the charts when a state's 50th-ranked name in its latest year went to fewer than 25 babies of either sex, or when any year lists fewer than 50 names. In those states lower ranks rest on a handful of births and many ties, and top-50 coverage runs high because the uncounted names are missing from the denominator.
+
 ## Calculations
 
 Done by `build.py` in this folder (`python3 build.py <folder of yobYYYY.txt files> names.json`; it uses whatever run of years the folder holds):
