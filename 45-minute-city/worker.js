@@ -130,11 +130,26 @@ function buildBand(bandId) {
     return i;
   }
 
+  // A few bus timetable rows are plainly wrong: four Q19 segments at the
+  // evening rush imply 112 to 142 mph in a straight line (571 m in 9 s). No
+  // other bus segment in any band tops 60 mph, so a bus ride is never allowed
+  // to beat 60 mph over the straight-line distance between its two stops. This
+  // touches only those timetable errors; every other ride time is the schedule's.
+  const BUS_MAX_MS = 60 * 0.44704;
+  const stops = C.core.stops;
+  const routeKind = C.routeKind;
   const from = [], to = [], cost = [];
   for (let i = 0; i < ride.a.length; i++) {
     const u = getState(ride.a[i], ride.r[i], ride.d[i]);
     const v = getState(ride.b[i], ride.r[i], ride.d[i]);
-    from.push(u); to.push(v); cost.push(ride.t[i]);
+    let t = ride.t[i];
+    if (routeKind[ride.r[i]] === 1) {
+      const sa = stops[ride.a[i]], sb = stops[ride.b[i]];
+      const dy = (sa[1] - sb[1]) * 111320, dx = (sa[2] - sb[2]) * 84500;
+      const floor = Math.sqrt(dx * dx + dy * dy) / BUS_MAX_MS;
+      if (t < floor) t = Math.ceil(floor);
+    }
+    from.push(u); to.push(v); cost.push(t);
   }
 
   const nStates = stateStop.length;
@@ -189,6 +204,12 @@ function routeTaxi(opts) {
   let start = accessible
     ? (bandWaits.wav_wait_secs !== undefined ? bandWaits.wav_wait_secs : 480)
     : (bandWaits.standard_wait_secs !== undefined ? bandWaits.standard_wait_secs : 260);
+  // No drivable start near the click (New Jersey, a park interior, the water):
+  // the cab is not modelled here, which is different from "the cab gets nowhere".
+  if (originCarNode < 0) {
+    return { streetDist: new Float32Array(nC).fill(-1), reachedStops: [],
+             stats: { settled: 0, noCar: true, ms: Math.round(performance.now() - t0) } };
+  }
   if (start > budget) {
     return { streetDist: new Float32Array(nC).fill(-1), reachedStops: [],
              stats: { settled: 0, ms: Math.round(performance.now() - t0) } };
@@ -413,6 +434,9 @@ self.onmessage = async (e) => {
     const cdv = new DataView(carEdgesBuf);
     const cea = new Uint32Array(mC), ceb = new Uint32Array(mC);
     const cBase = new Float32Array(mC); // seconds at posted speed
+    // A cab can be hailed on a street posted at 35 mph or less; expressways
+    // (40-50 mph) are not a place to start a trip.
+    const localStreet = new Uint8Array(nC);
     for (let i = 0; i < mC; i++) {
       const o = i * 11;
       cea[i] = cdv.getUint32(o, true);
@@ -420,6 +444,7 @@ self.onmessage = async (e) => {
       const meters = cdv.getUint16(o + 8, true) / 10;
       const mph = cdv.getUint8(o + 10);
       cBase[i] = meters / (mph * 0.44704);
+      if (mph <= 35) { localStreet[cea[i]] = 1; localStreet[ceb[i]] = 1; }
     }
     // directed CSR
     const cDeg = new Uint32Array(nC + 1);
@@ -434,8 +459,42 @@ self.onmessage = async (e) => {
     for (let i = 0; i < mC; i++) {
       cTgt[cCur[cea[i]]] = ceb[i]; cSecs[cCur[cea[i]]] = cBase[i]; cCur[cea[i]]++;
     }
+    // Where a cab may start: a local street node that belongs to the main
+    // strongly connected part of the network, so a car can both leave it and
+    // come back. Snapping to the nearest node of any kind put about 3% of
+    // clicks on a dead end (0 km of cab reach) and about 6% on an expressway.
+    // Strong connectivity is the set reachable forward AND backward from one
+    // central node (near Times Square).
+    let hub = 0, hubD = Infinity;
+    for (let i = 0; i < nC; i++) {
+      const d = (cLat[i] - 40.758) ** 2 + (cLon[i] + 73.9855) ** 2;
+      if (d < hubD && localStreet[i]) { hubD = d; hub = i; }
+    }
+    const sweep = (offA, tgtA) => {
+      const seen = new Uint8Array(nC);
+      const stack = [hub]; seen[hub] = 1;
+      while (stack.length) {
+        const u = stack.pop();
+        for (let e = offA[u]; e < offA[u + 1]; e++) {
+          const v = tgtA[e];
+          if (!seen[v]) { seen[v] = 1; stack.push(v); }
+        }
+      }
+      return seen;
+    };
+    const rDeg = new Uint32Array(nC + 1);
+    for (let i = 0; i < mC; i++) rDeg[ceb[i]]++;
+    const rOff = new Uint32Array(nC + 1);
+    let rAcc = 0;
+    for (let i = 0; i < nC; i++) { rOff[i] = rAcc; rAcc += rDeg[i]; }
+    rOff[nC] = rAcc;
+    const rCur = rOff.slice();
+    const rTgt = new Uint32Array(rAcc);
+    for (let i = 0; i < mC; i++) { rTgt[rCur[ceb[i]]++] = cea[i]; }
+    const fwd = sweep(cOff, cTgt), bwd = sweep(rOff, rTgt);
     const cGrid = new Map();
     for (let i = 0; i < nC; i++) {
+      if (!(fwd[i] && bwd[i] && localStreet[i])) continue;
       const k = Math.floor(cLat[i] / CELL) + ":" + Math.floor(cLon[i] / CELL);
       let a = cGrid.get(k);
       if (!a) { a = []; cGrid.set(k, a); }
@@ -444,7 +503,7 @@ self.onmessage = async (e) => {
     const alpha = {};
     for (const [b, v] of Object.entries(carCal.bands || {})) alpha[b] = v.alpha;
     // Per-borough traffic factors: intra-borough Uber/Lyft trips give each
-    // borough its own alpha (Manhattan midday 2.85 vs Queens 2.11), applied by
+    // borough its own alpha (Manhattan midday 2.98 vs Queens 2.18), applied by
     // the edge's from-node borough class. Citywide is the fallback.
     const zoneClass = new Uint8Array(carZonesBuf);
     const BOROUGHS = carCal2.boroughs || [];
@@ -502,7 +561,9 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: "snapped", id: msg.id,
       node: snap(msg.lat, msg.lon, S.grid, S.lat, S.lon),
-      carNode: snap(msg.lat, msg.lon, CAR.grid, CAR.lat, CAR.lon),
+      // A cab start more than 400 m from the click is not this place's cab
+      // (Hoboken used to snap to the Holland Tunnel, 1.1 km across the river).
+      carNode: snap(msg.lat, msg.lon, CAR.grid, CAR.lat, CAR.lon, 400),
     });
     return;
   }
@@ -516,7 +577,7 @@ self.onmessage = async (e) => {
   }
 };
 
-function snap(la, lo, grid, lats, lons) {
+function snap(la, lo, grid, lats, lons, maxMeters) {
   const CELL = S.CELL;
   const ci = Math.floor(la / CELL), cj = Math.floor(lo / CELL);
   let best = -1, bd = Infinity;
@@ -536,5 +597,6 @@ function snap(la, lo, grid, lats, lons) {
     }
     if (best >= 0 && r >= 1) break;
   }
+  if (maxMeters !== undefined && bd > maxMeters * maxMeters) return -1;
   return best;
 }

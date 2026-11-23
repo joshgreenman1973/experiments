@@ -14,6 +14,12 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 
+SHIPPED = [
+    "core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin",
+    "car_nodes.bin", "car_edges.bin", "car_calibration.json", "car_calibration2.json",
+    "car_zones.bin", "car_link.bin", "access.json",
+]
+
 
 def main():
     T = json.load(open(os.path.join(OUT, "transit.json")))
@@ -66,14 +72,20 @@ def main():
     }
     json.dump(core, open(os.path.join(OUT, "core.json"), "w"), separators=(",", ":"))
 
-    for f in ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin",
-              "car_nodes.bin", "car_edges.bin", "car_calibration.json"]:
+    # Every file the browser loads. car_zones.bin and car_link.bin are indexed
+    # by car-network node, so a stale copy of either silently attaches traffic
+    # factors and race times to the wrong streets: copy all twelve together.
+    missing = [f for f in SHIPPED if not os.path.exists(os.path.join(OUT, f))]
+    if missing:
+        print(f"  MISSING from out/: {', '.join(missing)} -- run the step that builds each")
+    for f in SHIPPED:
         p = os.path.join(OUT, f)
-        print(f"  {f:20s} {os.path.getsize(p)/1e6:6.2f} MB")
-    total = sum(os.path.getsize(os.path.join(OUT, f)) for f in
-                ["core.json", "bands.bin", "bands.json", "street_nodes.bin", "street_edges.bin",
-                 "car_nodes.bin", "car_edges.bin", "car_calibration.json"])
-    print(f"  {'TOTAL':20s} {total/1e6:6.2f} MB")
+        if os.path.exists(p):
+            print(f"  {f:22s} {os.path.getsize(p)/1e6:6.2f} MB")
+    total = sum(os.path.getsize(os.path.join(OUT, f)) for f in SHIPPED
+                if os.path.exists(os.path.join(OUT, f)))
+    print(f"  {'TOTAL':22s} {total/1e6:6.2f} MB")
+    print("  then: cp pipeline/out/{" + ",".join(SHIPPED) + "} data/")
 
 
 if __name__ == "__main__":

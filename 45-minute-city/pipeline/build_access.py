@@ -124,7 +124,7 @@ def main():
     req_local = req.astype("datetime64[s]")
     hours = (req_local.astype("datetime64[h]") - req_local.astype("datetime64[D]")).astype(int)
     svc = (req_local - np.timedelta64(5, "h")).astype("datetime64[D]")
-    dow = (svc.astype("datetime64[D]").view("int64") + 4) % 7  # 1970-01-01 was a Thursday
+    dow = (svc.astype("datetime64[D]").view("int64") + 3) % 7  # Monday=0; 1970-01-01 was a Thursday (3)
     shifted = np.where(hours >= 5, hours, hours + 24)
     daykind = np.where(dow <= 4, 0, np.where(dow == 5, 1, 2))  # 0 wk, 1 sat, 2 sun
     DK = {"weekday": 0, "saturday": 1, "sunday": 2}

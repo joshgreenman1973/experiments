@@ -14,7 +14,7 @@ with the spread reported alongside.
 
 Sources:
   trips  https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_YYYY-MM.parquet
-  zones  https://data.cityofnewyork.us/api/geospatial/d3c5-ddgc (GeoJSON export)
+  zones  https://data.cityofnewyork.us/resource/8meu-9t5y.json (taxi zones, with geometry)
 """
 import heapq
 import json

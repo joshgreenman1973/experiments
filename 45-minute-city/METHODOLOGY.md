@@ -15,13 +15,13 @@ three are fixed here, and the fixes are the reason for the rebuild.
 | Old | New |
 |---|---|
 | Bus times were wrong, then multiplied by a hardcoded `2.5` to "reflect real-world speeds". Implied speeds reached 64 mph. | Bus times come from the MTA bus GTFS feeds. Median implied speed is 7.4 mph. No correction applied, and none needed. |
-| Walking assumed a flat `GRID_FACTOR = 1.4` detour over straight-line distance. | Walking and cycling are routed on the city's real street network (199,859 nodes, 267,515 segments). |
+| Walking assumed a flat `GRID_FACTOR = 1.4` detour over straight-line distance. | Walking and cycling are routed on the city's real street network (331,310 nodes, 427,613 segments, including the New Jersey PATH corridor). |
 | No wait times at all. | Waits are computed per stop, route, direction and time of day from scheduled departures. |
 | `transitScore()` produced an invented 0–100 index from arbitrary weights. | Removed. The map reports measured quantities only: kilometres of street, stations and stops reached. |
 
-The old 1.4 detour constant was itself testable, so we tested it. Routing 2,395
+The old 1.4 detour constant was itself testable, so we tested it. Routing 2,396
 random origin and destination pairs on the street network gives a median ratio of
-**1.31**, spread from 1.13 at the tenth percentile to 1.73 at the ninetieth. No
+**1.28**, spread from 1.10 at the tenth percentile to 1.69 at the ninetieth. No
 single constant fits that spread. The current build routes the network and
 applies no factor; the measurement is kept only as a reference in
 `pipeline/out/detour.json`.
@@ -30,14 +30,14 @@ applies no factor; the measurement is kept only as a reference in
 
 | Input | Source |
 |---|---|
-| Subway schedules | MTA GTFS static, `gtfs_subway.zip` |
+| Subway schedules | MTA GTFS static, `gtfs_subway.zip` (downloaded July 16, 2026) |
 | Bus schedules | MTA GTFS static for the Bronx, Brooklyn, Manhattan, Queens and Staten Island, plus MTA Bus Company |
 | Staten Island Ferry | NYC DOT GTFS, NYC Open Data `b57i-ri22` (feed version 18, valid 2026-01-01 to 2028-01-17) |
-| NYC Ferry | Operator GTFS via Connexionz (feed version 20260707, valid to 2027-12-31) |
+| NYC Ferry | Operator GTFS via Connexionz (feed version 20260707, the July 2026 summer schedule) |
 | PATH | Port Authority Trans-Hudson GTFS via Trillium (see the staleness note below) |
 | New Jersey streets | OpenStreetMap via Overpass, PATH corridor only (Newark, Harrison, Jersey City, Hoboken) |
 | Streets | NYC Open Data, Centerline (CSCL), dataset `inkn-q76z`, including `posted_speed` and `trafdir` |
-| Taxi calibration | TLC yellow-cab trip records, March 2026 (`yellow_tripdata_2026-03.parquet`) |
+| Taxi calibration | TLC high-volume for-hire (Uber/Lyft) trip records, March 2026 (`fhvhv_tripdata_2026-03.parquet`), cross-checked against yellow-cab records (`yellow_tripdata_2026-03.parquet`) |
 | Taxi zones | NYC Open Data dataset `8meu-9t5y` (263 zones) |
 | Geocoding | Nominatim (OpenStreetMap), at query time |
 
@@ -63,16 +63,19 @@ speed, since track and street distance always exceed straight-line distance.
 | Subway (weekday AM peak) | 10.8 | **15.1** | 20.8 | 32.7 mph |
 
 New York City buses average roughly 7 to 8 mph citywide, so the bus figure lands
-where it should. No segment implies a bus faster than 45 mph.
+where it should. Four segments on the Q19 at the evening rush imply 112 to 142 mph (571 m in
+9 seconds) — timetable errors. The router holds every bus segment to at most
+60 mph over the straight-line distance, which changes only those four; no other
+bus segment in any band implies more than 49 mph.
 
-Late-night buses come out faster than peak buses (10.2 mph against 7.4). That is
+Late-night buses come out faster than peak buses (10.7 mph against 7.4). That is
 congestion showing up in the schedule, and nothing in the build put it there.
 
 Run `pipeline/validate.py` to reproduce this table.
 
 ## Express buses
 
-New York's 79 express routes (the SIM, BM, BxM, QM and X families) are
+New York's 77 express routes (the SIM, BM, BxM, QM and X families) are
 included. They are the fast, one-seat, limited-stop rides that
 carry Staten Island and the deep outer boroughs to Manhattan over the highways.
 They are treated as buses, which is what they are, and their times and waits
@@ -80,10 +83,10 @@ come from the schedule like any other route.
 
 Two points about them:
 
-- **They run mostly at the peak.** The schedule bears this out — about 2,500
-  express ride segments in the weekday morning band against 1,180 overnight — so
-  a midday or late-night isochrone correctly includes far less express service
-  than a rush-hour one. A route that does not run in a band contributes nothing
+- **They run mostly at the peak.** The schedule bears this out — express stops
+  see about 7,500 scheduled departures an hour in the weekday morning rush,
+  2,700 midday and 700 overnight — so a midday or late-night isochrone
+  correctly includes far less express service than a rush-hour one. A route that does not run in a band contributes nothing
   to it.
 - **They cost more than double.** The express-bus fare is $7.25, against $3.00
   for a local bus or the subway. This map does not model fares, so express and
@@ -138,7 +141,7 @@ The same 6 train goes from 6.9 minutes at peak to 14.7 minutes late at night.
 ## Taxi
 
 Cars route on a DIRECTED graph built from the same centerline file: one-way
-streets are honored via `trafdir` (166,919 nodes, 312,188 directed edges), and
+streets are honored via `trafdir` (166,919 nodes, 308,594 directed edges), and
 highways, bridges, tunnels and ramps are included. Each segment costs its length
 at the posted speed limit (missing or zero limits default to the city's 25 mph).
 
@@ -162,20 +165,31 @@ through.
 
 | Band | Citywide | Manhattan | Brooklyn | Queens | Bronx | Staten Island |
 |---|---|---|---|---|---|---|
-| Weekday AM peak | 2.32 | 2.53 | 2.34 | 2.12 | 2.29 | 1.46 |
-| Weekday midday | 2.39 | 2.85 | 2.42 | 2.11 | 2.23 | 1.48 |
-| Weekday PM peak | 2.51 | 2.80 | 2.49 | 2.23 | 2.33 | 1.55 |
-| Weekday evening | 2.04 | 2.30 | 2.09 | 1.83 | 1.90 | 1.34 |
-| Weekday late night | 1.71 | 1.91 | 1.82 | 1.59 | 1.71 | 1.29 |
-| Saturday midday | 2.56 | 2.84 | 2.54 | 2.28 | 2.45 | 1.55 |
-| Sunday midday | 2.34 | 2.63 | 2.39 | 2.12 | 2.14 | 1.47 |
+| Weekday AM peak | 2.41 | 2.60 | 2.44 | 2.19 | 2.36 | 1.47 |
+| Weekday midday | 2.49 | 2.98 | 2.48 | 2.18 | 2.33 | 1.49 |
+| Weekday PM peak | 2.60 | 2.87 | 2.53 | 2.30 | 2.44 | 1.58 |
+| Weekday evening | 2.08 | 2.37 | 2.11 | 1.85 | 1.92 | 1.35 |
+| Weekday late night | 1.78 | 2.00 | 1.87 | 1.61 | 1.73 | 1.29 |
+| Saturday midday | 2.34 | 2.63 | 2.39 | 2.12 | 2.14 | 1.47 |
+| Sunday midday | 2.16 | 2.41 | 2.32 | 1.95 | 1.95 | 1.44 |
 
-A 25 mph Manhattan street at weekday midday is effectively an 8.8 mph street —
+A 25 mph Manhattan street at weekday midday is effectively an 8.4 mph street —
 the crosstown speed every New Yorker knows — while the same street in Queens
-moves at 11.8 and Staten Island at 16.9. An earlier build applied one citywide
-factor from yellow-cab trips (midday 2.75); the two sources agree closely
-where they overlap, which is a good sign since they are different vehicle
-fleets measured different ways.
+moves at 11.5 and Staten Island at 16.8. An earlier build applied one citywide
+factor from yellow-cab trips (midday 2.75). Yellow cabs work mostly in
+Manhattan, and their factor comes out within about 10% of the Manhattan Uber/Lyft
+factor in every band, a little faster — a useful cross-check, since they are
+different fleets.
+
+**A correction (November 2026).** The first release of this table assigned
+trips to the wrong day of the week: a date formula was off by one, so the
+"weekday" bands included Sundays, "Saturday" was really Friday and "Sunday" was
+really Saturday. The table above is the corrected one. The fix made weekday
+traffic slightly slower (Manhattan midday 2.85 became 2.98), and it brought the
+weekend factors into line with the yellow-cab cross-check, which had computed
+the day of the week correctly all along (Saturday citywide 2.34 against 2.35,
+Sunday 2.16 against 2.15). The wait-for-pickup figures below had the same error
+and were corrected the same way.
 
 ### Light, typical and heavy traffic
 
@@ -187,20 +201,24 @@ percentile trip, the median and the 75th:
 - **Typical** — the median trip.
 - **Heavy** — the 75th-percentile trip. A quarter run at least this badly.
 
-At weekday midday in Manhattan those are alphas of 2.25, 2.85 and 3.58: a
-25 mph street running at 11.1, 8.8 or 7.0 mph. That spread is
+At weekday midday in Manhattan those are alphas of 2.37, 2.98 and 3.69: a
+25 mph street running at 10.5, 8.4 or 6.8 mph. That spread is
 what a New Yorker means by "depends on traffic."
 
 Its effect on the map is large. From Washington Square at the morning rush,
-a cab's 45-minute reach runs 7,207 km in light traffic, 3,702 typical and
-2,105 heavy — a 3.4x swing. The train's reach does not move at all, because the
+a cab's 45-minute reach runs 6,407 km in light traffic, 3,444 typical and
+1,999 heavy — a 3.2x swing. The train's reach does not move at all, because the
 train runs on its schedule regardless of traffic. Territory each side wins:
 
 | Traffic | Train wins | Cab is faster | Only a cab reaches | Tie |
 |---|---|---|---|---|
-| Light | 56 km | 2,376 | 4,692 | 191 |
-| Typical | 506 km | 1,604 | 1,325 | 512 |
-| Heavy | **1,371 km** | 626 | 312 | 625 |
+| Light | 66 km | 2,216 | 3,926 | 236 |
+| Typical | 543 km | 1,475 | 1,150 | 499 |
+| Heavy | **1,343 km** | 580 | 276 | 594 |
+
+Territory is counted on drivable streets inside the city, and a street counts
+for a mode only when both its ends are reached in time — the same rule as the
+per-mode totals, so the cab's three columns never exceed its own reach.
 
 In heavy traffic the train wins more than twice the territory the cab does.
 In light traffic it wins almost nothing. Which is faster
@@ -216,7 +234,7 @@ of measuring.
 
 The taxi clock starts at the REQUEST, matching transit, which pays its
 platform wait. The median request-to-pickup gap over every non-shared FHV trip
-in the month is about 4 minutes (3.8 to 4.6 by band).
+in the month is about 4 minutes (3.8 to 4.7 by band).
 Without it, the taxi map gave the cab an unfair head start against the train.
 
 ### Validation
@@ -230,7 +248,17 @@ real cab ranges for weekday midday.
   expressway as much as a jammed local street, so highway-heavy trips — the
   airports especially — read somewhat slower than reality.
 - **Zone centroids.** Trips are routed centroid to centroid rather than
-  door to door; the median over tens of thousands of trips absorbs this noise.
+  door to door; the median over hundreds of thousands of trips absorbs this noise.
+
+### Where a cab starts
+
+A cab starts from the nearest ordinary street — posted at 35 mph or less, and
+part of the main network a car can both leave and return to — within 400 m of
+the click. An earlier build snapped to the nearest car node of any kind, which
+put about 3% of clicks on a dead end (a cab that reaches nothing) and about 6% on
+an expressway (Brooklyn Heights onto the Brooklyn-Queens Expressway). With no
+such street within 400 m — New Jersey, the middle of a large park — the map says
+the cab is not modelled there instead of showing it going nowhere.
 
 Any single ride varies enormously — intra-Manhattan midday spans 2.25 to 3.58
 between the 25th and 75th percentile trip. That spread is exposed as the
@@ -271,9 +299,10 @@ Default speeds are 3.1 mph walking and 8.9 mph cycling. Both are exposed as
 sliders, so you can set your own.
 
 Transit stops are snapped to the nearest street node: median distance 20.6 m, 45.2 m
-at the ninety-fifth percentile. Seventy-four stops of 14,833 sit more than 200 m
-from any street node, and 18 — bus stops on routes that dip into Nassau County —
-have no city street within reach at all. Buses ride through those 18 normally;
+at the ninety-fifth percentile. Seventy-three stops of 14,898 sit more than 200 m
+from any street node, and 20 of those — bus stops on routes that run past the
+city line into Nassau County, Yonkers and Bayonne — have no street within reach
+at all. Buses ride through those 20 normally;
 you just cannot board or alight there, which mirrors reality for a map that ends
 at the city line.
 
@@ -300,9 +329,11 @@ review caught it.)
 Three operators, three feeds, and none of them is the Metropolitan Transportation Authority (MTA) — which is why an
 earlier build of this map had no boats at all.
 
-**NYC Ferry** contributes seven boat routes (Astoria, East River, South
-Brooklyn, Rockaway, Rockaway Rocket, Rockaway-Soundview, Governors Island and
-St. George) across 25 landings. Its feed also carries two `route_type=3`
+**NYC Ferry** contributes seven boat routes across 25 landings: Astoria, East
+River, South Brooklyn, Rockaway-Soundview and St. George, which run all year,
+and two summer-only weekend boats, the Governors Island shuttle and the
+Rockaway Rocket express. The feed used is the July 2026 schedule, so those two
+appear in the Saturday and Sunday bands even out of season. Its feed also carries two `route_type=3`
 routes — the free Rockaway shuttle *buses* — so route kind is read from each
 route's GTFS `route_type` rather than assumed from the feed. Labelling by feed
 would have called 17 bus stops on Rockaway Beach Boulevard "ferry landings".
@@ -331,7 +362,7 @@ From the St George terminal on a weekday morning with a 60-minute budget:
 | Without the ferry | ~0 | **none** |
 | With the ferry | substantial | South Ferry, Bowling Green, Wall St, Chambers St, 14 St-Union Sq, Times Sq |
 
-Staten Island has 29 SIM express bus routes to Manhattan over the Verrazzano,
+Staten Island has 27 SIM express bus routes to Manhattan over the Verrazzano,
 so the borough was not literally unconnected — but on the schedules, none of
 them delivers a rider from St George to a Manhattan subway station inside an
 hour. Without the ferry the map effectively cut a borough of half a million
@@ -341,9 +372,10 @@ gap as a claim about Staten Island.
 ### Validation
 
 The feed gives a 25-minute crossing, which is the real crossing. Headways per
-direction come out at 18 minutes in both rush bands, 27 to 30 minutes midday
-and evening, and 30 minutes overnight and at weekends — matching the published
-timetable. A trip from St George works out as: walk to the terminal, wait 9
+direction come out at 16 to 18 minutes in the rush bands, 27 to 30 minutes
+midday and evening, and 30 minutes overnight and at weekends. The published
+timetable runs boats every 15 minutes at the height of the rush; the band
+average includes its shoulders. A trip from St George works out as: walk to the terminal, wait 9
 minutes (half of the 18-minute headway), cross for 25, reach Whitehall at 34
 minutes, South Ferry station at 39, Times Square at 60.
 
@@ -401,8 +433,9 @@ Three smaller reasons point the same way:
   the whole metropolitan area, which is a different data source, roughly five
   times the graph, and an architecture that no longer fits in a browser.
 - **Fares.** Inside the city the local subway and bus fare is a flat $3.00, so
-  ignoring fares is mostly defensible. PATH is close to it. A commuter rail
-  isochrone that says "Ronkonkoma in 45 minutes" is true and misleading at $18.
+  ignoring fares is mostly defensible. PATH is close to it at $3.25. A commuter
+  rail isochrone that says "Ronkonkoma in 45 minutes" is true and misleading at
+  $21.50 one way at the peak.
   (Express buses, included here, are the one in-network exception at $7.25 —
   see below.)
 - **Park and ride.** The real suburban trip is drive, park, then train. This
@@ -426,8 +459,7 @@ headways are computed per line, per station, per time band from scheduled
 departures. A line with no departures in a band is not boardable in that band.
 The combined PATH headway at 33rd Street runs 3 minutes at the weekday peak, 6
 midday, and 30 overnight; the set of lines that run changes too — four at the
-weekday peak, a different four overnight (a peak line all but vanishes and an
-overnight-only combined route appears), three on Sundays. All of it comes
+weekday peak, and three on weekends in this (2025) feed. All of it comes
 from counting the schedule band by band.
 
 **The taxi mode deliberately stays inside New York City.** Its speeds
@@ -442,10 +474,11 @@ at the city line. The New Jersey streets here are for walking to a PATH station.
 
 The only published PATH static feed comes through Trillium, was last modified
 in June 2025, and carries a validity window ending 2026-06-01 — which has
-passed. We use it because it is the only GTFS PATH publishes and its schedule
-is stable, but its service dates are 2025 ones, and it is the least
-current input in this map. Everything else here is inside its validity window.
-If PATH changes its timetable, this map will not know.
+passed. We use it because it is the only GTFS PATH publishes, but its service dates
+are 2025 ones and it is the least current input in this map. It predates
+PATH's 2026 service increases: more weekday trains from March 15, and, since
+May 17, all four lines on weekends from 10am to 9pm (the feed has three). Weekend
+PATH reach here is therefore understated.
 
 ## Accessibility mode
 
@@ -453,8 +486,9 @@ The "I require accessible transit" toggle answers the same question for a rider
 who cannot use stairs.
 
 - **Subway and rail**: boarding and alighting are limited to listed accessible
-  stations — 162 fully accessible MTA stations and 9 accessible in one
-  direction, of 496. Trains still ride through everything else. The 9 partial
+  stations — 166 fully accessible and 8 accessible in one direction, of 496
+  subway and Staten Island Railway stations, per the MTA's station file as of
+  November 2026. Trains still ride through everything else. The 9 partial
   stations are treated as accessible in both directions, a small optimism noted
   here because GTFS direction ids do not map cleanly onto the MTA's north/south
   flags.
@@ -475,7 +509,7 @@ who cannot use stairs.
   FHV file records request and pickup timestamps and a WAV flag for every
   Uber/Lyft trip in the city. Median request-to-pickup over March 2026, per
   band, runs 7.1 to 7.9 minutes (1,072 to 21,538 WAV requests per band),
-  against 3.8 to 4.6 minutes for standard vehicles.
+  against 3.8 to 4.7 minutes for standard vehicles.
 - **Access-A-Ride** is absent, deliberately: it must be booked by 5pm the day
   before, so it cannot appear in a map of where you can go from here, now. Its
   absence from a turn-up-and-go picture is itself a finding.
@@ -496,10 +530,12 @@ not, and a rider planning a real trip should check that page.
 
 ## Station counts
 
-The map counts 496 subway stations where the commonly cited figure is 472. Both
-are correct. The MTA's feed treats separately-built stations that share a name as
-distinct: there are four parent stations called "Times Sq-42 St" and four called
-"125 St". The 472 figure counts connected complexes once.
+The map counts 496 stations where the commonly cited figure is 472. Both are
+correct. The 496 are the MTA station file's rows: 475 subway stations plus the
+21 stations of the Staten Island Railway. The MTA's 472 counts subway stations
+only, and the remaining handful of difference comes from stations the file
+splits in two. Counting connected complexes once gives a smaller number again,
+424.
 
 ## What this does not model
 
@@ -537,7 +573,7 @@ distinct: there are four parent stations called "Times Sq-42 St" and four called
 | Ride times | High. Medians of published schedules. |
 | Headways and waits | High as scheduled. Standard practice, deliberately conservative. |
 | Street routing | High. The city's own centerline file. |
-| Taxi times | Moderate. Calibrated to real trips, but one factor per band; conservative on highways and in the outer boroughs. |
+| Taxi times | Moderate. Calibrated to real trips, one factor per borough and band; conservative on highways. |
 | Walking and cycling speeds | Assumptions, exposed as sliders. |
 | Correspondence to a real trip | Moderate. Schedules are optimistic; delay is not modelled. |
 
@@ -553,11 +589,17 @@ python3 pipeline/calibrate_taxi.py  # yellow-cab citywide factors (cross-check)
 python3 pipeline/calibrate_boroughs.py # FHV -> per-borough factors + car_zones.bin
 python3 pipeline/build_carlink.py   # car node -> nearest walk node (race view)
 python3 pipeline/pack.py            # pack to binary for the browser
-cp pipeline/out/{core.json,bands.bin,bands.json,street_nodes.bin,street_edges.bin,car_nodes.bin,car_edges.bin,car_calibration.json} data/
+python3 pipeline/build_access.py      # accessible stations + measured pickup waits
+cp pipeline/out/{core.json,bands.bin,bands.json,street_nodes.bin,street_edges.bin,car_nodes.bin,car_edges.bin,car_calibration.json,car_calibration2.json,car_zones.bin,car_link.bin,access.json} data/
 python3 pipeline/validate.py        # speed + headway checks quoted above
 ```
 
-Total payload is 12.4 MB across nine files, covering all seven time bands.
+Copy all twelve files together. `car_zones.bin` and `car_link.bin` are indexed
+by car-network node, so a new car network shipped with old copies of either
+would attach traffic factors and race times to the wrong streets without any
+error.
+
+Total payload is 16.0 MB across twelve files, covering all seven time bands.
 
 ## Time bands
 
@@ -571,7 +613,8 @@ Total payload is 12.4 MB across nine files, covering all seven time bands.
 | `saturday_midday` | 10am–6pm |
 | `sunday_midday` | 10am–6pm |
 
-Service dates are chosen inside each feed's validity window: a representative
+Service dates are chosen inside each feed's validity window (PATH's has expired;
+see above): a representative
 Wednesday, Saturday and Sunday, with `calendar_dates.txt` exceptions honoured.
 
 ## A note on the AI caution label

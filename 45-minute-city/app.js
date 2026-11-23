@@ -16,6 +16,7 @@ const state = {
   accessible: false,
   traffic: "typical",
   streetDist: null,
+  drawnBudget: 45 * 60, // the budget the drawn result was computed for
   race: null,
   reachedStops: [],
   meta: null,
@@ -135,7 +136,10 @@ const CanvasLayer = L.Layer.extend({
     };
 
     const dist = state.streetDist;
-    const budget = state.budget;
+    // Colour against the budget this result was computed for, not the slider's
+    // live value: while the slider is being dragged the old times would be
+    // stretched over a new scale.
+    const budget = state.drawnBudget;
     const m = A.ea.length;
 
     // Pass 1: the unreachable network, very dim, so the city stays legible.
@@ -225,9 +229,9 @@ const CanvasLayer = L.Layer.extend({
     }
     ctx.stroke();
 
-    if (!state.race) return;
-    const { transit, taxi } = state.race;
-    const link = state.carLink;
+    // No cab start near this point: nothing to race, so don't paint the whole
+    // reach "train first" (the note under the controls says why).
+    if (!state.race || state.originCarNode < 0) return;
     const groups = { train: [], cab: [], cabonly: [], tie: [] };
     for (let i = 0; i < m; i++) {
       const a = A.ea[i], b = A.eb[i];
@@ -236,15 +240,8 @@ const CanvasLayer = L.Layer.extend({
         const lb = A.lat[b], ob = A.lon[b];
         if (lb > north || lb < south || ob < west || ob > east) continue;
       }
-      const tx = taxi[a];
-      const w = link[a];
-      const tr = w === 4294967295 ? -1 : transit[w];
-      if (tx < 0 && tr < 0) continue;
-      if (tr < 0) groups.cabonly.push(i);      // transit can't get here at all
-      else if (tx < 0) groups.train.push(i);
-      else if (Math.abs(tx - tr) <= 120) groups.tie.push(i);
-      else if (tr < tx) groups.train.push(i);
-      else groups.cab.push(i);                  // both reach; cab is faster
+      const g = raceClass(i);
+      if (g) groups[g].push(i);
     }
     const COLORS = {
       tie: "rgba(154,163,181,0.55)",
@@ -323,6 +320,11 @@ function initWorker() {
         ef: null,
         px: null, py: null, seen: null, stamp: 0,
       };
+      // The street file carries some segments twice (same two nodes, same
+      // flags), and the car graph has one edge per direction. Mark the repeats
+      // once so "km of street" counts each street a single time on both graphs.
+      G.dup = markDuplicates(G.ea, G.eb, G.ef);
+      CG.dup = markDuplicates(CG.ea, CG.eb, null);
       CG.px = new Float32Array(CG.lat.length);
       CG.py = new Float32Array(CG.lat.length);
       CG.seen = new Int32Array(CG.lat.length);
@@ -355,7 +357,9 @@ function initWorker() {
       if (!job) return;
       const dist = new Float32Array(m.streetDist);
       if (job.purpose === "compare") {
-        compare[job.mode] = computeKm(dist, job.mode);
+        if (job.gen !== gen) return;
+        if (job.mode === "taxi" && m.stats && m.stats.noCar) compare.taxi = null;
+        else compare[job.mode] = computeKm(dist, job.mode);
         renderCompare();
         return;
       }
@@ -365,6 +369,7 @@ function initWorker() {
         else raceBuf.taxi = dist;
         if (raceBuf.transit && raceBuf.taxi) {
           state.race = { transit: raceBuf.transit, taxi: raceBuf.taxi };
+          state.drawnBudget = state.budget;
           reachLayer.draw();
           updateRaceStats();
           $("#panel").classList.remove("busy");
@@ -376,7 +381,10 @@ function initWorker() {
       const expected = job.mode === "taxi" ? CG.lat.length : G.lat.length;
       if (dist.length !== expected) return; // wrong node space; never draw it
       state.streetDist = dist;
+      state.drawnBudget = state.budget;
+      $("#legend-max").textContent = Math.round(state.budget / 60) + " min";
       state.reachedStops = m.reachedStops;
+      $("#taxi-nocar").classList.toggle("open", job.mode === "taxi" && !!(m.stats && m.stats.noCar));
       reachLayer.draw();
       updateStats(m.stats);
       $("#panel").classList.remove("busy");
@@ -418,13 +426,18 @@ function opts(mode) {
 }
 
 let raceBuf = null;
+// Each runRoute starts a new generation; any compare result from an earlier
+// origin or setting that lands late is dropped instead of refilling the panel.
+let gen = 0;
 
 function runRoute() {
   if (!state.ready || state.originNode < 0) return;
   $("#panel").classList.add("busy");
+  gen++;
   compare = {};
   renderCompare();
   state.race = null;
+  raceBuf = null;
   if (state.mode === "race") {
     // Two full routes from the same origin, same clock; the map shows who wins.
     const idTr = ++reqId, idTx = ++reqId;
@@ -446,27 +459,33 @@ function runCompare() {
   for (const mode of MODES) {
     if (mode === "bike" && state.accessible) continue;
     const id = ++reqId;
-    pending.set(id, { purpose: "compare", mode });
+    pending.set(id, { purpose: "compare", mode, gen });
     worker.postMessage({ type: "route", id, opts: opts(mode) });
   }
+}
+
+function markDuplicates(ea, eb, ef) {
+  const dup = new Uint8Array(ea.length);
+  const seen = new Map();
+  for (let i = 0; i < ea.length; i++) {
+    const a = ea[i], b = eb[i];
+    const k = (a < b ? a * 4294967296 + b : b * 4294967296 + a) * 4 + (ef ? ef[i] & 3 : 0);
+    if (seen.has(k)) dup[i] = 1; else seen.set(k, i);
+  }
+  return dup;
 }
 
 function computeKm(dist, mode) {
   const isCar = mode === "taxi";
   const A = isCar ? CG : G;
   const mask = mode === "bike" || state.accessible ? 2 : 1;
-  const seenPair = isCar ? new Set() : null; // car edges are directed; count each street once
   let m2 = 0;
   const m = A.ea.length;
   for (let i = 0; i < m; i++) {
+    if (A.dup[i]) continue;
     if (!isCar && !(A.ef[i] & mask)) continue;
     const a = A.ea[i], b = A.eb[i];
     if (dist[a] < 0 || dist[b] < 0) continue;
-    if (isCar) {
-      const k = a < b ? a * 4294967296 + b : b * 4294967296 + a;
-      if (seenPair.has(k)) continue;
-      seenPair.add(k);
-    }
     const dx = (A.lat[a] - A.lat[b]) * 111320;
     const dy = (A.lon[a] - A.lon[b]) * 84500;
     m2 += Math.sqrt(dx * dx + dy * dy);
@@ -476,15 +495,19 @@ function computeKm(dist, mode) {
 
 function renderCompare() {
   const el = $("#compare");
-  const vals = MODES.map((m) => compare[m]).filter((v) => v !== undefined);
+  const vals = MODES.map((m) => compare[m]).filter((v) => v !== undefined && v !== null);
   if (!vals.length) { el.innerHTML = '<div class="cmp-wait">measuring every mode ...</div>'; return; }
   const max = Math.max(...vals);
   el.innerHTML = MODES.map((m) => {
     const v = compare[m];
-    const w = v === undefined ? 0 : (v / max) * 100;
-    const dim = m === "bike" && state.accessible;
+    const w = v === undefined || v === null ? 0 : (v / max) * 100;
+    const dim = (m === "bike" && state.accessible) || v === null;
+    // The traffic control only shows in the taxi and race views, so say which
+    // level the Taxi/Uber row was measured at whenever it isn't the median.
+    const label = m === "taxi" && state.traffic !== "typical"
+      ? `${MODE_LABEL[m]} <span class="cmp-q">(${state.traffic} traffic)</span>` : MODE_LABEL[m];
     return `<div class="cmp-row${m === state.mode ? " on" : ""}${dim ? " off" : ""}">
-      <div class="cmp-k">${MODE_LABEL[m]}</div>
+      <div class="cmp-k">${label}</div>
       <div class="cmp-bar"><i style="width:${dim ? 0 : w}%"></i></div>
       <div class="cmp-v">${dim ? "n/a" : v === undefined ? "—" : Math.round(v).toLocaleString()}</div>
     </div>`;
@@ -502,33 +525,47 @@ function updateStats(stats) {
   $("#stat-ferry").textContent = kindCount(2).toLocaleString();
 }
 
-function updateRaceStats() {
+// A segment counts as reached by a mode only when BOTH its ends are, the same
+// rule computeKm uses, so the race buckets add up to the Taxi/Uber panel.
+function raceClass(i) {
   const { transit, taxi } = state.race;
   const link = state.carLink;
-  let trainKm = 0, cabKm = 0, cabOnlyKm = 0, tieKm = 0;
+  const a = CG.ea[i], b = CG.eb[i];
+  const ta = taxi[a], tb = taxi[b];
+  const tx = ta < 0 || tb < 0 ? -1 : Math.max(ta, tb);
+  const wa = link[a], wb = link[b];
+  const ra = wa === 4294967295 ? -1 : transit[wa];
+  const rb = wb === 4294967295 ? -1 : transit[wb];
+  const tr = ra < 0 || rb < 0 ? -1 : Math.max(ra, rb);
+  if (tx < 0 && tr < 0) return null;
+  if (tr < 0) return "cabonly";            // transit can't get here at all
+  if (tx < 0) return "train";
+  if (Math.abs(tx - tr) <= 120) return "tie";
+  return tr < tx ? "train" : "cab";        // both reach; whichever is first
+}
+
+function updateRaceStats() {
+  const noCar = state.originCarNode < 0;
+  $("#race-nocar").classList.toggle("open", noCar);
+  if (noCar) {
+    for (const id of ["#race-train", "#race-cab", "#race-cabonly", "#race-tie"]) $(id).textContent = "—";
+    return;
+  }
+  const km = { train: 0, cab: 0, cabonly: 0, tie: 0 };
   const m = CG.ea.length;
-  const seen = new Set();
   for (let i = 0; i < m; i++) {
+    if (CG.dup[i]) continue; // car edges are directed; count each street once
+    const g = raceClass(i);
+    if (!g) continue;
     const a = CG.ea[i], b = CG.eb[i];
-    const k = a < b ? a * 4294967296 + b : b * 4294967296 + a;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    const tx = taxi[a], w = link[a];
-    const tr = w === 4294967295 ? -1 : transit[w];
-    if (tx < 0 && tr < 0) continue;
     const dx = (CG.lat[a] - CG.lat[b]) * 111320;
     const dy = (CG.lon[a] - CG.lon[b]) * 84500;
-    const len = Math.sqrt(dx * dx + dy * dy) / 1000;
-    if (tr < 0) cabOnlyKm += len;
-    else if (tx < 0) trainKm += len;
-    else if (Math.abs(tx - tr) <= 120) tieKm += len;
-    else if (tr < tx) trainKm += len;
-    else cabKm += len;
+    km[g] += Math.sqrt(dx * dx + dy * dy) / 1000;
   }
-  $("#race-train").textContent = Math.round(trainKm).toLocaleString();
-  $("#race-cab").textContent = Math.round(cabKm).toLocaleString();
-  $("#race-cabonly").textContent = Math.round(cabOnlyKm).toLocaleString();
-  $("#race-tie").textContent = Math.round(tieKm).toLocaleString();
+  $("#race-train").textContent = Math.round(km.train).toLocaleString();
+  $("#race-cab").textContent = Math.round(km.cab).toLocaleString();
+  $("#race-cabonly").textContent = Math.round(km.cabonly).toLocaleString();
+  $("#race-tie").textContent = Math.round(km.tie).toLocaleString();
 }
 
 // Say plainly what the chosen traffic level means on the ground right now.
@@ -622,7 +659,6 @@ function wireControls() {
   budget.addEventListener("input", () => {
     state.budget = +budget.value * 60;
     $("#budget-val").textContent = budget.value;
-    $("#legend-max").textContent = budget.value + " min";
   });
   budget.addEventListener("change", runRoute);
 
