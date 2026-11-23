@@ -102,6 +102,7 @@
     <h3>How ranks were calculated</h3>
     <p>Within each year and sex, names are ranked by count, highest first. Ties are broken alphabetically, which can put a name one place off the agency’s own lists in rare ties near the bottom of the top 50. Spellings count separately, so Catherine and Katherine are different names, as they are in the source.</p>
     <p>The share next to each name (and in each name’s description) divides the name’s count by the total of all names listed for that sex that year. Names given to fewer than five babies are not in the file, so the true share is slightly lower.</p>
+    <p>When a name is highlighted, the chart labels it as far as the race has run: gold bars along the top mark its years at No. 1, a ring marks the year it went to the largest share of babies, and the bottom edge shows when it entered and left the top 50 (for names with more than three stretches in the top 50, only the first entry and the last exit). Beside the long-tail strip, “names (5+)” is the number of names given to at least five babies that year.</p>
     <p>Line colour groups names by the first year they reached the top 50. Names already there in 1880 get their own colour because the data cannot say when they arrived.</p>
     <h3 id="m-findings">The figures at the top</h3>
     <ul>
@@ -167,7 +168,7 @@
     let names = [], byYear = [], byName = new Map(), tShare = [], tCount = [];
     const canvas = root.querySelector('canvas.race'), ctx = canvas.getContext('2d'), out = root.querySelector('.readout');
     const tcv = root.querySelector('canvas.tail'), tctx = tcv.getContext('2d'), TH = 96;
-    let W = 0, H = 0, rowH = 15, L = 42, R = 140, T = 24, B = 10, hover = null, pin = null;
+    let W = 0, H = 0, rowH = 15, L = 42, R = 140, T = 34, B = 10, hover = null, pin = null;
 
     function load(){
       const sx = DATA.sexes[key];
@@ -221,7 +222,7 @@
       const step = W < 640 ? 40 : 20;
       g.textAlign = 'center';
       for (let y = Math.ceil(Y0 / step) * step; y <= Y1; y += step) {
-        const x = xOf(y - Y0); g.beginPath(); g.moveTo(x, T - 4); g.lineTo(x, bottom); g.stroke(); g.fillText(y, x, T - 13);
+        const x = xOf(y - Y0); g.beginPath(); g.moveTo(x, T - 12); g.lineTo(x, bottom); g.stroke(); g.fillText(y, x, T - 22);
       }
     }
     function drawBase(ci, focus){ // grid plus every finished line, redrawn only when the year or highlight changes
@@ -245,7 +246,7 @@
       if (frac > 0) strokeLines(ctx, focus, n => tail(ctx, n, ci, frac));
       ctx.textBaseline = 'middle';
       const hx = xOf(ci + frac);
-      if (ci < NY - 1 || frac > 0) { ctx.strokeStyle = C.line; ctx.beginPath(); ctx.moveTo(hx, T - 4); ctx.lineTo(hx, bottom); ctx.stroke(); }
+      if (ci < NY - 1 || frac > 0) { ctx.strokeStyle = C.line; ctx.beginPath(); ctx.moveTo(hx, T - 12); ctx.lineTo(hx, bottom); ctx.stroke(); }
       ctx.textAlign = 'left';
       const shown = Math.round(cursor) - Y0;
       names.forEach(n => {
@@ -261,7 +262,64 @@
         ctx.fillText(label, hx + 6, y);
       });
       ctx.globalAlpha = 1;
+      if (focus) annotate(focus, ci, frac);
       drawTail(ci, frac);
+    }
+
+    // Stats for the highlighted name, drawn on the chart with a dark halo so they read over the lines.
+    // Only what has happened by the cursor year is shown, so the notes appear as the race reaches them.
+    function tag(text, x, y, align, weight, color, dry){
+      ctx.font = weight + ' ' + (W < 640 ? 12 : 13) + 'px Karla, system-ui, sans-serif';
+      const w = ctx.measureText(text).width, lo = L + 2, hi = W - R - 4;
+      if (align === 'left') x = Math.min(Math.max(x, lo), hi - w);
+      else if (align === 'right') x = Math.max(Math.min(x, hi), lo + w);
+      else x = Math.min(Math.max(x, lo + w / 2), hi - w / 2);
+      const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+      if (dry) return [x0 - 4, x0 + w + 4];
+      ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.lineWidth = 5; ctx.strokeStyle = C.bg; ctx.strokeText(text, x, y);
+      ctx.fillStyle = color; ctx.fillText(text, x, y);
+    }
+    function annotate(n, ci, frac){
+      const ink = ERAS[n.era].color, bottom = T + rowH * TOP, inTop = i => n.r[i] > 0 && n.r[i] <= TOP;
+      // stretches in the top 50, up to the cursor
+      const runs = []; let a = -1;
+      for (let i = 0; i <= ci; i++) { if (inTop(i) && a < 0) a = i; if (!inTop(i) && a >= 0) { runs.push([a, i - 1]); a = -1; } }
+      if (a >= 0) runs.push([a, ci]);
+      if (!runs.length) return;
+      // No. 1 years: a bar along the top edge, one label for the total
+      const ones = []; for (let i = 0; i <= ci; i++) if (n.r[i] === 1) ones.push(i);
+      if (ones.length) {
+        ctx.fillStyle = tok('sun');
+        ones.forEach(i => ctx.fillRect(xOf(i) - (W - L - R) / (NY - 1) / 2, T - rowH / 2 - 6, (W - L - R) / (NY - 1) + 0.5, 4));
+        tag('No. 1 for ' + ones.length + (ones.length === 1 ? ' year' : ' years'), xOf(ones[0]), yOf(1) + rowH * 1.1, 'left', 700, C.fg);
+      }
+      // peak share, or best rank if it never got to No. 1
+      let pk = -1; for (let i = 0; i <= ci; i++) if (pk < 0 || n.p[i] > n.p[pk]) pk = i;
+      const px = xOf(pk), py = yOf(rk(n, pk));
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = C.fg; ctx.stroke();
+      const right = px < (L + W - R) / 2, dy = rk(n, pk) > TOP - 6 ? -rowH * 1.2 : rowH * 1.2;
+      tag('Peak ' + pct(n.p[pk] / 10) + ' of ' + noun + ', ' + (Y0 + pk), px + (right ? 9 : -9), py + (ones.length && rk(n, pk) <= 3 ? rowH * 2.4 : dy), right ? 'left' : 'right', 700, C.fg);
+      if (!ones.length) { let b = runs[0][0]; for (let i = 0; i <= ci; i++) if (inTop(i) && n.r[i] < n.r[b]) b = i;
+        if (b !== pk) tag('Best No. ' + n.r[b] + ', ' + (Y0 + b), xOf(b), yOf(n.r[b]) - rowH * 1.1, 'center', 600, C.fg); }
+      // entries and exits along the bottom edge; with many, only the first entry and the last exit.
+      // Labels that would overlap move up a row.
+      const few = runs.length <= 3, marks = [];
+      runs.forEach(([s, e], k) => {
+        if (s > 0 && (few || k === 0)) marks.push(['in ' + (Y0 + s), xOf(s) - 4, 'right']);
+        const out = e < ci || (e === ci && ci < NY - 1 && frac > 0 && !inTop(ci + 1));
+        if (out && (few || k === runs.length - 1)) {
+          const last = k === runs.length - 1;
+          marks.push(['out after ' + (Y0 + e) + (last && ci === NY - 1 ? '; No. ' + (n.r[NY - 1] > 0 ? fmt(n.r[NY - 1]) : 'below 1,000') + ' in ' + Y1 : ''), xOf(e + 1) + 4, 'left']);
+        }
+      });
+      const rows = [];
+      marks.forEach(([t, x, al]) => {
+        const box = tag(t, x, 0, al, 600, C.fg, true);
+        let row = 0; while (rows[row] && rows[row].some(([p, q]) => box[0] < q && box[1] > p)) row++;
+        (rows[row] = rows[row] || []).push(box);
+        tag(t, x, bottom - rowH * (0.6 + row * 1.25), al, 600, C.fg);
+      });
     }
 
     function drawTail(ci, frac){
@@ -278,7 +336,7 @@
       const y = Math.round(cursor) - Y0, ly = Math.min(b - 14, Math.max(t + 6, yv(hv)));
       g.textAlign = 'left'; g.fillStyle = C.fg;
       g.font = '700 12px Karla, system-ui, sans-serif'; g.fillText(Math.round(tShare[y]) + '% in the top 50', hx + 6, ly);
-      g.font = '500 12px Karla, system-ui, sans-serif'; g.fillStyle = C.fg2; g.fillText(fmt(tCount[y]) + ' names (5+ each)', hx + 6, ly + 15);
+      g.font = '500 12px Karla, system-ui, sans-serif'; g.fillStyle = C.fg2; g.fillText(fmt(tCount[y]) + ' names (5+)', hx + 6, ly + 15);
     }
 
     function describe(n){
