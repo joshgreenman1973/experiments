@@ -19,11 +19,35 @@
   .yr{font-family:var(--display);font-variation-settings:'wdth' 80;font-weight:700;font-size:2rem;line-height:1;
     font-variant-numeric:tabular-nums;min-width:3.1ch}
   .slide{flex:1 1 240px;display:flex;align-items:center}
+  .ystep{display:inline-flex;align-items:stretch;border:1px solid var(--line)}
+  .ystep button{background:none;border:0;color:var(--fg);font-size:20px;line-height:1;width:34px;cursor:pointer;padding:0}
+  .ystep button:hover{background:var(--bg2)}
+  .ystep button:disabled{color:var(--line);cursor:default;background:none}
+  input.yr{background:var(--bg);color:var(--fg);border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);
+    width:4.7ch;text-align:center;padding:4px 2px;-moz-appearance:textfield;appearance:textfield;border-radius:0}
+  input.yr::-webkit-outer-spin-button,input.yr::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input.yr:focus{outline:2px solid var(--sun);outline-offset:-2px}
+  .bar .chip{padding:9px 12px}
+  .ylist{padding:16px clamp(16px,4vw,48px) 6px;border-bottom:1px solid var(--line2)}
+  .ylist h2{font-family:var(--display);font-variation-settings:'wdth' 88;font-weight:700;font-size:1.25rem;margin:0}
+  .ylist .hint{font-size:var(--t-small);color:var(--fg2);margin:2px 0 10px}
+  .ylist h3{font-size:.95rem;margin:12px 0 4px}
+  .ygrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(10,auto);grid-template-columns:repeat(5,minmax(0,1fr));gap:0 18px;max-width:1300px}
+  @media(max-width:760px){.ygrid{grid-template-rows:repeat(25,auto);grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+    .li{grid-template-columns:1.9em minmax(0,1fr) 2.8em}.li .sh{display:none}}
+  .li{display:grid;grid-template-columns:2.1em minmax(0,1fr) auto 3.2em;gap:6px;align-items:baseline;background:none;border:0;border-bottom:1px solid var(--line2);
+    color:var(--fg);font-family:inherit;font-size:14px;text-align:left;padding:4px 2px;cursor:pointer;font-variant-numeric:tabular-nums}
+  .li:hover,.li.on{background:var(--bg2)}
+  .li .rk{color:var(--fg2);text-align:right}
+  .li b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .li .sh{color:var(--fg2);font-size:13px}
+  .li .mv{font-size:12px;text-align:right;color:var(--fg2)}
+  .li .mv.up{color:var(--mint)} .li .mv.dn{color:var(--vermilion)} .li .mv.nw{color:var(--sun)}
   input[type=range]{width:100%;accent-color:var(--sun);height:22px;cursor:pointer}
   .leaders{font-size:var(--t-small);color:var(--fg2);min-width:15ch}
   .leaders b{color:var(--fg)}
   .bar input[type=search]{flex:0 1 210px;padding:8px 11px}
-  @media(max-width:640px){.bar{gap:8px 12px}.yr{font-size:1.6rem}.leaders{flex:1 1 auto}.bar input[type=search],.bar select{flex:1 1 130px}}
+  @media(max-width:640px){.bar{gap:8px 12px}.yr{font-size:1.6rem !important}.leaders{flex:1 1 auto}.bar input[type=search],.bar select{flex:1 1 130px}}
   .placenote{margin:16px clamp(16px,4vw,48px) 0}
   .placenote b{color:var(--fg)}
   .eras{padding:16px clamp(16px,4vw,48px) 0;font-size:var(--t-small);color:var(--fg2);display:flex;flex-wrap:wrap;gap:4px 0}
@@ -34,6 +58,7 @@
   .chart .figcap{margin:4px 0 10px}
   .chart canvas{width:100%}
   .chart canvas.race{cursor:crosshair;touch-action:pan-y}
+  .chart canvas.tail{cursor:ew-resize;touch-action:none}
   .tailcap{font-size:var(--t-small);color:var(--fg2);margin:14px 0 2px}
   .readout{color:var(--fg2);max-width:90ch}
   .readout b{color:var(--fg)}
@@ -91,22 +116,30 @@
 
   <div class="bar" role="group" aria-label="Race controls">
     <button class="play" id="play" type="button">Play</button>
-    <span class="yr" id="yr">2025</span>
-    <span class="slide"><input type="range" id="slider" min="1880" max="2025" step="1" value="2025" aria-label="Year"></span>
+    <span class="ystep"><button type="button" id="yprev" aria-label="Previous year">‹</button><input class="yr" id="yr" type="number" inputmode="numeric" min="1880" max="2025" value="2025" aria-label="Type a year"><button type="button" id="ynext" aria-label="Next year">›</button></span>
+    <span class="slide"><input type="range" id="slider" min="1880" max="2025" step="1" value="2025" aria-label="Year" list="decades"><datalist id="decades"></datalist></span>
     <span class="leaders" id="leaders"></span>
+    <button class="chip" type="button" id="listbtn" aria-pressed="false" aria-controls="ylist">Show the list</button>
     <select id="where" aria-label="Country or state"></select>
     <input type="search" id="find" placeholder="Find a name" list="allnames" aria-label="Find a name">
     <datalist id="allnames"></datalist>
   </div>
+
+  <section class="ylist" id="ylist" hidden>
+    <h2 id="ylist-h"></h2>
+    <p class="hint">Use the arrows or type a year above; arrows on your keyboard work too. Click a name to highlight it in the charts. Change is from the year before.</p>
+    <h3>Girls</h3><div class="ygrid" id="yl-girls"></div>
+    <h3>Boys</h3><div class="ygrid" id="yl-boys"></div>
+  </section>
 
   <p class="caution placenote" id="placenote" hidden></p>
   <div class="eras" id="eras"><span class="lbl">Line colour shows when a name first reached the top 50:</span></div>
 
   <section class="chart" id="c-girls">
     <h2>Girls</h2>
-    <div class="figcap"><span>Rank among girls’ names each year, top 50 only. Lines drop off the bottom when a name falls out.</span></div>
+    <div class="figcap"><span>Rank among girls’ names each year, top 50 only. Lines drop off the bottom when a name falls out. Click a year along the top to jump to it.</span></div>
     <canvas class="race" aria-label="Rank of each top-50 girls’ name by year, 1880 to 2025"></canvas>
-    <div class="tailcap">Share of all girls recorded who got one of that year’s top 50 names</div>
+    <div class="tailcap">Share of all girls recorded who got one of that year’s top 50 names. Click or drag here to pick a year.</div>
     <canvas class="tail" aria-label="Share of girls given a top-50 name, by year"></canvas>
     <div class="readout" aria-live="polite"></div>
   </section>
@@ -115,7 +148,7 @@
     <h2>Boys</h2>
     <div class="figcap"><span>Rank among boys’ names each year, top 50 only.</span></div>
     <canvas class="race" aria-label="Rank of each top-50 boys’ name by year, 1880 to 2025"></canvas>
-    <div class="tailcap">Share of all boys recorded who got one of that year’s top 50 names</div>
+    <div class="tailcap">Share of all boys recorded who got one of that year’s top 50 names. Click or drag here to pick a year.</div>
     <canvas class="tail" aria-label="Share of boys given a top-50 name, by year"></canvas>
     <div class="readout" aria-live="polite"></div>
   </section>
@@ -162,6 +195,7 @@
     <p>Within each year and sex, names are ranked by count, highest first. Ties are broken alphabetically, which can put a name one place off the agency’s own lists in rare ties near the bottom of the top 50. Spellings count separately, so Catherine and Katherine are different names, as they are in the source.</p>
     <p>The share next to each name (and in each name’s description) divides the name’s count by the total of all names listed for that sex that year. Names given to fewer than five babies are not in the file, so the true share is slightly lower.</p>
     <p>When a name is highlighted, the chart labels it as far as the race has run: gold bars along the top mark its years at No. 1, a ring marks the year it went to the largest share of babies, and the bottom edge shows when it entered and left the top 50 (for names with more than three stretches in the top 50, only the first entry and the last exit). Beside the long-tail strip, “names (5+)” is the number of names given to at least five babies that year.</p>
+    <p>The year list (“Show the list”) gives each name’s rank and share that year. The arrow shows how many places it moved since the year before; “new” means it was not in the top 50 the year before.</p>
     <p>Line colour groups names by the first year they reached the top 50. Names already there in 1880 get their own colour because the data cannot say when they arrived.</p>
     <h3 id="m-findings">The figures at the top</h3>
     <ul>
@@ -211,7 +245,7 @@
         noteEl = document.getElementById('placenote'), keyEl = document.getElementById('eras');
 
   const fmt = n => n.toLocaleString('en-US');
-  const pct = v => (v >= 1 ? v.toFixed(1) : v.toFixed(2)) + '%';
+  const pct = v => (v >= 0.995 ? v.toFixed(1) : v.toFixed(2)) + '%';
   function ranges(years){ // [1947,1948,1950] -> "1947 to 1948 and 1950"
     const out = []; let a = null, b = null;
     years.forEach(y => { if (a === null) { a = b = y; } else if (y === b + 1) { b = y; } else { out.push([a,b]); a = b = y; } });
@@ -428,7 +462,18 @@
     }
     canvas.addEventListener('mousemove', ev => { const n = pick(ev); if (n !== hover) { hover = n; if (!pin) describe(n); draw(); } });
     canvas.addEventListener('mouseleave', () => { hover = null; if (!pin) describe(null); draw(); });
-    canvas.addEventListener('click', ev => { const n = pick(ev); pin = (n && n !== pin) ? n : null; describe(pin || n); draw(); });
+    const yearAt = x => Y0 + Math.max(0, Math.min(NY - 1, Math.round((x - L) / (W - L - R) * (NY - 1))));
+    canvas.addEventListener('click', ev => {
+      const rect = canvas.getBoundingClientRect();
+      if (ev.clientY - rect.top < T - 8) { setYear(yearAt(ev.clientX - rect.left)); return; } // the year labels along the top
+      const n = pick(ev); pin = (n && n !== pin) ? n : null; describe(pin || n); draw(); syncList();
+    });
+    let drag = false;
+    const scrub = ev => setYear(yearAt(ev.clientX - tcv.getBoundingClientRect().left));
+    tcv.addEventListener('pointerdown', ev => { drag = true; tcv.setPointerCapture(ev.pointerId); scrub(ev); });
+    tcv.addEventListener('pointermove', ev => { if (drag) scrub(ev); });
+    tcv.addEventListener('pointerup', () => { drag = false; });
+    tcv.addEventListener('pointercancel', () => { drag = false; });
 
     new ResizeObserver(size).observe(canvas);
     return {
@@ -438,7 +483,10 @@
       // count of babies given the name ranked 50th in the last year, and years with fewer than 50 names listed
       thin(){ const n = byYear[NY - 1][TOP], sx = DATA.sexes[key];
         return {c50: n ? Math.round(n.p[NY - 1] * sx.births[NY - 1] / 1000) : null, short: tCount.filter(c => c < TOP).length}; },
-      setPin(n){ pin = n; describe(n); draw(); }
+      setPin(n){ pin = n; describe(n); draw(); },
+      get pinned(){ return pin; },
+      // the top 50 for year index i, with each name's rank the year before
+      list(i){ return byYear[i].slice(1).filter(Boolean).map(n => ({n, r: n.r[i], p: n.p[i], prev: i > 0 ? n.r[i - 1] : null})); }
     };
   }
 
@@ -464,7 +512,8 @@
     try { DATA = await getData(st); } catch (e) { noteEl.hidden = false; noteEl.textContent = 'Could not load the data for that state.'; return; }
     stateCode = st || ''; place = st ? STATES[st] : '';
     Y0 = DATA.years[0]; Y1 = DATA.years[1]; NY = Y1 - Y0 + 1; TOP = DATA.top;
-    cursor = Y1; slider.min = Y0; slider.max = Y1;
+    cursor = Y1; slider.min = Y0; slider.max = Y1; yrEl.min = Y0; yrEl.max = Y1; listKey = '';
+    document.getElementById('decades').innerHTML = Array.from({length: Math.floor(Y1 / 10) - Math.ceil(Y0 / 10) + 1}, (_, k) => '<option value="' + (Math.ceil(Y0 / 10) + k) * 10 + '">').join('');
     setEras();
     charts.forEach(c => c.load());
     const all = new Set(); charts.forEach(c => c.names.forEach(n => all.add(n.n)));
@@ -478,9 +527,58 @@
     const q = findEl.value.trim(); if (q) findEl.dispatchEvent(new Event('change'));
   }
 
+  const listEl = document.getElementById('ylist'), listBtn = document.getElementById('listbtn');
+  let listKey = '';
+  function syncList(){
+    if (listEl.hidden) return;
+    const y = Math.round(cursor), i = y - Y0, key = stateCode + y + '|' + charts.map(c => c.pinned ? c.pinned.n : '').join();
+    if (key === listKey) return; listKey = key;
+    document.getElementById('ylist-h').textContent = 'The top 50 in ' + y + (place ? ', ' + place.replace(/^the /, 'the ') : ', United States');
+    [['girls', girls], ['boys', boys]].forEach(([sx, c]) => {
+      document.getElementById('yl-' + sx).innerHTML = c.list(i).map(o => {
+        let mv = '', cls = '';
+        if (o.prev !== null) {
+          if (!(o.prev > 0 && o.prev <= TOP)) { mv = 'new'; cls = 'nw'; }
+          else if (o.prev > o.r) { mv = '▲' + (o.prev - o.r); cls = 'up'; }
+          else if (o.prev < o.r) { mv = '▼' + (o.r - o.prev); cls = 'dn'; }
+          else mv = '–';
+        }
+        return '<button type="button" class="li' + (c.pinned === o.n ? ' on' : '') + '" data-sx="' + sx + '" data-n="' + o.n.n + '"><span class="rk">' + o.r + '</span><b>' + o.n.n + '</b><span class="sh">' + pct(o.p / 10) + '</span><span class="mv ' + cls + '">' + mv + '</span></button>';
+      }).join('');
+    });
+  }
+  listEl.addEventListener('click', e => {
+    const b = e.target.closest('.li'); if (!b) return;
+    const c = b.dataset.sx === 'girls' ? girls : boys, n = c.byName.get(b.dataset.n.toLowerCase());
+    c.setPin(c.pinned === n ? null : n); syncList();
+  });
+  listBtn.addEventListener('click', () => {
+    listEl.hidden = !listEl.hidden; listBtn.setAttribute('aria-pressed', !listEl.hidden);
+    listBtn.textContent = listEl.hidden ? 'Show the list' : 'Hide the list'; listKey = ''; syncList();
+  });
+  function setYear(y){
+    if (playing) stop();
+    cursor = Math.max(Y0, Math.min(Y1, Math.round(y)));
+    playBtn.textContent = cursor >= Y1 ? 'Replay' : 'Play';
+    render();
+  }
+  document.getElementById('yprev').addEventListener('click', () => setYear(Math.round(cursor) - 1));
+  document.getElementById('ynext').addEventListener('click', () => setYear(Math.round(cursor) + 1));
+  yrEl.addEventListener('change', () => { const v = parseInt(yrEl.value, 10); if (!isNaN(v)) setYear(v); else render(); });
+  yrEl.addEventListener('keydown', e => { if (e.key === 'Enter') { yrEl.blur(); } });
+  document.addEventListener('keydown', e => {
+    const t = e.target, typing = t.closest && t.closest('input,select,textarea');
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowLeft') { setYear(Math.round(cursor) - 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { setYear(Math.round(cursor) + 1); e.preventDefault(); }
+  });
+
   function render(){
     const y = Math.round(cursor);
-    yrEl.textContent = y; slider.value = y;
+    if (document.activeElement !== yrEl) yrEl.value = y;
+    slider.value = y;
+    document.getElementById('yprev').disabled = y <= Y0; document.getElementById('ynext').disabled = y >= Y1;
+    syncList();
     leadersEl.innerHTML = 'No. 1: ' + girls.leader() + ' and ' + boys.leader();
     charts.forEach(c => c.draw());
   }
@@ -495,14 +593,14 @@
   function start(){ if (cursor >= Y1) cursor = Y0; playing = true; last = 0; playBtn.textContent = 'Pause'; requestAnimationFrame(tick); }
   function stop(){ playing = false; cursor = Math.round(cursor); render(); playBtn.textContent = cursor >= Y1 ? 'Replay' : 'Play'; }
   playBtn.addEventListener('click', () => playing ? stop() : start());
-  slider.addEventListener('input', () => { if (playing) stop(); cursor = +slider.value; playBtn.textContent = cursor >= Y1 ? 'Replay' : 'Play'; render(); });
+  slider.addEventListener('input', () => setYear(+slider.value));
   findEl.addEventListener('change', () => {
     const q = findEl.value.trim().toLowerCase(); if (!q) return;
     let hit = false;
-    charts.forEach(c => { const n = c.byName.get(q); c.setPin(n || null); if (n) hit = true; });
+    charts.forEach(c => { const n = c.byName.get(q); c.setPin(n || null); if (n) hit = true; }); syncList();
     if (!hit) document.querySelector('#c-girls .readout').innerHTML = '<b>' + findEl.value.trim() + '</b> never reached the top 50 for girls or boys' + (place ? ' in ' + place : '') + ' between ' + Y0 + ' and ' + Y1 + '.';
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { charts.forEach(c => c.setPin(null)); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { charts.forEach(c => c.setPin(null)); syncList(); } });
 
   whereEl.innerHTML = '<option value="">United States</option>' +
     Object.entries(STATES).sort((a, b) => a[1].replace(/^the /, '').localeCompare(b[1].replace(/^the /, ''))).map(([k, v]) => '<option value="' + k + '">' + v.replace(/^the /, '') + '</option>').join('');
