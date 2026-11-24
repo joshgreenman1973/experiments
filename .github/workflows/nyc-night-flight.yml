@@ -1,9 +1,9 @@
 name: Night Flight daily refresh
 
-# Adds last night's BirdCast radar estimates for the five boroughs, the last
-# 30 days of iNaturalist bird sightings and overnight wind. Outside BirdCast's
-# seasons (March 1 to June 15, Aug. 1 to Nov. 15) the fetch scripts find
-# nothing to do and nothing is committed.
+# Adds last night's BirdCast radar estimates for the five boroughs, recent
+# eBird and iNaturalist bird reports and overnight wind. The eBird step also
+# fills in older seasons a few days at a time (eBird allows 500 requests an hour). Outside BirdCast's
+# seasons (March 1 to June 15, Aug. 1 to Nov. 15) there is little to do.
 on:
   schedule:
     - cron: '23 13 * * *'   # about 8:23 a.m. Eastern; BirdCast's night is done by then
@@ -40,6 +40,16 @@ jobs:
         working-directory: nyc-night-flight/build
         run: python fetch_inat.py nightly
 
+      - name: eBird
+        id: ebird
+        continue-on-error: true
+        working-directory: nyc-night-flight/build
+        env:
+          EBIRD_API_KEY: ${{ secrets.EBIRD_API_KEY }}
+        run: |
+          python fetch_ebird.py nightly
+          python fetch_inat.py link-ebird
+
       - name: Wind
         id: weather
         continue-on-error: true
@@ -68,9 +78,10 @@ jobs:
           echo "Push failed after retries"; exit 1
 
       - name: Fail if any source failed
-        if: steps.birdcast.outcome == 'failure' || steps.inat.outcome == 'failure' || steps.weather.outcome == 'failure'
+        if: steps.birdcast.outcome == 'failure' || steps.inat.outcome == 'failure' || steps.ebird.outcome == 'failure' || steps.weather.outcome == 'failure'
         run: |
           echo "BirdCast: ${{ steps.birdcast.outcome }}"
           echo "iNaturalist: ${{ steps.inat.outcome }}"
+          echo "eBird: ${{ steps.ebird.outcome }}"
           echo "Wind: ${{ steps.weather.outcome }}"
           exit 1
