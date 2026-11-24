@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Night Flight: birds over New York City, night by night</title>
-<meta name="description" content="Radar counts of migrating birds over each borough, the winds they rode and what New Yorkers spotted the next morning.">
+<meta name="description" content="Radar counts of migrating birds over each borough, the overnight wind and what New Yorkers spotted the next day.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
@@ -59,7 +59,7 @@ details.credits p{margin:6px 0 0;line-height:1.5}
 
   <header class="head">
     <h1>Night Flight</h1>
-    <p class="finding" id="finding">Loading the night sky over New York City.</p>
+    <p class="finding" id="finding">Loading the data.</p>
     <p class="lede" id="lede"></p>
   </header>
 
@@ -125,7 +125,7 @@ details.credits p{margin:6px 0 0;line-height:1.5}
     <h3>Birds overhead</h3>
     <p>The nightly counts come from the <a href="https://dashboard.birdcast.org/">BirdCast Migration Dashboard</a>, run by the Cornell Lab of Ornithology, Colorado State University and the University of Massachusetts Amherst. BirdCast reads the National Weather Service's weather radars, separates birds from rain and insects and estimates how many birds crossed each county in the night. Each borough is a county, so each gets its own estimate. The figures are estimates from radar, not head counts, and BirdCast does not identify species.</p>
     <p>BirdCast's dashboard does not offer a download. This page reads the numbers each dashboard page carries for its own charts, one county and one night at a time (<code>dashboard.birdcast.org/region/&lt;county&gt;?night=&lt;date&gt;</code>). A night's total is the change in BirdCast's running season total from one night to the next; it matches the "total birds" figure BirdCast shows for that night. The historical average is the same calculation on BirdCast's average series. BirdCast serves one average series whatever year is asked for, so past seasons are compared with the average as BirdCast publishes it today. The 10-minute detail (birds in flight, direction, speed and altitude) is collected from spring 2026 on.</p>
-    <p>The five borough estimates are not added together. A bird that crosses Brooklyn and then Manhattan is counted in both, so a sum would count many birds twice.</p>
+    <p>The five borough estimates are not added together. A bird that crosses Brooklyn and then Manhattan is counted in both, so a sum would count many birds twice. For the city as a whole, the page uses the largest borough's estimate each night and calls it "at least": every bird that crossed that borough crossed the city.</p>
     <p>BirdCast's live feed runs March 1 to June 15 and Aug. 1 to Nov. 15. Its county dashboard goes back to fall 2021.</p>
     <h3>Birds on the ground</h3>
     <p>Sightings are iNaturalist observations of birds inside iNaturalist's New York City boundary (<a href="https://www.inaturalist.org/places/674">place 674</a>), "verifiable" grade only: research grade plus needs-ID, which leaves out captive birds and records without a photo, sound, date or place. Subspecies are folded into their species; sightings not identified to species count toward the sightings total but not the species count. Each night is paired with sightings dated the next day. "First of the season" means a species' first iNaturalist sighting in the city that season, and is not shown for a season's first two weeks, when nearly every species is new to the list. iNaturalist depends on who goes out with a camera: weekends and good weather bring more sightings, and the most recent weeks fill in as people upload and identify. Recent days are refreshed for 30 days.</p>
@@ -151,7 +151,27 @@ const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturd
 const INK = {'US-NY-005':'rose','US-NY-047':'orange','US-NY-061':'cobalt','US-NY-081':'cyan','US-NY-085':'lilac'};
 const COMPASS = ['north','north-northeast','northeast','east-northeast','east','east-southeast','southeast','south-southeast','south','south-southwest','southwest','west-southwest','west','west-northwest','northwest','north-northwest'];
 
-const S = {index:null, seasons:{}, curves:{}, key:null, i:null, code:'US-NY-061'};
+const S = {index:null, seasons:{}, curves:{}, key:null, i:null, code:'ALL'};
+const isAll = () => S.code === 'ALL';
+// Citywide: the five borough estimates can't be added (a bird crossing two boroughs
+// counts in both), so the city figure is the largest borough's: the least that crossed.
+function addCity(D){
+  if (D.birdcast.ALL) return D;
+  const codes = Object.keys(D.birdcast), n = D.dates.length;
+  const night = [], avg = [], who = [];
+  for (let i = 0; i < n; i++) {
+    let best = null, bv = -1, am = null;
+    for (const c of codes) {
+      const v = D.birdcast[c].night[i], a = D.birdcast[c].avg[i];
+      if (v != null && v > bv) { bv = v; best = c; }
+      if (a != null && (am == null || a > am)) am = a;
+    }
+    night.push(best ? bv : null); avg.push(am); who.push(best);
+  }
+  D.birdcast.ALL = {night, avg, who};
+  return D;
+}
+const srcCode = (D, i) => isAll() ? D.birdcast.ALL.who[i] : S.code;
 
 // ---------- formatting ----------
 const dt = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
@@ -178,7 +198,8 @@ function clock(t){
 }
 const compass = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const bname = code => S.index.boroughs.find(b => b.code === code).name;
+const bname = code => code === 'ALL' ? 'New York City' : S.index.boroughs.find(b => b.code === code).name;
+const atLeast = v => (isAll() ? 'at least ' : '') + big(v);
 const kindOf = key => key.endsWith('fall') ? 'fall' : 'spring';
 function favorable(w, kind){
   if (!w) return false;
@@ -197,7 +218,7 @@ const M = '#method';
 // ---------- data ----------
 const get = p => fetch(p + '?v=' + (S.index ? encodeURIComponent(S.index.v) : Date.now()), {cache: S.index ? 'default' : 'no-cache'}).then(r => { if (!r.ok) throw new Error(p + ' ' + r.status); return r.json(); });
 async function season(key){
-  if (!S.seasons[key]) S.seasons[key] = await get(`data/season/${key}.json`);
+  if (!S.seasons[key]) S.seasons[key] = addCity(await get(`data/season/${key}.json`));
   return S.seasons[key];
 }
 async function curves(key){
@@ -301,7 +322,9 @@ function skyIndex(ev){
 function nightLine(i){
   const D = S.seasons[S.key], bc = D.birdcast[S.code], w = D.wind[i], m = D.morning[i];
   let s = `<b>${ap(D.dates[i], {year:false, weekday:true})}:</b> `;
-  s += bc.night[i] == null ? 'no BirdCast estimate. ' : `${big(bc.night[i])} birds over ${bname(S.code)} (average ${big(bc.avg[i])}). `;
+  s += bc.night[i] == null ? 'no BirdCast estimate. ' : isAll()
+    ? `at least ${big(bc.night[i])} birds over the city (${bname(bc.who[i])}). `
+    : `${big(bc.night[i])} birds over ${bname(S.code)} (average ${big(bc.avg[i])}). `;
   if (w) s += `Wind ${windWord(w)}. `;
   if (m) s += `Next day: ${m.sp.length} species reported${m.new.length ? `, ${m.new.length} new for the season` : ''}.`;
   return s;
@@ -319,13 +342,14 @@ function drawCurve(){
   const [g, W, H] = sizeCanvas(curve, 260);
   const [ga, Wa, Ha] = sizeCanvas(alt, 120);
   curveGeo = null;
-  if (!C || !C[S.code]) {
+  const lead = isAll() ? (D.birdcast.ALL.who[S.i] || 'US-NY-081') : S.code;
+  if (!C || !C[lead]) {
     g.fillStyle = tok('fg2'); g.textAlign = 'left';
     g.fillText('No 10-minute detail stored for this night.', 0, 20);
     return;
   }
   const L = 50, R = 8, T = 30, B = 22;
-  const rows = C[S.code].s, n = rows.length;
+  const rows = C[lead].s, n = rows.length;
   const all = Object.values(C).flatMap(b => b.s.map(r => r[1] || 0));
   const vmax = niceMax(Math.max(1, ...all));
   const X = i => L + (W - L - R) * i / Math.max(1, n - 1), Y = v => T + (H - T - B) * (1 - v / vmax);
@@ -335,33 +359,41 @@ function drawCurve(){
   g.textAlign = 'center';
   rows.forEach((r, i) => { if (r[0] && r[0].endsWith(':00') && Number(r[0].slice(0,2)) % 3 === 0) g.fillText(clock(r[0]), X(i), H - 9); });
   // other boroughs faint, then the selected one
-  const order = Object.keys(C).filter(c => c !== S.code).concat(S.code);
+  const order = Object.keys(C).filter(c => c !== lead).concat(lead);
   for (const code of order) {
-    const s = C[code].s, sel = code === S.code;
-    g.strokeStyle = tok(INK[code]); g.globalAlpha = sel ? 1 : 0.45; g.lineWidth = sel ? 2.5 : 1.2;
+    const s = C[code].s, sel = isAll() || code === S.code;
+    g.strokeStyle = tok(INK[code]); g.globalAlpha = sel ? 1 : 0.45; g.lineWidth = isAll() ? 1.8 : sel ? 2.5 : 1.2;
     g.beginPath(); let on = false;
     s.forEach((r, i) => { if (r[1] == null) { on = false; return; } const y = Y(r[1]); on ? g.lineTo(X(i), y) : g.moveTo(X(i), y); on = true; });
     g.stroke();
   }
   g.globalAlpha = 1;
   // flight direction every 30 minutes, along the top
-  rows.forEach((r, i) => { if (i % 3 || r[2] == null || !r[1]) return; arrow(g, X(i), 12, r[2], Math.min(16, 6 + (r[3] || 0) / 3), tok(INK[S.code])); });
+  rows.forEach((r, i) => { if (i % 3 || r[2] == null || !r[1]) return; arrow(g, X(i), 12, r[2], Math.min(16, 6 + (r[3] || 0) / 3), isAll() ? tok('fg') : tok(INK[lead])); });
   // altitude
-  const hmax = niceMax(Math.max(1, ...rows.map(r => r[4] || 0)));
+  const hmax = niceMax(Math.max(1, ...(isAll() ? Object.values(C).flatMap(b => b.s) : rows).map(r => r[1] ? (r[4] || 0) : 0)));
   const Ya = v => 10 + (Ha - 30) * (1 - v / hmax);
   ga.fillStyle = fg2; ga.textAlign = 'right';
   for (const f of [0, 1]) { const y = Ya(hmax * f); ga.strokeStyle = grid; ga.beginPath(); ga.moveTo(L, y + .5); ga.lineTo(Wa - R, y + .5); ga.stroke(); ga.fillText(num(hmax * f) + ' ft', L - 6, y); }
-  ga.strokeStyle = tok(INK[S.code]); ga.lineWidth = 2; ga.beginPath();
-  let started = false;
-  rows.forEach((r, i) => { if (!r[1] || r[4] == null) { started = false; return; } const x = X(i), y = Ya(r[4]); started ? ga.lineTo(x, y) : ga.moveTo(x, y); started = true; });
-  ga.stroke();
-  curveGeo = {L, R, W, n, rows, X};
+  for (const code of (isAll() ? order : [lead])) {
+    ga.strokeStyle = tok(INK[code]); ga.lineWidth = isAll() ? 1.5 : 2; ga.beginPath();
+    let started = false;
+    C[code].s.forEach((r, i) => { if (!r[1] || r[4] == null) { started = false; return; } const x = X(i), y = Ya(r[4]); started ? ga.lineTo(x, y) : ga.moveTo(x, y); started = true; });
+    ga.stroke();
+  }
+  curveGeo = {L, R, W, n, rows, X, C, lead};
 }
 function curveAt(ev, el){
   if (!curveGeo) return;
   const r = el.getBoundingClientRect(), x = ev.clientX - r.left;
   const i = Math.max(0, Math.min(curveGeo.n - 1, Math.round((x - curveGeo.L) / (curveGeo.W - curveGeo.L - curveGeo.R) * (curveGeo.n - 1))));
   const p = curveGeo.rows[i];
+  if (isAll() && p[1] != null) {
+    const parts = S.index.boroughs.filter(b => curveGeo.C[b.code]).map(b => { const q = curveGeo.C[b.code].s[i]; return `${b.name} ${q && q[1] != null ? num(q[1]) : 'no reading'}`; });
+    $('#curveread').innerHTML = `<b>${clock(p[0])}:</b> birds in flight: ${list(parts)}.` +
+      (p[2] != null && p[1] ? ` Over ${bname(curveGeo.lead)} they were heading ${compass(p[2])} at ${Math.round(p[3])} mph, on average ${num(Math.round(p[4] / 100) * 100)} feet up.` : '');
+    return;
+  }
   $('#curveread').innerHTML = p[1] == null ? `<b>${p[0] ? clock(p[0]) : 'Here'}:</b> no radar reading for this 10 minutes.`
     : !p[1] ? `<b>${clock(p[0])}:</b> no birds measured in flight over ${bname(S.code)}.`
     : `<b>${clock(p[0])}:</b> about ${num(p[1])} birds in flight over ${bname(S.code)}` +
@@ -380,6 +412,14 @@ function renderNight(){
   let say;
   if (v == null) {
     say = `BirdCast has no estimate for ${bname(S.code)} this night.`;
+  } else if (isAll()) {
+    const vals = S.index.boroughs.map(b => [b.code, D.birdcast[b.code].night[i]]).filter(x => x[1] != null).sort((p, q) => p[1] - q[1]);
+    const [lo, hi] = [vals[0], vals[vals.length - 1]];
+    const hiAvg = D.birdcast[hi[0]].avg[i], ratio = hiAvg ? hi[1] / hiAvg : null;
+    const rank = [...bc.night].filter(x => x != null).sort((p, q) => q - p).indexOf(v) + 1;
+    say = `BirdCast's estimates for the five boroughs ran from ${a(bcUrl(lo[0], night), big(lo[1]) + ' birds')} crossing ${bname(lo[0])} to ${a(bcUrl(hi[0], night), big(hi[1]))} crossing ${bname(hi[0])}, so at least ${big(hi[1])} birds crossed the city overnight.`;
+    if (ratio) say += ` The ${bname(hi[0])} figure was ${ratio >= 1.15 ? `about ${a(M, ratio >= 2 ? (Math.round(ratio * 10) / 10) + ' times' : Math.round((ratio - 1) * 100) + '% more than')} its historical average for the date` : ratio <= 0.87 ? `${a(M, Math.round((1 - ratio) * 100) + '% below')} its historical average of ${a(bcUrl(hi[0], night), big(hiAvg))}` : `close to its historical average of ${a(bcUrl(hi[0], night), big(hiAvg))}`}.`;
+    say += ` By that measure it was the ${rank === 1 ? 'busiest night' : ordinal(rank) + ' busiest night'} of ${meta.label.toLowerCase()}.`;
   } else {
     const rank = [...bc.night].filter(x => x != null).sort((p, q) => q - p).indexOf(v) + 1;
     const ratio = avg ? v / avg : null;
@@ -395,10 +435,10 @@ function renderNight(){
 
   // curve
   const C = curveRows(S.curves[S.key], night);
-  $('#curvecap').textContent = `Birds in flight every 10 minutes, ${bname(S.code)} in bold`;
+  $('#curvecap').textContent = isAll() ? 'Birds in flight every 10 minutes, by borough' : `Birds in flight every 10 minutes, ${bname(S.code)} in bold`;
   $('#curvekeys').innerHTML = C ? S.index.boroughs.map(b => `<span class="key"><i class="line" style="background:var(--${INK[b.code]})"></i>${b.name}</span>`).join('') : '';
-  $('#curvenote').innerHTML = C ? 'Arrows along the top show which way the birds were heading every 30 minutes, longer for faster flight.'
-    : `This page keeps 10-minute detail from spring 2026 on. ${a(bcUrl(S.code, night), 'BirdCast\'s own page for this night')} has it.`;
+  $('#curvenote').innerHTML = C ? `Arrows along the top show which way the birds over ${bname(isAll() ? (D.birdcast.ALL.who[i] || 'US-NY-081') : S.code)} were heading every 30 minutes, longer for faster flight.`
+    : `This page keeps 10-minute detail from spring 2026 on. ${a(bcUrl(srcCode(D, i) || 'US-NY-081', night), 'BirdCast\'s own page for this night')} has it.`;
   $('#curveread').innerHTML = '&nbsp;';
   drawCurve();
 
@@ -475,7 +515,7 @@ for (const kind of ['fall', 'spring']) {
   c.addEventListener('mousemove', ev => {
     const h = gridHit(kind, ev); if (!h) { $('#gridread').innerHTML = '&nbsp;'; return; }
     const d = S.seasons[h.key], v = d.birdcast[S.code].night[h.i];
-    $('#gridread').innerHTML = `<b>${ap(d.dates[h.i], {weekday:true})}:</b> ${v == null ? 'no estimate' : big(v) + ' birds over ' + bname(S.code)}.`;
+    $('#gridread').innerHTML = `<b>${ap(d.dates[h.i], {weekday:true})}:</b> ${v == null ? 'no estimate' : isAll() ? 'at least ' + big(v) + ' birds over the city (' + bname(d.birdcast.ALL.who[h.i]) + ')' : big(v) + ' birds over ' + bname(S.code)}.`;
   });
   c.addEventListener('click', ev => { const h = gridHit(kind, ev); if (h) { pick(h.key, h.i); $('#night').scrollIntoView({behavior:'smooth'}); } });
 }
@@ -491,13 +531,13 @@ function windStat(){
     const mean = xs => xs.reduce((p, q) => p + q, 0) / xs.length;
     out[kind] = {seasons, fav: mean(fav), other: mean(other), nf: fav.length, no: other.length};
   }
-  const f = out.fall, s = out.spring, B = bname(S.code);
-  $('#windsay').innerHTML = `Each row is a season and each cell a night; darker means more birds crossed ${B}. Big nights come in bursts, and they line up with the wind. Across the ${word(f.seasons)} complete falls on record, nights when the overnight wind at Central Park came from the north averaged ${a(M, big(f.fav) + ' birds')} over ${B}; all other nights averaged ${a(M, big(f.other))}. In the ${word(s.seasons)} complete springs, nights with a south wind averaged ${a(M, big(s.fav))} and the rest ${a(M, big(s.other))}. Click any night to open it.`;
+  const f = out.fall, s = out.spring, B = isAll() ? 'the busiest borough' : bname(S.code);
+  $('#windsay').innerHTML = `Each row is a season and each cell a night; darker means more birds crossed ${isAll() ? 'the city' : B}. Across the ${word(f.seasons)} complete falls on record, nights when the overnight wind at Central Park came from the north averaged ${a(M, big(f.fav) + ' birds')} over ${B}; all other nights averaged ${a(M, big(f.other))}. In the ${word(s.seasons)} complete springs, nights with a south wind averaged ${a(M, big(s.fav))} and the rest ${a(M, big(s.other))}. Click any night to open it.`;
 }
 
 // ---------- page text ----------
 function opening(){
-  const seasons = S.index.seasons, latest = seasons[0], B = bname(S.code);
+  const seasons = S.index.seasons, latest = seasons[0], B = bname(S.code), src = c => isAll() ? c : S.code;
   const D = S.seasons[latest.key], bc = D.birdcast[S.code];
   const inSeason = !latest.complete && latest.through;
   let i;
@@ -505,11 +545,15 @@ function opening(){
   else { const vals = bc.night.map(v => v ?? -1); i = vals.indexOf(Math.max(...vals)); }
   const night = D.dates[i];
   $('#finding').innerHTML = inSeason
-    ? `Last night, ${ap(night, {year:false})}, radar tracked an estimated ${a(bcUrl(S.code, night), big(bc.night[i]) + ' birds')} crossing ${B}.`
-    : `On the night of ${ap(night)}, radar tracked an estimated ${a(bcUrl(S.code, night), big(bc.night[i]) + ' birds')} crossing ${B}, the busiest night of ${latest.label.toLowerCase()}.`;
+    ? `Last night, ${ap(night, {year:false})}, radar tracked ${isAll() ? 'at least' : 'an estimated'} ${a(bcUrl(src(bc.who && bc.who[i]), night), big(bc.night[i]) + ' birds')} crossing ${B}.`
+    : `On the night of ${ap(night)}, radar tracked ${isAll() ? 'at least' : 'an estimated'} ${a(bcUrl(src(bc.who && bc.who[i]), night), big(bc.night[i]) + ' birds')} crossing ${B}, the busiest night of ${latest.label.toLowerCase()}.`;
   const tot = latest.totals[S.code], avg = latest.avgTotals[S.code];
+  const tots = S.index.boroughs.map(b => [b.code, latest.totals[b.code]]).sort((p, q) => p[1] - q[1]);
+  const lo = tots[0], hi = tots[tots.length - 1];
   const s1 = latest.start, s2 = latest.end;
-  $('#lede').innerHTML = `BirdCast, a radar project led by the Cornell Lab of Ornithology, estimates how many migrating birds fly over each borough every night of spring and fall. Its count for ${B} in ${latest.label.toLowerCase()}${inSeason ? ' so far' : ''} came to ${a(bcUrl(S.code, latest.through), big(tot) + ' birds')}, ${vsAvg(tot, avg)} BirdCast's historical average of ${a(bcUrl(S.code, latest.through), big(avg))} for the same dates. Over the same stretch, iNaturalist users reported ${a(inatUrl(s1, s2), num(latest.sightings) + ' bird sightings')} in the city, covering ${a(inatUrl(s1, s2, '&view=species'), latest.species + ' species')}. Below, each night's flight sits above the wind it rode and what people saw the next day.`;
+  $('#lede').innerHTML = `BirdCast, a radar project led by the Cornell Lab of Ornithology, estimates how many migrating birds fly over each borough every night of spring and fall. ${isAll()
+    ? `Its counts for ${latest.label.toLowerCase()}${inSeason ? ' so far' : ''} ran from ${a(bcUrl(lo[0], latest.through), big(lo[1]) + ' birds')} over ${bname(lo[0])} to ${a(bcUrl(hi[0], latest.through), big(hi[1]))} over ${bname(hi[0])}. The boroughs can't be added together, because a bird that crosses two is counted in both, so for the city as a whole this page uses the largest borough's count each night: the least that crossed.`
+    : `Its count for ${B} in ${latest.label.toLowerCase()}${inSeason ? ' so far' : ''} came to ${a(bcUrl(S.code, latest.through), big(tot) + ' birds')}, ${vsAvg(tot, avg)} BirdCast's historical average of ${a(bcUrl(S.code, latest.through), big(avg))} for the same dates.`} Over the same stretch, iNaturalist users reported ${a(inatUrl(s1, s2), num(latest.sightings) + ' bird sightings')} in the city, covering ${a(inatUrl(s1, s2, '&view=species'), latest.species + ' species')}. The chart below shows each night's count, the overnight wind and how many species people reported the next day. Click a night for the details.`;
   const oldest = seasons[seasons.length - 1];
   $('#range').textContent = `${oldest.label} to ${latest.label.toLowerCase()}`;
   return {key: latest.key, i};
@@ -521,7 +565,7 @@ function vsAvg(v, avg){
 }
 function captions(){
   const meta = S.index.seasons.find(s => s.key === S.key);
-  $('#skycap').innerHTML = `<b>Birds crossing ${bname(S.code)} each night, ${meta.label.toLowerCase()}</b>`;
+  $('#skycap').innerHTML = isAll() ? `<b>Birds crossing New York City each night, ${meta.label.toLowerCase()}</b>, using the busiest borough's count` : `<b>Birds crossing ${bname(S.code)} each night, ${meta.label.toLowerCase()}</b>`;
 }
 function foot(){
   const f = S.index.fetched, when = x => x ? ap(x.slice(0, 10)) : 'unknown';
@@ -540,7 +584,7 @@ async function pick(key, i, push=true){
   if (push) history.replaceState(null, '', `#${key}/${D.dates[S.i]}/${S.code}`);
 }
 function boroughChips(){
-  $('#boroughs').innerHTML = S.index.boroughs.map(b => `<button class="chip" type="button" data-code="${b.code}" aria-pressed="${b.code === S.code}"><i style="background:var(--${INK[b.code]})"></i>${b.name}</button>`).join('');
+  $('#boroughs').innerHTML = `<button class="chip" type="button" data-code="ALL" aria-pressed="${isAll()}">All five boroughs</button>` + S.index.boroughs.map(b => `<button class="chip" type="button" data-code="${b.code}" aria-pressed="${b.code === S.code}"><i style="background:var(--${INK[b.code]})"></i>${b.name}</button>`).join('');
   $('#boroughs').onclick = ev => {
     const btn = ev.target.closest('button'); if (!btn) return;
     S.code = btn.dataset.code;
@@ -553,7 +597,7 @@ async function init(){
   S.index = await get('data/index.json');
   S.index.v = S.index.built || Date.now();
   const [hk, hd, hc] = location.hash.slice(1).split('/');
-  if (hc && INK[hc]) S.code = hc;
+  if (hc && (INK[hc] || hc === 'ALL')) S.code = hc;
   $('#season').innerHTML = S.index.seasons.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
   $('#season').onchange = async ev => {
     const D = await season(ev.target.value), bc = D.birdcast[S.code].night.map(v => v ?? -1);

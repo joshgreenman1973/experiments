@@ -30,6 +30,8 @@ County codes: Bronx `US-NY-005`, Brooklyn (Kings) `US-NY-047`, Manhattan (New Yo
 
 **Not added across boroughs.** A bird crossing Brooklyn and then Manhattan counts in both counties' totals, so the page never sums the five boroughs. Rankings such as "busiest night" are per borough.
 
+**The citywide view (the page's default).** For New York City as a whole, the page uses the largest of the five borough estimates each night, and words it as "at least": every bird that crossed the busiest borough crossed the city, so that count is a floor, while the true citywide number is somewhere between it and the (double-counted) sum. The citywide historical average line is the largest of the five borough averages for that date. Rankings in this view are by that nightly floor.
+
 **Limits.** These are radar-based estimates, not counts, and they do not say which species flew. BirdCast notes that radar coverage and ground clutter vary by place. Nights with radar outages appear as missing.
 
 ## 2. Wind: Open-Meteo
