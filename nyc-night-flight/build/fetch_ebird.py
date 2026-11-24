@@ -9,6 +9,7 @@ the citywide list is the union of the five borough lists.
 
 eBird allows 500 requests an hour per key (bursts of 25 in 5 seconds), so:
   - one request per borough per day (5 a day)
+  - only seasons from spring 2024 on (FIRST)
   - each run spends at most CALL_BUDGET requests (default 450)
   - the daily job first refreshes recent days (uploads lag), then spends what
     is left filling in older seasons, newest first, so the full history
@@ -45,6 +46,7 @@ MIN_GAP = 0.3          # seconds between requests: under the 25-in-5-seconds bur
 CALL_BUDGET = int(os.environ.get("EBIRD_CALL_BUDGET", "450"))
 RECENT_DAYS = 14       # refreshed every run in and just after a season
 AFTER_SEASON = 45      # days after a season ends that recent days keep being refreshed
+FIRST = (2024, "spring")  # eBird is kept for the last three years only
 
 
 class QuotaUsed(Exception):
@@ -128,7 +130,9 @@ def save(skey, store, start, end, today, fetched=None):
 def run(client, recent=True, newest=None):
     today = dt.datetime.now(NY).date()
     taxa = read_json(TAXA, {})
-    seasons = all_seasons(today)[::-1]  # newest first
+    order = {"spring": 0, "fall": 1}
+    seasons = [x for x in all_seasons(today)[::-1]  # newest first
+               if (x[0], order[x[1]]) >= (FIRST[0], order[FIRST[1]])]
     if newest:
         seasons = seasons[:newest]
     plan = []
