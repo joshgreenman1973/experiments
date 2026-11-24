@@ -640,7 +640,7 @@ def _v(f):
     return hashlib.md5(open(D(f), 'rb').read()).hexdigest()[:8]
 CSS_LINK = f'<link rel="stylesheet" href="house.css?v={_v("house.css")}"><link rel="stylesheet" href="style.css?v={_v("style.css")}">'
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-         '<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">')
+         '<link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">')
 
 
 def head(title, desc):

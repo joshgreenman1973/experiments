@@ -34,7 +34,7 @@ const html = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Methodology: New York City equivalents</title>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../house-style/house.css">
 <style>
 :root{--accent:var(--lilac)}

@@ -95,7 +95,7 @@ HEAD = '''<!DOCTYPE html>
 <title>{title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../house-style/house.css">
 <style>
 .doc{{max-width:820px}}
