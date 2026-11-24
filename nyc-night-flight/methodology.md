@@ -2,7 +2,7 @@
 
 Live page: https://joshgreenman1973.github.io/experiments/nyc-night-flight/
 
-Night Flight pairs three sources, night by night, for New York City's five boroughs: radar estimates of migrating birds overhead (BirdCast), the overnight wind (Open-Meteo) and the birds people reported the next day (iNaturalist). The page's own "How this works" section says the same in shorter form.
+Night Flight pairs four sources, night by night, for New York City's five boroughs: radar estimates of migrating birds overhead (BirdCast), the overnight wind (Open-Meteo) and the birds people reported the next day (eBird and iNaturalist). The page's own "How this works" section says the same in shorter form.
 
 ## 1. Birds overhead: BirdCast
 
@@ -42,7 +42,27 @@ A night is the hours from 7 p.m. on its date to 6 a.m. the next morning (12 hour
 
 **"Blowing the way migrants fly."** In fall, a night counts when cos(direction) > 0.3, meaning the mean wind comes from the north (roughly west-northwest through east-northeast). In spring, when cos(direction) < −0.3, from the south. The comparison on the page is the plain average of nightly BirdCast totals for those nights against all other nights, over complete seasons only, for the borough selected. It is a description, not a model: it does not separate wind from the calendar, rain, temperature or the winds aloft that birds actually ride.
 
-## 3. Birds on the ground: iNaturalist
+## 3. Birds on the ground: eBird
+
+eBird (Cornell Lab of Ornithology) is a database of birders' checklists. Through the eBird API 2.0, with an API key (`EBIRD_API_KEY`), one request per borough (county code) and day:
+
+```
+https://api.ebird.org/v2/data/obs/<county>/historic/<y>/<m>/<d>?rank=mrec&detail=simple&cat=species
+```
+
+This lists the species reported that day, one record per species (`cat=species` leaves out hybrids, spuhs and slashes). Checklist counts are not used: they need a second, slow request per borough and day, which the rate limit below can't afford.
+
+- **Citywide:** species are not added across boroughs. The citywide list is the union of the five borough lists.
+- **Pairing:** night D is paired with reports dated D+1, as with iNaturalist.
+- **First of the season** is computed in the page for whatever is selected: a species' first eBird report of the season in the city or in that borough. Not shown in a season's first 14 days.
+- **Stored:** per day, per species, which boroughs reported it. eBird's terms require attribution and restrict redistributing data in its original format, so no raw records are kept. Species names come from the eBird records; photos come from iNaturalist by exact scientific-name match (`fetch_inat.py link-ebird`), only when CC-licensed.
+- **Rate limit and backfill:** eBird allows 500 requests an hour per key (bursts of 25 in 5 seconds). Each daily run spends at most 450 requests: first the last 14 days of the current season (during the season and for 45 days after, since checklists are often submitted late), then missing days of older seasons, newest first, about 85 days per run. The full history back to fall 2021 fills in over roughly two weeks of runs. When eBird reports the hour's quota is gone, the run saves what it has and stops; it fails only if the recent days weren't refreshed. `fetch_ebird.py backfill --patient` does the same locally but waits out the quota.
+- **Which source the chart uses:** a season's ground panel uses eBird only once every day of that season is in (`allDays` in `data/src/ebird/<season>.json`). Until then it uses iNaturalist, and the night details still list whatever eBird days exist.
+- **Limits:** reports follow birder effort (weekends, good weather, May). They measure what birders found, not how many birds were present.
+
+The season chart's ground panel is drawn on its own scale in a separate shaded panel. It is a different measure from the radar counts above it, and the two scales should not be compared directly.
+
+## 4. Birds on the ground: iNaturalist
 
 Observations from the iNaturalist API v2:
 
@@ -70,7 +90,8 @@ https://api.inaturalist.org/v2/observations?taxon_id=3&place_id=674&verifiable=t
 | `build/common.py` | season calendar, borough codes, HTTP with retries (raises on failure) |
 | `build/nuxt_parse.py` | reads a dashboard page's embedded data without running it |
 | `build/fetch_birdcast.py` | `totals`, `curves` and `nightly` commands |
-| `build/fetch_inat.py` | sightings by day and species, taxa and photos |
+| `build/fetch_ebird.py` | species reported to eBird by borough and day, within eBird's hourly limit |
+| `build/fetch_inat.py` | sightings by day and species, taxa and photos; photos for eBird species |
 | `build/fetch_weather.py` | hourly wind and rain by night |
 | `build/build.py` | writes `data/index.json`, `data/season/<season>.json`, `data/curves/<season>.json` |
 | `data/src/` | the raw pulls the build reads, committed so the daily job can add to them |
@@ -81,4 +102,4 @@ https://api.inaturalist.org/v2/observations?taxon_id=3&place_id=674&verifiable=t
 
 ## Use of the data
 
-BirdCast, iNaturalist and Open-Meteo are credited on the page and every figure links to its source. BirdCast publishes no terms for reuse of its dashboard numbers; the page shows them with credit and links back for each figure.
+BirdCast, eBird, iNaturalist and Open-Meteo are credited on the page and every figure links to its source. BirdCast publishes no terms for reuse of its dashboard numbers; the page shows them with credit and links back for each figure.

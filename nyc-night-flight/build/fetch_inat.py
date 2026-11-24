@@ -167,6 +167,26 @@ def fetch_season(year, name, start, end, since=None):
     return out
 
 
+def link_ebird():
+    """Find iNaturalist photos for species eBird reported that iNaturalist
+    records don't cover, matching on exact scientific name."""
+    eb = read_json(SRC / "ebird" / "taxa.json", {})
+    taxa = read_json(TAXA, {})
+    have = {(v.get("name") or "").lower() for v in taxa.values()}
+    missing = sorted({sci for _, sci in eb.values() if sci and sci.lower() not in have and " x " not in sci and "/" not in sci})
+    ids = []
+    for sci in missing:
+        url = "https://api.inaturalist.org/v1/taxa?" + urllib.parse.urlencode({"q": sci, "rank": "species", "per_page": 5})
+        data = json.loads(http_get(url, accept="application/json"))
+        time.sleep(PAUSE)
+        hit = next((t for t in data.get("results") or [] if (t.get("name") or "").lower() == sci.lower()), None)
+        if hit:
+            ids.append(hit["id"])
+    if ids:
+        load_taxa(ids)
+    print(f"eBird names: {len(missing)} not in iNaturalist records, {len(ids)} matched")
+
+
 def nightly():
     today = ny_today()
     for year, name, start, end in all_seasons(today):
@@ -179,12 +199,14 @@ def nightly():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", nargs="?", default="season", choices=["season", "nightly"])
+    ap.add_argument("what", nargs="?", default="season", choices=["season", "nightly", "link-ebird"])
     ap.add_argument("--season")
     ap.add_argument("--all", action="store_true")
     a = ap.parse_args()
     if a.what == "nightly":
         return nightly()
+    if a.what == "link-ebird":
+        return link_ebird()
     seasons = all_seasons(ny_today())
     if not a.all:
         seasons = [s for s in seasons if season_key(s[0], s[1]) == a.season]

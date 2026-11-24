@@ -90,23 +90,39 @@ def build_season(year, name, start, end, taxa):
     wind_hours = [[[h[0], h[1], h[2]] for h in wx.get(d, [])] for d in dates]
 
     inat = (read_json(SRC / "inat" / f"{key}.json") or {}).get("days", {})
-    seen, morning, used = set(), [], set()
+    eb_file = read_json(SRC / "ebird" / f"{key}.json") or {}
+    eb = eb_file.get("days", {})
+    eb_names = read_json(SRC / "ebird" / "taxa.json", {})
+    by_sci = {(v.get("name") or "").lower(): v for v in taxa.values()}
+    seen, morning, used, used_eb = set(), [], set(), set()
     for i, d in enumerate(dates):
         nxt = (dt.date.fromisoformat(d) + dt.timedelta(days=1)).isoformat()
-        day = inat.get(nxt)
-        if not day:
+        day, ebd = inat.get(nxt), eb.get(nxt)
+        if not day and not ebd:
             morning.append(None)
             continue
-        new = [s for s, _ in day["sp"] if s not in seen]
-        seen.update(s for s, _ in day["sp"])
-        used.update(s for s, _ in day["sp"])
-        morning.append({"date": nxt, "n": day["n"], "other": day["other"], "sp": day["sp"],
-                        "new": new if i >= NEW_AFTER_DAYS else []})
+        m = {"date": nxt}
+        if day:
+            new = [s for s, _ in day["sp"] if s not in seen]
+            seen.update(s for s, _ in day["sp"])
+            used.update(s for s, _ in day["sp"])
+            m.update({"n": day["n"], "other": day["other"], "sp": day["sp"],
+                      "new": new if i >= NEW_AFTER_DAYS else []})
+        if ebd:
+            sp = sorted(ebd["sp"].items(), key=lambda kv: (-len(kv[1]), kv[0]))
+            used_eb.update(sc for sc, _ in sp)
+            m["eb"] = {"sp": [[sc, ",".join(sorted(b))] for sc, b in sp]}
+        morning.append(m)
     sp_taxa = {}
     for s in sorted(used):
         t = taxa.get(str(s)) or {}
         sp_taxa[s] = [t.get("common") or t.get("name"), t.get("name"),
                       (t.get("photo") or {}).get("url"), (t.get("photo") or {}).get("by")]
+    eb_taxa = {}
+    for sc in sorted(used_eb):
+        com, sci = eb_names.get(sc, [sc, None])
+        t = by_sci.get((sci or "").lower()) or {}
+        eb_taxa[sc] = [com, sci, (t.get("photo") or {}).get("url"), (t.get("photo") or {}).get("by")]
 
     curves = read_json(SRC / "birdcast" / "curves" / f"{key}.json") or {}
     has_curves = sorted(d for d, b in curves.items() if any(v.get("s") for v in b.values()))
@@ -118,7 +134,8 @@ def build_season(year, name, start, end, taxa):
     season = {"key": key, "label": f"{SEASON_LABEL[name]} {year}", "start": start.isoformat(),
               "end": end.isoformat(), "through": through, "dates": dates,
               "birdcast": birdcast, "wind": wind, "windHours": wind_hours,
-              "morning": morning, "taxa": sp_taxa, "curveNights": has_curves}
+              "morning": morning, "taxa": sp_taxa, "ebTaxa": eb_taxa,
+              "ebComplete": bool(eb_file.get("allDays")), "curveNights": has_curves}
     write_json(OUT / "season" / f"{key}.json", season)
 
     # summary for the index
@@ -132,6 +149,8 @@ def build_season(year, name, start, end, taxa):
             "top": [{"night": dates[i], "by": {c: birdcast[c]["night"][i] for c in birdcast}} for i in top],
             "sightings": sum(v["n"] for v in inat.values()),
             "species": len({sp for v in inat.values() for sp, _ in v["sp"]}),
+            "ebComplete": bool(eb_file.get("allDays")),
+            "ebSpecies": len({sc for k, v in eb.items() if start.isoformat() <= k <= end.isoformat() for sc in v["sp"]}),
             "hasCurves": bool(has_curves)}
 
 
@@ -145,7 +164,7 @@ def main():
     if not seasons:
         raise SystemExit("no seasons built")
     newest = {}
-    for k in ("birdcast/totals", "inat", "weather"):
+    for k in ("birdcast/totals", "inat", "ebird", "weather"):
         stamps = [(read_json(p) or {}).get("fetched") for p in (SRC / k).glob("*.json")]
         newest[k.split("/")[0]] = max([s for s in stamps if s] or [None])
     write_json(OUT / "index.json", {
