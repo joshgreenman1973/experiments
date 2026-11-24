@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Night Flight: birds over New York City, night by night</title>
+<meta name="description" content="Radar counts of migrating birds over each borough, the winds they rode and what New Yorkers spotted the next morning.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="house.css?v=1">
+<style>
+:root{--accent:var(--cobalt)}
+.bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 14px}
+.bar label{font-size:var(--t-small);color:var(--fg2);display:flex;gap:8px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip i{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:0}
+#sky,#curve,#alt{width:100%;touch-action:pan-y;cursor:crosshair}
+.keys{display:flex;flex-wrap:wrap;gap:4px 14px}
+.keys .key i.line{height:2px;width:14px}
+.keys .key i.dot{border-radius:0;width:7px;height:7px}
+.nightnav{display:flex;gap:8px;margin:14px 0 0}
+.nightnav button{font-size:var(--t-small);font-weight:600;background:none;border:1px solid var(--line);color:var(--fg);padding:7px 11px;cursor:pointer}
+.nightnav button:hover{border-color:var(--fg)}
+.nightnav button:disabled{opacity:.35;cursor:default}
+#night h2{margin-bottom:10px}
+.say{max-width:70ch;margin:0 0 6px;font-size:var(--t-body);line-height:1.55}
+.say a{white-space:nowrap}
+.note{font-size:var(--t-small);color:var(--fg2);max-width:70ch;margin:8px 0 0}
+.birds{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:14px 12px;margin-top:14px}
+.bird{display:block;text-decoration:none;color:var(--fg)}
+.bird .ph{aspect-ratio:1;background:var(--bg2);display:block;overflow:hidden;position:relative}
+.bird .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.bird .ph em.nophoto{position:absolute;inset:auto 8px 8px 8px;font-style:normal;font-size:12px;line-height:1.3;color:var(--fg2)}
+.bird .ph.new{outline:3px solid var(--sun);outline-offset:-3px}
+.bird b{display:block;font-size:14px;font-weight:650;line-height:1.2;margin-top:6px}
+.bird span{display:block;font-size:13px;color:var(--fg2)}
+.bird:hover b{text-decoration:underline}
+details.credits{margin-top:16px;font-size:var(--t-micro);color:var(--fg2)}
+details.credits summary{cursor:pointer;font-size:var(--t-small)}
+details.credits p{margin:6px 0 0;line-height:1.5}
+.grids h3{margin-top:22px}
+.grids canvas{width:100%;cursor:pointer}
+.method{max-width:78ch}
+.method h3{margin:26px 0 6px}
+.method p,.method li{font-size:16px;line-height:1.6}
+.method ul{padding-left:20px}
+.method code{font-size:14px;word-break:break-all}
+.big-gap{height:6px}
+@media(max-width:560px){.birds{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="strip">
+    <span>Radar from <a href="https://birdcast.org/">BirdCast</a>, sightings from <a href="https://www.inaturalist.org/">iNaturalist</a>, wind from <a href="https://open-meteo.com/">Open-Meteo</a></span>
+    <span id="range"></span>
+  </div>
+
+  <header class="head">
+    <h1>Night Flight</h1>
+    <p class="finding" id="finding">Loading the night sky over New York City.</p>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section class="fig" aria-labelledby="skycap">
+    <div class="bar">
+      <label>Season <select id="season" aria-label="Season"></select></label>
+      <div class="chips" id="boroughs" role="group" aria-label="Borough"></div>
+    </div>
+    <div class="figcap">
+      <span id="skycap"></span>
+      <span class="keys">
+        <span class="key"><i style="background:var(--cobalt)"></i>Birds that crossed overhead</span>
+        <span class="key"><i class="line" style="background:var(--fg2)"></i>BirdCast's historical average</span>
+        <span class="key"><i style="background:var(--orange)"></i>Wind blowing the way migrants fly</span>
+        <span class="key"><i style="background:var(--mint)"></i>Species reported next day</span>
+        <span class="key"><i class="dot" style="background:var(--sun)"></i>First of the season</span>
+      </span>
+    </div>
+    <canvas id="sky" height="400" role="img" aria-label="Season chart: birds crossing each night, overnight wind, and species reported the next day"></canvas>
+    <div class="readout" id="readout" aria-live="polite">&nbsp;</div>
+  </section>
+
+  <section class="sec" id="night" aria-live="polite">
+    <h2 id="nighttitle"></h2>
+    <p class="say" id="nightsay"></p>
+    <div class="nightnav">
+      <button id="prev" type="button">Previous night</button>
+      <button id="next" type="button">Next night</button>
+      <button id="biggest" type="button">Biggest night of the season</button>
+    </div>
+    <div class="big-gap"></div>
+    <div class="split" style="margin-top:22px">
+      <div>
+        <h4 id="curvecap"></h4>
+        <div class="keys" id="curvekeys"></div>
+        <canvas id="curve" height="260" role="img" aria-label="Birds in flight every 10 minutes"></canvas>
+        <div class="readout" id="curveread">&nbsp;</div>
+        <h4 style="margin-top:14px">How high they flew, on average</h4>
+        <canvas id="alt" height="120" role="img" aria-label="Average altitude of birds in flight"></canvas>
+        <p class="note" id="curvenote"></p>
+      </div>
+      <div>
+        <h4 id="morningcap"></h4>
+        <p class="say" id="morningsay"></p>
+        <div class="birds" id="birds"></div>
+        <details class="credits" id="credits"><summary>Photo credits</summary><p id="creditlist"></p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec grids">
+    <h2>Every night on record</h2>
+    <p class="aside" id="windsay"></p>
+    <h3>Fall, Aug. 1 to Nov. 15</h3>
+    <canvas id="gridfall" height="200" role="img" aria-label="Heat grid of every fall night"></canvas>
+    <h3>Spring, March 1 to June 15</h3>
+    <canvas id="gridspring" height="200" role="img" aria-label="Heat grid of every spring night"></canvas>
+    <div class="readout" id="gridread">&nbsp;</div>
+  </section>
+
+  <section class="sec method" id="method">
+    <h2>How this works</h2>
+    <h3>Birds overhead</h3>
+    <p>The nightly counts come from the <a href="https://dashboard.birdcast.org/">BirdCast Migration Dashboard</a>, run by the Cornell Lab of Ornithology, Colorado State University and the University of Massachusetts Amherst. BirdCast reads the National Weather Service's weather radars, separates birds from rain and insects and estimates how many birds crossed each county in the night. Each borough is a county, so each gets its own estimate. The figures are estimates from radar, not head counts, and BirdCast does not identify species.</p>
+    <p>BirdCast's dashboard does not offer a download. This page reads the numbers each dashboard page carries for its own charts, one county and one night at a time (<code>dashboard.birdcast.org/region/&lt;county&gt;?night=&lt;date&gt;</code>). A night's total is the change in BirdCast's running season total from one night to the next; it matches the "total birds" figure BirdCast shows for that night. The historical average is the same calculation on BirdCast's average series. BirdCast serves one average series whatever year is asked for, so past seasons are compared with the average as BirdCast publishes it today. The 10-minute detail (birds in flight, direction, speed and altitude) is collected from spring 2026 on.</p>
+    <p>The five borough estimates are not added together. A bird that crosses Brooklyn and then Manhattan is counted in both, so a sum would count many birds twice.</p>
+    <p>BirdCast's live feed runs March 1 to June 15 and Aug. 1 to Nov. 15. Its county dashboard goes back to fall 2021.</p>
+    <h3>Birds on the ground</h3>
+    <p>Sightings are iNaturalist observations of birds inside iNaturalist's New York City boundary (<a href="https://www.inaturalist.org/places/674">place 674</a>), "verifiable" grade only: research grade plus needs-ID, which leaves out captive birds and records without a photo, sound, date or place. Subspecies are folded into their species; sightings not identified to species count toward the sightings total but not the species count. Each night is paired with sightings dated the next day. "First of the season" means a species' first iNaturalist sighting in the city that season, and is not shown for a season's first two weeks, when nearly every species is new to the list. iNaturalist depends on who goes out with a camera: weekends and good weather bring more sightings, and the most recent weeks fill in as people upload and identify. Recent days are refreshed for 30 days.</p>
+    <p>Species photos are iNaturalist's default photo for each species, shown only when the photographer licensed it under Creative Commons or CC0, with credit under "Photo credits." They are not necessarily photos taken in New York City.</p>
+    <h3>Wind</h3>
+    <p>Wind is hourly 10-meter wind at Central Park (40.78, -73.97) from <a href="https://open-meteo.com/en/docs/historical-weather-api">Open-Meteo's historical weather API</a>, averaged over 7 p.m. to 6 a.m. as a vector, so a night that swings from northwest to northeast averages to north. A night is marked orange when the average wind has a clear component blowing the way migrants travel: from the north in fall and from the south in spring (the cosine of the direction the wind comes from is above 0.3 in fall or below -0.3 in spring). Ground-level wind at one spot is a rough stand-in for the winds aloft that birds actually ride. The comparison above is a plain average of nights, not a model, and it does not account for other weather or the calendar.</p>
+    <h3>Updates</h3>
+    <p>A scheduled job checks every morning. During BirdCast's seasons it adds the night just ended for each borough, refreshes the season's totals, the last 30 days of iNaturalist sightings and the wind. It fails, rather than publishing stale numbers as new, when BirdCast has no data for three days running in season. Code and full notes: <a href="https://github.com/joshgreenman1973/experiments/tree/main/nyc-night-flight">github.com/joshgreenman1973/experiments/tree/main/nyc-night-flight</a>.</p>
+  </section>
+
+  <footer class="foot" id="foot"></footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const root = document.documentElement;
+const tok = n => getComputedStyle(root).getPropertyValue('--' + n).trim();
+const FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif";
+const MON = ['Jan.','Feb.','March','April','May','June','July','Aug.','Sept.','Oct.','Nov.','Dec.'];
+const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const INK = {'US-NY-005':'rose','US-NY-047':'orange','US-NY-061':'cobalt','US-NY-081':'cyan','US-NY-085':'lilac'};
+const COMPASS = ['north','north-northeast','northeast','east-northeast','east','east-southeast','southeast','south-southeast','south','south-southwest','southwest','west-southwest','west','west-northwest','northwest','north-northwest'];
+
+const S = {index:null, seasons:{}, curves:{}, key:null, i:null, code:'US-NY-061'};
+
+// ---------- formatting ----------
+const dt = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
+const addDays = (iso,n) => { const x = dt(iso); x.setUTCDate(x.getUTCDate()+n); return x.toISOString().slice(0,10); };
+function ap(iso, o={}){
+  const x = dt(iso); let s = MON[x.getUTCMonth()] + ' ' + x.getUTCDate();
+  if (o.year !== false) s += ', ' + x.getUTCFullYear();
+  if (o.weekday) s = DOW[x.getUTCDay()] + ', ' + s;
+  return s;
+}
+function big(n){
+  if (n == null) return 'no estimate';
+  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'') + ' million';
+  if (n >= 1000) return (Math.round(n/100)*100).toLocaleString('en-US');
+  return Math.round(n).toLocaleString('en-US');
+}
+const num = n => Math.round(n).toLocaleString('en-US');
+function clock(t){
+  const [h,m] = t.split(':').map(Number);
+  if (h === 0 && m === 0) return 'midnight';
+  if (h === 12 && m === 0) return 'noon';
+  const hh = h % 12 || 12, ap = h < 12 ? 'a.m.' : 'p.m.';
+  return m ? `${hh}:${String(m).padStart(2,'0')} ${ap}` : `${hh} ${ap}`;
+}
+const compass = deg => COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const bname = code => S.index.boroughs.find(b => b.code === code).name;
+const kindOf = key => key.endsWith('fall') ? 'fall' : 'spring';
+function favorable(w, kind){
+  if (!w) return false;
+  const c = Math.cos(w.from * Math.PI / 180);
+  return kind === 'fall' ? c > 0.3 : c < -0.3;
+}
+const windWord = w => w.mph < 2 ? 'nearly calm' : `from the ${compass(w.from)} at ${Math.round(w.mph)} mph`;
+
+// ---------- links to sources ----------
+const bcUrl = (code, night) => `https://dashboard.birdcast.org/region/${code}?night=${night}`;
+const inatUrl = (d1, d2, extra='') => `https://www.inaturalist.org/observations?place_id=674&taxon_id=3&verifiable=true&d1=${d1}&d2=${d2}${extra}`;
+const inatSp = (sid, day) => `https://www.inaturalist.org/observations?place_id=674&taxon_id=${sid}&verifiable=true&d1=${day}&d2=${day}`;
+const a = (href, text) => `<a href="${esc(href)}">${text}</a>`;
+const M = '#method';
+
+// ---------- data ----------
+const get = p => fetch(p + '?v=' + (S.index ? encodeURIComponent(S.index.v) : Date.now()), {cache: S.index ? 'default' : 'no-cache'}).then(r => { if (!r.ok) throw new Error(p + ' ' + r.status); return r.json(); });
+async function season(key){
+  if (!S.seasons[key]) S.seasons[key] = await get(`data/season/${key}.json`);
+  return S.seasons[key];
+}
+async function curves(key){
+  if (!(key in S.curves)) {
+    const meta = S.index.seasons.find(s => s.key === key);
+    S.curves[key] = meta.hasCurves ? await get(`data/curves/${key}.json`) : null;
+  }
+  return S.curves[key];
+}
+
+// ---------- canvas helpers ----------
+function sizeCanvas(c, h){
+  const dpr = window.devicePixelRatio || 1, w = c.clientWidth;
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.height = h + 'px';
+  const g = c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  g.font = `12px ${FONT}`; g.textBaseline = 'middle';
+  return [g, w, h];
+}
+function niceMax(v){
+  if (v <= 0) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+function arrow(g, x, y, toDeg, len, color, wdt=1.4){
+  const r = (toDeg - 90) * Math.PI / 180, dx = Math.cos(r) * len/2, dy = Math.sin(r) * len/2;
+  g.strokeStyle = color; g.fillStyle = color; g.lineWidth = wdt;
+  g.beginPath(); g.moveTo(x - dx, y - dy); g.lineTo(x + dx, y + dy); g.stroke();
+  const h = Math.max(2.5, len * 0.35), a1 = r + Math.PI * 0.82, a2 = r - Math.PI * 0.82;
+  g.beginPath(); g.moveTo(x + dx, y + dy);
+  g.lineTo(x + dx + Math.cos(a1) * h, y + dy + Math.sin(a1) * h);
+  g.lineTo(x + dx + Math.cos(a2) * h, y + dy + Math.sin(a2) * h); g.closePath(); g.fill();
+}
+
+// ---------- season chart ----------
+const sky = $('#sky');
+let skyGeo = null;
+function drawSky(){
+  const D = S.seasons[S.key]; if (!D) return;
+  const mobile = sky.clientWidth < 600;
+  const [g, W, H] = sizeCanvas(sky, mobile ? 330 : 420);
+  const L = mobile ? 40 : 58, R = 6, T = 12, n = D.dates.length;
+  const skyH = Math.round((H - T - 28) * 0.56), windH = 26, groundH = H - T - 28 - skyH - windH;
+  const y0 = T + skyH, yw = y0 + windH / 2, yg = y0 + windH;
+  const step = (W - L - R) / n, bw = Math.max(1, step - (step > 4 ? 1.5 : 0.5));
+  const bc = D.birdcast[S.code], kind = kindOf(S.key);
+  const vmax = niceMax(Math.max(...bc.night.filter(x => x != null), ...bc.avg.filter(x => x != null)));
+  const gmax = niceMax(Math.max(1, ...D.morning.map(m => m ? m.sp.length : 0)));
+  const fg = tok('fg'), fg2 = tok('fg2'), grid = tok('grid');
+  skyGeo = {L, step, n, T, H};
+  // gridlines + labels
+  g.fillStyle = fg2; g.textAlign = 'right';
+  for (const f of [0.5, 1]) {
+    const y = y0 - skyH * f;
+    g.strokeStyle = grid; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y + .5); g.lineTo(W - R, y + .5); g.stroke();
+    g.fillText(vmax * f >= 1e6 ? (vmax*f/1e6) + 'M' : (vmax*f/1000) + 'K', L - 6, y);
+  }
+  g.fillText(gmax + ' sp.', L - 6, yg + groundH);
+  // sky bars
+  for (let i = 0; i < n; i++) {
+    const v = bc.night[i]; if (v == null) continue;
+    const h = skyH * v / vmax, x = L + i * step;
+    g.fillStyle = i === S.i ? tok('sun') : tok('cobalt');
+    g.fillRect(x, y0 - h, bw, h);
+  }
+  // historical average, as a step line
+  g.strokeStyle = fg2; g.lineWidth = 1.2; g.beginPath();
+  bc.avg.forEach((v, i) => { if (v == null) return; const y = y0 - skyH * v / vmax, x = L + i * step; i ? g.lineTo(x, y) : g.moveTo(x, y); g.lineTo(x + step, y); });
+  g.stroke();
+  // horizon
+  g.strokeStyle = fg; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y0 + .5); g.lineTo(W - R, y0 + .5); g.stroke();
+  // wind
+  for (let i = 0; i < n; i++) {
+    const w = D.wind[i]; if (!w) continue;
+    const len = Math.min(windH - 6, Math.max(5, Math.min(step * 1.6, 4 + w.mph * 1.2)));
+    arrow(g, L + i * step + step / 2, yw, w.from + 180, len, favorable(w, kind) ? tok('orange') : 'rgba(162,168,161,.55)', step < 5 ? 1 : 1.4);
+  }
+  // ground: species next day, hanging down; first-of-season as dots
+  for (let i = 0; i < n; i++) {
+    const m = D.morning[i]; if (!m) continue;
+    const h = groundH * 0.72 * m.sp.length / gmax, x = L + i * step;
+    g.fillStyle = i === S.i ? tok('sun') : tok('mint');
+    g.fillRect(x, yg, bw, h);
+    g.fillStyle = tok('sun');
+    const r = Math.max(1.2, Math.min(2.6, step / 4));
+    m.new.slice(0, 8).forEach((_, k) => { g.beginPath(); g.arc(x + bw / 2, yg + h + 4 + k * (r * 2 + 1.5), r, 0, 7); g.fill(); });
+  }
+  // month ticks
+  g.fillStyle = fg2; g.textAlign = 'left';
+  D.dates.forEach((d, i) => { if (d.endsWith('-01') || i === 0) {
+    const x = L + i * step; g.fillRect(x, H - 22, 1, 6); g.fillText(MON[dt(d).getUTCMonth()], x + 3, H - 10);
+  }});
+  // selection frame
+  if (S.i != null) { g.strokeStyle = fg; g.lineWidth = 1; g.strokeRect(L + S.i * step - 1.5, T, bw + 3, H - T - 26); }
+}
+function skyIndex(ev){
+  if (!skyGeo) return null;
+  const r = sky.getBoundingClientRect(), x = ev.clientX - r.left;
+  const i = Math.floor((x - skyGeo.L) / skyGeo.step);
+  return i >= 0 && i < skyGeo.n ? i : null;
+}
+function nightLine(i){
+  const D = S.seasons[S.key], bc = D.birdcast[S.code], w = D.wind[i], m = D.morning[i];
+  let s = `<b>${ap(D.dates[i], {year:false, weekday:true})}:</b> `;
+  s += bc.night[i] == null ? 'no BirdCast estimate. ' : `${big(bc.night[i])} birds over ${bname(S.code)} (average ${big(bc.avg[i])}). `;
+  if (w) s += `Wind ${windWord(w)}. `;
+  if (m) s += `Next day: ${m.sp.length} species reported${m.new.length ? `, ${m.new.length} new for the season` : ''}.`;
+  return s;
+}
+sky.addEventListener('mousemove', ev => { const i = skyIndex(ev); $('#readout').innerHTML = i == null ? '&nbsp;' : nightLine(i); });
+sky.addEventListener('mouseleave', () => { $('#readout').innerHTML = S.i == null ? '&nbsp;' : nightLine(S.i); });
+sky.addEventListener('click', ev => { const i = skyIndex(ev); if (i != null) pick(S.key, i); });
+
+// ---------- night detail ----------
+const curve = $('#curve'), alt = $('#alt');
+let curveGeo = null;
+function curveRows(C, night){ return C && C[night] ? C[night] : null; }
+function drawCurve(){
+  const D = S.seasons[S.key], night = D.dates[S.i], C = curveRows(S.curves[S.key], night);
+  const [g, W, H] = sizeCanvas(curve, 260);
+  const [ga, Wa, Ha] = sizeCanvas(alt, 120);
+  curveGeo = null;
+  if (!C || !C[S.code]) {
+    g.fillStyle = tok('fg2'); g.textAlign = 'left';
+    g.fillText('No 10-minute detail stored for this night.', 0, 20);
+    return;
+  }
+  const L = 50, R = 8, T = 30, B = 22;
+  const rows = C[S.code].s, n = rows.length;
+  const all = Object.values(C).flatMap(b => b.s.map(r => r[1] || 0));
+  const vmax = niceMax(Math.max(1, ...all));
+  const X = i => L + (W - L - R) * i / Math.max(1, n - 1), Y = v => T + (H - T - B) * (1 - v / vmax);
+  const fg2 = tok('fg2'), grid = tok('grid');
+  g.fillStyle = fg2; g.textAlign = 'right';
+  for (const f of [0, .5, 1]) { const y = Y(vmax * f); g.strokeStyle = grid; g.beginPath(); g.moveTo(L, y + .5); g.lineTo(W - R, y + .5); g.stroke(); g.fillText(num(vmax * f), L - 6, y); }
+  g.textAlign = 'center';
+  rows.forEach((r, i) => { if (r[0] && r[0].endsWith(':00') && Number(r[0].slice(0,2)) % 3 === 0) g.fillText(clock(r[0]), X(i), H - 9); });
+  // other boroughs faint, then the selected one
+  const order = Object.keys(C).filter(c => c !== S.code).concat(S.code);
+  for (const code of order) {
+    const s = C[code].s, sel = code === S.code;
+    g.strokeStyle = tok(INK[code]); g.globalAlpha = sel ? 1 : 0.45; g.lineWidth = sel ? 2.5 : 1.2;
+    g.beginPath(); let on = false;
+    s.forEach((r, i) => { if (r[1] == null) { on = false; return; } const y = Y(r[1]); on ? g.lineTo(X(i), y) : g.moveTo(X(i), y); on = true; });
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+  // flight direction every 30 minutes, along the top
+  rows.forEach((r, i) => { if (i % 3 || r[2] == null || !r[1]) return; arrow(g, X(i), 12, r[2], Math.min(16, 6 + (r[3] || 0) / 3), tok(INK[S.code])); });
+  // altitude
+  const hmax = niceMax(Math.max(1, ...rows.map(r => r[4] || 0)));
+  const Ya = v => 10 + (Ha - 30) * (1 - v / hmax);
+  ga.fillStyle = fg2; ga.textAlign = 'right';
+  for (const f of [0, 1]) { const y = Ya(hmax * f); ga.strokeStyle = grid; ga.beginPath(); ga.moveTo(L, y + .5); ga.lineTo(Wa - R, y + .5); ga.stroke(); ga.fillText(num(hmax * f) + ' ft', L - 6, y); }
+  ga.strokeStyle = tok(INK[S.code]); ga.lineWidth = 2; ga.beginPath();
+  let started = false;
+  rows.forEach((r, i) => { if (!r[1] || r[4] == null) { started = false; return; } const x = X(i), y = Ya(r[4]); started ? ga.lineTo(x, y) : ga.moveTo(x, y); started = true; });
+  ga.stroke();
+  curveGeo = {L, R, W, n, rows, X};
+}
+function curveAt(ev, el){
+  if (!curveGeo) return;
+  const r = el.getBoundingClientRect(), x = ev.clientX - r.left;
+  const i = Math.max(0, Math.min(curveGeo.n - 1, Math.round((x - curveGeo.L) / (curveGeo.W - curveGeo.L - curveGeo.R) * (curveGeo.n - 1))));
+  const p = curveGeo.rows[i];
+  $('#curveread').innerHTML = p[1] == null ? `<b>${p[0] ? clock(p[0]) : 'Here'}:</b> no radar reading for this 10 minutes.`
+    : !p[1] ? `<b>${clock(p[0])}:</b> no birds measured in flight over ${bname(S.code)}.`
+    : `<b>${clock(p[0])}:</b> about ${num(p[1])} birds in flight over ${bname(S.code)}` +
+      (p[2] != null ? `, heading ${compass(p[2])} at ${Math.round(p[3])} mph` : '') +
+      (p[4] != null ? `, on average ${num(Math.round(p[4] / 100) * 100)} feet up` : '') + '.';
+}
+for (const el of [curve, alt]) {
+  el.addEventListener('mousemove', ev => curveAt(ev, el));
+  el.addEventListener('click', ev => curveAt(ev, el));
+}
+
+function renderNight(){
+  const D = S.seasons[S.key], i = S.i, night = D.dates[i], meta = S.index.seasons.find(s => s.key === S.key);
+  const bc = D.birdcast[S.code], v = bc.night[i], avg = bc.avg[i], w = D.wind[i], kind = kindOf(S.key);
+  $('#nighttitle').textContent = 'Night of ' + ap(night, {weekday:true});
+  let say;
+  if (v == null) {
+    say = `BirdCast has no estimate for ${bname(S.code)} this night.`;
+  } else {
+    const rank = [...bc.night].filter(x => x != null).sort((p, q) => q - p).indexOf(v) + 1;
+    const ratio = avg ? v / avg : null;
+    say = `BirdCast estimates that ${a(bcUrl(S.code, night), big(v) + ' birds')} crossed ${bname(S.code)} overnight, `;
+    say += ratio == null ? '' : ratio >= 1.15 ? `about ${a(M, ratio >= 2 ? (Math.round(ratio * 10) / 10) + ' times' : Math.round((ratio - 1) * 100) + '% more than')} its historical average for the date` :
+      ratio <= 0.87 ? `${a(M, Math.round((1 - ratio) * 100) + '% fewer')} than its historical average of ${a(bcUrl(S.code, night), big(avg))}` : `close to its historical average of ${a(bcUrl(S.code, night), big(avg))}`;
+    say += `. It was the ${rank === 1 ? 'busiest night' : ordinal(rank) + ' busiest night'} of ${meta.label.toLowerCase()} there.`;
+  }
+  if (w) say += ` Wind at Central Park ran ${a(M, windWord(w))} through the night${w.rain >= 1 ? `, with ${a(M, (Math.round(w.rain * 10) / 10) + ' millimeters of rain')}` : ''}${favorable(w, kind) ? `, the direction ${kind} migrants travel` : ''}.`;
+  $('#nightsay').innerHTML = say;
+  $('#prev').disabled = i <= 0;
+  $('#next').disabled = i >= D.dates.length - 1 || bc.night[i + 1] == null;
+
+  // curve
+  const C = curveRows(S.curves[S.key], night);
+  $('#curvecap').textContent = `Birds in flight every 10 minutes, ${bname(S.code)} in bold`;
+  $('#curvekeys').innerHTML = C ? S.index.boroughs.map(b => `<span class="key"><i class="line" style="background:var(--${INK[b.code]})"></i>${b.name}</span>`).join('') : '';
+  $('#curvenote').innerHTML = C ? 'Arrows along the top show which way the birds were heading every 30 minutes, longer for faster flight.'
+    : `This page keeps 10-minute detail from spring 2026 on. ${a(bcUrl(S.code, night), 'BirdCast\'s own page for this night')} has it.`;
+  $('#curveread').innerHTML = '&nbsp;';
+  drawCurve();
+
+  // morning
+  const m = D.morning[i], day = addDays(night, 1);
+  $('#morningcap').textContent = 'What people saw the next day, ' + ap(day, {year:false});
+  const grid = $('#birds'); grid.innerHTML = '';
+  if (!m) {
+    $('#morningsay').innerHTML = `No iNaturalist bird sightings are stored for ${ap(day)}.`;
+    $('#credits').hidden = true; return;
+  }
+  const newSet = new Set(m.new);
+  const names = m.new.slice(0, 6).map(sid => D.taxa[sid][0]);
+  $('#morningsay').innerHTML = `iNaturalist users reported ${a(inatUrl(day, day), num(m.n) + ' bird sightings')} in the city, covering ${a(inatUrl(day, day, '&view=species'), m.sp.length + ' species')}.` +
+    (m.new.length ? ` ${m.new.length === 1 ? 'One was' : cap(word(m.new.length)) + ' were'} the first of the season in iNaturalist's city records: ${list(names)}${m.new.length > 6 ? ' and others' : ''}.` : '') +
+    ` ${m.n < 60 ? 'A light day for sightings, so treat the list as a sample.' : ''}`;
+  const show = [...m.new.map(s => [s, (m.sp.find(x => x[0] === s) || [s, 1])[1]]), ...m.sp.filter(x => !newSet.has(x[0]))].slice(0, 24);
+  const credits = [];
+  for (const [sid, c] of show) {
+    const t = D.taxa[sid]; if (!t) continue;
+    const img = t[2] ? t[2].replace('/square.', '/small.') : null;
+    if (img) credits.push(`${t[0]}: ${t[3]}`);
+    const el = document.createElement('a');
+    el.className = 'bird'; el.href = inatSp(sid, day);
+    el.innerHTML = `<span class="ph${newSet.has(sid) ? ' new' : ''}">${img ? `<img loading="lazy" src="${esc(img)}" alt="${esc(t[0])}" title="${esc(t[3] || '')}">` : '<em class="nophoto">No openly licensed photo</em>'}</span><b>${esc(t[0])}</b><span>${c} ${c === 1 ? 'sighting' : 'sightings'}${newSet.has(sid) ? ', first of season' : ''}</span>`;
+    grid.appendChild(el);
+  }
+  $('#credits').hidden = !credits.length;
+  $('#creditlist').textContent = credits.join('. ') + '.';
+}
+const WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine'];
+const word = k => k < 10 ? WORDS[k] : String(k);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const ordinal = k => k + (k % 100 >= 11 && k % 100 <= 13 ? 'th' : ['th','st','nd','rd'][k % 10] || 'th');
+const list = xs => xs.length < 2 ? (xs[0] || '') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+
+// ---------- every night on record ----------
+let gridGeo = {};
+async function drawGrids(){
+  for (const kind of ['fall', 'spring']) {
+    const keys = S.index.seasons.filter(s => kindOf(s.key) === kind).map(s => s.key);
+    const data = await Promise.all(keys.map(season));
+    const c = $('#grid' + kind), rowH = 16, gap = 2, L = 92;
+    const [g, W, H] = sizeCanvas(c, keys.length * (rowH + gap) + 22);
+    const n = data[0].dates.length, step = (W - L) / n;
+    const vmax = Math.max(...data.flatMap(d => d.birdcast[S.code].night.filter(x => x != null)));
+    const ink = tok('cobalt'), bg2 = tok('bg2');
+    data.forEach((d, r) => {
+      const y = r * (rowH + gap);
+      g.fillStyle = tok('fg2'); g.textAlign = 'right'; g.fillText(d.label, L - 8, y + rowH / 2);
+      g.fillStyle = bg2; g.fillRect(L, y, W - L, rowH);
+      d.birdcast[S.code].night.forEach((v, i) => {
+        if (!v) return;
+        g.globalAlpha = Math.min(1, 0.08 + Math.pow(v / vmax, 0.62) * 1.1);
+        g.fillStyle = ink; g.fillRect(L + i * step, y, Math.max(1, step - 0.4), rowH);
+      });
+      g.globalAlpha = 1;
+      if (d.key === S.key && S.i != null) { g.strokeStyle = tok('sun'); g.lineWidth = 2; g.strokeRect(L + S.i * step - 1, y - 1, Math.max(3, step) + 2, rowH + 2); }
+    });
+    g.fillStyle = tok('fg2'); g.textAlign = 'left';
+    data[0].dates.forEach((d, i) => { if (d.endsWith('-01')) { const x = L + i * step; g.fillRect(x, H - 20, 1, 5); g.fillText(MON[dt(d).getUTCMonth()], x + 3, H - 9); } });
+    gridGeo[kind] = {L, step, n, rowH, gap, keys};
+  }
+}
+function gridHit(kind, ev){
+  const G = gridGeo[kind]; if (!G) return null;
+  const c = $('#grid' + kind), r = c.getBoundingClientRect();
+  const i = Math.floor((ev.clientX - r.left - G.L) / G.step), row = Math.floor((ev.clientY - r.top) / (G.rowH + G.gap));
+  if (i < 0 || i >= G.n || row < 0 || row >= G.keys.length) return null;
+  return {key: G.keys[row], i};
+}
+for (const kind of ['fall', 'spring']) {
+  const c = $('#grid' + kind);
+  c.addEventListener('mousemove', ev => {
+    const h = gridHit(kind, ev); if (!h) { $('#gridread').innerHTML = '&nbsp;'; return; }
+    const d = S.seasons[h.key], v = d.birdcast[S.code].night[h.i];
+    $('#gridread').innerHTML = `<b>${ap(d.dates[h.i], {weekday:true})}:</b> ${v == null ? 'no estimate' : big(v) + ' birds over ' + bname(S.code)}.`;
+  });
+  c.addEventListener('click', ev => { const h = gridHit(kind, ev); if (h) { pick(h.key, h.i); $('#night').scrollIntoView({behavior:'smooth'}); } });
+}
+
+function windStat(){
+  const out = {};
+  for (const kind of ['fall', 'spring']) {
+    const fav = [], other = []; let seasons = 0;
+    for (const s of S.index.seasons.filter(s => kindOf(s.key) === kind && s.complete)) {
+      const d = S.seasons[s.key]; if (!d) continue; seasons++;
+      d.birdcast[S.code].night.forEach((v, i) => { if (v == null || !d.wind[i]) return; (favorable(d.wind[i], kind) ? fav : other).push(v); });
+    }
+    const mean = xs => xs.reduce((p, q) => p + q, 0) / xs.length;
+    out[kind] = {seasons, fav: mean(fav), other: mean(other), nf: fav.length, no: other.length};
+  }
+  const f = out.fall, s = out.spring, B = bname(S.code);
+  $('#windsay').innerHTML = `Each row is a season and each cell a night; darker means more birds crossed ${B}. Big nights come in bursts, and they line up with the wind. Across the ${word(f.seasons)} complete falls on record, nights when the overnight wind at Central Park came from the north averaged ${a(M, big(f.fav) + ' birds')} over ${B}; all other nights averaged ${a(M, big(f.other))}. In the ${word(s.seasons)} complete springs, nights with a south wind averaged ${a(M, big(s.fav))} and the rest ${a(M, big(s.other))}. Click any night to open it.`;
+}
+
+// ---------- page text ----------
+function opening(){
+  const seasons = S.index.seasons, latest = seasons[0], B = bname(S.code);
+  const D = S.seasons[latest.key], bc = D.birdcast[S.code];
+  const inSeason = !latest.complete && latest.through;
+  let i;
+  if (inSeason) i = D.dates.indexOf(latest.through);
+  else { const vals = bc.night.map(v => v ?? -1); i = vals.indexOf(Math.max(...vals)); }
+  const night = D.dates[i];
+  $('#finding').innerHTML = inSeason
+    ? `Last night, ${ap(night, {year:false})}, radar tracked an estimated ${a(bcUrl(S.code, night), big(bc.night[i]) + ' birds')} crossing ${B}.`
+    : `On the night of ${ap(night)}, radar tracked an estimated ${a(bcUrl(S.code, night), big(bc.night[i]) + ' birds')} crossing ${B}, the busiest night of ${latest.label.toLowerCase()}.`;
+  const tot = latest.totals[S.code], avg = latest.avgTotals[S.code];
+  const s1 = latest.start, s2 = latest.end;
+  $('#lede').innerHTML = `BirdCast, a radar project led by the Cornell Lab of Ornithology, estimates how many migrating birds fly over each borough every night of spring and fall. Its count for ${B} in ${latest.label.toLowerCase()}${inSeason ? ' so far' : ''} came to ${a(bcUrl(S.code, latest.through), big(tot) + ' birds')}, ${vsAvg(tot, avg)} BirdCast's historical average of ${a(bcUrl(S.code, latest.through), big(avg))} for the same dates. Over the same stretch, iNaturalist users reported ${a(inatUrl(s1, s2), num(latest.sightings) + ' bird sightings')} in the city, covering ${a(inatUrl(s1, s2, '&view=species'), latest.species + ' species')}. Below, each night's flight sits above the wind it rode and what people saw the next day.`;
+  const oldest = seasons[seasons.length - 1];
+  $('#range').textContent = `${oldest.label} to ${latest.label.toLowerCase()}`;
+  return {key: latest.key, i};
+}
+function vsAvg(v, avg){
+  const r = v / avg;
+  if (Math.abs(r - 1) < 0.05) return 'about the same as';
+  return `${a(M, Math.round(Math.abs(r - 1) * 100) + '%')} ${r > 1 ? 'above' : 'below'}`;
+}
+function captions(){
+  const meta = S.index.seasons.find(s => s.key === S.key);
+  $('#skycap').innerHTML = `<b>Birds crossing ${bname(S.code)} each night, ${meta.label.toLowerCase()}</b>`;
+}
+function foot(){
+  const f = S.index.fetched, when = x => x ? ap(x.slice(0, 10)) : 'unknown';
+  $('#foot').innerHTML = `Radar estimates from the ${a('https://birdcast.org/', 'BirdCast')} project (Cornell Lab of Ornithology, Colorado State University, UMass Amherst), last checked ${when(f.birdcast)}. Bird sightings from ${a('https://www.inaturalist.org/', 'iNaturalist')}, last checked ${when(f.inat)}. Wind from ${a('https://open-meteo.com/', 'Open-Meteo')} (CC BY 4.0), last checked ${when(f.weather)}. ${a(M, 'How this works')}. A personal project by ${a('https://joshgreenman1973.github.io/experiments/projects.html', 'Josh Greenman')}.`;
+}
+
+// ---------- state ----------
+async function pick(key, i, push=true){
+  const changed = key !== S.key;
+  S.key = key; await season(key); await curves(key);
+  const D = S.seasons[key];
+  S.i = Math.max(0, Math.min(D.dates.length - 1, i));
+  if (changed) $('#season').value = key;
+  captions(); drawSky(); renderNight(); drawGrids();
+  $('#readout').innerHTML = nightLine(S.i);
+  if (push) history.replaceState(null, '', `#${key}/${D.dates[S.i]}/${S.code}`);
+}
+function boroughChips(){
+  $('#boroughs').innerHTML = S.index.boroughs.map(b => `<button class="chip" type="button" data-code="${b.code}" aria-pressed="${b.code === S.code}"><i style="background:var(--${INK[b.code]})"></i>${b.name}</button>`).join('');
+  $('#boroughs').onclick = ev => {
+    const btn = ev.target.closest('button'); if (!btn) return;
+    S.code = btn.dataset.code;
+    for (const x of $('#boroughs').children) x.setAttribute('aria-pressed', x.dataset.code === S.code);
+    opening(); windStat(); pick(S.key, S.i);
+  };
+}
+
+async function init(){
+  S.index = await get('data/index.json');
+  S.index.v = S.index.built || Date.now();
+  const [hk, hd, hc] = location.hash.slice(1).split('/');
+  if (hc && INK[hc]) S.code = hc;
+  $('#season').innerHTML = S.index.seasons.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
+  $('#season').onchange = async ev => {
+    const D = await season(ev.target.value), bc = D.birdcast[S.code].night.map(v => v ?? -1);
+    pick(ev.target.value, bc.indexOf(Math.max(...bc)));
+  };
+  boroughChips();
+  await season(S.index.seasons[0].key);
+  const start = opening();
+  foot();
+  await Promise.all(S.index.seasons.map(s => season(s.key)));
+  windStat();
+  let key = start.key, i = start.i;
+  if (hk && S.seasons[hk]) { key = hk; const j = S.seasons[hk].dates.indexOf(hd); if (j >= 0) i = j; }
+  await pick(key, i, !!hk);
+}
+$('#prev').onclick = () => pick(S.key, S.i - 1);
+$('#next').onclick = () => pick(S.key, S.i + 1);
+$('#biggest').onclick = () => { const bc = S.seasons[S.key].birdcast[S.code].night.map(v => v ?? -1); pick(S.key, bc.indexOf(Math.max(...bc))); };
+document.addEventListener('keydown', ev => {
+  if (S.i == null || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (ev.key === 'ArrowLeft' && S.i > 0) pick(S.key, S.i - 1);
+  if (ev.key === 'ArrowRight' && !$('#next').disabled) pick(S.key, S.i + 1);
+});
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { drawSky(); drawCurve(); drawGrids(); }, 120); });
+init().catch(err => { $('#finding').textContent = 'The data did not load. Try reloading the page.'; console.error(err); });
+})();
+</script>
+</body>
+</html>

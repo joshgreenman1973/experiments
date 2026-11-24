@@ -1,0 +1,76 @@
+name: Night Flight daily refresh
+
+# Adds last night's BirdCast radar estimates for the five boroughs, the last
+# 30 days of iNaturalist bird sightings and overnight wind. Outside BirdCast's
+# seasons (March 1 to June 15, Aug. 1 to Nov. 15) the fetch scripts find
+# nothing to do and nothing is committed.
+on:
+  schedule:
+    - cron: '23 13 * * *'   # about 8:23 a.m. Eastern; BirdCast's night is done by then
+    - cron: '47 17 * * *'   # second try in case the morning run hit a slow BirdCast
+  workflow_dispatch:
+
+concurrency:
+  group: nyc-night-flight
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Each source runs on its own so one outage doesn't block the others.
+      # Failures are re-checked in the last step, which fails the job.
+      - name: BirdCast
+        id: birdcast
+        continue-on-error: true
+        working-directory: nyc-night-flight/build
+        run: python fetch_birdcast.py nightly
+
+      - name: iNaturalist
+        id: inat
+        continue-on-error: true
+        working-directory: nyc-night-flight/build
+        run: python fetch_inat.py nightly
+
+      - name: Wind
+        id: weather
+        continue-on-error: true
+        working-directory: nyc-night-flight/build
+        run: python fetch_weather.py nightly
+
+      - name: Build page data
+        working-directory: nyc-night-flight/build
+        run: python build.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add nyc-night-flight/data/
+          if git diff --staged --quiet; then
+            echo "No new data"
+            exit 0
+          fi
+          git commit -m "Night Flight: data for $(TZ=America/New_York date +%Y-%m-%d)"
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then exit 0; fi
+            echo "Push rejected (attempt $attempt); rebasing on latest main"
+            git pull --rebase origin main
+          done
+          echo "Push failed after retries"; exit 1
+
+      - name: Fail if any source failed
+        if: steps.birdcast.outcome == 'failure' || steps.inat.outcome == 'failure' || steps.weather.outcome == 'failure'
+        run: |
+          echo "BirdCast: ${{ steps.birdcast.outcome }}"
+          echo "iNaturalist: ${{ steps.inat.outcome }}"
+          echo "Wind: ${{ steps.weather.outcome }}"
+          exit 1
