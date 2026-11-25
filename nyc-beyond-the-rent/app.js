@@ -170,8 +170,12 @@ function render(D) {
   const aboveTxt = above.length ? `only ${listJoin(above.map(p => shortName(p.name)))} charged more` : 'none charged more';
   $('#finding').innerHTML = `Residential customers buying both electricity and delivery from Con Edison paid an average of ${L(SRC.e861, cents(el.coned_t12))} per kilowatt-hour across its service territory over ${win}, about ${L(SRC.m('ratio'), fx(el.coned_us_ratio ?? el.coned_t12 / el.us_t12, 1) + ' times')} the U.S. average of ${L(SRC.e861, cents(el.us_t12))}.`;
 
-  const rentS = CPI.nyc_rent, allS = CPI.nyc_all, cm = Object.keys(allS).sort().pop();
-  const rentY = pct(rentS[cm], rentS[addM(cm, -12)]), allY = pct(allS[cm], allS[addM(cm, -12)]);
+  // Latest month where both series have a value AND a value 12 months earlier.
+  // BLS published no October 2025 CPI (federal shutdown), so October 2026 has no year-ago match.
+  const rentS = CPI.nyc_rent, allS = CPI.nyc_all;
+  const cm = Object.keys(allS).sort().pop();
+  const cmY = Object.keys(allS).sort().reverse().find(m => [allS, rentS].every(s => s[m] != null && s[addM(m, -12)] != null));
+  const rentY = pct(rentS[cmY], rentS[addM(cmY, -12)]), allY = pct(allS[cmY], allS[addM(cmY, -12)]);
   const wr = (W.rates || []).filter(x => x.increase_pct != null).sort((a, b) => b.fy - a.fy)[0];
   $('#lede').innerHTML =
     `The territory includes Westchester, so this is not a New York City-only figure. Among the utilities in EIA’s monthly survey with at least 50,000 full-service residential customers, ${aboveTxt} over that period (${L(SRC.m('peers'), 'EIA-861M')}); that ranks average revenue per kilowatt-hour, not any one household’s tariff. ` +
@@ -179,7 +183,7 @@ function render(D) {
     `Residential piped gas in New York State, city included, averaged ${L(SRC.gasny, usd(gl.ny_t12) + ' per thousand cubic feet')} over the 12 months through ${monthName(gl.month)}, weighted by sales, ${L(SRC.m('gas'), chgShort(gl.ny_t12_yoy))} on the year. ` +
     `Heating oil in New York City cost ${L(SRC.nyserda, usd(ol.nyc) + ' a gallon')} the week of ${apDate(ol.date)}, against ${L(SRC.nyserda, usd(ol.nyc_yago))} the week of ${apDate(ol.yago_date)}` +
     (wr ? `. The city’s water and sewer rates ${wr.increase_pct >= 0 ? 'rose' : 'fell'} ${L(wr.increase_url || wr.url, fx(wr.increase_pct, 1) + '%')} on July 1, ${wr.fy - 1}, for fiscal year ${wr.fy}` : '') +
-    `. For comparison, New York-area rent ${L(SRC.bls('CUURS12ASEHA'), chg(rentY))} and all prices ${L(SRC.bls('CUURS12ASA0'), chg(allY))} from ${monthName(addM(cm, -12))} to ${monthName(cm)}.`;
+    `. For comparison, New York-area rent ${L(SRC.bls('CUURS12ASEHA'), chg(rentY))} and all prices ${L(SRC.bls('CUURS12ASA0'), chg(allY))} from ${monthName(addM(cmY, -12))} to ${monthName(cmY)}.`;
 
   // ---------- small multiples ----------
   overview(D);
